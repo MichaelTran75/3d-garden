@@ -1779,6 +1779,42 @@
         const wmast = weatherMast(X0 + 73, Z0 + 89); scene.add(wmast.g);   // cột khí tượng ở tọa độ góc (73, _, 89), chân cột đặt đúng mặt đất
         const wmini = tripodStation(X0 + 75.8, Z0 + 88.4); scene.add(wmini.g);   // trạm mini chân ba cách cột chính ~2,8 m về phía đông
 
+        // ---- mặt đường nội bộ: cao độ + khoảng cách ngang tới tim tuyến (nội suy theo các trạm lúc dựng đường) ----
+        function roadSurfaceAt(x, z) {
+          const st = campusRoad.userData.road.stations; let best = null;
+          for (let i = 1; i < st.length; i++) {
+            const a = st[i - 1], b = st[i], abx = b.x - a.x, abz = b.z - a.z, L2 = abx * abx + abz * abz;
+            const k = L2 ? Math.max(0, Math.min(1, ((x - a.x) * abx + (z - a.z) * abz) / L2)) : 0, d = Math.hypot(x - (a.x + abx * k), z - (a.z + abz * k));
+            if (!best || d < best.d) best = { d, y: a.y + (b.y - a.y) * k, tx: abx / Math.sqrt(L2 || 1), tz: abz / Math.sqrt(L2 || 1) };
+          }
+          return best;
+        }
+        // vệt sáng đèn đường in trên mặt nhựa: lưới 30×30 phủ bám cao độ đường, độ sáng elip quanh điểm ngắm (kéo dài dọc tim đường, lệch nhẹ về phía chân cột),
+        // tắt dần ở mép nhựa (lề đất sáng nhờ đèn chiếu thật), cộng sáng — không ghi chiều sâu nên không che gì
+        function roadLightPool(c, headW, R) {
+          const n = 30, geo = new THREE.PlaneGeometry(2 * R, 2 * R, n, n); geo.rotateX(-Math.PI / 2);
+          const pos = geo.attributes.position, aIn = new Float32Array(pos.count), aD = new Float32Array(pos.count), half = roadWidth / 2, info = roadSurfaceAt(c.x, c.z);
+          const lx = headW.x - c.x, lz = headW.z - c.z, lean = Math.hypot(lx, lz) || 1;   // phía chân cột: sáng hơn chút (gần nguồn)
+          for (let i = 0; i < pos.count; i++) {
+            const x = c.x + pos.getX(i), z = c.z + pos.getZ(i), r = roadSurfaceAt(x, z);
+            pos.setY(i, r.y + 0.012 - c.y);
+            aIn[i] = 1 - THREE.MathUtils.smoothstep(r.d, half - 0.18, half + 0.02);
+            const along = (x - c.x) * info.tx + (z - c.z) * info.tz, across = Math.hypot(x - c.x, z - c.z) ** 2 - along * along;
+            const toward = ((x - c.x) * lx + (z - c.z) * lz) / lean;
+            aD[i] = Math.sqrt(along * along / (R * R) + Math.max(0, across) / (R * R * 0.42)) * (1 - 0.12 * Math.max(-1, Math.min(1, toward / R)));
+          }
+          geo.setAttribute('aIn', new THREE.BufferAttribute(aIn, 1)); geo.setAttribute('aD', new THREE.BufferAttribute(aD, 1)); geo.computeBoundingSphere();
+          const mat = new THREE.ShaderMaterial({
+            uniforms: { uOpacity: { value: 0 }, uColor: { value: new THREE.Color(0xffcf8a) } },
+            vertexShader: 'attribute float aIn; attribute float aD; varying float vIn; varying float vD;\n' +
+              'void main() { vIn = aIn; vD = aD; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+            fragmentShader: 'varying float vIn; varying float vD; uniform float uOpacity; uniform vec3 uColor;\n' +
+              'void main() { float f = 1.0 - smoothstep(0.0, 1.0, vD); float a = uOpacity * vIn * f * f; if (a < 0.002) discard; gl_FragColor = vec4(uColor, a); }',
+            transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2
+          });
+          const m = new THREE.Mesh(geo, mat); m.position.copy(c); m.name = 'Vệt sáng đèn trên mặt đường'; m.renderOrder = 2; m.visible = false; m.userData.mat = mat;
+          return m;
+        }
         // ---- đèn đường: đế bê tông, cột thép thon ~5 m, cần cong, đầu LED dẹt; sáng ban đêm, tắt ban ngày ----
         function streetLamp(px, pz) {
           const x = X0 + px, z = Z0 + pz, g = new THREE.Group(); g.position.set(x, stationGround(x, z), z); g.name = 'Đèn đường (Street Lamp)';
@@ -1791,14 +1827,39 @@
           const head = bx(0.52, 0.07, 0.24, gateMat, true, true, lineDark); head.position.set(armR * 1.55 + 0.2, top + armR * 0.6 - 0.02, 0); head.rotation.z = -0.08; g.add(head);
           const ledMat = new THREE.MeshBasicMaterial({ color: 0x5f6266 });
           const led = new THREE.Mesh(new THREE.PlaneGeometry(0.44, 0.18), ledMat); led.rotation.x = Math.PI / 2; led.position.set(head.position.x, head.position.y - 0.037, 0); led.userData.noBake = true; g.add(led);
-          const light = new THREE.PointLight(0xffe2b0, 0, 14, 2); light.position.set(head.position.x, head.position.y - 0.25, 0); g.add(light);
+          const headX = head.position.x, headY = head.position.y - 0.04;
           // cần đèn (trục +X cục bộ) quay về điểm gần nhất trên đường nội bộ chữ L (nhánh dọc X tại roadCornerZ · nhánh dọc Z tại roadCornerX)
           const near = [[Math.min(Math.max(x, Math.min(roadStartX, roadCornerX)), Math.max(roadStartX, roadCornerX)), roadCornerZ], [roadCornerX, Math.min(Math.max(z, Math.min(roadCornerZ, roadEndZ)), Math.max(roadCornerZ, roadEndZ))]]
             .reduce((a, b) => Math.hypot(a[0] - x, a[1] - z) <= Math.hypot(b[0] - x, b[1] - z) ? a : b);
           g.rotation.y = Math.atan2(-(near[1] - z), near[0] - x);
           bakeStatic(g); scene.add(g);
           obstacleCoords.push({ x, y: g.position.y, z, r: 0.6, h: top + 0.6 });
-          return { g, light, ledMat };
+          // ---- ánh sáng: nhóm riêng (không gộp lưới, không tính là vật cản bay) cùng toạ độ với đèn ----
+          const glowG = new THREE.Group(); glowG.name = 'Ánh đèn đường'; glowG.position.copy(g.position); glowG.rotation.y = g.rotation.y; scene.add(glowG); glowG.updateMatrixWorld(true);
+          // điểm ngắm: tim đường gần đầu đèn nhất, cách hai đầu tuyến ≥ 2,2 m (đèn đứng sát cuối đường thì chiếu chếch vào lòng đường, không rọi ra cỏ)
+          const headW = glowG.localToWorld(V(headX, headY, 0)), END = 2.2;
+          const aim2 = [[Math.min(Math.max(headW.x, roadStartX + END), roadCornerX), roadCornerZ], [roadCornerX, Math.min(Math.max(headW.z, roadCornerZ), roadEndZ - END)]]
+            .reduce((a, b) => Math.hypot(a[0] - headW.x, a[1] - headW.z) <= Math.hypot(b[0] - headW.x, b[1] - headW.z) ? a : b);
+          const aimW = V(aim2[0], roadSurfaceAt(aim2[0], aim2[1]).y, aim2[1]), aim = glowG.worldToLocal(aimW.clone());
+          // đèn chiếu LED ~4000 lm treo 5,5 m: mặt đường ngay dưới sáng gấp ~3 lần ánh sáng nền ban đêm; mép mềm (penumbra) loang ra lề, cỏ
+          const light = new THREE.SpotLight(0xffd9a0, 0, 0, 0.56, 0.7, 2); light.position.set(headX, headY, 0); light.castShadow = false;
+          light.target.position.copy(aim); glowG.add(light, light.target);
+          // vệt sáng trên mặt nhựa: lưới phủ bám đúng cao độ đường (theo các trạm của tuyến), chỉ trong bề rộng nhựa, elip kéo dọc tim đường, cộng sáng
+          const pool = roadLightPool(aimW, headW, 4.2); scene.add(pool);
+          // chùm sáng: nón hở đáy, cộng sáng, đậm ở chao đèn, nhạt dần xuống đất, mờ ở mép nón theo góc nhìn
+          const beamDir = aim.clone().sub(V(headX, headY, 0)), beamH = beamDir.length() * 0.97, beamR = beamH * Math.tan(0.45);
+          const beamGeo = new THREE.ConeGeometry(beamR, beamH, 40, 1, true); beamGeo.translate(0, -beamH / 2, 0);   // đỉnh nón ở gốc toạ độ = mặt LED
+          const beamMat = new THREE.ShaderMaterial({
+            uniforms: { uOpacity: { value: 0 }, uColor: { value: new THREE.Color(0xffd59a) } },
+            vertexShader: 'varying float vY; varying vec3 vN; varying vec3 vV;\n' +
+              'void main() { vY = uv.y; vec4 mv = modelViewMatrix * vec4(position, 1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }',
+            fragmentShader: 'varying float vY; varying vec3 vN; varying vec3 vV; uniform float uOpacity; uniform vec3 uColor;\n' +
+              'void main() { float face = abs(dot(normalize(vN), normalize(vV))); float a = uOpacity * pow(vY, 1.6) * smoothstep(0.0, 0.6, face); gl_FragColor = vec4(uColor, a); }',
+            transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false
+          });
+          const beam = new THREE.Mesh(beamGeo, beamMat); beam.name = 'Chùm sáng đèn đường'; beam.position.set(headX, headY, 0); beam.renderOrder = 3;
+          beam.quaternion.setFromUnitVectors(V(0, -1, 0), beamDir.normalize()); beam.visible = false; glowG.add(beam);
+          return { g, light, ledMat, beam, beamMat, pool };
         }
         const streetLamps = [streetLamp(50, 92), streetLamp(31, 66)];   // toạ độ ghim (x, z); chân đèn theo mặt đất
         const mastReadout = document.getElementById('weather-mast');
@@ -10734,7 +10795,9 @@
           if (oldTreeLeafCtl) updateLeafFall(oldTreeLeafCtl, dt, t);   // lá vàng cây cổ thụ
           waterFx.update(dt, t);                                     // gợn nước nhỏ (lá chạm nước, cá đớp) + bọt khí
           for (const lamp of streetLamps) {   // đèn đường: tắt ban ngày, sáng ấm ban đêm
-            lamp.light.intensity = 4.0 * nightFactor; lamp.ledMat.color.setRGB(0.37 + 0.63 * nightFactor, 0.38 + 0.55 * nightFactor, 0.4 + 0.32 * nightFactor);
+            lamp.light.intensity = 60 * nightFactor; lamp.ledMat.color.setRGB(0.37 + 0.63 * nightFactor, 0.38 + 0.55 * nightFactor, 0.4 + 0.32 * nightFactor);
+            const lit = nightFactor > 0.05; lamp.beam.visible = lamp.pool.visible = lit;   // vệt sáng + chùm sáng chỉ khi trời tối
+            if (lit) { lamp.beamMat.uniforms.uOpacity.value = 0.14 * nightFactor; lamp.pool.userData.mat.uniforms.uOpacity.value = 0.34 * nightFactor; }
           }
           cowHut.light.intensity = 3.2 * nightFactor; cowHut.bulbMat.color.setRGB(0.47 + 0.53 * nightFactor, 0.45 + 0.42 * nightFactor, 0.42 + 0.18 * nightFactor);   // bóng đèn chuồng bò
           if (wmast) {
