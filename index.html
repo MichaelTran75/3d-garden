@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GHC · Thủy điện Gia Lai — Danh mục năng lượng tái tạo 3D</title>
+  <link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/dist/tabler-icons.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="css/app.css?v=79e09d81eb">
+</head>
+
+<body>
+  <div id="wrap">
+    <div id="scene"></div>
+    <div class="ui panel" id="pickPanel" style="display:none;max-width:280px;top:64px;right:18px;">
+      <div class="ph" id="pickTitle">Đối tượng đã chọn</div>
+      <div id="pickBody"
+        style="font:12px/1.55 'Inter',system-ui;color:#403d33;white-space:pre-wrap;word-break:break-word;margin-top:4px;">
+      </div>
+      <div id="pickEditRow" style="display:none;margin-top:8px;">
+        <div
+          style="font:700 10.5px/1.5 'Inter',system-ui;color:#928c72;letter-spacing:.6px;text-transform:uppercase;margin-bottom:4px;">
+          Sửa vị trí (world) — xem trước trực tiếp</div>
+        <div style="display:flex;gap:5px;">
+          <input id="pickX" type="number" step="0.1" placeholder="x"
+            style="width:0;flex:1;font:12px/1 'Inter',system-ui;padding:6px 5px;border:1px solid rgba(75,74,70,.26);border-radius:6px;background:rgba(226,214,192,0.5);">
+          <input id="pickY" type="number" step="0.1" placeholder="y"
+            style="width:0;flex:1;font:12px/1 'Inter',system-ui;padding:6px 5px;border:1px solid rgba(75,74,70,.26);border-radius:6px;background:rgba(226,214,192,0.5);">
+          <input id="pickZ" type="number" step="0.1" placeholder="z"
+            style="width:0;flex:1;font:12px/1 'Inter',system-ui;padding:6px 5px;border:1px solid rgba(75,74,70,.26);border-radius:6px;background:rgba(226,214,192,0.5);">
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:8px;">
+        <button id="pickReset"
+          style="font:600 12px/1 inherit;color:#403d33;background:rgba(226,214,192,0.5);border:1px solid rgba(75,74,70,.26);border-radius:8px;padding:7px 10px;cursor:pointer;">Đặt
+          lại</button>
+        <button id="pickCopy"
+          style="flex:1;font:600 12px/1 inherit;color:#403d33;background:rgba(226,214,192,0.5);border:1px solid rgba(75,74,70,.26);border-radius:8px;padding:7px 10px;cursor:pointer;">Sao
+          chép</button>
+        <button id="pickClose"
+          style="font:600 12px/1 inherit;color:#403d33;background:rgba(226,214,192,0.5);border:1px solid rgba(75,74,70,.26);border-radius:8px;padding:7px 10px;cursor:pointer;">✕</button>
+      </div>
+    </div>
+    <div class="ui" id="coordTip"
+      style="z-index:7;display:none;pointer-events:none;font:600 11.5px/1.5 'Inter',system-ui;background: rgba(226, 214, 192, 0.5);border:1px solid rgba(75,74,70,.26);border-radius:8px;padding:6px 9px;box-shadow:0 6px 16px rgba(80,70,45,.16);white-space:nowrap;">
+    </div>
+    <section class="ui weather-dock" id="weather-dock" aria-label="Thông tin GHC, giờ và dự báo thời tiết">
+      <div class="overview-ghc">
+        <div class="overview-title"><b>GHC</b> · Thủy điện Gia Lai</div>
+        <div class="ph">Vận hành trực tiếp</div>
+        <div class="overview-capacity">28,2 MW</div>
+        <div class="sub">Thủy điện H’Chan + H’Mun<br>Điện mặt trời: <b>51,58 MWp</b><br>1 nhà máy + 3 hệ thống áp mái
+        </div>
+        <p class="overview-note">Ảnh minh hoạ</p>
+      </div>
+      <div class="overview-weather">
+        <div class="weather-head">
+          <select id="weather-city" aria-label="Chọn thành phố xem thời tiết">
+            <option value="sydney">Sydney</option>
+          </select>
+          <div class="weather-time">
+            <time id="clock" aria-label="Giờ địa phương">--:--:--</time>
+            <span id="weather-date">Giờ Sydney</span>
+          </div>
+          <span id="weather-current-icon" role="img" aria-label="Đang tải thời tiết">☁️</span>
+        </div>
+        <ol id="weather-forecast" aria-label="Dự báo 5 ngày tiếp theo"></ol>
+        <div class="weather-foot">
+          <span id="weather-status" role="status">Đang tải thời tiết…</span>
+          <button id="weather-refresh" type="button" title="Cập nhật thời tiết"
+            aria-label="Cập nhật thời tiết">↻</button>
+          <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer"
+            title="Dữ liệu mô hình thời tiết Open-Meteo · tự cập nhật mỗi 15 phút">Open-Meteo</a>
+        </div>
+      </div>
+    </section>
+    <div id="weather-mast" aria-label="Số liệu trên cột khí tượng">
+      <span id="weather-mast-city">Sydney · khí tượng</span>
+      <div class="weather-reading"><span>Nhiệt độ</span><strong id="weather-temperature">— °C</strong></div>
+      <div class="weather-reading"><span>Gió</span><strong id="weather-wind">— km/h</strong></div>
+      <small id="weather-mast-status">Đang tải…</small>
+    </div>
+
+    <div id="loading">Đang ghép voxel + line-art…</div>
+    <div id="err"></div>
+
+    <footer class="ui toolbar">
+      <button id="btnRotate"><i class="ti ti-player-pause"></i>Tự xoay</button>
+      <button id="btnLabels"><i class="ti ti-tag"></i>Nhãn</button>
+      <button id="btnReset"><i class="ti ti-refresh"></i>Góc nhìn</button>
+      <button id="btnSky"><i class="ti ti-sun-moon"></i>Trời</button>
+      <button id="btnAxes"><i class="ti ti-axis-x"></i>Trục</button>
+      <button id="btnPick"><i class="ti ti-click"></i>Chọn</button>
+      <button id="zoomPct" type="button" title="Mức zoom so với góc nhìn mặc định · bấm để về 100%"><i class="ti ti-zoom-in"></i><span>100%</span></button>
+    </footer>
+  </div>
+
+
+  <!-- thời tiết + đồng hồ Pleiku · dẫn đường bay côn trùng · dữ liệu mô hình · dựng cảnh (giữ đúng thứ tự) -->
+  <script src="js/weather.js?v=0d3a15fe20"></script>
+  <script src="js/flight-nav.js?v=55079b3f58"></script>
+  <script src="js/assets.js?v=7240ef244c"></script>
+  <script src="js/app.js?v=c885c12336"></script>
+</body>
+
+</html>
