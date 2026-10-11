@@ -4303,9 +4303,12 @@
           // ---- ĐẦU: mũ bảo hộ + ốp tai chống ồn ----
           const headG = new THREE.Group(); headG.position.y = 2.06; g.add(headG);
           const head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 12), engSkin); head.castShadow = true; headG.add(head);
-          const hat = new THREE.Mesh(new THREE.SphereGeometry(0.24, 12, 8, 0, 6.3, 0, 1.5), engHelm); hat.castShadow = true; hat.position.y = 0.06; headG.add(hat);
-          P(headG, 0.06, 0.08, 0.44, engHelm, 0, 0.18, 0, false);     // gờ mũ dọc (phía trên đầu) chạy từ trước ra sau
-          for (const sx of [-1, 1]) P(headG, 0.07, 0.12, 0.13, engPad, sx * 0.2, -0.02, 0, false);  // ốp tai
+          const helmet = new THREE.Group(); helmet.name = 'Mũ bảo hộ'; headG.add(helmet);   // tháo ra khi tắm, khi ngủ
+          const hat = new THREE.Mesh(new THREE.SphereGeometry(0.24, 12, 8, 0, 6.3, 0, 1.5), engHelm); hat.castShadow = true; hat.position.y = 0.06; helmet.add(hat);
+          P(helmet, 0.06, 0.08, 0.44, engHelm, 0, 0.18, 0, false);     // gờ mũ dọc (phía trên đầu) chạy từ trước ra sau
+          for (const sx of [-1, 1]) P(helmet, 0.07, 0.12, 0.13, engPad, sx * 0.2, -0.02, 0, false);  // ốp tai
+          const hair = new THREE.Mesh(new THREE.SphereGeometry(0.212, 12, 8, 0, Math.PI * 2, 0, 1.2), new THREE.MeshLambertMaterial({ color: 0x3a2a1f }));   // tóc ngắn, chỉ thấy khi bỏ mũ
+          hair.rotation.x = -0.35; hair.position.set(0, 0.012, -0.012); hair.visible = false; headG.add(hair);
           for (const sx of [-1, 1]) { const eye = new THREE.Mesh(new THREE.SphereGeometry(0.028, 6, 6), engBoot); eye.position.set(sx * 0.07, 0.02, 0.185); headG.add(eye); }
           // ---- TAY: cánh tay trên + cuff + cẳng tay + găng ----
           const arms = [];
@@ -4346,7 +4349,26 @@
           const cup = new THREE.Group(); cup.position.set(0, -0.74, 0.08); cup.visible = false; arms[1].add(cup);
           const cupBody = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.055, 0.11, 10), new THREE.MeshLambertMaterial({ color: 0xe8e4da })); cup.add(cupBody);
           const cupHandle = new THREE.Mesh(new THREE.TorusGeometry(0.035, 0.01, 4, 8, Math.PI), new THREE.MeshLambertMaterial({ color: 0xe8e4da })); cupHandle.position.x = 0.07; cupHandle.rotation.z = -Math.PI / 2; cup.add(cupHandle);
-          g.userData = { legs, knees, ankles, arms, head: headG, rodGrp, rodTilt, rodTip, rod, clip, props: { spoon, bottle, cup } }; g.scale.setScalar(ENGINEER_BASE_SCALE * CAMP_SCALE); return g;
+          // sách bìa xanh (tay phải) mở hình chữ V, gáy dọc; giơ tay ~75° thì mặt trang quay về phía mắt · trang đang lật quay quanh gáy
+          const book = new THREE.Group(); book.position.set(0, -0.74, 0.1); book.rotation.x = 0.6; book.visible = false; arms[0].add(book);
+          const bookCover = new THREE.MeshLambertMaterial({ color: 0x2f5d7c }), bookPage = new THREE.MeshLambertMaterial({ color: 0xf3eedf });
+          for (const s of [-1, 1]) {
+            const half = new THREE.Group(); half.rotation.z = s * 0.22; book.add(half);
+            const cover = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.012, 0.24), bookCover); cover.position.set(s * 0.08, -0.006, 0); half.add(cover);
+            const pages = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.022, 0.225), bookPage); pages.position.set(s * 0.077, 0.011, 0); half.add(pages);
+          }
+          const bookLeaf = new THREE.Group(); bookLeaf.visible = false; book.add(bookLeaf);
+          const leafM = new THREE.Mesh(new THREE.PlaneGeometry(0.15, 0.22), new THREE.MeshLambertMaterial({ color: 0xfbf8ee, side: THREE.DoubleSide }));
+          leafM.rotation.x = -Math.PI / 2; leafM.position.set(0.075, 0.023, 0); bookLeaf.add(leafM);
+          // miếng khoai tây chiên kẹp giữa các ngón (tay trái, phía bàn trà) lúc bốc từ gói lên miệng
+          const chip = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.008, 10), new THREE.MeshLambertMaterial({ color: 0xe8c25a }));
+          chip.scale.z = 0.75; chip.position.set(0, -0.76, 0.07); chip.rotation.x = 0.4; chip.visible = false; arms[1].add(chip);
+          // khăn tắm vắt qua gáy, 2 đầu buông trước ngực (sau khi tắm)
+          const towel = new THREE.Group(); towel.name = 'Khăn vắt cổ'; towel.visible = false; g.add(towel);
+          const towelMat = new THREE.MeshLambertMaterial({ color: 0xd98c6a });
+          P(towel, 0.42, 0.05, 0.14, towelMat, 0, 1.9, -0.08, false);
+          for (const sx of [-1, 1]) P(towel, 0.12, 0.4, 0.035, towelMat, sx * 0.13, 1.68, 0.176, false);
+          g.userData = { legs, knees, ankles, arms, head: headG, helmet, hair, towel, rodGrp, rodTilt, rodTip, rod, clip, props: { spoon, bottle, cup, book, bookLeaf, chip } }; g.scale.setScalar(ENGINEER_BASE_SCALE * CAMP_SCALE); return g;
         }
         // ====== khu cắm trại của kỹ sư: caravan + ghế xếp câu cá bên bờ tây hồ hạ lưu ======
         // dời cả cụm câu cá (ghế · đèn · kỹ sư · caravan · lửa · phao · chó) về tọa độ góc (75, _, 99)
@@ -4364,6 +4386,7 @@
           return {
             g, legs: g.userData.legs, knees: g.userData.knees, ankles: g.userData.ankles, arms: g.userData.arms, head: g.userData.head,
             rodGrp: g.userData.rodGrp, rodTilt: g.userData.rodTilt, rodTip: g.userData.rodTip, rod: g.userData.rod, clip: g.userData.clip, props: g.userData.props,
+            helmet: g.userData.helmet, hair: g.userData.hair, towel: g.userData.towel,
             wp, phase: 'toFish', timer: 0, wanderTgt: null, wanderTmr: 0, spd: 1.1, groundY: chairW.y, faceWater
           };
         })();
@@ -4437,7 +4460,7 @@
         function engFootIK(e, dt) {
           const g = e.g, P = e.pose;
           if (e.seatCtl) { e.ikW = 0; e.ikPelvis = 0; return; }   // ngồi / đứng dậy: bộ điều khiển ghế tự giải IK bàn chân bám đất
-          const onFoot = !!P && g.parent === scene && e.phase !== 'study' && e.phase !== 'pet' && Math.abs(e.legs[0].rotation.x) < 0.95 && Math.abs(e.legs[1].rotation.x) < 0.95 && e.knees[0].rotation.x < 1.15 && e.knees[1].rotation.x < 1.15;
+          const onFoot = !!P && g.parent === scene && !e.inVan && e.phase !== 'van' && e.phase !== 'pet' && Math.abs(e.legs[0].rotation.x) < 0.95 && Math.abs(e.legs[1].rotation.x) < 0.95 && e.knees[0].rotation.x < 1.15 && e.knees[1].rotation.x < 1.15;
           e.ikW = (e.ikW || 0) + ((onFoot ? 1 : 0) - (e.ikW || 0)) * (1 - Math.exp(-dt * 6));
           if (e.ikW < 0.01) { e.ankles[0].rotation.x = e.ankles[1].rotation.x = 0; e.ikPelvis = 0; return; }
           const w = e.ikW, S = g.scale.y; g.updateMatrixWorld(true);
@@ -4572,6 +4595,8 @@
           return { x0, y0, x1, y1, lines };
         }
         let engineerLabelKey = '';
+        const fmtCountdown = s => s >= 3600 ? Math.floor(s / 3600) + ':' + String(Math.floor(s / 60) % 60).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0')
+          : s >= 60 ? Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0') : s + 's';
         function drawEngineerLabel(t = 0, now = Date.now()) {
           const fishing = engObj.phase === 'fish', thought = engObj.phase === 'check' ? (checkBubbleSprite.userData.weatherThought || checkBubbleSprite.userData.thought) : checkBubbleSprite.userData.thought;
           const showThought = !!thought && (now < thoughtUntil || engObj.phase === 'check');
@@ -4588,7 +4613,7 @@
           if (showThought) { cloud = drawThoughtCloud(cbCtx, thought.header, thought.message, 294); rows.push({ type: 'weather', text: thought.header, y: cloud.y0 + 17 }, ...cloud.lines.map((l, i) => ({ type: 'thought', text: l, y: 0 }))); }
           if (fishing) {   // đếm ngược + trạng thái cá: phía trên đám mây (hoặc sát đầu nếu không có suy nghĩ)
             const top = cloud ? Math.max(30, cloud.y0 - 82) : 260;
-            for (const [type, text, y, size, color] of [['countdown', '🎣 ' + seconds + 's', top, 34, '#ffd34a'], ['fish', fishingStatusText(), top + 46, 34, '#65b3ff']]) {
+            for (const [type, text, y, size, color] of [['countdown', '🎣 ' + fmtCountdown(seconds), top, 34, '#ffd34a'], ['fish', fishingStatusText(), top + 46, 34, '#65b3ff']]) {
               let s = size; cbCtx.font = s + 'px Arial, sans-serif';
               while (cbCtx.measureText(text).width > 600 && s > 17) { s--; cbCtx.font = s + 'px Arial, sans-serif'; }
               cbCtx.lineWidth = 5; cbCtx.strokeStyle = 'rgba(20, 28, 36, 0.55)'; cbCtx.strokeText(text, 320, y);
@@ -4648,6 +4673,8 @@
           'fish|||evMiss|Hụt! Lần sau đợi phao chìm hẳn mới giật.',
           'fish|||evDrift|Gió đẩy phao trôi xa quá, thu về quăng lại chỗ cũ.',
           'fish|||evRebait|Mồi bị rỉa sạch, móc con giun mới.',
+          'fish|18-19.6|||Tắm xong ra câu, người nhẹ hẳn.',
+          'fish|18-19.6,sun<-4|!rain||Trời tối rồi, phải nhìn phao dưới ánh đèn lồng.',
           // ---- uống trà ở ghế cắm trại ----
           'tea|6-9|||Ấm trà đầu ngày, uống xong mới tỉnh hẳn.',
           'tea|6-10|cold||Sáng se lạnh, ôm cốc trà nóng cho ấm tay.',
@@ -4664,7 +4691,6 @@
           'tea|7-16|!rain||Lát nữa phải lau bụi hai tấm pin trên nóc xe.',
           'tea|||dogFire|Con chó nằm cạnh bếp lửa lim dim, sướng thật.',
           // ---- bữa ăn (luôn sau một lượt câu) ----
-          'eat|6-10|||Câu xong một lượt, ăn sáng cho chắc bụng.',
           'eat|11-13.5|||Bữa trưa đơn giản: cá nướng với cơm nắm.',
           'eat|14-16.5|||Ăn muộn chút cũng được, chiều nay rảnh.',
           'eat|15-19,sun>-6,sun<8|clear,partly||Ăn tối sớm, còn kịp ngắm trời chuyển màu.',
@@ -4741,6 +4767,52 @@
           'evening|||Vào xe làm nốt việc rồi đi ngủ.',
           'evening||rain||Mưa rồi, vào xe làm việc cho khô.',
           'evening||clear||Ngoài trời đầy sao, tiếc là phải vào làm việc.',
+          // ---- nghiên cứu ở bàn học (ban ngày) ----
+          'research|7-9|||Sáng nay đối chiếu số liệu đêm qua của ba nguồn điện.',
+          'research|7-11|clear,partly,rad>300||Nắng lên rồi, công suất pin mặt trời đang leo dốc.',
+          'research|||Mô hình dự báo lưu lượng sông chạy lâu quá, chờ thêm chút.',
+          'research||wind>=25||Gió đang mạnh, ghi lại đường cong công suất tua-bin để so với mô hình.',
+          'research||rain||Mưa thế này, vài giờ nữa mực hồ chứa sẽ lên.',
+          'research|11-16|hot||Tấm pin nóng quá thì hiệu suất tụt, phải ghi vào báo cáo.',
+          'research|||Đọc lại bài báo về tua-bin trục đứng cho vùng gió yếu.',
+          'research|||Bảng tính sản lượng tuần này gần xong rồi.',
+          'research|13-16|||Chiều nay viết nốt phần kết luận.',
+          'research|9.5-11.2|||Ngồi lâu mỏi lưng, lát nữa đứng dậy vươn vai.',
+          'research|||Cần thêm số liệu nhiệt độ nước để tính lượng bốc hơi của hồ.',
+          'research|||tomorrowRain|Mai mưa ({tPop}%), lưu lượng về hồ tăng, phải sửa kế hoạch xả.',
+          'research||calm||Lặng gió, tua-bin đứng im, hôm nay trông vào thủy điện với pin mặt trời.',
+          // ---- ăn sáng ở bàn vuông trong xe ----
+          'breakfast|||Ngũ cốc với sữa, thêm cốc cà phê là đủ cho buổi sáng.',
+          'breakfast||cold||Sáng lạnh, cốc cà phê nóng uống mới tỉnh.',
+          'breakfast||fog||Ngoài kia sương còn dày, ăn xong chắc nó tan.',
+          'breakfast||rain||Mưa sáng sớm, may mà bữa sáng ở trong xe.',
+          'breakfast|||Hộp ngũ cốc sắp hết, ghi vào danh sách đi chợ.',
+          'breakfast|||Ăn xong ra xem cột khí tượng rồi mới ngồi vào bàn.',
+          // ---- tắm ----
+          'shower|||Tắm xong ra hồ câu, giờ này cá hay ăn.',
+          'shower||hot||Cả ngày nóng, tắm nước mát thật đã.',
+          'shower||cold||Trời lạnh, vặn nước ấm thêm chút.',
+          'shower|||Nước lấy từ bồn trên nóc, phơi nắng cả ngày nên còn ấm.',
+          'shower|||Tắm xong nhớ lau khô sàn kẻo trơn.',
+          'shower||rain||Mưa thế này, tắm xong chắc ngồi hiên chứ không câu được.',
+          // ---- đọc sách, ăn khoai tây chiên dưới hiên ----
+          'read|||Chương này hay, đọc thêm vài trang nữa.',
+          'read|||Gói khoai tây chiên vơi nhanh quá.',
+          'read|||Đọc sách dưới đèn lồng, nghe củi bên kia nổ lách tách.',
+          'read||wind||Gió cứ lật trang sách, phải giữ chặt.',
+          'read||cold||Lạnh rồi, đọc xong chương này vào xe.',
+          'read||rain||Mưa rơi trên bạt hiên, đọc sách thế này dễ chịu.',
+          'read|||dogFire|Con chó cứ nhìn gói khoai, không chia được đâu nhé.',
+          'read||clear||Ngẩng lên là thấy sao, đọc xong chương này ngắm một lúc.',
+          // ---- học bài buổi tối, laptop mở nhạc ----
+          'music|||Bật nhạc nhẹ cho dễ tập trung.',
+          'music|||Bài này nghe hoài không chán.',
+          'music||rain||Nhạc với tiếng mưa trên nóc xe, hợp nhau ghê.',
+          'music|||Ôn lại phần tính thủy lực trước khi ngủ.',
+          'music|20.8-21|||Hết bài này là tắt máy đi ngủ.',
+          // ---- chuẩn bị ngủ ----
+          'bedtime|||Mai sáu giờ dậy, ngủ thôi.',
+          'bedtime||rain||Mưa đều trên nóc xe, dễ ngủ đây.',
           // ---- xem trạm khí tượng (kèm số đo thật: {temp} {wind} {cloud} {rad} {rh}) ----
           'check||thunder||Có dông, ghi số liệu nhanh rồi vào trú.',
           'check||thunder,wind>=40||Gió giật kèm sấm, kim đo gió quay loạn cả lên.',
@@ -4775,7 +4847,7 @@
           'general|11-14|hot,calm|cowsOut|Giữa trưa, cả trại lặng gió, bò cũng nằm nghỉ.',
           'general|14-16.5|||Chiều nay nhớ ghi số liệu trạm vào sổ.',
           'general|15-18.2,sun>-3,sun<14|||Đèn đường sáng dần lên, hết thêm một ngày.',
-          'general|19-21|||Tối nay ngủ sớm cho sáng mai câu sớm.',
+          'general|19-21|||Tối nay ngủ sớm, sáu giờ sáng mai còn dậy.',
           'general||wind||Gió to, nhớ buộc lại bạt hiên.',
           'general|6-13|cloudy||Trời nhiều mây, có khi chiều nay mưa.',
           'general|sun>-2|clear||Trời trong, nhìn thấy cả đỉnh đồi bên kia.',
@@ -4903,20 +4975,30 @@
           if (now < idleThoughtAt || now < thoughtUntil) return;
           const e = engObj; let act, label;
           if (e.phase === 'check') return;   // đang đứng xem trạm: tin thời tiết đã hiện
+          if (e.act === 'toilet' || e.act === 'sleep' || e.phase === 'nap') { idleThoughtAt = now + 20000; return; }   // đang ở buồng WC / đang ngủ: không nảy ý
           const ctx = engContext(now);
           ctx.event = angling.event && now - angling.eventAt < 6000 ? angling.event : null;
-          if (e.phase === 'study') { act = e.study === 'work' ? 'study' : 'evening'; label = e.study === 'work' ? 'Bên bàn học' : 'Vào xe làm việc'; }
+          const atStation = !!e.inVan && !!e.van && !!e.van.station;
+          if (e.inVan || e.phase === 'van') {
+            if (e.act === 'research') { act = atStation ? 'research' : 'walk'; label = atStation ? 'Nghiên cứu' : 'Vào bàn làm việc'; }
+            else if (e.act === 'music') { act = atStation ? (Math.random() < 0.5 ? 'music' : 'study') : 'evening'; label = atStation ? 'Học bài, nghe nhạc' : 'Vào xe học bài'; }
+            else if (e.act === 'breakfast') { act = 'breakfast'; label = 'Ăn sáng'; }
+            else if (e.act === 'shower') { act = 'shower'; label = 'Giờ tắm'; }
+            else if (e.act === 'bedtime') { act = 'bedtime'; label = 'Chuẩn bị ngủ'; }
+            else { act = 'walk'; label = 'Đang đi'; }
+          }
           else if (e.phase === 'shelter' || e.phase === 'toShelter') { act = 'shelter'; label = 'Trú mưa dưới hiên'; }
-          else if (e.phase === 'eat') { act = 'eat'; label = 'Bữa ăn'; }
+          else if (e.phase === 'eat' || (e.phase === 'toChair' && (e.act === 'lunch' || e.act === 'dinner'))) { act = 'eat'; label = e.act === 'lunch' ? 'Ăn trưa' : e.act === 'dinner' ? 'Ăn tối' : 'Bữa ăn'; }
+          else if (e.phase === 'read' || (e.phase === 'toChair' && e.act === 'read')) { act = 'read'; label = 'Đọc sách'; }
           else if (e.phase === 'drink') { act = 'drink'; label = 'Uống nước'; }
           else if (e.phase === 'pet' || e.phase === 'toDog') { act = 'pet'; label = 'Chơi với chó'; }
           else if (e.phase === 'fish') { act = 'fish'; label = 'Đang câu cá'; }
-          else if (e.phase === 'tea' || e.phase === 'toChair') { act = 'tea'; label = ctx.slot === 'dusk' || ctx.slot === 'evening' ? 'Bên bếp lửa' : 'Giờ uống trà'; }
+          else if (e.phase === 'tea' || e.phase === 'toChair') { act = 'tea'; label = e.act === 'rest' ? 'Nghỉ trưa' : ctx.slot === 'dusk' || ctx.slot === 'evening' ? 'Bên bếp lửa' : 'Giờ uống trà'; }
           else if (e.phase === 'wander') { act = 'wander'; label = 'Dạo quanh trại'; }
           else { act = 'walk'; label = 'Đang đi'; }
           if (act === 'fish' && !ctx.event && !['wait', 'approach', 'settle', 'rig', 'done'].includes(angling.stage)) { idleThoughtAt = now + 4000; return; }   // đang giật/dìu/thả/thay mồi: tập trung, chưa nghĩ vẩn vơ
           if (act !== 'fish') ctx.event = null;
-          if (!ctx.event && ['fish', 'tea', 'wander', 'walk'].includes(act) && Math.random() < 0.2) act = 'general';
+          if (!ctx.event && ['fish', 'tea', 'wander', 'walk', 'research'].includes(act) && Math.random() < 0.2) act = 'general';
           const text = pickThought(act, ctx); if (ctx.event) angling.event = null; if (!text) { idleThoughtAt = now + 30000; return; }
           const t = Number.isFinite(ctx.temp) ? ' · ' + ctx.wxIcon + ' ' + ctx.temp.toLocaleString('vi-VN', { maximumFractionDigits: 0 }) + '°' : '';
           checkBubbleSprite.userData.thought = { header: ctx.slotIcon + ' ' + ctx.slotName + ' · ' + clockText(ctx.h) + ' · ' + label + t, message: fillThought(text, ctx), kind: 'idle', slot: ctx.slot, tags: [...ctx.tags], revision: ++thoughtRevision };
@@ -5520,6 +5602,13 @@
           studyDeskLighting.light.intensity = on ? 1.35 : 0;
           studyDeskLighting.bulb.emissiveIntensity = on ? 1.6 : 0;
         }
+        function engHelmetProp() {   // mũ bảo hộ rời (đv xe = cỡ mũ đang đội: ×ENGINEER_BASE_SCALE); gốc ở đáy 2 ốp tai (mũ đặt xuống thì tì trên ốp tai)
+          const g = new THREE.Group(); g.name = 'Mũ bảo hộ (đã tháo)'; g.userData.noBake = true;
+          const dome = new THREE.Mesh(new THREE.SphereGeometry(0.24, 12, 8, 0, 6.3, 0, 1.5), engHelm); dome.position.y = 0.14; dome.castShadow = true; g.add(dome);
+          const ridge = bx(0.06, 0.08, 0.44, engHelm, true, false); ridge.position.y = 0.26; g.add(ridge);
+          for (const sx of [-1, 1]) { const pad = bx(0.07, 0.12, 0.13, engPad, true, false); pad.position.set(sx * 0.2, 0.06, 0); g.add(pad); }
+          g.scale.setScalar(ENGINEER_BASE_SCALE); return g;
+        }
         function caravan() {
           const g = new THREE.Group();
           const base = 0.95, Dc = 3.0, dz = Dc / 2;
@@ -5706,7 +5795,7 @@
             const scr = new THREE.Mesh(new THREE.PlaneGeometry(.29, .18), screenMat); scr.rotation.x = Math.PI / 2; scr.position.set(0, -.0006, .112); hinge.add(scr);   // mặt trong nắp: quay xuống khi đóng, quay về người dùng khi mở
             const glow = new THREE.PointLight(0x9fc8ff, 0, 1.4 * CAMP_SCALE, 2); glow.position.set(0, .14, .02); lap.add(glow);
             lap.traverse(o => { o.userData.noBake = true; });
-            Object.assign(studyLaptop, { hinge, screen: screenMat, light: glow });
+            Object.assign(studyLaptop, { hinge, screen: screenMat, light: glow, group: lap, canvas: sc, ctx: sx2, tex: scrTex, dash: sx2.getImageData(0, 0, sc.width, sc.height), mode: 'dash', drawnAt: -1 });
           }
           study.userData.layout = {
             desk: { center: [deskX, deskZ], size: [1.08, .5], height: deskHeight },
@@ -5724,9 +5813,28 @@
             item.scale.setScalar(BOOK_K); item.rotation.order = 'YXZ'; item.rotation.set(-Math.PI / 2, yaw, 0);
             item.position.set(cx + Math.sin(yaw) * h / 2, t / 2, cz + Math.cos(yaw) * h / 2);
           };
-          const cereal = breakfastItem('cereal'); layFlat(cereal, -0.13, -0.09, 0.14); cereal.name = 'Hộp ngũ cốc'; breakfast.add(cereal);
-          const coffee = breakfastItem('coffee'); layFlat(coffee, 0.1, -0.12, -0.2); coffee.name = 'Hộp cà phê'; breakfast.add(coffee);
-          const milk = breakfastItem('milk'); milk.name = 'Chai sữa'; milk.position.set(0.06, 0, 0.11); breakfast.add(milk);
+          // kỹ sư ngồi ghế đẩu phía −z (lưng về giường) ⇒ 3 món xếp vào nửa phía vách, nhường mép gần cho bát ngũ cốc
+          const cereal = breakfastItem('cereal'); layFlat(cereal, -0.15, 0.12, 0.14); cereal.name = 'Hộp ngũ cốc'; breakfast.add(cereal);
+          const coffee = breakfastItem('coffee'); layFlat(coffee, 0.11, 0.1, -0.2); coffee.name = 'Hộp cà phê'; breakfast.add(coffee);
+          const milk = breakfastItem('milk'); milk.name = 'Chai sữa'; milk.position.set(0.22, 0, -0.13); breakfast.add(milk);
+          {   // bát sứ trắng: ngũ cốc vàng nổi trên sữa
+            const bowl = new THREE.Group(); bowl.name = 'Bát ngũ cốc'; bowl.position.set(-0.04, 0, -0.16); breakfast.add(bowl);
+            const ceramic = new THREE.MeshLambertMaterial({ color: 0xf2efe8, side: THREE.DoubleSide });
+            const shell = new THREE.Mesh(new THREE.LatheGeometry([[0, 0], [0.04, 0], [0.042, 0.006], [0.07, 0.034], [0.078, 0.056], [0.073, 0.057], [0.065, 0.036], [0.036, 0.009], [0, 0.009]].map(([r, y]) => new THREE.Vector2(r, y)), 20), ceramic);
+            shell.castShadow = true; bowl.add(shell);
+            const milkTop = new THREE.Mesh(new THREE.CircleGeometry(0.066, 20), new THREE.MeshLambertMaterial({ color: 0xfbf6ea })); milkTop.rotation.x = -Math.PI / 2; milkTop.position.y = 0.043; bowl.add(milkTop);
+            const flakeM = new THREE.MeshLambertMaterial({ color: 0xd9a64a });
+            for (let k = 0; k < 14; k++) { const a = k * 2.4, r = 0.012 + (k % 5) * 0.011, f = new THREE.Mesh(new THREE.BoxGeometry(0.016, 0.005, 0.013), flakeM); f.position.set(Math.cos(a) * r, 0.046, Math.sin(a) * r); f.rotation.set(0.3 * Math.sin(k), a, 0.25 * Math.cos(k * 1.7)); bowl.add(f); }
+          }
+          // ghế đẩu tròn (mặt gỗ cao 0,48 m như ghế bàn học): bình thường kéo lùi chừa khe đứng giữa ghế và mép bàn, ngồi xong nhích vào
+          const stool = new THREE.Group(); stool.name = 'Ghế đẩu bàn ăn'; stool.userData.noBake = true; stool.position.set(0, 0, 0); g.add(stool);
+          { const sx0 = -0.65, sz0 = -0.04;
+            const top = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.162, 0.05, 18), woodMat); top.position.set(sx0, yIn + 0.455, sz0); top.castShadow = true; stool.add(top);
+            for (let k = 0; k < 4; k++) { const a = Math.PI / 4 + k * Math.PI / 2, leg = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.018, 0.45, 6), metalMat);
+              leg.position.set(sx0 + Math.cos(a) * 0.12, yIn + 0.215, sz0 + Math.sin(a) * 0.12); leg.rotation.set(Math.sin(a) * 0.12, 0, -Math.cos(a) * 0.12); leg.castShadow = true; stool.add(leg); }
+            const ring = new THREE.Mesh(new THREE.TorusGeometry(0.135, 0.009, 4, 18), metalMat); ring.rotation.x = Math.PI / 2; ring.position.set(sx0, yIn + 0.15, sz0); stool.add(ring); }
+          // mũ bảo hộ đặt cuối giường lúc ngủ
+          const bedHelmet = engHelmetProp(); bedHelmet.position.set(bedCx - bedLen / 2 + 0.3, yIn + mattTop - 0.02, bedZ + 0.18); bedHelmet.rotation.y = 0.6; bedHelmet.visible = false; g.add(bedHelmet);
           // Mặt đá (dựng cho cao 2,07–2,14) hạ xuống ngồi khít nóc tủ bếp 1,795: hết khe hở, mặt bếp cao ~0,80 m so với sàn.
           const worktop = new THREE.Group(); motorhomeWorktop(worktop); bakeStatic(worktop); worktop.position.y = -0.275; galley.add(worktop);
           const cup = bx(bLen * 0.62, 0.44, 0.4, caravanRoofM); cup.position.set(bcx - .55, yRoof - 0.45, -dz + 0.32); g.add(cup);
@@ -5805,7 +5913,9 @@
           const twcBowl = bx(0.5, 0.5, 0.46, twcM, true, true, lineDark); twcBowl.position.set(twcX, base + 0.31, bthZ); toilet.add(twcBowl);
           const twcPed = bx(0.22, 0.32, 0.22, twcM, true, true, lineDark); twcPed.position.set(twcX, base + 0.16, bthZ); toilet.add(twcPed);   // pedestal base
           const twcTank = bx(0.16, 0.42, 0.46, twcM, true, true, lineDark); twcTank.position.set(bthBackX - 0.17, base + 0.82, bthZ); toilet.add(twcTank);  // flush against rear wall
-          const twcLid = bx(0.5, 0.055, 0.44, twcM, true, true, lineDark); twcLid.position.set(twcX, base + 0.565, bthZ); toilet.add(twcLid);
+          // nắp bồn cầu: bản lề ngay trước két nước, lật dựng vào két khi dùng (không gộp lưới để còn quay)
+          const twcLidHinge = new THREE.Group(); twcLidHinge.name = 'Bản lề nắp bồn cầu'; twcLidHinge.userData.noBake = true; twcLidHinge.position.set(twcX + 0.15, base + 0.5925, bthZ); toilet.add(twcLidHinge);
+          const twcLid = bx(0.4, 0.055, 0.44, twcM, true, true, lineDark); twcLid.position.set(-0.2, -0.0275, 0); twcLidHinge.add(twcLid);
           const twcSeat = new THREE.Mesh(new THREE.TorusGeometry(0.18, 0.045, 6, 16), twcM); twcSeat.rotation.x = Math.PI / 2; twcSeat.scale.x = 1.3; twcSeat.position.set(twcX, base + 0.535, bthZ); twcSeat.castShadow = true; toilet.add(twcSeat);
           const twcBtn = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.03, 12), metalMat); twcBtn.position.set(bthBackX - 0.17, base + 1.05, bthZ); toilet.add(twcBtn);
           for (const fixture of toilet.children) { fixture.position.x -= twcX; fixture.position.z -= bthZ; }
@@ -5821,14 +5931,16 @@
           panel(wcDoor[1], inBack, flY, ceilY, wcZ - 0.025, wcZ + 0.025);
           panel(x1, wcDoor[0], flY, ceilY, wcZ - 0.025, wcZ + 0.025);
           panel(wcDoor[0], wcDoor[1], doorTop, ceilY, wcZ - 0.025, wcZ + 0.025);
-          panel(wcDoor[0], wcDoor[1] + 0.03, flY + 0.01, doorTop - 0.01, wcZ + 0.03, wcZ + 0.055, doorM);
-          const wcHandle = bx(0.03, 0.16, 0.03, caravanDark, false, false); wcHandle.position.set(wcDoor[0] + 0.06, base + 1.05, wcZ + 0.07); bath.add(wcHandle);
+          const wcDoorG = new THREE.Group(); wcDoorG.name = 'Cửa lùa buồng WC'; wcDoorG.userData.noBake = true; bath.add(wcDoorG);   // trượt về +x khi mở
+          wcDoorG.add(panel(wcDoor[0], wcDoor[1] + 0.03, flY + 0.01, doorTop - 0.01, wcZ + 0.03, wcZ + 0.055, doorM));
+          const wcHandle = bx(0.03, 0.16, 0.03, caravanDark, false, false); wcHandle.position.set(wcDoor[0] + 0.06, base + 1.05, wcZ + 0.07); wcDoorG.add(wcHandle);
           // vách lối vào phòng tắm (mặt phẳng trụ vách sau khoang sống): bịt khe cạnh buồng WC, cánh cửa lùa + tấm cố định
           const entry = [wcZ + 0.025, 0.25], pierZ = 0.64;
           panel(x1 - 0.1, x1, base, doorTop, -pierZ, wcZ + 0.025);
           panel(x1 - 0.1, x1, base, doorTop, entry[1], pierZ);
-          panel(x1 - 0.13, x1 - 0.1, base + 0.13, doorTop - 0.01, entry[0], entry[1] + 0.03, doorM);
-          const entryHandle = bx(0.03, 0.16, 0.03, caravanDark, false, false); entryHandle.position.set(x1 - 0.16, base + 1.05, entry[1] - 0.06); bath.add(entryHandle);
+          const entryDoorG = new THREE.Group(); entryDoorG.name = 'Cửa lùa phòng tắm'; entryDoorG.userData.noBake = true; bath.add(entryDoorG);   // trượt về +z khi mở
+          entryDoorG.add(panel(x1 - 0.13, x1 - 0.1, base + 0.13, doorTop - 0.01, entry[0], entry[1] + 0.03, doorM));
+          const entryHandle = bx(0.03, 0.16, 0.03, caravanDark, false, false); entryHandle.position.set(x1 - 0.16, base + 1.05, entry[1] - 0.06); entryDoorG.add(entryHandle);
           // vòi xịt vệ sinh gắn vách trụ phía khoang sống, cạnh bồn cầu: van góc · giá treo · đầu xịt · dây mềm buông võng
           const spX = x1 + 0.03, spZ = -1.15;
           const spValve = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.06, 10), metalMat); spValve.rotation.z = Math.PI / 2; spValve.position.set(spX, base + 0.42, spZ); bath.add(spValve);
@@ -5847,10 +5959,17 @@
           const snkTap = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.16, 8), metalMat); snkTap.position.set(snkX, base + 0.92, wallZ - 0.06); bath.add(snkTap);
           const snkSpout = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.12, 8), metalMat); snkSpout.rotation.x = -Math.PI / 2.3; snkSpout.position.set(snkX, base + 0.99, wallZ - 0.11); bath.add(snkSpout);
           const mirror = bx(0.36, 0.44, 0.04, mirrorM, false, true, lineDark); mirror.position.set(snkX, base + 1.24, wallZ - 0.02); bath.add(mirror);
+          const tapWater = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.011, 0.1, 6), new THREE.MeshLambertMaterial({ color: 0xbfe2ff, transparent: true, opacity: 0.7, depthWrite: false }));
+          tapWater.name = 'Nước chảy từ vòi'; tapWater.userData.noBake = true; tapWater.visible = false; tapWater.position.set(snkX, base + 0.93, wallZ - 0.165); bath.add(tapWater);
+          // kệ gỗ nhỏ trên vách cạnh cửa (phía trong phòng tắm): chỗ đặt mũ bảo hộ lúc tắm
+          const shelfX = x1 + 0.1, shelfZ = 0.45, shelfY = base + 1.55;
+          const shelfBoard = bx(0.2, 0.025, 0.3, woodMat, true, true, lineDark); shelfBoard.position.set(shelfX, shelfY, shelfZ); bath.add(shelfBoard);
+          for (const sz of [-0.1, 0.1]) { const br = bx(0.02, 0.1, 0.02, metalMat, false, false); br.position.set(x1 + 0.02, shelfY - 0.06, shelfZ + sz); bath.add(br); }
+          const shelfHelmet = engHelmetProp(); shelfHelmet.position.set(shelfX + 0.02, shelfY + 0.0125, shelfZ); shelfHelmet.rotation.y = Math.PI / 2; shelfHelmet.visible = false; bath.add(shelfHelmet);
           // ---- khăn tắm treo mặt ngoài vách WC, cạnh cửa lùa ----
           const towelX = (wcDoor[1] + inBack) / 2 + 0.02;
-          const towelBar = new THREE.Mesh(new THREE.CylinderGeometry(0.013, 0.013, 0.32, 8), metalMat); towelBar.rotation.z = Math.PI / 2; towelBar.position.set(towelX, base + 1.02, wcZ + 0.07); bath.add(towelBar);
-          const towel = bx(0.3, 0.42, 0.04, towelM, true, true, lineDark); towel.position.set(towelX, base + 0.81, wcZ + 0.06); bath.add(towel);
+          const towelBar = new THREE.Mesh(new THREE.CylinderGeometry(0.013, 0.013, 0.32, 8), metalMat); towelBar.rotation.z = Math.PI / 2; towelBar.position.set(towelX, base + 1.02, wcZ + 0.10); bath.add(towelBar);
+          const towel = bx(0.3, 0.42, 0.04, towelM, true, true, lineDark); towel.position.set(towelX, base + 0.81, wcZ + 0.09); towel.name = 'Khăn tắm'; towel.userData.noBake = true; bath.add(towel);
           // ---- buồng WC là buồng tắm: vòi sen + bộ trộn trên vách −Z phía trước bồn cầu, phễu thoát sàn ----
           const shX = x1 + 0.24, sideZ = -bthW / 2 + 0.05;
           const shArm = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.24, 8), metalMat);
@@ -5862,7 +5981,9 @@
           drain.position.set(x1 + 0.24, base + 0.106, -0.8); bath.add(drain);
           // xem xuyên: khung gầm, mái, vách, kính, sọc của phòng tắm là vỏ; đồ dùng bên trong giữ nguyên
           bath.userData.xray = 'shell';
-          for (const item of [bthFlr, toilet, spValve, spHolder, spHead, spNozzle, spHose, snkCab, snkTop, snkBasin, snkTap, snkSpout, mirror, towelBar, towel, shArm, shHead, shMixer, drain, bthLight]) item.userData.xray = 'keep';
+          for (const item of [bthFlr, toilet, spValve, spHolder, spHead, spNozzle, spHose, snkCab, snkTop, snkBasin, snkTap, snkSpout, mirror, towelBar, towel, shArm, shHead, shMixer, drain, bthLight, tapWater, shelfBoard, shelfHelmet]) item.userData.xray = 'keep';
+          const bathRig = { entryDoor: entryDoorG, wcDoor: wcDoorG, lid: twcLidHinge, towel, tapWater, shelfHelmet, doorMat: doorM, wallMat: bthWallM,
+            showerHead: [shX, base + 2.22, sideZ + 0.21], mixer: [shX, base + 1.15, sideZ + 0.05], flush: [twcX, base + 1.05, -bthW / 2 + 0.15], shelf: [shelfX, shelfY, shelfZ] };
           bath.userData.noBake = true;
           bakeStatic(bath); g.add(bath);
 
@@ -5992,11 +6113,12 @@
             bed: { center: [bedCx, bedZ], size: [bedLen, bedW] },
             table: { center: [-0.65, 0.8], size: [0.62, 0.62] },
             study: study.userData.layout,
-            sleepPosition: [bedCx - 1.35 + 2.06 * (1.026 - ENGINEER_BASE_SCALE), yIn + 0.49 + 0.05, bedZ], sleepHead: [bedCx + 1.1, 4, bedZ]   // người nhỏ đi: dời gốc về phía gối để đầu vẫn gác đúng gối
+            sleepPosition: [bedCx - 1.35 + 2.06 * (1.026 - ENGINEER_BASE_SCALE), yIn + 0.49 + 0.05, bedZ], sleepHead: [bedCx + 1.1, 4, bedZ],   // người nhỏ đi: dời gốc về phía gối để đầu vẫn gác đúng gối
+            stool: { obj: stool, rest: -0.04 }, bath: bathRig, bedHelmet
           };
           // xem xuyên: mặc định mọi thứ của xe là vỏ; sàn, nội thất, bánh xe & đèn lồng hiên giữ nguyên
           g.userData.xray = 'shell';
-          for (const item of [floor, bed, study, tTop, tLeg, breakfast, cup, axles, awCord, awLan]) item.userData.xray = 'keep';
+          for (const item of [floor, bed, study, tTop, tLeg, breakfast, cup, axles, awCord, awLan, stool, bedHelmet]) item.userData.xray = 'keep';
           return bakeStatic(g);
         }
         let awLight, awLan;
@@ -6868,7 +6990,7 @@
           if (engSeatWalk(e, s.pts, s, dt, false, C.ground)) { e.seat = null; return false; }
           return true;
         }
-        const engPhaseSeat = ph => (ph === 'toFish' || ph === 'fish') ? FISH_SEAT : (ph === 'toChair' || ph === 'eat' || ph === 'tea' || ph === 'toShelter' || ph === 'shelter') ? CAMP_SEAT : null;
+        const engPhaseSeat = ph => (ph === 'toFish' || ph === 'fish') ? FISH_SEAT : (ph === 'toChair' || ph === 'eat' || ph === 'tea' || ph === 'read' || ph === 'nap' || ph === 'toShelter' || ph === 'shelter') ? CAMP_SEAT : null;
         function engPhaseGoal(e, want) {   // hướng sẽ đi sau khi rời ghế (chọn lối ra phía đó)
           if (want) return want.laneW[0];
           if (e.phase === 'toMast' || e.phase === 'check') return e.wp[2];
@@ -6878,6 +7000,10 @@
         function engSeatPost(e, dt) {   // sau lớp tư thế: dang tay (tay vịn) · đầu quay dẫn hướng · giữ đám mây suy nghĩ thẳng đứng trên hông khi cúi/ngả người
           const ar = e.armRoll || (e.armRoll = [0, 0]), rt = e.armRollT || (e.armRollT = [0, 0]), k = 1 - Math.exp(-dt * 10);
           for (let i = 0; i < 2; i++) { ar[i] += (rt[i] - ar[i]) * k; if (!rt[i] && Math.abs(ar[i]) < 1e-4) ar[i] = 0; e.arms[i].rotation.z = ar[i]; rt[i] = 0; }
+          const lz = e.legZT || (e.legZT = [0, 0]);
+          for (let i = 0; i < 2; i++) { const z = e.legs[i].rotation.z + (lz[i] - e.legs[i].rotation.z) * k; e.legs[i].rotation.z = !lz[i] && Math.abs(z) < 1e-4 ? 0 : z; lz[i] = 0; }   // bước ngang: dạng / khép chân
+          e.headRoll = (e.headRoll || 0) + ((e.headRollT || 0) - (e.headRoll || 0)) * (1 - Math.exp(-dt * 4)); if (Math.abs(e.headRoll) < 1e-4 && !e.headRollT) e.headRoll = 0;
+          e.head.rotation.z = e.headRoll;   // nghiêng đầu: ngủ gật trên ghế, lắc theo nhạc, lau tóc
           e.headYaw = (e.headYaw || 0) + ((e.headYawT || 0) - (e.headYaw || 0)) * (1 - Math.exp(-dt * 6)); if (!e.headYawT && Math.abs(e.headYaw) < 1e-4) e.headYaw = 0;
           e.head.rotation.y = e.headYaw; e.headYawT = 0;
           const lam = e.g.rotation.x, pv = e.seatCtl ? ENG_HIP_Y : 0, y = checkBubbleSprite.position.y - pv;
@@ -6933,7 +7059,7 @@
           bunnyEars(b, dt, t);
           return true;
         }
-        const dogDoorFar = vanPt(0.33, 0, 3.2), dogDoorStep = vanPt(0.33, 0, 1.9), dogInside = vanPt(0.33, 1.07, 1.0), dogBed = vanPt(0.45, 1.07, 0.15);
+        const dogDoorFar = vanPt(0.33, 0, 3.2), dogDoorStep = vanPt(0.33, 0, 1.9), dogInside = vanPt(0.33, 1.07, 1.0), dogBed = vanPt(-0.5, 1.07, 1.12);
         const dogLie = campObj.g.position.clone().add(new THREE.Vector3(Math.cos(-0.5) * 1.55, 0, Math.sin(-0.5) * 1.55));
         const dogDoorField = buildFlowField(dogDoorFar.x, dogDoorFar.z), dogFireField = buildFlowField(dogLie.x, dogLie.z);
         const dogRain = { st: null, t: 0, yaw: 0 };
@@ -6977,7 +7103,7 @@
           else if (D.st === 'toBed') { if (go(dogBed.x, dogBed.z, null, 0.9)) D.st = 'in'; p.y = floorY + 0.12 * CAMP_SCALE; }
           else if (D.st === 'toExit') { if (go(dogInside.x, dogInside.z, null, 0.9)) { D.st = 'hopOut'; D.t = 0; } p.y = floorY + 0.12 * CAMP_SCALE; }
           else if (D.st === 'toFire') { if (go(dogLie.x, dogLie.z, dogFireField, 2.0)) { D.st = null; return false; } p.y = groundAt() + 0.12 * CAMP_SCALE; }
-          else { p.y = floorY + (night ? 0.02 : 0.04) * CAMP_SCALE; hx = vanOut.x; hz = vanOut.z; }   // 'in': nằm giữa lối đi, mặt nhìn ra cửa (tối thì nằm ép sát sàn ngủ)
+          else { p.y = floorY + (night ? 0.02 : 0.04) * CAMP_SCALE; hx = dogInside.x - dogBed.x; hz = dogInside.z - dogBed.z; }   // 'in': nằm dưới gầm bàn vuông, mặt nhìn ra cửa (tối thì nằm ép sát sàn ngủ)
           const sleeping = D.st === 'in' && night;
           dogObj.rotation.z += ((sleeping ? -0.12 : 0) - dogObj.rotation.z) * Math.min(1, dt * 2);   // ngủ: gục mõm xuống sàn
           u.body.scale.y = sleeping ? 1 + 0.05 * Math.sin(t * 1.6) : 1;                               // thở chậm đều
@@ -6998,8 +7124,7 @@
           u.tail.rotation.y = walk ? Math.sin(t * 18) * 0.35 : sleeping ? 0.25 : Math.sin(t * 1.5) * 0.1;   // ngủ: đuôi cuộn sát thân
           return true;
         }
-        // ---- 20:30–21:00: kỹ sư vào caravan ngồi bàn học làm việc với laptop rồi mới đi ngủ (21:00 nhánh ngủ đưa lên giường) ----
-        //      đi tới cửa hông theo trường dòng chảy → bước lên bậc → đi dọc lối giữa tới sau ghế → ngồi xuống, mở laptop, gõ phím ----
+        // ---- bàn học trong caravan (nghiên cứu ban ngày, học bài buổi tối): lối giữa → sau ghế → kéo ghế ra → vòng ra trước → ngồi, mở laptop ----
         const engStudyPts = (() => {
           const ch = caravanObj.userData.interior.study.chair.center, cx = ch[0], cz = ch[1];
           return { cx, cz, aisle: vanPt(1.45, 1.07, 0.25), yaw: caravanObj.rotation.y + Math.PI };   // ghế quay về −Z cục bộ (mặt bàn)
@@ -7014,83 +7139,623 @@
           STUDY_SEAT.pos.copy(vanPt(engStudyPts.cx, 1.07, engStudyPts.cz + off));
         }
         studyChairAt(0);
-        function engStudy(e, dt, t, hh) {   // true = đang trong lịch làm việc bên bàn học (tự lo vị trí + dáng)
-          if (hh < 20.5) {
-            if (e.study) { e.study = null; e.phase = 'toFish'; e.timer = 0; if (e.seat && e.seat.C === STUDY_SEAT) e.seat = null; }
-            if (studyChairRig.off) studyChairAt(0);
-            studyLaptop.target = 0; return false;
+        // ====== LỊCH SINH HOẠT CẢ NGÀY CỦA KỸ SƯ (theo giờ Pleiku thật) ======
+        //  06:00 dậy, ngồi mép giường rồi đi vệ sinh · 06:12 ăn sáng ở bàn vuông trong xe (ngũ cốc, sữa, cà phê) · 06:40 ra trại: cột khí tượng, trà,
+        //  dạo, uống nước, vuốt chó · 07:15–11:15 nghiên cứu ở bàn học · 11:15 vệ sinh · 11:25 ăn trưa dưới hiên · 12:15 trà rồi ngủ trưa trên ghế
+        //  13:00–16:00 nghiên cứu · 16:00 vệ sinh · 16:10 ra trại · 17:15 ăn tối · 18:00 tắm · 18:20 câu cá · 19:30 đọc sách, ăn khoai tây chiên
+        //  20:30 học bài, laptop mở nhạc · 20:57 ngồi mép giường tháo mũ · 21:00 ngủ.
+        //  Mưa: việc ngoài trời trống (dạo trại, câu cá) đổi sang ngồi dưới hiên; ăn, nghỉ, đọc sách vốn đã dưới hiên nên giữ nguyên.
+        //  Việc có điểm dừng (vệ sinh, tắm): xong sớm thì sang luôn việc kế tiếp; hết giờ mà chưa xong thì làm nốt rồi mới đi.
+        const ENG_DAY = [[0, 'sleep'], [6, 'toilet'], [6.2, 'breakfast'], [6 + 40 / 60, 'outdoor'], [7.25, 'research'], [11.25, 'toilet'], [11 + 25 / 60, 'lunch'],
+          [12.25, 'rest'], [13, 'research'], [16, 'toilet'], [16 + 10 / 60, 'outdoor'], [17.25, 'dinner'], [18, 'shower'], [18 + 20 / 60, 'fish'],
+          [19.5, 'read'], [20.5, 'music'], [20.95, 'bedtime'], [21, 'sleep']];
+        const ENG_ACTS = {
+          sleep: { van: 1, label: 'Ngủ' }, toilet: { van: 1, once: 1, label: 'Vệ sinh', plan: ['wc', 'sink'] },
+          breakfast: { van: 1, label: 'Ăn sáng', plan: ['table'] }, research: { van: 1, label: 'Nghiên cứu', plan: ['desk'] },
+          shower: { van: 1, once: 1, label: 'Tắm', plan: ['shelfOff', 'shower', 'towel', 'shelfOn'] },
+          music: { van: 1, label: 'Học bài, nghe nhạc', plan: ['desk'] }, bedtime: { van: 1, label: 'Chuẩn bị ngủ', plan: ['bed'] },
+          outdoor: { label: 'Dạo quanh trại' }, lunch: { label: 'Ăn trưa' }, rest: { label: 'Nghỉ trưa' }, dinner: { label: 'Ăn tối' },
+          fish: { label: 'Câu cá' }, read: { label: 'Đọc sách' }, shelter: { label: 'Trú mưa dưới hiên' }
+        };
+        function engScheduleAt(h) {
+          let k = 0; for (let i = 1; i < ENG_DAY.length; i++) if (h >= ENG_DAY[i][0]) k = i;
+          const end = k + 1 < ENG_DAY.length ? ENG_DAY[k + 1][0] : 24, n = (k + 1) % ENG_DAY.length;
+          return { act: ENG_DAY[k][1], end, left: (end - h) * 3600, next: ENG_DAY[n][1], nextEnd: n + 1 < ENG_DAY.length ? ENG_DAY[n + 1][0] : 24 };
+        }
+        function engWantAct(e, hh) {   // việc cần làm lúc này (đặt e.actLeft = số giây còn lại của khung giờ)
+          const s = engScheduleAt(hh); let act = s.act, left = s.left;
+          if (ENG_ACTS[act].once) {
+            const key = act + '@' + s.end + '@' + new Date().toDateString();   // theo ngày: hôm sau vẫn đi vệ sinh, vẫn tắm
+            if (e.doneAct === key) { act = s.next; left = (s.nextEnd - hh) * 3600; }
+            else if (e.onceKey !== key) { e.onceKey = key; e.onceEnd = s.end; }
+          } else if (e.act && ENG_ACTS[e.act].once && e.onceKey && e.doneAct !== e.onceKey && e.onceKey.startsWith(e.act + '@') && hh < e.onceEnd + 0.2 && hh > e.onceEnd - 1) { act = e.act; left = 0; }
+          if ((act === 'outdoor' || act === 'fish') && liveWeather.state.fresh && liveWeather.state.raining) act = 'shelter';
+          e.actLeft = Math.max(0, left); return act;
+        }
+        const engPhaseFor = act => ENG_ACTS[act].van ? 'van' : act === 'fish' ? 'toFish' : act === 'outdoor' ? 'toMast' : act === 'shelter' ? 'toShelter' : 'toChair';
+        function engChairPhase(e, act) {   // đã ngồi ghế cắm trại: làm gì, bao lâu
+          if (act === 'lunch' || act === 'dinner') { e.timer = Math.max(60, Math.min(1200, e.actLeft - 900)); return 'eat'; }
+          if (act === 'rest') { e.timer = Math.max(30, Math.min(720, e.actLeft - 1200)); return 'tea'; }
+          if (act === 'read') return 'read';
+          if (act === 'shelter') return 'shelter';
+          e.timer = 150; return 'tea';   // dạo trại: ngồi nghỉ chân uống trà
+        }
+        function engSetAct(e, act) {
+          e.act = act;
+          if (e.phase === 'fish') { e.timer = Math.min(e.timer, 0); return; }   // đang câu: thu dây, dìu cá xong mới đổi việc (nhánh câu tự chuyển)
+          e.phase = engPhaseFor(act); e.timer = 0; e.wanderTgt = null; e.wanderTmr = 0;
+        }
+
+        // ---- trong xe: đồ thị lối đi (đv xe → thế giới) · cửa lùa phòng tắm · ghế trong xe ----
+        const VAN_FLOOR = dogInside.y, vanFloor = () => VAN_FLOOR, VYAW = caravanObj.rotation.y;
+        const VY = { pz: VYAW, nz: VYAW + Math.PI, px: VYAW + Math.PI / 2, nx: VYAW - Math.PI / 2 };   // hướng nhìn dọc các trục của xe
+        const VN = {};
+        for (const [k, x, z] of [['door', 0.33, 1.0], ['hall', 0.33, 0.12], ['tbl', 0.05, 0.33], ['bed', 0.62, -0.15], ['mid', 1.45, 0.25], ['rear', 2.45, 0.02],
+          ['bathOut', 2.6, -0.145], ['bathIn', 3.3, 0.0], ['sink', 3.475, 0.74], ['shelf', 3.45, 0.45], ['towel', 3.75, 0.08], ['wcOut', 3.255, -0.2], ['wcIn', 3.255, -0.64]]) { VN[k] = vanPt(x, 1.07, z); VN[k].node = k; }
+        const VAN_EDGES = [['door', 'hall'], ['hall', 'tbl'], ['hall', 'bed'], ['hall', 'mid'], ['bed', 'mid'], ['mid', 'rear'], ['rear', 'bathOut'], ['bathOut', 'bathIn', 'entry'],
+          ['bathIn', 'sink'], ['bathIn', 'shelf'], ['shelf', 'sink'], ['bathIn', 'towel'], ['bathIn', 'wcOut'], ['towel', 'wcOut'], ['wcOut', 'wcIn', 'wc']];
+        function vanRoute(a, b) {   // đường ngắn nhất giữa 2 nút (Dijkstra trên ~13 nút) → [{ p, door, node }] không gồm nút đầu
+          const dist = { [a]: 0 }, prev = {}, todo = new Set(Object.keys(VN));
+          while (todo.size) {
+            let u = null; for (const k of todo) if (dist[k] !== undefined && (u === null || dist[k] < dist[u])) u = k;
+            if (u === null || u === b) break; todo.delete(u);
+            for (const [p, q, door] of VAN_EDGES) {
+              const v = p === u ? q : q === u ? p : null; if (!v || !todo.has(v)) continue;
+              const d = dist[u] + VN[u].distanceTo(VN[v]); if (dist[v] === undefined || d < dist[v]) { dist[v] = d; prev[v] = [u, door || null]; }
+            }
           }
-          const g = e.g, floorY = dogInside.y, P = engStudyPts, C = STUDY_SEAT;
-          if (!e.study) {
-            e.wanderTgt = null; e.wanderTmr = 0; e.phase = 'study';
-            if (t < 3) { e.study = 'work'; studyChairAt(0); e.seat = { C, st: 'seated', k: 1, li: 0, lam: 0, sw: 0 }; }   // mở trang đúng giờ này: đã ngồi sẵn
-            else e.study = 'toDoor';
+          const out = []; for (let k = b; k !== a && prev[k]; k = prev[k][0]) out.unshift({ p: VN[k], door: prev[k][1], node: k });
+          return out;
+        }
+        const VBATH = caravanObj.userData.interior.bath, VSTOOL = caravanObj.userData.interior.stool;
+        const VAN_DOORS = {   // cửa lùa: tâm khe cửa khi mở (đv thế giới) — tới gần thì nghiêng vai, cúi đầu
+          entry: { g: VBATH.entryDoor, axis: 'z', slide: 0.5, c: vanPt(2.935, 1.07, -0.145), k: 0, target: 0, shown: -1 },
+          wc: { g: VBATH.wcDoor, axis: 'x', slide: 0.45, c: vanPt(3.255, 1.07, -0.42), k: 0, target: 0, shown: -1 }
+        };
+        const LID = { k: 0, target: 0, shown: -1 };   // nắp bồn cầu: 0 đậy · 1 dựng vào két
+        function vanDoorsTick(dt) {
+          for (const d of Object.values(VAN_DOORS)) {
+            d.k += Math.sign(d.target - d.k) * Math.min(Math.abs(d.target - d.k), dt / 0.9);
+            if (d.k !== d.shown) { d.shown = d.k; d.g.position[d.axis] = d.slide * d.k * d.k * (3 - 2 * d.k); }
           }
+          LID.k += Math.sign(LID.target - LID.k) * Math.min(Math.abs(LID.target - LID.k), dt / 0.7);
+          if (LID.k !== LID.shown) { LID.shown = LID.k; VBATH.lid.rotation.z = -1.62 * minJerk(LID.k); }
+        }
+        function vanDoorsAuto(e, V) {   // cửa đã mở để đi qua: ra khỏi khe cửa (và không còn đi qua nó nữa) thì kéo đóng lại
+          for (const D of V.opened) {
+            const onPath = !!V.path && V.path.slice(V.pi, V.pi + 2).some(q => q.door && VAN_DOORS[q.door] === D);
+            if (!onPath && Math.hypot(e.g.position.x - D.c.x, e.g.position.z - D.c.z) > 0.3) { D.target = 0; V.opened.delete(D); }
+          }
+        }
+        const vanSqueeze = e => { let s = 0; for (const d of Object.values(VAN_DOORS)) s = Math.max(s, 1 - segK(Math.hypot(e.g.position.x - d.c.x, e.g.position.z - d.c.z), 0.18, 0.55)); return s; };
+        function engSideGait(e, dist, k) {   // bước ngang (lách khe hẹp): dạng một chân rồi khép chân kia, gối chùng nhẹ; trả về độ nhún
+          e.sgait = ((e.sgait || 0) + dist * (Math.PI * 2 / 0.6)) % (Math.PI * 2000);
+          const s = Math.sin(e.sgait), a = Math.max(0, s), b = Math.max(0, -s), T = e.legZT || (e.legZT = [0, 0]);
+          T[0] = -0.2 * a * k; T[1] = 0.2 * b * k;
+          e.legs[0].rotation.x = -0.12 * a * k; e.legs[1].rotation.x = -0.12 * b * k; e.knees[0].rotation.x = 0.25 * a * k; e.knees[1].rotation.x = 0.25 * b * k;
+          e.arms[0].rotation.x = e.arms[1].rotation.x = 0;
+          return Math.abs(s) * 0.015 * k;
+        }
+        function vanPathStep(e, V, dt) {   // đi theo V.path, không dừng ở nút giữa, phanh đều về nút cuối · đoạn có cửa: mở trước, chờ mở hẳn, lách vai + cúi đầu qua khung
+          const g = e.g, path = V.path;
+          let q = path[V.pi], dx = q.p.x - g.position.x, dz = q.p.z - g.position.z, d = Math.hypot(dx, dz);
+          while (V.pi < path.length - 1 && d < 0.1) { V.node = q.node; V.pi++; q = path[V.pi]; dx = q.p.x - g.position.x; dz = q.p.z - g.position.z; d = Math.hypot(dx, dz); }
+          V.segDoor = q.door;
+          for (let k = V.pi; k < Math.min(path.length, V.pi + 2); k++) if (path[k].door) { const D = VAN_DOORS[path[k].door]; D.target = 1; V.opened.add(D); }
+          const D = q.door && VAN_DOORS[q.door];
+          if (D && D.k < 0.92 && Math.hypot(g.position.x - D.c.x, g.position.z - D.c.z) < 0.5) {   // cửa chưa mở hẳn: đứng chờ
+            e.vel = 0; engStandStill(e); g.position.y = VAN_FLOOR - ENG_FEET; return false;
+          }
+          if (V.pi === path.length - 1 && d < 0.012) { e.vel = 0; g.position.x = q.p.x; g.position.z = q.p.z; g.position.y = VAN_FLOOR - ENG_FEET; engStandStill(e); V.node = q.node; return true; }
+          let rem = d; for (let k = V.pi + 1; k < path.length; k++) rem += path[k].p.distanceTo(path[k - 1].p);
+          const sq = vanSqueeze(e), head = Math.atan2(dx, dz), want = head + 1.3 * sq;
+          const dy = Math.atan2(Math.sin(want - g.rotation.y), Math.cos(want - g.rotation.y));
+          g.rotation.y += Math.max(-3.4 * dt, Math.min(3.4 * dt, dy * Math.min(1, dt * 9)));
+          const off = Math.abs(Math.atan2(Math.sin(head - g.rotation.y), Math.cos(head - g.rotation.y)));   // thân lệch hướng đi bao nhiêu
+          const vWant = Math.min(0.75 * (1 - 0.55 * sq), Math.sqrt(2 * 0.9 * rem) + 0.06) * (off > 0.6 ? 1 : Math.max(0.35, Math.cos(dy)));
+          const v0 = e.vel || 0; e.vel = v0 + Math.max(-2.6 * dt, Math.min(1.8 * dt, vWant - v0));
+          const st = Math.min(d, e.vel * dt); g.position.x += dx / d * st; g.position.z += dz / d * st;
+          const bob = off > 0.6 ? engSideGait(e, st, Math.min(1, (off - 0.6) / 0.5)) : engGait(e, st);
+          g.position.y = VAN_FLOOR - ENG_FEET + (bob - 0.05 * sq) * CAMP_SCALE;
+          e.lean = Math.max(e.lean, 0.13 * sq); e.head.rotation.x = Math.max(e.head.rotation.x, 0.32 * sq);   // khung cửa phòng tắm thấp hơn đỉnh mũ: cúi đầu
+          e.walking = true; return false;
+        }
+        function vanGoTo(e, V, node, dt) {   // tới nút trong xe theo đồ thị (đổi đích giữa chừng: quay lại nút vừa qua rồi đi đường mới)
+          if (!V.path || V.goal !== node) {
+            const back = V.path ? [{ p: VN[V.node], door: V.segDoor, node: V.node }] : [];
+            V.path = [...back, ...vanRoute(V.node, node)]; V.pi = 0; V.goal = node;
+            if (!V.path.length) { V.path = null; return true; }
+          }
+          if (!vanPathStep(e, V, dt)) return false;
+          V.path = null; V.node = node; return true;
+        }
+        function vanWalkTo(e, Q, dt, spd = 0.5) {   // bước thẳng vài tấc trong buồng hẹp, dừng đúng điểm
+          const g = e.g, dx = Q.x - g.position.x, dz = Q.z - g.position.z, dd = Math.hypot(dx, dz);
+          if (dd < 0.012) { g.position.x = Q.x; g.position.z = Q.z; g.position.y = VAN_FLOOR - ENG_FEET; engStandStill(e); e.vel = 0; return true; }
+          e.vel = Math.min(spd, (e.vel || 0) + 2.0 * dt, Math.sqrt(2 * 0.9 * dd) + 0.04);
+          const st = Math.min(dd, e.vel * dt); g.position.x += dx / dd * st; g.position.z += dz / dd * st;
+          let d = Math.atan2(dx, dz) - g.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); g.rotation.y += Math.max(-3 * dt, Math.min(3 * dt, d * Math.min(1, dt * 8)));
+          g.position.y = VAN_FLOOR - ENG_FEET + engGait(e, st) * CAMP_SCALE; e.walking = true; return false;
+        }
+        function vanSideStep(e, Q, yaw, dt) {   // bước ngang tới Q, thân giữ hướng yaw (lách giữa ghế đẩu và mép bàn)
+          const g = e.g, dx = Q.x - g.position.x, dz = Q.z - g.position.z, d = Math.hypot(dx, dz);
+          const dy = Math.atan2(Math.sin(yaw - g.rotation.y), Math.cos(yaw - g.rotation.y)); g.rotation.y += dy * Math.min(1, dt * 8);
+          if (d < 0.01) { g.position.x = Q.x; g.position.z = Q.z; g.position.y = VAN_FLOOR - ENG_FEET; engStandStill(e); e.vel = 0; return engPoseSettled(e, yaw); }
+          e.vel = Math.min(0.32, (e.vel || 0) + 1.2 * dt, d * 2 + 0.03);
+          const st = Math.min(d, e.vel * dt); g.position.x += dx / d * st; g.position.z += dz / d * st;
+          g.position.y = VAN_FLOOR - ENG_FEET + engSideGait(e, st, 1) * CAMP_SCALE; e.walking = true; return false;
+        }
+        const indoorSeat = (name, x, z, yaw, o = {}) => makeSeat(Object.assign({ name, indoor: true, pos: vanPt(x, 1.07, z), yaw, seatZ: 0, standZ: STUDY_FZ * CAMP_SCALE, contactZ: 0.09,
+          seatDrop: 0.56, legs: [-1.48, -1.44], knees: [0.98, 0.94], arm: null, ground: vanFloor }, o));   // ghế trong xe cao ~0,48 m như ghế bàn học
+        const STOOL_IN = 0.2, STOOL_SEAT = indoorSeat('stool', -0.65, VSTOOL.rest, VY.pz), TABLE_STAND = vanPt(-0.65, 1.07, VSTOOL.rest + STUDY_FZ);
+        function stoolAt(z) { VSTOOL.obj.position.z = z - VSTOOL.rest; STOOL_SEAT.pos.copy(vanPt(-0.65, 1.07, z)); }
+        const BED_SEAT = indoorSeat('bed', 0.62, -0.52, VY.pz);                                   // mép đệm, đệm cao 0,49 m
+        const TOILET_SEAT = indoorSeat('toilet', 3.58, -1.07, VY.pz, { standZ: 0.4 * CAMP_SCALE }); // lệch 5 cm về phía cửa cho vai không chạm vách sau
+        const TOILET_STAND = seatW(TOILET_SEAT, 0, TOILET_SEAT.standZ), SHOWER_SPOT = vanPt(3.36, 1.07, -0.6);
+        function engHelmet(e, where) {   // mũ bảo hộ: trên đầu · trên kệ phòng tắm · cuối giường
+          e.helmet.visible = where === 'head'; e.hair.visible = where !== 'head';
+          VBATH.shelfHelmet.visible = where === 'shelf'; caravanObj.userData.interior.bedHelmet.visible = where === 'bed';
+        }
+        function engScootPose(e, C, s, k, dt, t) {   // nhích cả ghế: 3 lần nhổm nhẹ, hai tay nắm hai bên mặt ghế
+          s.lam += (0.1 - s.lam) * (1 - Math.exp(-dt * 4)); e.seatCtl = true;
+          engSeatPose(e, C, 0, C.seatZ, C.hipSeat + 0.014 * Math.max(0, Math.sin(Math.PI * 3 * k)), s.lam, 0, null, 0, t);
+          const rt = e.armRollT || (e.armRollT = [0, 0]); for (let i = 0; i < 2; i++) { e.arms[i].rotation.x = 0.12; rt[i] = (i ? 1 : -1) * 0.22; }
+          e.head.rotation.x = 0.12;
+        }
+        const engNewSeat = (C, st) => ({ C, st, k: st === 'seated' ? 1 : 0, li: 0, lam: 0, sw: 0 });
+
+        // ---- các "trạm" trong xe: mỗi trạm có nút vào/ra và máy trạng thái riêng; keep = việc hiện tại còn cần trạm này
+        //      (hết cần thì tự gỡ ra: nhích ghế, đứng dậy, đẩy ghế vào… rồi trả 'released' khi đã đứng ở nút) ----
+        const stDesk = { node: 'mid', tick(e, V, dt, t, keep) {   // bàn học: nghiên cứu ban ngày · học bài nghe nhạc buổi tối
+          const g = e.g, P = engStudyPts, C = STUDY_SEAT, off = studyChairRig.off;
           const face = (dx, dz, k = 8) => { let d = Math.atan2(dx, dz) - g.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); g.rotation.y += d * Math.min(1, dt * k); };
-          const walkIn = (Q, spd = 0.85) => {   // đi trong xe: thẳng tới điểm, không bị lực đẩy vật cản của chính chiếc xe
+          const walkIn = (Q, spd = 0.85) => {   // đi trong xe: thẳng tới điểm
             const dx = Q.x - g.position.x, dz = Q.z - g.position.z, dd = Math.hypot(dx, dz);
-            if (dd < 0.03) { g.position.y = floorY - ENG_FEET; engStandStill(e); e.vel = 0; return true; }
-            e.vel = Math.min(spd, (e.vel || 0) + 2.4 * dt, dd * 1.6 + 0.05);   // tăng tốc từ từ, chậm lại khi sắp tới
+            if (dd < 0.03) { g.position.y = VAN_FLOOR - ENG_FEET; engStandStill(e); e.vel = 0; return true; }
+            e.vel = Math.min(spd, (e.vel || 0) + 2.4 * dt, dd * 1.6 + 0.05);
             const st = Math.min(dd, e.vel * dt); g.position.x += dx / dd * st; g.position.z += dz / dd * st; face(dx, dz);
-            g.position.y = floorY - ENG_FEET + engGait(e, st) * CAMP_SCALE; e.walking = true; return false;
+            g.position.y = VAN_FLOOR - ENG_FEET + engGait(e, st) * CAMP_SCALE; e.walking = true; return false;
           };
-          const vp = (x, z) => vanPt(x, 1.07, z), off = studyChairRig.off;
+          const vp = (x, z) => vanPt(x, 1.07, z);
           const backPt = o => vp(P.cx, P.cz + o + 0.52), leftBack = o => vp(P.cx - 0.57, P.cz + o + 0.52), leftFront = o => vp(P.cx - 0.57, P.cz + o - STUDY_FZ), standPt = o => vp(P.cx, P.cz + o - STUDY_FZ);
-          const drag = (from, to, fwd) => {   // nắm đỉnh tựa lưng: kéo ghế ra (lùi bước) / đẩy ghế vào (tiến bước) — ghế trượt theo tay
-            e.timer = Math.min(1, e.timer + dt / 1.6);
-            const o2 = from + (to - from) * minJerk(segK(e.timer, 0.18, 0.92)), grip = minJerk(segK(e.timer, 0, 0.2)) * (1 - minJerk(segK(e.timer, 0.9, 1)));
+          const drag = (from, to, fwd) => {   // nắm đỉnh tựa lưng: kéo ghế ra (lùi bước) / đẩy ghế vào (tiến bước)
+            V.k = Math.min(1, V.k + dt / 1.6);
+            const o2 = from + (to - from) * minJerk(segK(V.k, 0.18, 0.92)), grip = minJerk(segK(V.k, 0, 0.2)) * (1 - minJerk(segK(V.k, 0.9, 1)));
             const tg = backPt(o2), st = Math.hypot(tg.x - g.position.x, tg.z - g.position.z);
             g.position.x = tg.x; g.position.z = tg.z; e.vel = Math.min(0.5, st / Math.max(dt, 1e-3));
-            g.position.y = floorY - ENG_FEET + engGait(e, fwd ? st : -st) * CAMP_SCALE; e.walking = st > 1e-4;
+            g.position.y = VAN_FLOOR - ENG_FEET + engGait(e, fwd ? st : -st) * CAMP_SCALE; e.walking = st > 1e-4;
             face(Math.sin(P.yaw), Math.cos(P.yaw));
             e.arms[0].rotation.x = e.arms[1].rotation.x = -0.62 * grip; e.lean = 0.1 * grip; e.head.rotation.x = 0.3 * grip;
-            studyChairAt(o2); return e.timer >= 1;
+            studyChairAt(o2); return V.k >= 1;
           };
-          if (e.study === 'toDoor') { if (engStep(e, dogDoorFar, dt, t, pf, FIRE_AVOID_R, dogDoorField)) e.study = 'toStep'; }
-          else if (e.study === 'toStep') { if (engStep(e, dogDoorStep, dt, t, null, 0, null)) { e.study = 'stepIn'; e.timer = 0; } }
-          else if (e.study === 'stepIn') {   // bước lên bậc cửa hông vào sàn xe
-            e.timer = Math.min(1, e.timer + dt / 0.8); const k = e.timer, A = dogDoorStep, B = dogInside, ya = cowY(A.x, A.z) - ENG_FEET, yb = floorY - ENG_FEET;
-            g.position.set(A.x + (B.x - A.x) * k, ya + (yb - ya) * k + Math.sin(Math.PI * k) * 0.12, A.z + (B.z - A.z) * k); face(B.x - A.x, B.z - A.z);
-            e.vel = 0.8; engGait(e, A.distanceTo(B) * dt / 0.8); e.lean = 0.12 * Math.sin(Math.PI * k); e.walking = true;   // nhấc chân bước lên bậc, người đổ về trước
-            if (k >= 1) e.study = 'toAisle';
+          if (!V.st) V.st = off > 0.4 ? 'aroundL' : 'toBack';
+          if (!keep) {   // việc khác: chưa kịp ngồi thì quay ra (ghế đã kéo thì đẩy vào), đang ngồi thì nhích ghế ra rồi đứng dậy
+            if (V.st === 'toBack') return 'released';
+            if (V.st === 'aroundL' || V.st === 'aroundF') V.st = 'outB';
+            else if (V.st === 'toStand' || V.st === 'turn') V.st = 'outF';
+            else if (V.st === 'work') { V.st = 'unscoot'; V.k = 0; }
           }
-          else if (e.study === 'toAisle') { if (walkIn(P.aisle)) e.study = off > 0.4 ? 'aroundL' : 'toBack'; }
-          else if (e.study === 'toBack') { if (walkIn(backPt(off), 0.6)) { e.study = 'pull'; e.timer = 0; e.dragFrom = off; } }
-          else if (e.study === 'pull') { if (drag(e.dragFrom, STUDY_PULL, false)) e.study = 'aroundL'; }
-          else if (e.study === 'aroundL') { if (walkIn(leftBack(off), 0.6)) e.study = 'aroundF'; }   // vòng bên trái ghế (phía đuôi giường)
-          else if (e.study === 'aroundF') { if (walkIn(leftFront(off), 0.6)) e.study = 'toStand'; }
-          else if (e.study === 'toStand') { if (walkIn(standPt(off), 0.45)) e.study = 'turn'; }   // đi ngang vào khoảng trước mặt ghế
-          else if (e.study === 'turn') {   // quay lưng lại ghế (mặt hướng bàn) rồi ngồi
-            if (engSeatTurn(e, P.yaw, dt, () => floorY)) { e.seat = { C, st: 'sit', k: 0, li: 0, lam: 0, sw: 0 }; engSeatStartSit(e, C, e.seat); e.study = 'sit'; }
+          if (V.st === 'toBack') { if (walkIn(backPt(off), 0.6)) { V.st = 'pull'; V.k = 0; V.dragFrom = off; } }
+          else if (V.st === 'pull') { if (drag(V.dragFrom, STUDY_PULL, false)) V.st = keep ? 'aroundL' : 'push0'; }
+          else if (V.st === 'push0') { V.st = 'push'; V.k = 0; V.dragFrom = off; }
+          else if (V.st === 'aroundL') { if (walkIn(leftBack(off), 0.6)) V.st = 'aroundF'; }   // vòng bên trái ghế (phía đuôi giường)
+          else if (V.st === 'aroundF') { if (walkIn(leftFront(off), 0.6)) V.st = 'toStand'; }
+          else if (V.st === 'toStand') { if (walkIn(standPt(off), 0.45)) V.st = 'turn'; }   // đi ngang vào khoảng trước mặt ghế
+          else if (V.st === 'turn') { if (engSeatTurn(e, P.yaw, dt, vanFloor)) { e.seat = engNewSeat(C, 'sit'); engSeatStartSit(e, C, e.seat); V.st = 'sit'; } }
+          else if (V.st === 'sit') { e.seatCtl = true; if (engSitStep(e, C, e.seat, dt, t)) { e.seat.st = 'seated'; V.st = 'scoot'; V.k = 0; } }
+          else if (V.st === 'scoot' || V.st === 'unscoot') {   // nhích cả ghế vào sát bàn · hết giờ: nhích ra để còn chỗ đứng dậy
+            V.k = Math.min(1, V.k + dt / 2.2); const m = minJerk(V.k), into = V.st === 'scoot';
+            studyChairAt(into ? STUDY_PULL * (1 - m) : 0.5 * m); engScootPose(e, C, e.seat, V.k, dt, t);
+            if (V.k >= 1) { if (into) V.st = 'work'; else { engSeatStartRise(e, C, e.seat); V.st = 'rise'; } }
           }
-          else if (e.study === 'sit') { e.seatCtl = true; if (engSitStep(e, C, e.seat, dt, t)) { e.seat.st = 'seated'; e.study = 'scoot'; e.timer = 0; } }
-          else if (e.study === 'scoot' || e.study === 'unscoot') {   // nhích cả ghế vào sát bàn (3 lần nhổm nhẹ, tay nắm hai bên mặt ghế) · hết giờ: nhích ra để còn chỗ đứng dậy
-            e.timer = Math.min(1, e.timer + dt / 2.2); const k = e.timer, m = minJerk(k), into = e.study === 'scoot';
-            studyChairAt(into ? STUDY_PULL * (1 - m) : 0.5 * m);
-            const s = e.seat; s.lam += (0.1 - s.lam) * (1 - Math.exp(-dt * 4)); e.seatCtl = true;
-            engSeatPose(e, C, 0, C.seatZ, C.hipSeat + 0.014 * Math.max(0, Math.sin(Math.PI * 3 * k)), s.lam, 0, null, 0, t);
-            const rt = e.armRollT || (e.armRollT = [0, 0]); for (let i = 0; i < 2; i++) { e.arms[i].rotation.x = 0.12; rt[i] = (i ? 1 : -1) * 0.22; }
-            e.head.rotation.x = 0.12;
-            if (k >= 1) { if (into) e.study = 'work'; else { engSeatStartRise(e, C, s); e.study = 'rise'; } }
-          }
-          else if (e.study === 'work') {   // gõ phím, thỉnh thoảng ngả lưng nhìn màn hình suy nghĩ
+          else if (V.st === 'work') {
             e.seatCtl = true; engSeatHold(e, C, e.seat, dt, t);
-            const pause = (t % 11) < 2.2, tap = pause ? 0 : 0.06;
-            e.seatLean = pause ? -0.05 : 0.1;
-            e.arms[0].rotation.x = pause ? -0.45 : -0.98 + Math.sin(t * 13) * tap;
-            e.arms[1].rotation.x = pause ? -0.5 : -0.98 + Math.sin(t * 13 + 1.7) * tap;
-            e.head.rotation.x = pause ? 0.05 + Math.sin(t * 0.8) * 0.04 : 0.24 + Math.sin(t * 0.7) * 0.03;
-            if (hh >= 20.985) { e.study = 'unscoot'; e.timer = 0; }   // ~1 phút trước giờ ngủ: gập máy, nhích ghế ra, đứng dậy
+            const rt = e.armRollT || (e.armRollT = [0, 0]);
+            if (e.act === 'music') {   // học bài với nhạc: gật gù theo nhịp ~87 bpm, lắc nhẹ đầu; mỗi 30 s ngả lưng gõ nhịp lên mép bàn
+              const beat = t * Math.PI * 2 * 1.45, cyc = (t + V.ph) % 30, rel = cyc > 21;
+              e.seatLean = rel ? -0.07 : 0.09; e.headRollT = Math.sin(beat / 2) * 0.07;
+              e.head.rotation.x = (rel ? 0.02 : 0.22) + Math.sin(beat) * 0.06;
+              if (rel) { e.arms[0].rotation.x = -0.82 + Math.max(0, Math.sin(beat)) * 0.14; e.arms[1].rotation.x = -0.82 + Math.max(0, Math.sin(beat + Math.PI)) * 0.14; }
+              else { const tap = (t % 6) < 3.8 ? 0.05 : 0; e.arms[0].rotation.x = -0.98 + Math.sin(t * 11) * tap; e.arms[1].rotation.x = -0.98 + Math.sin(t * 11 + 1.7) * tap; }
+            } else {   // nghiên cứu: gõ phím, thỉnh thoảng ngả lưng nhìn màn hình suy nghĩ; ~7 phút vươn vai 1 lần, ~1 phút đan tay sau gáy 1 lần
+              const cyc = (t + V.ph) % 400, cyc2 = (t + V.ph * 0.7) % 63;
+              if (cyc < 5.5) {
+                const k = Math.min(1, Math.sin(Math.PI * cyc / 5.5) * 1.6);
+                e.seatLean = -0.12 * k; e.arms[0].rotation.x = e.arms[1].rotation.x = -0.45 - 2.45 * k; e.head.rotation.x = 0.05 - 0.3 * k;
+              } else if (cyc2 < 8) {
+                const k = Math.min(1, Math.sin(Math.PI * cyc2 / 8) * 2.5);
+                e.seatLean = -0.1 * k + 0.1 * (1 - k); e.arms[0].rotation.x = e.arms[1].rotation.x = -0.98 - 1.6 * k; rt[0] = -0.55 * k; rt[1] = 0.55 * k; e.head.rotation.x = 0.24 - 0.26 * k;
+              } else {
+                const pause = (t % 11) < 2.2, tap = pause ? 0 : 0.06;
+                e.seatLean = pause ? -0.05 : 0.1;
+                e.arms[0].rotation.x = pause ? -0.45 : -0.98 + Math.sin(t * 13) * tap;
+                e.arms[1].rotation.x = pause ? -0.5 : -0.98 + Math.sin(t * 13 + 1.7) * tap;
+                e.head.rotation.x = pause ? 0.05 + Math.sin(t * 0.8) * 0.04 : 0.24 + Math.sin(t * 0.7) * 0.03;
+              }
+            }
           }
-          else if (e.study === 'rise') { e.seatCtl = true; if (engRiseStep(e, C, e.seat, dt, t)) { e.seat = null; e.study = 'outF'; } }
-          else if (e.study === 'outF') { if (walkIn(leftFront(off), 0.55)) e.study = 'outB'; }
-          else if (e.study === 'outB') { if (walkIn(leftBack(off), 0.6)) e.study = 'toBack2'; }
-          else if (e.study === 'toBack2') { if (walkIn(backPt(off), 0.5)) { e.study = 'push'; e.timer = 0; e.dragFrom = off; } }
-          else if (e.study === 'push') { if (drag(e.dragFrom, 0, true)) e.study = 'toBed'; }
-          else if (e.study === 'toBed') { if (walkIn(P.aisle)) e.study = 'idle'; }
-          else { g.position.y = floorY - ENG_FEET; engStandStill(e); }   // 'idle': đứng ở lối đi chờ giờ ngủ
-          studyLaptop.target = (e.study === 'sit' || e.study === 'scoot' || e.study === 'work') ? 1 : 0;
-          return true;
+          else if (V.st === 'rise') { e.seatCtl = true; if (engRiseStep(e, C, e.seat, dt, t)) { e.seat = null; V.st = 'outF'; } }
+          else if (V.st === 'outF') { if (walkIn(leftFront(off), 0.55)) V.st = 'outB'; }
+          else if (V.st === 'outB') { if (walkIn(leftBack(off), 0.6)) V.st = 'toBack2'; }
+          else if (V.st === 'toBack2') { if (walkIn(backPt(off), 0.5)) { V.st = 'push'; V.k = 0; V.dragFrom = off; } }
+          else if (V.st === 'push') { if (drag(V.dragFrom, 0, true)) V.st = 'toAisle'; }
+          else if (V.st === 'toAisle') { if (walkIn(P.aisle)) return 'released'; }
+          return 'busy';
+        } };
+        const stTable = { node: 'tbl', tick(e, V, dt, t, keep) {   // bàn vuông: lách ngang vào giữa ghế đẩu và mép bàn → ngồi → nhích ghế vào → ăn sáng
+          const C = STOOL_SEAT, s = e.seat;
+          if (!V.st) V.st = 'face';
+          if (V.st === 'face') { if (!keep) return 'released'; if (engSeatTurn(e, VY.pz, dt, vanFloor)) V.st = 'in'; }
+          else if (V.st === 'in' || V.st === 'out') {
+            if (V.st === 'in' && !keep) V.st = 'out';
+            if (vanSideStep(e, V.st === 'in' ? TABLE_STAND : VN.tbl, VY.pz, dt)) {
+              if (V.st === 'out') return 'released';
+              e.seat = engNewSeat(C, 'sit'); engSeatStartSit(e, C, e.seat); V.st = 'sit';
+            }
+          }
+          else if (V.st === 'sit') { e.seatCtl = true; if (engSitStep(e, C, s, dt, t)) { s.st = 'seated'; V.st = 'scoot'; V.k = 0; } }
+          else if (V.st === 'scoot' || V.st === 'unscoot') {
+            const into = V.st === 'scoot'; V.k = Math.min(1, V.k + dt / 2.0); const m = minJerk(V.k);
+            stoolAt(into ? VSTOOL.rest + (STOOL_IN - VSTOOL.rest) * m : STOOL_IN + (VSTOOL.rest - STOOL_IN) * m); engScootPose(e, C, s, V.k, dt, t);
+            if (V.k >= 1) { if (into) V.st = 'eat'; else { engSeatStartRise(e, C, s); V.st = 'rise'; } }
+          }
+          else if (V.st === 'eat') {
+            if (!keep) { V.st = 'unscoot'; V.k = 0; }
+            else {   // xúc ngũ cốc (tay phải cầm thìa) · ~19 s nhấp cà phê 1 lần (tay trái cầm cốc) · nhai gật gù
+              e.seatCtl = true; e.seatLean = 0.12; engSeatHold(e, C, s, dt, t); e.hold.spoon = e.hold.cup = true;
+              const sc = (t + V.ph) % 19, sip = sc > 15 ? Math.sin(Math.PI * (sc - 15) / 4) : 0;
+              const bt = (t + V.ph) % 3.6, scoop = bt < 1.2, lift = bt >= 1.2 && bt < 1.8, chew = bt >= 1.8;
+              const toMouth = sip > 0 ? 0 : scoop ? 0 : lift ? (bt - 1.2) / 0.6 : Math.max(0, 1 - (bt - 1.8) / 0.9);
+              e.arms[0].rotation.x = -0.8 - toMouth * 0.8 + (scoop && !sip ? Math.sin(bt * 9) * 0.05 : 0);
+              e.arms[1].rotation.x = -0.45 - sip * 1.1;
+              e.head.rotation.x = (scoop && !sip ? 0.3 : 0.08) - sip * 0.22 + (chew ? Math.abs(Math.sin(t * 9)) * 0.04 : 0);
+            }
+          }
+          else if (V.st === 'rise') { e.seatCtl = true; if (engRiseStep(e, C, s, dt, t)) { e.seat = null; V.st = 'out'; } }
+          return 'busy';
+        } };
+        const stBed = { node: 'bed', tick(e, V, dt, t, keep) {   // mép giường: 20:57 ngồi tháo mũ chờ giờ ngủ · 06:00 vừa dậy ngồi vươn vai rồi đứng lên
+          const C = BED_SEAT, s = e.seat;
+          if (!V.st) V.st = 'face';
+          if (V.st === 'face') { if (!keep) return 'released'; if (engSeatTurn(e, VY.pz, dt, vanFloor)) { e.seat = engNewSeat(C, 'sit'); engSeatStartSit(e, C, e.seat); V.st = 'sit'; } }
+          else if (V.st === 'sit') { e.seatCtl = true; if (engSitStep(e, C, s, dt, t)) { s.st = 'seated'; V.st = 'seated'; V.k = 0; } }
+          else if (V.st === 'seated') {
+            V.k += dt; e.seatCtl = true; e.seatLean = 0.12; engSeatHold(e, C, s, dt, t);
+            if (V.k < 0) {   // vừa thức: vươn vai, ngáp
+              const k = Math.min(1, Math.sin(Math.PI * Math.min(1, (V.k + 6) / 4.5)) * 1.5);
+              e.seatLean = 0.12 - 0.2 * k; e.arms[0].rotation.x = e.arms[1].rotation.x = -0.5 - 2.4 * k; e.head.rotation.x = 0.15 - 0.4 * k;
+            } else {
+              const lift = segK(V.k, 0.6, 1.4) * (1 - segK(V.k, 1.9, 2.8));   // tháo mũ bảo hộ đặt cuối giường
+              e.arms[0].rotation.x = e.arms[1].rotation.x = -0.55 - lift * 2.2; e.head.rotation.x = 0.2 - lift * 0.15;
+              if (keep && V.k > 1.5 && e.helmet.visible) engHelmet(e, 'bed');
+              if (!keep && V.k > 0) { if (!e.helmet.visible) engHelmet(e, 'head'); engSeatStartRise(e, C, s); V.st = 'rise'; }
+            }
+          }
+          else if (V.st === 'rise') { e.seatCtl = true; if (engRiseStep(e, C, s, dt, t)) { e.seat = null; return 'released'; } }
+          return 'busy';
+        } };
+        const stWc = { node: 'wcIn', tick(e, V, dt, t, keep) {   // buồng WC: lật nắp → quay lưng → ngồi (khuỷu tì đùi) → đứng dậy → đậy nắp, bấm xả → ra
+          const C = TOILET_SEAT, s = e.seat;
+          if (!V.st) V.st = 'go';
+          if (!keep && (V.st === 'go' || V.st === 'face')) { LID.target = 0; V.st = 'back'; }
+          if (!keep && V.st === 'seated') V.until = 0;
+          if (V.st === 'go') { if (vanWalkTo(e, TOILET_STAND, dt, 0.4)) V.st = 'face'; }
+          else if (V.st === 'face') {
+            LID.target = 1;
+            if (engSeatTurn(e, VY.pz, dt, vanFloor) && LID.k >= 1) { e.seat = engNewSeat(C, 'sit'); engSeatStartSit(e, C, e.seat); V.st = 'sit'; }
+          }
+          else if (V.st === 'sit') { e.seatCtl = true; if (engSitStep(e, C, s, dt, t)) { s.st = 'seated'; V.st = 'seated'; V.until = clock.elapsedTime + Math.max(35, Math.min(240, e.actLeft - 75)); } }
+          else if (V.st === 'seated') {
+            e.seatCtl = true; e.seatLean = 0.3; engSeatHold(e, C, s, dt, t);
+            e.arms[0].rotation.x = -0.62; e.arms[1].rotation.x = -0.58; e.head.rotation.x = 0.28 + Math.sin(t * 0.4) * 0.04;
+            if (clock.elapsedTime >= V.until) { engSeatStartRise(e, C, s); V.st = 'rise'; }
+          }
+          else if (V.st === 'rise') { e.seatCtl = true; if (engRiseStep(e, C, s, dt, t)) { e.seat = null; V.st = 'turn'; } }
+          else if (V.st === 'turn') { if (engSeatTurn(e, VY.nz, dt, vanFloor)) { V.st = 'flush'; V.k = 0; } }
+          else if (V.st === 'flush') {
+            V.k += dt; const r = segK(V.k, 0, 0.7) * (1 - segK(V.k, 1.5, 2.2));
+            if (V.k > 0.3) LID.target = 0;
+            e.arms[0].rotation.x = -1.25 * r; e.lean = 0.22 * r; e.head.rotation.x = 0.3 * r;
+            if (V.k > 2.4) V.st = 'back';
+          }
+          else if (V.st === 'back') { if (vanWalkTo(e, VN.wcIn, dt, 0.4)) return 'released'; }
+          return 'busy';
+        } };
+        const stSink = { node: 'sink', tick(e, V, dt, t, keep) {   // lavabo: mở vòi, xoa tay, tắt vòi, liếc gương, vẩy tay
+          if (!V.st) V.st = 'face';
+          if (V.st === 'face') { if (engSeatTurn(e, VY.pz, dt, vanFloor)) { V.st = 'wash'; V.k = 0; } }
+          else {
+            V.k += dt; const k = V.k, on = k > 0.8 && k < 12.5, rt = e.armRollT || (e.armRollT = [0, 0]);
+            VBATH.tapWater.visible = on; if (on) VBATH.tapWater.scale.set(1 + Math.sin(t * 40) * 0.15, 1, 1 + Math.cos(t * 37) * 0.15);
+            const reach = segK(k, 0, 0.7) * (1 - segK(k, 13, 13.8)), rub = on ? Math.sin(t * 8) * 0.1 : 0;
+            e.arms[0].rotation.x = -0.95 * reach + rub; e.arms[1].rotation.x = -0.95 * reach - rub; rt[0] = 0.2 * reach; rt[1] = -0.2 * reach;
+            e.lean = 0.16 * reach; e.head.rotation.x = k > 12.6 && k < 14.6 ? -0.12 : 0.32 * reach;
+            if (k > 13.8 && k < 15) e.arms[0].rotation.x = e.arms[1].rotation.x = -0.35 + Math.sin(t * 30) * 0.12;
+            if (k > 15.2) { VBATH.tapWater.visible = false; return 'released'; }
+          }
+          return 'busy';
+        } };
+        const stShelf = on => ({ node: 'shelf', tick(e, V, dt, t, keep) {   // kệ cạnh cửa phòng tắm: tháo mũ đặt lên kệ / lấy mũ trên kệ đội lại
+          if (!V.st) V.st = 'face';
+          if (V.st === 'face') { if (!keep && !on) return 'released'; if (engSeatTurn(e, VY.nx, dt, vanFloor)) { V.st = 'do'; V.k = 0; } }
+          else {
+            V.k += dt; const k = V.k;
+            const head = on ? segK(k, 0.65, 1.1) * (1 - segK(k, 1.35, 1.9)) : segK(k, 0, 0.55) * (1 - segK(k, 0.7, 1.1));
+            const shelf = on ? segK(k, 0, 0.5) * (1 - segK(k, 0.65, 1.0)) : segK(k, 0.75, 1.2) * (1 - segK(k, 1.45, 1.9));
+            e.arms[0].rotation.x = e.arms[1].rotation.x = -2.7 * head - 1.15 * shelf; e.head.rotation.x = 0.12 * shelf - 0.05 * head;
+            if (on) { if (k > 0.55 && VBATH.shelfHelmet.visible) { VBATH.shelfHelmet.visible = false; } if (k > 1.15 && !e.helmet.visible) engHelmet(e, 'head'); }
+            else { if (k > 0.6 && e.helmet.visible) { e.helmet.visible = false; e.hair.visible = true; } if (k > 1.25 && !VBATH.shelfHelmet.visible) engHelmet(e, 'shelf'); }
+            if (k > 2.0) return 'released';
+          }
+          return 'busy';
+        } });
+        const stShower = { node: 'wcIn', tick(e, V, dt, t, keep) {   // vòi sen: mở nước → gội đầu, kỳ tay, ngửa mặt hứng nước → tắt nước, vẩy đầu → ra
+          if (!V.st) V.st = 'go';
+          if (!keep) { if (V.st === 'go' || V.st === 'face') V.st = 'back'; else if (V.st === 'wash') { V.st = 'tapOff'; V.k = 0; } }
+          if (V.st === 'go') { if (vanWalkTo(e, SHOWER_SPOT, dt, 0.4)) V.st = 'face'; }
+          else if (V.st === 'face') { if (engSeatTurn(e, VY.nz, dt, vanFloor)) { V.st = 'tapOn'; V.k = 0; } }
+          else if (V.st === 'tapOn' || V.st === 'tapOff') {
+            V.k += dt; const r = segK(V.k, 0, 0.6) * (1 - segK(V.k, 1.0, 1.6));
+            e.arms[0].rotation.x = -1.15 * r; e.lean = 0.12 * r; e.head.rotation.x = 0.25 * r;
+            if (V.k > 0.6) showerFx.on = V.st === 'tapOn';
+            if (V.k > 1.7) {
+              if (V.st === 'tapOn') { V.st = 'wash'; V.until = clock.elapsedTime + Math.max(60, Math.min(600, e.actLeft - 130)); }
+              else { V.st = 'drip'; V.k = 0; }
+            }
+          }
+          else if (V.st === 'wash') {
+            VAN_DOORS.wc.target = 0; showerFx.on = true;
+            const ph = (t + V.ph) % 24, rt = e.armRollT || (e.armRollT = [0, 0]);
+            if (ph < 9) { e.arms[0].rotation.x = -2.5 + Math.sin(t * 7) * 0.16; e.arms[1].rotation.x = -2.55 - Math.sin(t * 7) * 0.16; e.head.rotation.x = 0.18; e.headRollT = Math.sin(t * 1.7) * 0.08; }
+            else if (ph < 17) { e.arms[0].rotation.x = -0.95 + Math.sin(t * 6) * 0.22; e.arms[1].rotation.x = -0.75; rt[0] = 0.35; rt[1] = -0.1; e.head.rotation.x = 0.3; }
+            else { e.arms[0].rotation.x = -0.25; e.arms[1].rotation.x = -0.25; e.head.rotation.x = -0.32; e.lean = -0.04; }
+            if (clock.elapsedTime >= V.until) { V.st = 'tapOff'; V.k = 0; }
+          }
+          else if (V.st === 'drip') { V.k += dt; VAN_DOORS.wc.target = 0; e.headYawT = Math.sin(t * 15) * 0.35 * Math.max(0, 1 - V.k / 1.6); if (V.k > 2.6) V.st = 'back'; }
+          else if (V.st === 'back') { if (vanWalkTo(e, VN.wcIn, dt, 0.4)) return 'released'; }
+          return 'busy';
+        } };
+        const stTowel = { node: 'towel', tick(e, V, dt, t, keep) {   // khăn trên vách WC: lấy khăn vắt cổ → lau tóc, lau mặt → treo khăn lại
+          if (!V.st) V.st = 'face';
+          if (!keep && V.st === 'dry') { V.st = 'hang'; V.k = 0; }
+          if (V.st === 'face') { if (!keep && !e.towel.visible) return 'released'; if (engSeatTurn(e, VY.nz, dt, vanFloor)) { V.st = e.towel.visible ? 'hang' : 'take'; V.k = 0; } }
+          else if (V.st === 'take' || V.st === 'hang') {
+            V.k += dt; const r = segK(V.k, 0, 0.7) * (1 - segK(V.k, 1.1, 1.8));
+            e.arms[0].rotation.x = e.arms[1].rotation.x = -0.9 * r; e.lean = 0.3 * r; e.head.rotation.x = 0.3 * r;
+            if (V.k > 0.8) { const take = V.st === 'take'; e.towel.visible = take; VBATH.towel.visible = !take; }
+            if (V.k > 1.9) { if (V.st === 'take') { V.st = 'dry'; V.k = 0; } else return 'released'; }
+          }
+          else {
+            V.k += dt;
+            if (V.k < 30) { e.arms[0].rotation.x = -2.55 + Math.sin(t * 8) * 0.18; e.arms[1].rotation.x = -2.55 - Math.sin(t * 8) * 0.18; e.head.rotation.x = 0.25; e.headRollT = Math.sin(t * 2.2) * 0.12; }
+            else { e.arms[0].rotation.x = -1.9 + Math.sin(t * 6) * 0.15; e.arms[1].rotation.x = -1.6; e.head.rotation.x = -0.1; }
+            if (V.k > 50) { V.st = 'hang'; V.k = 0; }
+          }
+          return 'busy';
+        } };
+        const VAN_STATIONS = { desk: stDesk, table: stTable, bed: stBed, wc: stWc, sink: stSink, shelfOff: stShelf(false), shelfOn: stShelf(true), shower: stShower, towel: stTowel };
+        const engVanNew = node => ({ node, path: null, pi: 0, goal: null, segDoor: null, station: null, st: null, k: 0, plan: [], idx: 0, act: null, opened: new Set(), ph: Math.random() * 100 });
+        function engVan(e, dt, t, act) {   // trong xe: làm lần lượt các trạm của việc; việc ngoài trời thì ra cửa hông bước xuống bậc
+          const V = e.van, A = ENG_ACTS[act], g = e.g;
+          if (V.st === 'stepOut') {   // bước xuống bậc cửa hông, cúi đầu qua khung cửa
+            V.k = Math.min(1, V.k + dt / 0.8); const k = V.k, Pa = dogInside, Pb = dogDoorStep, ya = VAN_FLOOR - ENG_FEET, yb = cowY(Pb.x, Pb.z) - ENG_FEET;
+            g.position.set(Pa.x + (Pb.x - Pa.x) * k, ya + (yb - ya) * k + Math.sin(Math.PI * k) * 0.06, Pa.z + (Pb.z - Pa.z) * k);
+            let d = Math.atan2(Pb.x - Pa.x, Pb.z - Pa.z) - g.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); g.rotation.y += d * Math.min(1, dt * 8);
+            e.vel = 0.7; engGait(e, Pa.distanceTo(Pb) * dt / 0.8); e.lean = 0.1 * Math.sin(Math.PI * k); e.head.rotation.x = 0.3 * Math.sin(Math.PI * k); e.walking = true;
+            if (k >= 1) { e.inVan = false; e.van = engVanNew('door'); e.vel = 0.5; }
+            return;
+          }
+          if (V.act !== act) {
+            V.act = act; V.plan = A.van ? (A.plan || []) : ['exit']; V.idx = 0;
+            if (act !== 'shower') {   // tắm dở (nhảy giờ): treo khăn, đội mũ rồi mới làm việc khác
+              const fix = []; if (e.towel.visible) fix.push('towel'); if (!e.helmet.visible && VBATH.shelfHelmet.visible && act !== 'bedtime') fix.push('shelfOn');
+              if (fix.length) V.plan = [...fix, ...V.plan];
+            }
+          }
+          vanDoorsAuto(e, V);
+          if (V.station) {
+            const keep = V.plan[V.idx] === V.station;
+            if (VAN_STATIONS[V.station].tick(e, V, dt, t, keep) !== 'released') return;
+            V.node = VAN_STATIONS[V.station].node; V.station = null; V.st = null; V.k = 0;
+            if (keep) V.idx++;
+          }
+          if (V.idx >= V.plan.length) {   // xong kế hoạch: việc có điểm dừng thì đánh dấu đã xong (lịch chuyển sang việc kế), không thì đứng chờ
+            if (A.once && e.onceKey && e.onceKey.startsWith(act + '@')) e.doneAct = e.onceKey;
+            g.position.y = VAN_FLOOR - ENG_FEET; engStandStill(e); e.vel = 0; return;
+          }
+          const want = V.plan[V.idx];
+          if (want === 'exit') { if (vanGoTo(e, V, 'door', dt)) { V.st = 'stepOut'; V.k = 0; } return; }
+          if (vanGoTo(e, V, VAN_STATIONS[want].node, dt)) { V.station = want; V.st = null; V.k = 0; }
+        }
+        function engEnterVan(e, dt, t) {   // vào xe: tới cửa hông theo trường dòng chảy → bước lên bậc (cúi đầu qua khung cửa)
+          if (!e.enter) e.enter = 'toDoor';
+          if (e.enter === 'toDoor') { if (engStep(e, dogDoorFar, dt, t, pf, FIRE_AVOID_R, dogDoorField)) e.enter = 'toStep'; }
+          else if (e.enter === 'toStep') { if (engStep(e, dogDoorStep, dt, t, null, 0, null)) { e.enter = 'stepIn'; e.timer = 0; } }
+          else {
+            e.timer = Math.min(1, e.timer + dt / 0.8); const k = e.timer, A = dogDoorStep, B = dogInside, ya = cowY(A.x, A.z) - ENG_FEET, yb = VAN_FLOOR - ENG_FEET, g = e.g;
+            g.position.set(A.x + (B.x - A.x) * k, ya + (yb - ya) * k + Math.sin(Math.PI * k) * 0.12, A.z + (B.z - A.z) * k);
+            let d = Math.atan2(B.x - A.x, B.z - A.z) - g.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); g.rotation.y += d * Math.min(1, dt * 8);
+            e.vel = 0.8; engGait(e, A.distanceTo(B) * dt / 0.8); e.lean = 0.12 * Math.sin(Math.PI * k); e.head.rotation.x = 0.3 * Math.sin(Math.PI * k); e.walking = true;
+            if (k >= 1) { e.enter = null; e.inVan = true; e.van = engVanNew('door'); }
+          }
+        }
+        function engWake(e) {   // 06:00: từ tư thế nằm sang ngồi mép giường, đội mũ, vươn vai vài giây rồi đứng dậy
+          scene.add(e.g); e.g.scale.setScalar(ENGINEER_BASE_SCALE * CAMP_SCALE); e.g.rotation.set(0, VY.pz, 0);
+          e.legs[0].rotation.set(0, 0, 0); e.legs[1].rotation.set(0, 0, 0);
+          e.inVan = true; e.van = engVanNew('bed'); e.van.station = 'bed'; e.van.st = 'seated'; e.van.k = -6;
+          e.seat = engNewSeat(BED_SEAT, 'seated'); e.phase = 'van'; e.enter = null; engHelmet(e, 'head');
+        }
+        function engSpawn(e, act) {   // mở trang giữa chừng một việc: đặt kỹ sư sẵn ở chỗ đang làm
+          e.act = act; e.phase = engPhaseFor(act); e.timer = 0; e.enter = null;
+          const A = ENG_ACTS[act];
+          if (A.van) {
+            const V = e.van = engVanNew('hall'); e.inVan = true; V.act = act; V.plan = A.plan || []; V.idx = 0;
+            const at = (node, station, st) => { V.node = node; V.station = station; V.st = st; };
+            if (act === 'research' || act === 'music') { studyChairAt(0); e.seat = engNewSeat(STUDY_SEAT, 'seated'); at('mid', 'desk', 'work'); studyLaptop.open = 1; }
+            else if (act === 'breakfast') { stoolAt(STOOL_IN); e.seat = engNewSeat(STOOL_SEAT, 'seated'); at('tbl', 'table', 'eat'); }
+            else if (act === 'bedtime') { e.seat = engNewSeat(BED_SEAT, 'seated'); at('bed', 'bed', 'seated'); V.k = 3; engHelmet(e, 'bed'); }
+            else if (act === 'toilet') { e.seat = engNewSeat(TOILET_SEAT, 'seated'); LID.k = LID.target = 1; at('wcIn', 'wc', 'seated'); V.until = clock.elapsedTime + Math.max(30, Math.min(240, e.actLeft - 75)); }
+            else if (act === 'shower') {
+              engHelmet(e, 'shelf'); at('wcIn', 'shower', 'wash'); V.idx = 1; V.until = clock.elapsedTime + Math.max(60, Math.min(600, e.actLeft - 130)); showerFx.on = true; showerFx.steam = 0.6;
+              e.g.position.set(SHOWER_SPOT.x, VAN_FLOOR - ENG_FEET, SHOWER_SPOT.z); e.g.rotation.set(0, VY.nz, 0);
+            }
+          } else if (act === 'lunch' || act === 'dinner' || act === 'rest' || act === 'read' || act === 'shelter') {
+            e.seat = engNewSeat(CAMP_SEAT, 'seated'); e.phase = engChairPhase(e, act);
+          } else if (act === 'fish') { e.seat = engNewSeat(FISH_SEAT, 'seated'); e.phase = 'fish'; e.timer = e.actLeft; }
+          // dạo trại: xuất phát trước cửa xe (wp[0]) như cũ
+        }
+
+        // ---- hiệu ứng: tia nước vòi sen + hơi nước làm mờ kính · nốt nhạc bay từ laptop · Zzz ngủ trưa · gói khoai tây chiên · màn hình trình phát nhạc ----
+        const showerFx = (() => {
+          const N = 96, pos = new Float32Array(N * 6), geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+          const lines = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: 0xd4ecff, transparent: true, opacity: 0.8, depthWrite: false }));
+          lines.frustumCulled = false; lines.visible = false; lines.name = 'Tia nước vòi sen'; scene.add(lines);
+          const sh = VBATH.showerHead, head = vanPt(sh[0], sh[1] - 0.04, sh[2]), dir = vanPt(sh[0], sh[1] - 0.9, sh[2] + 0.435).sub(vanPt(sh[0], sh[1], sh[2])).normalize();
+          const side = new THREE.Vector3(Math.cos(VYAW), 0, -Math.sin(VYAW)), up2 = new THREE.Vector3().crossVectors(dir, side).normalize();
+          const D = Array.from({ length: N }, () => ({ p: new THREE.Vector3(), v: new THREE.Vector3(), live: false })), floorY = VAN_FLOOR - 0.02;
+          const sc = document.createElement('canvas'); sc.width = sc.height = 64; const sx = sc.getContext('2d'), gr = sx.createRadialGradient(32, 32, 2, 32, 32, 31);
+          gr.addColorStop(0, 'rgba(255,255,255,0.9)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); sx.fillStyle = gr; sx.fillRect(0, 0, 64, 64);
+          const steamTex = new THREE.CanvasTexture(sc);
+          const puffs = Array.from({ length: 7 }, (_, i) => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: steamTex, transparent: true, opacity: 0, depthWrite: false })); s.visible = false; s.name = 'Hơi nước phòng tắm'; scene.add(s); return { s, t: i * 0.85, x: 0, z: 0 }; });
+          const doorOp = VBATH.doorMat.opacity, wallOp = VBATH.wallMat.opacity;
+          let live = 0, idle = false;
+          const fx = { on: false, steam: 0, update(dt) {
+            if (!fx.on && !live && !fx.steam) { if (!idle) { idle = true; lines.visible = false; for (const p of puffs) p.s.visible = false; } return; }   // tắt nước, hết hơi: không tính gì
+            idle = false;
+            const h = Math.min(dt, 0.05);
+            const st0 = fx.steam; fx.steam = Math.max(0, Math.min(1, fx.steam + (fx.on ? h / 40 : -h / 70)));
+            if (fx.steam !== st0) { VBATH.doorMat.opacity = doorOp + 0.3 * fx.steam; VBATH.wallMat.opacity = wallOp + 0.2 * fx.steam; }   // kính và vách mờ hơi nước
+            let any = false;
+            for (let i = 0; i < N; i++) {
+              const d = D[i];
+              if (!d.live) {
+                if (!fx.on || Math.random() > 0.3) { pos.fill(0, i * 6, i * 6 + 6); continue; }
+                d.live = true; d.p.copy(head).addScaledVector(side, (Math.random() - 0.5) * 0.1).addScaledVector(up2, (Math.random() - 0.5) * 0.1);
+                d.v.copy(dir).multiplyScalar(1.5 + Math.random() * 0.5).addScaledVector(side, (Math.random() - 0.5) * 0.4).addScaledVector(up2, (Math.random() - 0.5) * 0.4);
+              }
+              d.v.y -= 9.8 * h; d.p.addScaledVector(d.v, h);
+              if (d.p.y < floorY) { d.live = false; pos.fill(0, i * 6, i * 6 + 6); continue; }
+              any = true; pos[i * 6] = d.p.x; pos[i * 6 + 1] = d.p.y; pos[i * 6 + 2] = d.p.z;
+              pos[i * 6 + 3] = d.p.x - d.v.x * 0.04; pos[i * 6 + 4] = d.p.y - d.v.y * 0.04; pos[i * 6 + 5] = d.p.z - d.v.z * 0.04;   // vệt nước ngắn theo hướng rơi
+            }
+            live = any ? 1 : 0; lines.visible = any; if (any) geo.attributes.position.needsUpdate = true;
+            for (const p of puffs) {   // đám hơi nước: sinh sát sàn buồng WC, bốc lên trần, nở ra rồi tan
+              p.t += h; if (p.t > 6) { p.t -= 6; p.x = 3.08 + Math.random() * 0.75; p.z = -1.35 + Math.random() * 0.8; }
+              const k = p.t / 6; p.s.visible = fx.steam > 0.02 && p.x > 0;
+              if (!p.s.visible) continue;
+              const w = vanPt(p.x, 1.6 + k * 1.7, p.z); p.s.position.copy(w); p.s.scale.setScalar(0.35 + k * 0.7); p.s.material.opacity = 0.28 * Math.sin(Math.PI * k) * fx.steam;
+            }
+          } };
+          return fx;
+        })();
+        const musicFx = (() => {   // nốt nhạc (vẽ bằng nét, không phụ thuộc font) bay lên từ laptop, đung đưa, xuyên qua mái xe bay lên trời rồi mờ dần
+          const cols = ['#ffd34a', '#7fd1ff', '#ff8fb1', '#a6f08c'];
+          const texs = [0, 1, 2, 3].map(i => {
+            const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d');
+            const draw = () => {
+              x.beginPath();
+              if (i % 2 === 0) {   // ♪ nốt móc đơn
+                x.ellipse(22, 46, 11, 8, -0.45, 0, Math.PI * 2); x.moveTo(31, 44); x.lineTo(31, 10); x.quadraticCurveTo(36, 22, 48, 26); x.quadraticCurveTo(40, 18, 33, 14);
+              } else {             // ♫ hai nốt nối gạch
+                x.ellipse(16, 48, 9, 7, -0.45, 0, Math.PI * 2); x.moveTo(23, 47); x.lineTo(23, 16);
+                x.moveTo(50, 42); x.ellipse(43, 43, 9, 7, -0.45, 0, Math.PI * 2); x.moveTo(50, 41); x.lineTo(50, 10);
+              }
+            };
+            x.lineCap = 'round'; x.lineJoin = 'round';
+            x.strokeStyle = 'rgba(20,28,36,0.7)'; x.lineWidth = 9; draw(); x.stroke(); if (i % 2) { x.beginPath(); x.moveTo(23, 16); x.lineTo(50, 10); x.lineWidth = 14; x.stroke(); }
+            x.strokeStyle = x.fillStyle = cols[i]; x.lineWidth = 4; draw(); x.stroke(); x.fill();
+            if (i % 2) { x.beginPath(); x.moveTo(23, 16); x.lineTo(50, 10); x.lineWidth = 8; x.stroke(); }
+            const tx = new THREE.CanvasTexture(c); tx.colorSpace = THREE.SRGBColorSpace; return tx;
+          });
+          const pool = Array.from({ length: 14 }, (_, i) => {
+            const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: texs[i % 4], transparent: true, opacity: 0, depthWrite: false })); m.visible = false; m.name = 'Nốt nhạc từ laptop'; scene.add(m);
+            return { m, t: 0, life: 3, o: new THREE.Vector3(), ph: 0, dx: 0, dz: 0 };
+          });
+          let acc = 0, idx = 0; const src = new THREE.Vector3();
+          return { update(dt, t, on) {
+            if (on && studyLaptop.group) {
+              acc += dt;
+              if (acc > 0.5) {
+                acc = 0; const n = pool[idx++ % pool.length]; studyLaptop.group.getWorldPosition(src);
+                n.o.set(src.x + (Math.random() - 0.5) * 0.12, src.y + 0.2, src.z + (Math.random() - 0.5) * 0.12); n.t = 0; n.life = 4 + Math.random() * 1.5;
+                n.ph = Math.random() * 6.28; n.dx = (Math.random() - 0.5) * 0.6; n.dz = (Math.random() - 0.5) * 0.6; n.m.visible = true;
+              }
+            }
+            for (const n of pool) {
+              if (!n.m.visible) continue;
+              n.t += dt; const k = n.t / n.life; if (k >= 1) { n.m.visible = false; continue; }
+              n.m.position.set(n.o.x + Math.sin(n.t * 2.4 + n.ph) * 0.1 + n.dx * k, n.o.y + k * 3.2, n.o.z + n.dz * k);
+              n.m.material.opacity = Math.min(1, n.t * 3) * (1 - k * k); n.m.material.rotation = Math.sin(n.t * 3 + n.ph) * 0.35; n.m.scale.setScalar(0.16 + 0.16 * Math.sin(Math.PI * Math.min(1, k * 1.4)));
+            }
+          } };
+        })();
+        const napFx = (() => {   // 3 chữ z nhỏ bay trên đầu khi ngủ trưa trên ghế
+          const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d');
+          x.font = 'bold 46px Outfit, sans-serif'; x.fillStyle = '#E2D6C0'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.shadowColor = '#243240'; x.shadowBlur = 6; x.fillText('z', 32, 34);
+          const tex = new THREE.CanvasTexture(c), grp = new THREE.Group(); grp.name = 'Zzz ngủ trưa'; grp.visible = false; scene.add(grp);
+          const zs = [0, 1, 2].map(n => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, opacity: 0, depthWrite: false })); grp.add(s); return { s, ph: n / 3 }; });
+          const hp = new THREE.Vector3();
+          return { update(dt, t, e) {
+            grp.visible = !!e; if (!e) return;
+            e.head.getWorldPosition(hp);
+            for (const z of zs) {
+              const k = (t * 0.3 + z.ph) % 1;
+              z.s.position.set(hp.x + Math.sin(t * 1.6 + z.ph * 6) * 0.08, hp.y + 0.28 + k * 1.1, hp.z);
+              z.s.material.opacity = 0.9 * Math.min(1, (1 - k) * 2.5); z.s.scale.setScalar(0.16 + k * 0.3);
+            }
+          } };
+        })();
+        const chipsBag = (() => {   // gói khoai tây chiên mở miệng trên bàn trà, góc gần ghế cắm trại (chỉ hiện lúc đọc sách)
+          const g = new THREE.Group(); g.name = 'Gói khoai tây chiên'; g.visible = false;
+          const table = scene.getObjectByName('Bàn trà (Camp Table)'); if (!table) return g;
+          const c = document.createElement('canvas'); c.width = 128; c.height = 160; const x = c.getContext('2d');
+          x.fillStyle = '#d6332a'; x.fillRect(0, 0, 128, 160);
+          x.fillStyle = '#f7c948'; x.beginPath(); x.ellipse(64, 100, 42, 30, -0.3, 0, Math.PI * 2); x.fill();
+          x.fillStyle = '#e3a334'; for (let k = 0; k < 5; k++) { x.beginPath(); x.ellipse(38 + k * 13, 96 + (k % 2) * 10, 12, 8, k, 0, Math.PI * 2); x.fill(); }
+          x.fillStyle = '#fff'; x.textAlign = 'center'; x.font = 'bold 21px Arial, sans-serif'; x.fillText('KHOAI TÂY', 64, 36); x.font = 'bold 15px Arial, sans-serif'; x.fillText('chiên giòn', 64, 56);
+          x.fillStyle = '#9e1f19'; x.fillRect(0, 0, 128, 7); x.fillRect(0, 153, 128, 7);
+          const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+          const geo = new THREE.BoxGeometry(0.12, 0.16, 0.05, 4, 6, 1), p = geo.attributes.position;
+          for (let i = 0; i < p.count; i++) {   // đáy gấp dẹt, thân phồng, miệng mở loe
+            const y = p.getY(i), u = y / 0.08; let z = p.getZ(i), xx = p.getX(i);
+            if (u < -0.8) z *= 0.35; else if (u > 0.6) { z *= 1.3; xx *= 1.04; } else z *= 0.85 + 0.15 * Math.cos(u * 1.6);
+            p.setXYZ(i, xx, y + 0.08, z);
+          }
+          geo.computeVertexNormals();
+          const red = new THREE.MeshLambertMaterial({ color: 0xd6332a }), label = new THREE.MeshLambertMaterial({ map: tex }), inside = new THREE.MeshLambertMaterial({ color: 0x5a1712 });
+          const bag = new THREE.Mesh(geo, [red, red, inside, red, label, label]); bag.castShadow = true; g.add(bag);
+          const chipM = new THREE.MeshLambertMaterial({ color: 0xe8c25a });
+          for (let k = 0; k < 4; k++) { const ch = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.004, 9), chipM); ch.scale.z = 0.75; ch.position.set(-0.03 + k * 0.02, 0.163 + (k % 2) * 0.006, (k - 1.5) * 0.008); ch.rotation.set(0.9 + k * 0.3, k, 0.4 * (k - 1.5)); g.add(ch); }
+          table.add(g); table.updateMatrixWorld(true);
+          const chair = table.worldToLocal(campChairPos.clone()); let best = null, bd = 1e9;
+          for (const s of [[0.17, -0.15], [0.18, 0.16], [-0.2, 0.16]]) { const d = Math.hypot(s[0] - chair.x, s[1] - chair.z); if (d < bd) { bd = d; best = s; } }
+          g.position.set(best[0], 0.45, best[1]); g.rotation.y = Math.atan2(chair.x - best[0], chair.z - best[1]);   // mặt nhãn quay về phía ghế
+          return g;
+        })();
+        function laptopScreenTick(t, music) {   // màn hình laptop: bảng vận hành (nghiên cứu) · trình phát nhạc có đĩa quay, sóng nhạc, thanh tiến độ (buổi tối)
+          const L = studyLaptop; if (!L.ctx) return;
+          if (!music) { if (L.mode !== 'dash') { L.ctx.putImageData(L.dash, 0, 0); L.tex.needsUpdate = true; L.mode = 'dash'; } return; }
+          if (L.mode === 'music' && Math.abs(t - L.drawnAt) < 0.12) return;
+          L.mode = 'music'; L.drawnAt = t;
+          const x = L.ctx, W = 256, H = 160, mm = s => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
+          const bg = x.createLinearGradient(0, 0, W, H); bg.addColorStop(0, '#1b1530'); bg.addColorStop(1, '#2c2048'); x.fillStyle = bg; x.fillRect(0, 0, W, H);
+          const cg = x.createLinearGradient(12, 20, 84, 92); cg.addColorStop(0, '#ff9a5a'); cg.addColorStop(1, '#c2457a'); x.fillStyle = cg; x.fillRect(12, 20, 72, 72);
+          x.fillStyle = 'rgba(20,16,30,0.88)'; x.beginPath(); x.arc(48, 56, 24, 0, Math.PI * 2); x.fill();
+          x.strokeStyle = 'rgba(255,255,255,0.28)'; x.lineWidth = 1.5; for (const r of [11, 17]) { const a = t * 3 + r; x.beginPath(); x.arc(48, 56, r, a, a + 1.3); x.stroke(); }   // rãnh đĩa quay
+          x.fillStyle = '#ffd34a'; x.beginPath(); x.arc(48, 56, 5, 0, Math.PI * 2); x.fill();
+          x.textAlign = 'left'; x.fillStyle = '#f3eaff'; x.font = 'bold 14px Arial, sans-serif'; x.fillText('Gió cao nguyên', 94, 36);
+          x.fillStyle = '#b8a8d8'; x.font = '11px Arial, sans-serif'; x.fillText('lo-fi · nhạc nền học bài', 94, 53);
+          for (let i = 0; i < 14; i++) {
+            const hgt = 5 + 22 * Math.abs(Math.sin(t * (2.1 + i * 0.37) + i * 1.3)) * (0.55 + 0.45 * Math.abs(Math.sin(t * 1.45 * Math.PI)));
+            x.fillStyle = i % 2 ? '#7fd1ff' : '#ff8fb1'; x.fillRect(94 + i * 10, 92 - hgt, 7, hgt);
+          }
+          const dur = 194, at = t % dur, px = 12 + 232 * at / dur;
+          x.fillStyle = '#4a3f66'; x.fillRect(12, 112, 232, 4); x.fillStyle = '#ffd34a'; x.fillRect(12, 112, px - 12, 4); x.beginPath(); x.arc(px, 114, 4.5, 0, Math.PI * 2); x.fill();
+          x.fillStyle = '#b8a8d8'; x.font = '10px Arial, sans-serif'; x.fillText(mm(at), 12, 132); x.textAlign = 'right'; x.fillText(mm(dur), 244, 132); x.textAlign = 'left';
+          x.fillStyle = '#f3eaff'; x.fillRect(119, 138, 5, 14); x.fillRect(129, 138, 5, 14);   // nút tạm dừng = đang phát
+          x.fillRect(90, 139, 2, 12); x.beginPath(); x.moveTo(92, 145); x.lineTo(101, 139); x.lineTo(101, 151); x.fill();       // bài trước
+          x.fillRect(161, 139, 2, 12); x.beginPath(); x.moveTo(161, 145); x.lineTo(152, 139); x.lineTo(152, 151); x.fill();   // bài sau
+          L.tex.needsUpdate = true;
         }
         // ---- đàn bò: trường về cửa chuồng; con nào không có lối về (bên kia sông, không cầu) dời sang bãi cỏ phía bắc chuồng ----
         // Lưới riêng cho bò: như lưới chung, cộng thêm (1) mặt đập + dốc nối = cầu qua sông, dải lan can hai bên đập bị cấm;
@@ -9791,8 +10456,9 @@
             updateEngineerWeatherThought();
             const hh = liveWeather.localHour; // One Pleiku clock for sky, animals and the engineer.
             const isSleeping = hh >= 21.0 || hh < 6.0;
+            vanDoorsTick(dt);
             if (isSleeping) {
-              resetFishingBite(); studyLaptop.target = 0; e.study = null; e.seat = null;
+              resetFishingBite(); studyLaptop.target = 0; e.seat = null; e.act = 'sleep'; e.phase = 'van'; e.inVan = true; e.van = null; e.enter = null;
               if (studyChairRig.off) studyChairAt(0);   // (đã đẩy ghế vào trước khi lên giường)
               if (e.g.parent !== caravanObj) {
                 caravanObj.add(e.g);
@@ -9805,6 +10471,10 @@
                 e.head.rotation.set(0, 0, 0);
                 e.rodGrp.visible = false; groundRod.visible = true;
                 checkBubbleSprite.visible = false;
+                // ngủ: mũ để cuối giường, khăn trên giá, đồ cầm tay cất, ghế đẩu kéo ra, cửa phòng tắm & nắp bồn cầu đóng, tắt nước
+                engHelmet(e, 'bed'); e.towel.visible = false; VBATH.towel.visible = true;
+                for (const k in e.props) e.props[k].visible = false; if (e.clip) e.clip.visible = false;
+                stoolAt(VSTOOL.rest); VAN_DOORS.entry.target = VAN_DOORS.wc.target = 0; LID.target = 0; showerFx.on = false; VBATH.tapWater.visible = false; chipsBag.visible = false;
               }
               fishLine.visible = false; bobber.visible = false;
               zzzGroup.visible = true;
@@ -9824,41 +10494,26 @@
                 sleepCtx.font = '26px Outfit, sans-serif'; sleepCtx.fillStyle = '#ffd34a'; sleepCtx.textAlign = 'center'; sleepCtx.textBaseline = 'middle';
                 sleepCtx.fillText(timeStr, 128, 32); sleepTex.needsUpdate = true;
               }
+              napFx.update(dt, t, null); musicFx.update(dt, t, false); laptopScreenTick(t, false);
             } else {
-              if (e.g.parent === caravanObj) {
-                scene.add(e.g);
-                e.g.scale.setScalar(ENGINEER_BASE_SCALE * CAMP_SCALE);
-                e.g.position.copy(e.wp[0]); e.g.position.y -= ENG_FEET;
-                e.g.rotation.set(0, 0, 0);
-                e.phase = 'toFish'; e.timer = 0; e.wanderTgt = null; e.wanderTmr = 0;
-              }
+              if (e.g.parent === caravanObj) engWake(e);   // 06:00: ngồi dậy ở mép giường
               zzzGroup.visible = false;
               sleepSprite.visible = false;
-              // Rain overrides the outdoor schedule; the existing camp chair is under the awning.
-              const studyDue = hh >= 20.5, rainShelter = liveWeather.state.fresh && liveWeather.state.raining;
-              if (studyDue) { /* lịch bàn học ưu tiên hơn trú mưa: trong xe đã khô */ }
-              else if (rainShelter && e.phase !== 'toShelter' && e.phase !== 'shelter') {
-                const alreadySeated = !!e.seat && e.seat.C === CAMP_SEAT && (e.seat.st === 'seated' || e.seat.st === 'sit');   // đang ngồi ghế cắm trại (dưới mái hiên) thì ngồi luôn
-                e.phase = alreadySeated ? 'shelter' : 'toShelter'; e.timer = 0;
-                e.wanderTgt = null; e.wanderTmr = 0;
-              } else if (!rainShelter && (e.phase === 'toShelter' || e.phase === 'shelter')) {
-                e.phase = 'toFish'; e.timer = 0; e.wanderTgt = null; e.wanderTmr = 0;
-              }
-              // ---- dùng ghế: việc mới không cần chiếc ghế đang ngồi → đứng dậy (sit-to-stand) rồi rời ghế theo làn trước, không đi xuyên ghế ----
-              const wantSeat = studyDue ? null : engPhaseSeat(e.phase);
-              const leavingSeat = engSeatGuard(e, wantSeat, studyDue ? dogDoorFar : engPhaseGoal(e, wantSeat), dt, t);
-              const studying = !leavingSeat && engStudy(e, dt, t, hh);   // 20:30–21:00: vào xe ngồi bàn học với laptop
-              // ---- lịch trình lặp: câu cá 90s → về ghế cắm trại (né lửa) → ăn 60s → uống trà 90s → đứng dậy đi lang thang 90s → uống nước → (vuốt chó) → cột khí tượng 30s → câu cá lại ----
-              const fishing = e.phase === 'fish' && !leavingSeat;
+              // ---- lịch cả ngày: việc theo giờ (mưa thì việc ngoài trời trống vào hiên) · mở trang giữa chừng thì đặt sẵn ở chỗ đang làm ----
+              const act = engWantAct(e, hh);
+              if (!e.act) engSpawn(e, act); else if (act !== e.act) engSetAct(e, act);
+              const H = e.hold || (e.hold = {}); for (const k in H) H[k] = false;
+              e.headRollT = 0;
+              // ---- dùng ghế ngoài trời: việc mới không cần chiếc ghế đang ngồi → đứng dậy rồi rời ghế theo làn trước, không đi xuyên ghế ----
+              const outSeat = e.inVan ? null : engPhaseSeat(e.phase);
+              const leavingSeat = !e.inVan && engSeatGuard(e, outSeat, e.phase === 'van' ? dogDoorFar : engPhaseGoal(e, outSeat), dt, t);
+              const fishing = e.phase === 'fish' && !leavingSeat && !e.inVan;
               if (!fishing) resetFishingBite();
               e.rodGrp.visible = fishing; groundRod.visible = !fishing; fishLine.visible = fishing; bobber.visible = fishing;   // không câu → cần nằm dưới đất cạnh ghế
-              const handsBusy = !leavingSeat && (e.phase === 'eat' || e.phase === 'tea' || e.phase === 'drink' || e.phase === 'pet');
-              const atSeat = !!e.seat && (e.seat.st === 'back' || e.seat.st === 'sit' || e.seat.st === 'seated' || e.seat.st === 'rise');   // tay cần nắm tay vịn
-              if (e.clip) e.clip.visible = !fishing && !studying && !handsBusy && !atSeat;   // bảng ghi chép cất đi khi tay bận
-              e.props.spoon.visible = handsBusy && e.phase === 'eat'; e.props.bottle.visible = handsBusy && e.phase === 'drink'; e.props.cup.visible = handsBusy && e.phase === 'tea';
               engPetting = false;
               if (leavingSeat) { /* engSeatGuard: đứng dậy + rời ghế, đã đặt vị trí + dáng */ }
-              else if (studying) { /* engStudy đã đặt vị trí + dáng */ }
+              else if (e.inVan) engVan(e, dt, t, act);          // trong xe: bàn học, bàn ăn, phòng tắm, giường…
+              else if (e.phase === 'van') engEnterVan(e, dt, t);   // việc trong xe: đi tới cửa hông, bước lên
               else if (e.phase === 'toShelter') {          // mưa: về ghế cắm trại dưới mái hiên (vào thẳng từ phía trước ghế)
                 if (engUseSeat(e, CAMP_SEAT, dt, t)) { e.phase = 'shelter'; e.timer = 0; }
               }
@@ -9876,40 +10531,64 @@
                   e.arms[0].rotation.x = -0.15; e.arms[1].rotation.x = -1.02;         // tư thế nghỉ (lớp câu cá ghi đè từng khung, ghi ngược để thôi câu không giật)
                   e.head.rotation.x = 0.3;
                   e.fishBiteK = 1;                                                    // quăng · canh phao · giật · dìu · thả cá: chạy sau lớp tư thế
-                  if (e.timer <= 0) {
+                  if (e.timer <= 0 || e.act !== 'fish') {
                     angling.stopReq = true;                                           // hết giờ: đang dìu thì dìu xong, thu dây về rồi mới đứng dậy
                     if (angling.stage === 'done' || !angling.active || e.timer < -45) {
-                      e.phase = 'toChair'; resetFishingBite();
+                      e.phase = e.act === 'fish' ? 'toChair' : engPhaseFor(e.act); e.timer = 0; resetFishingBite();
                       e.rodGrp.visible = false; groundRod.visible = true; fishLine.visible = false; bobber.visible = false;
                     }
                   }
                 }
               }
-              else if (e.phase === 'toChair') {            // đứng dậy khỏi ghế câu, rời ghế theo làn, về ghế cắm trại (né bếp lửa), vào thẳng từ phía trước, quay lưng, ngồi
-                if (engUseSeat(e, CAMP_SEAT, dt, t)) { e.phase = 'eat'; e.timer = 60; idleThoughtAt = Math.min(idleThoughtAt, Date.now() + 4000); }
+              else if (e.phase === 'toChair') {            // về ghế cắm trại (né bếp lửa), vào thẳng từ phía trước, quay lưng, ngồi → ăn / trà / đọc sách tuỳ việc
+                if (engUseSeat(e, CAMP_SEAT, dt, t)) { e.phase = engChairPhase(e, e.act); e.readPh = Math.random() * 9; idleThoughtAt = Math.min(idleThoughtAt, Date.now() + 4000); }
               }
-              else if (e.phase === 'eat') {                // ăn bằng thìa từ chảo trên bàn 60s (xúc → đưa lên miệng → nhai), người đổ về phía bàn
+              else if (e.phase === 'eat') {                // ăn trưa / tối bằng thìa từ chảo trên bàn (xúc → đưa lên miệng → nhai), người đổ về phía bàn
                 if (engUseSeat(e, CAMP_SEAT, dt, t)) {
-                  e.timer -= dt; e.seatLean = 0.12; e.seatSwing = 0;
+                  e.timer -= dt; e.seatLean = 0.12; e.seatSwing = 0; H.spoon = true;
                   const bt = t % 3.2, scoop = bt < 1.1, lift = bt >= 1.1 && bt < 1.7, chew = bt >= 1.7;
                   const toMouth = scoop ? 0 : lift ? (bt - 1.1) / 0.6 : Math.max(0, 1 - (bt - 1.7) / 0.9);
                   e.arms[0].rotation.x = -0.62 - toMouth * 0.7 + (scoop ? Math.sin(bt * 9) * 0.06 : 0);   // thìa xuống chảo rồi lên miệng
                   e.arms[1].rotation.x = -0.3;                                                          // tay kia giữ mép bàn
                   e.head.rotation.x = (scoop ? 0.22 : 0.04) + (chew ? Math.abs(Math.sin(t * 9)) * 0.05 : 0);   // cúi nhìn chảo · nhai gật gù
-                  if (e.timer <= 0) { e.phase = 'tea'; e.timer = 90; }
+                  if (e.timer <= 0) { e.phase = 'tea'; e.timer = e.actLeft + 60; }   // ăn xong ngồi uống trà tới hết giờ
                 }
               }
-              else if (e.phase === 'tea') {                // nhấp trà thư giãn (tiếp ngay sau bữa ăn, vẫn ngồi nguyên ghế), ngả lưng nhẹ; hết giờ đứng dậy theo 4 pha
+              else if (e.phase === 'tea') {                // nhấp trà thư giãn, ngả lưng nhẹ; hết giờ: nghỉ trưa thì chợp mắt luôn trên ghế, dạo trại thì đứng dậy đi tiếp
                 if (engUseSeat(e, CAMP_SEAT, dt, t)) {
-                  e.timer -= dt; e.seatLean = -0.03; e.seatSwing = 0.06;
+                  e.timer -= dt; e.seatLean = -0.03; e.seatSwing = 0.06; H.cup = true;
                   const sipT = t % 7.5, sipK = sipT < 1.3 ? Math.sin((sipT / 1.3) * Math.PI) : 0;   // nhấp trà định kỳ ~7.5s/lần
                   e.arms[0].rotation.x = -0.22 + Math.sin(t * 0.7) * 0.05;
                   e.arms[1].rotation.x = -0.25 - sipK * 0.95;                              // tay đưa tách trà lên miệng
                   e.head.rotation.x = 0.06 - sipK * 0.16;
-                  if (e.timer <= 0) { e.phase = 'wander'; e.timer = 90; e.wanderTgt = null; e.wanderTmr = 0; }
+                  if (e.timer <= 0) {
+                    if (e.act === 'rest') e.phase = 'nap';
+                    else if (e.act === 'outdoor') { e.phase = 'wander'; e.timer = 90; e.wanderTgt = null; e.wanderTmr = 0; }
+                    else e.timer = 600;
+                  }
                 }
               }
-              else if (e.phase === 'wander') {             // đứng dậy, đi lang thang ngẫu nhiên quanh trại 2 phút
+              else if (e.phase === 'nap') {                // ngủ trưa trên ghế: ngả lưng, đầu gục nghiêng, tay buông trên đùi, thở chậm
+                if (engUseSeat(e, CAMP_SEAT, dt, t)) {
+                  e.seatLean = -0.1 + Math.sin(t * 1.3) * 0.012; e.seatSwing = 0;
+                  e.arms[0].rotation.x = -0.42; e.arms[1].rotation.x = -0.45;
+                  e.head.rotation.x = 0.45; e.headRollT = 0.24;
+                }
+              }
+              else if (e.phase === 'read') {               // đọc sách (tay phải cầm sách mở) · tay trái thỉnh thoảng bốc khoai tây chiên trong gói trên bàn trà bên trái đưa lên miệng · ~47 s lật 1 trang
+                if (engUseSeat(e, CAMP_SEAT, dt, t)) {
+                  e.seatLean = -0.03; e.seatSwing = 0.03; H.book = true;
+                  const ct = (t + (e.readPh || 0)) % 9, reach = segK(ct, 0, 0.9) * (1 - segK(ct, 1.0, 1.6)), toMouth = segK(ct, 1.4, 2.2) * (1 - segK(ct, 2.8, 3.6)), chew = ct > 2.2 && ct < 4.6;
+                  const rt = e.armRollT || (e.armRollT = [0, 0]);
+                  e.arms[0].rotation.x = -1.3 + Math.sin(t * 0.5) * 0.03; rt[0] = 0.12;
+                  e.arms[1].rotation.x = -0.28 - reach * 0.5 - toMouth * 1.95; rt[1] = 0.5 * reach - 0.4 * toMouth;
+                  e.head.rotation.x = 0.36 - toMouth * 0.22 + (chew ? Math.abs(Math.sin(t * 10)) * 0.035 : 0);
+                  H.chip = (reach > 0.6 && ct > 0.6) || (toMouth > 0.05 && ct < 2.85);
+                  const pt = (t + (e.readPh || 0) * 5) % 47, pk = minJerk(segK(pt, 0, 0.9));   // trang giấy quay quanh gáy từ nửa phải sang nửa trái
+                  e.props.bookLeaf.visible = pt < 0.95; e.props.bookLeaf.rotation.z = 0.22 + (Math.PI - 0.44) * pk;
+                }
+              }
+              else if (e.phase === 'wander') {             // đứng dậy, đi lang thang ngẫu nhiên quanh trại
                 e.timer -= dt; e.wanderTmr -= dt;
                 if (!e.wanderTgt || e.wanderTmr <= 0) {   // điểm lang thang quanh bếp lửa, không rơi vào ghế / xô / bàn trà
                   e.wanderTgt = e.g.position.clone();   // không tìm được điểm sạch thì đứng chờ lượt chọn sau
@@ -9924,13 +10603,13 @@
                 if (e.timer <= 0) { e.phase = 'drink'; e.timer = 9; idleThoughtAt = Math.min(idleThoughtAt, Date.now() + 2000); }
               }
               else if (e.phase === 'drink') {              // đứng lại, mở chai nước ngửa cổ uống 2 ngụm
-                e.timer -= dt;
+                e.timer -= dt; H.bottle = true;
                 const k = 9 - e.timer, up = Math.min(1, k / 0.8, Math.max(0, (9 - k - 0.2) / 0.8)), gulp = up > 0.95 ? Math.sin(t * 7) * 0.04 : 0;
                 e.legs[0].rotation.x = e.legs[1].rotation.x = 0; e.knees[0].rotation.x = e.knees[1].rotation.x = 0;
                 e.arms[0].rotation.x = -2.35 * up + gulp; e.arms[1].rotation.x = -0.1;                        // đưa chai lên, đáy chai chếch cao
                 e.head.rotation.x = -0.38 * up + gulp;                                                         // ngửa cổ, yết hầu nhấp nhô
                 e.lean = -0.06 * up;                                                                           // ngả nhẹ ra sau khi tu chai
-                if (e.timer <= 0) { e.phase = dogPettable() ? 'toDog' : 'toMast'; e.timer = 0; if (e.phase === 'toDog') idleThoughtAt = Math.min(idleThoughtAt, Date.now() + 3000); }
+                if (e.timer <= 0) { e.phase = dogPettable() ? 'toDog' : (e.loopN = (e.loopN || 0) + 1) % 2 ? 'toMast' : 'toChair'; e.timer = 0; if (e.phase === 'toDog') idleThoughtAt = Math.min(idleThoughtAt, Date.now() + 3000); }
               }
               else if (e.phase === 'toDog') {              // ra chỗ chó nằm cạnh bếp lửa
                 if (!dogPettable()) e.phase = 'toMast';
@@ -9947,26 +10626,40 @@
                 e.arms[0].rotation.x = (-0.62 + Math.sin(t * 4) * 0.16) * k; e.arms[1].rotation.x = -0.15 * k;   // tay vuốt dọc lưng chó
                 e.head.rotation.x = 0.3 * k; e.lean = 0.2 * k;                                                // cúi người về phía chó
                 engPetting = k > 0.5;
-                if (e.timer <= 0 || !dogPettable()) { e.phase = 'toMast'; engPetting = false; }
+                if (e.timer <= 0 || !dogPettable()) { e.phase = (e.loopN = (e.loopN || 0) + 1) % 2 ? 'toMast' : 'toChair'; engPetting = false; }
               }
               else if (e.phase === 'toMast') {             // đi tới cột khí tượng
-                if (engStep(e, e.wp[2], dt, t, pf, FIRE_AVOID_R, mastField)) { e.phase = 'check'; e.timer = 30; }
+                if (engStep(e, e.wp[2], dt, t, pf, FIRE_AVOID_R, mastField)) { e.phase = 'check'; e.timer = 40; }
               }
-              else if (e.phase === 'check') {              // đứng kiểm tra cột khí tượng 30s: ngẩng đầu nhìn cột, đưa bảng ghi chép lên
+              else if (e.phase === 'check') {              // đứng kiểm tra cột khí tượng: ngẩng đầu nhìn cột, đưa bảng ghi chép lên
                 e.timer -= dt;
                 e.g.rotation.y = Math.atan2(wmast.g.position.x - e.g.position.x, wmast.g.position.z - e.g.position.z);
                 e.head.rotation.x = -0.45 + Math.sin(t * 1.4) * 0.12; e.lean = -0.04;   // ngửa nhìn đỉnh cột
                 e.arms[1].rotation.x = -1.5 + Math.sin(t * 2.2) * 0.18; e.arms[0].rotation.x = -0.2;
                 e.legs[0].rotation.x = 0; e.legs[1].rotation.x = 0;
                 e.knees[0].rotation.x = 0; e.knees[1].rotation.x = 0;
-                if (e.timer <= 0) e.phase = 'toFish';
+                if (e.timer <= 0) e.phase = 'toChair';
               }
-              else {                                       // 'toFish' (mặc định · cũng là trạng thái sau khi thức dậy) → vào làn phía sau–trái ghế câu, quay lưng, lùi, ngồi
-                if (engUseSeat(e, FISH_SEAT, dt, t)) { e.phase = 'fish'; e.timer = 90; }
+              else {                                       // 'toFish' → vào làn phía sau–trái ghế câu, quay lưng, lùi, ngồi
+                if (engUseSeat(e, FISH_SEAT, dt, t)) { e.phase = 'fish'; e.timer = e.act === 'fish' ? e.actLeft : 90; }
               }
+              // ---- đồ cầm tay theo việc đang làm (bảng ghi chép chỉ cầm khi đi ngoài trời, tay rảnh) ----
+              const atSeat = !!e.seat && (e.seat.st === 'back' || e.seat.st === 'sit' || e.seat.st === 'seated' || e.seat.st === 'rise');   // tay cần nắm tay vịn
+              const P = e.props;
+              P.spoon.visible = !!H.spoon; P.cup.visible = !!H.cup; P.bottle.visible = !!H.bottle; P.book.visible = !!H.book; P.chip.visible = !!H.chip;
+              if (!H.book) P.bookLeaf.visible = false;
+              if (e.clip) e.clip.visible = !e.inVan && e.phase !== 'van' && !fishing && !atSeat && !H.spoon && !H.cup && !H.bottle && !H.book && e.phase !== 'pet';
+              chipsBag.visible = e.phase === 'read' && !e.inVan && !leavingSeat;
+              const atDesk = e.inVan && !!e.van && e.van.station === 'desk';
+              studyLaptop.target = atDesk && (e.van.st === 'sit' || e.van.st === 'scoot' || e.van.st === 'work') ? 1 : 0;
+              laptopScreenTick(t, atDesk && e.act === 'music');
+              musicFx.update(dt, t, atDesk && e.act === 'music' && e.van.st === 'work' && studyLaptop.open > 0.85);
+              napFx.update(dt, t, e.phase === 'nap' && !leavingSeat && !e.inVan ? e : null);
+              if (!(e.inVan && e.van && e.van.station === 'shower')) showerFx.on = false;
               updateEngineerIdleThought();
               drawEngineerLabel(t);
             }
+            showerFx.update(dt);
             engPoseEnd(e, dt, t);   // hiển thị tư thế đã làm mượt
             engFootIK(e, dt);       // IK: bàn chân bám đúng mặt đất voxel, hông hạ theo chân thấp
             engSeatPost(e, dt);     // dang tay tới tay vịn · đầu quay dẫn hướng · đám mây suy nghĩ đứng thẳng trên hông
