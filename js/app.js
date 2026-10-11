@@ -597,9 +597,9 @@
         function sph(r, mat, cast, out, lm, segs = 8) { const geo = new THREE.SphereGeometry(r, segs, segs); const m = new THREE.Mesh(geo, mat); m.castShadow = cast !== false; m.receiveShadow = true; if (out !== false) edge(m, geo, lm); return m; }
         function cone(r, h, mat, cast, out, lm, segs = 9) { const geo = new THREE.ConeGeometry(r, h, segs); const m = new THREE.Mesh(geo, mat); m.castShadow = cast !== false; m.receiveShadow = true; if (out !== false) edge(m, geo, lm); return m; }
         function torus(r, tube, mat, cast, out, lm, radSegs = 6, tubSegs = 12) { const geo = new THREE.TorusGeometry(r, tube, radSegs, tubSegs); const m = new THREE.Mesh(geo, mat); m.castShadow = cast !== false; m.receiveShadow = true; if (out !== false) edge(m, geo, lm); return m; }
-        // Đèn lồng dựng lại theo GLB "Lantern" (alexisturner, CC-BY-4.0, https://sketchfab.com/3d-models/lantern-e6d2f257744f49229c693892c4683da9):
+        // Đèn lồng dựng bằng code (kiểu đèn bão cổ):
         // hộp vuông khung đen 4 ô kính có giằng chữ X, ống thông hơi + nắp vòm, quai đôi uốn vòm theo đường chéo, bóng cầu trên đế trụ.
-        // Số đo theo đơn vị GLB (nhân LANTERN_SCALE); gốc nhóm = đỉnh quai (điểm treo), thân treo xuống −Y. Hình học gộp 1 lần, mọi đèn lồng dùng chung.
+        // Số đo theo đơn vị mẫu (nhân LANTERN_SCALE); gốc nhóm = đỉnh quai (điểm treo), thân treo xuống −Y. Hình học gộp 1 lần, mọi đèn lồng dùng chung.
         const LANTERN_SCALE = 0.022;
         let lanternKit = null;
         function buildLanternKit() {
@@ -4026,21 +4026,21 @@
         // mông khi ngồi ở y cục bộ ~1,06 → người nhỏ đi thì mông thấp xuống, nâng gốc ENG_SIT_LIFT để vẫn ngồi đúng mặt ghế như trước.
         const ENG_FEET = 0.30 * ENGINEER_BASE_SCALE * CAMP_SCALE, ENG_SIT_LIFT = 1.06 * 1.026 * (1 - ENGINEER_SIZE) * CAMP_SCALE;
         const engSitDrop = (k, seatDrop = 0.53 * CAMP_SCALE) => ENG_FEET * (1 - k) + (seatDrop - ENG_SIT_LIFT) * k;   // k: 0 đứng → 1 ngồi hẳn
-        // ---- CẦN CÂU & XÔ học từ GLB "Fishing Supplies Set" (FrodoUndead, CC-BY-4.0 · sketchfab.com/3d-models/fishing-supplies-set-8742c7af23584443a42c24e52d25b60c):
+        // ---- CẦN CÂU & XÔ dựng bằng code theo số đo bộ đồ câu spinning:
         //      cần dài 114 đv gốc → 3,1 m: chuôi sau bần · ống gắn máy kim loại + vòng chặn · chuôi trước ngắn · thân than đen thon dần,
         //      5 khoen dẫn dây + khoen ngọn treo phía dưới đúng vị trí đo (41,6 · 60,7 · 77,2 · 92,1 · 102 · 113,9), máy câu đứng (spinning) dưới ống gắn.
         //      Bề dày ×1,4 so với tỉ lệ gốc để còn đọc được ở tỉ lệ cảnh. Trục cần = +y cục bộ, phía dưới cần = +z ----
         const ROD_K = 3.1 / 114, ROD_R = ROD_K * 1.4;
         let rodMats = null;
-        // Cần đang cầm (flex): thân cần chia 6 đoạn đúng tại các nút đổi độ thon của GLB, mỗi đoạn là 1 khớp uốn (2 mặt phẳng) → cần cong theo lực dây
+        // Cần đang cầm (flex): thân cần chia 6 đoạn đúng tại các nút đổi độ thon của cần, mỗi đoạn là 1 khớp uốn (2 mặt phẳng) → cần cong theo lực dây
         // (lý thuyết elastica: độ cong κ = M/EI, thân rỗng thon I ∝ r³ ⇒ đỉnh uốn ~80% chiều dài, kiểu cần "fast action"); tay quay máy quay được.
         const ROD_CUTS = [25.2, 41.4, 60.5, 77.4, 91.9, 101.9, 114], ROD_RADS = [0.54, 0.47, 0.33, 0.26, 0.18, 0.1, 0.06];
         const ROD_EI0 = 290;   // độ cứng uốn gốc thân cần (N·đv², đv cục bộ của cần): lực ngang 10 N ở ngọn → ngọn lệch ~45° (cỡ cần phao cacbon), 14 N (ngưỡng phanh) cong hình chữ C
         function fishingRod(opts = {}) {
           if (!rodMats) rodMats = { cork: new THREE.MeshLambertMaterial({ color: 0x8b6341 }), blank: new THREE.MeshLambertMaterial({ color: 0x1d1c1b }), seat: new THREE.MeshLambertMaterial({ color: 0x868482 }), reel: new THREE.MeshLambertMaterial({ color: 0x2c2824 }), guide: new THREE.MeshLambertMaterial({ color: 0xb8bcc0 }) };
           const M = rodMats, g = new THREE.Group(); g.name = 'Cần câu (Fishing Rod)';
-          const Y = v => -0.4 + v * ROD_K;   // vị trí dọc cần theo số đo GLB (0 = nắp chuôi, 114 = ngọn); chuôi nhô 0,4 ra sau tay nắm
-          const lathe = (pts, mat, seg = 10, par = g, base = null) => {   // base ≠ null: toạ độ cục bộ của 1 đoạn cần bắt đầu ở mốc GLB base
+          const Y = v => -0.4 + v * ROD_K;   // vị trí dọc cần theo số đo mẫu (0 = nắp chuôi, 114 = ngọn); chuôi nhô 0,4 ra sau tay nắm
+          const lathe = (pts, mat, seg = 10, par = g, base = null) => {   // base ≠ null: toạ độ cục bộ của 1 đoạn cần bắt đầu ở mốc base
             const m = new THREE.Mesh(new THREE.LatheGeometry(pts.map(([r, y]) => new THREE.Vector2(r * ROD_R, base === null ? Y(y) : (y - base) * ROD_K)), seg), mat); m.castShadow = true; par.add(m); return m;
           };
           lathe([[0, 0], [0.71, 0], [0.87, 0.2], [0.93, 1.2], [0.93, 11.6], [0.87, 12.3], [0.74, 12.7], [0, 12.7]], M.cork);            // chuôi sau bằng bần + nắp đuôi
@@ -4558,7 +4558,7 @@
           'study||cold||Trời lạnh, làm xong việc là chui vào chăn.',
           'study|||Đọc dự báo thời tiết ngày mai.',
           'study|20.8-21|||Còn ít phút nữa là đi ngủ.',
-          'study|||Lon Coke trên bàn vẫn chưa uống.',
+          'study|||Lon nước ngọt trên bàn vẫn chưa uống.',
           'evening|||Vào xe làm nốt việc rồi đi ngủ.',
           'evening||rain||Mưa rồi, vào xe làm việc cho khô.',
           'evening||clear||Ngoài trời đầy sao, tiếc là phải vào làm việc.',
@@ -4753,164 +4753,373 @@
           chairFabric = new THREE.MeshLambertMaterial({ color: 0xE2D6C0 }),
           campFabricYellow = new THREE.MeshLambertMaterial({ color: 0xf5e2a3 }), // vàng nhạt
           campFrameWood = new THREE.MeshLambertMaterial({ color: 0x8b6f47 }); // màu gỗ (cùng tông cọc gỗ)
-        const motorhomeReference = window.GARDEN_ASSETS.motorhomeReference;   // dữ liệu mô hình: js/assets.js
-        // Selected geometry from the user-supplied GLB. The other two vehicles and
-        // presentation plane are excluded; coordinates are baked into this caravan.
-        // Source attribution and license metadata remain in motorhomeReference.source.
-        function addMotorhomeReference(parent) {
-          const bytes = Uint8Array.from(atob(motorhomeReference.data), c => c.charCodeAt(0));
-          const group = new THREE.Group(); group.name = 'Cabin, bánh xe & bếp từ GLB';
-          group.userData.noBake = true;
-          group.userData.source = motorhomeReference.source;
-          const galley = new THREE.Group(); galley.name = 'Bếp dọc vách cửa hông'; galley.userData.xray = 'keep';
-          // Cabin parts kept solid in x-ray view (floor, dashboard + steering wheel, seats, controls); door/roof linings count as bodywork (shell).
-          const cabinInterior = new Set(['floor', 'car_interior_extra', 'seats', 'seats_extra', 'seats_extra_2', 'panel_light', 'tumblers', 'tumblers_extra']);
-          // Turn the source transverse galley into a side galley, keeping every fitting together.
-          // Cabinet fronts face the aisle: the 180° turn pivots on the worktop centre (1.92, _, 1.1), so the footprint stays put.
-          galley.rotation.y = -Math.PI / 2; galley.position.set(1.92, 0, -1.57);
-          group.add(galley);
-          const palette = {
-            body: 0xE2D6C0, floor: 0x665d4b, body_extra: 0x42474a, 'body._extra_3': 0x777b7a,
-            black_mate: 0x30383a, black_metalic: 0x525e60, bumper: 0x50585b, car_interior: 0x958776,
-            car_interior_extra: 0x43494b, car_interior_extra_2: 0x777166,
-            seats: 0xc5b596, seats_extra: 0x857962, seats_extra_2: 0x42494a,
-            tyre: 0x2b2925, material_37: 0xb9b3a6, rim_extra: 0x4c5355,
-            rim_extra_2: 0x92958e, radiator_grille: 0x404a4b,
-            headlight: 0xfff3c4, headlight_exttra: 0x858d8c, mirror: 0xb3ccd0,
-            number_plate: 0xe4dbc5, tumblers: 0x2f3638, tumblers_extra: 0xb8afa0,
-            kitchen: 0xa58e69, kitchen_extra: 0xd0ccc0, material_15: 0xc0744a,
-            kitchen_water_temp_light: 0xdde5dd, board: 0xab7849,
-            knife: 0xc5cfcb, knife_extra: 0x5b6263, water_level_light: 0x708eab,
-            panel_light: 0x90b2a0
+        // ---- CABIN LÁI, 4 BÁNH (bánh sau đôi) & TỦ BẾP — dựng hoàn toàn bằng code, không nhúng lưới ngoài ----
+        // Khung xe (đv xe): mũi xe ở −x, cửa hông ở +z, cầu trước x = −2,097, cầu sau x = 1,888, tâm bánh y = 0,506.
+        // Cabin kiểu xe tải nhẹ đầu bằng: mặt trước phẳng vát 2 góc, kính chắn gió nghiêng ~43°, hông trên hơi khum vào (tumblehome),
+        // mui thấp nằm dưới khoang ngủ. Tay lái bên trái (+z), cột lái dựng nghiêng 22° như xe tải; sàn cabin y = 0,956 (thấp hơn sàn khoang ở).
+        // Vỏ & kính bán trong suốt như thân xe ở; trong x-ray vỏ ẩn, nội thất + bánh + tủ bếp giữ nguyên.
+        const CAB = { xf: -3.80, xs: -3.31, xr: -1.40, ws: 1.335, sill: 0.55, belt: 2.10, roof: 2.97, floorY: 0.956, axleF: -2.096956, axleR: 1.888478, wheelY: 0.50561, archR: 0.63 };
+        function motorhomeCab(parent) {
+          const C = CAB, V3 = (x, y, z) => new THREE.Vector3(x, y, z);
+          const lam = (color, o = {}) => new THREE.MeshLambertMaterial({ color, ...o });
+          const M = {
+            body: lam(0xE2D6C0, { transparent: true, opacity: 0.5, depthWrite: false, side: THREE.DoubleSide }),
+            glass: lam(0x8fc1e3, { transparent: true, opacity: 0.25, depthWrite: false, side: THREE.DoubleSide }),
+            trim: lam(0x42474a), matte: lam(0x30383a), bumper: lam(0x50585b), grille: lam(0x404a4b), handle: lam(0x777b7a),
+            lamp: lam(0xfff3c4), lampBox: lam(0x858d8c), mirror: lam(0xb3ccd0),
+            under: lam(0x665d4b, { side: THREE.DoubleSide }), mat: lam(0x43494b), dash: lam(0x958776), dashTrim: lam(0x777166),
+            seat: lam(0xc5b596), seatBand: lam(0x857962), seatDark: lam(0x42494a), switchCap: lam(0xb8afa0),
+            tyre: lam(0x2b2925), rim: lam(0xb9b3a6), rimDark: lam(0x4c5355), hub: lam(0x92958e),
+            cabinet: lam(0xa58e69), front: lam(0xd0ccc0)
           };
-          // Bỏ "ruột" mặt bếp gốc của tủ GLB (chậu, bếp nấu, nắp nâng, thanh dao): đỉnh cao hơn nóc tủ bị ép xuống nóc tủ, nằm khuất dưới
-          // mặt đá lắp thêm; dưới lỗ chậu ép sâu hơn để chừa lòng chậu; tam giác nằm trọn phía trên bị bỏ. Trả về false nếu không còn gì.
-          const GALLEY_TOP = 1.795, SINK_POCKET = { x0: 2.45, x1: 2.89, z0: -0.71, z1: -0.09, y: 1.70 };
-          function trimGalley(geo) {
-            const pos = geo.attributes.position.array, above = new Uint8Array(pos.length / 3);
-            for (let i = 0, k = 0; i < pos.length; i += 3, k++) {
-              const x = pos[i], z = pos[i + 2];
-              const cap = x > SINK_POCKET.x0 && x < SINK_POCKET.x1 && z > SINK_POCKET.z0 && z < SINK_POCKET.z1 ? SINK_POCKET.y : GALLEY_TOP;
-              if (pos[i + 1] > GALLEY_TOP + 0.005) above[k] = 1;
-              if (pos[i + 1] > cap) pos[i + 1] = cap;
+          const cab = new THREE.Group(); cab.name = 'Cabin lái, bánh xe & tủ bếp'; cab.userData.noBake = true;
+          const shell = new THREE.Group(); shell.name = 'Vỏ cabin'; shell.userData.xray = 'shell';
+          const inner = new THREE.Group(); inner.name = 'Nội thất cabin'; inner.userData.xray = 'keep';
+          const wheels = new THREE.Group(); wheels.name = 'Bánh xe'; wheels.userData.xray = 'keep';
+          cab.add(shell, inner, wheels);
+          const mesh = (geo, mat, par, name, outline = null) => {
+            const m = new THREE.Mesh(geo, mat); m.name = name; m.castShadow = mat !== M.glass; m.receiveShadow = true;
+            if (outline) edge(m, geo, outline); par.add(m); return m;
+          };
+          const box = (par, name, w, h, d, x, y, z, mat, outlined = false) => { const m = bx(w, h, d, mat, true, outlined, lineDark); m.name = name; m.position.set(x, y, z); par.add(m); return m; };
+          // thanh nối 2 điểm (khung kính, tay gạt, cột lái…): hộp tiết diện t×t, hoặc trụ tròn khi round
+          const bar = (par, name, a, b, t, mat, round = false) => {
+            const v = new THREE.Vector3().subVectors(b, a), len = v.length();
+            const m = round ? cyl(t, t, len, mat, true, false, null, 8) : bx(t, len, t, mat, true, false);
+            m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), v.normalize()); m.position.copy(a).add(b).multiplyScalar(.5);
+            m.name = name; par.add(m); return m;
+          };
+          // đa giác phẳng từ các đỉnh 3D (quạt tam giác)
+          const facets = (polys) => {
+            const p = [];
+            for (const poly of polys) for (let i = 1; i < poly.length - 1; i++) p.push(...poly[0], ...poly[i], ...poly[i + 1]);
+            const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(p, 3));
+            geo.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(p.length / 3 * 2), 2)); geo.computeVertexNormals(); return geo;   // uv rỗng để gộp được với hình khác
+          };
+          // hình 2D đặt lên mặt phẳng (gốc o, trục u, v) — dùng cho vách có lỗ cửa kính
+          const onPlane = (geo, o, u, v) => geo.applyMatrix4(new THREE.Matrix4().makeBasis(u, v, new THREE.Vector3().crossVectors(u, v)).setPosition(o));
+          const rect = (path, x0, y0, x1, y1) => { path.moveTo(x0, y0); path.lineTo(x1, y0); path.lineTo(x1, y1); path.lineTo(x0, y1); path.closePath(); return path; };
+
+          // ===== VỎ =====
+          // mũi xe: các mức (y, mặt trước x, nửa rộng mặt trước, x cuối mép vát) — mép trên cùng chính là chân kính chắn gió
+          const nose = [[C.sill, -3.66, 0.97, -3.24], [1.10, C.xf, 1.00, C.xs], [1.66, C.xf, 1.00, C.xs], [1.92, -3.73, 0.99, -3.29], [C.belt, -3.60, 0.98, -3.26]];
+          const T = .025;   // vỏ 2 lớp dày 25 mm (như vách thân ở) ⇒ đậm như tôn thật dù vật liệu bán trong suốt
+          for (const k of [0, 1]) {
+            const nosePolys = [], ws = C.ws - k * T;
+            for (let i = 0; i < nose.length - 1; i++) {
+              const [y0, f0, w0, s0] = nose[i], [y1, f1, w1, s1] = nose[i + 1], d = k * T;
+              nosePolys.push([[f0 + d, y0, -w0 + d], [f0 + d, y0, w0 - d], [f1 + d, y1, w1 - d], [f1 + d, y1, -w1 + d]]);
+              for (const sd of [-1, 1]) nosePolys.push([[f0 + d, y0, sd * (w0 - d)], [s0 + d, y0, sd * ws], [s1 + d, y1, sd * ws], [f1 + d, y1, sd * (w1 - d)]]);
             }
-            const idx = geo.index.array, keep = [];
-            for (let t = 0; t < idx.length; t += 3) if (!(above[idx[t]] && above[idx[t + 1]] && above[idx[t + 2]])) keep.push(idx[t], idx[t + 1], idx[t + 2]);
-            if (!keep.length) return false;
-            geo.setIndex(new THREE.BufferAttribute(new Uint16Array(keep), 1));
-            return true;
+            mesh(facets(nosePolys), M.body, shell, 'Mũi cabin vát góc', k ? null : lineDark);
           }
-          const materials = new Map();
-          for (const part of motorhomeReference.meshes) {
-            let mat = materials.get(part.material);
-            if (!mat) {
-              const glass = part.material === 'glass', shell = part.material === 'body';
-              mat = new THREE.MeshLambertMaterial({
-                color: glass ? 0x8fc1e3 : (palette[part.material] ?? 0x737a78),
-                transparent: glass || shell, opacity: glass ? 0.25 : shell ? 0.5 : 1,
-                depthWrite: !(glass || shell), side: THREE.DoubleSide
-              });
-              mat.name = 'GLB · ' + part.material; materials.set(part.material, mat);
-            }
-            const geo = new THREE.BufferGeometry();
-            geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(bytes.buffer, part.position, part.vertices * 3), 3));
-            geo.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(bytes.buffer, part.normal, part.vertices * 3), 3));
-            geo.setIndex(new THREE.BufferAttribute(new Uint16Array(bytes.buffer, part.index, part.indices), 1));
-            if (part.group === 'kitchen' && !trimGalley(geo)) continue;   // thớt, dao… nằm trọn trên nóc tủ: bỏ hẳn
-            // Keep the GLB tyre/rim detail; widen each axle to match its own bodywork.
-            // Translate the existing typed-array views once, with no extra wheel buffers.
-            if (part.group === 'wheels') {
-              const pos = geo.attributes.position.array;
-              for (let i = 0; i < pos.length; i += 3) {
-                const offset = pos[i] < 0 ? 0.10 : 0.27;
-                pos[i + 2] += pos[i + 2] < 0 ? -offset : offset;
-              }
-            }
-            geo.computeBoundingBox(); geo.computeBoundingSphere();
-            const mesh = new THREE.Mesh(geo, mat); mesh.name = part.name;
-            mesh.castShadow = part.material !== 'glass'; mesh.receiveShadow = true;
-            mesh.userData.referencePart = part.group;
-            mesh.userData.xray = part.group === 'cabin' && !cabinInterior.has(part.material) ? 'shell' : 'keep';   // bánh xe & bếp giữ nguyên
-            (part.group === 'kitchen' ? galley : group).add(mesh);
-            if (part.material === 'number_plate') {
-              // Print once on the original front plate; reuse this small texture for the scene's lifetime.
-              const plateCanvas = document.createElement('canvas'); plateCanvas.width = 128; plateCanvas.height = 64;
-              const plateInk = plateCanvas.getContext('2d');
-              plateInk.font = '700 42px Arial, sans-serif'; plateInk.textAlign = 'center'; plateInk.textBaseline = 'middle';
-              plateInk.fillStyle = '#243240'; plateInk.fillText('Jade', 64, 33);
-              const plateTexture = new THREE.CanvasTexture(plateCanvas); plateTexture.colorSpace = THREE.SRGBColorSpace;
-              const bounds = geo.boundingBox, plateWidth = bounds.max.z - bounds.min.z, plateHeight = bounds.max.y - bounds.min.y;
-              const lettering = new THREE.Mesh(new THREE.PlaneGeometry(plateWidth, plateHeight),
-                new THREE.MeshBasicMaterial({ map: plateTexture, transparent: true, depthWrite: false }));
-              lettering.name = 'Biển số trước · Jade'; lettering.userData.noBake = true;
-              lettering.rotation.y = -Math.PI / 2;
-              lettering.position.set(bounds.min.x - .002, (bounds.min.y + bounds.max.y) * .5, (bounds.min.z + bounds.max.z) * .5);
-              mesh.add(lettering);
-            }
-            if (part.material === 'body' || part.material === 'glass') {
-              const outline = new THREE.LineSegments(new THREE.EdgesGeometry(geo, 38), lineDark);
-              outline.name = part.name + ' · đường viền'; mesh.add(outline);
+          // hông dưới (phẳng z = ±ws): khoét hốc bánh trước
+          const a = Math.asin((C.sill - C.wheelY) / C.archR), half = Math.sqrt(C.archR ** 2 - (C.sill - C.wheelY) ** 2);
+          const lowSide = new THREE.Shape(); lowSide.moveTo(nose[0][3], C.sill);
+          lowSide.lineTo(C.axleF - half, C.sill); lowSide.absarc(C.axleF, C.wheelY, C.archR, Math.PI - a, a, true);
+          lowSide.lineTo(C.xr, C.sill); lowSide.lineTo(C.xr, C.belt); for (let i = nose.length - 1; i >= 1; i--) lowSide.lineTo(nose[i][3], nose[i][0]); lowSide.closePath();
+          const plate = (shape, segs) => new THREE.ExtrudeGeometry(shape, { depth: T, bevelEnabled: false, curveSegments: segs });   // đùn theo pháp tuyến mặt phẳng
+          for (const sd of [-1, 1]) mesh(onPlane(plate(lowSide, 24), V3(0, 0, sd > 0 ? C.ws - T : -C.ws), V3(1, 0, 0), V3(0, 1, 0)), M.body, shell, 'Hông dưới cabin', lineDark);
+          // hông trên khum vào: z ±1,335 ở thắt lưng → ±1,07 ở mui; lỗ kính gió (vent) + kính cửa lớn bo góc sau-trên
+          const topW = 1.07, sv = Math.hypot(C.roof - C.belt, C.ws - topW), sOf = y => (y - C.belt) / (C.roof - C.belt) * sv;
+          const upSide = new THREE.Shape(); upSide.moveTo(-3.26, 0); upSide.lineTo(C.xr, 0); upSide.lineTo(C.xr, sv); upSide.lineTo(-2.66, sv); upSide.closePath();
+          const s0 = sOf(2.13), s1 = sOf(2.84);
+          const vent = new THREE.Path(); vent.moveTo(-3.00, s0); vent.lineTo(-2.56, s0); vent.lineTo(-2.56, s1); vent.lineTo(-2.633, s1); vent.closePath();
+          const main = new THREE.Path(); main.moveTo(-2.49, s0); main.lineTo(-1.52, s0); main.lineTo(-1.52, s1 - .09); main.quadraticCurveTo(-1.52, s1, -1.61, s1); main.lineTo(-2.49, s1); main.closePath();
+          upSide.holes.push(vent, main);
+          for (const sd of [-1, 1]) {
+            const o = V3(0, C.belt, sd * C.ws), v = V3(0, C.roof - C.belt, -sd * (C.ws - topW)).normalize(), u = V3(1, 0, 0);
+            const nOut = new THREE.Vector3().crossVectors(u, v).multiplyScalar(sd);   // pháp tuyến hướng ra ngoài xe
+            mesh(onPlane(plate(upSide, 8), sd > 0 ? o.clone().addScaledVector(nOut, -T) : o, u, v), M.body, shell, 'Hông trên cabin', lineDark);
+            for (const hole of [vent, main]) {
+              mesh(onPlane(new THREE.ShapeGeometry(new THREE.Shape(hole.getPoints(6)), 6), o.clone().addScaledVector(nOut, -.012), u, v), M.glass, shell, 'Kính cửa cabin');   // kính lùi vào 12 mm
+              const pts = hole.getPoints(3).map(p => o.clone().addScaledVector(u, p.x).addScaledVector(v, p.y).addScaledVector(nOut, .006));
+              for (let i = 0; i < pts.length; i++) { const q = pts[(i + 1) % pts.length]; if (q.distanceTo(pts[i]) > .005) bar(shell, 'Khung kính cửa', pts[i], q, .03, M.matte); }
             }
           }
-          parent.add(group);
-          motorhomeReference.data = ''; // Decoded buffer is owned by the geometry attributes; drop the duplicate base64 string.
-          motorhomeReference.meshes.length = 0;
+          // trụ A (từ mép kính chắn gió ra hông) + ốp sau nối vào vai loe của thân ở
+          const wsB = [-3.60, 0.98], wsBw = [-3.52, 1.06], wsT = [-2.78, 0.92], wsTw = [-2.72, 0.99];
+          const pil = [], back = [];
+          for (const sd of [-1, 1]) {
+            pil.push([[wsBw[0], C.belt, sd * wsBw[1]], [-3.26, C.belt, sd * C.ws], [-2.66, C.roof, sd * topW], [wsTw[0], C.roof, sd * wsTw[1]]]);
+            back.push([[C.xr, C.belt, sd * C.ws], [C.xr, 2.99, sd * C.ws], [C.xr, 2.99, sd * topW], [C.xr, C.roof, sd * topW]]);
+          }
+          mesh(facets(pil), M.body, shell, 'Trụ kính chắn gió', lineDark); mesh(facets(back), M.body, shell, 'Ốp sau cabin');
+          // mui cabin (nằm ngay dưới đáy khoang ngủ y = 2,98)
+          const roofS = new THREE.Shape([[wsT[0], -wsT[1]], [wsTw[0], -wsTw[1]], [-2.66, -topW], [C.xr, -topW], [C.xr, topW], [-2.66, topW], [wsTw[0], wsTw[1]], [wsT[0], wsT[1]]].map(p => new THREE.Vector2(...p)));
+          for (const k of [0, 1]) mesh(onPlane(new THREE.ShapeGeometry(roofS), V3(0, C.roof - k * T, 0), V3(1, 0, 0), V3(0, 0, 1)), M.body, shell, 'Mui cabin', k ? null : lineDark);
+          // kính chắn gió 3 tấm (giữa phẳng + 2 tấm ôm góc) và khung kính đen
+          const ws = (b, t) => [[b[0], C.belt, b[1]], [t[0], C.roof, t[1]]];
+          const [bl, tl] = ws(wsB, wsT), [blw, tlw] = ws(wsBw, wsTw), mz = p => [p[0], p[1], -p[2]];
+          mesh(facets([[mz(bl), bl, tl, mz(tl)], [bl, blw, tlw, tl], [mz(blw), mz(bl), mz(tl), mz(tlw)]]), M.glass, shell, 'Kính chắn gió', lineDark);
+          for (const [p, q] of [[mz(bl), bl], [bl, blw], [mz(bl), mz(blw)], [mz(tl), tl], [tl, tlw], [mz(tl), mz(tlw)], [blw, tlw], [mz(blw), mz(tlw)]]) bar(shell, 'Khung kính chắn gió', V3(...p), V3(...q), .035, M.matte);
+          // gạt mưa nằm dọc chân kính
+          for (const z0 of [.08, -.76]) {
+            bar(shell, 'Cần gạt mưa', V3(-3.585, 2.125, z0), V3(-3.56, 2.15, z0 + .68), .016, M.trim);
+            const pv = cyl(.02, .02, .03, M.trim, true, false); pv.position.set(-3.59, 2.115, z0); shell.add(pv);
+          }
+          // gương chiếu hậu: hộp gương + mặt kính quay về sau, 2 tay đỡ
+          for (const sd of [-1, 1]) {
+            box(shell, 'Hộp gương chiếu hậu', .10, .50, .24, -3.12, 2.31, sd * 1.56, M.trim, true);
+            const mg = new THREE.Mesh(new THREE.PlaneGeometry(.20, .44), M.mirror); mg.rotation.y = Math.PI / 2; mg.position.set(-3.068, 2.31, sd * 1.56); shell.add(mg);
+            bar(shell, 'Tay gương', V3(-3.14, 2.135, sd * 1.31), V3(-3.14, 2.135, sd * 1.45), .022, M.matte);
+            bar(shell, 'Tay gương', V3(-3.10, 2.345, sd * 1.27), V3(-3.10, 2.345, sd * 1.45), .022, M.matte);
+          }
+          // đường ron cửa lái/phụ (cửa ôm qua hốc bánh), nẹp thắt lưng, tay nắm cửa
+          const seam = [];
+          for (const sd of [-1, 1]) {
+            const zl = sd * (C.ws + .003), zu = y => sd * (C.ws - (y - C.belt) / (C.roof - C.belt) * (C.ws - topW) + .003);
+            const pts = [[-3.27, .95], [C.axleF - .488, .95]];
+            for (let i = 0; i <= 14; i++) { const t = Math.PI - Math.asin(.4444 / .66) - i / 14 * (Math.PI - 2 * Math.asin(.4444 / .66)); pts.push([C.axleF + .66 * Math.cos(t), C.wheelY + .66 * Math.sin(t)]); }
+            pts.push([-1.42, .95]);
+            for (let i = 0; i < pts.length - 1; i++) seam.push(pts[i][0], pts[i][1], zl, pts[i + 1][0], pts[i + 1][1], zl);
+            seam.push(-3.27, .95, zl, -3.27, C.belt, zl, -1.42, .95, zl, -1.42, C.belt, zl);
+            seam.push(-3.26, C.belt, zu(C.belt), -2.69, 2.93, zu(2.93), -2.69, 2.93, zu(2.93), -1.42, 2.93, zu(2.93), -1.42, C.belt, zu(C.belt), -1.42, 2.93, zu(2.93));
+            box(shell, 'Nẹp thắt lưng', 1.86, .035, .016, (-3.26 + C.xr) / 2, 2.035, sd * (C.ws + .008), M.handle);
+            box(shell, 'Tay nắm cửa', .20, .045, .03, -1.58, 1.765, sd * (C.ws + .015), M.handle, true);
+          }
+          const seamL = new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(seam, 3)), lineDark); seamL.name = 'Ron cửa cabin'; shell.add(seamL);
+          // lốc lườn hốc bánh trước (nửa trụ hở + vách trong)
+          for (const sd of [-1, 1]) {
+            const liner = new THREE.CylinderGeometry(C.archR, C.archR, C.ws - .95, 20, 1, true, Math.PI / 2, Math.PI); liner.rotateX(Math.PI / 2);
+            mesh(liner, M.under, inner, 'Lốc hốc bánh trước').position.set(C.axleF, C.wheelY, sd * (C.ws + .95) / 2);
+            const wall = new THREE.CircleGeometry(C.archR, 20, 0, Math.PI);
+            mesh(wall, M.under, inner, 'Vách trong hốc bánh').position.set(C.axleF, C.wheelY, sd * .95);
+          }
+          // cụm mặt ga-lăng: viền đen khoét 3 ô (2 hộp đèn + lưới tản nhiệt), đèn tròn đôi, nan lưới ngang
+          const face = rect(new THREE.Shape(), -.995, 1.21, .995, 1.62);
+          face.holes.push(rect(new THREE.Path(), -.985, 1.235, -.77, 1.595), rect(new THREE.Path(), -.75, 1.26, .75, 1.58), rect(new THREE.Path(), .77, 1.235, .985, 1.595));
+          const faceGeo = new THREE.ExtrudeGeometry(face, { depth: .025, bevelEnabled: false });
+          mesh(onPlane(faceGeo, V3(C.xf, 0, 0), V3(0, 0, 1), V3(0, 1, 0)), M.matte, shell, 'Viền ga-lăng', lineDark);
+          const front = (w, h, y, z, mat, name, dx = -.004) => { const p = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat); p.rotation.y = -Math.PI / 2; p.position.set(C.xf + dx, y, z); p.name = name; shell.add(p); return p; };
+          front(1.50, .32, 1.42, 0, M.grille, 'Nền lưới tản nhiệt');
+          for (let i = 0; i < 5; i++) box(shell, 'Nan lưới tản nhiệt', .03, .022, 1.48, C.xf - .012, 1.30 + i * .062, 0, M.lampBox);
+          for (const sd of [-1, 1]) {
+            front(.215, .36, 1.415, sd * .8775, M.lampBox, 'Hộp đèn pha');
+            for (const [y, r] of [[1.51, .062], [1.345, .078]]) {
+              const lens = new THREE.Mesh(new THREE.CircleGeometry(r, 18), M.lamp); lens.rotation.y = -Math.PI / 2; lens.position.set(C.xf - .012, y, sd * .8775); lens.name = 'Đèn pha'; shell.add(lens);
+              const ring = new THREE.Mesh(new THREE.TorusGeometry(r, .009, 5, 18), M.handle); ring.rotation.y = Math.PI / 2; ring.position.copy(lens.position); shell.add(ring);
+            }
+          }
+          // cản trước ôm 2 góc vát (dải đùn theo mặt bằng xe, cao 0,57–0,93)
+          const bOut = [[-2.75, 1.364], [-3.33, 1.364], [-3.87, 1.02], [-3.87, -1.02], [-3.33, -1.364], [-2.75, -1.364]], bIn = [[-2.75, -C.ws], [C.xs, -C.ws], [C.xf, -1.0], [C.xf, 1.0], [C.xs, C.ws], [-2.75, C.ws]];
+          const bShape = new THREE.Shape([...bOut, ...bIn].map(p => new THREE.Vector2(p[0], -p[1])));
+          const bGeo = new THREE.ExtrudeGeometry(bShape, { depth: .358, bevelEnabled: false }); bGeo.rotateX(-Math.PI / 2); bGeo.translate(0, .571, 0);
+          mesh(bGeo, M.bumper, shell, 'Cản trước', lineDark);
+          // biển số "Jade" trên giá đỡ dưới tâm cản
+          box(shell, 'Giá biển số', .03, .25, .52, -3.885, .645, 0, M.trim, true);
+          const pc = document.createElement('canvas'); pc.width = 256; pc.height = 128; const pk = pc.getContext('2d');
+          pk.fillStyle = '#e4dbc5'; pk.fillRect(0, 0, 256, 128); pk.strokeStyle = '#243240'; pk.lineWidth = 6; pk.strokeRect(6, 6, 244, 116);
+          pk.font = '700 84px Arial, sans-serif'; pk.textAlign = 'center'; pk.textBaseline = 'middle'; pk.fillStyle = '#243240'; pk.fillText('Jade', 128, 68);
+          const plateTex = new THREE.CanvasTexture(pc); plateTex.colorSpace = THREE.SRGBColorSpace;
+          front(.42, .21, .645, 0, new THREE.MeshLambertMaterial({ map: plateTex }), 'Biển số trước · Jade', -.102);
+
+          // ===== NỘI THẤT =====
+          // sàn: gầm (y 0,58) + thảm (y 0,956); 2 bên chỉ có phần trước hốc bánh (chỗ đặt chân lên xuống)
+          box(inner, 'Sàn cabin', 1.85, C.floorY - .58, 1.90, (-3.25 + C.xr) / 2, (C.floorY + .58) / 2, 0, M.mat);
+          for (const sd of [-1, 1]) box(inner, 'Sàn cabin', .52, C.floorY - .58, .38, -2.99, (C.floorY + .58) / 2, sd * 1.14, M.mat);
+          // ghế lái + ghế phụ: bệ đỡ, đệm ngồi, tựa lưng ngả 15°, đai viền, núm chỉnh tựa
+          for (const sd of [-1, 1]) {
+            const zc = sd * .6425;
+            box(inner, 'Bệ ghế', .95, 1.15 - C.floorY, .80, -2.08, (1.15 + C.floorY) / 2, zc, M.seatDark);
+            box(inner, 'Đệm ngồi', .72, .26, .90, -2.20, 1.28, zc, M.seat, true);
+            const back = box(inner, 'Tựa lưng', .15, 1.13, .90, -1.66, 1.89, zc, M.seat, true); back.rotation.z = -.26;
+            const band = box(back, 'Đai tựa lưng', .17, .08, .92, 0, -.40, 0, M.seatBand); band.castShadow = false;
+            const knob = cyl(.09, .09, .07, M.seatDark, true, true, lineDark, 12); knob.rotation.x = Math.PI / 2; knob.position.set(-1.77, 1.385, sd * 1.135); inner.add(knob);
+            box(inner, 'Tay vịn cửa', .55, .06, .08, -2.93, 1.68, sd * 1.25, M.trim);
+            box(inner, 'Hộc cửa', .55, .26, .05, -2.90, 1.17, sd * 1.285, M.trim);
+            box(inner, 'Tấm che nắng', .16, .012, .62, -2.69, 2.92, sd * .56, M.dashTrim);
+          }
+          // táp-lô: biên dạng đùn suốt bề ngang cabin (mặt trên dưới kính chắn gió, mặt sau quay về người lái)
+          const dashS = new THREE.Shape([[-3.62, 2.09], [-3.10, 2.09], [-3.03, 2.00], [-3.03, 1.50], [-3.20, 1.20], [-3.25, C.floorY], [-3.62, C.floorY]].map(p => new THREE.Vector2(...p)));
+          const dashGeo = new THREE.ExtrudeGeometry(dashS, { depth: 2.5, bevelEnabled: false }); dashGeo.translate(0, 0, -1.25);
+          const dash = new THREE.Group(); dash.name = 'Táp-lô'; dash.userData.xray = 'shell'; inner.add(dash);   // xem xuyên: ẩn táp-lô để lộ vô-lăng, cần số, sàn
+          mesh(dashGeo, M.dash, dash, 'Táp-lô', lineDark);
+          for (const sd of [-1, 1]) box(dash, 'Khe sấy kính', .05, .006, .6, -3.52, 2.093, sd * .38, M.matte);
+          // cụm đồng hồ trước ghế lái: hộp che + mặt 3 đồng hồ (vẽ canvas)
+          box(dash, 'Hộp đồng hồ', .26, .28, .78, -3.17, 2.04, .61, M.dashTrim, true);
+          const gc = document.createElement('canvas'); gc.width = 256; gc.height = 80; const gk = gc.getContext('2d');
+          gk.fillStyle = '#90b2a0'; gk.fillRect(0, 0, 256, 80);
+          [[44, 40, 30], [128, 40, 36], [212, 40, 30]].forEach(([cx, cy, r], i) => {
+            gk.fillStyle = '#20292b'; gk.beginPath(); gk.arc(cx, cy, r, 0, Math.PI * 2); gk.fill();
+            gk.strokeStyle = '#d9e4dc'; gk.lineWidth = 2; for (let k = 0; k <= 8; k++) { const t = Math.PI * (.8 + k * .175); gk.beginPath(); gk.moveTo(cx + Math.cos(t) * r * .78, cy + Math.sin(t) * r * .78); gk.lineTo(cx + Math.cos(t) * r * .92, cy + Math.sin(t) * r * .92); gk.stroke(); }
+            const t = Math.PI * (1.1 + i * .3); gk.strokeStyle = '#f08a3c'; gk.lineWidth = 3; gk.beginPath(); gk.moveTo(cx, cy); gk.lineTo(cx + Math.cos(t) * r * .75, cy + Math.sin(t) * r * .75); gk.stroke();
+          });
+          const gaugeTex = new THREE.CanvasTexture(gc); gaugeTex.colorSpace = THREE.SRGBColorSpace;
+          const gauge = new THREE.Mesh(new THREE.PlaneGeometry(.54, .17), new THREE.MeshLambertMaterial({ map: gaugeTex })); gauge.name = 'Mặt đồng hồ';
+          gauge.rotation.y = Math.PI / 2; gauge.position.set(-3.038, 2.03, .63); dash.add(gauge);
+          // giữa táp-lô: cửa gió nan ngang + hàng 5 công tắc; hộc đựng đồ bên phụ; 2 loa ở góc
+          box(dash, 'Cửa gió giữa', .01, .17, .30, -3.028, 1.88, .07, M.matte);
+          for (let i = 0; i < 6; i++) box(dash, 'Nan cửa gió', .012, .008, .29, -3.022, 1.81 + i * .028, .07, M.dashTrim);
+          for (let i = 0; i < 5; i++) { const s = cyl(.011, .011, .045, M.switchCap, true, false, null, 8); s.rotation.z = Math.PI / 2; s.position.set(-3.01, 1.70, .035 + i * .06); dash.add(s); }
+          box(dash, 'Nắp hộc đựng đồ', .02, .17, .62, -3.025, 1.87, -.44, M.dashTrim, true);
+          box(dash, 'Khoá hộc', .012, .03, .07, -3.012, 1.92, -.44, M.matte);
+          for (const sd of [-1, 1]) {
+            const spk = new THREE.Mesh(new THREE.CircleGeometry(.09, 16), M.matte); spk.rotation.y = Math.PI / 2; spk.position.set(-3.027, 1.64, sd * .93); spk.name = 'Loa'; dash.add(spk);
+            const rim = new THREE.Mesh(new THREE.TorusGeometry(.095, .008, 5, 16), M.dashTrim); rim.rotation.y = Math.PI / 2; rim.position.copy(spk.position); dash.add(rim);
+          }
+          // cột lái nghiêng 22° kiểu xe tải + vô-lăng 3 chấu vuông góc cột lái
+          const colA = V3(-3.15, 1.12, .615), hubP = V3(-2.775, 2.04, .615), colDir = new THREE.Vector3().subVectors(hubP, colA).normalize();
+          bar(inner, 'Cột lái', colA, hubP, .03, M.matte, true);
+          const wheel = new THREE.Group(); wheel.name = 'Vô-lăng'; wheel.position.copy(hubP); wheel.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), colDir); inner.add(wheel);
+          const ring = new THREE.Mesh(new THREE.TorusGeometry(.235, .019, 6, 16), M.mat); ring.castShadow = true; wheel.add(ring);
+          for (let k = 0; k < 3; k++) { const t = Math.PI / 2 + k * Math.PI * 2 / 3; bar(wheel, 'Chấu vô-lăng', V3(0, 0, .005), V3(Math.cos(t) * .225, Math.sin(t) * .225, 0), .022, M.mat); }
+          const hubCap = cyl(.045, .045, .03, M.matte, true, true, lineDark, 12); hubCap.rotation.x = Math.PI / 2; wheel.add(hubCap);
+          // cần số trên sàn giữa 2 ghế (chụp cao su + cần + núm), 3 bàn đạp
+          const bootM = cyl(.05, .07, .11, M.matte, true, false, null, 10); bootM.position.set(-2.905, C.floorY + .055, .12); inner.add(bootM);
+          bar(inner, 'Cần số', V3(-2.905, C.floorY + .1, .12), V3(-2.70, 1.83, .12), .012, M.mat, true);
+          const gearKnob = sph(.035, M.seat, true, false); gearKnob.position.set(-2.695, 1.845, .12); inner.add(gearKnob);
+          for (const z of [.39, .50, .80]) {
+            const pad = box(inner, 'Bàn đạp', .03, .11, .07, -3.17, 1.04, z, M.trim); pad.rotation.z = .5;
+            bar(inner, 'Cần bàn đạp', V3(-3.19, 1.09, z), V3(-3.23, 1.32, z), .014, M.matte);
+          }
+
+          // ===== BÁNH XE: lốp tiện theo biên dạng (vai bo tròn), mâm thép dập lòng chảo, 6 ốc tắc-kê =====
+          const tyreGeo = new THREE.LatheGeometry([[.31, -.19], [.40, -.199], [.452, -.188], [.492, -.16], [.506, -.115], [.506, .115], [.492, .16], [.452, .188], [.40, .199], [.31, .19]].map(p => new THREE.Vector2(...p)), 28);
+          const rimGeo = new THREE.LatheGeometry([[.315, .186], [.30, .19], [.275, .178]].map(p => new THREE.Vector2(...p)), 28);
+          const grooveGeo = new THREE.LatheGeometry([[.276, .178], [.25, .158], [.238, .156]].map(p => new THREE.Vector2(...p)), 28);
+          const dishGeo = new THREE.LatheGeometry([[.24, .156], [.20, .16], [.19, .166], [.075, .174]].map(p => new THREE.Vector2(...p)), 28);
+          const hubGeo = new THREE.LatheGeometry([[.076, .172], [.07, .19], [.045, .196], [0, .198]].map(p => new THREE.Vector2(...p)), 16);
+          const backGeo = new THREE.CircleGeometry(.315, 24);
+          for (const g of [tyreGeo, rimGeo, grooveGeo, dishGeo, hubGeo]) g.rotateX(Math.PI / 2);   // trục tiện (y) → trục bánh (z); phía +z là mặt ngoài
+          const nutGeo = new THREE.CylinderGeometry(.017, .017, .022, 6); nutGeo.rotateX(Math.PI / 2);
+          function roadWheel(x, z, outward, name) {
+            const w = new THREE.Group(); w.name = name; w.position.set(x, C.wheelY, z); if (outward < 0) w.rotation.y = Math.PI;
+            const t = new THREE.Mesh(tyreGeo, M.tyre); t.castShadow = t.receiveShadow = true; edge(t, tyreGeo, lineDark); w.add(t);
+            for (const [g, m] of [[rimGeo, M.rim], [grooveGeo, M.rimDark], [dishGeo, M.rim], [hubGeo, M.hub]]) { const p = new THREE.Mesh(g, m); p.castShadow = true; w.add(p); }
+            const bk = new THREE.Mesh(backGeo, M.rimDark); bk.position.z = -.19; bk.rotation.y = Math.PI; w.add(bk);
+            for (let k = 0; k < 6; k++) { const n = new THREE.Mesh(nutGeo, M.tyre); n.position.set(Math.cos(k * Math.PI / 3) * .13, Math.sin(k * Math.PI / 3) * .13, .18); w.add(n); }
+            wheels.add(w);
+          }
+          for (const sd of [-1, 1]) {
+            roadWheel(C.axleF, sd * 1.198, sd, 'Bánh trước');
+            roadWheel(C.axleR, sd * 1.368, sd, 'Bánh sau ngoài'); roadWheel(C.axleR, sd * .9575, sd, 'Bánh sau trong');
+          }
+
+          // ===== TỦ BẾP dọc vách cửa hông (toạ độ cục bộ: mặt cánh tủ quay về −x, nóc tủ 1,795 ngay dưới mặt đá) =====
+          const galley = new THREE.Group(); galley.name = 'Bếp dọc vách cửa hông'; galley.userData.xray = 'keep'; galley.userData.noBake = true;
+          galley.rotation.y = -Math.PI / 2; galley.position.set(1.92, 0, -1.57);   // xoay quanh tâm mặt bếp (1,92; 1,1): mặt cánh tủ hướng ra lối đi
+          const cabinets = new THREE.Group(); cabinets.name = 'Thân tủ & cánh tủ';
+          box(cabinets, 'Thân tủ bếp', .51, .725, 1.82, 2.665, 1.4325, 0, M.cabinet, true);
+          for (const [name, h, d, y, z] of [['Cánh tủ chậu', .505, .398, 1.3325, -.695], ['Cánh tủ giữa', .65, .654, 1.405, -.147], ['Cửa lò dưới bếp', .54, .38, 1.405, .463], ['Ngăn kéo', .13, .35, 1.685, -.677]])
+            box(cabinets, name, .012, h, d, 2.403, y, z, M.front, true);
+          for (const z of [-.536, .132, .614]) box(cabinets, 'Tay nắm tủ', .018, .085, .046, 2.39, 1.455, z, M.trim);
+          for (let i = 0; i < 4; i++) { const k = cyl(.025, .025, .03, M.matte, true, false, null, 10); k.rotation.z = Math.PI / 2; k.position.set(2.388, 1.707, .32 + i * .1); cabinets.add(k); }
+          bakeStatic(cabinets); galley.add(cabinets); cab.add(galley);
+
+          bakeStatic(cab);
+          parent.add(cab);
           return galley;
         }
 
-        // Đèn bàn học từ GLB "Work Lamp" (IKEA RIGGAD): hình học thu về cao 0,45 m, gốc ở tâm đáy đế gỗ, tay đèn vươn theo +Z.
-        // Vị trí lượng tử Int16 (nhân extent), pháp tuyến Int8; màu phẳng lấy mẫu từ texture gốc. Tác giả & giấy phép CC-BY giữ trong workLampReference.source.
-        const workLampReference = window.GARDEN_ASSETS.workLampReference;   // dữ liệu mô hình: js/assets.js
-        function addWorkLamp(parent) {
-          const bytes = Uint8Array.from(atob(workLampReference.data), c => c.charCodeAt(0));
-          const lamp = new THREE.Group(); lamp.name = 'Đèn bàn học'; lamp.userData.source = workLampReference.source;
-          const colors = { body: 0x26282b, cable: 0x161718, wood: 0x2f3134 };   // đèn bàn màu đen
-          for (const part of workLampReference.parts) {
-            const geo = new THREE.BufferGeometry();
-            geo.setAttribute('position', new THREE.BufferAttribute(new Int16Array(bytes.buffer, part.position, part.vertices * 3), 3, true));
-            geo.setAttribute('normal', new THREE.BufferAttribute(new Int8Array(bytes.buffer, part.normal, part.vertices * 3), 3, true));
-            geo.setIndex(new THREE.BufferAttribute(new Uint16Array(bytes.buffer, part.index, part.indices), 1));
-            const mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: colors[part.material], side: THREE.DoubleSide }));
-            mesh.name = part.name; mesh.scale.setScalar(workLampReference.extent);   // bung toạ độ lượng tử về mét
-            mesh.castShadow = mesh.receiveShadow = true; lamp.add(mesh);
-          }
-          workLampReference.data = ''; // Buffer đã thuộc về các attribute; bỏ chuỗi base64 trùng lặp.
+        // ---- ĐÈN BÀN HỌC dựng bằng code (cao 0,45 m, gốc ở tâm đáy đế, tay đèn vươn theo +Z): đế gỗ tròn vát mép, khớp chân,
+        //      tay đứng + tay ngang mảnh, chụp trụ hở đáy — mặt LED nằm lõm trong lòng chụp; dây điện chạy dọc tay đèn ----
+        const WORK_LAMP_HEAD = { x: 0, z: 0.219, radius: 0.039, ledY: 0.43 };
+        function workLamp(parent) {
+          const lamp = new THREE.Group(); lamp.name = 'Đèn bàn học';
+          const body = new THREE.MeshLambertMaterial({ color: 0x26282b, side: THREE.DoubleSide }), wood = new THREE.MeshLambertMaterial({ color: 0x2f3134 }), cord = new THREE.MeshLambertMaterial({ color: 0x161718 });
+          const add = (geo, mat, x, y, z, name) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.name = name; m.castShadow = m.receiveShadow = true; lamp.add(m); return m; };
+          const H = WORK_LAMP_HEAD, armZ = -.079, armY = .4085;
+          add(new THREE.LatheGeometry([[0, .002], [.094, .002], [.1, .007], [.1, .016], [.095, .021], [0, .021]].map(p => new THREE.Vector2(...p)), 36), wood, 0, 0, 0, 'Đế gỗ');
+          add(new THREE.CylinderGeometry(.012, .013, .045, 14), body, 0, .043, armZ, 'Chân khớp');
+          for (const y of [.058, .407]) add(new THREE.CylinderGeometry(.013, .013, .026, 14).rotateZ(Math.PI / 2), body, 0, y, armZ, 'Khớp xoay');
+          add(new THREE.CylinderGeometry(.0062, .0062, .33, 10), body, 0, .236, armZ, 'Tay đứng');
+          add(new THREE.CylinderGeometry(.0075, .0075, H.z - H.radius - armZ, 10).rotateX(Math.PI / 2), body, 0, armY, (armZ + H.z - H.radius) / 2, 'Tay ngang');
+          add(new THREE.CylinderGeometry(H.radius, H.radius, .113, 24, 1, true), body, H.x, .3935, H.z, 'Chụp đèn');
+          add(new THREE.CircleGeometry(H.radius, 24).rotateX(-Math.PI / 2), body, H.x, .45, H.z, 'Nắp chụp');
+          const path = new THREE.CatmullRomCurve3([[.011, .03, armZ - .012], [.011, .07, armZ - .006], [.011, .40, armZ - .006], [.006, .418, -.04], [.004, .416, .17]].map(p => new THREE.Vector3(...p)));
+          add(new THREE.TubeGeometry(path, 40, .0025, 5, false), cord, 0, 0, 0, 'Dây điện');
           parent.add(lamp);
           return lamp;
         }
 
-        // Lon Coke 330 ml từ GLB "Coke/Soda": lon là khối tròn xoay nên dựng lại bằng LatheGeometry theo biên dạng đo trên GLB (mét, gốc ở tâm đáy);
-        // nhãn dùng đúng texture gốc (thu 256×128), phiStart = π cho u trùng UV gốc, v tính theo chiều cao. Tác giả & giấy phép CC-BY giữ trong cokeReference.source.
-        const cokeReference = {"source": {"author": "Yerassyl Serik (https://sketchfab.com/yeraaaa)", "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)", "source": "https://sketchfab.com/3d-models/cokesoda-5470f92c3c5e4d62a8ecde2a8593ad64", "title": "Coke/Soda", "changes": "Rebuilt as lathe profiles measured from the GLB; label texture downscaled to 256x128"}, "bottom": [[0.0, 0.00044], [0.01666, 0.00053], [0.02082, 0.00067], [0.02221, 0.00017], [0.02304, 0.0], [0.02415, 0.00133], [0.02582, 0.00311], [0.02706, 0.00408], [0.0272, 0.00425]], "body": [[0.0272, 0.00425], [0.02915, 0.00491], [0.03165, 0.00686], [0.03205, 0.0088], [0.03227, 0.01074], [0.03242, 0.01463], [0.03257, 0.01893], [0.03257, 0.1036], [0.03134, 0.10734], [0.03092, 0.10929], [0.02951, 0.11123], [0.02854, 0.11317], [0.02768, 0.11512], [0.02679, 0.11706], [0.02645, 0.119], [0.02637, 0.11982]], "top": [[0.02637, 0.11982], [0.02659, 0.12081], [0.02651, 0.12192], [0.02582, 0.122], [0.02512, 0.12136], [0.02443, 0.12092], [0.02165, 0.12074], [0.01388, 0.1205], [0.00694, 0.12042], [0.0, 0.12033]], "v0": 1.03169, "vPerM": -8.5713, "tab": {"size": [0.02443, 0.0008, 0.01627], "pos": [-0.00056, 0.12119, 0], "tilt": 0.084}, "label": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBAUEBAYFBQUGBgYHCQ4JCQgICRINDQoOFRIWFhUSFBQXGiEcFxgfGRQUHScdHyIjJSUlFhwpLCgkKyEkJST/2wBDAQYGBgkICREJCREkGBQYJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCT/wAARCACAAQADASIAAhEBAxEB/8QAHQAAAQUBAQEBAAAAAAAAAAAAAAQFBgcIAwIBCf/EAFIQAAEDAwIDBAYECAgLCQEAAAECAwQABREGIQcSMRNBUWEIFCJxgZEVMmKhFiNCUnKiscEYgpKUssLS0yQzNUNTVHSEo7PRF0RFY3WTlcPw4f/EABsBAAIDAQEBAAAAAAAAAAAAAAQFAgMGAAEH/8QAOBEAAQMCBAIHBgQHAQAAAAAAAQACAwQRBRIhMUFRBhNhcYGRsRQiQsHR8DIzUqEVIyRTcuHxNP/aAAwDAQACEQMRAD8A0nphpDWm7S2gAJTCZAHgOzTTLxV1cdE6HuV2aUBK5AxFz3ur2Sfhur4Uu0BOFy0PYJYOe1t7BJ8+QA/eKpr0rr2sCw2RCiEHtZjic9SMIT+1dUTSZIi4Jph1H7RXthdz18N1nt51b7q3HFFS1klSj1J8a8UU9ad0lc9TesuxUNMw4aO0lzZK+zYjJ8Vq8T3AAk9wpCAXGwX1uSRkLMzzYBMtFOV7tUe1vsIjXGPcG3mUvJcZBHLknAIO4O2cHfBGQDtTb34yM1xaQbFexytkaHt2KKKddP6Zump5DjNsjdqGUdo88tQQ0wj85azske/r3Zp+b4V3d6YiC1crCqY6kqZjqnBC3sEghPMAObIIwSDtUmxPcLgKiWvp4nZHvAKhlFSRfDrU7JliTaH4piFSVh8cpUoJ5ilP5xxvtt033qNkYqLmObuFbFURS36twNuSKM0UVFXIooorlyKM0U+2TQup9SNhy0WC5TWj0dbYPIf4xwPvqTWl2gCqlljiGaQgDtTFRknvp11Hpa8aSnIgXuA5BkrbDqW1qSTyEkA7E94PypNabROvtwZt1tiuSpj6uVtlsZUo4z+wGuym9rarmzRuZ1gIy8+CTNf41GenMM/Ov0GZwGW8bDlGPlX59yY0iBIdYkMuMSGVFK23ElKkKHcQehrfNjlpuFlt8xJyl+M06D+kgH99MsO+ILEdMtRC4ba/JQzjpqtWlOHdwcZc5Jc7EJgg7grB5iPcgK+6sae6r69K67LXd7FaAv8AFtMOSlJ+0pXKD8kn51QtUVz80luSbdFaURUQk4vN/kEUUUUEtMiiiiuXIortEYfkyW2YrTrr61BLaGklSlK7gAO+pVeNIPvaX/CSPDdiuRHhFusRbZQWHDuh5IPRCx3dAoHGx2m1hcCQhpapkT2ted9PvvUPor0hHOsJzjJAz4VLdZ8LdTaHy9cIXbwDgonxvxjKgemT+T/Gx8a4McQSBspSVMUb2xvcATt2qIUEk9aVybY/GjtyhyPRnDypeaPMkKxnlP5qvI48Rkb0kqJFt1a17XC7Vrz0db+i8cNokTnBftjrkRwd4GeZH6qh8qqX0o31OcQYbR+q1bW8fFxZrr6MWqRatXy7E8vDN1Zy2D07ZvJHzSVfIV69KeIWta2uXj2X7cE58SlxWf6QpnJJnpQVhqSlFNjpadnXI8Rf6qnIcVydLYiMgF19xLSAe9SiAPvNaLd07bkXJzQkRhp+06SgJuUyMtxLYuk5Scp7RRIHIDgnJwOnhWco77kZ9t9lZQ60sLQodUqByD8xUt1Pr9jWE36Uu9giqui20tPyI8lxpMjlGAVNjIzgDoR0oWCRrAb7p/i1HPUvYGfhAPgdNdxwvx0vdW3EsirzEsF5tbdvF0vMtUVVzU4FsRGUKKlpZQcEcyuZKQNwhOMgE0g13bF2y3NWO0RrazIvs4R4DA7J1XZBzdxWM5W6slSldEoSEDwqt9L6mZgOtvfgzpWa0FqSY8xKucbZ5gtazj3+VdEXpy06wtl/t9osNukRXe3SxGln1ZQT+SQpR5OpGx9wonrmlvekbcLmZLqdBci9tTwB14acPUqzdSWxdvDdpts5pqNEmkvrEfmcvVySjnWpSUFPK03sNtkqIAGQKjsfhS9cb0y7frnHYhQk811LGzNvaQkqLQXk5WnZKtsgrzlRyaS2/Wjw1/GvkGyW2Kl6WH347ty7VThcyoDn35EBR5+VKfrAZ7qTQ+KbWn517hz9MwZiJc5pamkSV9mhtDhcUjJyVlSjzEqO56jAAEjJGdXbKMVLXRjLCNbdl9Trx8fuykPEpq6XCwznmrwm1WmMy296gouAraV7LDRA2SV7qCVZUr2lq5dhVGnrVg694rJ1jbjCj2Nm2l6U5MlO9up5Tq1YAxnphASnPcMgYBqvqDqpGvddq0GBUs1PAWzCxvtp8kUUUUMnSKKKK5cre4KaN039Hy9ca0ejN2mC8GI7ck/i3XsAklP5eMgBODk58KtKX6S+goA7KKi6S0IGE9hFCU4HhzFO3wqsOHumWeKfDd7Ska4twrxZ56p7CXfqPNuJ5TkDfY5GRnGR401zPRz4hx1FLdtiSR05mZiMH+Vg0zY+RjB1TbjmsRUwUdTVSe3ykOBsG3sLcPNK/SOmt3bVtnubKVoZm2aO+2lf1glSlkZ896quPIeivIejuuMutkKQ42opUk+II3Bq9+JnCLWupRpf6PtAeXCskeHJzIbTyOozlO6t+vUbUy2P0YtYzn0/Sj9utbGfbV2nbLA8kp2J95qmaCR0hLQmGG4pRQUTGSSDQEW34ngkmso7muOFls19KQn6XhyTa7g8Bgy0DZDisflDKQT35PlV9cD72L5wxsjhVlyK0YbnkWyUj9XlPxqveNcOz8O+Elu0XbllS5MhJHOQVuBB53HFe9XKPjjupD6K+qQ1Ju2mH3AO1Amx0k9VDCXAPhyH4Gioz1c4adyNe9IqyM1WFumYPda8lv8Aiov6TLynOJikKzhuAwlPuJUf31U9XD6UMJTHECLJx7Mm3NkHzStYP7qp6gKr81y12BEGgityRRRRQ6bIooorlyX2O6uWO7xLk0hLio7oX2ajgODopJ8iCR8avDQNrskG1aiLVwcl6U1BB9WYddyo254BR7CR/oyOfZf1TjqCd6BA8s1odizx+CHDODfnXlNaklrSXIqjzNywvcx3Ed6Uo35huk5x1wTaTiTsFmekIFmNYffeQAOdtfCx4qinLW29F9bt7hkoQgF9lQw60cbkgfWR9odO8Crv/CfVlkh/hXpFxGo9HS0J9YtDo7Q208oCmSkboSMbEAjHUd5b4+lNHcVyLroScnTGp2/xrlqdVhtS+9TeOg805HikUw9jrjhNcXL3FgP2p9vH0hG5OeHITnAcSR7JQSQCAQUEjGAcCbGmO5G3Mff7IWpnZVkRutnGmV+m/D6OHiprpNzhDrV+ZcQhWnnHY6kXG1OuBEZ1J6ODu9lRBCk8vKdyBVCXyHGt95nQ4UtEyMw+42zJT0eQFEBXxFaG0jxG4X6hk/Tty04xa7+y2syOzjFxJQUkLWOQe0nBIOU5AO+29Z/1Qq0r1FcVWFLibUqQsxAsYIbztsd8eGd8YqNTYsaRbwV2B9Y2pkY5rwLDR2oHcePZ2dy5WO7ybBeYV2hkCRCfQ+3k7EpOcHyPT41eXpDvxNYaG0trK2+3GW4psnvQHE55T5hTZHvrPx61ZXDK4uamsV44byXgEXNsybYXDs1Mb9oJHgFhPzHnVUD7gxHj6o7FabLJHXN3jOv+J38t1WtFe3WlsuLbcQULQSlSVbFJBwQfjT3BttsYddU9crdKbDa0hKlOI9rbCht3b+/FUNaSbJtJO1jc26ZWo7r+eyaW5ygE8qScZOB95ApSLNc+UKFul8pxg9irBySB3eKVD4HwqUsxrXBllthcRC0qAWC6+AR2uUk4SMjCRvkfXGMGuanpENl11MmRLC1BxKELfT7SknCASN+Ur5s9/mDmrupA3QJr3E+4PNRhNsnlXswpPMMdGlbZ3Hd7q+Lts5CwhcOQFqSVgFs5IBwT7galzsmOha+1XGS2kKUhz1iQGgoJ9jlzvn2CRn849cbcGyqa+JalqjLLbiPVlLeUtoKcTsMDfZfTO/kSK7qhzXgrn7lqjSbLcl45bfLVzEJGGVbknAHSkiklJIIIIOCD3VO+1aTzyPYU66tDnYLekHKQCtO4HfkI65z5ZqESyDKeIxgrURhXMOvj3++oSMDdkRS1LpibhcqKKKqRqKKKK5cpxoCw3ly0XvV2nrhIi3LT3YupbYRkuIXzc59wSkkjBBGasfTnpUvssIa1FYRIWBgyILgRzeZQrb5GmT0f9a2bQ9v1VcL1I5GgiNyMowXXjzLGEJJ9rqM+A60h1joqx61jydVcNQ4+0lQM+zBvlfiqJ+uhAzlBPcM47vAMIy5kYdEdeIWQq2QVFXJFXR+6CA1+1tBoT6XVqI9KPRSkZXBviVfm9gg/fz01zPSXevL4t2jdJzp093ZoSDn48iMk/EgedRfQfoz3a7BuZqqQbVFOFeqNYVIWPBR+qj7z7qvKBatGcKLIpTSYFlhge2+6sBbp81H2lny391FRmd4u82CRVjMJp35Kdpkd36ftv4KhOK+i75F0S1q3Wb6ntTTbghnkS5luNHKFENBI9kHIzt49Tuaq/SuoZelNQQb3BP4+G6HAnOyx0Uk+RBI+NXvxy13p3XXDPt7DPEoRbqyhwKQptQJQvB5VAEg+NZzoCqs2QFhWrwEPno3MqG21Ita1hystA+kcIuqNJ6X1nbD2sRzma5x1CXEhSQfMFCgfOs/VaXDm7L1RojUHDuQrnddZVcLVzdQ+37amx+ljI/jVVpqNSc5Eg4q7BYzTMfRu+A6dx1HzRRRRQydoooorlyd9ICMdWWX1wAxvX4/a56cvaJznyqWcctaP6u17OZ7Q+pWtxcKM2DsOU4WrHipQPwAqHaaYhytRWti4KKYTsxlD5BxhsrAVv3bZqd6zlXty73Fl+JCky4Lq27hbHYaFAYOz7WAF9mpPKolKspJJOxBoqO5iI7Ukqy1lcyQi5DTubWufsf8AVWzD7sZ5D7Di2nWyFIcQopUgjvBG4NX1pTirq21LiWHVS7JfESktJVElSUomIQ4AUhRI5FkpUDyqPNuO+qZuEGDKgfStqC22UrDcmKtXOY6lAlJSr8ptWCATuCMHOxNm6EuOnte25q2TVwbRraK0li33eSgqRIQkYQCMhPapGAFEE7AjJGKlTXa6wP8AtDYy2OaESOZcDfTVvztzt3qVQdUcFYF/TcpVikadvMJwq7F2M6gJXuM8qCUnvxtg5qh9XSrVN1Pc5ViYVHtjsha4zSk8pQgnpjuHXA7hgVZdt4N62N3Y01qG0OybUslCLk04lwQhg4cQsnPLnGWyMHwBwaq7UVjl6avk6zTgn1mE8plZScgkd48iMH417Ul5aLiwUcFjp2zO6uUudYfFcW7Podk3HrSm2XGTaLhGuENwtSYrqXmljuWk5FLJllbi2SJcxOZcXIUpJYT9ZvHj/wDv/wCtVCWLStCCyVpG42VgcTrPElX2PqaItMe16jiG5M7bJfx+Na7hkLz86jTNihPqUlF5aXyjmVyMOKAHKCSdugUSk/A75qxeHdrHEjhdfNI5Sq6Wd36StgP1jzA8yB5Egj3rFVVCRIElSGXewdCVE855ccoJI9/s9PGr5ALh9tClFFI/K+nL7Oj08OB8k/vMy2kpU3fZS3HnUNgdmoKWkhKlnxISrqPLursiLKWhKl6mmIUkJU2kMubqyEp5fHI6EbnBrili7pnW9y6yTJZMotcqJKFLJUkFQ5twMggb579qXIMhAiyFOSwlCR2SWZSQvI/FtryRlKgs5PdjYkEYqQChI8i1nA+X0Tc9CM4ssJvsiSw446HVmOspR2fMUK2zzZBzt05t6A5Ke5G3NQTAS77JS2tSOcjmI2358pRkY8D3U4x0LVJdjMNyGXA45HCvXUqKXlIIUebBBRkBXicbeNcWTKbg/wCGB9a2nwUrElKUds4jDTgGd8YAUQD5k5xXWXdaduXdx8F5dYlsxO1b1FPWvkb5W0R3MKSlJBGenslITv8Adimp3T7bcssrkyW0jtStTsVSSjlOE5H2sj3ZHeal1wSi3IWw4HmG2lutApuQUOVIAUgJSMEc55gc9B3DCaRsvLckMNvrnvR0pkF9KrkAJIXzD8WTj8pByD1wPKvXMHFVw1TwLjbwUIlMoYeKEO9oAB7XKU7kAkYO+x2+FcaW3dtSJY50rC1IStSlr5ytRGSrPvpFQhFin8TszQUUts1luGoLizbbXFclzHs9my3jmVgEnGT4AmkVTrgi8mPxSsLrightDjpUonAA7JealG0OcAVVWTOhgfK3cAnyXlPBPiGrppWb8Vtj+tTxpfhlxZ0neI94s9hlR5TB2Jea5Vp70qHPuk94/fVrS/Sj0ew8pDFtvElCSQHEtoSFeYBVnHvpIv0rNOJ+rp+7keJU0P61MBFTtNw9ZF+IYxKwtdTgg8wfqpve7/rx7RceVYtLIa1A8oNvRZT7fLG2OXEnmwsZxjcddxtiqJvfB3i7q24Gfe4xlyD0XInNYQPBIBwkeQFWCPSggKRzt6Pvi0fnApx88UlV6V1sSsp/BaeD3hUlAI+GKtldDJ+JxS2gixGkJ6iBtzx3PduoDqvgvJ0Lw4kXu+qaN2VNZbaQw6VIaaOQQrYAqJ+WKgF80zO0+iKuaGgJTfaICFZwPP51dfEritZeJfCm4+ptuwpkWbGK4slSeZQKj7SMH2h1z4d9UremeWBaXsSMPRySp50rCiFEHlBACQNthn30HUMjB9zay0+D1FW9v9To7Mbi3YCLJNZLxLsF3hXWCvklQ3kvNH7QOcHyPQ+Rp94j2ZiBfU3O3NlNovTQuMIgbJSvdbfvQvmSR7qilWroSCriPw6u2jwkLutlJulqJO6kq2caHkT96h4VVEM4LPJHV7/ZntquA0d3HY+B/YlVVRX1QKSQQQR1BGCK+VQmYN0UUUVy9QD/APhV8W23x+OWlY02DLTA15Ymktrc5ygy207IUSNxn84fVVkHYiqHpy07qC56XvEe62iSqPMYVlCk7gg9Ukd6T0Iq+GQMNnbFLMSonTsD4jZ7dj6g9hS3U03UUd9+zX1DkeQ04FPMrYQ0taxkBSykAr6nBJPXbrUtvOkbhHsdrvOndPwrxp+RDaUt1uJ2rzbwSA6HVJPaJUFhW4IAGOmKtGHftE8b4qLHq2B9DanYHZpbX+KeSr/ylqG47+RXyPWmaPw64n8IZb0rRstu+WxxXM5E5d1/pNE/Wx3oOaK6ndwNwePELPHEwQ2JzRHI34To11+II/YqG2Dizq+BblN6evLygw2Vqts9IklKAN1MrUOZSQNygnIAz7QBxXN3u0y+3OTc7i+qRLlLLjrqsZUo+7YfCplG0nqq6a3YkWfSFzs8hUpD3ZFlwMx1c2VHmUByo67EnbbekfEXS0Syau1NHhuttRoM0JaYH5q8KwPJOcfKqJA9zddgm1E6linyxgZnC+lrjUCxI7UwSkNmwwlpQylfbOpUQgha/qkEqxuB0xnb402U6y48pFggPOOKMdbrwaRyYCT7OTzd+fDupqod26bwfhPefVWR6P17Nm4nW1srKWp6XIa9+vMnmT+skU4+kPoP8F9WfTMNrkt14KncJGzb4+un4/WHvPhVc6ZuKrRqO1XFCikxZbL2f0Vgn7s1svijo5vXWip9qSkGTydvEV+a8ndPz3T7lUdAzrYXM4jZZbFqn2DE4qj4Xix8/ksaxb+7EjhhESGvDRaBW3k7q5s+Gf29/Sn1Nxalw3/VzDkrDbilR023ASVBKM8w3xg7eBz5VEFoU2ooWkpUk4KT1B8K6RpkmGpSoz7rKlp5VFtRTkeBx3UI2QjQrRTUbJBmbupbGKnH2pdybbhusSyAyi2/i1rCMAEjvKhjl7iSRXgtSFSUSkxlONmEpKwLYShrKthjxKzjm8cVGnrrPkDDsyQsFztsFZx2n52PHzr19M3LlSn1+UAkYADpGN8/t3qQlCoNC/cEKW3IwJRfSzJT2glqdBbtZHtgJ5W+bqAVnBSdht7q5v3RyPaEOPR2EoWzyLP0eMdooqcCCTsN0pG3UZPjUSFwlpcU4JDvOpfOTzHJVtufE7D5UG4y1MFhUh1TJcDxbKspKwMBRHjg4r3rl4MONgCbgffJerolKZzvL0J5v8WWxuM7JPQb7eVJKUz7hJub4flul10IS3zEAHlSMJG3gABSaqDvomUQIYA7dFfQSOhxXyivFYpLoDQ8/iBqNmzQVBoFJcfkKGUsNDqojvO4AHeTWrtM8MtE8PobZRDhduB7U6eUKdWfHmVsn3JwKoLhXdrjp7h5ri7WFGbuz6qgOJRzLZYKlcywPLc+WM91VncblNu8hUm4S5E15Zypx9wuKJ95zR0UjIWh1rkrKV1HUYnO+ISZI2aW4k2BufNbmVrbSrJ5FaksrePyfXWh++m66wtA64ZMWcqwXTn2BS60pwfoqSeYH3GsQYHgPlQE75CRnxxVn8QvoWoVvQ8MOZkxB7v9q0eMnBx3h4+i5W1bkmxyF8iVObrjLPRCj3g42V8Dv1gd1LirXaCphhtIYWEqbUCpz8Yd1Abg929WDw+u97vPD/Wtrubz8uwxbWp5tb6itMeSlQKEoUemevL5Dp3wa+PPqsljZkBYLbLhQVLz7ClZGBjb5n4UPKG2zN0B+qb0EkwcIJyHOYbX5jLcePNMVT7gXezZOJ9mUVlLctaobm/UODA/WCagNLbLNXbrxBmoUUrjSWnUnwKVg/uqmJ2V4KZ10Imp3xniCrM9IfQCdK6qF5hNctvvBU7ypGA0+N1p9xzzD3q8Kqatr8XdKJ1nw/ucNCAuS0363FPeHEe0APeMp+NYo8/GiK2LI+42KTdGa81NLkefeZp4cEUUUUGtIivSASsAdSa819ScHJz8OtehRdsVYnGN7V8m5257Vtkbt8uNHEdMuOk9lLAJKVhQyObB6Zz5Cl2nuNevtDMxmJjqLrAcQFMpnfjOZH2HUnJx0wScdCBVg37X110zEYmTrUxqzh5c2WjHcUkKcjJ5QC24o5BUCDuvqfygdq86Z4d8PNdokvaYvTrVpkoPrdmdGVxniMIdRzHmbUD3+0FD2c4NMuqdnvG7X781hxWxCma2qhBYOI1HdzaexM0/0rbm/AU1C03FjyyMB52SpxCT4hPKM+4mqlalPXpV0mXJSHpcl5p1x51BK1FTntYOPZzny2p90Xw+VP4hTLJOSJMaymQ9M7PdLqGc+yPJauUe4mmC3Llz2Z85ThSlb7DjyUoGFFTmR+iATt8qHe+R9i8805pqejpy5tK22jSTrxOgSOU819EQ46HWlrC3HFJSjCkZwME48umT8KbqDRQpN0+jZkFkBRT7Q6jev0Dtznb2+K7ndbKFZ96Qa/Ps/VPuNfoDaAE2qGE9Aw2B/JFM8N+JYfpoPyfH5LHfG7TadNcSbrHaQER5axNaAGAA5uQPcrmqyuGnAPSmrtEWq+XF+6plTG1LcSy+lKBhak7ApONgO+kvpXW9Dd209cQk87zDzClY6hKkqH9I1EZ6wzp/SqC/OaUbMk4j29chKsvvEe0FpwfLFexQNM7muCrrsSmbhMEsTiDext2AhW9/Bg0N/rd6/nSP7FfR6MOhR/3u9H/ekf2KpILLgwTdyQOv0Gv+9oCVZ63j/wCEc/vKN9mi/Ss3/Gq7+67zV2/wYtC/61ev50j+xR/Bh0KTgSr1nylI/sVR7qQQEn6WHf8A5Ec/vKsbgzLVbNRwWIK4qXZ6eWQZba2XFNJJJSEEnlcBKSN8FJyd+nezRfpXDGa7+67zVE3qGi3XifCbKi3GkuspKupCVkDPntSKnPVCgvUt3UOhnPn/AIiqQNMKdQ4tOMNgE58zis+4e8V9dgdeJrncglVosV01BJVFtNvlT30oLim4zZWoJBAJIHdkj507nhnrUddJ3v8Ama/+lO3Bu1y5mvIT7Nwct8eAlU6ZIbWU8rDeFKBx1B2GDtvUr4hekNf75Ndi6WkLtNrSeVDyUgSHx+cSfqDwA38TV7I48mZ5KU1VbV+1ez0zWkWuSb6KOaC1BfeDWq2Jl6s8+NDmtFqTHfZLanms/WQFYyUn94760HC0Pwr4ixRdoNntM1Du6nIuWlg+C0oIKT5EVkm53S6Xp0PXO5S5zqcgLkvKcIB8Mk4rxb51wtMgSbfOkQ3x/nI7qm1fMEVOKpDPdIu1DV+CvqiJ2yZJeJF7H5rWy/R54cqVzfQrqfITHQP6VKo/BLhxakl86ciFKBzFcp1biQPE8ysVmhni7xBYa7NGrbkU9PbUlR+ZBNMt51ZqPUSSi8X24T2z/m331KR/J6fdV/tcI2Z6JWMAxJxtJU6d7irX438U7LItH4E6PTGFvCwZb0VAQycHIbRjYjIBKhscADO9UYatx2IxxY4ezbsIrEbU+mGU9uthsIROiBJ5SUjYKSEn5Y6Hap+xPiKFqS5zg47HZPcEjihhdA0Wc0+9fU3537RsudGeUE+G9ChgkV1ix1ypLMdAyt1xLafeSAP20ON05eQGklb9tyi7boq1blTKCf5IrDvECyjTmtb3akjCI8xwNj7BPMn9VQrc8ZrsI7bP+jQEfIYrI3pGwhF4oznAABKjsPbfocp/oU3r2/yweS+d9EZrVj2cHD0KrGiiik6+jor6kcxAHU1860AfEdK9Xh20V12C5Xfg/FubIukK8W6HJTHulimANLPOlJDzAJPMhWcZxvjJHeJjpyLwWuyvwmiOMWoPoXGkwn3yy0krG6VoJ5R4pIIGRkbjaF6Jnaa4v2hvTOr3Ewr7bY+IN4QoJW4yn8hwnZRSO49RuCDnLjZPRw1PaNSsoXcLXLsjp7OUoqWkvME+0kt4+t3g5wCAc7U0jLtCwXb6LA1TYRnbUSGOXjbQOHhoezjwKW+j4xZbZe9dy2piX7XDCUIlOdFRgpwlR96Ug+dU0/LtDU+5/RS3EQH5aPVW5CB2gZDnMCTggYHgQffUn0w83ZbDxNtsWX2jIhpabcOxdSmT2efiFffVcK6mhpZLMaLc0+oKTNUTSlx1yjyaDdfKKKKDWhRgq9kdTtX6B21os2+K2eqGUJPwSKwdpm3qu2o7Vb0p5jJmMtY96wD91b5AxsOgprho0cVgemkgzxM7z6KjPStjhWnrDIxuiatHwU3n+rUCmQG5OndJrXelQh9DN/ik3SRFz+Od35WwQff12qxvSoI/Ay0jvNyGP/aXTVprSmrb7ojS0qw3GZEjJtiW1JZfZQCsOuEnC0E5wRRDP/Q7uSioJODxf5lQD6GjkEHUbp99+nf2K9JskQn/AC+57/p2fv8AqVZf/Z1xHI31Bdf57G/uqTO6M1vGlNxHtVTG5Lv1Gl3KKFrz4At5NFrPKu1WKIMpF8WB/wCvT9/1Kn/Dh92PftOQo9xdWG1KT2Yu3OH2yVqUo9oAtXKVAFs5JGFDAOStVw74jZ2vt0I/26MP/qqSaN0PqSJfIEu9SQEQUrUp5XYOvTConlQtaWwUpTnIx4DcVy5ZS1Dvf7n/ALY//wAxVdrHbZFxjXT1dLZ9Wi+sucywn2ErTnGep36da46h/wAvXPH+tvf8xVOejpfqaL64UBYNrdTgnHVSR++s3YF+q+zvc5tKC3ew+SlfBFpq53296eW+lh292eRCZcPcvZQ+4H5VCb5Ybnpq5O2y7xHIkto4UhYxzeaT0Uk9xFcbbcJVonxrhBeUzKiuJdacT1SpJyDWr9Ga20hxks7cO6wYDtybR+Pt8pCVFJ71N53KT4jcd9EwsbM3JexCT4jUzYdMalrM0brX5gjj5LI9Fa9mej5w9mKKk2d2MT3MSnEgfDJpEfRr0EejNzH++q/6VI0EnMKhvS2jO7XeQ+qyfX0JKlBIBKlHASBkk+AHfWuI3o7cPo6gV2yU/judmOEfcRUpsPD7Smllhyz2GBEdHR1LfM5/KVk/fUm0D+JVU3S+nA/lsJPbYfVVXwi0LL0bw91Ne780qI5cYS/8HdGFNsIbXgqHcVFROOuMVnBGyEjyFaL9IPirDFue0dZZKX5D55bg62cpaQN+yyOqievgNuprOtVVRaLRt4IzAGzyCSrnFjIdB2BJ1/XNSjhbafpviJp6Fy8yVTW3Fj7KDzn7k1F1/XNXJ6L1h9f1tMuyk5btsQhJ8HHDyj9ULqmBmaQBNcWn6iikk7PXRamyT7qyn6UAA4iRyOptrWf5blasrJHpKSQ/xPfbByWIcds/Iq/rU1r/AMpYHomCa8dxVV0UUUkX1BPGjmre/quztXUJMByayiQFdOQrAOfLx8qlOtpMS18mntQaZaYv9rnEOzooSyiZFKiQChIAOUkcqh3fGq+zV/abFl4+aSZs92kJh6wtDPIzMxlT7Q6KI/KT+cOoPtDrRUHvAsG6Q4s7qJGVMgJYNDa+nI6cOB8Ej1RaLhZY8vV7P0XetJyWXBbY0eCD2aHUFKULKEgtJQCQVc2SRjqTiGRr/qKZYJadK6gvTMNhorl2hUpS1MM9CtpX5bYzvjCk53BG9O9o1LrngJd12q5Qu2tjyiTFeJMd8d62nO4nv+8VPLBxZ4PRZDt/RYjabstpSHG0QsqWD9ZKSj2Dnx286Ju1xsTl5hJiJYG5mR9aNMrhYgjkRz7d7qjtEuF25yLVn2brDehY+2U8zf8AxEI+dR4nOD0zTzaXi7q6E/bmC0VXFtcdlO5Tl0FKfhsK+61tyLRrC929vAbjT320AdyQ4cfdQJF2dxWpjcBUEbZmg27tPomWiiiqkcrH9H6yfTHE+2LUkqbgpcmL8uVOE/rKTWxAMVQ3or6Z7C2XXUjqCFSXBDYJ/MR7Sz8VED+LV9U9oWZYh2r5V0nqRNXOA2bp9VQ/pXyuSyafjZ3XLddx+igD+tVSWHjVrjTVqjWq2XZDUOMjkabVGbVyjOcZKcnr31PfSun9pf7Db+b/ABMRx4j9NYA/oVTEexzpVplXZpoGFEWlt50qA5VK+qMdd+73UBVPcJjkK1mB0sDsNjFQ0EEk68ybBTc+kHxGP/jyB7ojP9mmuXxe1fPuCbhJuLLktPZ4cMZsZ7NRUjIAwrlUSRkHBqG9DT+9dYzlrlNodCXXY0djsiyAFKSPaVkDYjAA6ZyT1qls0h3cUylw2kZbLA037B9FJf4QPEY9NQD4RWf7Nc18fOIzgx+Eik5/NjMj+rTBe7vBujDq20dmtMhCkNlBPO2GwnAP5IyCeXzpffdRW+YmeqJMeCnmUspQY/KlaC4tWCM7FKShAPgDjuqXWP8A1qj2SnFv6Ya9m23Yok88uQ6t51RU44orUo9SSck/OvrPU+6uZ616QvkztnNDXTwjSwXevbLzkd1DzLi2nUHmQtCilST4gjcGk/bfZo7b7P317dQLLixVoad9ITXNhaQy9Lj3ZlAwBOb5l4/TSQT8c1LY/pW3BKcSdLRVq8W5ikj5FJqgu2+z99Hb/Z++r21UrdA5KpcAoZTmdEPDT0V9SfSsuakn1XTEJs9xdlLV9wSKhWqeOettUsuRnLgi3RXAQpmAjs+YeBXkqI+Iquu3+z99HbfZ++vHVMjtC5ew4FRQuzMjF+3X1XWiuXbfZ++jtvs/fVCa5SvK/rmtZejbpg2PQAuLqOV+7vGTv17IeygfcT/GrMGmdPy9V6gg2eGkl2Y8lrOMhAJ3UfIDJ+FbttlvYtVui2+KjkjxWkMtp8EpAA/ZTHD47uL1jumFYGxMpgdTqe4ff7JTWK+Ndw+kuKOoXQQUtyAwP4iEp/aDWyrrcWLPbJVxkq5WIrK33D9lIJP7KwRdLg7drlLuD5JelvLfXnxUoqP7atxF3uhqB6GwEzSS8ALef/ElooopQvoaKVWy5zLPOYn2+S7FlR1hbTzSsKQfEUlor0G2oUXNDgWuFwVo/R3HnTmsLcLDxChRGlrASZDrXPFePiof5tXn08xTjdvRs0bqFInaeukmA077SewWmSwR9nJzj+NWX6XW293Szkqttymwidz6s+pv+iRRjasOFpW3WblwB8Ty+glMd+G4+/NaVsvCnRnBhKtWX26uzn4YKmFPpShIXjbs2xkqWeg3OM93Ws03q5OXm8Trm6OVyZIckKGc4KlE4+Ga83C7XC7Oh64zpU10dFyHVOEfFRNJKqmma8BrBYBH4bh0lO501RJne7S/Icgv/9k="};
-        function cokeCan() {
-          const g = new THREE.Group(); g.name = 'Lon Coke'; g.userData.source = cokeReference.source;
+        // ---- LON NƯỚC NGỌT 330 ml dựng bằng code: thân tiện theo biên dạng lon nhôm chuẩn (Ø 66 mm, cao 115,7 mm, cổ thắt, đáy vòm),
+        //      nhãn tự vẽ trên canvas; phiStart = π để giữa nhãn (u = 0,5) quay về +z cục bộ ----
+        function sodaCan() {
+          const g = new THREE.Group(); g.name = 'Lon nước ngọt';
           const lathe = pts => new THREE.LatheGeometry(pts.map(([r, y]) => new THREE.Vector2(r, y)), 32, Math.PI, Math.PI * 2);
-          const label = new THREE.TextureLoader().load(cokeReference.label);
-          label.colorSpace = THREE.SRGBColorSpace; label.flipY = false; label.anisotropy = 4;
-          const bodyGeo = lathe(cokeReference.body), uv = bodyGeo.attributes.uv, pos = bodyGeo.attributes.position;
-          for (let i = 0; i < uv.count; i++) uv.setY(i, cokeReference.v0 + cokeReference.vPerM * pos.getY(i));   // v theo chiều cao như UV gốc
+          const W = 512, Hc = 256, c = document.createElement('canvas'); c.width = W; c.height = Hc; const k = c.getContext('2d');
+          k.fillStyle = '#c3202b'; k.fillRect(0, 0, W, Hc);
+          k.fillStyle = '#e8e2d6'; k.fillRect(0, 0, W, 14); k.fillRect(0, Hc - 14, W, 14);   // 2 viền nhôm trơn trên/dưới
+          k.fillStyle = '#f6f1e7'; k.beginPath(); k.moveTo(0, 168);   // dải lượn trắng chạy quanh lon (tuần hoàn để không lộ đường nối)
+          for (let x = 0; x <= W; x += 8) k.lineTo(x, 160 + Math.sin(x / W * Math.PI * 4) * 22);
+          for (let x = W; x >= 0; x -= 8) k.lineTo(x, 182 + Math.sin(x / W * Math.PI * 4 + .6) * 22);
+          k.fill();
+          k.fillStyle = '#ffffff'; k.textAlign = 'center'; k.textBaseline = 'middle';
+          k.font = 'italic 900 78px Georgia, serif'; k.fillText('Cola', 256, 92);
+          k.font = '700 20px Arial, sans-serif'; k.fillText('PLEIKU', 256, 38);
+          k.fillStyle = '#7a1218'; k.font = '700 16px Arial, sans-serif'; k.fillText('330 ml', 256, 214);
+          k.fillStyle = '#ffffff'; k.font = '700 22px Arial, sans-serif'; k.fillText('Cola', 64, 100); k.fillText('Cola', 448, 100);
+          const label = new THREE.CanvasTexture(c); label.colorSpace = THREE.SRGBColorSpace; label.anisotropy = 4;
+          const body = [[.0331, .0095], [.0331, .1035], [.031, .1085], [.0275, .1135], [.0272, .1148]];
+          const bodyGeo = lathe(body), uv = bodyGeo.attributes.uv, pos = bodyGeo.attributes.position;
+          for (let i = 0; i < uv.count; i++) uv.setY(i, (pos.getY(i) - .0095) / (.1148 - .0095));   // v theo chiều cao (nhãn phủ từ đáy thẳng tới cổ)
           const metal = new THREE.MeshLambertMaterial({ color: 0xb9bcbf });
-          for (const [geo, mat, name] of [[bodyGeo, new THREE.MeshLambertMaterial({ map: label }), 'Thân lon'], [lathe(cokeReference.top), metal, 'Nắp lon'], [lathe(cokeReference.bottom), metal, 'Đáy lon']]) {
-            const m = new THREE.Mesh(geo, mat); m.name = name; m.castShadow = m.receiveShadow = true; g.add(m);
-          }
-          const t = cokeReference.tab, tab = bx(t.size[0], t.size[1], t.size[2], metal, false, false);
-          tab.name = 'Khoen lon'; tab.position.fromArray(t.pos); tab.rotation.z = t.tilt; g.add(tab);
-          cokeReference.label = ''; // Ảnh đã nạp vào texture; bỏ chuỗi base64.
+          const parts = [[bodyGeo, new THREE.MeshLambertMaterial({ map: label }), 'Thân lon'],
+            [lathe([[.0272, .1148], [.0278, .1156], [.0268, .1159], [.0255, .1151], [0, .1149]]), metal, 'Nắp lon'],
+            [lathe([[0, .0045], [.021, .0028], [.0265, 0], [.0295, .0012], [.0322, .0055], [.0331, .0095]]), metal, 'Đáy lon']];
+          for (const [geo, mat, name] of parts) { const m = new THREE.Mesh(geo, mat); m.name = name; m.castShadow = m.receiveShadow = true; g.add(m); }
+          const tab = bx(.022, .0008, .015, metal, false, false); tab.name = 'Khoen lon'; tab.position.set(-.004, .1155, 0); tab.rotation.z = .08; g.add(tab);
           return g;
         }
-        // ---- 3 món ăn sáng trên bàn vuông caravan, học từ GLB "Food Collection - Game Ready" (Melon Polygons, CC-BY-4.0): hộp ngũ cốc
-        //      "Crunchy Apathy", hộp cà phê "Morning Tachycardia", chai sữa thuỷ tinh. Giữ nguyên lưới gốc (toạ độ lượng tử 16-bit, đổi trục z-lên → y-lên,
-        //      cm → m); texture chỉ lấy các mảng UV của từng món rồi xếp gọn thành atlas nhỏ ----
-        const foodReference = window.GARDEN_ASSETS.foodReference;   // dữ liệu mô hình: js/assets.js
-        function foodItem(key) {
-          const d = foodReference.items[key], dec = (b64, T) => { const bin = atob(b64), u8 = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i); return new T(u8.buffer); };
-          const q = dec(d.pos, Uint16Array), nq = dec(d.nrm, Int8Array), uq = dec(d.uv, Uint16Array), n = q.length / 3, pos = new Float32Array(n * 3), nrm = new Float32Array(n * 3), uv = new Float32Array(n * 2);
-          for (let i = 0; i < n * 3; i++) { pos[i] = d.min[i % 3] + q[i] / 65535 * d.ext[i % 3]; nrm[i] = nq[i] / 127; }
-          for (let i = 0; i < n * 2; i++) uv[i] = uq[i] / 65535;
-          const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(nrm, 3)); geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
-          geo.setIndex(new THREE.BufferAttribute(dec(d.idx, Uint16Array), 1)); geo.normalizeNormals();
-          const tex = new THREE.TextureLoader().load(d.tex); tex.colorSpace = THREE.SRGBColorSpace; tex.flipY = false; tex.anisotropy = 4;   // UV gốc glTF (v hướng xuống)
-          const m = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ map: tex })); m.name = key; m.castShadow = m.receiveShadow = true; return m;
+        // ---- 3 MÓN ĂN SÁNG trên bàn vuông caravan, dựng bằng code + nhãn tự vẽ canvas: hộp ngũ cốc, hộp cà phê (2 hộp nằm như sách), chai sữa thuỷ tinh.
+        //      Mỗi món: gốc ở tâm đáy, mặt nhãn hướng +z, kích thước (rộng, cao, dày) theo BREAKFAST_SIZE ----
+        const BREAKFAST_SIZE = { cereal: [0.155, 0.186, 0.035], coffee: [0.126, 0.2155, 0.0295], milk: [0.089, 0.234, 0.089] };
+        function breakfastLabel(w, h, paint) {
+          const c = document.createElement('canvas'); c.width = w; c.height = h; paint(c.getContext('2d'), w, h);
+          const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
+        }
+        function breakfastItem(key) {
+          const [w, h, d] = BREAKFAST_SIZE[key], lam = o => new THREE.MeshLambertMaterial(o);
+          const text = (k, s, x, y, font, fill) => { k.font = font; k.fillStyle = fill; k.textAlign = 'center'; k.textBaseline = 'middle'; k.fillText(s, x, y); };
+          if (key === 'milk') {
+            const g = new THREE.Group(); g.name = key;
+            const glass = new THREE.LatheGeometry([[0, 0], [.04, 0], [.0445, .006], [.0445, .125], [.042, .15], [.034, .178], [.027, .2], [.026, .212], [.029, .216], [.029, .22]].map(p => new THREE.Vector2(...p)), 28);
+            const milk = new THREE.Mesh(glass, lam({ color: 0xf3f1ea })); milk.name = 'Chai sữa'; g.add(milk);
+            const tex = breakfastLabel(512, 128, (k, W, H) => {
+              k.fillStyle = '#f4ecd8'; k.fillRect(0, 0, W, H); k.fillStyle = '#2f6fa8'; k.fillRect(0, 0, W, 10); k.fillRect(0, H - 10, W, 10);
+              for (const x of [128, 384]) {
+                text(k, 'SỮA TƯƠI', x, 50, '800 34px Arial, sans-serif', '#2f6fa8'); text(k, 'Gia Lai · 500 ml', x, 88, '600 18px Arial, sans-serif', '#4b5d6b');
+              }
+              k.fillStyle = '#3b3a37'; for (const [x, y, r] of [[250, 40, 9], [262, 78, 7], [12, 70, 8], [500, 46, 7]]) { k.beginPath(); k.ellipse(x, y, r * 1.4, r, .4, 0, Math.PI * 2); k.fill(); }   // đốm bò sữa
+            });
+            const band = new THREE.Mesh(new THREE.CylinderGeometry(.0449, .0449, .075, 28, 1, true), lam({ map: tex })); band.position.y = .095; band.rotation.y = Math.PI; g.add(band);
+            const cap = cyl(.0305, .0305, .016, lam({ color: 0x4a7fb5 }), true, false, null, 20); cap.position.y = .226; g.add(cap);
+            g.traverse(o => { if (o.isMesh) o.castShadow = o.receiveShadow = true; });
+            return g;
+          }
+          const cereal = key === 'cereal', PX = 1650;   // ~1650 px/m cho mặt nhãn
+          const frontTex = breakfastLabel(Math.round(w * PX), Math.round(h * PX), (k, W, H) => {
+            if (cereal) {
+              const bg = k.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#f6e7bd'); bg.addColorStop(1, '#ecc97c'); k.fillStyle = bg; k.fillRect(0, 0, W, H);
+              k.strokeStyle = 'rgba(232,150,60,.35)'; k.lineWidth = 6; for (let i = 0; i < 11; i++) { const t = Math.PI * (1.05 + i * .09); k.beginPath(); k.moveTo(W / 2, H * .72); k.lineTo(W / 2 + Math.cos(t) * H, H * .72 + Math.sin(t) * H); k.stroke(); }
+              text(k, 'NGŨ CỐC', W / 2, H * .13, '900 40px Arial, sans-serif', '#7a3b12'); text(k, 'Cao Nguyên', W / 2, H * .23, 'italic 700 22px Georgia, serif', '#a0521d');
+              k.fillStyle = '#eef1f2'; k.beginPath(); k.ellipse(W / 2, H * .64, W * .34, H * .05, 0, 0, Math.PI * 2); k.fill();   // bát
+              k.fillStyle = '#d9e2e6'; k.beginPath(); k.moveTo(W / 2 - W * .34, H * .64); k.quadraticCurveTo(W / 2, H * .86, W / 2 + W * .34, H * .64); k.fill();
+              const cols = ['#e8a33c', '#d9822b', '#f2c65a', '#c8562f']; for (let i = 0; i < 26; i++) { k.fillStyle = cols[i % 4]; k.beginPath(); k.arc(W / 2 + (Math.sin(i * 7.3) * .3) * W, H * .62 - Math.abs(Math.cos(i * 3.1)) * H * .05, 7, 0, Math.PI * 2); k.fill(); }
+              k.fillStyle = '#6f9a5b'; k.fillRect(0, H * .86, W, H * .14); text(k, 'Bữa sáng · 375 g', W / 2, H * .93, '700 17px Arial, sans-serif', '#ffffff');
+            } else {
+              const bg = k.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#4a2c1b'); bg.addColorStop(1, '#2a170d'); k.fillStyle = bg; k.fillRect(0, 0, W, H);
+              k.fillStyle = '#e8d6b5'; k.fillRect(0, 0, W, H * .09); text(k, 'PLEIKU', W / 2, H * .047, '800 18px Arial, sans-serif', '#4a2c1b');
+              text(k, 'CÀ PHÊ', W / 2, H * .22, '900 40px Arial, sans-serif', '#f1e3c6'); text(k, 'rang xay', W / 2, H * .3, 'italic 600 20px Georgia, serif', '#d9b98a');
+              k.fillStyle = '#f4efe6'; k.beginPath(); k.ellipse(W / 2, H * .72, W * .34, H * .025, 0, 0, Math.PI * 2); k.fill();   // đĩa lót
+              k.beginPath(); k.moveTo(W * .28, H * .52); k.lineTo(W * .72, H * .52); k.quadraticCurveTo(W * .7, H * .7, W / 2, H * .71); k.quadraticCurveTo(W * .3, H * .7, W * .28, H * .52); k.fill();   // tách
+              k.strokeStyle = '#f4efe6'; k.lineWidth = 6; k.beginPath(); k.arc(W * .74, H * .59, 14, -1.3, 1.3); k.stroke();
+              k.fillStyle = '#5a3420'; k.beginPath(); k.ellipse(W / 2, H * .52, W * .22, H * .012, 0, 0, Math.PI * 2); k.fill();
+              k.strokeStyle = 'rgba(241,227,198,.6)'; k.lineWidth = 3; for (const dx of [-14, 0, 14]) { k.beginPath(); k.moveTo(W / 2 + dx, H * .49); k.bezierCurveTo(W / 2 + dx - 10, H * .45, W / 2 + dx + 10, H * .42, W / 2 + dx, H * .38); k.stroke(); }
+              k.fillStyle = '#7b4a2a'; for (const [x, y] of [[.15, .45], [.86, .4], [.2, .84], [.8, .86]]) { k.beginPath(); k.ellipse(W * x, H * y, 10, 7, .6, 0, Math.PI * 2); k.fill(); }
+              text(k, 'Robusta · 500 g', W / 2, H * .93, '700 15px Arial, sans-serif', '#e8d6b5');
+            }
+          });
+          const backTex = breakfastLabel(Math.round(w * PX), Math.round(h * PX), (k, W, H) => {
+            k.fillStyle = cereal ? '#f3e4bf' : '#3a2214'; k.fillRect(0, 0, W, H); const ink = cereal ? '#8a5a2b' : '#d9c4a0';
+            text(k, cereal ? 'Thành phần' : 'Cách pha', W / 2, H * .1, '700 18px Arial, sans-serif', ink);
+            k.fillStyle = ink; for (let i = 0; i < 9; i++) k.fillRect(W * .12, H * (.2 + i * .07), W * (.5 + (i * 37 % 30) / 100), 4);
+          });
+          const sideCol = cereal ? 0xd6a24e : 0x5a3420, capCol = cereal ? 0xead7a6 : 0x3a2214;
+          const mats = [lam({ color: sideCol }), lam({ color: sideCol }), lam({ color: capCol }), lam({ color: capCol }), lam({ map: frontTex }), lam({ map: backTex })];
+          const geo = new THREE.BoxGeometry(w, h, d); geo.translate(0, h / 2, 0);
+          const m = new THREE.Mesh(geo, mats); m.name = key; m.castShadow = m.receiveShadow = true; return m;
         }
 
         function motorhomeWorktop(g) {
@@ -5039,7 +5248,6 @@
         }
         function caravan() {
           const g = new THREE.Group();
-          g.userData.structureSource = motorhomeReference.source;
           const base = 0.95, Dc = 3.0, dz = Dc / 2;
           const x0 = -1.2, x1 = 3.0, bLen = x1 - x0, bcx = (x0 + x1) / 2, Hc = 2.7, yRoof = base + Hc, yIn = base + 0.12, bthLen = 1.05;   // bthLen: phòng tắm nối sau đuôi (mặt sau xe = x1 + bthLen)
           const floorMat = new THREE.MeshLambertMaterial({ color: 0xb99c73 }), woodMat = new THREE.MeshLambertMaterial({ color: 0x9c7b4f }),
@@ -5051,7 +5259,7 @@
           const floor = bx(bLen - 0.1, 0.12, Dc - 0.16, floorMat); floor.position.set(bcx, base + 0.06, 0); floor.receiveShadow = true; g.add(floor);
           const roof = bx(bLen + 0.14, 0.2, Dc + 0.14, caravanRoofM); roof.position.set(bcx, yRoof, 0); g.add(roof);
           motorhomeShell(g, caravanBody, caravanRoofM, vanGlass, base, x0, x1, dz, yRoof, dX0, dX1, doorH);
-          const galley = addMotorhomeReference(g);
+          const galley = motorhomeCab(g);
           const axles = new THREE.Group(); axles.name = 'Cầu bánh xe';
           const axleGeo = new THREE.CylinderGeometry(0.065, 0.065, 1, 8);
           for (const [axleX, track] of [[-2.096956, 2.46], [1.888478, 2.80]]) {
@@ -5096,7 +5304,7 @@
           // ---- giường: khung gỗ + nệm kem dày + chăn đỏ phủ chân giường + 2 gối đầu giường (sát vách sau) ----
           const bedLen = bLen * 0.62, bedW = 0.98, bedCx = x0 + bedLen / 2 + .08, bedZ = -dz + 0.62; // 8 cm clearance at the front wall (screen right).
           const bed = new THREE.Group(); bed.name = 'Giường dọc vách đối diện';
-          // Giường dựng theo khung ngoài IKEA Flexa (GLB của alpaca., CC-BY-4.0, sketchfab.com/3d-models/ikea-flexa-single-bed-4aeeb06b84774044a1a413010574a75f):
+          // Giường đơn khung hộp dựng bằng code:
           // hộp trắng cao 0,45 m (vách lưng · 2 đầu giường · thanh trên + chân đế + trụ giữa mặt trước), 2 ngăn kéo đen có khe tay nắm,
           // đệm xám lọt lòng nhô 4 cm, gối tựa xếp dọc vách. Không dựng nan giường bên trong. Chiều dài giữ theo khoang xe.
           const flexaWhite = new THREE.MeshLambertMaterial({ color: 0xe6e4de }), flexaBlack = new THREE.MeshLambertMaterial({ color: 0x1f2022 });
@@ -5184,8 +5392,8 @@
           studyBox(studyChair, 'Lưng ghế học', .43, .25, .045, chairX, yIn + .73, chairZ + .195, woodMat, true);
           bakeStudyFurniture(studyChair); study.add(studyChair); studyChairRig.obj = studyChair; studyChairRig.home = studyChair.position.z;
 
-          // Đèn RIGGAD (GLB): đế gỗ ở góc sau-phải mặt bàn, tay đèn vươn chéo về phía cuốn sổ; mặt LED nằm trong lòng chụp.
-          const lamp = addWorkLamp(study), lampHead = workLampReference.head;
+          // Đèn bàn: đế gỗ ở góc sau-phải mặt bàn, tay đèn vươn chéo về phía cuốn sổ; mặt LED nằm trong lòng chụp.
+          const lamp = workLamp(study), lampHead = WORK_LAMP_HEAD;
           lamp.position.set(deskX + .28, yIn + deskHeight + .001, deskZ - .13); lamp.rotation.y = -1.0;
           const bulbMat = new THREE.MeshStandardMaterial({ color: 0xE2D6C0, emissive: 0xffc46d, emissiveIntensity: 0, roughness: .65 });
           const bulb = new THREE.Mesh(new THREE.CircleGeometry(lampHead.radius * .86, 18), bulbMat);
@@ -5194,8 +5402,8 @@
           studyLight.name = 'Ánh sáng bàn học'; studyLight.position.set(lampHead.x, lampHead.ledY - .05, lampHead.z);
           studyLight.castShadow = false; lamp.add(studyLight);
           studyDeskLighting.light = studyLight; studyDeskLighting.bulb = bulbMat;
-          // Lon Coke ở góc trái phía trước mặt bàn, chữ "Coke" quay về phía cửa hông.
-          const coke = cokeCan(); coke.scale.setScalar(1.05); coke.position.set(deskX - .37, yIn + deskHeight + .001, deskZ + .09); coke.rotation.y = -.6; study.add(coke);   // lon to thêm 5%, gốc ở tâm đáy nên vẫn đứng sát mặt bàn
+          // Lon nước ngọt ở góc trái phía trước mặt bàn, giữa nhãn quay về phía cửa hông.
+          const coke = sodaCan(); coke.scale.setScalar(1.05); coke.position.set(deskX - .37, yIn + deskHeight + .001, deskZ + .09); coke.rotation.y = -.6; study.add(coke);   // lon to thêm 5%, gốc ở tâm đáy nên vẫn đứng sát mặt bàn
           // Laptop giữa bàn, trước ghế: thân nhôm xám, bàn phím + touchpad; nắp gắn bản lề mép sau (đóng phẳng khi rảnh, mở ~106° khi làm việc)
           {
             const lap = new THREE.Group(); lap.name = 'Laptop'; lap.position.set(deskX - .01, yIn + deskHeight + .001, deskZ + .05); study.add(lap);
@@ -5235,21 +5443,19 @@
           const tLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.78, 8), metalMat); tLeg.position.set(-0.65, yIn + 0.39, 0.8); g.add(tLeg);
           // bữa sáng trên bàn vuông (mặt bàn y = yIn + 0,82): hộp ngũ cốc & hộp cà phê nằm ngửa trên mặt bàn như 2 cuốn sách (nhãn hướng lên), chai sữa phía ngoài
           const breakfast = new THREE.Group(); breakfast.name = 'Đồ ăn sáng trên bàn vuông'; breakfast.userData.noBake = true; breakfast.position.set(-0.65, yIn + 0.821, 0.8); g.add(breakfast);
-          // lưới gốc: đáy ở y = 0, mặt nhãn hướng +z, dày ext.z ⇒ lật −90° quanh x (nhãn ngửa lên), rồi xoay yaw quanh trục đứng; đặt theo TÂM hộp (cx, cz)
+          // mỗi hộp: đáy ở y = 0, mặt nhãn hướng +z, dày size[2] ⇒ lật −90° quanh x (nhãn ngửa lên), rồi xoay yaw quanh trục đứng; đặt theo TÂM hộp (cx, cz)
           const BOOK_K = 1.1;   // 2 hộp "sách" to thêm 10%
           const layFlat = (item, cx, cz, yaw) => {
-            const ext = foodReference.items[item.name].ext, h = ext[1] * BOOK_K, t = ext[2] * BOOK_K;
+            const ext = BREAKFAST_SIZE[item.name], h = ext[1] * BOOK_K, t = ext[2] * BOOK_K;
             item.scale.setScalar(BOOK_K); item.rotation.order = 'YXZ'; item.rotation.set(-Math.PI / 2, yaw, 0);
             item.position.set(cx + Math.sin(yaw) * h / 2, t / 2, cz + Math.cos(yaw) * h / 2);
           };
-          const cereal = foodItem('cereal'); layFlat(cereal, -0.13, -0.09, 0.14); cereal.name = 'Hộp ngũ cốc'; breakfast.add(cereal);
-          const coffee = foodItem('coffee'); layFlat(coffee, 0.1, -0.12, -0.2); coffee.name = 'Hộp cà phê'; breakfast.add(coffee);
-          const milk = foodItem('milk'); milk.name = 'Chai sữa'; milk.position.set(0.06, 0, 0.11); breakfast.add(milk);
-          // Source galley cabinets and fittings, resized below a fitted worktop.
-          // Mặt đá lắp thêm hạ xuống ngồi khít nóc tủ đã cắt ruột (đáy 2,07 → 1,795): hết khe hở, mặt bếp cao ~0,80 m so với sàn.
+          const cereal = breakfastItem('cereal'); layFlat(cereal, -0.13, -0.09, 0.14); cereal.name = 'Hộp ngũ cốc'; breakfast.add(cereal);
+          const coffee = breakfastItem('coffee'); layFlat(coffee, 0.1, -0.12, -0.2); coffee.name = 'Hộp cà phê'; breakfast.add(coffee);
+          const milk = breakfastItem('milk'); milk.name = 'Chai sữa'; milk.position.set(0.06, 0, 0.11); breakfast.add(milk);
+          // Mặt đá (dựng cho cao 2,07–2,14) hạ xuống ngồi khít nóc tủ bếp 1,795: hết khe hở, mặt bếp cao ~0,80 m so với sàn.
           const worktop = new THREE.Group(); motorhomeWorktop(worktop); bakeStatic(worktop); worktop.position.y = -0.275; galley.add(worktop);
           const cup = bx(bLen * 0.62, 0.44, 0.4, caravanRoofM); cup.position.set(bcx - .55, yRoof - 0.45, -dz + 0.32); g.add(cup);
-          // Cabin, dashboard, two seats, steering wheel and all four wheels use the source mesh.
           const cabH = 1.85, cabLen = 2.0, cabX = x0 - cabLen / 2, cabDz = Dc * 0.9, wsX = cabX - cabLen / 2;
           // ---- bạt che ĐỎ trên cửa mở ----
           // bạt rộng từ mép trước cửa (x = -0,65) tới đúng mép sau xe (mặt sau phòng tắm, x1 + bthLen)
@@ -5636,7 +5842,7 @@
         const FIRE_CELL = _rc(25, 32);
         const fireStone = new THREE.MeshLambertMaterial({ color: 0x9a958c }), fireAsh = new THREE.MeshLambertMaterial({ color: 0x39322e }), fireLog = new THREE.MeshLambertMaterial({ color: 0x6b4a2e });
         const flameCols = [0xff5a14, 0xffa024, 0xffd24a];
-        // Củi cháy sém học theo GLB "Camp fire" (Joe, CC-BY-4.0, sketchfab.com/3d-models/camp-fire-abff5851ea734cbfa2d9a025425ae5b9):
+        // Củi cháy sém dựng bằng code:
         // vỏ nâu xám đen vân dọc thớ + lớp phát sáng là các vết nứt than hồng đỏ cam dồn ở đoạn giữa nằm trong lửa (vẽ canvas, không nhúng ảnh).
         function charredLogMaterial() {
           const W = 128, H = 256, rnd = (a, b) => a + Math.random() * (b - a);
@@ -5768,9 +5974,9 @@
 
         // ---- bàn dã ngoại thấp + ghế bệt + đống củi & cọc gỗ quanh bếp lửa ----
         const pf = worldCell(FIRE_CELL[0], FIRE_CELL[1]);
-        // ---- ẤM REO CẮM TRẠI học từ GLB "Campers Kettle" (NOMADICX, CC-BY-4.0 · sketchfab.com/3d-models/campers-kettle-ef15300da2f0413f97e6fe3acb7ffaea):
-        //      thân vòm tiện theo biên dạng đo từ lưới quét (đáy loe Ø1,45 · vai cong · miệng có gờ cuộn · nắp vồng), khoen nắp,
-        //      quai thép dẹt uốn cung, vòi ngắn chếch 40° với nắp còi nhựa đen + cần gạt; màu học từ texture quét:
+        // ---- ẤM REO CẮM TRẠI dựng bằng code:
+        //      thân vòm tiện theo biên dạng (đáy loe Ø1,45 · vai cong · miệng có gờ cuộn · nắp vồng), khoen nắp,
+        //      quai thép dẹt uốn cung, vòi ngắn chếch 40° với nắp còi nhựa đen + cần gạt; màu tô theo vùng nhiệt:
         //      đáy muội đen → giữa ám nâu nhiệt → vai thép sáng, nắp thép mờ. Đơn vị gốc: cao 1,86 tới đỉnh quai ----
         function kettleTexture(prof) {   // tô theo tham số biên dạng (v = chỉ số điểm tiện), nhiễu tuần hoàn theo u để không lộ đường nối
           const Wt = 256, Ht = 256, cv = document.createElement('canvas'); cv.width = Wt; cv.height = Ht;
@@ -5848,8 +6054,7 @@
           bakeStatic(rg); rg.scale.multiplyScalar(CAMP_SCALE); rg.position.copy(pf); rg.rotation.y = -0.2; rg.name = 'Giá treo nồi (Pot Hanger)'; scene.add(rg);   // xoay nhẹ để chân né xiên cá nướng
         }
         const woodEndM = new THREE.MeshLambertMaterial({ color: 0xc8a878 });   // mặt cắt gỗ nhạt
-        // Bàn gỗ nan cuộn (roll-top) chân chữ X theo ảnh mẫu; ca & chảo dựng theo GLB "Camping Cooking Pots"
-        // (Guy in a Poncho, CC-BY-4.0, sketchfab.com/3d-models/camping-cooking-pots-3cf2b0e0d285408f97e2a33d6f19ee1c): nhôm sơn đen, quai dây thép gập.
+        // Bàn gỗ nan cuộn (roll-top) chân chữ X; ca & chảo cắm trại dựng bằng code: nhôm sơn đen, quai dây thép gập.
         const campCupSteam = [];
         function campTable() {
           const g = new THREE.Group();

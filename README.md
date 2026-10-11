@@ -10,7 +10,6 @@ Trang: https://michaeltran75.github.io/3d-garden/ (nhúng Wix bằng iframe).
 | `css/app.css` | kiểu giao diện |
 | `js/weather.js` | thời tiết Open-Meteo + đồng hồ Pleiku |
 | `js/flight-nav.js` | dẫn đường bay cho ong, bướm |
-| `js/assets.js` | dữ liệu mô hình nhúng sẵn (caravan, đèn bàn, đồ ăn) |
 | `js/app.js` | dựng cảnh + toàn bộ hoạt cảnh |
 
 Bản gốc để sửa là tệp một-file `../3D garden.html` (test: `node --test ../tests/garden-flight.test.cjs`).
@@ -25,9 +24,7 @@ Nhúng vào Wix: *Thêm → Nhúng mã → Nhúng trang web* rồi dán đườn
 <iframe src="https://michaeltran75.github.io/3d-garden/" style="width:100%;height:100%;border:0" allow="fullscreen" loading="lazy" title="GHC · Vườn năng lượng 3D"></iframe>
 ```
 
-## Mô hình tham khảo (Sketchfab)
+## Mô hình
 
-- Motorhome low poly with interior — Vladek, Sketchfab Standard (lưới cabin, bánh xe, bếp)
-- Work Lamp — Sapizon, CC BY 4.0 · Food Collection – Game Ready — Melon Polygons, CC BY 4.0 · Coke/Soda — Yerassyl Serik, CC BY 4.0
-- Dựng lại theo số đo (không chép lưới): Camp fire — Joe · Campers Kettle — NOMADICX · Camping Cooking Pots — Guy in a Poncho ·
-  Fishing Supplies Set — FrodoUndead · IKEA Flexa single bed — alpaca. · Lantern — alexisturner (đều CC BY 4.0)
+Mọi vật thể trong cảnh đều dựng bằng code three.js (hình hộp, khối tiện, đùn biên dạng, ống) và nhãn vẽ bằng canvas —
+không nhúng lưới hay ảnh tải từ ngoài. Riêng đàn cò dựng theo số đo của mẫu `Stork.glb` trong bộ ví dụ three.js (MIT).
