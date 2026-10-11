@@ -4755,21 +4755,22 @@
           campFrameWood = new THREE.MeshLambertMaterial({ color: 0x8b6f47 }); // màu gỗ (cùng tông cọc gỗ)
         // ---- CABIN LÁI, 4 BÁNH (bánh sau đôi) & TỦ BẾP — dựng hoàn toàn bằng code, không nhúng lưới ngoài ----
         // Khung xe (đv xe): mũi xe ở −x, cửa hông ở +z, cầu trước x = −2,097, cầu sau x = 1,888, tâm bánh y = 0,506.
-        // Cabin kiểu xe tải nhẹ đầu bằng: mặt trước phẳng vát 2 góc, kính chắn gió nghiêng ~43°, hông trên hơi khum vào (tumblehome),
-        // mui thấp nằm dưới khoang ngủ. Tay lái bên trái (+z), cột lái dựng nghiêng 22° như xe tải; sàn cabin y = 0,956 (thấp hơn sàn khoang ở).
-        // Vỏ & kính bán trong suốt như thân xe ở; trong x-ray vỏ ẩn, nội thất + bánh + tủ bếp giữ nguyên.
-        const CAB = { xf: -3.80, xs: -3.31, xr: -1.40, ws: 1.335, sill: 0.55, belt: 2.10, roof: 2.97, floorY: 0.956, axleF: -2.096956, axleR: 1.888478, wheelY: 0.50561, archR: 0.63 };
+        // Cabin xe tải nhẹ đầu bằng kiểu thập niên 80: mũi bo 2 góc, hông phình ở giữa rồi khum vào ở thắt lưng và chân cửa, kính chắn gió cong
+        // ôm góc nghiêng 44°, mui vòm nằm ngay dưới khoang ngủ, cụm ga-lăng + đèn vuông lõm trong khung đen. Tay lái bên trái (+z), cột lái
+        // nghiêng 19°, bàn đạp bản lề sàn như xe tải. Biên dạng là các điểm khống chế tự đặt theo kích thước tổng thể (dài, rộng, cao từng mức).
+        // Vỏ & kính bán trong suốt như thân xe ở; trong x-ray vỏ (kể cả táp-lô, ốp cửa) ẩn, ghế + vô-lăng + sàn + bánh + tủ bếp giữ nguyên.
+        const CAB = { xc: -3.22, xr: -1.32, floorY: 0.956, axleF: -2.096956, axleR: 1.888478, wheelY: 0.50561 };
         function motorhomeCab(parent) {
-          const C = CAB, V3 = (x, y, z) => new THREE.Vector3(x, y, z);
-          const lam = (color, o = {}) => new THREE.MeshLambertMaterial({ color, ...o });
+          const C = CAB, V3 = (x, y, z) => new THREE.Vector3(x, y, z), T = .04;   // T: vỏ 2 lớp dày 40 mm ⇒ đậm như tôn thật dù vật liệu bán trong suốt
+          const lam = (color, o = {}) => new THREE.MeshLambertMaterial({ color, ...o }), two = { side: THREE.DoubleSide };
           const M = {
             body: lam(0xE2D6C0, { transparent: true, opacity: 0.5, depthWrite: false, side: THREE.DoubleSide }),
             glass: lam(0x8fc1e3, { transparent: true, opacity: 0.25, depthWrite: false, side: THREE.DoubleSide }),
-            trim: lam(0x42474a), matte: lam(0x30383a), bumper: lam(0x50585b), grille: lam(0x404a4b), handle: lam(0x777b7a),
+            trim: lam(0x42474a), matte: lam(0x30383a, two), bumper: lam(0x50585b), grille: lam(0x404a4b), handle: lam(0x777b7a),
             lamp: lam(0xfff3c4), lampBox: lam(0x858d8c), mirror: lam(0xb3ccd0),
-            under: lam(0x665d4b, { side: THREE.DoubleSide }), mat: lam(0x43494b), dash: lam(0x958776), dashTrim: lam(0x777166),
+            under: lam(0x665d4b, two), mat: lam(0x43494b), dash: lam(0x958776), dashTrim: lam(0x777166),
             seat: lam(0xc5b596), seatBand: lam(0x857962), seatDark: lam(0x42494a), switchCap: lam(0xb8afa0),
-            tyre: lam(0x2b2925), rim: lam(0xb9b3a6), rimDark: lam(0x4c5355), hub: lam(0x92958e),
+            tyre: lam(0x2b2925), rim: lam(0xb9b3a6, two), rimDark: lam(0x4c5355, two), hub: lam(0x92958e, two),
             cabinet: lam(0xa58e69), front: lam(0xd0ccc0)
           };
           const cab = new THREE.Group(); cab.name = 'Cabin lái, bánh xe & tủ bếp'; cab.userData.noBake = true;
@@ -4789,6 +4790,7 @@
             m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), v.normalize()); m.position.copy(a).add(b).multiplyScalar(.5);
             m.name = name; par.add(m); return m;
           };
+          const polyline = (par, name, pts, t, mat) => { for (let i = 0; i < pts.length - 1; i++) bar(par, name, pts[i], pts[i + 1], t, mat); };
           // đa giác phẳng từ các đỉnh 3D (quạt tam giác)
           const facets = (polys) => {
             const p = [];
@@ -4796,199 +4798,286 @@
             const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(p, 3));
             geo.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(p.length / 3 * 2), 2)); geo.computeVertexNormals(); return geo;   // uv rỗng để gộp được với hình khác
           };
-          // hình 2D đặt lên mặt phẳng (gốc o, trục u, v) — dùng cho vách có lỗ cửa kính
+          const mirrorZ = polys => [...polys, ...polys.map(poly => poly.map(([x, y, z]) => [x, y, -z]).reverse())];   // lật z thì đảo thứ tự đỉnh để giữ chiều pháp tuyến
+          // hình 2D đặt lên mặt phẳng (gốc o, trục u, v; đùn theo u×v)
           const onPlane = (geo, o, u, v) => geo.applyMatrix4(new THREE.Matrix4().makeBasis(u, v, new THREE.Vector3().crossVectors(u, v)).setPosition(o));
-          const rect = (path, x0, y0, x1, y1) => { path.moveTo(x0, y0); path.lineTo(x1, y0); path.lineTo(x1, y1); path.lineTo(x0, y1); path.closePath(); return path; };
+          const shapeOf = pts => new THREE.Shape(pts.map(p => new THREE.Vector2(...p)));
+          const roundRect = (x0, y0, x1, y1, r) => { const s = new THREE.Shape(); s.moveTo(x0 + r, y0); s.lineTo(x1 - r, y0); s.quadraticCurveTo(x1, y0, x1, y0 + r); s.lineTo(x1, y1 - r); s.quadraticCurveTo(x1, y1, x1 - r, y1); s.lineTo(x0 + r, y1); s.quadraticCurveTo(x0, y1, x0, y1 - r); s.lineTo(x0, y0 + r); s.quadraticCurveTo(x0, y0, x0 + r, y0); return s; };
+          const lerpTab = (tab, t) => { if (t <= tab[0][0]) return tab[0][1]; for (let i = 1; i < tab.length; i++) if (t <= tab[i][0]) { const [a, va] = tab[i - 1], [b, vb] = tab[i]; return va + (vb - va) * (t - a) / (b - a); } return tab[tab.length - 1][1]; };
+          const seam = [], seamLine = pts => { for (let i = 0; i < pts.length - 1; i++) seam.push(...pts[i], ...pts[i + 1]); };
 
           // ===== VỎ =====
-          // mũi xe: các mức (y, mặt trước x, nửa rộng mặt trước, x cuối mép vát) — mép trên cùng chính là chân kính chắn gió
-          const nose = [[C.sill, -3.66, 0.97, -3.24], [1.10, C.xf, 1.00, C.xs], [1.66, C.xf, 1.00, C.xs], [1.92, -3.73, 0.99, -3.29], [C.belt, -3.60, 0.98, -3.26]];
-          const T = .025;   // vỏ 2 lớp dày 25 mm (như vách thân ở) ⇒ đậm như tôn thật dù vật liệu bán trong suốt
-          for (const k of [0, 1]) {
-            const nosePolys = [], ws = C.ws - k * T;
-            for (let i = 0; i < nose.length - 1; i++) {
-              const [y0, f0, w0, s0] = nose[i], [y1, f1, w1, s1] = nose[i + 1], d = k * T;
-              nosePolys.push([[f0 + d, y0, -w0 + d], [f0 + d, y0, w0 - d], [f1 + d, y1, w1 - d], [f1 + d, y1, -w1 + d]]);
-              for (const sd of [-1, 1]) nosePolys.push([[f0 + d, y0, sd * (w0 - d)], [s0 + d, y0, sd * ws], [s1 + d, y1, sd * ws], [f1 + d, y1, sd * (w1 - d)]]);
+          // hông xe: nửa bề rộng theo độ cao — khum vào dưới chân cửa, phẳng ở giữa, thắt ở vai rồi nghiêng vào dọc dải kính (2,10 → 2,84)
+          const SIDE = [[.60, 1.22], [.95, 1.29], [1.15, 1.335], [1.78, 1.335], [1.92, 1.30], [2.03, 1.24], [2.10, 1.22], [2.84, 1.06]];
+          const sideZ = y => lerpTab(SIDE, y), xWin = y => C.xc + (y - 2.10) / .74 * .56;   // mép trước dải kính hông (chân trụ A → nóc)
+          // kính chắn gió: từng hàng (y, x giữa, nửa rộng, độ lùi ở mép) — cong ôm góc nhiều ở chân, gần phẳng ở đỉnh
+          const WS = [[2.03, -3.62, 1.12, .24], [2.25, -3.41, 1.10, .20], [2.50, -3.235, 1.05, .15], [2.70, -3.04, .99, .09], [2.88, -2.78, .93, .03]];
+          const wsRow = y => { let i = 1; while (i < WS.length - 1 && y > WS[i][0]) i++; const a = WS[i - 1], b = WS[i], k = (y - a[0]) / (b[0] - a[0]); return a.map((v, j) => v + (b[j] - v) * k); };
+          const wsX = (y, z) => { const [, c, w, e] = wsRow(y); return c + e * Math.pow(Math.min(1, Math.abs(z) / w), 3.2); };
+          // mũi xe: mặt bằng nửa phải (z, x) ở từng mức; cùng 8 điểm mỗi mức để dựng lưới; mức trên cùng = chân kính chắn gió
+          const PLAN_MID = [[0, -3.80], [.45, -3.795], [.75, -3.77], [.92, -3.66], [1.06, -3.54], [1.20, -3.40], [1.29, -3.30], [1.335, C.xc]];
+          const NOSE = [
+            [.60, [[0, -3.645], [.45, -3.60], [.70, -3.555], [.86, -3.50], [.98, -3.44], [1.08, -3.37], [1.16, -3.30], [1.22, C.xc]]],
+            [.95, [[0, -3.71], [.45, -3.69], [.72, -3.655], [.88, -3.61], [1.02, -3.55], [1.14, -3.46], [1.24, -3.35], [1.29, C.xc]]],
+            [1.15, PLAN_MID], [1.21, PLAN_MID], [1.62, PLAN_MID], [1.78, PLAN_MID],
+            [1.92, [[0, -3.71], [.45, -3.70], [.75, -3.68], [.92, -3.58], [1.06, -3.47], [1.17, -3.38], [1.25, -3.30], [1.30, C.xc]]],
+            [2.03, [...[0, .45, .75, .92, 1.06, 1.12].map(z => [z, wsX(2.03, z)]), [1.19, -3.287], [1.24, C.xc]]]
+          ];
+          const GRILLE = [1.21, 1.62], GJ = 4;   // ô ga-lăng: khoét các đoạn mặt bằng 0…3 (|z| ≤ 1,06) giữa 2 mức này
+          const noseX = (y, z) => {   // x mặt mũi xe tại độ cao y, bề ngang z (nội suy giữa các mức) — để đồ bên trong không đâm xuyên vỏ
+            const at = plan => lerpTab(plan, Math.abs(z));
+            for (let i = 1; i < NOSE.length; i++) if (y <= NOSE[i][0]) { const [ya, pa] = NOSE[i - 1], [yb, pb] = NOSE[i], k = Math.max(0, (y - ya) / (yb - ya)); return at(pa) * (1 - k) + at(pb) * k; }
+            return at(NOSE[NOSE.length - 1][1]);
+          };
+          const behindNose = (geo, gap = T + .01) => { const p = geo.attributes.position; for (let i = 0; i < p.count; i++) { const lim = noseX(p.getY(i), p.getZ(i)) + gap; if (p.getX(i) < lim) p.setX(i, lim); } geo.computeVertexNormals(); return geo; };
+          const inset = (plan, d) => plan.map((p, j) => {   // lùi mặt bằng vào trong d (pháp tuyến trong mặt phẳng z–x)
+            const a = plan[Math.max(0, j - 1)], b = plan[Math.min(plan.length - 1, j + 1)], tz = b[0] - a[0], tx = b[1] - a[1], l = Math.hypot(tz, tx);
+            return [Math.max(0, p[0] - tx / l * d), p[1] + tz / l * d];
+          });
+          for (const d of [0, T]) {
+            const polys = [];
+            for (let i = 0; i < NOSE.length - 1; i++) {
+              const [y0, a] = NOSE[i], [y1, b] = NOSE[i + 1], p0 = d ? inset(a, d) : a, p1 = d ? inset(b, d) : b, hole = y0 >= GRILLE[0] && y1 <= GRILLE[1];
+              for (let j = 0; j < p0.length - 1; j++) if (!(hole && j < GJ)) polys.push([[p0[j][1], y0, p0[j][0]], [p0[j + 1][1], y0, p0[j + 1][0]], [p1[j + 1][1], y1, p1[j + 1][0]], [p1[j][1], y1, p1[j][0]]]);
             }
-            mesh(facets(nosePolys), M.body, shell, 'Mũi cabin vát góc', k ? null : lineDark);
+            mesh(facets(mirrorZ(polys)), M.body, shell, 'Mũi cabin bo góc', d ? null : lineDark);
           }
-          // hông dưới (phẳng z = ±ws): khoét hốc bánh trước
-          const a = Math.asin((C.sill - C.wheelY) / C.archR), half = Math.sqrt(C.archR ** 2 - (C.sill - C.wheelY) ** 2);
-          const lowSide = new THREE.Shape(); lowSide.moveTo(nose[0][3], C.sill);
-          lowSide.lineTo(C.axleF - half, C.sill); lowSide.absarc(C.axleF, C.wheelY, C.archR, Math.PI - a, a, true);
-          lowSide.lineTo(C.xr, C.sill); lowSide.lineTo(C.xr, C.belt); for (let i = nose.length - 1; i >= 1; i--) lowSide.lineTo(nose[i][3], nose[i][0]); lowSide.closePath();
-          const plate = (shape, segs) => new THREE.ExtrudeGeometry(shape, { depth: T, bevelEnabled: false, curveSegments: segs });   // đùn theo pháp tuyến mặt phẳng
-          for (const sd of [-1, 1]) mesh(onPlane(plate(lowSide, 24), V3(0, 0, sd > 0 ? C.ws - T : -C.ws), V3(1, 0, 0), V3(0, 1, 0)), M.body, shell, 'Hông dưới cabin', lineDark);
-          // hông trên khum vào: z ±1,335 ở thắt lưng → ±1,07 ở mui; lỗ kính gió (vent) + kính cửa lớn bo góc sau-trên
-          const topW = 1.07, sv = Math.hypot(C.roof - C.belt, C.ws - topW), sOf = y => (y - C.belt) / (C.roof - C.belt) * sv;
-          const upSide = new THREE.Shape(); upSide.moveTo(-3.26, 0); upSide.lineTo(C.xr, 0); upSide.lineTo(C.xr, sv); upSide.lineTo(-2.66, sv); upSide.closePath();
-          const s0 = sOf(2.13), s1 = sOf(2.84);
-          const vent = new THREE.Path(); vent.moveTo(-3.00, s0); vent.lineTo(-2.56, s0); vent.lineTo(-2.56, s1); vent.lineTo(-2.633, s1); vent.closePath();
-          const main = new THREE.Path(); main.moveTo(-2.49, s0); main.lineTo(-1.52, s0); main.lineTo(-1.52, s1 - .09); main.quadraticCurveTo(-1.52, s1, -1.61, s1); main.lineTo(-2.49, s1); main.closePath();
-          upSide.holes.push(vent, main);
-          for (const sd of [-1, 1]) {
-            const o = V3(0, C.belt, sd * C.ws), v = V3(0, C.roof - C.belt, -sd * (C.ws - topW)).normalize(), u = V3(1, 0, 0);
-            const nOut = new THREE.Vector3().crossVectors(u, v).multiplyScalar(sd);   // pháp tuyến hướng ra ngoài xe
-            mesh(onPlane(plate(upSide, 8), sd > 0 ? o.clone().addScaledVector(nOut, -T) : o, u, v), M.body, shell, 'Hông trên cabin', lineDark);
+          // hông dưới & vai: các dải phẳng giữa các mức của SIDE, khoét hốc bánh trước (vòm hình thang đỉnh bằng)
+          const ARCH = [[-2.72, .60], [-2.64, .92], [-2.52, 1.06], [-2.32, 1.155], [-1.88, 1.16], [-1.72, 1.08], [-1.60, .96], [-1.53, .74], [-1.51, .60]];
+          const archL = ARCH.slice(0, 5), archR = ARCH.slice(4), archTop = 1.16;
+          const archX = (br, y) => { for (let i = 0; i < br.length - 1; i++) { const [xa, ya] = br[i], [xb, yb] = br[i + 1]; if ((y - ya) * (y - yb) <= 0 && ya !== yb) return xa + (xb - xa) * (y - ya) / (yb - ya); } return br[br.length - 1][0]; };
+          const bandPolys = (y0, y1) => {
+            const xa = C.xc, xb = C.xr, inL = archL.filter(p => p[1] > y0 && p[1] < y1), inR = ARCH.slice(5).filter(p => p[1] > y0 && p[1] < y1);
+            if (y0 >= archTop) return [[[xa, y0], [xb, y0], [xb, y1], [xa, y1]]];
+            if (y1 < archTop) return [[[xa, y0], [archX(archL, y0), y0], ...inL, [archX(archL, y1), y1], [xa, y1]], [[archX(archR, y1), y1], ...inR, [archX(archR, y0), y0], [xb, y0], [xb, y1]]];
+            return [[[xa, y0], [archX(archL, y0), y0], ...inL, ...inR, [archX(archR, y0), y0], [xb, y0], [xb, y1], [xa, y1]]];
+          };
+          for (let i = 0; i < 6; i++) {
+            const [y0, z0] = SIDE[i], [y1, z1] = SIDE[i + 1];
+            for (const d of [0, T]) for (const poly of bandPolys(y0, y1)) for (const s of [-1, 1]) {
+              const g = new THREE.ShapeGeometry(shapeOf(poly)), pos = g.attributes.position;
+              for (let k = 0; k < pos.count; k++) pos.setZ(k, s * (z0 + (z1 - z0) * (pos.getY(k) - y0) / (y1 - y0) - d));
+              g.computeVertexNormals(); mesh(g, M.body, shell, 'Hông cabin');
+            }
+          }
+          // dải kính hông (phẳng, nghiêng vào trong): kính gió tam giác cụt + kính cửa lớn bo góc sau–trên, khung đen
+          const sv = Math.hypot(.74, .16), sOf = y => (y - 2.10) / .74 * sv;
+          const winS = shapeOf([[C.xc, 0], [C.xr, 0], [C.xr, sv], [xWin(2.84), sv]]);
+          const ventF = y => -3.00 + (y - 2.30) * .70;
+          const vent = new THREE.Path(); vent.moveTo(ventF(2.14), sOf(2.14)); vent.lineTo(-2.56, sOf(2.14)); vent.lineTo(-2.56, sOf(2.80)); vent.lineTo(ventF(2.80), sOf(2.80)); vent.closePath();
+          const main = new THREE.Path(); main.moveTo(-2.50, sOf(2.12)); main.lineTo(-1.50, sOf(2.12)); main.lineTo(-1.50, sOf(2.82) - .08); main.quadraticCurveTo(-1.50, sOf(2.82), -1.58, sOf(2.82)); main.lineTo(-2.50, sOf(2.82)); main.closePath();
+          winS.holes.push(vent, main);
+          for (const s of [-1, 1]) {
+            const o = V3(0, 2.10, s * 1.22), u = V3(1, 0, 0), v = V3(0, .74, -s * .16).normalize(), nOut = new THREE.Vector3().crossVectors(u, v).multiplyScalar(s);
+            mesh(onPlane(new THREE.ShapeGeometry(winS, 8), o, u, v), M.body, shell, 'Dải kính hông', lineDark);
+            mesh(onPlane(new THREE.ShapeGeometry(winS, 8), o.clone().addScaledVector(nOut, -T), u, v), M.body, shell, 'Dải kính hông');
             for (const hole of [vent, main]) {
               mesh(onPlane(new THREE.ShapeGeometry(new THREE.Shape(hole.getPoints(6)), 6), o.clone().addScaledVector(nOut, -.012), u, v), M.glass, shell, 'Kính cửa cabin');   // kính lùi vào 12 mm
-              const pts = hole.getPoints(3).map(p => o.clone().addScaledVector(u, p.x).addScaledVector(v, p.y).addScaledVector(nOut, .006));
+              const pts = hole.getPoints(3).map(p => o.clone().addScaledVector(u, p.x).addScaledVector(v, p.y));
               for (let i = 0; i < pts.length; i++) { const q = pts[(i + 1) % pts.length]; if (q.distanceTo(pts[i]) > .005) bar(shell, 'Khung kính cửa', pts[i], q, .03, M.matte); }
             }
           }
-          // trụ A (từ mép kính chắn gió ra hông) + ốp sau nối vào vai loe của thân ở
-          const wsB = [-3.60, 0.98], wsBw = [-3.52, 1.06], wsT = [-2.78, 0.92], wsTw = [-2.72, 0.99];
-          const pil = [], back = [];
-          for (const sd of [-1, 1]) {
-            pil.push([[wsBw[0], C.belt, sd * wsBw[1]], [-3.26, C.belt, sd * C.ws], [-2.66, C.roof, sd * topW], [wsTw[0], C.roof, sd * wsTw[1]]]);
-            back.push([[C.xr, C.belt, sd * C.ws], [C.xr, 2.99, sd * C.ws], [C.xr, 2.99, sd * topW], [C.xr, C.roof, sd * topW]]);
+          // kính chắn gió cong: lưới hàng × cột, khung đen chạy quanh mép
+          const WT = [-1, -.95, -.85, -.7, -.5, -.25, 0, .25, .5, .7, .85, .95, 1], wsPt = (y, t) => { const w = wsRow(y)[2]; return [wsX(y, t * w), y, t * w]; };
+          const wsPos = [], wsIdx = [];
+          for (const [y] of WS) for (const t of WT) wsPos.push(...wsPt(y, t));
+          for (let r = 0; r < WS.length - 1; r++) for (let c = 0; c < WT.length - 1; c++) { const a = r * WT.length + c, b = a + WT.length; wsIdx.push(a, a + 1, b + 1, a, b + 1, b); }
+          const wsGeo = new THREE.BufferGeometry(); wsGeo.setAttribute('position', new THREE.Float32BufferAttribute(wsPos, 3));
+          wsGeo.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(wsPos.length / 3 * 2), 2)); wsGeo.setIndex(wsIdx); wsGeo.computeVertexNormals();
+          mesh(wsGeo, M.glass, shell, 'Kính chắn gió');
+          polyline(shell, 'Khung kính chắn gió', WT.map(t => V3(...wsPt(2.03, t))), .035, M.matte);
+          polyline(shell, 'Khung kính chắn gió', WT.map(t => V3(...wsPt(2.88, t))), .035, M.matte);
+          polyline(shell, 'Ốp chân kính', WT.map(t => { const [x, , z] = wsPt(2.03, t); return V3(x - .025, 2.045, z); }), .04, M.matte);
+          for (const t of [-1, 1]) polyline(shell, 'Khung kính chắn gió', WS.map(([y]) => V3(...wsPt(y, t))), .035, M.matte);
+          // trụ A: nối mép kính chắn gió với mép trước hông / dải kính; mui vòm + đầu mui phía trên kính
+          const PY = [2.03, 2.10, 2.25, 2.50, 2.70, 2.84, 2.88];
+          const sideFront = y => y <= 2.10 ? [C.xc, y, sideZ(y)] : y <= 2.84 ? [xWin(y), y, sideZ(y)] : [-2.70, 2.885, 1.02];
+          const pil = []; for (let i = 0; i < PY.length - 1; i++) pil.push([wsPt(PY[i], 1), sideFront(PY[i]), sideFront(PY[i + 1]), wsPt(PY[i + 1], 1)]);
+          mesh(facets(mirrorZ(pil)), M.body, shell, 'Trụ kính chắn gió', lineDark);
+          const ROOF = [[1.06, 2.84], [1.02, 2.885], [.95, 2.905], [.88, 2.925], [.70, 2.945], [.42, 2.965], [0, 2.98]], roofY = z => lerpTab([...ROOF].reverse(), Math.abs(z));
+          const roofX = z => lerpTab([[0, -2.75], [.80, -2.75], [.95, -2.74], [1.02, -2.70], [1.06, xWin(2.84)]], Math.abs(z));
+          const roofZ = [...ROOF.map(p => -p[0]), ...ROOF.slice(0, -1).reverse().map(p => p[0])];
+          for (const d of [0, T]) {
+            const polys = []; for (let k = 0; k < roofZ.length - 1; k++) { const a = roofZ[k], b = roofZ[k + 1]; polys.push([[roofX(a), roofY(a) - d, a], [C.xr, roofY(a) - d, a], [C.xr, roofY(b) - d, b], [roofX(b), roofY(b) - d, b]]); }
+            mesh(facets(polys), M.body, shell, 'Mui vòm cabin', d ? null : lineDark);
           }
-          mesh(facets(pil), M.body, shell, 'Trụ kính chắn gió', lineDark); mesh(facets(back), M.body, shell, 'Ốp sau cabin');
-          // mui cabin (nằm ngay dưới đáy khoang ngủ y = 2,98)
-          const roofS = new THREE.Shape([[wsT[0], -wsT[1]], [wsTw[0], -wsTw[1]], [-2.66, -topW], [C.xr, -topW], [C.xr, topW], [-2.66, topW], [wsTw[0], wsTw[1]], [wsT[0], wsT[1]]].map(p => new THREE.Vector2(...p)));
-          for (const k of [0, 1]) mesh(onPlane(new THREE.ShapeGeometry(roofS), V3(0, C.roof - k * T, 0), V3(1, 0, 0), V3(0, 0, 1)), M.body, shell, 'Mui cabin', k ? null : lineDark);
-          // kính chắn gió 3 tấm (giữa phẳng + 2 tấm ôm góc) và khung kính đen
-          const ws = (b, t) => [[b[0], C.belt, b[1]], [t[0], C.roof, t[1]]];
-          const [bl, tl] = ws(wsB, wsT), [blw, tlw] = ws(wsBw, wsTw), mz = p => [p[0], p[1], -p[2]];
-          mesh(facets([[mz(bl), bl, tl, mz(tl)], [bl, blw, tlw, tl], [mz(blw), mz(bl), mz(tl), mz(tlw)]]), M.glass, shell, 'Kính chắn gió', lineDark);
-          for (const [p, q] of [[mz(bl), bl], [bl, blw], [mz(bl), mz(blw)], [mz(tl), tl], [tl, tlw], [mz(tl), mz(tlw)], [blw, tlw], [mz(blw), mz(tlw)]]) bar(shell, 'Khung kính chắn gió', V3(...p), V3(...q), .035, M.matte);
-          // gạt mưa nằm dọc chân kính
-          for (const z0 of [.08, -.76]) {
-            bar(shell, 'Cần gạt mưa', V3(-3.585, 2.125, z0), V3(-3.56, 2.15, z0 + .68), .016, M.trim);
-            const pv = cyl(.02, .02, .03, M.trim, true, false); pv.position.set(-3.59, 2.115, z0); shell.add(pv);
+          const HZ = [0, .25, .50, .80, .93], head = [];
+          for (let k = 0; k < HZ.length - 1; k++) { const a = HZ[k], b = HZ[k + 1]; head.push([wsPt(2.88, a / .93), [roofX(a), roofY(a), a], [roofX(b), roofY(b), b], wsPt(2.88, b / .93)]); }
+          head.push([wsPt(2.88, 1), [roofX(.93), roofY(.93), .93], [-2.70, 2.885, 1.02]]);
+          mesh(facets(mirrorZ(head)), M.body, shell, 'Đầu mui trên kính', lineDark);
+          // gạt mưa nằm sát chân kính
+          for (const z0 of [.09, -.75]) {
+            bar(shell, 'Cần gạt mưa', V3(wsX(2.05, z0) - .02, 2.05, z0), V3(wsX(2.13, z0 + .70) - .015, 2.13, z0 + .70), .016, M.trim);
+            const pv = cyl(.02, .02, .03, M.trim, true, false); pv.position.set(wsX(2.04, z0) - .03, 2.045, z0); shell.add(pv);
           }
-          // gương chiếu hậu: hộp gương + mặt kính quay về sau, 2 tay đỡ
-          for (const sd of [-1, 1]) {
-            box(shell, 'Hộp gương chiếu hậu', .10, .50, .24, -3.12, 2.31, sd * 1.56, M.trim, true);
-            const mg = new THREE.Mesh(new THREE.PlaneGeometry(.20, .44), M.mirror); mg.rotation.y = Math.PI / 2; mg.position.set(-3.068, 2.31, sd * 1.56); shell.add(mg);
-            bar(shell, 'Tay gương', V3(-3.14, 2.135, sd * 1.31), V3(-3.14, 2.135, sd * 1.45), .022, M.matte);
-            bar(shell, 'Tay gương', V3(-3.10, 2.345, sd * 1.27), V3(-3.10, 2.345, sd * 1.45), .022, M.matte);
+          // gương chiếu hậu: hộp bo góc + mặt gương quay về sau, giá dẹt dưới + thanh chéo trên
+          for (const s of [-1, 1]) {
+            const hg = onPlane(new THREE.ExtrudeGeometry(roundRect(-.12, -.248, .12, .248, .045), { depth: .141, bevelEnabled: false, curveSegments: 3 }), V3(-3.051, 2.309, s * 1.5585), V3(0, 0, 1), V3(0, 1, 0));
+            mesh(hg, M.trim, shell, 'Hộp gương chiếu hậu', lineDark);
+            const mg = new THREE.Mesh(new THREE.PlaneGeometry(.20, .43), M.mirror); mg.rotation.y = Math.PI / 2; mg.position.set(-3.049, 2.309, s * 1.5585); mg.name = 'Mặt gương'; shell.add(mg);
+            box(shell, 'Giá gương', .097, .086, .26, -3.155, 2.135, s * 1.324, M.matte);
+            bar(shell, 'Thanh gương', V3(-2.99, 2.346, s * 1.165), V3(-3.17, 2.346, s * 1.45), .044, M.matte, true);
+            box(shell, 'Tay nắm cửa', .21, .045, .03, -1.575, 1.765, s * (sideZ(1.765) + .015), M.handle, true);
           }
-          // đường ron cửa lái/phụ (cửa ôm qua hốc bánh), nẹp thắt lưng, tay nắm cửa
-          const seam = [];
-          for (const sd of [-1, 1]) {
-            const zl = sd * (C.ws + .003), zu = y => sd * (C.ws - (y - C.belt) / (C.roof - C.belt) * (C.ws - topW) + .003);
-            const pts = [[-3.27, .95], [C.axleF - .488, .95]];
-            for (let i = 0; i <= 14; i++) { const t = Math.PI - Math.asin(.4444 / .66) - i / 14 * (Math.PI - 2 * Math.asin(.4444 / .66)); pts.push([C.axleF + .66 * Math.cos(t), C.wheelY + .66 * Math.sin(t)]); }
-            pts.push([-1.42, .95]);
-            for (let i = 0; i < pts.length - 1; i++) seam.push(pts[i][0], pts[i][1], zl, pts[i + 1][0], pts[i + 1][1], zl);
-            seam.push(-3.27, .95, zl, -3.27, C.belt, zl, -1.42, .95, zl, -1.42, C.belt, zl);
-            seam.push(-3.26, C.belt, zu(C.belt), -2.69, 2.93, zu(2.93), -2.69, 2.93, zu(2.93), -1.42, 2.93, zu(2.93), -1.42, C.belt, zu(C.belt), -1.42, 2.93, zu(2.93));
-            box(shell, 'Nẹp thắt lưng', 1.86, .035, .016, (-3.26 + C.xr) / 2, 2.035, sd * (C.ws + .008), M.handle);
-            box(shell, 'Tay nắm cửa', .20, .045, .03, -1.58, 1.765, sd * (C.ws + .015), M.handle, true);
+          // đường ron cửa (cửa ôm qua hốc bánh), gân vai, viền hốc bánh — vẽ bằng nét
+          for (const s of [-1, 1]) {
+            const on = (x, y) => [x, y, s * (y <= 2.10 ? sideZ(y) + .003 : sideZ(y) + .003)];
+            const up = x => [.92, .95, 1.15, 1.78, 1.92, 2.03, 2.10].map(y => on(x, y));
+            seamLine(up(-3.215)); seamLine(up(-1.40)); seamLine([on(-1.40, 2.10), on(-1.40, 2.84)]);
+            seamLine([on(-3.215, .92), on(archX(archL, .92), .92)]); seamLine([on(archX(archR, .92), .92), on(-1.40, .92)]);
+            seamLine(ARCH.map(([x, y]) => on(x, y)));
+            for (const y of [1.78, 1.92, 2.03]) seamLine([on(C.xc, y), on(C.xr, y)]);
           }
           const seamL = new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(seam, 3)), lineDark); seamL.name = 'Ron cửa cabin'; shell.add(seamL);
-          // lốc lườn hốc bánh trước (nửa trụ hở + vách trong)
-          for (const sd of [-1, 1]) {
-            const liner = new THREE.CylinderGeometry(C.archR, C.archR, C.ws - .95, 20, 1, true, Math.PI / 2, Math.PI); liner.rotateX(Math.PI / 2);
-            mesh(liner, M.under, inner, 'Lốc hốc bánh trước').position.set(C.axleF, C.wheelY, sd * (C.ws + .95) / 2);
-            const wall = new THREE.CircleGeometry(C.archR, 20, 0, Math.PI);
-            mesh(wall, M.under, inner, 'Vách trong hốc bánh').position.set(C.axleF, C.wheelY, sd * .95);
-          }
-          // cụm mặt ga-lăng: viền đen khoét 3 ô (2 hộp đèn + lưới tản nhiệt), đèn tròn đôi, nan lưới ngang
-          const face = rect(new THREE.Shape(), -.995, 1.21, .995, 1.62);
-          face.holes.push(rect(new THREE.Path(), -.985, 1.235, -.77, 1.595), rect(new THREE.Path(), -.75, 1.26, .75, 1.58), rect(new THREE.Path(), .77, 1.235, .985, 1.595));
-          const faceGeo = new THREE.ExtrudeGeometry(face, { depth: .025, bevelEnabled: false });
-          mesh(onPlane(faceGeo, V3(C.xf, 0, 0), V3(0, 0, 1), V3(0, 1, 0)), M.matte, shell, 'Viền ga-lăng', lineDark);
-          const front = (w, h, y, z, mat, name, dx = -.004) => { const p = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat); p.rotation.y = -Math.PI / 2; p.position.set(C.xf + dx, y, z); p.name = name; shell.add(p); return p; };
-          front(1.50, .32, 1.42, 0, M.grille, 'Nền lưới tản nhiệt');
-          for (let i = 0; i < 5; i++) box(shell, 'Nan lưới tản nhiệt', .03, .022, 1.48, C.xf - .012, 1.30 + i * .062, 0, M.lampBox);
-          for (const sd of [-1, 1]) {
-            front(.215, .36, 1.415, sd * .8775, M.lampBox, 'Hộp đèn pha');
-            for (const [y, r] of [[1.51, .062], [1.345, .078]]) {
-              const lens = new THREE.Mesh(new THREE.CircleGeometry(r, 18), M.lamp); lens.rotation.y = -Math.PI / 2; lens.position.set(C.xf - .012, y, sd * .8775); lens.name = 'Đèn pha'; shell.add(lens);
+          // cụm ga-lăng lõm sâu: khung đen bám mặt mũi xe (gờ trên/dưới cao 4 cm), lưới tản nhiệt lùi tới x = −3,60, 2 hộp đèn vuông lùi tới −3,54
+          // (mỗi hộp 2 đèn tròn), vách ngăn đen giữa lưới và hộp đèn nhô ra −3,70 — mép nhô trước nhất của cụm khi nhìn ngang
+          const xGr = -3.60, xLp = -3.54, zDiv = .79, zO = PLAN_MID[GJ][0], xMid = z => lerpTab(PLAN_MID, Math.abs(z)), gTop = 1.585, gBot = 1.25;
+          const railPlan = inset(PLAN_MID, -.012).slice(0, GJ + 1), rails = [];
+          for (const [y0, y1] of [[gTop, 1.625], [1.205, gBot]]) for (let j = 0; j < GJ; j++)
+            rails.push([[railPlan[j][1], y0, railPlan[j][0]], [railPlan[j + 1][1], y0, railPlan[j + 1][0]], [railPlan[j + 1][1], y1, railPlan[j + 1][0]], [railPlan[j][1], y1, railPlan[j][0]]]);
+          mesh(facets(mirrorZ(rails)), M.matte, shell, 'Khung ga-lăng', lineDark);
+          const curve = [...PLAN_MID.slice(1, GJ + 1).reverse().map(([z]) => -z), ...PLAN_MID.slice(0, GJ + 1).map(([z]) => z)];   // −1,06 … 1,06
+          const tunnel = shapeOf([...curve.map(z => [xMid(z), z]), [xLp, zDiv], [xGr, zDiv], [xGr, -zDiv], [xLp, -zDiv]]);   // mặt bằng lòng ga-lăng (x, z)
+          for (const y of [gTop, gBot]) mesh(new THREE.ShapeGeometry(tunnel).rotateX(Math.PI / 2).translate(0, y, 0), M.matte, shell, 'Lòng ga-lăng');
+          const facePlane = (w, h, x, y, z, mat, name) => { const p = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat); p.rotation.y = -Math.PI / 2; p.position.set(x, y, z); p.name = name; shell.add(p); return p; };
+          const gMid = (gTop + gBot) / 2, gH = gTop - gBot;
+          facePlane(2 * zDiv, gH, xGr - .001, gMid, 0, M.grille, 'Nền lưới tản nhiệt');
+          for (let i = 0; i < 5; i++) box(shell, 'Nan lưới tản nhiệt', .012, .022, 2 * zDiv - .04, xGr - .008, 1.29 + i * .065, 0, M.lampBox);
+          for (const s of [-1, 1]) {
+            box(shell, 'Vách ngăn ga-lăng', .15, gH, .03, -3.625, gMid, s * zDiv, M.matte, true);
+            facePlane(zO - zDiv, gH, xLp - .001, gMid, s * (zO + zDiv) / 2, M.lampBox, 'Hộp đèn pha');
+            for (const [y, r] of [[1.505, .062], [1.345, .078]]) {
+              const lens = new THREE.Mesh(new THREE.CircleGeometry(r, 18), M.lamp); lens.rotation.y = -Math.PI / 2; lens.position.set(xLp - .005, y, s * .9175); lens.name = 'Đèn pha'; shell.add(lens);
               const ring = new THREE.Mesh(new THREE.TorusGeometry(r, .009, 5, 18), M.handle); ring.rotation.y = Math.PI / 2; ring.position.copy(lens.position); shell.add(ring);
             }
           }
-          // cản trước ôm 2 góc vát (dải đùn theo mặt bằng xe, cao 0,57–0,93)
-          const bOut = [[-2.75, 1.364], [-3.33, 1.364], [-3.87, 1.02], [-3.87, -1.02], [-3.33, -1.364], [-2.75, -1.364]], bIn = [[-2.75, -C.ws], [C.xs, -C.ws], [C.xf, -1.0], [C.xf, 1.0], [C.xs, C.ws], [-2.75, C.ws]];
-          const bShape = new THREE.Shape([...bOut, ...bIn].map(p => new THREE.Vector2(p[0], -p[1])));
-          const bGeo = new THREE.ExtrudeGeometry(bShape, { depth: .358, bevelEnabled: false }); bGeo.rotateX(-Math.PI / 2); bGeo.translate(0, .571, 0);
-          mesh(bGeo, M.bumper, shell, 'Cản trước', lineDark);
-          // biển số "Jade" trên giá đỡ dưới tâm cản
-          box(shell, 'Giá biển số', .03, .25, .52, -3.885, .645, 0, M.trim, true);
+          // cản trước cong theo mũi xe: mép trên ngả ra trước (nhiều nhất ở 2 góc), mép dưới cao dần về 2 bên, ôm vào hông tới trước hốc bánh
+          const BUMP = [   // [z ngoài, x mép trên, x mép dưới, z trong, x trong]
+            [0, -3.88, -3.80, 0, -3.68], [.50, -3.84, -3.72, .50, -3.64], [.80, -3.80, -3.68, .78, -3.61], [.92, -3.79, -3.62, .88, -3.57],
+            [1.00, -3.70, -3.53, .96, -3.50], [1.12, -3.56, -3.42, 1.06, -3.42], [1.20, -3.47, -3.37, 1.15, -3.34], [1.26, -3.40, -3.34, 1.22, -3.28],
+            [1.33, -3.31, -3.28, 1.29, -3.18], [1.364, -3.18, -3.18, 1.305, -3.08], [1.364, -2.66, -2.66, 1.305, -2.66]];
+          const bFull = [...BUMP.slice(1).reverse().map(([zo, xt, xb, zi, xi]) => [-zo, xt, xb, -zi, xi]), ...BUMP], bumper = [];
+          const bBot = z => lerpTab([[0, .647], [.88, .638], [1.1, .628], [1.2, .62], [1.3, .615]], Math.abs(z)), bTopY = z => .925 - .025 * (z / 1.364) ** 2;
+          const bq = n => { const [zo, xt, xb, zi, xi] = bFull[n]; return { OT: [xt, bTopY(zo), zo], OB: [xb, bBot(zo), zo], IB: [xi, bBot(zi), zi], IT: [xi, bTopY(zi), zi] }; };
+          for (let n = 0; n < bFull.length - 1; n++) { const a = bq(n), b = bq(n + 1); bumper.push([a.OT, a.OB, b.OB, b.OT], [a.OB, a.IB, b.IB, b.OB], [a.IB, a.IT, b.IT, b.IB], [a.IT, a.OT, b.OT, b.IT]); }
+          for (const n of [0, bFull.length - 1]) { const a = bq(n); bumper.push([a.OT, a.OB, a.IB, a.IT]); }
+          mesh(facets(bumper), M.bumper, shell, 'Cản trước', lineDark);
+          // biển số "Jade" lõm trong giá có viền, treo dưới tâm cản
+          box(shell, 'Giá biển số', .128, .257, .53, -3.776, .6465, 0, M.trim, true);
+          for (const [h, d, y, z] of [[.025, .53, .7625, 0], [.025, .53, .5305, 0], [.257, .025, .6465, .2525], [.257, .025, .6465, -.2525]]) box(shell, 'Viền biển số', .031, h, d, -3.8555, y, z, M.trim);
           const pc = document.createElement('canvas'); pc.width = 256; pc.height = 128; const pk = pc.getContext('2d');
           pk.fillStyle = '#e4dbc5'; pk.fillRect(0, 0, 256, 128); pk.strokeStyle = '#243240'; pk.lineWidth = 6; pk.strokeRect(6, 6, 244, 116);
           pk.font = '700 84px Arial, sans-serif'; pk.textAlign = 'center'; pk.textBaseline = 'middle'; pk.fillStyle = '#243240'; pk.fillText('Jade', 128, 68);
           const plateTex = new THREE.CanvasTexture(pc); plateTex.colorSpace = THREE.SRGBColorSpace;
-          front(.42, .21, .645, 0, new THREE.MeshLambertMaterial({ map: plateTex }), 'Biển số trước · Jade', -.102);
+          facePlane(.42, .21, -3.842, .6465, 0, new THREE.MeshLambertMaterial({ map: plateTex }), 'Biển số trước · Jade');
+          // ốp trong cửa: hộc, tay vịn, tay nắm phía sau (thuộc cửa ⇒ ẩn khi xem xuyên)
+          for (const s of [-1, 1]) {
+            box(shell, 'Hộc cửa', .573, .306, .088, -2.8965, 1.182, s * 1.252, M.trim);
+            box(shell, 'Tay vịn cửa', .567, .126, .10, -2.9325, 1.676, s * 1.267, M.trim);
+            box(shell, 'Tay nắm trong cửa', .269, .111, .089, -2.1925, 1.6725, s * 1.2535, M.trim);
+            box(shell, 'Tấm che nắng', .16, .019, .637, -2.691, 2.8415, s * .5595, M.dashTrim);
+          }
 
           // ===== NỘI THẤT =====
-          // sàn: gầm (y 0,58) + thảm (y 0,956); 2 bên chỉ có phần trước hốc bánh (chỗ đặt chân lên xuống)
-          box(inner, 'Sàn cabin', 1.85, C.floorY - .58, 1.90, (-3.25 + C.xr) / 2, (C.floorY + .58) / 2, 0, M.mat);
-          for (const sd of [-1, 1]) box(inner, 'Sàn cabin', .52, C.floorY - .58, .38, -2.99, (C.floorY + .58) / 2, sd * 1.14, M.mat);
-          // ghế lái + ghế phụ: bệ đỡ, đệm ngồi, tựa lưng ngả 15°, đai viền, núm chỉnh tựa
-          for (const sd of [-1, 1]) {
-            const zc = sd * .6425;
-            box(inner, 'Bệ ghế', .95, 1.15 - C.floorY, .80, -2.08, (1.15 + C.floorY) / 2, zc, M.seatDark);
-            box(inner, 'Đệm ngồi', .72, .26, .90, -2.20, 1.28, zc, M.seat, true);
-            const back = box(inner, 'Tựa lưng', .15, 1.13, .90, -1.66, 1.89, zc, M.seat, true); back.rotation.z = -.26;
-            const band = box(back, 'Đai tựa lưng', .17, .08, .92, 0, -.40, 0, M.seatBand); band.castShadow = false;
-            const knob = cyl(.09, .09, .07, M.seatDark, true, true, lineDark, 12); knob.rotation.x = Math.PI / 2; knob.position.set(-1.77, 1.385, sd * 1.135); inner.add(knob);
-            box(inner, 'Tay vịn cửa', .55, .06, .08, -2.93, 1.68, sd * 1.25, M.trim);
-            box(inner, 'Hộc cửa', .55, .26, .05, -2.90, 1.17, sd * 1.285, M.trim);
-            box(inner, 'Tấm che nắng', .16, .012, .62, -2.69, 2.92, sd * .56, M.dashTrim);
+          // sàn: thảm (y 0,956) đặt trên khung, gầm chỉ là tấm mỏng (khay trước + tấm giữa); 2 bên thảm chỉ có phần trước/sau hốc bánh;
+          // hốc bánh trong là vòm hình thang chạy từ z 0,56 ra vách
+          box(inner, 'Tấm sàn gầm', 1.30, .01, 1.90, -1.97, .535, 0, M.under);   // tấm mỏng dưới ghế, nằm lọt giữa 2 bánh trước
+          const trayPlan = inset(NOSE[0][1], T), tray = [...trayPlan.map(([z, x]) => [x, z]), [-2.72, trayPlan[trayPlan.length - 1][0]], [-2.72, -trayPlan[trayPlan.length - 1][0]], ...trayPlan.slice(1).reverse().map(([z, x]) => [x, -z])];   // đáy mũi (+z) → góc sau → đáy mũi (−z)
+          mesh(new THREE.ExtrudeGeometry(shapeOf(tray), { depth: .045, bevelEnabled: false }).rotateX(Math.PI / 2).translate(0, .60, 0), M.under, inner, 'Khay gầm trước');
+          box(inner, 'Tấm ốp sàn sau cabin', .086, .01, 2.844, -1.265, .529, 0, M.under);   // nẹp sàn chỗ cabin nối thân ở, nhô 8 cm mỗi bên
+          box(inner, 'Thảm sàn', 1.85, .029, 1.12, -2.294, .9415, 0, M.mat);
+          for (const s of [-1, 1]) {
+            box(inner, 'Thảm sàn', .584, .029, .69, -2.927, .9415, s * .905, M.mat);
+            box(inner, 'Thảm sàn', .211, .029, .69, -1.4745, .9415, s * .905, M.mat);
+            const tub = [[-2.73, .54], ...ARCH, [-1.50, .54]], rib = []; for (let i = 0; i < tub.length - 1; i++) { const [xa, ya] = tub[i], [xb, yb] = tub[i + 1]; rib.push([[xa, ya, s * .56], [xb, yb, s * .56], [xb, yb, s * 1.30], [xa, ya, s * 1.30]]); }
+            mesh(facets(rib), M.under, inner, 'Hốc bánh trước');
+            mesh(new THREE.ShapeGeometry(shapeOf(tub)).translate(0, 0, s * .56), M.under, inner, 'Vách trong hốc bánh');
           }
-          // táp-lô: biên dạng đùn suốt bề ngang cabin (mặt trên dưới kính chắn gió, mặt sau quay về người lái)
-          const dashS = new THREE.Shape([[-3.62, 2.09], [-3.10, 2.09], [-3.03, 2.00], [-3.03, 1.50], [-3.20, 1.20], [-3.25, C.floorY], [-3.62, C.floorY]].map(p => new THREE.Vector2(...p)));
-          const dashGeo = new THREE.ExtrudeGeometry(dashS, { depth: 2.5, bevelEnabled: false }); dashGeo.translate(0, 0, -1.25);
-          const dash = new THREE.Group(); dash.name = 'Táp-lô'; dash.userData.xray = 'shell'; inner.add(dash);   // xem xuyên: ẩn táp-lô để lộ vô-lăng, cần số, sàn
-          mesh(dashGeo, M.dash, dash, 'Táp-lô', lineDark);
-          for (const sd of [-1, 1]) box(dash, 'Khe sấy kính', .05, .006, .6, -3.52, 2.093, sd * .38, M.matte);
-          // cụm đồng hồ trước ghế lái: hộp che + mặt 3 đồng hồ (vẽ canvas)
-          box(dash, 'Hộp đồng hồ', .26, .28, .78, -3.17, 2.04, .61, M.dashTrim, true);
-          const gc = document.createElement('canvas'); gc.width = 256; gc.height = 80; const gk = gc.getContext('2d');
-          gk.fillStyle = '#90b2a0'; gk.fillRect(0, 0, 256, 80);
-          [[44, 40, 30], [128, 40, 36], [212, 40, 30]].forEach(([cx, cy, r], i) => {
-            gk.fillStyle = '#20292b'; gk.beginPath(); gk.arc(cx, cy, r, 0, Math.PI * 2); gk.fill();
-            gk.strokeStyle = '#d9e4dc'; gk.lineWidth = 2; for (let k = 0; k <= 8; k++) { const t = Math.PI * (.8 + k * .175); gk.beginPath(); gk.moveTo(cx + Math.cos(t) * r * .78, cy + Math.sin(t) * r * .78); gk.lineTo(cx + Math.cos(t) * r * .92, cy + Math.sin(t) * r * .92); gk.stroke(); }
-            const t = Math.PI * (1.1 + i * .3); gk.strokeStyle = '#f08a3c'; gk.lineWidth = 3; gk.beginPath(); gk.moveTo(cx, cy); gk.lineTo(cx + Math.cos(t) * r * .75, cy + Math.sin(t) * r * .75); gk.stroke();
+          // ghế lái + ghế phụ: đệm bo mép trước, lõm giữa; tựa lưng bo 2 góc trên, mặt trước lõm, ngả 15,6°; đai viền, núm chỉnh răng cưa; 4 chân + 2 ray trượt
+          const shaped = (w, h, d, segs, fn) => { const g = new THREE.BoxGeometry(w, h, d, ...segs), p = g.attributes.position, v = new THREE.Vector3(); for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i); fn(v); p.setXYZ(i, v.x, v.y, v.z); } g.computeVertexNormals(); return g; };
+          const roundCorner = (v, a, b, ca, cb, r) => { const da = v[a] * Math.sign(ca) - Math.abs(ca), db = v[b] * Math.sign(cb) - Math.abs(cb); if (da > 0 && db > 0) { const l = Math.hypot(da, db); if (l > r * .999) { v[a] = Math.sign(ca) * (Math.abs(ca) + da / l * r); v[b] = Math.sign(cb) * (Math.abs(cb) + db / l * r); } } };
+          const cushionGeo = shaped(.90, .304, .96, [12, 4, 12], v => {
+            roundCorner(v, 'x', 'y', -(.45 - .08), .152 - .08, .08);   // mép trên phía trước bo tròn
+            const k = Math.min(1, Math.max(0, (v.y - .06) / .09)); v.y -= .032 * k * Math.max(0, 1 - (v.z / .38) ** 2);   // lõm giữa, 2 má ghế nhô
           });
+          const backGeo = shaped(.16, .96, .96, [2, 10, 12], v => {
+            for (const s of [-1, 1]) roundCorner(v, 'z', 'y', s * (.48 - .12), .48 - .12, .12);
+            if (v.x < 0) v.x += .04 * Math.max(0, 1 - (v.z / .40) ** 2);   // mặt tựa lõm, 2 má ôm lưng
+          });
+          const gear = new THREE.Shape(); for (let i = 0; i <= 28; i++) { const t = i / 28 * Math.PI * 2, r = i % 2 ? .085 : .098; i ? gear.lineTo(Math.cos(t) * r, Math.sin(t) * r) : gear.moveTo(r, 0); }
+          const gearGeo = new THREE.ExtrudeGeometry(gear, { depth: .06, bevelEnabled: false }).translate(0, 0, -.03);
+          for (const s of [-1, 1]) {
+            const zc = s * .64;
+            mesh(cushionGeo, M.seat, inner, 'Đệm ngồi', lineDark).position.set(-2.15, 1.368, zc);
+            box(inner, 'Hộp sau ghế', .378, .444, 1.104, -1.725, 1.361, s * .696, M.dashTrim);   // hộp che chân tựa lưng, nối đệm với sàn
+            const back = mesh(backGeo, M.seat, inner, 'Tựa lưng', lineDark); back.position.set(-1.65, 1.985, zc); back.rotation.z = -.272;
+            const band = box(back, 'Đai tựa lưng', .18, .07, .98, 0, -.40, 0, M.seatBand); band.castShadow = false;
+            mesh(gearGeo, M.seatDark, inner, 'Núm chỉnh tựa', lineDark).position.set(-1.77, 1.385, s * 1.15);
+            for (const x of [-2.472, -1.697]) for (const zl of [.282, 1.025]) box(inner, 'Chân ghế', .166, .224, .074, x, 1.039, s * zl, M.seatDark);
+            for (const zl of [.282, 1.031]) box(inner, 'Ray trượt ghế', .951, .046, .106, -2.0805, 1.174, s * zl, M.mat);
+          }
+          // táp-lô: hõm gối + gờ, mặt đứng, mặt nghiêng 31° lên chân kính; mặt trước là vách lửa nghiêng từ chân kính xuống sàn (ẩn khi xem xuyên)
+          const dash = new THREE.Group(); dash.name = 'Táp-lô'; dash.userData.xray = 'shell'; inner.add(dash);
+          const dashGeo = new THREE.ExtrudeGeometry(shapeOf([[-3.25, C.floorY], [-3.20, C.floorY], [-3.27, 1.18], [-3.05, 1.46], [-3.11, 1.50], [-3.12, 1.78], [-3.55, 2.035], [-3.60, 2.035], [-3.32, 1.60], [-3.30, 1.20]]), { depth: 2.5, steps: 25, bevelEnabled: false }).translate(0, 0, -1.25);
+          behindNose(dashGeo);
+          mesh(dashGeo, M.dash, dash, 'Táp-lô', lineDark);
+          const incl = new THREE.Vector2(-3.55 - -3.12, 2.035 - 1.78).normalize(), inclAng = Math.atan2(incl.y, incl.x), onIncl = (t, lift) => V3(-3.12 + incl.x * t + incl.y * lift, 1.78 + incl.y * t - incl.x * lift, 0);
+          // cụm đồng hồ trước ghế lái: hộp có mái che, mặt 3 đồng hồ chữ nhật lõm sâu (vẽ canvas)
+          const binGeo = new THREE.ExtrudeGeometry(shapeOf([[-3.27, 1.869], [-3.27, 2.12], [-3.10, 2.13], [-3.10, 2.18], [-3.30, 2.18], [-3.50, 2.10], [-3.55, 2.035]]), { depth: .74, steps: 8, bevelEnabled: false }).translate(0, 0, .24);
+          behindNose(binGeo);
+          mesh(binGeo, M.dashTrim, dash, 'Hộp đồng hồ', lineDark);
+          const gc = document.createElement('canvas'); gc.width = 256; gc.height = 96; const gk = gc.getContext('2d');
+          gk.fillStyle = '#20292b'; gk.fillRect(0, 0, 256, 96);
+          for (let i = 0; i < 3; i++) {
+            const x0 = 8 + i * 84; gk.fillStyle = '#e3d9a8'; gk.fillRect(x0, 10, 72, 76);
+            gk.strokeStyle = '#2b2a26'; gk.lineWidth = 2; gk.beginPath(); gk.arc(x0 + 36, 60, 28, Math.PI * 1.1, Math.PI * 1.9); gk.stroke();
+            for (let k = 0; k <= 6; k++) { const t = Math.PI * (1.1 + k * .8 / 6); gk.beginPath(); gk.moveTo(x0 + 36 + Math.cos(t) * 24, 60 + Math.sin(t) * 24); gk.lineTo(x0 + 36 + Math.cos(t) * 30, 60 + Math.sin(t) * 30); gk.stroke(); }
+            const t = Math.PI * (1.25 + i * .22); gk.strokeStyle = '#c0392b'; gk.lineWidth = 3; gk.beginPath(); gk.moveTo(x0 + 36, 60); gk.lineTo(x0 + 36 + Math.cos(t) * 26, 60 + Math.sin(t) * 26); gk.stroke();
+          }
           const gaugeTex = new THREE.CanvasTexture(gc); gaugeTex.colorSpace = THREE.SRGBColorSpace;
-          const gauge = new THREE.Mesh(new THREE.PlaneGeometry(.54, .17), new THREE.MeshLambertMaterial({ map: gaugeTex })); gauge.name = 'Mặt đồng hồ';
-          gauge.rotation.y = Math.PI / 2; gauge.position.set(-3.038, 2.03, .63); dash.add(gauge);
-          // giữa táp-lô: cửa gió nan ngang + hàng 5 công tắc; hộc đựng đồ bên phụ; 2 loa ở góc
-          box(dash, 'Cửa gió giữa', .01, .17, .30, -3.028, 1.88, .07, M.matte);
-          for (let i = 0; i < 6; i++) box(dash, 'Nan cửa gió', .012, .008, .29, -3.022, 1.81 + i * .028, .07, M.dashTrim);
-          for (let i = 0; i < 5; i++) { const s = cyl(.011, .011, .045, M.switchCap, true, false, null, 8); s.rotation.z = Math.PI / 2; s.position.set(-3.01, 1.70, .035 + i * .06); dash.add(s); }
-          box(dash, 'Nắp hộc đựng đồ', .02, .17, .62, -3.025, 1.87, -.44, M.dashTrim, true);
-          box(dash, 'Khoá hộc', .012, .03, .07, -3.012, 1.92, -.44, M.matte);
-          for (const sd of [-1, 1]) {
-            const spk = new THREE.Mesh(new THREE.CircleGeometry(.09, 16), M.matte); spk.rotation.y = Math.PI / 2; spk.position.set(-3.027, 1.64, sd * .93); spk.name = 'Loa'; dash.add(spk);
-            const rim = new THREE.Mesh(new THREE.TorusGeometry(.095, .008, 5, 16), M.dashTrim); rim.rotation.y = Math.PI / 2; rim.position.copy(spk.position); dash.add(rim);
+          const gauge = new THREE.Mesh(new THREE.PlaneGeometry(.56, .21), new THREE.MeshLambertMaterial({ map: gaugeTex })); gauge.name = 'Mặt đồng hồ';
+          gauge.rotation.y = Math.PI / 2; gauge.position.set(-3.268, 1.995, .61); dash.add(gauge);
+          // giữa táp-lô: cửa gió nan ngang trên mặt nghiêng, 5 núm ở mặt đứng; hộc đựng đồ nhô ra bên phụ; 2 loa; cửa gió đứng 2 đầu; 2 khe sấy kính
+          const vMid = onIncl(.23, .004), vent2 = box(dash, 'Cửa gió giữa', .235, .006, .29, vMid.x, vMid.y, .0685, M.matte); vent2.rotation.z = inclAng;
+          for (let i = 0; i < 12; i++) { const p = onIncl(.125 + i * .019, .012); const s2 = box(dash, 'Nan cửa gió', .006, .01, .27, p.x, p.y, .0685, M.dashTrim); s2.rotation.z = inclAng; }
+          for (const z of [.035, .095, .155, .216, .283]) { const k = cyl(.02, .02, .035, M.switchCap, true, false, null, 10); k.rotation.z = Math.PI / 2; k.position.set(-3.10, 1.688, z); dash.add(k); }
+          const gbGeo = new THREE.ExtrudeGeometry(shapeOf([[-3.12, 1.784], [-3.04, 1.784], [-3.04, 1.93], [-3.09, 1.96], [-3.39, 1.96], [-3.39, 1.940]]), { depth: .632, bevelEnabled: false }).translate(0, 0, -.758);
+          mesh(gbGeo, M.dashTrim, dash, 'Hộc đựng đồ', lineDark);
+          box(dash, 'Khoá hộc', .012, .03, .07, -3.034, 1.87, -.44, M.matte);
+          for (const s of [-1, 1]) {
+            const spk = cyl(.095, .103, .07, M.matte, true, false, null, 16); spk.rotation.z = -Math.PI / 2; spk.position.set(-3.07, 1.64, s * .934); spk.name = 'Loa'; dash.add(spk);
+            const rim = new THREE.Mesh(new THREE.TorusGeometry(.09, .008, 5, 16), M.dashTrim); rim.rotation.y = Math.PI / 2; rim.position.set(-3.034, 1.64, s * .934); dash.add(rim);
+            box(dash, 'Cửa gió đầu táp-lô', .25, .356, .096, -3.216, 1.947, s * 1.049, M.dashTrim, true);
+            for (let i = 0; i < 6; i++) box(dash, 'Lá cửa gió', .012, .012, .085, -3.088, 1.87 + i * .04, s * 1.049, M.matte);
+            const d = onIncl(.47, .004), slot = box(dash, 'Khe sấy kính', .045, .006, .68, d.x, d.y, s * .37, M.matte); slot.rotation.z = inclAng;
           }
-          // cột lái nghiêng 22° kiểu xe tải + vô-lăng 3 chấu vuông góc cột lái
-          const colA = V3(-3.15, 1.12, .615), hubP = V3(-2.775, 2.04, .615), colDir = new THREE.Vector3().subVectors(hubP, colA).normalize();
-          bar(inner, 'Cột lái', colA, hubP, .03, M.matte, true);
-          const wheel = new THREE.Group(); wheel.name = 'Vô-lăng'; wheel.position.copy(hubP); wheel.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), colDir); inner.add(wheel);
-          const ring = new THREE.Mesh(new THREE.TorusGeometry(.235, .019, 6, 16), M.mat); ring.castShadow = true; wheel.add(ring);
-          for (let k = 0; k < 3; k++) { const t = Math.PI / 2 + k * Math.PI * 2 / 3; bar(wheel, 'Chấu vô-lăng', V3(0, 0, .005), V3(Math.cos(t) * .225, Math.sin(t) * .225, 0), .022, M.mat); }
+          // cột lái nghiêng 19° kiểu xe tải + vô-lăng 12 cạnh, 3 chấu chữ T, vuông góc cột lái
+          const hubP = V3(-2.768, 2.05, .6145), colDir = V3(Math.sin(.332), Math.cos(.332), 0), colA = hubP.clone().addScaledVector(colDir, -(2.05 - .93) / colDir.y);
+          bar(inner, 'Cột lái', colA, hubP.clone().addScaledVector(colDir, -.02), .03, M.matte, true);
+          const wheel = new THREE.Group(); wheel.name = 'Vô-lăng'; wheel.position.copy(hubP); wheel.quaternion.setFromUnitVectors(V3(0, 0, 1), colDir); inner.add(wheel);
+          const ring = new THREE.Mesh(new THREE.TorusGeometry(.23, .02, 6, 12), M.mat); ring.castShadow = true; wheel.add(ring);
+          for (const t of [0, Math.PI / 2, -Math.PI / 2]) bar(wheel, 'Chấu vô-lăng', V3(0, 0, .005), V3(Math.cos(t) * .22, Math.sin(t) * .22, 0), .022, M.mat);
           const hubCap = cyl(.045, .045, .03, M.matte, true, true, lineDark, 12); hubCap.rotation.x = Math.PI / 2; wheel.add(hubCap);
-          // cần số trên sàn giữa 2 ghế (chụp cao su + cần + núm), 3 bàn đạp
-          const bootM = cyl(.05, .07, .11, M.matte, true, false, null, 10); bootM.position.set(-2.905, C.floorY + .055, .12); inner.add(bootM);
-          bar(inner, 'Cần số', V3(-2.905, C.floorY + .1, .12), V3(-2.70, 1.83, .12), .012, M.mat, true);
-          const gearKnob = sph(.035, M.seat, true, false); gearKnob.position.set(-2.695, 1.845, .12); inner.add(gearKnob);
-          for (const z of [.39, .50, .80]) {
-            const pad = box(inner, 'Bàn đạp', .03, .11, .07, -3.17, 1.04, z, M.trim); pad.rotation.z = .5;
-            bar(inner, 'Cần bàn đạp', V3(-3.19, 1.09, z), V3(-3.23, 1.32, z), .014, M.matte);
-          }
+          // cần số giữa 2 ghế (chụp cao su + cần + núm), 3 bàn đạp bản lề sàn nghiêng 45°
+          const bootM = cyl(.05, .087, .127, M.matte, true, false, null, 10); bootM.position.set(-2.906, C.floorY + .04, .1225); inner.add(bootM);
+          bar(inner, 'Cần số', V3(-2.94, 1.04, .1225), V3(-2.70, 1.83, .1225), .013, M.mat, true);
+          const gearKnob = sph(.035, M.seat, true, false); gearKnob.position.set(-2.694, 1.846, .1225); inner.add(gearKnob);
+          for (const [z, l] of [[.392, .33], [.504, .29], [.80, .29]]) { const pad = box(inner, 'Bàn đạp', l, .018, .06, -3.195, 1.035, z, M.trim); pad.rotation.z = 2.38; }
 
-          // ===== BÁNH XE: lốp tiện theo biên dạng (vai bo tròn), mâm thép dập lòng chảo, 6 ốc tắc-kê =====
-          const tyreGeo = new THREE.LatheGeometry([[.31, -.19], [.40, -.199], [.452, -.188], [.492, -.16], [.506, -.115], [.506, .115], [.492, .16], [.452, .188], [.40, .199], [.31, .19]].map(p => new THREE.Vector2(...p)), 28);
-          const rimGeo = new THREE.LatheGeometry([[.315, .186], [.30, .19], [.275, .178]].map(p => new THREE.Vector2(...p)), 28);
-          const grooveGeo = new THREE.LatheGeometry([[.276, .178], [.25, .158], [.238, .156]].map(p => new THREE.Vector2(...p)), 28);
-          const dishGeo = new THREE.LatheGeometry([[.24, .156], [.20, .16], [.19, .166], [.075, .174]].map(p => new THREE.Vector2(...p)), 28);
-          const hubGeo = new THREE.LatheGeometry([[.076, .172], [.07, .19], [.045, .196], [0, .198]].map(p => new THREE.Vector2(...p)), 16);
-          const backGeo = new THREE.CircleGeometry(.315, 24);
-          for (const g of [tyreGeo, rimGeo, grooveGeo, dishGeo, hubGeo]) g.rotateX(Math.PI / 2);   // trục tiện (y) → trục bánh (z); phía +z là mặt ngoài
+          // ===== BÁNH XE: lốp tiện theo biên dạng (vai vuông bo nhẹ), mâm thép: vành, lòng chảo, đáy chảo, bệ trục tối, nắp trục, 6 ốc =====
+          const lathe = (pts, n = 28) => new THREE.LatheGeometry(pts.map(p => new THREE.Vector2(...p)), n);
+          const tyreGeo = lathe([[.31, -.19], [.40, -.199], [.46, -.193], [.495, -.176], [.506, -.152], [.506, .152], [.495, .176], [.46, .193], [.40, .199], [.31, .19]]);
+          const rimGeo = lathe([[.316, .152], [.30, .157], [.28, .150], [.25, .12]]), dishGeo = lathe([[.25, .12], [.20, .12]]);
+          const bossGeo = lathe([[.20, .12], [.196, .165], [.07, .17]]), capGeo = lathe([[.07, .17], [.06, .185], [0, .188]], 16);
+          const backDisc = new THREE.CircleGeometry(.315, 24);
+          for (const g of [tyreGeo, rimGeo, dishGeo, bossGeo, capGeo]) g.rotateX(Math.PI / 2);   // trục tiện (y) → trục bánh (z); phía +z là mặt ngoài
           const nutGeo = new THREE.CylinderGeometry(.017, .017, .022, 6); nutGeo.rotateX(Math.PI / 2);
           function roadWheel(x, z, outward, name) {
             const w = new THREE.Group(); w.name = name; w.position.set(x, C.wheelY, z); if (outward < 0) w.rotation.y = Math.PI;
             const t = new THREE.Mesh(tyreGeo, M.tyre); t.castShadow = t.receiveShadow = true; edge(t, tyreGeo, lineDark); w.add(t);
-            for (const [g, m] of [[rimGeo, M.rim], [grooveGeo, M.rimDark], [dishGeo, M.rim], [hubGeo, M.hub]]) { const p = new THREE.Mesh(g, m); p.castShadow = true; w.add(p); }
-            const bk = new THREE.Mesh(backGeo, M.rimDark); bk.position.z = -.19; bk.rotation.y = Math.PI; w.add(bk);
-            for (let k = 0; k < 6; k++) { const n = new THREE.Mesh(nutGeo, M.tyre); n.position.set(Math.cos(k * Math.PI / 3) * .13, Math.sin(k * Math.PI / 3) * .13, .18); w.add(n); }
+            for (const [g, m] of [[rimGeo, M.rim], [dishGeo, M.hub], [bossGeo, M.rimDark], [capGeo, M.hub]]) { const p = new THREE.Mesh(g, m); p.castShadow = true; w.add(p); }
+            const bk = new THREE.Mesh(backDisc, M.rimDark); bk.position.z = -.19; bk.rotation.y = Math.PI; w.add(bk);
+            for (let k = 0; k < 6; k++) { const n = new THREE.Mesh(nutGeo, M.tyre); n.position.set(Math.cos(k * Math.PI / 3) * .13, Math.sin(k * Math.PI / 3) * .13, .175); w.add(n); }
             wheels.add(w);
           }
           for (const sd of [-1, 1]) {
@@ -5013,22 +5102,28 @@
         }
 
         // ---- ĐÈN BÀN HỌC dựng bằng code (cao 0,45 m, gốc ở tâm đáy đế, tay đèn vươn theo +Z): đế gỗ tròn vát mép, khớp chân,
-        //      tay đứng + tay ngang mảnh, chụp trụ hở đáy — mặt LED nằm lõm trong lòng chụp; dây điện chạy dọc tay đèn ----
-        const WORK_LAMP_HEAD = { x: 0, z: 0.219, radius: 0.039, ledY: 0.43 };
+        //      tay đứng + tay ngang mảnh, chụp trụ hở đáy — mặt LED nằm lõm trong lòng chụp; dây điện luồn trong tay đèn ----
+        const WORK_LAMP_HEAD = { x: -0.002, z: 0.219, radius: 0.039, ledY: 0.43 };
         function workLamp(parent) {
           const lamp = new THREE.Group(); lamp.name = 'Đèn bàn học';
-          const body = new THREE.MeshLambertMaterial({ color: 0x26282b, side: THREE.DoubleSide }), wood = new THREE.MeshLambertMaterial({ color: 0x2f3134 }), cord = new THREE.MeshLambertMaterial({ color: 0x161718 });
+          const body = new THREE.MeshLambertMaterial({ color: 0x26282b, side: THREE.DoubleSide }), wood = new THREE.MeshLambertMaterial({ color: 0x2f3134 });
           const add = (geo, mat, x, y, z, name) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.name = name; m.castShadow = m.receiveShadow = true; lamp.add(m); return m; };
           const H = WORK_LAMP_HEAD, armZ = -.079, armY = .4085;
-          add(new THREE.LatheGeometry([[0, .002], [.094, .002], [.1, .007], [.1, .016], [.095, .021], [0, .021]].map(p => new THREE.Vector2(...p)), 36), wood, 0, 0, 0, 'Đế gỗ');
-          add(new THREE.CylinderGeometry(.012, .013, .045, 14), body, 0, .043, armZ, 'Chân khớp');
+          // đế gỗ: đĩa Ø 0,2 m có khe ở mép cho khối khớp chân ngồi vào, vát mép dưới; 2 miếng đệm chân hình viên phân lót dưới
+          const disc = new THREE.Shape(), nh = .013, a0 = Math.asin(nh / .1);
+          disc.absarc(0, 0, .1, -Math.PI / 2 + a0, Math.PI * 1.5 - a0, false); disc.lineTo(-nh, -.088); disc.lineTo(nh, -.088); disc.closePath();   // khe ở phía −z (dưới chân tay đèn)
+          add(new THREE.ExtrudeGeometry(disc, { depth: .013, bevelEnabled: false, curveSegments: 40 }).rotateX(Math.PI / 2).translate(0, .021, 0), wood, 0, 0, 0, 'Đế gỗ');
+          add(new THREE.LatheGeometry([[0, .002], [.094, .002], [.1, .008], [0, .008]].map(p => new THREE.Vector2(...p)), 36), wood, 0, 0, 0, 'Vát đáy đế');
+          const pad = new THREE.Shape(), arc = (t0, t1) => { for (let i = 0; i <= 6; i++) { const t = t0 + (t1 - t0) * i / 6; pad.lineTo(.098 * Math.cos(t), .098 * Math.sin(t)); } };
+          pad.moveTo(.025, -.08); arc(Math.atan2(-.08, Math.sqrt(.098 ** 2 - .08 ** 2)), Math.atan2(-.0431, .088)); pad.lineTo(.088, .0431); arc(Math.atan2(.0431, .088), Math.atan2(.08, Math.sqrt(.098 ** 2 - .08 ** 2))); pad.lineTo(.025, .08); pad.closePath();
+          const padGeo = new THREE.ExtrudeGeometry(pad, { depth: .002, bevelEnabled: false }).rotateX(Math.PI / 2).translate(0, .002, 0);
+          add(padGeo, wood, 0, 0, 0, 'Chân đế'); add(padGeo.clone().rotateY(Math.PI), wood, 0, 0, 0, 'Chân đế');   // xoay 180° (đệm đối xứng theo z) để giữ chiều mặt
+          add(new THREE.BoxGeometry(.024, .052, .024), body, .001, .032, armZ, 'Chân khớp');
           for (const y of [.058, .407]) add(new THREE.CylinderGeometry(.013, .013, .026, 14).rotateZ(Math.PI / 2), body, 0, y, armZ, 'Khớp xoay');
-          add(new THREE.CylinderGeometry(.0062, .0062, .33, 10), body, 0, .236, armZ, 'Tay đứng');
-          add(new THREE.CylinderGeometry(.0075, .0075, H.z - H.radius - armZ, 10).rotateX(Math.PI / 2), body, 0, armY, (armZ + H.z - H.radius) / 2, 'Tay ngang');
+          add(new THREE.CylinderGeometry(.0062, .0062, .33, 10), body, .001, .236, armZ, 'Tay đứng');
+          add(new THREE.CylinderGeometry(.0065, .0065, H.z - H.radius - armZ, 10).rotateX(Math.PI / 2), body, 0, armY, (armZ + H.z - H.radius) / 2, 'Tay ngang');
           add(new THREE.CylinderGeometry(H.radius, H.radius, .113, 24, 1, true), body, H.x, .3935, H.z, 'Chụp đèn');
           add(new THREE.CircleGeometry(H.radius, 24).rotateX(-Math.PI / 2), body, H.x, .45, H.z, 'Nắp chụp');
-          const path = new THREE.CatmullRomCurve3([[.011, .03, armZ - .012], [.011, .07, armZ - .006], [.011, .40, armZ - .006], [.006, .418, -.04], [.004, .416, .17]].map(p => new THREE.Vector3(...p)));
-          add(new THREE.TubeGeometry(path, 40, .0025, 5, false), cord, 0, 0, 0, 'Dây điện');
           parent.add(lamp);
           return lamp;
         }
