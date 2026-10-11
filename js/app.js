@@ -2635,6 +2635,74 @@
           g.userData.treeWind = tw; g.userData.blossomPts = blossomPts;   // cánh hoa rơi sinh từ chính các chùm hoa (toạ độ cục bộ)
           return g;
         }
+        // ---- MẶT NƯỚC & DÒNG CHẢY cho vật trôi (lá, cánh hoa) và cá ----
+        //  · Mực nước tĩnh theo ô: hồ trên đập 6,6 m · sông dưới đập 3,0 m (đúng mặt lưới nước), cộng ĐÚNG hàm sóng của shader mặt nước.
+        //    (Độ cao địa hình của vài ô nước sát bãi san phẳng bị nội suy lên 7,2 m — không dùng cho mặt nước.)
+        //  · Dòng chảy mặt: dọc tim sông về hạ lưu (+z), mặt cắt ngang parabol (giữa nhanh, sát bờ còn ~15%), lòng rộng thì chậm lại
+        //    (bảo toàn lưu lượng); hồ trên đập gần như lặng; dưới đập nước tỏa ra từ 3 cửa xả rồi nhập dòng; thêm xoáy nhỏ trôi chậm.
+        //  · Theo độ sâu: luật lũy thừa 1/7 — sát đáy chậm, gần mặt nhanh.
+        const DAM_J1 = DAM_J + 2 * S, RIVER_U = 0.32, LAKE_U = 0.03;
+        const DAM_OUTLETS = [[dcx - 1.8, dz + dsZ + 3.8], [dcx + 5.0, dz + dsZ + 3.8], [dcx + 11.8, dz + dsZ + 3.8]];
+        const waterCell = (i, j) => isWater(i, j) && !(j >= DAM_J && j < DAM_J1);   // ô thân đập không phải mặt nước
+        const waterBaseY = j => Math.round((j < DAM_J ? RES : DOWN) * S) * BLOCK;
+        function waveAt(x, z) {
+          const sh = waterMat.userData.shader; if (!sh) return 0;
+          const T = sh.uniforms.uTime.value; let w = Math.sin(T * 3 + x * 0.6) * 0.05 + Math.cos(T * 2.2 + z * 0.6) * 0.05;
+          for (const c of sh.uniforms.uRippleCenters.value) { const d = Math.hypot(x - c.x, z - c.y); if (d < 18) w += Math.sin(d * 3 - T * 7.5) * 0.48 * (1 - d / 18) / (1 + d * 0.25); }
+          return w;
+        }
+        const waterSurfaceY = (x, z) => waterBaseY(Math.round(z2gj(z))) + waveAt(x, z);
+        function riverBedY(i, j) {   // đúng công thức đáy sông lúc dựng địa hình (đáy nhấp nhô, sâu ở giữa lòng)
+          const surf = Math.round((j < DAM_J ? RES : DOWN) * S), tt = Math.min(1, riverDist(i, j) / Math.max(1, riverHalf(j)));
+          const bed = Math.round(surf - (1 + 2.6 * (1 - tt * tt)) + Math.sin(i * 0.5) * Math.sin(j * 0.4 + 1.1) * 0.8);
+          return Math.max(0, Math.min(surf - 1, bed)) * BLOCK;
+        }
+        function waterFlow(x, z, t, out) {   // vận tốc dòng mặt nước (m/s) → out.x, out.z
+          const i = x2gi(x), j = z2gj(z), dc = riverC(j + 0.5) - riverC(j - 0.5), n = Math.hypot(dc, 1);
+          const half = Math.max(1, riverHalf(j)), d = Math.min(1, riverDist(i, j) / half);
+          const u = (j < DAM_J ? LAKE_U : RIVER_U * RHALF / half) * Math.max(0.15, 1 - d * d);
+          out.x = dc / n * u; out.z = u / n;
+          if (j >= DAM_J1) for (const [ox, oz] of DAM_OUTLETS) {   // dưới đập: nước tỏa ra từ cửa xả (chỉ phía hạ lưu cửa)
+            const ex = x - ox, ez = z - oz, r = Math.hypot(ex, ez);
+            if (r > 0.3 && r < 14 && ez > -1) { const k = 0.45 * (1 - r / 14) / r; out.x += ex * k; out.z += ez * k; }
+          }
+          out.x += 0.05 * Math.sin(z * 0.9 + t * 0.35); out.z += 0.05 * Math.cos(x * 0.8 - t * 0.3);   // xoáy nhỏ trôi chậm
+          return out;
+        }
+        // gợn tròn nhỏ (lá chạm nước, cá đớp, bọt vỡ) + bọt khí từ miệng cá — pool cố định, không cấp phát khi chạy
+        const waterFx = (() => {
+          const ringGeo = new THREE.RingGeometry(0.86, 1, 24); ringGeo.rotateX(-Math.PI / 2);
+          const rings = Array.from({ length: 12 }, () => {
+            const m = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0xe8f4ff, transparent: true, opacity: 0, depthWrite: false }));
+            m.visible = false; m.renderOrder = 2; m.name = 'Gợn nước nhỏ'; scene.add(m); return { m, t: 1, dur: 1, size: 0.2 };
+          });
+          const NB = 18, bub = new THREE.InstancedMesh(new THREE.SphereGeometry(0.018, 6, 4), new THREE.MeshBasicMaterial({ color: 0xeaf6ff, transparent: true, opacity: 0.75, depthWrite: false }), NB);
+          bub.frustumCulled = false; bub.name = 'Bọt khí từ miệng cá'; scene.add(bub);
+          const B = Array.from({ length: NB }, () => ({ p: new THREE.Vector3(), on: false, ph: 0, v: 0.3 })), mtx = new THREE.Matrix4(), zero = new THREE.Matrix4().makeScale(0, 0, 0);
+          for (let k = 0; k < NB; k++) bub.setMatrixAt(k, zero);
+          let ri = 0, bi = 0, active = 0;
+          const fx = {
+            ring(x, y, z, size) { const r = rings[ri++ % rings.length]; Object.assign(r, { t: 0, dur: 1.1 + size * 2, size }); r.m.position.set(x, y + 0.008, z); r.m.scale.setScalar(0.01); r.m.visible = true; active = 1; },
+            bubbles(x, y, z, n) { for (let k = 0; k < n; k++) { const b = B[bi++ % NB]; b.p.set(x + (Math.random() - 0.5) * 0.06, y + k * 0.03, z + (Math.random() - 0.5) * 0.06); b.on = true; b.ph = Math.random() * TAU; b.v = 0.25 + Math.random() * 0.2; } active = 1; },
+            update(dt, t) {
+              if (!active) return;
+              let any = false;
+              for (const r of rings) {
+                if (!r.m.visible) continue;
+                r.t += dt; const k = r.t / r.dur; if (k >= 1) { r.m.visible = false; continue; }
+                any = true; r.m.scale.setScalar(r.size * (0.2 + 0.8 * Math.sqrt(k))); r.m.material.opacity = 0.5 * (1 - k);
+              }
+              for (let k = 0; k < NB; k++) {
+                const b = B[k]; if (!b.on) continue;
+                b.p.y += b.v * dt; b.p.x += Math.sin(t * 9 + b.ph) * 0.03 * dt; const top = waterSurfaceY(b.p.x, b.p.z);
+                if (b.p.y >= top - 0.01) { b.on = false; bub.setMatrixAt(k, zero); fx.ring(b.p.x, top, b.p.z, 0.07); any = true; continue; }   // bọt vỡ trên mặt nước
+                any = true; bub.setMatrixAt(k, mtx.makeTranslation(b.p.x, b.p.y, b.p.z));
+              }
+              bub.instanceMatrix.needsUpdate = true; if (!any) active = 0;
+            }
+          };
+          return fx;
+        })();
         // ---- LÁ / CÁNH HOA RỤNG THEO GIÓ (vật lý hạt, hệ thế giới) ----
         //  · RỤNG: tốc độ ∝ lực cản đang đè lên tán (|U|^1,3) → cơn giật mạnh bứt lá/cánh hoa ra hàng loạt.
         //  · RƠI: lực cản BẬC HAI theo vận tốc so với GIÓ ĐỊA PHƯƠNG (trung bình theo độ cao + nhiễu loạn 3D, kể cả luồng lên/xuống) + trọng lực;
@@ -2642,16 +2710,19 @@
         //  · KIỂU RƠI (Andersen–Pesavento–Wang 2005, Re ~10³ như lá thật): ĐU ĐƯA — lượn qua lại như con lắc, rơi nhanh nhất ở giữa nhịp,
         //    chậm lại, ngóc lên và hơi NHẤC LÊN ở hai đầu nhịp; hoặc LỘN VÒNG — tự xoay quanh trục ngang và trượt chéo đều sang một bên
         //    (Maxwell: chiều xoay quyết định hướng trượt).
-        //  · CHẠM ĐẤT nằm im; gió sát đất (đã gồm cơn giật) đủ mạnh thì lá trượt lăn trên cỏ, cơn giật có luồng lên thì bốc lá bay lại;
-        //    rơi xuống nước thì trôi theo gió mặt nước; hết thời gian thì thu nhỏ biến mất rồi tái sinh trên tán ----
-        const _lfM = new THREE.Matrix4(), _lfQ = new THREE.Quaternion(), _lfQ2 = new THREE.Quaternion(), _lfE = new THREE.Euler(0, 0, 0, 'YXZ'), _lfP = new THREE.Vector3(), _lfS = new THREE.Vector3(), _lfW = new THREE.Vector3(), _lfA = new THREE.Vector3();
+        //  · CHẠM ĐẤT nằm im; gió sát đất (đã gồm cơn giật) đủ mạnh thì lá trượt lăn trên cỏ (trượt qua mép bờ thì rơi xuống nước),
+        //    cơn giật có luồng lên thì bốc lá bay lại; hết thời gian thì thu nhỏ biến mất rồi tái sinh trên tán.
+        //  · CHẠM MẶT NƯỚC dừng lại trên mặt (gợn một vòng nhỏ), nhấp nhô & nghiêng theo sóng, trôi theo DÒNG SÔNG + vài % gió (leeway),
+        //    chạm bờ thì dạt sát bờ. Thỉnh thoảng lá ngấm nước rồi CHÌM: rơi chậm, lắc lư, trôi theo dòng yếu dần về đáy, nằm lại đáy rồi mờ đi.
+        //    Lá chìm (đôi khi cả lá đang nổi) làm cá gần đó chú ý bơi tới ĐỚP ----
+        const _lfM = new THREE.Matrix4(), _lfQ = new THREE.Quaternion(), _lfQ2 = new THREE.Quaternion(), _lfE = new THREE.Euler(0, 0, 0, 'YXZ'), _lfP = new THREE.Vector3(), _lfS = new THREE.Vector3(), _lfW = new THREE.Vector3(), _lfA = new THREE.Vector3(), _lfF = new THREE.Vector3(), _lfN = new THREE.Vector3();
         function makeLeafFall(o) {
           const im = new THREE.InstancedMesh(o.geo, new THREE.MeshLambertMaterial({ transparent: true, opacity: o.opacity }), o.n);
-          im.name = o.name; im.frustumCulled = false; im.castShadow = true; im.userData.noBake = true; scene.add(im);
+          im.name = o.name; im.frustumCulled = false; im.castShadow = true; im.userData.noBake = true; im.renderOrder = -1; scene.add(im);   // vẽ trước mặt nước trong suốt ⇒ lá chìm dưới nước vẫn thấy qua làn nước
           const col = new THREE.Color(), parts = [];
           for (let k = 0; k < o.n; k++) {
             col.setHex(o.color(k)); im.setColorAt(k, col);
-            parts.push({ st: 0, p: new THREE.Vector3(), v: new THREE.Vector3(), age: 0, rest: 0, life: 0, ph: 0, om: 3, ax: 0, mode: 0, rot: 0, tilt: 0, yaw: 0, water: false });
+            parts.push({ st: 0, p: new THREE.Vector3(), v: new THREE.Vector3(), age: 0, rest: 0, life: 0, ph: 0, om: 3, ax: 0, mode: 0, rot: 0, tilt: 0, yaw: 0, spin: 0, look: 0, sinkAt: Infinity, sinkV: 0.06, fish: 0 });   // st: 0 trên tán · 1 rơi · 2 nằm đất · 3 nổi · 4 chìm · 5 nằm đáy
             im.setMatrixAt(k, _lfM.compose(_lfP.set(0, -999, 0), _lfQ.identity(), _lfS.setScalar(0)));
           }
           if (im.instanceColor) im.instanceColor.needsUpdate = true;
@@ -2670,7 +2741,7 @@
               windAt(q.p.x, q.p.y, q.p.z, q.p.y - cowY(q.p.x, q.p.z), q.v); q.v.multiplyScalar(0.5);   // bứt ra mang sẵn một phần vận tốc gió
               q.st = 1; q.age = 0; q.mode = Math.random() < o.tumble ? 1 : 0; q.ph = Math.random() * TAU; q.ax = Math.random() * TAU; q.rot = 0;
               q.om = q.mode ? (o.tumbleW[0] + Math.random() * (o.tumbleW[1] - o.tumbleW[0])) * (Math.random() < 0.5 ? -1 : 1) : o.flutW[0] + Math.random() * (o.flutW[1] - o.flutW[0]);
-              q.yaw = Math.random() * TAU; q.tilt = (Math.random() - 0.5) * 0.3;
+              q.yaw = Math.random() * TAU; q.tilt = (Math.random() - 0.5) * 0.3; q.fish = 0;
             }
             let sc = o.scale;
             if (q.st === 1) {   // đang rơi
@@ -2692,23 +2763,30 @@
                 _lfQ.setFromAxisAngle(_lfA.set(sx, 0, sz), q.rot); _lfQ2.setFromAxisAngle(_lfA.set(0, 1, 0), q.yaw); _lfQ.multiply(_lfQ2);
               }
               q.p.x += (q.v.x + ox) * h; q.p.y += (q.v.y + oy) * h; q.p.z += (q.v.z + oz) * h;
-              const gi = Math.round(x2gi(q.p.x)), gj = Math.round(z2gj(q.p.z)), gy2 = cowY(q.p.x, q.p.z);
-              if (q.p.y <= gy2 + 0.02) { q.p.y = gy2 + 0.02; q.st = 2; q.rest = 0; q.water = isWater(gi, gj); q.life = o.restLife[0] + Math.random() * (o.restLife[1] - o.restLife[0]); q.yaw = q.ax; }
+              const gi = Math.round(x2gi(q.p.x)), gj = Math.round(z2gj(q.p.z)), onW = waterCell(gi, gj), gy2 = onW ? waterSurfaceY(q.p.x, q.p.z) : cowY(q.p.x, q.p.z);
+              if (q.p.y <= gy2 + 0.02) {
+                if (onW) {   // CHẠM MẶT NƯỚC: dừng lại trên mặt, gợn một vòng nhỏ; định trước lá này có ngấm nước chìm hay không
+                  q.p.y = gy2 + 0.004; q.st = 3; q.rest = 0; q.yaw = q.ax; q.spin = (Math.random() - 0.5) * 0.6; q.look = 1 + Math.random() * 3;
+                  q.life = o.floatLife[0] + Math.random() * (o.floatLife[1] - o.floatLife[0]);
+                  q.sinkAt = Math.random() < o.sinkP ? 4 + Math.random() * (q.life - 8) : Infinity;
+                  q.v.set(q.v.x * 0.15, 0, q.v.z * 0.15); waterFx.ring(q.p.x, gy2, q.p.z, 0.16 + 0.1 * o.scale);
+                } else { q.p.y = gy2 + 0.02; q.st = 2; q.rest = 0; q.life = o.restLife[0] + Math.random() * (o.restLife[1] - o.restLife[0]); q.yaw = q.ax; }
+              }
               else if (q.age > 45 || gi < -40 || gj < -40 || gi > GX + 40 || gj > GZ + 40) q.st = 0;
             }
-            if (q.st === 2) {   // nằm trên đất / trôi trên nước
+            if (q.st === 2) {   // nằm trên đất
               q.rest += h;
               windAt(q.p.x, q.p.y, q.p.z, 0.15, _lfW); const wh = Math.hypot(_lfW.x, _lfW.z);
-              if (q.water) {   // trôi theo gió mặt nước (~vài % gió) + nhấp nhô
-                q.p.x += _lfW.x * 0.15 * h; q.p.z += _lfW.z * 0.15 * h; q.yaw += 0.15 * h;
-                if (!isWater(Math.round(x2gi(q.p.x)), Math.round(z2gj(q.p.z)))) q.water = false;
-                q.p.y = cowY(q.p.x, q.p.z) + 0.012 + Math.sin(t * 1.6 + q.ph) * 0.006;
-              } else if (wh > o.slideU) {   // gió sát đất đủ mạnh: lá trượt lăn trên cỏ
+              if (wh > o.slideU) {   // gió sát đất đủ mạnh: lá trượt lăn trên cỏ
                 const f = (wh - o.slideU) / wh * 0.6;
                 q.p.x += _lfW.x * f * h; q.p.z += _lfW.z * f * h; q.yaw += 1.2 * f * h * (q.om > 0 ? 1 : -1);
-                q.p.y = cowY(q.p.x, q.p.z) + 0.02; if (isWater(Math.round(x2gi(q.p.x)), Math.round(z2gj(q.p.z)))) q.water = true;
-                if (wh > o.slideU * 1.6 && _lfW.y > 0.04 && Math.random() < h * 0.5) {   // cơn giật có luồng lên: bốc lá bay lại
-                  q.st = 1; q.age = 0; q.v.set(_lfW.x * 0.8, 0.5 + _lfW.y * 2, _lfW.z * 0.8); q.mode = 1; q.om = (6 + Math.random() * 4) * (Math.random() < 0.5 ? -1 : 1); q.rot = 0; q.ax = Math.atan2(_lfW.z, _lfW.x) + Math.PI / 2;
+                if (waterCell(Math.round(x2gi(q.p.x)), Math.round(z2gj(q.p.z)))) {   // trượt qua mép bờ: rơi xuống mặt nước bên dưới
+                  q.st = 1; q.age = 0; q.mode = 0; q.v.set(_lfW.x * 0.3, 0, _lfW.z * 0.3);
+                } else {
+                  q.p.y = cowY(q.p.x, q.p.z) + 0.02;
+                  if (wh > o.slideU * 1.6 && _lfW.y > 0.04 && Math.random() < h * 0.5) {   // cơn giật có luồng lên: bốc lá bay lại
+                    q.st = 1; q.age = 0; q.v.set(_lfW.x * 0.8, 0.5 + _lfW.y * 2, _lfW.z * 0.8); q.mode = 1; q.om = (6 + Math.random() * 4) * (Math.random() < 0.5 ? -1 : 1); q.rot = 0; q.ax = Math.atan2(_lfW.z, _lfW.x) + Math.PI / 2;
+                  }
                 }
               }
               if (q.st === 2) {
@@ -2717,6 +2795,47 @@
                 if (q.rest >= q.life) q.st = 0;
               } else _lfQ.identity();
             }
+            if (q.st === 3) {   // NỔI: trôi theo dòng + một phần gió (leeway), chạm bờ thì dừng sát bờ, nhấp nhô & nghiêng theo mặt sóng
+              q.rest += h;
+              waterFlow(q.p.x, q.p.z, t, _lfF); windAt(q.p.x, q.p.y, q.p.z, 0.1, _lfW);
+              const kr = 1 - Math.exp(-h / 0.8);   // lá có quán tính nhỏ: bám theo dòng sau ~0,8 s
+              q.v.x += (_lfF.x + _lfW.x * o.leeway - q.v.x) * kr; q.v.z += (_lfF.z + _lfW.z * o.leeway - q.v.z) * kr;
+              const nx = q.p.x + q.v.x * h, nz = q.p.z + q.v.z * h;
+              if (waterCell(Math.round(x2gi(nx)), Math.round(z2gj(q.p.z)))) q.p.x = nx; else q.v.x *= -0.2;   // chạm bờ: dừng, nảy nhẹ
+              if (waterCell(Math.round(x2gi(q.p.x)), Math.round(z2gj(nz)))) q.p.z = nz; else q.v.z *= -0.2;
+              const wy = waterSurfaceY(q.p.x, q.p.z), gx = waterSurfaceY(q.p.x + 0.2, q.p.z) - wy, gz = waterSurfaceY(q.p.x, q.p.z + 0.2) - wy;
+              q.p.y = wy + 0.004;
+              q.spin += ((Math.random() - 0.5) * 0.8 - q.spin) * h * 0.3; q.yaw += q.spin * h;
+              _lfQ.setFromUnitVectors(_lfA.set(0, 1, 0), _lfN.set(-gx / 0.2, 1, -gz / 0.2).normalize()); _lfQ2.setFromAxisAngle(_lfA.set(0, 1, 0), q.yaw); _lfQ.multiply(_lfQ2);
+              if (q.rest >= q.sinkAt) {   // ngấm nước: bắt đầu chìm — cá gần đó để ý
+                q.st = 4; q.sinkV = o.sinkV[0] + Math.random() * (o.sinkV[1] - o.sinkV[0]); q.ph = Math.random() * TAU; q.look = 2;
+                q.p.y = wy - 0.02; fishAlertLeaf(q, 8, 0.9);
+              } else {
+                if ((q.look -= h) <= 0) { q.look = 3 + Math.random() * 2; if (!q.fish) fishAlertLeaf(q, 2.5, 0.15); }   // thỉnh thoảng cá ngoi lên đớp lá đang nổi
+                sc *= Math.max(0, Math.min(1, (q.life - q.rest) / 1.5));
+                const gi = Math.round(x2gi(q.p.x)), gj = Math.round(z2gj(q.p.z));
+                if (q.rest >= q.life || gi < -MX || gj < -MZ || gi >= GX + MX || gj >= GZ + MZ) q.st = 0;
+              }
+            }
+            if (q.st === 4) {   // CHÌM: rơi chậm trong nước, lắc lư như lá rơi trong không khí nhưng chậm hơn nhiều, trôi theo dòng yếu dần về đáy
+              q.rest += h; q.ph += 2.4 * h; q.yaw += 0.2 * h;
+              const gi = Math.round(x2gi(q.p.x)), gj = Math.round(z2gj(q.p.z)), top = waterSurfaceY(q.p.x, q.p.z), bed = riverBedY(gi, gj);
+              const fz = Math.max(0, Math.min(1, (q.p.y - bed) / Math.max(0.2, top - bed)));
+              waterFlow(q.p.x, q.p.z, t, _lfF); const kd = Math.pow(fz, 1 / 7), kr = 1 - Math.exp(-h / 0.6);
+              q.v.x += (_lfF.x * kd - q.v.x) * kr; q.v.z += (_lfF.z * kd - q.v.z) * kr;
+              const sw = Math.cos(q.ph) * 0.06, nx = q.p.x + (q.v.x + Math.cos(q.ax) * sw) * h, nz = q.p.z + (q.v.z + Math.sin(q.ax) * sw) * h;
+              if (waterCell(Math.round(x2gi(nx)), gj)) q.p.x = nx;
+              if (waterCell(gi, Math.round(z2gj(nz)))) q.p.z = nz;
+              q.p.y = Math.min(q.p.y - q.sinkV * (0.7 + 0.6 * Math.abs(Math.sin(q.ph))) * h, top - 0.02);   // chìm nhanh nhất lúc lá dựng nghiêng
+              _lfE.set(0.45 * Math.sin(q.ph), q.yaw, q.tilt); _lfQ.setFromEuler(_lfE);
+              if (q.p.y <= bed + 0.012) { q.p.y = bed + 0.012; q.st = 5; q.rest = 0; q.life = 10 + Math.random() * 10; q.tilt = (Math.random() - 0.5) * 0.2; }
+              else if ((q.look -= h) <= 0) { q.look = 2; if (!q.fish) fishAlertLeaf(q, 8, 0.6); }
+            }
+            if (q.st === 5) {   // nằm dưới đáy rồi mờ dần
+              q.rest += h; _lfE.set(q.tilt, q.yaw, 0); _lfQ.setFromEuler(_lfE);
+              sc *= Math.max(0, Math.min(1, (q.life - q.rest) / 2)); if (q.rest >= q.life) q.st = 0;
+            }
+            if (q.st === 0) { L.im.setMatrixAt(k, _lfM.compose(_lfP.set(0, -999, 0), _lfQ.identity(), _lfS.setScalar(0))); continue; }
             L.im.setMatrixAt(k, _lfM.compose(_lfP.copy(q.p), _lfQ, _lfS.setScalar(sc)));
           }
           L.im.instanceMatrix.needsUpdate = true;
@@ -2725,7 +2844,7 @@
         { const ct = cherryTree(1.2); ct.position.copy(worldCell(29, 35.5)); ct.rotation.y = Math.random() * 6.28; ct.name = 'Cây anh đào (Cherry Blossom Tree)'; scene.add(ct);   // 1 cây duy nhất cạnh xe van
           cherryWind = ct.userData.treeWind; finalizeTreeWind(cherryWind, ct);
           cherryCtl = makeLeafFall({ name: 'Cánh hoa anh đào rơi theo gió', group: ct, pts: ct.userData.blossomPts, n: 36, geo: new THREE.BoxGeometry(0.19 * 1.2, 0.002 * 1.2, 0.19 * 1.2), opacity: 0.75,
-            color: () => cherryPinks[(Math.random() * cherryPinks.length) | 0], scale: 1, tw: cherryWind, g: 3.5, vTerm: 0.45, flutA: 0.5, flutW: [3.5, 5], tumble: 0.15, tumbleW: [9, 14], slideU: 0.5, rate0: 0.35, rateK: 3.0, restLife: [10, 20] }); }
+            color: () => cherryPinks[(Math.random() * cherryPinks.length) | 0], scale: 1, tw: cherryWind, g: 3.5, vTerm: 0.45, flutA: 0.5, flutW: [3.5, 5], tumble: 0.15, tumbleW: [9, 14], slideU: 0.5, rate0: 0.35, rateK: 3.0, restLife: [10, 20], floatLife: [25, 45], sinkP: 0.25, sinkV: [0.05, 0.08], leeway: 0.035 }); }
 
         // ---- fish in the downstream river ----
         const fishies = [];
@@ -2904,6 +3023,66 @@
           const f = fish(0.58 + Math.random() * 0.18, koiPattern());
           f.g.position.copy(fishSpot); scene.add(f.g);
           fishies.push(Object.assign(f, { base: fishSpot.clone().add(new THREE.Vector3((Math.random() - 0.5) * 2.2, 0, (Math.random() - 0.5) * 1.8)), rx: 2.1 + Math.random() * 1.8, rz: 1.2 + Math.random() * 1.1, ph: Math.random() * Math.PI * 2, sp: 0.12 + Math.random() * 0.06 }));
+        }
+
+
+        // ---- CÁ ĐỚP LÁ: lá/cánh hoa đang chìm (hoặc thỉnh thoảng đang nổi) gần cá → con rảnh gần nhất cùng mặt nước quay lại, tăng tốc,
+        //      đổi độ sâu (ngóc/chúi đầu) để miệng tới đúng chỗ lá rồi đớp: 70% nuốt (lá biến mất, sủi bọt), 30% nhả ra (lá văng nhẹ, chìm tiếp).
+        //      Đớp ở mặt nước thì gợn vòng. Xong việc cá bơi về vùng quen, độ sâu & góc ngóc trả dần về như cũ; nghỉ vài giây mới để ý lá khác ----
+        const _fcM = new THREE.Vector3(), _fcD = new THREE.Vector3(), FISH_SNAPPED = { st: -1 };
+        const fishFree = f => f.ang !== undefined && f !== angling.fish && f !== returningFishingFish && !f.leafT && !(f.leafCool > 0);
+        function fishAlertLeaf(q, radius, chance) {
+          const lvl = waterBaseY(Math.round(z2gj(q.p.z))) - 0.62; let best = null, bd = radius;
+          for (const f of fishies) {
+            if (!fishFree(f) || Math.abs(f.base.y - lvl) > 0.8) continue;   // chỉ cá cùng mặt nước (hồ trên / sông dưới)
+            const d = Math.hypot(f.cx - q.p.x, f.cz - q.p.z); if (d < bd) { bd = d; best = f; }
+          }
+          if (!best || Math.random() >= chance) return null;
+          best.leafT = q; best.leafChase = 0; best.snap = 0; best.chaseV = best.vmag; q.fish = (q.fish || 0) + 1;
+          return best;
+        }
+        function endLeafChase(f) { const q = f.leafT; if (q && q.fish) q.fish--; f.leafT = null; f.leafCool = 6 + Math.random() * 6; f.snap = 0; }
+        function fishSwimStep(f, dt, t, yTarget, pitchTarget) {   // tiến theo hướng f.ang với f.chaseV, giữ trong nước; độ sâu & góc ngóc tiến dần tới đích
+          const nx = f.cx + Math.cos(f.ang) * f.chaseV * dt, nz = f.cz + Math.sin(f.ang) * f.chaseV * dt;
+          if (waterCell(Math.round(x2gi(nx)), Math.round(z2gj(nz)))) { f.cx = nx; f.cz = nz; }
+          const top = waterSurfaceY(f.cx, f.cz) - 0.1, bot = riverBedY(Math.round(x2gi(f.cx)), Math.round(z2gj(f.cz))) + 0.2, y0 = f.g.position.y;
+          const y = y0 + (Math.max(bot, Math.min(top, yTarget)) - y0) * Math.min(1, dt * 2.5);
+          f.dy = y - (f.base.y + Math.sin(t * 0.9 + f.ph) * 0.05);
+          f.pitch = (f.pitch || 0) + (pitchTarget - (f.pitch || 0)) * Math.min(1, dt * 3);
+          f.g.position.set(f.cx, y, f.cz); f.g.rotation.set(0, -f.ang, f.pitch);
+          f.swT = (f.swT ?? t) + dt * (1 + f.chaseV * 0.9); f.swim(f.swT, f.wob);   // quẫy đuôi nhanh theo tốc độ
+        }
+        function fishChaseLeaf(f, dt, t) {
+          if (f.leafT === FISH_SNAPPED) {   // nhịp lao tới sau cú đớp: đi thẳng, chậm dần rồi thôi
+            f.snap -= dt; f.chaseV *= Math.exp(-dt * 2.5); f.wob *= Math.exp(-dt * 4);
+            fishSwimStep(f, dt, t, f.g.position.y, 0);
+            if (f.snap <= 0) { f.leafT = null; f.leafCool = 6 + Math.random() * 6; }
+            return true;
+          }
+          const q = f.leafT;
+          if (!(q.st === 3 || q.st === 4) || (f.leafChase += dt) > 14) { endLeafChase(f); return false; }   // lá đã chạm đáy / bị đớp mất / đuổi mãi không tới
+          f.g.updateWorldMatrix(true, false); f.g.localToWorld(_fcM.copy(f.mouth));
+          const dx = q.p.x - _fcM.x, dz = q.p.z - _fcM.z, dy = q.p.y - _fcM.y, dh = Math.hypot(dx, dz), d = Math.hypot(dh, dy);
+          let da = Math.atan2(dz, dx) - f.ang; while (da > Math.PI) da -= TAU; while (da < -Math.PI) da += TAU;
+          const turn = Math.max(-2.6 * dt, Math.min(2.6 * dt, da)); f.ang += turn;
+          f.wob += (Math.max(-1.1, Math.min(1.1, turn / Math.max(dt, 1e-3) * 0.4)) - f.wob) * Math.min(1, dt * 6);   // thân uốn theo cú rẽ
+          const vT = Math.min(1.7, 0.3 + dh * 0.9) * (Math.abs(da) > 1.2 ? 0.45 : 1);                                 // xa thì lao nhanh, gần thì rón rén
+          f.chaseV += (vT - f.chaseV) * Math.min(1, dt * 3);
+          fishSwimStep(f, dt, t, f.g.position.y + dy, Math.max(-0.5, Math.min(0.5, Math.atan2(dy, Math.max(0.25, dh)))));
+          if (d < 0.16 + f.chaseV * 0.05) {   // ĐỚP
+            const eat = Math.random() < 0.7;
+            if (q.st === 3) waterFx.ring(q.p.x, waterSurfaceY(q.p.x, q.p.z), q.p.z, 0.4);   // đớp ngay mặt nước: gợn vòng
+            waterFx.bubbles(_fcM.x, _fcM.y, _fcM.z, eat ? 4 : 2);
+            if (q.fish) q.fish--;
+            if (eat) q.st = 0;
+            else {   // nhả ra: lá văng tới trước, ngấm thêm nước rồi chìm tiếp chậm hơn
+              q.p.addScaledVector(_fcD.set(Math.cos(f.ang), 0, Math.sin(f.ang)), 0.25); q.p.y = Math.min(q.p.y, waterSurfaceY(q.p.x, q.p.z) - 0.05);
+              if (q.st === 3) { q.st = 4; q.sinkV = 0.04; q.ph = 0; } else q.sinkV *= 0.7;
+              q.look = 4;
+            }
+            f.leafT = FISH_SNAPPED; f.snap = 0.45; f.chaseV += 0.5;   // lao tới một nhịp
+          }
+          return true;
         }
 
         // ---- MÂY TÍCH (cumulus): mỗi đám là 20–60 "bông" billboard dùng atlas normal-map dựng từ hợp mềm của nhiều quả cầu nhỏ
@@ -4013,7 +4192,7 @@
           oldTreeWind = oldTreeGroup.userData.treeWind; finalizeTreeWind(oldTreeWind, oldTreeGroup);   // gốc/chiều cao/tán đo SAU khi thu theo NATURE_SCALE
           oldTreeLeafCtl = makeLeafFall({ name: 'Lá cây cổ thụ rụng theo gió', group: oldTreeGroup, pts: oldTreeGroup.userData.leafPts, n: 16,
             geo: new THREE.CylinderGeometry(0.045 * 2.3, 0.045 * 2.3, 0.0015 * 2.3, 6), opacity: 0.76, color: () => Math.random() < 0.85 ? 0xe5b82c : 0x5e8c44,   // 85% lá vàng, 15% lá xanh
-            scale: NATURE_SCALE, tw: oldTreeWind, g: 3.5, vTerm: 0.7, flutA: 0.7, flutW: [2.2, 3.2], tumble: 0.35, tumbleW: [6, 10], slideU: 0.6, rate0: 0.1, rateK: 1.2, restLife: [12, 24] });
+            scale: NATURE_SCALE, tw: oldTreeWind, g: 3.5, vTerm: 0.7, flutA: 0.7, flutW: [2.2, 3.2], tumble: 0.35, tumbleW: [6, 10], slideU: 0.6, rate0: 0.1, rateK: 1.2, restLife: [12, 24], floatLife: [30, 55], sinkP: 0.35, sinkV: [0.06, 0.1], leeway: 0.03 });
         }
 
         // ---- kỹ sư đi tuần & kiểm tra trạm khí tượng ----
@@ -9517,8 +9696,9 @@
             }
           }
           for (const l of lotuses) { l.g.position.y = l.base + Math.sin(t * 1.2 + l.ph) * 0.06; l.g.rotation.z = Math.sin(t * 0.8 + l.ph) * 0.03; }
-          if (cherryCtl) updateLeafFall(cherryCtl, dt, t);           // cánh hoa anh đào bị gió thổi rụng, trôi theo hướng gió
+          if (cherryCtl) updateLeafFall(cherryCtl, dt, t);           // cánh hoa anh đào rụng theo gió, rơi xuống sông thì nổi, trôi, có chiếc chìm
           if (oldTreeLeafCtl) updateLeafFall(oldTreeLeafCtl, dt, t);   // lá vàng cây cổ thụ
+          waterFx.update(dt, t);                                     // gợn nước nhỏ (lá chạm nước, cá đớp) + bọt khí
           for (const lamp of streetLamps) {   // đèn đường: tắt ban ngày, sáng ấm ban đêm
             lamp.light.intensity = 4.0 * nightFactor; lamp.ledMat.color.setRGB(0.37 + 0.63 * nightFactor, 0.38 + 0.55 * nightFactor, 0.4 + 0.32 * nightFactor);
           }
@@ -9794,16 +9974,19 @@
             splashFx.update(dt);   // giật cần + dây câu tính SAU khi tư thế đã mượt → đầu dây luôn khớp ngọn cần
           }
           for (const f of fishies) {                                            // cá bơi lang thang ngẫu nhiên (wander)
-            if (f === angling.fish) continue; // Its existing mesh is controlled by the bait/hook for this visit.
+            if (f.leafCool > 0) f.leafCool -= dt;
+            if (f === angling.fish) { if (f.leafT) endLeafChase(f); f.dy = f.pitch = 0; continue; } // Its existing mesh is controlled by the bait/hook for this visit.
             if (f === returningFishingFish) { updateReturningFishingFish(f, dt, t); continue; }
             if (f.ang === undefined) { f.ang = Math.random() * 6.283; f.cx = f.base.x; f.cz = f.base.z; f.vmag = 0.7 + Math.random() * 0.7; f.wob = (Math.random() - 0.5) * 0.8; f.rad = Math.max(f.rx, f.rz) + 1.6; }
+            if (f.leafT && fishChaseLeaf(f, dt, t)) continue;   // đang đuổi đớp một chiếc lá
             f.wob += (Math.random() - 0.5) * 2.2 * dt; f.wob = Math.max(-1.1, Math.min(1.1, f.wob)); f.ang += f.wob * dt;   // hướng đổi ngẫu nhiên, mượt
             const bx = f.base.x - f.cx, bz = f.base.z - f.cz, distB = Math.hypot(bx, bz);
             if (distB > f.rad) { let d = Math.atan2(bz, bx) - f.ang; while (d > Math.PI) d -= 6.283; while (d < -Math.PI) d += 6.283; f.ang += d * Math.min(1, (distB - f.rad) * 0.9) * dt * 3.0; }   // lượn về khi đi quá xa
             f.cx += Math.cos(f.ang) * f.vmag * dt; f.cz += Math.sin(f.ang) * f.vmag * dt;
-            f.g.position.set(f.cx, f.base.y + Math.sin(t * 0.9 + f.ph) * 0.05, f.cz);
-            f.g.rotation.y = -f.ang;
-            f.swim(t, f.wob);   // sóng thân chạy đầu→đuôi + uốn theo hướng rẽ (thay xoay khớp bodyGroup/tail cũ)
+            f.dy = (f.dy || 0) * Math.exp(-dt / 1.2); f.pitch = (f.pitch || 0) * Math.exp(-dt / 0.6);   // sau cú đớp: về dần độ sâu & tư thế bơi thường
+            f.g.position.set(f.cx, f.base.y + Math.sin(t * 0.9 + f.ph) * 0.05 + f.dy, f.cz);
+            f.g.rotation.set(0, -f.ang, f.pitch);
+            f.swT = (f.swT ?? t) + dt; f.swim(f.swT, f.wob);   // sóng thân chạy đầu→đuôi + uốn theo hướng rẽ (đồng hồ riêng: đuổi lá thì quẫy nhanh hơn)
           }
           for (const b of bunnies) {                                  // chú thỏ: random-walk + mỗi 60s đào 1 củ cà rốt lên ăn
             if (bunnyRain(b, dt, t, liveWeather.state.raining)) continue;   // mưa: trú dưới hiên caravan
