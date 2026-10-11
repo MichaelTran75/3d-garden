@@ -4286,6 +4286,46 @@
           const bail = new THREE.Mesh(new THREE.TubeGeometry(bailPath, 32, 0.035, 5, false), wire); bail.castShadow = true; g.add(bail);   // quai buông xuôi một bên như mẫu
           return g;
         }
+        // ---- ĐỒ BẾP dựng bằng code (đv xe): bát udon (sợi, nước dùng, hành lá, chả cá narutomaki) · chảo rán (có món cơm chiên ẩn sẵn) ----
+        let narutoTex = null;
+        function udonBowl() {
+          const g = new THREE.Group(); g.name = 'Bát udon';
+          const ceramic = new THREE.MeshLambertMaterial({ color: 0xf2efe8, side: THREE.DoubleSide });
+          const shell = new THREE.Mesh(new THREE.LatheGeometry([[0, 0], [0.035, 0], [0.038, 0.006], [0.08, 0.05], [0.088, 0.072], [0.083, 0.073], [0.074, 0.05], [0.033, 0.01], [0, 0.01]].map(([r, y]) => new THREE.Vector2(r, y)), 20), ceramic);
+          shell.castShadow = true; g.add(shell);
+          const rim = new THREE.Mesh(new THREE.TorusGeometry(0.0855, 0.0035, 4, 24), new THREE.MeshLambertMaterial({ color: 0x2f4f7c })); rim.rotation.x = Math.PI / 2; rim.position.y = 0.067; g.add(rim);   // viền men xanh
+          const food = new THREE.Group(); food.name = 'Udon trong bát'; food.position.y = 0.058; g.add(food); g.userData.food = food;
+          const broth = new THREE.Mesh(new THREE.CircleGeometry(0.077, 20), new THREE.MeshLambertMaterial({ color: 0xc89a5c })); broth.rotation.x = -Math.PI / 2; food.add(broth);
+          const noodleM = new THREE.MeshLambertMaterial({ color: 0xf4ecd4 });
+          for (let k = 0; k < 9; k++) {   // sợi udon to, cuộn lỏng nằm nổi trên nước dùng
+            const n = new THREE.Mesh(new THREE.TorusGeometry(0.022 + (k % 3) * 0.012, 0.0075, 4, 10, 2.2 + (k % 4) * 0.6), noodleM);
+            n.rotation.set(-Math.PI / 2 + 0.15 * Math.sin(k), 0, k * 1.9); n.position.set(Math.cos(k * 2.3) * 0.02, 0.004 + (k % 3) * 0.003, Math.sin(k * 2.3) * 0.02); food.add(n);
+          }
+          const greenM = new THREE.MeshLambertMaterial({ color: 0x5fb04a });
+          for (let k = 0; k < 12; k++) { const s = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.005, 0.008, 6), greenM); s.position.set(Math.cos(k * 2.6) * (0.015 + (k % 4) * 0.012), 0.014, Math.sin(k * 2.6) * (0.015 + (k % 4) * 0.012)); s.rotation.x = Math.PI / 2; food.add(s); }
+          if (!narutoTex) {   // chả cá narutomaki: trắng, xoắn ốc hồng
+            const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d');
+            x.fillStyle = '#fbf7f2'; x.beginPath(); x.arc(32, 32, 31, 0, Math.PI * 2); x.fill();
+            x.strokeStyle = '#e45d8c'; x.lineWidth = 4; x.beginPath(); for (let a = 0; a < 14; a += 0.2) { const r = 2 + a * 1.9; x.lineTo(32 + Math.cos(a) * r, 32 + Math.sin(a) * r); } x.stroke();
+            narutoTex = new THREE.CanvasTexture(c); narutoTex.colorSpace = THREE.SRGBColorSpace;
+          }
+          for (const [nx, nz] of [[0.032, -0.018], [-0.026, 0.03]]) { const d = new THREE.Mesh(new THREE.CircleGeometry(0.017, 16), new THREE.MeshLambertMaterial({ map: narutoTex })); d.rotation.x = -Math.PI / 2; d.position.set(nx, 0.016, nz); food.add(d); }
+          return g;
+        }
+        function fryPan() {   // chảo rán Ø17 cm, cán gỗ dọc +x; con 'food' = cơm chiên trứng (ẩn sẵn)
+          const g = new THREE.Group(); g.name = 'Chảo rán';
+          const iron = new THREE.MeshLambertMaterial({ color: 0x2c2d31 }), inner = new THREE.MeshLambertMaterial({ color: 0x4a4c50 });
+          const lathe = (pts, mat) => { const m = new THREE.Mesh(new THREE.LatheGeometry(pts.map(([r, y]) => new THREE.Vector2(r, y)), 20), mat); m.castShadow = true; g.add(m); return m; };
+          lathe([[0, 0], [0.075, 0], [0.08, 0.008], [0.086, 0.04], [0.088, 0.042]], iron);
+          lathe([[0.088, 0.042], [0.083, 0.039], [0.077, 0.01], [0, 0.01]], inner);
+          const neck = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.01, 0.018), iron); neck.position.set(0.105, 0.036, 0); neck.rotation.z = 0.15; g.add(neck);
+          const grip = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.016, 0.024), new THREE.MeshLambertMaterial({ color: 0x6b4426 })); grip.position.set(0.175, 0.045, 0); g.add(grip);
+          const food = new THREE.Group(); food.name = 'Cơm chiên trứng'; food.visible = false; g.add(food); g.userData.food = food;
+          const rice = new THREE.Mesh(new THREE.SphereGeometry(0.068, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshLambertMaterial({ color: 0xead592 })); rice.scale.y = 0.38; rice.position.y = 0.01; food.add(rice);
+          const bitM = [new THREE.MeshLambertMaterial({ color: 0xf2c230 }), new THREE.MeshLambertMaterial({ color: 0x5fb04a }), new THREE.MeshLambertMaterial({ color: 0xd9632f })];   // trứng · hành · cà rốt
+          for (let k = 0; k < 16; k++) { const a = k * 2.4, r = 0.012 + (k % 5) * 0.011, b = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.006, 0.01), bitM[k % 3]); b.position.set(Math.cos(a) * r, 0.03 - r * 0.25, Math.sin(a) * r); b.rotation.y = a; food.add(b); }
+          return g;
+        }
         function engineer() {
           const g = new THREE.Group();
           const P = (par, w, h, d, mat, x, y, z, o) => { const m = bx(w, h, d, mat, true, o !== false, lineDark); m.position.set(x, y, z); par.add(m); return m; };
@@ -4368,7 +4408,19 @@
           const towelMat = new THREE.MeshLambertMaterial({ color: 0xd98c6a });
           P(towel, 0.42, 0.05, 0.14, towelMat, 0, 1.9, -0.08, false);
           for (const sx of [-1, 1]) P(towel, 0.12, 0.4, 0.035, towelMat, sx * 0.13, 1.68, 0.176, false);
-          g.userData = { legs, knees, ankles, arms, head: headG, helmet, hair, towel, rodGrp, rodTilt, rodTip, rod, clip, props: { spoon, bottle, cup, book, bookLeaf, chip } }; g.scale.setScalar(ENGINEER_BASE_SCALE * CAMP_SCALE); return g;
+          // đồ bếp cầm tay: đũa · dao (thái hành) · xẻng xào ở tay phải; bát / chảo ở tay trái (mặt bát nằm ngang khi tay giơ ~52°)
+          const kitchenWood = new THREE.MeshLambertMaterial({ color: 0xb98b55 }), kitchenSteel = new THREE.MeshLambertMaterial({ color: 0xc8ced2 });
+          const chopsticks = new THREE.Group(); chopsticks.position.set(0, -0.72, 0.05); chopsticks.visible = false; arms[0].add(chopsticks);
+          for (const s of [-1, 1]) { const st = new THREE.Mesh(new THREE.BoxGeometry(0.014, 0.014, 0.34), kitchenWood); st.position.set(s * 0.012, 0, 0.13); st.rotation.y = -s * 0.03; chopsticks.add(st); }
+          const knife = new THREE.Group(); knife.position.set(0, -0.72, 0.05); knife.visible = false; arms[0].add(knife);
+          const knifeGrip = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.035, 0.12), new THREE.MeshLambertMaterial({ color: 0x7a4a2a })); knifeGrip.position.z = 0.02; knife.add(knifeGrip);
+          const knifeBlade = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.06, 0.2), kitchenSteel); knifeBlade.position.set(0, -0.012, 0.18); knife.add(knifeBlade);
+          const spatula = new THREE.Group(); spatula.position.set(0, -0.72, 0.05); spatula.visible = false; arms[0].add(spatula);
+          const spHandle = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.022, 0.26), kitchenWood); spHandle.position.z = 0.1; spatula.add(spHandle);
+          const spBlade = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.008, 0.09), kitchenSteel); spBlade.position.set(0, -0.02, 0.26); spBlade.rotation.x = 0.35; spatula.add(spBlade);
+          const handBowl = udonBowl(); handBowl.scale.setScalar(1 / ENGINEER_BASE_SCALE); handBowl.position.set(0, -0.74, 0.09); handBowl.rotation.x = 0.9; handBowl.visible = false; arms[1].add(handBowl);
+          const handPan = fryPan(); handPan.scale.setScalar(1 / ENGINEER_BASE_SCALE); handPan.position.set(0, -0.8, 0.11); handPan.rotation.set(0.9, Math.PI / 2, 0); handPan.visible = false; arms[1].add(handPan);
+          g.userData = { legs, knees, ankles, arms, head: headG, helmet, hair, towel, rodGrp, rodTilt, rodTip, rod, clip, props: { spoon, bottle, cup, book, bookLeaf, chip, chopsticks, knife, spatula, handBowl, handPan } }; g.scale.setScalar(ENGINEER_BASE_SCALE * CAMP_SCALE); return g;
         }
         // ====== khu cắm trại của kỹ sư: caravan + ghế xếp câu cá bên bờ tây hồ hạ lưu ======
         // dời cả cụm câu cá (ghế · đèn · kỹ sư · caravan · lửa · phao · chó) về tọa độ góc (75, _, 99)
@@ -4813,6 +4865,22 @@
           // ---- chuẩn bị ngủ ----
           'bedtime|||Mai sáu giờ dậy, ngủ thôi.',
           'bedtime||rain||Mưa đều trên nóc xe, dễ ngủ đây.',
+          // ---- nấu ăn ở bếp trong xe: trưa udon, chiều cơm chiên trứng ----
+          'cook|10.5-12|||Nước sôi thì thả udon, nấu chừng mười phút là vừa.',
+          'cook|10.5-12|||Thái ít hành lá rắc lên cho thơm.',
+          'cook|10.5-12|||Udon dai, chan nước dùng nóng là ngon.',
+          'cook|10.5-12|||Sắp tới giờ ăn udon rồi, đói bụng quá.',
+          'cook|16.5-17.5|||Tối nay ăn cơm chiên trứng, nhanh gọn.',
+          'cook|16.5-17.5|||Lửa to, đảo đều tay kẻo cơm cháy đáy chảo.',
+          'cook||rain||Mưa ngoài kia, nấu ăn trong xe ấm cúng ghê.',
+          'cook||hot||Đứng cạnh bếp giữa trưa nóng thật.',
+          'cook|||Bình ga còn đủ dùng hết tuần này.',
+          // ---- ăn udon ở bàn vuông ----
+          'udon|||Sợi udon dai, nước dùng đậm, ngon.',
+          'udon||cold||Trời lạnh, húp nước udon nóng ấm cả người.',
+          'udon||rain||Mưa ngoài kia, bát udon nóng là hết ý.',
+          'udon|||Ăn xong rửa bát luôn cho gọn.',
+          'udon|||Lát chả cá narutomaki này mua ở chợ Pleiku đấy.',
           // ---- xem trạm khí tượng (kèm số đo thật: {temp} {wind} {cloud} {rad} {rh}) ----
           'check||thunder||Có dông, ghi số liệu nhanh rồi vào trú.',
           'check||thunder,wind>=40||Gió giật kèm sấm, kim đo gió quay loạn cả lên.',
@@ -4985,6 +5053,8 @@
             else if (e.act === 'breakfast') { act = 'breakfast'; label = 'Ăn sáng'; }
             else if (e.act === 'shower') { act = 'shower'; label = 'Giờ tắm'; }
             else if (e.act === 'bedtime') { act = 'bedtime'; label = 'Chuẩn bị ngủ'; }
+            else if (e.act === 'cook') { act = 'cook'; label = liveWeather.localHour < 14 ? 'Nấu udon' : 'Nấu bữa tối'; }
+            else if (e.act === 'lunch') { act = 'udon'; label = 'Ăn trưa: udon'; }
             else { act = 'walk'; label = 'Đang đi'; }
           }
           else if (e.phase === 'shelter' || e.phase === 'toShelter') { act = 'shelter'; label = 'Trú mưa dưới hiên'; }
@@ -5351,10 +5421,18 @@
           galley.rotation.y = -Math.PI / 2; galley.position.set(1.92, 0, -1.57);   // xoay quanh tâm mặt bếp (1,92; 1,1): mặt cánh tủ hướng ra lối đi
           const cabinets = new THREE.Group(); cabinets.name = 'Thân tủ & cánh tủ';
           box(cabinets, 'Thân tủ bếp', .51, .725, 1.82, 2.665, 1.4325, 0, M.cabinet, true);
-          for (const [name, h, d, y, z] of [['Cánh tủ chậu', .505, .398, 1.3325, -.695], ['Cánh tủ giữa', .65, .654, 1.405, -.147], ['Cửa lò dưới bếp', .54, .38, 1.405, .463], ['Ngăn kéo', .13, .35, 1.685, -.677]])
+          // theo mẫu bếp: trái → phải (nhìn từ lối đi) = tủ chậu (1 cánh) · tủ giữa (1 cánh lớn, trên là bàn sơ chế) · khối bếp + lò nướng tách riêng
+          for (const [name, h, d, y, z] of [['Cánh tủ chậu', .505, .398, 1.3325, -.69], ['Cánh tủ giữa', .65, .68, 1.405, -.11], ['Cửa lò nướng', .5, .52, 1.37, .59], ['Ngăn kéo', .13, .35, 1.685, -.677]])
             box(cabinets, name, .012, h, d, 2.403, y, z, M.front, true);
-          for (const z of [-.536, .132, .614]) box(cabinets, 'Tay nắm tủ', .018, .085, .046, 2.39, 1.455, z, M.trim);
-          for (let i = 0; i < 4; i++) { const k = cyl(.025, .025, .03, M.matte, true, false, null, 10); k.rotation.z = Math.PI / 2; k.position.set(2.388, 1.707, .32 + i * .1); cabinets.add(k); }
+          box(cabinets, 'Ô kính cửa lò', .006, .2, .34, 2.396, 1.42, .59, M.matte);
+          for (const z of [-.53, .19, .8]) box(cabinets, 'Tay nắm tủ', .018, .11, .05, 2.39, 1.42, z, M.trim);   // tay nắm dọc sát mép phải mỗi cánh
+          box(cabinets, 'Khe tách khối bếp', .58, .76, .014, 2.68, 1.45, .263, M.matte);
+          for (let i = 0; i < 4; i++) {   // 4 núm vặn ga trên mặt trước khối bếp
+            const k = cyl(.027, .027, .03, M.matte, true, false, null, 12); k.rotation.z = Math.PI / 2; k.position.set(2.386, 1.722, .395 + i * .13); cabinets.add(k);
+            const ring = cyl(.036, .036, .006, M.trim, false, false, null, 12); ring.rotation.z = Math.PI / 2; ring.position.set(2.398, 1.722, .395 + i * .13); cabinets.add(ring);
+          }
+          const gasPipe = cyl(.016, .016, .08, M.handle, true, false, null, 8); gasPipe.rotation.x = Math.PI / 2; gasPipe.position.set(2.8, 1.2, .95); gasPipe.name = 'Ống ga'; cabinets.add(gasPipe);
+          const gasNut = cyl(.022, .022, .02, M.handle, true, false, null, 6); gasNut.rotation.x = Math.PI / 2; gasNut.position.set(2.8, 1.2, .985); cabinets.add(gasNut);
           bakeStatic(cabinets); galley.add(cabinets); cab.add(galley);
 
           bakeStatic(cab);
@@ -5478,31 +5556,107 @@
           const m = new THREE.Mesh(geo, mats); m.name = key; m.castShadow = m.receiveShadow = true; return m;
         }
 
-        function motorhomeWorktop(g) {
-          const counterMat = new THREE.MeshLambertMaterial({ color: 0xd8d0bc });
-          const steel = new THREE.MeshLambertMaterial({ color: 0x98a7a4 });
-          const dark = new THREE.MeshLambertMaterial({ color: 0x354142 });
-          const shape = new THREE.Shape();
-          shape.moveTo(2.37, -1); shape.lineTo(2.97, -1); shape.lineTo(2.97, 1); shape.lineTo(2.37, 1); shape.closePath();
-          const hole = new THREE.Path();
-          hole.moveTo(2.48, -.68); hole.lineTo(2.48, -.12); hole.lineTo(2.86, -.12); hole.lineTo(2.86, -.68); hole.closePath(); shape.holes.push(hole);   // chậu đổi chỗ với bếp
-          const geo = new THREE.ExtrudeGeometry(shape, { depth: .07, bevelEnabled: false });
-          const top = new THREE.Mesh(geo, counterMat); top.rotation.x = Math.PI / 2; top.position.y = 2.14; top.name = 'Mặt bếp có lỗ chậu rửa';
-          top.castShadow = top.receiveShadow = true; edge(top, geo, lineDark); g.add(top);
-          const basin = bx(.38, .035, .56, steel); basin.position.set(2.67, 2.015, -.40); g.add(basin);
-          for (const x of [2.48, 2.86]) { const wall = bx(.025, .13, .58, steel); wall.position.set(x, 2.075, -.40); g.add(wall); }
-          for (const z of [-.12, -.68]) { const wall = bx(.40, .13, .025, steel); wall.position.set(2.67, 2.075, z); g.add(wall); }
-          const faucetPath = new THREE.CatmullRomCurve3([
-            new THREE.Vector3(2.915, 2.14, -.40), new THREE.Vector3(2.915, 2.40, -.40),
-            new THREE.Vector3(2.80, 2.44, -.40), new THREE.Vector3(2.72, 2.37, -.40)
-          ]);
-          const faucet = new THREE.Mesh(new THREE.TubeGeometry(faucetPath, 16, .021, 7, false), steel); faucet.castShadow = true; g.add(faucet);
-          const hob = bx(.45, .026, .83, dark); hob.position.set(2.66, 2.154, .48); g.add(hob);
-          for (const z of [.69, .28]) {
-            const ring = new THREE.Mesh(new THREE.TorusGeometry(.115, .018, 7, 18), steel); ring.rotation.x = Math.PI / 2; ring.position.set(2.66, 2.184, z); g.add(ring);
-            const bar = bx(.29, .016, .016, dark, false, false); bar.position.set(2.66, 2.202, z); g.add(bar);
-            const cross = bx(.016, .016, .29, dark, false, false); cross.position.set(2.66, 2.202, z); g.add(cross);
+        // ===== BẾP THEO MẪU (toạ độ cục bộ galley: mặt tủ x ≈ 2,40 quay ra lối đi, vách xe x ≈ 2,97, mặt đá y = 1,865; z −0,91 → 0,91 = trái → phải nhìn từ lối đi)
+        //  · tủ chậu: chậu inox, vòi cổ ngỗng + cần gạt, khay xà phòng, miếng rửa bát hồng, gờ chắn sau + gờ đầu tủ
+        //  · bàn sơ chế: thớt xanh nhạt trên mặt đá; tấm bảng đục lỗ (pegboard) phía sau, móc treo thớt xanh ngọc, dao, chảo rán
+        //  · khối bếp riêng: mặt bếp đen 4 họng lửa, 2 vỉ gang (khung + nan toả vào họng lửa), nắp dựng phía sau, tấm chắn gió bên phải mở chếch
+        //  Đồ động (lửa, nồi, chảo, dao, bát, hành, nước vòi) để riêng, không gộp lưới; trả về cho lịch nấu ăn của kỹ sư điều khiển ----
+        function motorhomeKitchen(galley) {
+          const lam = (c, o = {}) => new THREE.MeshLambertMaterial({ color: c, ...o });
+          const M = { counter: lam(0xd8d0bc), steel: lam(0x98a7a4), dark: lam(0x2e3436), iron: lam(0x1f2224), peg: lam(0xd9c49a), hole: lam(0x5a4a33), boardG: lam(0x9fd6a4),
+            boardT: lam(0x6fb0a0), wood: lam(0x7a4a2a), blade: lam(0xc8ced2), cap: lam(0x3b3f42), sponge: lam(0xe36f9a), soap: lam(0xe9e6dc), lid: lam(0x9aa5a8) };
+          const S = new THREE.Group(); S.name = 'Bếp: phần cố định';
+          const P = new THREE.Group(); P.name = 'Bếp: đồ dùng'; P.userData.noBake = true;
+          const box = (par, w, h, d, x, y, z, mat, out = false) => { const m = bx(w, h, d, mat, true, out, lineDark); m.position.set(x, y, z); par.add(m); return m; };
+          const TOP = 1.865;
+          // mặt đá liền (tủ chậu + bàn sơ chế) có lỗ chậu
+          const shape = new THREE.Shape(); shape.moveTo(2.37, -0.91); shape.lineTo(2.97, -0.91); shape.lineTo(2.97, 0.255); shape.lineTo(2.37, 0.255); shape.closePath();
+          const hole = new THREE.Path(); hole.moveTo(2.47, -0.86); hole.lineTo(2.47, -0.5); hole.lineTo(2.81, -0.5); hole.lineTo(2.81, -0.86); hole.closePath(); shape.holes.push(hole);
+          const geo = new THREE.ExtrudeGeometry(shape, { depth: 0.07, bevelEnabled: false });
+          const top = new THREE.Mesh(geo, M.counter); top.rotation.x = Math.PI / 2; top.position.y = TOP; top.name = 'Mặt đá có lỗ chậu'; top.castShadow = top.receiveShadow = true; edge(top, geo, lineDark); S.add(top);
+          // chậu inox sâu 13 cm + lỗ thoát
+          box(S, 0.34, 0.02, 0.36, 2.64, 1.745, -0.68, M.steel);
+          for (const x of [2.47, 2.81]) box(S, 0.02, 0.13, 0.36, x, 1.8, -0.68, M.steel);
+          for (const z of [-0.86, -0.5]) box(S, 0.34, 0.13, 0.02, 2.64, 1.8, z, M.steel);
+          const drain = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.004, 12), M.dark); drain.position.set(2.64, 1.757, -0.68); S.add(drain);
+          // vòi cổ ngỗng + cần gạt, khay xà phòng (trái), khay + miếng rửa bát hồng (phải)
+          const fBase = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.024, 0.02, 12), M.steel); fBase.position.set(2.9, TOP + 0.01, -0.68); S.add(fBase);
+          const faucet = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([new THREE.Vector3(2.9, TOP, -0.68), new THREE.Vector3(2.9, 2.08, -0.68), new THREE.Vector3(2.86, 2.13, -0.68), new THREE.Vector3(2.8, 2.11, -0.68), new THREE.Vector3(2.775, 2.05, -0.68)]), 16, 0.012, 7, false), M.steel);
+          faucet.castShadow = true; S.add(faucet);
+          const lever = new THREE.Mesh(new THREE.CylinderGeometry(0.013, 0.013, 0.03, 8), M.steel); lever.rotation.x = Math.PI / 2; lever.position.set(2.9, 1.96, -0.655); S.add(lever);
+          box(S, 0.016, 0.012, 0.07, 2.9, 1.97, -0.62, M.steel);
+          box(S, 0.06, 0.01, 0.085, 2.885, TOP + 0.005, -0.84, M.soap, true); box(S, 0.04, 0.018, 0.06, 2.885, TOP + 0.019, -0.84, lam(0xf5e9b8));
+          box(S, 0.055, 0.008, 0.09, 2.885, TOP + 0.004, -0.545, M.steel); box(S, 0.042, 0.026, 0.07, 2.885, TOP + 0.021, -0.545, M.sponge, true);
+          // gờ chắn sau chậu + gờ đầu tủ (phía phòng tắm)
+          box(S, 0.035, 0.135, 0.44, 2.952, TOP + 0.0675, -0.69, M.counter, true);
+          box(S, 0.6, 0.135, 0.025, 2.67, TOP + 0.0675, -0.8975, M.counter, true);
+          // thớt nhựa xanh nhạt trên bàn sơ chế
+          box(S, 0.3, 0.022, 0.46, 2.63, TOP + 0.011, -0.15, M.boardG, true);
+          // tấm bảng đục lỗ (thấp dưới bậu cửa sổ 2,27): 2 hàng lỗ, móc treo
+          box(S, 0.025, 0.38, 0.725, 2.9425, TOP + 0.19, -0.1075, M.peg, true);
+          const holeGeo = new THREE.CylinderGeometry(0.0085, 0.0085, 0.003, 8);
+          for (const y of [2.03, 2.12]) for (let i = 0; i < 8; i++) { const h = new THREE.Mesh(holeGeo, M.hole); h.rotation.z = Math.PI / 2; h.position.set(2.929, y, -0.1 + i * 0.047); S.add(h); }
+          for (const z of [-0.32, -0.19, 0.0, 0.12, 0.22]) { box(S, 0.035, 0.008, 0.008, 2.912, 2.215, z, M.steel); box(S, 0.008, 0.02, 0.008, 2.897, 2.225, z, M.steel); }
+          // thớt xanh ngọc treo móc (tai thớt có lỗ)
+          box(S, 0.012, 0.2, 0.16, 2.918, 2.09, -0.32, M.boardT, true); box(S, 0.012, 0.04, 0.07, 2.918, 2.205, -0.32, M.boardT, true); box(S, 0.013, 0.014, 0.026, 2.917, 2.21, -0.32, M.hole);
+          // khối bếp: mặt đen 4 họng lửa, viền inox
+          box(S, 0.56, 0.03, 0.63, 2.67, 1.835, 0.59, M.dark, true);
+          box(S, 0.012, 0.016, 0.63, 2.392, 1.857, 0.59, M.steel); box(S, 0.012, 0.016, 0.63, 2.948, 1.857, 0.59, M.steel);
+          for (const z of [0.278, 0.902]) box(S, 0.56, 0.016, 0.012, 2.67, 1.857, z, M.steel);
+          const BURN = [[2.55, 0.43], [2.79, 0.43], [2.55, 0.75], [2.79, 0.75]];   // [x, z]: trước–trái, sau–trái, trước–phải, sau–phải
+          for (const [x, z] of BURN) {
+            const r = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.048, 0.012, 16), M.steel); r.position.set(x, 1.856, z); S.add(r);
+            const c = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.012, 14), M.cap); c.position.set(x, 1.866, z); S.add(c);
           }
+          for (const zc of [0.43, 0.75]) {   // vỉ gang: khung chữ nhật + nan toả vào 2 họng lửa + chân
+            const z0 = zc - 0.145, z1 = zc + 0.145, x0 = 2.42, x1 = 2.92, y = 1.888;
+            box(S, x1 - x0, 0.012, 0.012, (x0 + x1) / 2, y, z0, M.iron); box(S, x1 - x0, 0.012, 0.012, (x0 + x1) / 2, y, z1, M.iron);
+            box(S, 0.012, 0.012, z1 - z0, x0, y, zc, M.iron); box(S, 0.012, 0.012, z1 - z0, x1, y, zc, M.iron); box(S, 0.012, 0.012, z1 - z0, 2.67, y, zc, M.iron);
+            for (const bxp of [2.55, 2.79]) {
+              for (const s of [-1, 1]) { box(S, 0.012, 0.012, 0.1, bxp, y, zc + s * 0.095, M.iron); }
+              for (const s of [-1, 1]) { const f = box(S, 0.085, 0.012, 0.012, bxp + s * 0.08, y, zc, M.iron); }
+              for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { const d = box(S, 0.012, 0.012, 0.11, bxp + sx * 0.06, y, zc + sz * 0.06, M.iron); d.rotation.y = sx * sz * Math.PI / 4; }
+            }
+            for (const x of [x0, x1]) for (const z of [z0, z1]) box(S, 0.014, 0.034, 0.014, x, 1.866, z, M.iron);
+          }
+          // nắp dựng phía sau + tấm chắn gió bên phải mở chếch ra ngoài
+          box(S, 0.012, 0.37, 0.63, 2.957, 1.85 + 0.185, 0.59, M.lid, true);
+          const flap = new THREE.Group(); flap.position.set(2.957, 1.85, 0.905); flap.rotation.y = 0.5; S.add(flap);
+          box(flap, 0.42, 0.26, 0.012, -0.21, 0.13, 0.006, M.lid, true);
+          bakeStatic(S); galley.add(S);
+
+          // ---- đồ động ----
+          galley.add(P);
+          const flames = BURN.map(([x, z], i) => {   // ngọn lửa ga: vành xanh + lõi sáng, nhảy nhẹ
+            const f = new THREE.Group(); f.position.set(x, 1.873, z); f.visible = false; f.name = 'Lửa họng ' + (i + 1); P.add(f);
+            const outer = new THREE.Mesh(new THREE.TorusGeometry(0.035, 0.008, 5, 18), new THREE.MeshBasicMaterial({ color: 0x4f9dff, transparent: true, opacity: 0.85, depthWrite: false })); outer.rotation.x = Math.PI / 2; f.add(outer);
+            const inner = new THREE.Mesh(new THREE.TorusGeometry(0.033, 0.004, 4, 18), new THREE.MeshBasicMaterial({ color: 0xbfe0ff, transparent: true, opacity: 0.9, depthWrite: false })); inner.rotation.x = Math.PI / 2; inner.position.y = 0.004; f.add(inner);
+            return f;
+          });
+          // nồi inox để sẵn trên họng sau–trái: nước, sợi udon, hơi nước
+          const pot = new THREE.Group(); pot.name = 'Nồi luộc udon'; pot.position.set(BURN[1][0], 1.894, BURN[1][1]); P.add(pot);
+          const potM = new THREE.MeshLambertMaterial({ color: 0xa9b4b6, side: THREE.DoubleSide });
+          const potLathe = pts => { const m = new THREE.Mesh(new THREE.LatheGeometry(pts.map(([r, y]) => new THREE.Vector2(r, y)), 20), potM); m.castShadow = true; pot.add(m); };
+          potLathe([[0, 0], [0.085, 0], [0.09, 0.006], [0.09, 0.11], [0.094, 0.114], [0.085, 0.11], [0.085, 0.012], [0, 0.012]]);
+          for (const s of [-1, 1]) { const hdl = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.014, 0.05), M.dark); hdl.position.set(0, 0.098, s * 0.11); pot.add(hdl); }
+          const potWater = new THREE.Mesh(new THREE.CircleGeometry(0.083, 20), new THREE.MeshLambertMaterial({ color: 0x9cc7d8 })); potWater.rotation.x = -Math.PI / 2; potWater.position.y = 0.08; potWater.visible = false; pot.add(potWater);
+          const potNoodles = new THREE.Group(); potNoodles.position.y = 0.083; potNoodles.visible = false; pot.add(potNoodles);
+          for (let k = 0; k < 10; k++) { const n = new THREE.Mesh(new THREE.TorusGeometry(0.025 + (k % 3) * 0.013, 0.0075, 4, 10, 2.4 + (k % 4) * 0.6), new THREE.MeshLambertMaterial({ color: 0xf4ecd4 })); n.rotation.set(-Math.PI / 2, 0, k * 1.9); n.position.set(Math.cos(k * 2.3) * 0.02, (k % 3) * 0.003, Math.sin(k * 2.3) * 0.02); potNoodles.add(n); }
+          const potSteam = [0, 1, 2, 3].map(i => { const m = new THREE.Mesh(new THREE.IcosahedronGeometry(0.03, 1), new THREE.MeshBasicMaterial({ color: 0xf4f6f8, transparent: true, opacity: 0, depthWrite: false })); m.visible = false; pot.add(m); return { m, ph: i / 4 }; });
+          // chảo: treo móc trên bảng (bình thường) · đặt trên họng trước–phải (lúc chiên cơm)
+          const pegPan = fryPan(); pegPan.rotation.z = Math.PI / 2; pegPan.position.set(2.926, 2.215 - 0.215, 0.12); P.add(pegPan);
+          const stovePan = fryPan(); stovePan.rotation.y = Math.PI; stovePan.position.set(BURN[2][0], 1.894, BURN[2][1]); stovePan.visible = false; P.add(stovePan);
+          // dao treo trên bảng (cán lên)
+          const pegKnife = new THREE.Group(); pegKnife.position.set(2.916, 2.205, -0.19); P.add(pegKnife);
+          box(pegKnife, 0.022, 0.075, 0.024, 0, -0.04, 0, M.wood); box(pegKnife, 0.006, 0.15, 0.036, 0, -0.15, 0.004, M.blade);
+          // hành lá đã thái trên thớt (hiện dần khi thái)
+          const scallions = [];
+          for (let k = 0; k < 26; k++) { const s = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.01, 6), lam(k % 4 ? 0x5fb04a : 0xdfeec4)); s.rotation.z = Math.PI / 2; s.position.set(2.6 + Math.sin(k * 1.7) * 0.05, TOP + 0.027, -0.02 + Math.cos(k * 2.3) * 0.06); s.visible = false; P.add(s); scallions.push(s); }
+          // bát udon múc ra mặt đá cạnh bếp · dòng nước vòi chậu
+          const counterBowl = udonBowl(); counterBowl.position.set(2.6, TOP, 0.17); counterBowl.visible = false; P.add(counterBowl);
+          const tapWater = new THREE.Mesh(new THREE.CylinderGeometry(0.007, 0.01, 0.2, 6), new THREE.MeshLambertMaterial({ color: 0xbfe2ff, transparent: true, opacity: 0.7, depthWrite: false }));
+          tapWater.position.set(2.775, 1.94, -0.68); tapWater.visible = false; P.add(tapWater);
+          return { flames, pot, potWater, potNoodles, potSteam, pegPan, stovePan, pegKnife, scallions, counterBowl, tapWater, burners: BURN, steam: 0 };
         }
 
         // Hollow walls with actual apertures, plus a continuous chamfered cabover.
@@ -5814,18 +5968,21 @@
             item.position.set(cx + Math.sin(yaw) * h / 2, t / 2, cz + Math.cos(yaw) * h / 2);
           };
           // kỹ sư ngồi ghế đẩu phía −z (lưng về giường) ⇒ 3 món xếp vào nửa phía vách, nhường mép gần cho bát ngũ cốc
+          let cerealBowl = null;
           const cereal = breakfastItem('cereal'); layFlat(cereal, -0.15, 0.12, 0.14); cereal.name = 'Hộp ngũ cốc'; breakfast.add(cereal);
           const coffee = breakfastItem('coffee'); layFlat(coffee, 0.11, 0.1, -0.2); coffee.name = 'Hộp cà phê'; breakfast.add(coffee);
           const milk = breakfastItem('milk'); milk.name = 'Chai sữa'; milk.position.set(0.22, 0, -0.13); breakfast.add(milk);
           {   // bát sứ trắng: ngũ cốc vàng nổi trên sữa
-            const bowl = new THREE.Group(); bowl.name = 'Bát ngũ cốc'; bowl.position.set(-0.04, 0, -0.16); breakfast.add(bowl);
+            const bowl = cerealBowl = new THREE.Group(); bowl.name = 'Bát ngũ cốc'; bowl.position.set(-0.04, 0, -0.16); bowl.visible = false; breakfast.add(bowl);
+            const food = new THREE.Group(); food.name = 'Ngũ cốc + sữa'; bowl.add(food); bowl.userData.food = food;
             const ceramic = new THREE.MeshLambertMaterial({ color: 0xf2efe8, side: THREE.DoubleSide });
             const shell = new THREE.Mesh(new THREE.LatheGeometry([[0, 0], [0.04, 0], [0.042, 0.006], [0.07, 0.034], [0.078, 0.056], [0.073, 0.057], [0.065, 0.036], [0.036, 0.009], [0, 0.009]].map(([r, y]) => new THREE.Vector2(r, y)), 20), ceramic);
             shell.castShadow = true; bowl.add(shell);
-            const milkTop = new THREE.Mesh(new THREE.CircleGeometry(0.066, 20), new THREE.MeshLambertMaterial({ color: 0xfbf6ea })); milkTop.rotation.x = -Math.PI / 2; milkTop.position.y = 0.043; bowl.add(milkTop);
+            const milkTop = new THREE.Mesh(new THREE.CircleGeometry(0.066, 20), new THREE.MeshLambertMaterial({ color: 0xfbf6ea })); milkTop.rotation.x = -Math.PI / 2; milkTop.position.y = 0.043; food.add(milkTop);
             const flakeM = new THREE.MeshLambertMaterial({ color: 0xd9a64a });
-            for (let k = 0; k < 14; k++) { const a = k * 2.4, r = 0.012 + (k % 5) * 0.011, f = new THREE.Mesh(new THREE.BoxGeometry(0.016, 0.005, 0.013), flakeM); f.position.set(Math.cos(a) * r, 0.046, Math.sin(a) * r); f.rotation.set(0.3 * Math.sin(k), a, 0.25 * Math.cos(k * 1.7)); bowl.add(f); }
+            for (let k = 0; k < 14; k++) { const a = k * 2.4, r = 0.012 + (k % 5) * 0.011, f = new THREE.Mesh(new THREE.BoxGeometry(0.016, 0.005, 0.013), flakeM); f.position.set(Math.cos(a) * r, 0.046, Math.sin(a) * r); f.rotation.set(0.3 * Math.sin(k), a, 0.25 * Math.cos(k * 1.7)); food.add(f); }
           }
+          const tableUdon = udonBowl(); tableUdon.position.set(-0.04, 0, -0.16); tableUdon.visible = false; breakfast.add(tableUdon);   // bữa trưa: bát udon đúng chỗ bát ngũ cốc
           // ghế đẩu tròn (mặt gỗ cao 0,48 m như ghế bàn học): bình thường kéo lùi chừa khe đứng giữa ghế và mép bàn, ngồi xong nhích vào
           const stool = new THREE.Group(); stool.name = 'Ghế đẩu bàn ăn'; stool.userData.noBake = true; stool.position.set(0, 0, 0); g.add(stool);
           { const sx0 = -0.65, sz0 = -0.04;
@@ -5836,7 +5993,7 @@
           // mũ bảo hộ đặt cuối giường lúc ngủ
           const bedHelmet = engHelmetProp(); bedHelmet.position.set(bedCx - bedLen / 2 + 0.3, yIn + mattTop - 0.02, bedZ + 0.18); bedHelmet.rotation.y = 0.6; bedHelmet.visible = false; g.add(bedHelmet);
           // Mặt đá (dựng cho cao 2,07–2,14) hạ xuống ngồi khít nóc tủ bếp 1,795: hết khe hở, mặt bếp cao ~0,80 m so với sàn.
-          const worktop = new THREE.Group(); motorhomeWorktop(worktop); bakeStatic(worktop); worktop.position.y = -0.275; galley.add(worktop);
+          const kitchen = motorhomeKitchen(galley);   // bếp theo mẫu: chậu, bàn sơ chế, bảng treo đồ, bếp 4 họng lửa + lò nướng
           const cup = bx(bLen * 0.62, 0.44, 0.4, caravanRoofM); cup.position.set(bcx - .55, yRoof - 0.45, -dz + 0.32); g.add(cup);
           const cabH = 1.85, cabLen = 2.0, cabX = x0 - cabLen / 2, cabDz = Dc * 0.9, wsX = cabX - cabLen / 2;
           // ---- bạt che ĐỎ trên cửa mở ----
@@ -6114,7 +6271,7 @@
             table: { center: [-0.65, 0.8], size: [0.62, 0.62] },
             study: study.userData.layout,
             sleepPosition: [bedCx - 1.35 + 2.06 * (1.026 - ENGINEER_BASE_SCALE), yIn + 0.49 + 0.05, bedZ], sleepHead: [bedCx + 1.1, 4, bedZ],   // người nhỏ đi: dời gốc về phía gối để đầu vẫn gác đúng gối
-            stool: { obj: stool, rest: -0.04 }, bath: bathRig, bedHelmet
+            stool: { obj: stool, rest: -0.04 }, bath: bathRig, bedHelmet, kitchen, cerealBowl, tableUdon
           };
           // xem xuyên: mặc định mọi thứ của xe là vỏ; sàn, nội thất, bánh xe & đèn lồng hiên giữ nguyên
           g.userData.xray = 'shell';
@@ -6451,7 +6608,7 @@
         }
         const woodEndM = new THREE.MeshLambertMaterial({ color: 0xc8a878 });   // mặt cắt gỗ nhạt
         // Bàn gỗ nan cuộn (roll-top) chân chữ X; ca & chảo cắm trại dựng bằng code: nhôm sơn đen, quai dây thép gập.
-        const campCupSteam = [];
+        const campCupSteam = []; let campPanRig = null;   // chảo trên bàn trà: chỉ hiện khi bữa tối được mang ra
         function campTable() {
           const g = new THREE.Group();
           const L = 0.66, W = 0.48, H = 0.45, beech = new THREE.MeshLambertMaterial({ color: 0xd9b98a }), beech2 = new THREE.MeshLambertMaterial({ color: 0xcaa774 });
@@ -6477,10 +6634,11 @@
           const spout = bx(0.018, 0.012, 0.02, pot, false, false); spout.position.set(0, 0.108, 0.048); spout.rotation.x = -0.5; cup.add(spout);
           cup.add(wire([[-0.045, 0.085, 0], [-0.085, 0.085, 0], [-0.1, 0.06, 0], [-0.085, 0.035, 0], [-0.045, 0.035, 0]]));
           // chảo: đáy Ø15 cm loe lên Ø17 cm, thành 4 cm, cán dây gập
-          const pan = new THREE.Group(); pan.position.set(-0.13, H, -0.06); pan.rotation.y = 0.5; g.add(pan);
+          const pan = new THREE.Group(); pan.position.set(-0.13, H, -0.06); pan.rotation.y = 0.5; pan.userData.noBake = true; pan.visible = false; pan.name = 'Chảo cơm chiên'; g.add(pan);
           pan.add(lathe([[0, 0], [0.075, 0], [0.08, 0.008], [0.086, 0.04], [0.088, 0.042]], pot));
           pan.add(lathe([[0.088, 0.042], [0.083, 0.039], [0.077, 0.01], [0, 0.01]], potIn));
           pan.add(wire([[0.086, 0.035, 0.02], [0.2, 0.05, 0.016], [0.215, 0.05, 0], [0.2, 0.05, -0.016], [0.086, 0.035, -0.02]], 0.004));
+          { const food = fryPan().userData.food; food.visible = true; pan.add(food); campPanRig = { pan, food }; }   // cơm chiên trứng, vơi dần khi ăn
           // khói nóng mỏng bốc từ ca (động, không gộp)
           const steam = new THREE.Group(); steam.userData.noBake = true; steam.position.set(cup.position.x, H + 0.1, cup.position.z); g.add(steam);
           for (let n = 0; n < 5; n++) {
@@ -7140,21 +7298,23 @@
         }
         studyChairAt(0);
         // ====== LỊCH SINH HOẠT CẢ NGÀY CỦA KỸ SƯ (theo giờ Pleiku thật) ======
-        //  06:00 dậy, ngồi mép giường rồi đi vệ sinh · 06:12 ăn sáng ở bàn vuông trong xe (ngũ cốc, sữa, cà phê) · 06:40 ra trại: cột khí tượng, trà,
-        //  dạo, uống nước, vuốt chó · 07:15–11:15 nghiên cứu ở bàn học · 11:15 vệ sinh · 11:25 ăn trưa dưới hiên · 12:15 trà rồi ngủ trưa trên ghế
-        //  13:00–16:00 nghiên cứu · 16:00 vệ sinh · 16:10 ra trại · 17:15 ăn tối · 18:00 tắm · 18:20 câu cá · 19:30 đọc sách, ăn khoai tây chiên
+        //  06:00 dậy, ngồi mép giường rồi đi vệ sinh · 06:12 ăn sáng ở bàn vuông trong xe (ngũ cốc, sữa, cà phê), ăn xong rửa bát · 06:40 ra trại:
+        //  cột khí tượng, trà, dạo, uống nước, vuốt chó · 07:15–10:45 nghiên cứu ở bàn học · 10:45 vệ sinh · 10:55 nấu udon · 11:25 ăn udon ở bàn vuông,
+        //  rửa bát · 12:15 trà rồi ngủ trưa trên ghế · 13:00–16:00 nghiên cứu · 16:00 vệ sinh · 16:10 ra trại · 16:45 chiên cơm trứng · 17:15 bưng chảo
+        //  ra hiên ăn tối · 18:00 mang chảo vào rửa, tắm · 18:20 câu cá · 19:30 đọc sách, ăn khoai tây chiên
         //  20:30 học bài, laptop mở nhạc · 20:57 ngồi mép giường tháo mũ · 21:00 ngủ.
         //  Mưa: việc ngoài trời trống (dạo trại, câu cá) đổi sang ngồi dưới hiên; ăn, nghỉ, đọc sách vốn đã dưới hiên nên giữ nguyên.
-        //  Việc có điểm dừng (vệ sinh, tắm): xong sớm thì sang luôn việc kế tiếp; hết giờ mà chưa xong thì làm nốt rồi mới đi.
-        const ENG_DAY = [[0, 'sleep'], [6, 'toilet'], [6.2, 'breakfast'], [6 + 40 / 60, 'outdoor'], [7.25, 'research'], [11.25, 'toilet'], [11 + 25 / 60, 'lunch'],
-          [12.25, 'rest'], [13, 'research'], [16, 'toilet'], [16 + 10 / 60, 'outdoor'], [17.25, 'dinner'], [18, 'shower'], [18 + 20 / 60, 'fish'],
+        //  Việc có điểm dừng (vệ sinh, tắm, nấu, ăn trong xe): xong sớm thì sang luôn việc kế tiếp; hết giờ mà chưa xong thì làm nốt rồi mới đi.
+        const ENG_DAY = [[0, 'sleep'], [6, 'toilet'], [6.2, 'breakfast'], [6 + 40 / 60, 'outdoor'], [7.25, 'research'], [10.75, 'toilet'], [10 + 55 / 60, 'cook'], [11 + 25 / 60, 'lunch'],
+          [12.25, 'rest'], [13, 'research'], [16, 'toilet'], [16 + 10 / 60, 'outdoor'], [16.75, 'cook'], [17.25, 'dinner'], [18, 'shower'], [18 + 20 / 60, 'fish'],
           [19.5, 'read'], [20.5, 'music'], [20.95, 'bedtime'], [21, 'sleep']];
         const ENG_ACTS = {
           sleep: { van: 1, label: 'Ngủ' }, toilet: { van: 1, once: 1, label: 'Vệ sinh', plan: ['wc', 'sink'] },
-          breakfast: { van: 1, label: 'Ăn sáng', plan: ['table'] }, research: { van: 1, label: 'Nghiên cứu', plan: ['desk'] },
+          breakfast: { van: 1, once: 1, label: 'Ăn sáng', plan: ['table', 'dishes'] }, research: { van: 1, label: 'Nghiên cứu', plan: ['desk'] },
+          cook: { van: 1, once: 1, label: 'Nấu ăn', plan: ['stove'] }, lunch: { van: 1, once: 1, label: 'Ăn trưa', plan: ['table', 'dishes'] },
           shower: { van: 1, once: 1, label: 'Tắm', plan: ['shelfOff', 'shower', 'towel', 'shelfOn'] },
           music: { van: 1, label: 'Học bài, nghe nhạc', plan: ['desk'] }, bedtime: { van: 1, label: 'Chuẩn bị ngủ', plan: ['bed'] },
-          outdoor: { label: 'Dạo quanh trại' }, lunch: { label: 'Ăn trưa' }, rest: { label: 'Nghỉ trưa' }, dinner: { label: 'Ăn tối' },
+          outdoor: { label: 'Dạo quanh trại' }, rest: { label: 'Nghỉ trưa' }, dinner: { label: 'Ăn tối' },
           fish: { label: 'Câu cá' }, read: { label: 'Đọc sách' }, shelter: { label: 'Trú mưa dưới hiên' }
         };
         function engScheduleAt(h) {
@@ -7191,9 +7351,10 @@
         const VY = { pz: VYAW, nz: VYAW + Math.PI, px: VYAW + Math.PI / 2, nx: VYAW - Math.PI / 2 };   // hướng nhìn dọc các trục của xe
         const VN = {};
         for (const [k, x, z] of [['door', 0.33, 1.0], ['hall', 0.33, 0.12], ['tbl', 0.05, 0.33], ['bed', 0.62, -0.15], ['mid', 1.45, 0.25], ['rear', 2.45, 0.02],
-          ['bathOut', 2.6, -0.145], ['bathIn', 3.3, 0.0], ['sink', 3.475, 0.74], ['shelf', 3.45, 0.45], ['towel', 3.75, 0.08], ['wcOut', 3.255, -0.2], ['wcIn', 3.255, -0.64]]) { VN[k] = vanPt(x, 1.07, z); VN[k].node = k; }
+          ['stove', 1.33, 0.5], ['board', 2.04, 0.5], ['ksink', 2.5, 0.5], ['bathOut', 2.6, -0.145], ['bathIn', 3.3, 0.0], ['sink', 3.475, 0.74], ['shelf', 3.45, 0.45], ['towel', 3.75, 0.08], ['wcOut', 3.255, -0.2], ['wcIn', 3.255, -0.64]]) { VN[k] = vanPt(x, 1.07, z); VN[k].node = k; }
         const VAN_EDGES = [['door', 'hall'], ['hall', 'tbl'], ['hall', 'bed'], ['hall', 'mid'], ['bed', 'mid'], ['mid', 'rear'], ['rear', 'bathOut'], ['bathOut', 'bathIn', 'entry'],
-          ['bathIn', 'sink'], ['bathIn', 'shelf'], ['shelf', 'sink'], ['bathIn', 'towel'], ['bathIn', 'wcOut'], ['towel', 'wcOut'], ['wcOut', 'wcIn', 'wc']];
+          ['bathIn', 'sink'], ['bathIn', 'shelf'], ['shelf', 'sink'], ['bathIn', 'towel'], ['bathIn', 'wcOut'], ['towel', 'wcOut'], ['wcOut', 'wcIn', 'wc'],
+          ['mid', 'stove'], ['mid', 'board'], ['stove', 'board'], ['board', 'ksink'], ['ksink', 'rear']];
         function vanRoute(a, b) {   // đường ngắn nhất giữa 2 nút (Dijkstra trên ~13 nút) → [{ p, door, node }] không gồm nút đầu
           const dist = { [a]: 0 }, prev = {}, todo = new Set(Object.keys(VN));
           while (todo.size) {
@@ -7382,8 +7543,8 @@
           else if (V.st === 'toAisle') { if (walkIn(P.aisle)) return 'released'; }
           return 'busy';
         } };
-        const stTable = { node: 'tbl', tick(e, V, dt, t, keep) {   // bàn vuông: lách ngang vào giữa ghế đẩu và mép bàn → ngồi → nhích ghế vào → ăn sáng
-          const C = STOOL_SEAT, s = e.seat;
+        const stTable = { node: 'tbl', tick(e, V, dt, t, keep) {   // bàn vuông: lách vào giữa ghế đẩu và mép bàn → ngồi → nhích ghế vào → ăn (sáng: ngũ cốc + cà phê · trưa: udon) → ăn xong cầm bát đứng dậy
+          const C = STOOL_SEAT, s = e.seat, meal = e.act === 'lunch' ? 'udon' : 'cereal', H = e.hold;
           if (!V.st) V.st = 'face';
           if (V.st === 'face') { if (!keep) return 'released'; if (engSeatTurn(e, VY.pz, dt, vanFloor)) V.st = 'in'; }
           else if (V.st === 'in' || V.st === 'out') {
@@ -7397,18 +7558,39 @@
           else if (V.st === 'scoot' || V.st === 'unscoot') {
             const into = V.st === 'scoot'; V.k = Math.min(1, V.k + dt / 2.0); const m = minJerk(V.k);
             stoolAt(into ? VSTOOL.rest + (STOOL_IN - VSTOOL.rest) * m : STOOL_IN + (VSTOOL.rest - STOOL_IN) * m); engScootPose(e, C, s, V.k, dt, t);
-            if (V.k >= 1) { if (into) V.st = 'eat'; else { engSeatStartRise(e, C, s); V.st = 'rise'; } }
+            if (V.k >= 1) {
+              if (into) {   // đặt bát lên bàn: bát udon bưng từ bếp sang · bữa sáng bày sẵn bát ngũ cốc
+                if (!e.dish || e.dish.kind !== meal) e.dish = { kind: meal, food: 1 };
+                e.dish.at = 'table'; V.st = 'eat'; V.t0 = clock.elapsedTime; V.f0 = e.dish.food || 1;
+                V.dur = Math.max(90, Math.min(meal === 'udon' ? 900 : 720, e.actLeft - 150));
+              } else { if (e.dish && e.dish.at === 'table') e.dish.at = 'hand'; engSeatStartRise(e, C, s); V.st = 'rise'; }   // cầm bát theo
+            }
           }
           else if (V.st === 'eat') {
-            if (!keep) { V.st = 'unscoot'; V.k = 0; }
-            else {   // xúc ngũ cốc (tay phải cầm thìa) · ~19 s nhấp cà phê 1 lần (tay trái cầm cốc) · nhai gật gù
-              e.seatCtl = true; e.seatLean = 0.12; engSeatHold(e, C, s, dt, t); e.hold.spoon = e.hold.cup = true;
-              const sc = (t + V.ph) % 19, sip = sc > 15 ? Math.sin(Math.PI * (sc - 15) / 4) : 0;
-              const bt = (t + V.ph) % 3.6, scoop = bt < 1.2, lift = bt >= 1.2 && bt < 1.8, chew = bt >= 1.8;
-              const toMouth = sip > 0 ? 0 : scoop ? 0 : lift ? (bt - 1.2) / 0.6 : Math.max(0, 1 - (bt - 1.8) / 0.9);
-              e.arms[0].rotation.x = -0.8 - toMouth * 0.8 + (scoop && !sip ? Math.sin(bt * 9) * 0.05 : 0);
-              e.arms[1].rotation.x = -0.45 - sip * 1.1;
-              e.head.rotation.x = (scoop && !sip ? 0.3 : 0.08) - sip * 0.22 + (chew ? Math.abs(Math.sin(t * 9)) * 0.04 : 0);
+            const D = e.dish, k = (clock.elapsedTime - V.t0) / V.dur;
+            if (D) D.food = Math.max(0, V.f0 * (1 - k));
+            if (!keep || k >= 1) { V.st = 'unscoot'; V.k = 0; }
+            else {
+              e.seatCtl = true; e.seatLean = 0.12; engSeatHold(e, C, s, dt, t);
+              const rt = e.armRollT || (e.armRollT = [0, 0]);
+              if (meal === 'udon') {   // đũa gắp sợi lên miệng, húp sột soạt; ~22 s nâng bát hai tay húp nước dùng
+                H.chop = true; const ct = (t + V.ph) % 22, sip = ct > 18 ? Math.sin(Math.PI * (ct - 18) / 4) : 0;
+                if (sip > 0.05) { H.sip = true; H.chop = false; e.arms[0].rotation.x = e.arms[1].rotation.x = -0.75 - sip * 0.85; rt[0] = 0.3 * sip; rt[1] = -0.3 * sip; e.head.rotation.x = 0.1 - sip * 0.25; }
+                else {
+                  const bt = (t + V.ph) % 3.8, dip = bt < 1.2, lift = bt >= 1.2 && bt < 1.9, slurp = bt >= 1.9 && bt < 2.9;
+                  const toMouth = dip ? 0 : lift ? (bt - 1.2) / 0.7 : slurp ? 1 : Math.max(0, 1 - (bt - 2.9) / 0.9);
+                  e.arms[0].rotation.x = -0.85 - toMouth * 0.75 + (dip ? Math.sin(bt * 8) * 0.05 : 0); e.arms[1].rotation.x = -0.6;
+                  e.head.rotation.x = (dip ? 0.32 : 0.12) + (slurp ? Math.sin(t * 14) * 0.03 : 0);
+                }
+              } else {   // ngũ cốc: xúc thìa (tay phải) · ~19 s nhấp cà phê (tay trái) · nhai gật gù
+                H.spoon = H.cup = true;
+                const sc = (t + V.ph) % 19, sip = sc > 15 ? Math.sin(Math.PI * (sc - 15) / 4) : 0;
+                const bt = (t + V.ph) % 3.6, scoop = bt < 1.2, lift = bt >= 1.2 && bt < 1.8, chew = bt >= 1.8;
+                const toMouth = sip > 0 ? 0 : scoop ? 0 : lift ? (bt - 1.2) / 0.6 : Math.max(0, 1 - (bt - 1.8) / 0.9);
+                e.arms[0].rotation.x = -0.8 - toMouth * 0.8 + (scoop && !sip ? Math.sin(bt * 9) * 0.05 : 0);
+                e.arms[1].rotation.x = -0.45 - sip * 1.1;
+                e.head.rotation.x = (scoop && !sip ? 0.3 : 0.08) - sip * 0.22 + (chew ? Math.abs(Math.sin(t * 9)) * 0.04 : 0);
+              }
             }
           }
           else if (V.st === 'rise') { e.seatCtl = true; if (engRiseStep(e, C, s, dt, t)) { e.seat = null; V.st = 'out'; } }
@@ -7533,7 +7715,187 @@
           }
           return 'busy';
         } };
-        const VAN_STATIONS = { desk: stDesk, table: stTable, bed: stBed, wc: stWc, sink: stSink, shelfOff: stShelf(false), shelfOn: stShelf(true), shower: stShower, towel: stTowel };
+        // ---- BẾP: nấu ăn · bát đĩa ----
+        //  e.dish = { kind: 'udon' | 'cereal' | 'pan', at: 'hand' | 'table' | 'counter' | 'stove' | 'camp', food: 0–1 } — món đang ở đâu, còn bao nhiêu
+        const VKIT = caravanObj.userData.interior.kitchen, VCEREAL = caravanObj.userData.interior.cerealBowl, VTUDON = caravanObj.userData.interior.tableUdon;
+        VKIT.stovePan.userData.home = VKIT.stovePan.position.clone(); VKIT.pot.userData.home = VKIT.pot.position.clone();
+        function setFood(food, k, drop) {   // phần thức ăn vơi dần: thu nhỏ + hạ mặt nước dùng / sữa
+          if (food.userData.y0 === undefined) food.userData.y0 = food.position.y;
+          food.visible = k > 0.04; if (!food.visible) return;
+          const s = 0.55 + 0.45 * k; food.scale.set(s, 0.5 + 0.5 * k, s); food.position.y = food.userData.y0 - (1 - k) * drop;
+        }
+        function engDishShow(e) {   // mỗi món chỉ hiện đúng một chỗ (bàn, mặt đá, bếp, bàn trà, trên tay)
+          const D = e.dish, H = e.hold || {}, at = D ? D.at : null, f = D ? D.food : 0, K = VKIT;
+          VCEREAL.visible = at === 'table' && D.kind === 'cereal'; if (VCEREAL.visible) setFood(VCEREAL.userData.food, f, 0.012);
+          VTUDON.visible = at === 'table' && D.kind === 'udon' && !H.sip; if (VTUDON.visible) setFood(VTUDON.userData.food, f, 0.022);
+          K.counterBowl.visible = at === 'counter'; if (K.counterBowl.visible) setFood(K.counterBowl.userData.food, f, 0.022);
+          K.stovePan.visible = at === 'stove'; if (K.stovePan.visible) setFood(K.stovePan.userData.food, f, 0);
+          K.pegPan.visible = !(D && D.kind === 'pan');
+          if (campPanRig) { campPanRig.pan.visible = at === 'camp'; if (campPanRig.pan.visible) setFood(campPanRig.food, f, 0); }
+        }
+        function kitchenTick(dt, t) {   // lửa ga nhảy nhẹ · hơi nước bốc từ nồi
+          VKIT.flames.forEach((f, i) => { if (!f.visible) return; const k = 1 + Math.sin(t * 23 + i * 1.7) * 0.05 + Math.sin(t * 37 + i) * 0.04; f.scale.set(k, 1 + Math.sin(t * 29 + i * 2.3) * 0.35, k); });
+          const st = VKIT.steam;
+          for (const p of VKIT.potSteam) {
+            p.m.visible = st > 0.02; if (!p.m.visible) continue;
+            const k = (t * 0.45 + p.ph) % 1;
+            p.m.position.set(Math.sin(t * 1.3 + p.ph * 6) * 0.02, 0.12 + k * 0.35, Math.cos(t * 1.1 + p.ph * 5) * 0.02); p.m.scale.setScalar(0.6 + k * 1.4); p.m.material.opacity = 0.32 * st * Math.sin(Math.PI * k);
+          }
+        }
+        function engSay(label, text) {   // nảy ý ngay khi có sự việc (múc xong udon…): dùng chung đám mây suy nghĩ
+          const now = Date.now(), ctx = engContext(now);
+          const tp = Number.isFinite(ctx.temp) ? ' · ' + ctx.wxIcon + ' ' + ctx.temp.toLocaleString('vi-VN', { maximumFractionDigits: 0 }) + '°' : '';
+          checkBubbleSprite.userData.thought = { header: ctx.slotIcon + ' ' + ctx.slotName + ' · ' + clockText(ctx.h) + ' · ' + label + tp, message: text, kind: 'event', slot: ctx.slot, tags: [...ctx.tags], revision: ++thoughtRevision };
+          thoughtUntil = now + 14000; idleThoughtAt = Math.max(idleThoughtAt, now + 60000);
+        }
+        function kitchenReset() {   // tắt lửa, đổ nước nồi, dao về móc (bỏ dở việc nấu / đi ngủ)
+          for (const f of VKIT.flames) f.visible = false;
+          VKIT.potWater.visible = VKIT.potNoodles.visible = VKIT.tapWater.visible = false; VKIT.steam = 0; VKIT.pegKnife.visible = true;
+          for (const s of VKIT.scallions) s.visible = false;
+          VKIT.pot.position.copy(VKIT.pot.userData.home); VKIT.pot.rotation.set(0, 0, 0);
+          VKIT.stovePan.position.copy(VKIT.stovePan.userData.home); VKIT.stovePan.rotation.set(0, Math.PI, 0);
+        }
+        const stStove = { node: 'stove', tick(e, V, dt, t, keep) {   // bếp ga: trưa luộc udon (nồi họng sau–trái, thái hành trên thớt) · chiều chiên cơm trứng (chảo họng trước–phải)
+          const K = VKIT, H = e.hold, rt = e.armRollT || (e.armRollT = [0, 0]), now = clock.elapsedTime, POT = 1, PAN = 2;
+          if (!V.st) {
+            V.recipe = liveWeather.localHour < 14 ? 'udon' : 'rice';
+            V.T = V.recipe === 'udon' ? Math.max(420, Math.min(1320, e.actLeft - 100)) : Math.max(300, Math.min(840, e.actLeft - 100));
+            V.st = V.recipe === 'udon' ? 'face' : 'toPeg'; V.chopped = false;
+          }
+          if (!keep && !['take', 'garnish'].includes(V.st)) {   // bỏ dở (nhảy giờ): tắt bếp, dọn, chảo về móc
+            kitchenReset(); if (e.dish && e.dish.kind === 'pan') e.dish = null; if (e.dish && e.dish.at === 'counter') e.dish = null; return 'released';
+          }
+          const knob = (k, on, i) => {   // cúi xuống vặn núm ga ở mặt trước khối bếp
+            const r = segK(k, 0, 0.6) * (1 - segK(k, 1.0, 1.5)); e.lean = 0.3 * r; e.arms[0].rotation.x = -0.6 * r; e.head.rotation.x = 0.45 * r;
+            if (k > 0.7) K.flames[i].visible = on;
+          };
+          const lookStove = () => { e.arms[0].rotation.x = e.arms[1].rotation.x = -0.5; rt[0] = 0.1; rt[1] = -0.1; e.head.rotation.x = 0.38 + Math.sin(t * 0.5) * 0.04; e.lean = 0.06 + 0.06 * Math.max(0, Math.sin(t * 0.3)); };
+          const reachUp = (k, flip) => { const r = segK(k, 0, 0.7) * (1 - segK(k, 1.0, 1.5)); e.arms[flip ? 1 : 0].rotation.x = -1.75 * r; e.head.rotation.x = -0.12 * r; return r; };
+          switch (V.st) {
+            // ===== udon =====
+            case 'face': if (engSeatTurn(e, VY.pz, dt, vanFloor)) { V.st = 'on'; V.k = 0; } break;
+            case 'on': V.k += dt; knob(V.k, true, POT); if (V.k > 0.7) { K.potWater.visible = true; K.potWater.material.color.set(0x9cc7d8); } if (V.k > 1.6) { V.st = 'boil'; V.t0 = now; V.boilDur = V.T * 0.4; } break;
+            case 'boil': {   // chờ nước sôi: tay chống mép bếp, nhìn nồi; giữa chừng sang thớt thái hành
+              const p = (now - V.t0) / V.boilDur; K.steam = Math.min(1, p * 1.3); lookStove();
+              if (!V.chopped && p > 0.3) V.st = 'toBoard';
+              else if (p >= 1) { V.st = 'noodles'; V.k = 0; }
+              break;
+            }
+            case 'toBoard': if (vanWalkTo(e, VN.board, dt, 0.45)) V.st = 'boardFace'; break;
+            case 'boardFace': if (engSeatTurn(e, VY.pz, dt, vanFloor)) { V.st = 'knifeTake'; V.k = 0; } break;
+            case 'knifeTake': V.k += dt; reachUp(V.k); if (V.k > 0.75) K.pegKnife.visible = false; H.knife = V.k > 0.75; if (V.k > 1.4) { V.st = 'chop'; V.k = 0; } break;
+            case 'chop': {   // thái hành lá: dao lên xuống nhanh, tay trái giữ cọng hành
+              V.k += dt; H.knife = true; const n = Math.floor(Math.min(1, V.k / 40) * K.scallions.length);
+              K.scallions.forEach((s, i) => { s.visible = i < n; });
+              e.arms[0].rotation.x = -0.95 + Math.max(0, Math.sin(t * 16)) * 0.18; e.arms[1].rotation.x = -0.85; rt[1] = -0.12; e.lean = 0.18; e.head.rotation.x = 0.45;
+              if (V.k > 40) { V.st = 'knifeBack'; V.k = 0; }
+              break;
+            }
+            case 'knifeBack': V.k += dt; reachUp(V.k); H.knife = V.k < 0.75; if (V.k > 0.75) K.pegKnife.visible = true; if (V.k > 1.4) { V.chopped = true; V.st = 'backStove'; } break;
+            case 'backStove': if (vanWalkTo(e, VN.stove, dt, 0.45)) V.st = 'backFace'; break;
+            case 'backFace': if (engSeatTurn(e, VY.pz, dt, vanFloor)) V.st = 'boil'; break;
+            case 'noodles': {   // thả udon vào nồi nước sôi
+              V.k += dt; const r = segK(V.k, 0, 0.8) * (1 - segK(V.k, 1.6, 2.4)); e.arms[0].rotation.x = e.arms[1].rotation.x = -1.05 * r; e.lean = 0.2 * r; e.head.rotation.x = 0.4 * r;
+              if (V.k > 1.0) K.potNoodles.visible = true;
+              if (V.k > 2.5) { V.st = 'stir'; V.t0 = now; V.stirDur = V.T * 0.5; }
+              break;
+            }
+            case 'stir': {   // đũa dài đảo sợi cho khỏi dính; ~30 s nghỉ tay một lần
+              K.steam = 1; const rest = ((now - V.t0) % 30) > 22;
+              if (rest) lookStove();
+              else { H.chop = true; e.arms[0].rotation.x = -1.15 + Math.sin(t * 3.2) * 0.12; rt[0] = 0.18 + Math.cos(t * 3.2) * 0.1; e.arms[1].rotation.x = -0.5; e.lean = 0.22; e.head.rotation.x = 0.42; }
+              if (now - V.t0 >= V.stirDur) { V.st = 'off'; V.k = 0; }
+              break;
+            }
+            case 'off': V.k += dt; knob(V.k, false, V.recipe === 'udon' ? POT : PAN); if (V.k > 1.6) { V.st = V.recipe === 'udon' ? 'bowl' : 'take'; V.k = 0; } break;
+            case 'bowl': {   // cúi lấy bát trong tủ dưới, đặt lên mặt đá cạnh bếp
+              V.k += dt; const d = segK(V.k, 0, 0.8) * (1 - segK(V.k, 1.2, 1.8)); e.lean = 0.4 * d; e.arms[1].rotation.x = -0.45 * d; e.head.rotation.x = 0.45 * d;
+              if (V.k > 0.9 && !e.dish) e.dish = { kind: 'udon', at: 'counter', food: 0 };
+              if (V.k > 1.9) { V.st = 'pour'; V.k = 0; }
+              break;
+            }
+            case 'pour': {   // nhấc nồi, nghiêng đổ sợi + nước dùng vào bát
+              V.k += dt; const k = V.k, up = segK(k, 0, 0.8) * (1 - segK(k, 2.3, 3.1)), tilt = segK(k, 0.8, 1.4) * (1 - segK(k, 1.9, 2.4)), home = K.pot.userData.home;
+              K.pot.position.set(home.x - 0.04 * up, home.y + 0.12 * up, home.z - 0.16 * up); K.pot.rotation.x = -0.9 * tilt;
+              e.arms[0].rotation.x = e.arms[1].rotation.x = -1.05 - 0.2 * up; rt[0] = 0.25 * up; rt[1] = -0.05 * up; e.lean = 0.2 * up; e.head.rotation.x = 0.4;
+              if (k > 1.5 && K.potNoodles.visible) { K.potNoodles.visible = false; K.potWater.visible = false; if (e.dish) e.dish.food = 1; }
+              K.steam = Math.max(0, 1 - segK(k, 1.5, 3.1));
+              if (k > 3.2) { K.pot.position.copy(home); K.pot.rotation.set(0, 0, 0); V.st = 'garnish'; V.k = 0; }
+              break;
+            }
+            case 'garnish': {   // vốc hành lá trên thớt rắc lên bát
+              V.k += dt; const r = segK(V.k, 0, 0.6) * (1 - segK(V.k, 1.2, 1.8)); e.arms[1].rotation.x = -0.9 * r; rt[1] = -0.35 * r; e.lean = 0.15 * r;
+              if (V.k > 0.7) for (const s of K.scallions) s.visible = false;
+              if (V.k > 1.9) { V.st = 'take'; V.k = 0; }
+              break;
+            }
+            case 'take': {   // bưng bát (udon) / nhấc chảo (cơm chiên) lên
+              V.k += dt; const r = segK(V.k, 0, 0.5); e.lean = 0.12 * r;
+              if (V.k > 0.5 && e.dish && e.dish.at !== 'hand') {
+                e.dish.at = 'hand';
+                if (V.recipe === 'udon') engSay('Nấu udon', 'Tới giờ ăn udon rồi!'); else engSay('Nấu bữa tối', 'Cơm chiên xong, mang ra hiên ăn thôi.');
+              }
+              if (V.k > 1.1) { kitchenReset(); return 'released'; }
+              break;
+            }
+            // ===== cơm chiên trứng =====
+            case 'toPeg': if (vanWalkTo(e, VN.board, dt, 0.45)) V.st = 'pegFace'; break;
+            case 'pegFace': if (engSeatTurn(e, VY.pz, dt, vanFloor)) { V.st = 'takePan'; V.k = 0; } break;
+            case 'takePan': V.k += dt; reachUp(V.k, true); if (V.k > 0.8 && !e.dish) e.dish = { kind: 'pan', at: 'hand', food: 0 }; if (V.k > 1.5) V.st = 'toStove'; break;
+            case 'toStove': if (vanWalkTo(e, VN.stove, dt, 0.45)) V.st = 'stoveFace'; break;
+            case 'stoveFace': if (engSeatTurn(e, VY.pz, dt, vanFloor)) { V.st = 'place'; V.k = 0; } break;
+            case 'place': { V.k += dt; const r = segK(V.k, 0, 0.6) * (1 - segK(V.k, 0.9, 1.4)); e.arms[1].rotation.x = -0.95 * r; e.lean = 0.2 * r; if (V.k > 0.7 && e.dish) e.dish.at = 'stove'; if (V.k > 1.5) { V.st = 'panOn'; V.k = 0; } break; }
+            case 'panOn': V.k += dt; knob(V.k, true, PAN); if (V.k > 1.6) { V.st = 'heat'; V.k = 0; } break;
+            case 'heat': V.k += dt; lookStove(); if (V.k > 12) { V.st = 'add'; V.k = 0; } break;
+            case 'add': {   // cho cơm, trứng, hành vào chảo nóng
+              V.k += dt; const r = segK(V.k, 0, 0.7) * (1 - segK(V.k, 1.5, 2.2)); e.arms[0].rotation.x = e.arms[1].rotation.x = -1.0 * r; e.lean = 0.2 * r; e.head.rotation.x = 0.4 * r;
+              if (V.k > 1.1 && e.dish) e.dish.food = 1;
+              if (V.k > 2.3) { V.st = 'fry'; V.t0 = now; V.fryDur = Math.max(120, V.T - 60); }
+              break;
+            }
+            case 'fry': {   // xẻng đảo đều tay; ~7 s hất chảo một lần (tay trái nắm cán, cơm bay lên rơi xuống)
+              H.spatula = true; const ph = ((now - V.t0) % 7) / 0.9, home = K.stovePan.userData.home, food = K.stovePan.userData.food;
+              e.arms[0].rotation.x = -1.0 + Math.sin(t * 5) * 0.15; rt[0] = 0.15 + Math.cos(t * 5) * 0.08; e.lean = 0.2; e.head.rotation.x = 0.42;
+              if (ph < 1) {
+                const s = Math.sin(Math.PI * ph); e.arms[1].rotation.x = -0.85 - 0.25 * s;
+                K.stovePan.position.set(home.x - 0.02 * s, home.y + 0.04 * s, home.z); K.stovePan.rotation.set(0, Math.PI, 0.25 * s); food.position.y = 0.035 * Math.sin(Math.PI * Math.min(1, ph * 1.3));
+              } else { e.arms[1].rotation.x = -0.45; K.stovePan.position.copy(home); K.stovePan.rotation.set(0, Math.PI, 0); food.position.y = 0; }
+              if (now - V.t0 >= V.fryDur) { K.stovePan.position.copy(home); K.stovePan.rotation.set(0, Math.PI, 0); food.position.y = 0; V.st = 'off'; V.k = 0; }
+              break;
+            }
+          }
+          return 'busy';
+        } };
+        const stDishes = { node: 'ksink', tick(e, V, dt, t, keep) {   // chậu bếp: rửa bát / chảo dưới vòi rồi cất (bát vào tủ dưới chậu, chảo treo lại lên bảng)
+          const D = e.dish, rt = e.armRollT || (e.armRollT = [0, 0]);
+          if (!D && V.st !== 'hang' && V.st !== 'stow') return 'released';
+          if (!V.st) V.st = 'face';
+          if (V.st === 'face') { if (engSeatTurn(e, VY.pz, dt, vanFloor)) { V.st = 'wash'; V.k = 0; } }
+          else if (V.st === 'wash') {
+            V.k += dt; e.armsBusy = true; const k = V.k, dur = D.kind === 'pan' ? 30 : 22, on = k > 1 && k < dur - 1.5, reach = segK(k, 0, 0.8);
+            VKIT.tapWater.visible = on; if (on) VKIT.tapWater.scale.set(1 + Math.sin(t * 40) * 0.15, 1, 1 + Math.cos(t * 37) * 0.15);
+            e.arms[1].rotation.x = -0.95 * reach + (on ? Math.sin(t * 2.2) * 0.08 : 0); e.arms[0].rotation.x = -1.0 * reach + (on ? Math.sin(t * 9) * 0.12 : 0);
+            rt[0] = 0.25 * reach; rt[1] = -0.15 * reach; e.lean = 0.2 * reach; e.head.rotation.x = 0.4 * reach;
+            D.food = 0;   // phần thừa đổ đi, rửa sạch
+            if (k > dur) { VKIT.tapWater.visible = false; V.st = D.kind === 'pan' ? 'toPeg' : 'stow'; V.k = 0; }
+          }
+          else if (V.st === 'stow') {   // cúi cất bát vào tủ dưới chậu
+            V.k += dt; e.armsBusy = true; const d = segK(V.k, 0, 0.8) * (1 - segK(V.k, 1.4, 2.2));
+            e.lean = 0.35 * d; e.arms[0].rotation.x = e.arms[1].rotation.x = -0.5 * d; e.head.rotation.x = 0.4 * d;
+            if (V.k > 1.0) e.dish = null;
+            if (V.k > 2.3) return 'released';
+          }
+          else if (V.st === 'toPeg') { if (vanWalkTo(e, VN.board, dt, 0.45)) V.st = 'pegFace'; }
+          else if (V.st === 'pegFace') { if (engSeatTurn(e, VY.pz, dt, vanFloor)) { V.st = 'hang'; V.k = 0; } }
+          else if (V.st === 'hang') {   // với tay treo chảo lên móc
+            V.k += dt; e.armsBusy = true; const r = segK(V.k, 0, 0.8) * (1 - segK(V.k, 1.3, 2.0));
+            e.arms[1].rotation.x = -1.7 * r; e.lean = 0.12 * r; e.head.rotation.x = -0.1 * r;
+            if (V.k > 0.9) e.dish = null;
+            if (V.k > 2.1) { V.endNode = 'board'; return 'released'; }
+          }
+          return 'busy';
+        } };
+        const VAN_STATIONS = { desk: stDesk, table: stTable, bed: stBed, wc: stWc, sink: stSink, shelfOff: stShelf(false), shelfOn: stShelf(true), shower: stShower, towel: stTowel, stove: stStove, dishes: stDishes };
         const engVanNew = node => ({ node, path: null, pi: 0, goal: null, segDoor: null, station: null, st: null, k: 0, plan: [], idx: 0, act: null, opened: new Set(), ph: Math.random() * 100 });
         function engVan(e, dt, t, act) {   // trong xe: làm lần lượt các trạm của việc; việc ngoài trời thì ra cửa hông bước xuống bậc
           const V = e.van, A = ENG_ACTS[act], g = e.g;
@@ -7556,9 +7918,11 @@
           if (V.station) {
             const keep = V.plan[V.idx] === V.station;
             if (VAN_STATIONS[V.station].tick(e, V, dt, t, keep) !== 'released') return;
-            V.node = VAN_STATIONS[V.station].node; V.station = null; V.st = null; V.k = 0;
+            V.node = V.endNode || VAN_STATIONS[V.station].node; V.endNode = null; V.station = null; V.st = null; V.k = 0;
             if (keep) V.idx++;
           }
+          if (e.dish && e.dish.at === 'hand' && V.plan[V.idx] !== 'dishes' && (e.dish.food < 0.05 || !(act === 'cook' || act === 'lunch' || act === 'dinner')))
+            V.plan = [...V.plan.slice(0, V.idx), 'dishes', ...V.plan.slice(V.idx)];   // bát / chảo đã ăn xong (hoặc bỏ dở): rửa trước rồi mới làm việc khác
           if (V.idx >= V.plan.length) {   // xong kế hoạch: việc có điểm dừng thì đánh dấu đã xong (lịch chuyển sang việc kế), không thì đứng chờ
             if (A.once && e.onceKey && e.onceKey.startsWith(act + '@')) e.doneAct = e.onceKey;
             g.position.y = VAN_FLOOR - ENG_FEET; engStandStill(e); e.vel = 0; return;
@@ -7592,15 +7956,20 @@
             const V = e.van = engVanNew('hall'); e.inVan = true; V.act = act; V.plan = A.plan || []; V.idx = 0;
             const at = (node, station, st) => { V.node = node; V.station = station; V.st = st; };
             if (act === 'research' || act === 'music') { studyChairAt(0); e.seat = engNewSeat(STUDY_SEAT, 'seated'); at('mid', 'desk', 'work'); studyLaptop.open = 1; }
-            else if (act === 'breakfast') { stoolAt(STOOL_IN); e.seat = engNewSeat(STOOL_SEAT, 'seated'); at('tbl', 'table', 'eat'); }
+            else if (act === 'breakfast' || act === 'lunch') {
+              stoolAt(STOOL_IN); e.seat = engNewSeat(STOOL_SEAT, 'seated'); at('tbl', 'table', 'eat');
+              e.dish = { kind: act === 'lunch' ? 'udon' : 'cereal', at: 'table', food: 1 }; V.t0 = clock.elapsedTime; V.f0 = 1; V.dur = Math.max(90, Math.min(act === 'lunch' ? 900 : 720, e.actLeft - 150));
+            }
+            else if (act === 'cook') { at('stove', 'stove', null); e.g.position.set(VN.stove.x, VAN_FLOOR - ENG_FEET, VN.stove.z); e.g.rotation.set(0, VY.pz, 0); }
             else if (act === 'bedtime') { e.seat = engNewSeat(BED_SEAT, 'seated'); at('bed', 'bed', 'seated'); V.k = 3; engHelmet(e, 'bed'); }
             else if (act === 'toilet') { e.seat = engNewSeat(TOILET_SEAT, 'seated'); LID.k = LID.target = 1; at('wcIn', 'wc', 'seated'); V.until = clock.elapsedTime + Math.max(30, Math.min(240, e.actLeft - 75)); }
             else if (act === 'shower') {
               engHelmet(e, 'shelf'); at('wcIn', 'shower', 'wash'); V.idx = 1; V.until = clock.elapsedTime + Math.max(60, Math.min(600, e.actLeft - 130)); showerFx.on = true; showerFx.steam = 0.6;
               e.g.position.set(SHOWER_SPOT.x, VAN_FLOOR - ENG_FEET, SHOWER_SPOT.z); e.g.rotation.set(0, VY.nz, 0);
             }
-          } else if (act === 'lunch' || act === 'dinner' || act === 'rest' || act === 'read' || act === 'shelter') {
+          } else if (act === 'dinner' || act === 'rest' || act === 'read' || act === 'shelter') {
             e.seat = engNewSeat(CAMP_SEAT, 'seated'); e.phase = engChairPhase(e, act);
+            if (act === 'dinner') { e.dish = { kind: 'pan', at: 'camp', food: 1 }; e.eatT0 = e.timer; }
           } else if (act === 'fish') { e.seat = engNewSeat(FISH_SEAT, 'seated'); e.phase = 'fish'; e.timer = e.actLeft; }
           // dạo trại: xuất phát trước cửa xe (wp[0]) như cũ
         }
@@ -10473,6 +10842,7 @@
                 checkBubbleSprite.visible = false;
                 // ngủ: mũ để cuối giường, khăn trên giá, đồ cầm tay cất, ghế đẩu kéo ra, cửa phòng tắm & nắp bồn cầu đóng, tắt nước
                 engHelmet(e, 'bed'); e.towel.visible = false; VBATH.towel.visible = true;
+                e.dish = null; kitchenReset(); engDishShow(e);
                 for (const k in e.props) e.props[k].visible = false; if (e.clip) e.clip.visible = false;
                 stoolAt(VSTOOL.rest); VAN_DOORS.entry.target = VAN_DOORS.wc.target = 0; LID.target = 0; showerFx.on = false; VBATH.tapWater.visible = false; chipsBag.visible = false;
               }
@@ -10503,6 +10873,9 @@
               const act = engWantAct(e, hh);
               if (!e.act) engSpawn(e, act); else if (act !== e.act) engSetAct(e, act);
               const H = e.hold || (e.hold = {}); for (const k in H) H[k] = false;
+              e.armsBusy = false;
+              if (e.dish && e.dish.at === 'camp' && !['eat', 'tea', 'toChair'].includes(e.phase)) e.dish.at = 'hand';   // hết bữa tối: nhấc chảo khỏi bàn trà mang vào rửa
+              if (e.dish && e.dish.at === 'hand' && !e.inVan && e.phase !== 'van' && e.act !== 'dinner' && e.dish.food < 0.05 && e.dish.kind !== 'pan') e.dish = null;
               e.headRollT = 0;
               // ---- dùng ghế ngoài trời: việc mới không cần chiếc ghế đang ngồi → đứng dậy rồi rời ghế theo làn trước, không đi xuyên ghế ----
               const outSeat = e.inVan ? null : engPhaseSeat(e.phase);
@@ -10541,11 +10914,15 @@
                 }
               }
               else if (e.phase === 'toChair') {            // về ghế cắm trại (né bếp lửa), vào thẳng từ phía trước, quay lưng, ngồi → ăn / trà / đọc sách tuỳ việc
-                if (engUseSeat(e, CAMP_SEAT, dt, t)) { e.phase = engChairPhase(e, e.act); e.readPh = Math.random() * 9; idleThoughtAt = Math.min(idleThoughtAt, Date.now() + 4000); }
+                if (engUseSeat(e, CAMP_SEAT, dt, t)) {
+                  e.phase = engChairPhase(e, e.act); e.readPh = Math.random() * 9; idleThoughtAt = Math.min(idleThoughtAt, Date.now() + 4000);
+                  if (e.act === 'dinner') { if (!e.dish || e.dish.kind !== 'pan') e.dish = { kind: 'pan', food: 1 }; e.dish.at = 'camp'; e.eatT0 = e.timer; }   // đặt chảo cơm chiên lên bàn trà
+                }
               }
               else if (e.phase === 'eat') {                // ăn trưa / tối bằng thìa từ chảo trên bàn (xúc → đưa lên miệng → nhai), người đổ về phía bàn
                 if (engUseSeat(e, CAMP_SEAT, dt, t)) {
                   e.timer -= dt; e.seatLean = 0.12; e.seatSwing = 0; H.spoon = true;
+                  if (e.dish && e.dish.at === 'camp' && e.eatT0 > 0) e.dish.food = Math.max(0, e.timer / e.eatT0);   // cơm trong chảo vơi dần
                   const bt = t % 3.2, scoop = bt < 1.1, lift = bt >= 1.1 && bt < 1.7, chew = bt >= 1.7;
                   const toMouth = scoop ? 0 : lift ? (bt - 1.1) / 0.6 : Math.max(0, 1 - (bt - 1.7) / 0.9);
                   e.arms[0].rotation.x = -0.62 - toMouth * 0.7 + (scoop ? Math.sin(bt * 9) * 0.06 : 0);   // thìa xuống chảo rồi lên miệng
@@ -10647,8 +11024,18 @@
               const atSeat = !!e.seat && (e.seat.st === 'back' || e.seat.st === 'sit' || e.seat.st === 'seated' || e.seat.st === 'rise');   // tay cần nắm tay vịn
               const P = e.props;
               P.spoon.visible = !!H.spoon; P.cup.visible = !!H.cup; P.bottle.visible = !!H.bottle; P.book.visible = !!H.book; P.chip.visible = !!H.chip;
+              P.chopsticks.visible = !!H.chop; P.knife.visible = !!H.knife; P.spatula.visible = !!H.spatula;
               if (!H.book) P.bookLeaf.visible = false;
-              if (e.clip) e.clip.visible = !e.inVan && e.phase !== 'van' && !fishing && !atSeat && !H.spoon && !H.cup && !H.bottle && !H.book && e.phase !== 'pet';
+              const Dsh = e.dish, dishHand = !!Dsh && Dsh.at === 'hand';
+              P.handBowl.visible = (dishHand && Dsh.kind !== 'pan') || !!H.sip; P.handPan.visible = dishHand && Dsh.kind === 'pan';
+              setFood(P.handBowl.userData.food, Dsh && Dsh.kind === 'udon' ? Dsh.food : 0, 0.022); setFood(P.handPan.userData.food, dishHand && Dsh.kind === 'pan' ? Dsh.food : 0, 0);
+              if (dishHand && !e.armsBusy && !e.seatCtl) {   // bưng bát hai tay trước bụng · cầm cán chảo một tay
+                const rt = e.armRollT || (e.armRollT = [0, 0]);
+                if (Dsh.kind === 'pan') e.arms[1].rotation.x = -0.8;
+                else { e.arms[0].rotation.x = e.arms[1].rotation.x = -0.85; rt[0] = 0.28; rt[1] = -0.28; }
+              }
+              engDishShow(e); kitchenTick(dt, t);
+              if (e.clip) e.clip.visible = !e.inVan && e.phase !== 'van' && !fishing && !atSeat && !H.spoon && !H.cup && !H.bottle && !H.book && !dishHand && e.phase !== 'pet';
               chipsBag.visible = e.phase === 'read' && !e.inVan && !leavingSeat;
               const atDesk = e.inVan && !!e.van && e.van.station === 'desk';
               studyLaptop.target = atDesk && (e.van.st === 'sit' || e.van.st === 'scoot' || e.van.st === 'work') ? 1 : 0;
