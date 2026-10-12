@@ -208,7 +208,7 @@
         {
           const named = (...prefixes) => scene.children.filter(o => o.name && prefixes.some(p => o.name.startsWith(p)));
           for (const o of [pin, axesGroup, pickBox, ...named('Ba con cò')]) o.userData.noBatch = true;   // công cụ giao diện + cò (thân biến dạng theo nhịp vỗ cánh)
-          batchDraws('Kỹ sư', [engObj?.g]);
+          if (engObj) engObj.g.userData.noBatch = true;   // kỹ sư tự vẽ từng mảnh: đổi cha (xe/ghế/giường), ẩn/hiện mũ-tóc liên tục — gộp từng làm mất đầu
           batchDraws('Chó', [dogObj]);
           batchDraws('Đàn bò', cows.map(c => c.g));
           batchDraws('Động vật ban ngày', [daytimeAnimals]);
