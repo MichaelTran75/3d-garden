@@ -4258,9 +4258,10 @@
 
         // ---- kỹ sư đi tuần & kiểm tra trạm khí tượng ----
         const hiVis = new THREE.MeshLambertMaterial({ color: 0xf0a500 }), engPants = new THREE.MeshLambertMaterial({ color: 0x3a4a63 }),
-          engSkin = new THREE.MeshLambertMaterial({ color: 0xe0ac80 }), engHelm = new THREE.MeshLambertMaterial({ color: 0xf5d020 }),
+          engSkin = new THREE.MeshLambertMaterial({ color: 0xe0ac80 }), engHelm = new THREE.MeshLambertMaterial({ color: 0xf4f2ec }),
           engBoot = new THREE.MeshLambertMaterial({ color: 0x2a2622 }), engPad = new THREE.MeshLambertMaterial({ color: 0xE2D6C0 }),
           rodMat = new THREE.MeshLambertMaterial({ color: 0x5a4632 });
+        const LEGO_YELLOW = 0xf5cd2f;   // màu da vàng kinh điển của nhân vật LEGO
         const CAMP_SCALE = 0.90, ENGINEER_SIZE = 0.95 * 0.95, ENGINEER_BASE_SCALE = 1.026 * ENGINEER_SIZE;   // kỹ sư nhỏ đi 5% hai lần (ghế, bàn, giường giữ nguyên)
         // Độ cao đặt gốc kỹ sư theo cỡ người: đế giày ở y cục bộ 0,30 → đứng thì gốc thấp hơn mặt đất đúng ENG_FEET;
         // mông khi ngồi ở y cục bộ ~1,06 → người nhỏ đi thì mông thấp xuống, nâng gốc ENG_SIT_LIFT để vẫn ngồi đúng mặt ghế như trước.
@@ -4387,52 +4388,93 @@
           for (let k = 0; k < 16; k++) { const a = k * 2.4, r = 0.012 + (k % 5) * 0.011, b = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.006, 0.01), bitM[k % 3]); b.position.set(Math.cos(a) * r, 0.03 - r * 0.25, Math.sin(a) * r); b.rotation.y = a; food.add(b); }
           return g;
         }
+        // ---- MŨ BẢO HỘ kiểu LEGO (gốc ở tâm đầu): vỏ vòm + vành quanh + lưỡi trai trước + gờ dọc đỉnh + 2 ốp tai chống ồn ----
+        function legoHelmet(shellM, padM) {
+          const h = new THREE.Group();
+          const dome = new THREE.Mesh(new THREE.SphereGeometry(0.235, 20, 10, 0, Math.PI * 2, 0, 1.5), shellM); dome.position.y = 0.1; dome.castShadow = true; h.add(dome);
+          const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.262, 0.262, 0.024, 28), shellM); brim.position.y = 0.105; h.add(brim);
+          const visor = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.022, 0.12), shellM); visor.position.set(0, 0.098, 0.25); visor.rotation.x = 0.12; h.add(visor);
+          const ridge = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.42), shellM); ridge.position.y = 0.318; h.add(ridge);
+          for (const sx of [-1, 1]) { const pad = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.05, 14), padM); pad.rotation.z = Math.PI / 2; pad.position.set(sx * 0.215, 0.0, 0); h.add(pad); }
+          return h;
+        }
         function engineer() {
           const g = new THREE.Group();
           const P = (par, w, h, d, mat, x, y, z, o) => { const m = bx(w, h, d, mat, true, o !== false, lineDark); m.position.set(x, y, z); par.add(m); return m; };
-          const refl = new THREE.MeshLambertMaterial({ color: 0xE2D6C0 });
-          // ---- THÂN: áo gilê phản quang ghép nhiều khối ----
-          P(g, 0.5, 0.4, 0.32, hiVis, 0, 1.66, 0);                  // ngực
-          P(g, 0.46, 0.34, 0.3, hiVis, 0, 1.34, 0);                 // bụng
-          P(g, 0.52, 0.05, 0.33, refl, 0, 1.57, 0, false);           // dải phản quang ngang trên
-          P(g, 0.52, 0.05, 0.33, refl, 0, 1.43, 0, false);           // dải ngang dưới
-          for (const sx of [-1, 1]) P(g, 0.05, 0.42, 0.33, refl, sx * 0.17, 1.62, 0, false);  // dải dọc ngực
-          P(g, 0.2, 0.18, 0.2, engSkin, 0, 1.92, 0, false);          // cổ
-          P(g, 0.48, 0.16, 0.34, engBoot, 0, 1.14, 0, false);        // đai dụng cụ
-          P(g, 0.12, 0.16, 0.1, metalMat, 0.22, 1.08, 0.16, false);  // túi đồ nghề
-          const hips = bx(0.46, 0.2, 0.3, engPants, true, true, lineDark); hips.position.y = 1.18; g.add(hips);
-          // ---- ĐẦU: mũ bảo hộ + ốp tai chống ồn ----
+          // ==== KIỂU NHÂN VẬT LEGO (minifigure): đầu trụ có núm, in mặt cười · mũ bảo hộ trắng có vành (kỹ sư/giám sát công trường đội mũ trắng) ·
+          //      thân hình thang in áo gilê cam phản quang · hông khối · chân khối liền, bàn chân nhô trước · tay tròn thuôn, bàn tay chữ C · nhựa bóng.
+          //      Vị trí khớp giữ như cũ (hông y 1,18 · gối −0,42 · cổ chân −0,36 · vai ±0,34/1,86 · đầu 2,06 · đế giày 0,30) ⇒ tư thế, IK, ngồi ghế, đồ cầm tay không đổi ====
+          const plastic = (color, o = {}) => new THREE.MeshPhongMaterial({ color, shininess: 70, specular: 0x2a2a2a, ...o });
+          const legoYellow = plastic(LEGO_YELLOW), vestM = plastic(0xf08c00), pantsM = plastic(0x3a4a63), bootM = plastic(0x2a2622), beltM = plastic(0x34302c);
+          const canvasTex = (w, h, draw) => { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d')); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; };
+          // ---- THÂN hình thang (đáy 0,54 · vai 0,42 · cao 0,62 · dày 0,3), mặt trước/sau in áo gilê ----
+          const vestPrint = front => canvasTex(256, 256, x => {
+            x.fillStyle = '#f08c00'; x.fillRect(0, 0, 256, 256);
+            const refl = (rx, ry, w, h) => { x.fillStyle = '#c9ced2'; x.fillRect(rx, ry, w, h); x.fillStyle = 'rgba(255,255,255,0.55)'; x.fillRect(rx + 2, ry + 2, w - 4, Math.max(2, h * 0.25)); };
+            if (front) {
+              x.fillStyle = '#9cc3e6'; x.beginPath(); x.moveTo(84, 0); x.lineTo(128, 70); x.lineTo(172, 0); x.fill();   // cổ áo sơ mi xanh nhạt chữ V
+              x.fillStyle = '#ffffff'; x.beginPath(); x.moveTo(84, 0); x.lineTo(110, 34); x.lineTo(104, 0); x.fill(); x.beginPath(); x.moveTo(172, 0); x.lineTo(146, 34); x.lineTo(152, 0); x.fill();
+              x.strokeStyle = '#5a3d1e'; x.lineWidth = 4; x.beginPath(); x.moveTo(128, 70); x.lineTo(128, 256); x.stroke();   // khoá kéo
+              refl(58, 0, 22, 256); refl(176, 0, 22, 256); refl(0, 172, 256, 22);   // 2 dải dọc + 1 dải ngang phản quang
+              x.fillStyle = '#d97a00'; x.fillRect(146, 98, 28, 32); x.fillStyle = '#2f5d7c'; x.fillRect(165, 86, 5, 22);   // túi ngực + bút
+              x.fillStyle = '#ffffff'; x.font = 'bold 20px Arial, sans-serif'; x.textAlign = 'center'; x.fillText('GHC', 104, 120);
+            } else {
+              refl(58, 0, 22, 256); refl(176, 0, 22, 256); refl(0, 150, 256, 22);
+              x.fillStyle = '#ffffff'; x.font = 'bold 36px Arial, sans-serif'; x.textAlign = 'center'; x.fillText('GHC', 128, 100);
+            }
+          });
+          const torsoGeo = new THREE.BoxGeometry(0.54, 0.62, 0.3), tp = torsoGeo.attributes.position;
+          for (let i = 0; i < tp.count; i++) if (tp.getY(i) > 0) tp.setX(i, tp.getX(i) * 0.42 / 0.54);   // vai hẹp hơn hông
+          torsoGeo.computeVertexNormals();
+          const torso = new THREE.Mesh(torsoGeo, [vestM, vestM, vestM, vestM, plastic(0xffffff, { map: vestPrint(true) }), plastic(0xffffff, { map: vestPrint(false) })]);
+          torso.position.y = 1.55; torso.castShadow = true; torso.name = 'Thân (áo gilê)'; edge(torso, torsoGeo, lineDark); g.add(torso);
+          const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.05, 14), legoYellow); neck.position.y = 1.875; g.add(neck);
+          P(g, 0.55, 0.05, 0.31, beltM, 0, 1.255, 0, false);                                    // thắt lưng
+          P(g, 0.07, 0.04, 0.02, metalMat, 0, 1.255, 0.16, false);                               // khoá thắt lưng
+          P(g, 0.12, 0.15, 0.1, metalMat, 0.22, 1.17, 0.16, false);                              // túi đồ nghề
+          const hips = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.16, 0.27), pantsM); hips.position.y = 1.18; hips.castShadow = true; edge(hips, hips.geometry, lineDark); g.add(hips);   // khối hông
+          // ---- ĐẦU trụ bo cạnh (r 0,2 · cao 0,34) + núm, mặt in canvas (giữa mặt ở +z) ----
           const headG = new THREE.Group(); headG.position.y = 2.06; g.add(headG);
-          const head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 12), engSkin); head.castShadow = true; headG.add(head);
-          const helmet = new THREE.Group(); helmet.name = 'Mũ bảo hộ'; headG.add(helmet);   // tháo ra khi tắm, khi ngủ
-          const hat = new THREE.Mesh(new THREE.SphereGeometry(0.24, 12, 8, 0, 6.3, 0, 1.5), engHelm); hat.castShadow = true; hat.position.y = 0.06; helmet.add(hat);
-          P(helmet, 0.06, 0.08, 0.44, engHelm, 0, 0.18, 0, false);     // gờ mũ dọc (phía trên đầu) chạy từ trước ra sau
-          for (const sx of [-1, 1]) P(helmet, 0.07, 0.12, 0.13, engPad, sx * 0.2, -0.02, 0, false);  // ốp tai
-          const hair = new THREE.Mesh(new THREE.SphereGeometry(0.212, 12, 8, 0, Math.PI * 2, 0, 1.2), new THREE.MeshLambertMaterial({ color: 0x3a2a1f }));   // tóc ngắn, chỉ thấy khi bỏ mũ
-          hair.rotation.x = -0.35; hair.position.set(0, 0.012, -0.012); hair.visible = false; headG.add(hair);
-          for (const sx of [-1, 1]) { const eye = new THREE.Mesh(new THREE.SphereGeometry(0.028, 6, 6), engBoot); eye.position.set(sx * 0.07, 0.02, 0.185); headG.add(eye); }
-          // ---- TAY: cánh tay trên + cuff + cẳng tay + găng ----
+          const face = canvasTex(512, 128, x => {
+            x.fillStyle = '#' + new THREE.Color(LEGO_YELLOW).getHexString(); x.fillRect(0, 0, 512, 128);
+            x.fillStyle = '#1b1b1b'; for (const ex of [228, 284]) { x.beginPath(); x.ellipse(ex, 60, 7, 9, 0, 0, Math.PI * 2); x.fill(); }
+            x.fillStyle = '#ffffff'; for (const ex of [230, 286]) { x.beginPath(); x.arc(ex, 56, 2.4, 0, Math.PI * 2); x.fill(); }
+            x.strokeStyle = '#3a2a1f'; x.lineWidth = 4; x.lineCap = 'round'; for (const ex of [228, 284]) { x.beginPath(); x.moveTo(ex - 10, 40); x.quadraticCurveTo(ex, 34, ex + 10, 39); x.stroke(); }
+            x.strokeStyle = '#1b1b1b'; x.beginPath(); x.ellipse(256, 74, 24, 18, 0, 0.15 * Math.PI, 0.85 * Math.PI); x.stroke();   // miệng cười
+          });
+          const head = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.26, 28, 1, true, Math.PI), plastic(0xffffff, { map: face })); head.castShadow = true; headG.add(head);
+          const capGeo = new THREE.LatheGeometry([[0.2, 0], [0.196, 0.022], [0.182, 0.036], [0, 0.04]].map(([r, y]) => new THREE.Vector2(r, y)), 28);
+          const capTop = new THREE.Mesh(capGeo, legoYellow); capTop.position.y = 0.13; headG.add(capTop);
+          const capBot = new THREE.Mesh(capGeo, legoYellow); capBot.rotation.x = Math.PI; capBot.position.y = -0.13; headG.add(capBot);
+          const stud = new THREE.Mesh(new THREE.CylinderGeometry(0.095, 0.095, 0.06, 16), legoYellow); stud.position.y = 0.2; headG.add(stud);
+          const helmet = legoHelmet(plastic(0xf4f2ec), plastic(0x5b6168)); helmet.name = 'Mũ bảo hộ'; headG.add(helmet);   // tháo ra khi tắm, khi ngủ
+          const hairM = plastic(0x4a3423, { side: THREE.DoubleSide }), hair = new THREE.Group(); hair.name = 'Tóc'; hair.visible = false; headG.add(hair);   // tóc rời kiểu LEGO, chỉ thấy khi bỏ mũ
+          const hairTop = new THREE.Mesh(new THREE.SphereGeometry(0.232, 18, 10, 0, Math.PI * 2, 0, 1.38), hairM); hairTop.position.y = 0.04; hair.add(hairTop);   // trùm kín núm đầu
+          const hairBack = new THREE.Mesh(new THREE.CylinderGeometry(0.226, 0.226, 0.2, 18, 1, true, Math.PI / 2, Math.PI), hairM); hairBack.position.y = -0.01; hair.add(hairBack);
+          // ---- TAY: tròn thuôn, dải phản quang ở cổ tay, bàn tay chữ C (tâm ở y −0,66 như găng cũ) ----
+          const handGeo = new THREE.TorusGeometry(0.068, 0.034, 8, 16, 1.62 * Math.PI); handGeo.rotateZ(-2.2); handGeo.rotateY(Math.PI / 2);   // miệng chữ C quay ra trước, hơi chúc
           const arms = [];
           for (const s of [-1, 1]) {
             const piv = new THREE.Group(); piv.position.set(s * 0.34, 1.86, 0); g.add(piv);
-            P(piv, 0.15, 0.34, 0.17, hiVis, 0, -0.18, 0);            // cánh tay trên
-            P(piv, 0.16, 0.05, 0.18, refl, 0, -0.35, 0, false);       // cuff phản quang
-            P(piv, 0.13, 0.3, 0.15, hiVis, 0, -0.5, 0, false);        // cẳng tay
-            const glove = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), engBoot); glove.position.y = -0.66; piv.add(glove);
+            const shoulder = new THREE.Mesh(new THREE.SphereGeometry(0.085, 12, 8), vestM); shoulder.position.y = -0.04; piv.add(shoulder);
+            const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.078, 0.066, 0.5, 12), vestM); arm.position.y = -0.29; arm.castShadow = true; piv.add(arm);
+            const cuff = new THREE.Mesh(new THREE.CylinderGeometry(0.071, 0.069, 0.04, 12), plastic(0xd8dcdf)); cuff.position.y = -0.47; piv.add(cuff);
+            const wrist = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.07, 10), legoYellow); wrist.position.y = -0.57; piv.add(wrist);
+            const hand = new THREE.Mesh(handGeo, legoYellow); hand.position.y = -0.66; hand.castShadow = true; piv.add(hand);
             arms.push(piv);
           }
           const clip = bx(0.28, 0.36, 0.04, engPad, true, true, lineDark); clip.position.set(0, -0.58, 0.16); arms[1].add(clip);
           P(arms[1], 0.2, 0.05, 0.05, metalMat, 0, -0.44, 0.18, false);  // kẹp clipboard
-          // ---- CHÂN: đùi + ống quyển + giày bảo hộ ----
+          // ---- CHÂN khối liền (rộng 0,26 · dày 0,27, khe giữa 2 chân 4 cm), gối gập được để ngồi ghế; bàn chân nhô ra trước ----
           const legs = [], knees = [], ankles = [];
+          const thighGeo = new THREE.BoxGeometry(0.26, 0.44, 0.27), shinGeo = new THREE.BoxGeometry(0.26, 0.34, 0.27), footGeo = new THREE.BoxGeometry(0.26, 0.13, 0.36);
           for (const s of [-1, 1]) {
             const piv = new THREE.Group(); piv.position.set(s * 0.15, 1.18, 0); g.add(piv);
-            P(piv, 0.19, 0.42, 0.2, engPants, 0, -0.22, 0);          // đùi
+            const thigh = new THREE.Mesh(thighGeo, pantsM); thigh.position.y = -0.21; thigh.castShadow = true; edge(thigh, thighGeo, lineDark); piv.add(thigh);
             const knee = new THREE.Group(); knee.position.set(0, -0.42, 0); piv.add(knee);   // KHỚP GỐI — cẳng chân gập độc lập với đùi
-            P(knee, 0.17, 0.36, 0.18, engPants, 0, -0.18, 0, false);    // ống quyển
+            const shin = new THREE.Mesh(shinGeo, pantsM); shin.position.y = -0.17; shin.castShadow = true; edge(shin, shinGeo, lineDark); knee.add(shin);
             const ankle = new THREE.Group(); ankle.position.set(0, -0.36, 0); knee.add(ankle);   // KHỚP CỔ CHÂN — IK giữ đế giày phẳng trên mặt đất
-            P(ankle, 0.19, 0.12, 0.22, engBoot, 0, 0.02, 0.02, false); // cổ giày
-            P(ankle, 0.2, 0.14, 0.34, engBoot, 0, -0.03, 0.08);        // bàn giày
+            const foot = new THREE.Mesh(footGeo, bootM); foot.position.set(0, -0.035, 0.045); foot.castShadow = true; edge(foot, footGeo, lineDark); ankle.add(foot);   // đế ở −0,1 như cũ
             legs.push(piv); knees.push(knee); ankles.push(ankle);
           }
           // cần câu gắn ở tay trái (arms[1]), ẩn cho tới khi ngồi câu, định vị khớp tay cầm
@@ -4876,7 +4918,7 @@
           'study||cold||Trời lạnh, làm xong việc là chui vào chăn.',
           'study|||Đọc dự báo thời tiết ngày mai.',
           'study|20.8-21|||Còn ít phút nữa là đi ngủ.',
-          'study|||Lon nước ngọt trên bàn vẫn chưa uống.',
+          'study|||Lon coke trên bàn sắp hết rồi.',
           'evening|||Vào xe làm nốt việc rồi đi ngủ.',
           'evening||rain||Mưa rồi, vào xe làm việc cho khô.',
           'evening||clear||Ngoài trời đầy sao, tiếc là phải vào làm việc.',
@@ -4889,6 +4931,8 @@
           'research|11-16|hot||Tấm pin nóng quá thì hiệu suất tụt, phải ghi vào báo cáo.',
           'research|||Đọc lại bài báo về tua-bin trục đứng cho vùng gió yếu.',
           'research|||Bảng tính sản lượng tuần này gần xong rồi.',
+          'research|||Làm ngụm coke cho tỉnh rồi viết tiếp.',
+          'research||hot||Trời nóng, lon coke lạnh trên bàn là cứu tinh.',
           'research|13-16|||Chiều nay viết nốt phần kết luận.',
           'research|9.5-11.2|||Ngồi lâu mỏi lưng, lát nữa đứng dậy vươn vai.',
           'research|||Cần thêm số liệu nhiệt độ nước để tính lượng bốc hơi của hồ.',
@@ -4920,6 +4964,7 @@
           // ---- học bài buổi tối, laptop mở nhạc ----
           'music|||Bật nhạc nhẹ cho dễ tập trung.',
           'music|||Bài này nghe hoài không chán.',
+          'music|||Nhạc nhẹ với lon coke, học bài cũng thấy vui.',
           'music||rain||Nhạc với tiếng mưa trên nóc xe, hợp nhau ghê.',
           'music|||Ôn lại phần tính thủy lực trước khi ngủ.',
           'music|20.8-21|||Hết bài này là tắt máy đi ngủ.',
@@ -5819,9 +5864,7 @@
         }
         function engHelmetProp() {   // mũ bảo hộ rời (đv xe = cỡ mũ đang đội: ×ENGINEER_BASE_SCALE); gốc ở đáy 2 ốp tai (mũ đặt xuống thì tì trên ốp tai)
           const g = new THREE.Group(); g.name = 'Mũ bảo hộ (đã tháo)'; g.userData.noBake = true;
-          const dome = new THREE.Mesh(new THREE.SphereGeometry(0.24, 12, 8, 0, 6.3, 0, 1.5), engHelm); dome.position.y = 0.14; dome.castShadow = true; g.add(dome);
-          const ridge = bx(0.06, 0.08, 0.44, engHelm, true, false); ridge.position.y = 0.26; g.add(ridge);
-          for (const sx of [-1, 1]) { const pad = bx(0.07, 0.12, 0.13, engPad, true, false); pad.position.set(sx * 0.2, 0.06, 0); g.add(pad); }
+          const h = legoHelmet(engHelm, caravanDark); h.position.y = 0.07; g.add(h);   // cùng hình mũ đang đội; tì trên 2 ốp tai
           g.scale.setScalar(ENGINEER_BASE_SCALE); return g;
         }
         function caravan() {
@@ -5984,7 +6027,7 @@
           studyLight.castShadow = false; lamp.add(studyLight);
           studyDeskLighting.light = studyLight; studyDeskLighting.bulb = bulbMat;
           // Lon nước ngọt ở góc trái phía trước mặt bàn, giữa nhãn quay về phía cửa hông.
-          const coke = sodaCan(); coke.scale.setScalar(1.05); coke.position.set(dX - .37 * DESK_K, yIn + dH + .001, dZ + .09 * DESK_K); coke.rotation.y = -.6; study.add(coke);   // lon to thêm 5%, gốc ở tâm đáy nên vẫn đứng sát mặt bàn
+          const coke = sodaCan(); coke.scale.setScalar(1.05); coke.position.set(dX - .37 * DESK_K, yIn + dH + .001, dZ + .09 * DESK_K); coke.rotation.y = -.6; coke.name = 'Lon coke trên bàn học'; study.add(coke);   // lon to thêm 5%, gốc ở tâm đáy nên vẫn đứng sát mặt bàn
           // Laptop giữa bàn, trước ghế: thân nhôm xám, bàn phím + touchpad; nắp gắn bản lề mép sau (đóng phẳng khi rảnh, mở ~106° khi làm việc)
           {
             const lap = new THREE.Group(); lap.name = 'Laptop'; lap.position.set(dX - .01, yIn + dH + .001, dZ + .05 * DESK_K); study.add(lap);
@@ -6335,7 +6378,7 @@
             table: { center: [-0.65, 0.8], size: [0.62, 0.62] },
             study: study.userData.layout,
             sleepPosition: [bedCx - 1.35 + 2.06 * (1.026 - ENGINEER_BASE_SCALE), yIn + 0.49 + 0.05, bedZ], sleepHead: [bedCx + 1.1, 4, bedZ],   // người nhỏ đi: dời gốc về phía gối để đầu vẫn gác đúng gối
-            stool: { obj: stool, rest: -0.04 }, bath: bathRig, bedHelmet, kitchen, cerealBowl, tableUdon
+            stool: { obj: stool, rest: -0.04 }, bath: bathRig, bedHelmet, kitchen, cerealBowl, tableUdon, studyCoke: coke
           };
           // xem xuyên: mặc định mọi thứ của xe là vỏ; sàn, nội thất, bánh xe & đèn lồng hiên giữ nguyên
           g.userData.xray = 'shell';
@@ -7575,8 +7618,9 @@
           }
           else if (V.st === 'work') {
             e.seatCtl = true; engSeatHold(e, C, e.seat, dt, t);
-            const rt = e.armRollT || (e.armRollT = [0, 0]);
-            if (e.act === 'music') {   // học bài với nhạc: gật gù theo nhịp ~87 bpm, lắc nhẹ đầu; mỗi 30 s ngả lưng gõ nhịp lên mép bàn
+            const rt = e.armRollT || (e.armRollT = [0, 0]), sipT = (t + V.ph * 3.1) % 190;
+            if (sipT < 7.4) engCokeSip(e, sipT, t, rt);   // ~3 phút một lần: uống coke
+            else if (e.act === 'music') {   // học bài với nhạc: gật gù theo nhịp ~87 bpm, lắc nhẹ đầu; mỗi 30 s ngả lưng gõ nhịp lên mép bàn
               const beat = t * Math.PI * 2 * 1.45, cyc = (t + V.ph) % 30, rel = cyc > 21;
               e.seatLean = rel ? -0.07 : 0.09; e.headRollT = Math.sin(beat / 2) * 0.07;
               e.head.rotation.x = (rel ? 0.02 : 0.22) + Math.sin(beat) * 0.06;
@@ -7787,6 +7831,28 @@
           if (food.userData.y0 === undefined) food.userData.y0 = food.position.y;
           food.visible = k > 0.04; if (!food.visible) return;
           const s = 0.55 + 0.45 * k; food.scale.set(s, 0.5 + 0.5 * k, s); food.position.y = food.userData.y0 - (1 - k) * drop;
+        }
+        // ---- UỐNG COKE ở bàn học: với tay trái lấy lon trên góc bàn → đưa lên miệng, ngửa cổ uống (yết hầu nhấp nhô) → đặt lại đúng chỗ.
+        //      Lon trên bàn ẩn khi đang cầm; lon cầm tay tạo lần đầu dùng (cùng mẫu lon), mặt lon thẳng đứng khi tay với ra bàn, nghiêng rót khi đưa lên miệng ----
+        function engCokeSip(e, k, t, rt) {   // k: giây trong lượt uống (0 → 7,4)
+          const ease = (a, b, q) => a + (b - a) * minJerk(Math.max(0, Math.min(1, q)));
+          let ax, roll;
+          if (k < 1.0) { ax = ease(-1.1, -0.95, k); roll = ease(0, 0.35, k); }                        // với ra góc bàn
+          else if (k < 1.3) { ax = -0.95; roll = 0.35; }                                               // nắm lon
+          else if (k < 2.4) { ax = ease(-0.95, -2.25, (k - 1.3) / 1.1); roll = ease(0.35, -0.2, (k - 1.3) / 1.1); }
+          else if (k < 5.2) { ax = -2.25 + Math.sin(t * 6) * 0.03; roll = -0.2; }                     // uống 2–3 ngụm
+          else if (k < 6.3) { ax = ease(-2.25, -0.95, (k - 5.2) / 1.1); roll = ease(-0.2, 0.35, (k - 5.2) / 1.1); }
+          else { ax = ease(-0.95, -1.1, (k - 6.3) / 1.1); roll = ease(0.35, 0, (k - 6.3) / 1.1); }     // tay về bàn phím
+          e.arms[1].rotation.x = ax; rt[1] = roll; e.arms[0].rotation.x = -1.05;
+          const drink = k < 1.3 ? 0 : k < 2.4 ? (k - 1.3) / 1.1 : k < 5.2 ? 1 : k < 6.3 ? 1 - (k - 5.2) / 1.1 : 0;
+          e.head.rotation.x = 0.15 - 0.5 * minJerk(drink) + (k > 2.4 && k < 5.2 ? Math.sin(t * 6) * 0.02 : 0);
+          e.seatLean = 0.06 - 0.1 * minJerk(drink);
+          e.hold.coke = k > 1.15 && k < 6.2;
+        }
+        function engHandCoke(e) {   // lon coke cầm tay trái: tâm lon ở lòng bàn tay chữ C
+          const holder = new THREE.Group(); holder.name = 'Lon coke cầm tay'; holder.position.set(0, -0.69, 0.05); holder.rotation.x = 0.95; holder.visible = false;
+          const k = 1.05 / ENGINEER_BASE_SCALE, can = sodaCan(); can.scale.setScalar(k); can.position.y = -0.058 * k; holder.add(can);
+          e.arms[1].add(holder); e.props.coke = holder; return holder;
         }
         function engDishShow(e) {   // mỗi món chỉ hiện đúng một chỗ (bàn, mặt đá, bếp, bàn trà, trên tay)
           const D = e.dish, H = e.hold || {}, at = D ? D.at : null, f = D ? D.food : 0, K = VKIT;
@@ -11091,6 +11157,9 @@
               const P = e.props;
               P.spoon.visible = !!H.spoon; P.cup.visible = !!H.cup; P.bottle.visible = !!H.bottle; P.book.visible = !!H.book; P.chip.visible = !!H.chip;
               P.chopsticks.visible = !!H.chop; P.knife.visible = !!H.knife; P.spatula.visible = !!H.spatula;
+              if (H.coke && !P.coke) engHandCoke(e);
+              if (P.coke) P.coke.visible = !!H.coke;
+              if (caravanObj.userData.interior.studyCoke) caravanObj.userData.interior.studyCoke.visible = !H.coke;   // lon trên bàn ẩn khi đang cầm
               if (!H.book) P.bookLeaf.visible = false;
               const Dsh = e.dish, dishHand = !!Dsh && Dsh.at === 'hand';
               P.handBowl.visible = (dishHand && Dsh.kind !== 'pan') || !!H.sip; P.handPan.visible = dishHand && Dsh.kind === 'pan';

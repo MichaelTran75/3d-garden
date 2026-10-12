@@ -44,8 +44,9 @@
           }
           else if (V.st === 'work') {
             e.seatCtl = true; engSeatHold(e, C, e.seat, dt, t);
-            const rt = e.armRollT || (e.armRollT = [0, 0]);
-            if (e.act === 'music') {   // học bài với nhạc: gật gù theo nhịp ~87 bpm, lắc nhẹ đầu; mỗi 30 s ngả lưng gõ nhịp lên mép bàn
+            const rt = e.armRollT || (e.armRollT = [0, 0]), sipT = (t + V.ph * 3.1) % 190;
+            if (sipT < 7.4) engCokeSip(e, sipT, t, rt);   // ~3 phút một lần: uống coke
+            else if (e.act === 'music') {   // học bài với nhạc: gật gù theo nhịp ~87 bpm, lắc nhẹ đầu; mỗi 30 s ngả lưng gõ nhịp lên mép bàn
               const beat = t * Math.PI * 2 * 1.45, cyc = (t + V.ph) % 30, rel = cyc > 21;
               e.seatLean = rel ? -0.07 : 0.09; e.headRollT = Math.sin(beat / 2) * 0.07;
               e.head.rotation.x = (rel ? 0.02 : 0.22) + Math.sin(beat) * 0.06;

@@ -7,6 +7,28 @@
           food.visible = k > 0.04; if (!food.visible) return;
           const s = 0.55 + 0.45 * k; food.scale.set(s, 0.5 + 0.5 * k, s); food.position.y = food.userData.y0 - (1 - k) * drop;
         }
+        // ---- UỐNG COKE ở bàn học: với tay trái lấy lon trên góc bàn → đưa lên miệng, ngửa cổ uống (yết hầu nhấp nhô) → đặt lại đúng chỗ.
+        //      Lon trên bàn ẩn khi đang cầm; lon cầm tay tạo lần đầu dùng (cùng mẫu lon), mặt lon thẳng đứng khi tay với ra bàn, nghiêng rót khi đưa lên miệng ----
+        function engCokeSip(e, k, t, rt) {   // k: giây trong lượt uống (0 → 7,4)
+          const ease = (a, b, q) => a + (b - a) * minJerk(Math.max(0, Math.min(1, q)));
+          let ax, roll;
+          if (k < 1.0) { ax = ease(-1.1, -0.95, k); roll = ease(0, 0.35, k); }                        // với ra góc bàn
+          else if (k < 1.3) { ax = -0.95; roll = 0.35; }                                               // nắm lon
+          else if (k < 2.4) { ax = ease(-0.95, -2.25, (k - 1.3) / 1.1); roll = ease(0.35, -0.2, (k - 1.3) / 1.1); }
+          else if (k < 5.2) { ax = -2.25 + Math.sin(t * 6) * 0.03; roll = -0.2; }                     // uống 2–3 ngụm
+          else if (k < 6.3) { ax = ease(-2.25, -0.95, (k - 5.2) / 1.1); roll = ease(-0.2, 0.35, (k - 5.2) / 1.1); }
+          else { ax = ease(-0.95, -1.1, (k - 6.3) / 1.1); roll = ease(0.35, 0, (k - 6.3) / 1.1); }     // tay về bàn phím
+          e.arms[1].rotation.x = ax; rt[1] = roll; e.arms[0].rotation.x = -1.05;
+          const drink = k < 1.3 ? 0 : k < 2.4 ? (k - 1.3) / 1.1 : k < 5.2 ? 1 : k < 6.3 ? 1 - (k - 5.2) / 1.1 : 0;
+          e.head.rotation.x = 0.15 - 0.5 * minJerk(drink) + (k > 2.4 && k < 5.2 ? Math.sin(t * 6) * 0.02 : 0);
+          e.seatLean = 0.06 - 0.1 * minJerk(drink);
+          e.hold.coke = k > 1.15 && k < 6.2;
+        }
+        function engHandCoke(e) {   // lon coke cầm tay trái: tâm lon ở lòng bàn tay chữ C
+          const holder = new THREE.Group(); holder.name = 'Lon coke cầm tay'; holder.position.set(0, -0.69, 0.05); holder.rotation.x = 0.95; holder.visible = false;
+          const k = 1.05 / ENGINEER_BASE_SCALE, can = sodaCan(); can.scale.setScalar(k); can.position.y = -0.058 * k; holder.add(can);
+          e.arms[1].add(holder); e.props.coke = holder; return holder;
+        }
         function engDishShow(e) {   // mỗi món chỉ hiện đúng một chỗ (bàn, mặt đá, bếp, bàn trà, trên tay)
           const D = e.dish, H = e.hold || {}, at = D ? D.at : null, f = D ? D.food : 0, K = VKIT;
           VCEREAL.visible = at === 'table' && D.kind === 'cereal'; if (VCEREAL.visible) setFood(VCEREAL.userData.food, f, 0.012);

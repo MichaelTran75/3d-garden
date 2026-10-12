@@ -204,6 +204,9 @@
               const P = e.props;
               P.spoon.visible = !!H.spoon; P.cup.visible = !!H.cup; P.bottle.visible = !!H.bottle; P.book.visible = !!H.book; P.chip.visible = !!H.chip;
               P.chopsticks.visible = !!H.chop; P.knife.visible = !!H.knife; P.spatula.visible = !!H.spatula;
+              if (H.coke && !P.coke) engHandCoke(e);
+              if (P.coke) P.coke.visible = !!H.coke;
+              if (caravanObj.userData.interior.studyCoke) caravanObj.userData.interior.studyCoke.visible = !H.coke;   // lon trên bàn ẩn khi đang cầm
               if (!H.book) P.bookLeaf.visible = false;
               const Dsh = e.dish, dishHand = !!Dsh && Dsh.at === 'hand';
               P.handBowl.visible = (dishHand && Dsh.kind !== 'pan') || !!H.sip; P.handPan.visible = dishHand && Dsh.kind === 'pan';
