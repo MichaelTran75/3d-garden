@@ -1,0 +1,36 @@
+# Sửa mã trong src/ (kể cả sửa ngay trên web GitHub) → tự dựng lại trang (index.html, css/, js/) → commit → GitHub Pages cập nhật.
+name: Dựng trang từ src
+
+on:
+  push:
+    branches: [main]
+    paths: ['src/**', 'build.py', '.github/workflows/build.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+
+concurrency:
+  group: build-site
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dựng + kiểm tra cú pháp JS
+        run: python3 build.py --check
+      - name: Commit tệp đã dựng (nếu có thay đổi)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html css js
+          if git diff --cached --quiet; then echo "Tệp đã dựng không đổi."; exit 0; fi
+          git commit -m "Dựng lại trang từ src (${GITHUB_SHA::7})"
+          git push
+      - name: Yêu cầu GitHub Pages dựng lại
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X POST "repos/${GITHUB_REPOSITORY}/pages/builds" --silent || echo "Pages sẽ tự dựng theo commit mới."

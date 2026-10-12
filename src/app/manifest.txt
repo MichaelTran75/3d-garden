@@ -1,0 +1,56 @@
+# Thứ tự ghép mã cảnh chính (src/app/…): build.py nối các tệp theo đúng thứ tự này thành một khối script.
+# Các tệp dùng chung một phạm vi biến (không import/export) nên KHÔNG được đổi thứ tự tuỳ tiện.
+
+core/boot.js                           # nạp three.js, renderer, scene, camera, ánh sáng, bầu trời nền
+core/sky-sun-moon.js                   # mặt trời, mặt trăng, pha trăng, quỹ đạo theo giờ thật Pleiku
+core/terrain.js                        # địa hình voxel, sông, hồ, đập (dữ liệu ô lưới)
+core/axes-pin-bake.js                  # trục toạ độ, ghim, sáng khối khi rê chuột, bakeStatic (gộp lưới tĩnh)
+world/hydro-dam.js                     # nhà máy thủy điện + đập
+world/wind-turbines.js                 # tua-bin gió
+world/solar-buildings-road.js          # cánh đồng pin mặt trời, nhà, đường nội bộ, bồn nước
+world/substation-bess.js               # trạm biến áp, đường dây, pin lưu trữ
+world/weather-mast.js                  # cột khí tượng + trạm mini
+world/street-lamps.js                  # đèn đường: đèn chiếu, vệt sáng trên mặt đường, chùm sáng
+nature/flowers-trees.js                # hoa, cây ăn quả, cây đệ quy
+nature/wind-physics.js                 # mô hình gió + shader cây, cỏ, rừng, hoa; khói
+nature/forest.js                       # rừng, cây táo, khúc gỗ, gốc cây, anh đào
+nature/water-leaves.js                 # mặt nước, dòng chảy, lá rơi trôi sông
+animals/fish.js                        # cá koi, cá đớp lá
+nature/clouds-rain.js                  # mây tích, mưa, sương góc
+animals/cows-hut.js                    # đàn bò + chuồng bò
+animals/deer-crab-bunny.js             # hươu, cua, thỏ
+world/barn-tank.js                     # nhà kho, bồn nước nông thôn
+nature/old-tree.js                     # cây cổ thụ, đá cuội
+engineer/constants.js                  # vật liệu áo quần, cỡ người, hằng số ngồi/đứng
+fishing/rod-bucket.js                  # cần câu (uốn được), xô tôn
+van/kitchen-props.js                   # bát udon, chảo rán (dùng chung cho bếp và tay kỹ sư)
+engineer/model.js                      # HÌNH KỸ SƯ: thân, đầu, mũ, tay, chân, đồ cầm tay
+engineer/instance-gait.js              # vị trí khu cắm trại, tạo kỹ sư (engObj), nhịp bước
+engineer/pose-ik-walk.js               # lớp tư thế (lò xo), IK bàn chân, đi bộ né vật cản
+engineer/thought-bubble.js             # nhãn đếm ngược câu cá + đám mây suy nghĩ (vẽ canvas)
+engineer/thoughts.js                   # câu suy nghĩ theo việc, giờ, thời tiết
+van/shell-cab.js                       # vật liệu xe, cabin lái, bánh, tủ bếp
+van/desk-lamp-soda-breakfast.js        # đèn bàn, lon nước ngọt, đồ ăn sáng
+van/kitchen.js                         # bếp: chậu, thớt, bảng treo, bếp ga, lò, đồ động
+van/shell-walls.js                     # vỏ thân xe có ô cửa, cửa sổ
+van/caravan.js                         # xe caravan: giường, bàn học, bàn ăn, phòng tắm, mái, bạt
+van/sleep-fx.js                        # Zzz + bảng đếm ngược giấc ngủ
+camp/chairs-lantern-fire.js            # ghế câu, đèn lồng, lửa trại, ấm, bàn trà, ghế cắm trại
+animals/dog-raccoon.js                 # chó (đuôi mềm), gấu mèo
+engineer/seats.js                      # ngồi xuống / đứng dậy / rời ghế theo sinh cơ học
+animals/rain-shelter.js                # thỏ trú mưa, tai thỏ, chó vào xe
+engineer/schedule.js                   # LỊCH CẢ NGÀY: bàn học, giờ giấc, việc theo giờ
+engineer/van-nav.js                    # đi lại trong xe: nút, cửa lùa, bước ngang, ghế trong xe
+engineer/van-stations.js               # các trạm: bàn học, bàn ăn, giường, WC, lavabo, kệ mũ, vòi sen, khăn
+engineer/cooking.js                    # nấu udon, chiên cơm, rửa bát; điều phối các trạm (engVan)
+engineer/routine-fx.js                 # tia nước, hơi nước, nốt nhạc, Zzz ngủ trưa, gói snack, màn hình nhạc
+animals/cow-routing.js                 # đường về chuồng của bò
+fishing/angling.js                     # câu cá: dây, phao, mồi, cá giằng co, tay người câu
+nature/grass-scatter.js                # rải cỏ, hoa, thảm cỏ
+animals/insects.js                     # đom đóm, bướm, ong
+animals/storks.js                      # cò trắng (dựng theo số đo Stork.glb, MIT)
+ui/labels-controls.js                  # nhãn, điều khiển camera, toạ độ, zoom
+ui/xray-lifecycle.js                   # xem xuyên xe, tạm dừng/tiếp tục, dọn dẹp
+loop/main-loop.js                      # vòng lặp khung hình (phần đầu)
+engineer/loop-update.js                # mỗi khung hình: kỹ sư ngủ/thức, chọn việc, điều khiển (nằm trong loop())
+loop/main-loop-rest.js                 # vòng lặp khung hình (phần còn lại: cá, thỏ, côn trùng, …)

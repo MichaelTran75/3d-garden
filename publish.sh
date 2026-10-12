@@ -1,10 +1,11 @@
 #!/bin/bash
 # Đưa bản mới lên GitHub Pages: ./publish.sh "mô tả thay đổi"
-# 1) tách lại từ "../3D garden.html" (bản gốc 1 file — nơi sửa mã và chạy test) · 2) commit + push.
-# Mỗi tệp đóng dấu ?v=<băm nội dung> ⇒ trình duyệt chỉ tải lại tệp nào thật sự đổi.
+# Nơi sửa mã: src/ (xem src/app/manifest.txt). Script: kéo bản mới nhất về · dựng lại (trang Pages + "../3D garden.html") · commit · push.
 set -e
 cd "$(dirname "$0")"
-python3 build.py
+git checkout -q -- index.html css js 2>/dev/null || true   # tệp dựng sẵn sẽ dựng lại, bỏ bản cũ để kéo về không vướng
+git pull -q --rebase --autostash
+python3 build.py --check
 git add -A
 if git diff --cached --quiet; then echo "Không có thay đổi."; exit 0; fi
 git commit -q -m "${1:-Cập nhật trang}"
