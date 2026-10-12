@@ -177,9 +177,44 @@
         const shoreMat = TM(tex('#dedbce', ['#cfccbc', '#e8e5d6', '#c6c3b2', '#d6d3c2']));
         const dirtMat = TM(tex('#7d5a38', ['#8a6642', '#6b4c2e', '#92704a']));
         const sandMat = TM(tex('#857149', ['#968057', '#73613e', '#a08a5c', '#6a5a3a']));   // đáy sông (riverbed)
+        // vân sáng nắng hội tụ (caustics) trên đáy sông/hồ: chỉ mặt trên của khối đáy, trôi chậm, mạnh theo nắng, tắt dần khi mưa/đêm
+        const causticU = { uCTime: { value: 0 }, uCaust: { value: new THREE.Color(0, 0, 0) } };
+        sandMat.onBeforeCompile = (shader) => {
+          Object.assign(shader.uniforms, causticU);
+          shader.vertexShader = 'varying vec3 vCaustP;\n' + shader.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+            vec4 cWp = vec4(transformed, 1.0);
+            #ifdef USE_INSTANCING
+              cWp = instanceMatrix * cWp;
+            #endif
+            vCaustP = (modelMatrix * cWp).xyz;`);
+          shader.fragmentShader = `uniform float uCTime; uniform vec3 uCaust; varying vec3 vCaustP;
+            float causticPat(vec2 uv, float t) {   // vân caustic lặp tuần hoàn (kiểu "water turbulence")
+              vec2 p = mod(uv * 6.28318, 6.28318) - 250.0, i = p; float c = 1.0;
+              for (int n = 0; n < 4; n++) {
+                float tt = t * (1.0 - 3.5 / float(n + 1));
+                i = p + vec2(cos(tt - i.x) + sin(tt + i.y), sin(tt - i.y) + cos(tt + i.x));
+                c += 1.0 / length(vec2(p.x / (sin(i.x + tt) / 0.005), p.y / (cos(i.y + tt) / 0.005)));
+              }
+              c = 1.17 - pow(c / 4.0, 1.4);
+              return clamp(pow(abs(c), 8.0), 0.0, 1.5);
+            }
+          ` + shader.fragmentShader.replace('#include <opaque_fragment>', `
+            float cUp = clamp(dot(normal, normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz)), 0.0, 1.0);
+            outgoingLight += uCaust * causticPat(vCaustP.xz * 0.11 + vec2(0.0, uCTime * 0.01), uCTime * 0.4) * cUp * cUp;
+            #include <opaque_fragment>`);
+        };
         const dcx = wx(riverC(DAM_J)), dz = (wz(DAM_J) + wz(DAM_J + 2 * S - 1)) / 2;
         const dsZ = (2 * S * BLOCK) / 2;
-        const waterMat = new THREE.MeshPhongMaterial({ color: 0x3f86c4, specular: 0xb9e7ff, shininess: 80, transparent: true, opacity: 0.6, side: THREE.DoubleSide });
+        // ---- MẶT NƯỚC: giữ NGUYÊN sóng dời đỉnh cũ (lá trôi, phao câu, cá đọc lại đúng hàm này trên CPU qua waveAt) + shader mảnh:
+        //  · gợn lăn tăn = nhiễu có đạo hàm, TRÔI THEO DÒNG thật (flow map 2 pha, vận tốc từng đỉnh lấy từ waterFlow), mạnh lên theo gió;
+        //  · màu theo ĐỘ SÂU: ven bờ trong, thấy đáy cát · lòng sâu xanh đậm, đục hơn; phản chiếu màu trời theo Fresnel; lấp lánh nắng/trăng (Phong);
+        //  · BỌT trắng ven bờ (theo khoảng cách tới bờ) và quanh 3 cửa xả dưới đập, cuốn theo dòng; khi MƯA: vòng gợn giọt mưa dày theo cường độ.
+        const waterMat = new THREE.MeshPhongMaterial({ color: 0x3f86c4, specular: 0xd8ecff, shininess: 70, transparent: true, opacity: 0.6, side: THREE.DoubleSide });
+        const waterU = { uRain: { value: 0 }, uWindK: { value: 0.5 }, uSky: { value: new THREE.Color(0xa8d4f2) }, uFoamCol: { value: new THREE.Color(0.85, 0.88, 0.9) },
+          uShallow: { value: new THREE.Color(0x5cb0d4) }, uDeep: { value: new THREE.Color(0x2b6aa8) } };
+        const WATER_SKY = { day: new THREE.Color(0xa8d4f2), dusk: new THREE.Color(0xe8b48c), night: new THREE.Color(0x1a2640), rain: new THREE.Color(0x8b99a8) }, _wsC = new THREE.Color();
+        const WATER_COL = { shallow: waterU.uShallow.value.clone(), deep: waterU.uDeep.value.clone(), spec: waterMat.specular.clone() };
+        let waterSurfMesh = null;   // lưới mặt nước gộp (dựng ở phần địa hình), thuộc tính aWater: dòng chảy xz · độ sâu · gần bờ
         waterMat.onBeforeCompile = (shader) => {
           shader.uniforms.uTime = { value: 0 };
           shader.uniforms.uRippleCenters = {
@@ -189,9 +224,12 @@
               new THREE.Vector2(dcx + 11.8, dz + dsZ + 3.8)
             ]
           };
+          Object.assign(shader.uniforms, waterU);
           shader.vertexShader = `
             uniform float uTime;
             uniform vec2 uRippleCenters[3];
+            attribute vec4 aWater;
+            varying vec4 vWater; varying vec3 vWPos;
           ` + shader.vertexShader;
           shader.vertexShader = shader.vertexShader.replace(
             '#include <begin_vertex>',
@@ -206,19 +244,97 @@
               }
             }
             transformed.y += wave;
+            vWater = aWater; vWPos = (modelMatrix * vec4(transformed, 1.0)).xyz;
             `
           );
+          shader.fragmentShader = `
+            uniform float uTime, uRain, uWindK;
+            uniform vec3 uSky, uFoamCol, uShallow, uDeep;
+            uniform vec2 uRippleCenters[3];
+            varying vec4 vWater; varying vec3 vWPos;
+            float wHash(vec2 p) { vec3 q = fract(vec3(p.xyx) * 0.1031); q += dot(q, q.yzx + 33.33); return fract((q.x + q.y) * q.z); }
+            vec3 wNoised(vec2 p) {   // nhiễu giá trị + đạo hàm giải tích
+              vec2 i = floor(p), f = fract(p), u = f * f * (3.0 - 2.0 * f), du = 6.0 * f * (1.0 - f);
+              float a = wHash(i), b = wHash(i + vec2(1.0, 0.0)), c = wHash(i + vec2(0.0, 1.0)), d = wHash(i + vec2(1.0, 1.0)), k = a - b - c + d;
+              return vec3(a + (b - a) * u.x + (c - a) * u.y + k * u.x * u.y, du * vec2(b - a + k * u.y, c - a + k * u.x));
+            }
+            vec2 wSlope(vec2 p, vec2 flow, float t) {   // độ dốc mặt gợn (∂h/∂x, ∂h/∂z): 2 pha cuốn theo dòng, đổi pha trước khi giãn méo
+              vec2 g = vec2(0.0);
+              for (int k = 0; k < 2; k++) {
+                float ph = fract(t * 0.16 + float(k) * 0.5), w = 1.0 - abs(2.0 * ph - 1.0);
+                vec2 q = p - flow * (ph * 6.0) + float(k) * 13.7;
+                g += w * (wNoised(q * 1.25 + vec2(t * 0.05, -t * 0.04)).yz * 0.66 + wNoised(q * 3.2 + vec2(-t * 0.13, t * 0.09)).yz * 0.55);
+              }
+              return g;
+            }
+            vec2 wRain(vec2 p, float t, float rain) {   // vòng gợn giọt mưa: mỗi ô lưới 1 giọt lệch pha; tỉ lệ ô có giọt = cường độ mưa
+              vec2 g = vec2(0.0);
+              for (int l = 0; l < 3; l++) {
+                float sc = 2.1 + float(l) * 0.9;
+                vec2 q = p * sc + float(l) * 5.17, id = floor(q), f = fract(q);
+                float h = wHash(id * 1.37 + float(l) * 11.0);
+                if (h > rain) continue;
+                vec2 c = 0.25 + 0.5 * vec2(wHash(id + 3.1), wHash(id + 7.7));
+                float tt = fract(t * (0.9 + 0.5 * h) + h * 9.0), d = length(f - c), x = (d - tt * 0.42) * 30.0;
+                float env = exp(-x * x * 0.3) * (1.0 - tt) * (1.0 - tt);
+                g += (f - c) / max(d, 1e-3) * (-sin(x) * env) * sc * 0.35;
+              }
+              return g;
+            }
+          ` + shader.fragmentShader
+            .replace('#include <color_fragment>', `#include <color_fragment>
+            vec2 wFlow = vWater.xy; float wDepth = vWater.z, wShore = vWater.w, wFlowS = length(wFlow);
+            vec2 wSl = wSlope(vWPos.xz, wFlow, uTime) * (0.05 + 0.12 * uWindK + 0.35 * min(wFlowS, 0.6)) + wRain(vWPos.xz, uTime, uRain) * uRain;
+            float wN = wNoised(vWPos.xz * 1.9 - wFlow * uTime * 1.7).x * 0.6 + wNoised(vWPos.xz * 4.7 - wFlow * uTime * 2.3).x * 0.4;
+            float wFoam = smoothstep(0.62, 0.98, wShore + (wN - 0.5) * 0.6) * 0.62;   // bọt ven bờ
+            float wOut = 0.0; for (int i = 0; i < 3; i++) wOut = max(wOut, 1.0 - smoothstep(0.8, 9.0, distance(vWPos.xz, uRippleCenters[i]) - (wN - 0.5) * 2.0));
+            wFoam = max(wFoam, wOut * smoothstep(0.25, 0.6, wN + wOut * 0.3) * 0.9);   // nước trắng quanh cửa xả
+            float wDk = smoothstep(0.15, 2.4, wDepth);
+            diffuseColor.rgb = mix(uShallow, uDeep, wDk);
+            diffuseColor.a = mix(0.50, 0.80, wDk);`)
+            .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+            normal = normalize((viewMatrix * vec4(normalize(vec3(-wSl.x, 1.0, -wSl.y)), 0.0)).xyz);`)
+            .replace('#include <opaque_fragment>', `
+            vec3 wV = isOrthographic ? vec3(0.0, 0.0, 1.0) : normalize(vViewPosition);
+            float wFres = 0.04 + 0.96 * pow(1.0 - clamp(dot(normal, wV), 0.0, 1.0), 5.0);
+            outgoingLight = mix(outgoingLight, uSky, clamp(0.04 + wFres * 1.4, 0.0, 0.32));   // phản chiếu trời
+            outgoingLight = mix(outgoingLight, uFoamCol, wFoam);
+            diffuseColor.a = clamp(max(diffuseColor.a + wFres * 0.4, wFoam), 0.0, 1.0);
+            #include <opaque_fragment>`);
           waterMat.userData.shader = shader;
         };
+        function updateWaterLook(rain) {   // màu trời phản chiếu + bọt theo ánh sáng cảnh; gió → gợn mạnh; mưa → vòng gợn
+          waterU.uSky.value.copy(WATER_SKY.day).lerp(WATER_SKY.night, nightFactor).lerp(WATER_SKY.dusk, skyDusk * 0.7).lerp(_wsC.copy(WATER_SKY.rain).multiplyScalar(1 - 0.8 * nightFactor), 0.7 * rain);
+          const lit = Math.min(1.05, hemi.intensity * 0.55 + amb.intensity * 0.6 + sun.intensity * 0.45);
+          waterU.uFoamCol.value.setRGB(0.80, 0.84, 0.86).multiplyScalar(lit);
+          waterU.uWindK.value = Math.min(1.6, 0.25 + (liveWeather.state.windSpeed ?? 8) / 22); waterU.uRain.value = rain;
+          causticU.uCaust.value.copy(sun.color).multiplyScalar(sun.intensity * 0.42 * (1 - nightFactor) * (1 - 0.8 * rain));
+          const nk = 1 - 0.62 * nightFactor;   // đêm: nước sẫm hơn bờ (phản chiếu trời tối), lấp lánh trăng/đèn nhẹ hơn; mưa làm mờ ánh phản chiếu
+          waterU.uShallow.value.copy(WATER_COL.shallow).multiplyScalar(nk); waterU.uDeep.value.copy(WATER_COL.deep).multiplyScalar(nk);
+          waterMat.specular.copy(WATER_COL.spec).multiplyScalar((1 - 0.72 * nightFactor) * (1 - 0.4 * rain));
+        }
 
         const boxGeo = new THREE.BoxGeometry(BLOCK, BLOCK, BLOCK);
         const terrainMeshes = [];   // các lưới mặt địa hình dùng cho raycast tọa độ khi hover
         // BẢNG MÀU BẬC ĐỊA HÌNH (hypsometric) — port từ 3D garden: trũng tối → cao sáng (dải xanh cỏ)
         const TERR_LAYERS = [0x244d18, 0x2c5a1d, 0x356822, 0x3f7628, 0x4a842e, 0x569234, 0x64a03c, 0x74ad46, 0x86ba52, 0x99c661, 0xadd072, 0xc2da86].map(h => new THREE.Color(h));
-        // instanced unit cubes (with optional per-instance tint)
+        // ô đất PHẲNG (4 ô bên cạnh đều cao bằng/hơn): 4 mặt bên luôn bị che → chỉ giữ mặt trên (lượt vẽ màu) + mặt đáy (lượt đổ bóng vẽ mặt sau,
+        // nên bóng đổ y như khối hộp cũ) → 4 tam giác thay vì 12. Ô sát mép dốc/nước vẫn là hộp đủ 6 mặt.
+        const flatTopGeo = (() => {
+          const g = boxGeo.clone(), idx = g.index.array, keep = [];
+          for (const gr of g.groups) if (gr.materialIndex === 2 || gr.materialIndex === 3) for (let i = gr.start; i < gr.start + gr.count; i++) keep.push(idx[i]);
+          g.setIndex(keep); g.clearGroups(); return g;
+        })();
+        // instanced unit cubes (with optional per-instance tint) — mục có p[3] = true (ô phẳng) dùng hình chỉ mặt trên + đáy
         function instanced(positions, mat, tint, collect) {
           if (!positions.length) return;
-          const im = new THREE.InstancedMesh(boxGeo, mat, positions.length); const mm = new THREE.Matrix4();
+          if (tint) for (const p of positions) p[4] = 0.94 + Math.random() * 0.10;   // sắc độ ngẫu nhiên lấy theo thứ tự ô như cũ, rồi mới tách 2 lưới
+          const flat = positions.filter(p => p[3]), full = positions.filter(p => !p[3]);
+          if (flat.length && full.length) { instancedOne(flat, mat, tint, collect, flatTopGeo); instancedOne(full, mat, tint, collect, boxGeo); return; }
+          instancedOne(positions, mat, tint, collect, flat.length ? flatTopGeo : boxGeo);
+        }
+        function instancedOne(positions, mat, tint, collect, geo) {
+          const im = new THREE.InstancedMesh(geo, mat, positions.length); const mm = new THREE.Matrix4();
           const col = new THREE.Color();
           for (let k = 0; k < positions.length; k++) {
             const p = positions[k];
@@ -227,7 +343,7 @@
               const e = Math.min(0.999, Math.max(0, (p[1] - 1.2) / 6.5));   // độ cao → vị trí trong bảng màu bậc
               const _f = e * (TERR_LAYERS.length - 1), _bi = _f | 0, _bt = _f - _bi;
               col.copy(TERR_LAYERS[_bi]).lerp(TERR_LAYERS[Math.min(_bi + 1, TERR_LAYERS.length - 1)], _bt);   // nội suy mượt giữa 2 bậc
-              col.multiplyScalar(0.94 + Math.random() * 0.10);
+              col.multiplyScalar(p[4]);
               im.setColorAt(k, col);
             }
           }

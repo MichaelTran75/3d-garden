@@ -32,6 +32,13 @@
           out.x += 0.05 * Math.sin(z * 0.9 + t * 0.35); out.z += 0.05 * Math.cos(x * 0.8 - t * 0.3);   // xoáy nhỏ trôi chậm
           return out;
         }
+        let waterFlowFilled = false;
+        function fillWaterFlow() {   // vận tốc dòng mặt tại từng đỉnh mặt nước → shader cuốn gợn và bọt đúng chiều dòng (hồ gần như lặng, sông chảy, cửa xả tỏa ra)
+          waterFlowFilled = true; if (!waterSurfMesh) return;   // gọi ở khung đầu: waterFlow cần x2gi/z2gj khai báo ở phần sau
+          const P = waterSurfMesh.geometry.attributes.position, A = waterSurfMesh.geometry.attributes.aWater, f = new THREE.Vector3();
+          for (let v = 0; v < P.count; v++) { waterFlow(P.getX(v), P.getZ(v), 0, f); A.setXY(v, f.x, f.z); }
+          A.needsUpdate = true;
+        }
         // gợn tròn nhỏ (lá chạm nước, cá đớp, bọt vỡ) + bọt khí từ miệng cá — pool cố định, không cấp phát khi chạy
         const waterFx = (() => {
           const ringGeo = new THREE.RingGeometry(0.86, 1, 24); ringGeo.rotateX(-Math.PI / 2);

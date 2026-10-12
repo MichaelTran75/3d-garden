@@ -13,15 +13,16 @@
   ../3D garden.html                                                     — bản một tệp tự chứa (chỉ khi chạy trên máy, cạnh thư mục tests/)
 
   python3 build.py           dựng
-  python3 build.py --check   dựng + kiểm tra cú pháp JS bằng node (dùng trên GitHub Actions)
+  python3 build.py --check   dựng + kiểm tra cú pháp JS bằng node + NGÂN SÁCH dung lượng nén gzip (dùng trên GitHub Actions)
   python3 build.py --force   ghi đè "../3D garden.html" kể cả khi tệp đó đã bị sửa tay
 """
-import hashlib, pathlib, re, subprocess, sys, tempfile
+import gzip, hashlib, pathlib, re, subprocess, sys, tempfile
 
 HERE = pathlib.Path(__file__).resolve().parent
 SRC = HERE / 'src'
 SINGLE = HERE.parent / '3D garden.html'
 STAMP = HERE / '.single-stamp'          # băm của bản một tệp dựng lần trước (không đưa lên git)
+BUDGET_KB = {'js/app.js': 380, 'tổng': 400}   # ngân sách dung lượng NÉN gzip (KB) người xem phải tải — vượt thì --check báo lỗi
 args = set(sys.argv[1:])
 
 def die(msg):
@@ -75,11 +76,16 @@ if (HERE.parent / 'tests').is_dir():
             die('"%s" đã bị sửa tay sau lần dựng trước — hãy sửa trong src/ (hoặc chạy lại với --force để ghi đè)' % SINGLE.name)
     SINGLE.write_text(single, encoding='utf-8'); STAMP.write_text(sha(single) + '\n')
 
-if '--check' in args:   # kiểm tra cú pháp 3 tệp JS
+if '--check' in args:   # kiểm tra cú pháp 3 tệp JS + ngân sách dung lượng
     for rel in ('js/weather.js', 'js/flight-nav.js', 'js/app.js'):
         with tempfile.NamedTemporaryFile('w', suffix='.js', delete=False, encoding='utf-8') as f: f.write(files[rel])
         r = subprocess.run(['node', '--check', f.name], capture_output=True, text=True)
         if r.returncode: die('lỗi cú pháp trong ' + rel + ':\n' + r.stderr)
+    gz = {rel: len(gzip.compress(text.encode('utf-8'), 9)) / 1024 for rel, text in list(files.items()) + [('index.html', index)]}
+    gz['tổng'] = sum(gz.values())
+    over = ['%s %.0f KB > %d KB' % (k, gz[k], v) for k, v in BUDGET_KB.items() if gz[k] > v]
+    if over: die('vượt ngân sách dung lượng nén (sửa BUDGET_KB nếu thật sự cần): ' + '; '.join(over))
+    print('Ngân sách gzip: app.js %.0f/%d KB · tổng %.0f/%d KB' % (gz['js/app.js'], BUDGET_KB['js/app.js'], gz['tổng'], BUDGET_KB['tổng']))
 
 total = sum(len(t.encode('utf-8')) for t in files.values()) + len(index.encode('utf-8'))
 print('Đã dựng từ src/ (%d mảnh mã) → %d tệp, tổng %.2f MB' % (len(parts), len(files) + 1, total / 1e6))

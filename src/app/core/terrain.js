@@ -1,5 +1,6 @@
         // ---- build terrain (cull hidden underground voxels -> 98% bodies reduced, zero lag) ----
         const grass = [], shore = [], bodies = [], waters = [], riverbed = [];
+        const cellTop = (ni, nj) => (ni < -MX || nj < -MZ || ni >= GX + MX || nj >= GZ + MZ || (ni === 158 && nj === 103) || gridWater[(ni + MX) * gridD + nj + MZ]) ? -1 : gridH[(ni + MX) * gridD + nj + MZ];   // −1: nước / ngoài bản đồ / cột đã xoá
         for (let i = -MX; i < GX + MX; i++) {
           const gi = (i + MX) * gridD;
           for (let j = -MZ; j < GZ + MZ; j++) {
@@ -14,7 +15,7 @@
               bed = Math.max(0, Math.min(surf - 1, bed));
               if (bed > 0) riverbed.push({ x: wx(i), y: (bed - 0.5) * BLOCK, z: wz(j), sy: 1 });                        // lớp đáy sông nhìn thấy qua nước
               const wh = surf - bed;
-              waters.push({ x: wx(i), y: (bed + wh / 2) * BLOCK, z: wz(j), sy: wh });                                // cột nước nằm trên đáy
+              waters.push({ x: wx(i), y: (bed + wh / 2) * BLOCK, z: wz(j), sy: wh, i, j });                          // cột nước nằm trên đáy
               continue;
             }
 
@@ -26,7 +27,8 @@
               (j - 1 >= -MZ && gridWater[gi + (j - 1 + MZ)]) ||
               poolMetric(i, j) < 1.55;
 
-            (nearWater ? shore : grass).push([wx(i), wy(top), wz(j)]);
+            const flat = cellTop(i + 1, j) >= h && cellTop(i - 1, j) >= h && cellTop(i, j + 1) >= h && cellTop(i, j - 1) >= h;   // 4 mặt bên bị ô cạnh che hết
+            (nearWater ? shore : grass).push([wx(i), wy(top), wz(j), flat]);
 
             // CULL CÁC VOXEL CHÌM KHÔNG NHÌN THẤY:
             // Cột thân đất (bodies) chỉ nhìn thấy khi có ít nhất 1 mặt bên lộ ra (giáp nước, mép bản đồ, hoặc hàng xóm thấp hơn)
@@ -64,24 +66,48 @@
         bodies.length = 0;
         instancedScaled(riverbed, sandMat);
         riverbed.length = 0;
-        if (waters.length > 0 && typeof mergeGeometries !== 'undefined' && mergeGeometries) {
-          const waterGeos = [];
-          for (const w of waters) {
-            const topY = w.y + (w.sy * BLOCK) / 2;
-            const plane = new THREE.PlaneGeometry(BLOCK * 1.02, BLOCK * 1.02);
-            plane.rotateX(-Math.PI / 2);
-            plane.translate(w.x, topY, w.z);
-            waterGeos.push(plane);
+        if (waters.length > 0) {
+          // khoảng cách (ô) từ mỗi ô nước tới bờ gần nhất (≤ 6) — loang BFS từ các ô đất giáp nước (kể cả khe thân đập) → bọt + nước nông ven bờ
+          const NC = gridW * gridD, shoreD = new Uint8Array(NC).fill(255), cellDepth = new Float32Array(NC), qu = new Int32Array(NC); let qh = 0, qt = 0;
+          const isLandIdx = (ii, jj) => { const idx = ii * gridD + jj; return !gridWater[idx] || (jj - MZ >= DAM_J && jj - MZ < DAM_J + 2 * S); };
+          for (let ii = 0; ii < gridW; ii++) for (let jj = 0; jj < gridD; jj++) {
+            if (!isLandIdx(ii, jj)) continue;
+            const idx = ii * gridD + jj; shoreD[idx] = 0;
+            if ((ii + 1 < gridW && !isLandIdx(ii + 1, jj)) || (ii > 0 && !isLandIdx(ii - 1, jj)) || (jj + 1 < gridD && !isLandIdx(ii, jj + 1)) || (jj > 0 && !isLandIdx(ii, jj - 1))) qu[qt++] = idx;
           }
-          const waterSurfGeo = mergeGeometries(waterGeos, false);
-          for (const geometry of waterGeos) geometry.dispose();
-          waterGeos.length = 0;
+          while (qh < qt) {
+            const idx = qu[qh++], d = shoreD[idx]; if (d >= 6) continue;
+            const ii = (idx / gridD) | 0, jj = idx - ii * gridD;
+            if (ii + 1 < gridW && shoreD[idx + gridD] > d + 1) { shoreD[idx + gridD] = d + 1; qu[qt++] = idx + gridD; }
+            if (ii > 0 && shoreD[idx - gridD] > d + 1) { shoreD[idx - gridD] = d + 1; qu[qt++] = idx - gridD; }
+            if (jj + 1 < gridD && shoreD[idx + 1] > d + 1) { shoreD[idx + 1] = d + 1; qu[qt++] = idx + 1; }
+            if (jj > 0 && shoreD[idx - 1] > d + 1) { shoreD[idx - 1] = d + 1; qu[qt++] = idx - 1; }
+          }
+          for (const w of waters) cellDepth[(w.i + MX) * gridD + w.j + MZ] = w.sy * BLOCK;
+          // mặt nước = 1 ô vuông phẳng (rộng 1,02 khối) trên mỗi cột nước, ghi thẳng vào mảng (nhanh hơn dựng hàng nghìn PlaneGeometry rồi gộp)
+          const nW = waters.length, wPos = new Float32Array(nW * 12), wNrm = new Float32Array(nW * 12), wAttr = new Float32Array(nW * 16), wIdx = new Uint32Array(nW * 6), a = BLOCK * 0.51;
+          const cellD = (i, j) => (i < -MX || j < -MZ || i >= GX + MX || j >= GZ + MZ) ? 0 : cellDepth[(i + MX) * gridD + j + MZ];
+          const cellS = (i, j) => (i < -MX || j < -MZ || i >= GX + MX || j >= GZ + MZ) ? 0 : Math.min(6, shoreD[(i + MX) * gridD + j + MZ]);
+          waters.forEach((w, wi) => {
+            const topY = w.y + (w.sy * BLOCK) / 2, i = w.i, j = w.j;
+            for (let v = 0; v < 4; v++) {   // góc (−,−) (+,−) (−,+) (+,+): trung bình 4 ô quanh góc → độ sâu, độ gần bờ chuyển mượt qua các ô
+              const si = v & 1 ? 1 : -1, sj = v & 2 ? 1 : -1, o = (wi * 4 + v);
+              wPos[o * 3] = w.x + si * a; wPos[o * 3 + 1] = topY; wPos[o * 3 + 2] = w.z + sj * a; wNrm[o * 3 + 1] = 1;
+              const dd = (cellD(i, j) + cellD(i + si, j) + cellD(i, j + sj) + cellD(i + si, j + sj)) / 4;
+              const sd = (cellS(i, j) + cellS(i + si, j) + cellS(i, j + sj) + cellS(i + si, j + sj)) / 4, k = Math.min(1, Math.max(0, (sd - 0.4) / 2.4));
+              wAttr[o * 4 + 2] = dd; wAttr[o * 4 + 3] = 1 - k * k * (3 - 2 * k);   // xy = dòng chảy (điền ở khung đầu) · z = độ sâu · w = gần bờ
+            }
+            const b = wi * 4; wIdx.set([b, b + 2, b + 1, b + 2, b + 3, b + 1], wi * 6);   // mặt hướng lên như PlaneGeometry xoay −90° quanh X
+          });
+          const waterSurfGeo = new THREE.BufferGeometry();
+          waterSurfGeo.setAttribute('position', new THREE.BufferAttribute(wPos, 3)); waterSurfGeo.setAttribute('normal', new THREE.BufferAttribute(wNrm, 3));
+          waterSurfGeo.setAttribute('aWater', new THREE.BufferAttribute(wAttr, 4)); waterSurfGeo.setIndex(new THREE.BufferAttribute(wIdx, 1));
+          waterSurfGeo.computeBoundingSphere(); waterSurfGeo.computeBoundingBox();
           const waterMesh = new THREE.Mesh(waterSurfGeo, waterMat);
+          waterMesh.name = 'Mặt nước (Water Surface)';
           waterMesh.receiveShadow = true;
           scene.add(waterMesh);
-          terrainMeshes.push(waterMesh);
-        } else {
-          instancedScaled(waters, waterMat, true);
+          terrainMeshes.push(waterMesh); waterSurfMesh = waterMesh;
         }
         waters.length = 0; // Giải phóng mảng RAM lập tức
         // Keep the compact height grid, including water cells, for exact allocation-free runtime queries.

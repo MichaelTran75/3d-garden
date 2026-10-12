@@ -51,6 +51,7 @@ animals/insects.js                     # đom đóm, bướm, ong
 animals/storks.js                      # cò trắng (dựng theo số đo Stork.glb, MIT)
 ui/labels-controls.js                  # nhãn, điều khiển camera, toạ độ, zoom
 ui/xray-lifecycle.js                   # xem xuyên xe, tạm dừng/tiếp tục, dọn dẹp
+core/draw-batch.js                     # GỘP LƯỢT VẼ: mảnh hình giữ làm "xương", vẽ chung 1 lưới da (thú, kỹ sư, xe, cảnh tĩnh)
 loop/main-loop.js                      # vòng lặp khung hình (phần đầu)
 engineer/loop-update.js                # mỗi khung hình: kỹ sư ngủ/thức, chọn việc, điều khiển (nằm trong loop())
 loop/main-loop-rest.js                 # vòng lặp khung hình (phần còn lại: cá, thỏ, côn trùng, …)

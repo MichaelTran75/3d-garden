@@ -15,9 +15,9 @@ Mã nguồn nằm trong `src/` — đây là nơi duy nhất cần sửa (ngay t
 | `src/js/weather.js` | thời tiết Open-Meteo + đồng hồ Pleiku |
 | `src/js/flight-nav.js` | dẫn đường bay cho ong, bướm |
 | `src/app/manifest.txt` | **thứ tự** ghép các mảnh mã cảnh chính (kèm mô tả từng tệp) |
-| `src/app/core/` | khởi động, bầu trời, mặt trời/mặt trăng, địa hình |
+| `src/app/core/` | khởi động, bầu trời, mặt trời/mặt trăng, mặt nước, địa hình; **gộp lượt vẽ** (`draw-batch.js`) |
 | `src/app/world/` | thủy điện, tua-bin, pin mặt trời, nhà, đường, trạm biến áp, cột khí tượng, đèn đường |
-| `src/app/nature/` | gió, cây, rừng, cỏ hoa, mặt nước, lá rơi, mây mưa |
+| `src/app/nature/` | gió, cây, rừng, cỏ hoa, dòng chảy, lá rơi, mây, **mưa trên GPU** (`clouds-rain.js`) |
 | `src/app/animals/` | cá, bò, hươu, cua, thỏ, chó, gấu mèo, ong bướm, cò |
 | `src/app/engineer/` | **kỹ sư**: hình người (`model.js`), tư thế + IK, ngồi ghế, suy nghĩ, lịch cả ngày (`schedule.js`), đi lại + các trạm trong xe, nấu ăn, cập nhật mỗi khung hình (`loop-update.js`) |
 | `src/app/van/` | **xe van**: cabin, vỏ, nội thất (`caravan.js`), bếp, đồ bếp, đèn bàn, lon nước, Zzz |
@@ -29,6 +29,15 @@ Các mảnh trong `src/app/` được **nối nguyên văn** theo `manifest.txt`
 (không `import`/`export`) — nên giữ đúng thứ tự trong manifest; thêm tệp mới thì ghi thêm một dòng vào manifest.
 
 `index.html`, `css/`, `js/` là tệp **dựng ra** từ `src/` — đừng sửa tay.
+
+## Hiệu năng (đọc trước khi thêm vật mới)
+
+- **Gộp lượt vẽ** (`core/draw-batch.js`, chạy một lần sau khi dựng xong cảnh): mọi Mesh/nét viền thường được gộp theo kiểu vật liệu thành vài
+  lưới "skinning cứng" — mảnh gốc vẫn nằm trong cây đối tượng (xoay, dời, ẩn/hiện, công cụ Chọn đều như cũ) nhưng không tự vẽ.
+  Vật mới dựng lúc mở trang **tự được gộp**, không cần làm gì (vật tạo thêm lúc đang chạy thì tự vẽ như thường). Code đổi màu/độ mờ vật liệu, thay hình, thay vật liệu lúc chạy thì mảnh đó tự tách ra vẽ riêng.
+  Hình biến dạng đỉnh mỗi khung (vd. thân cá uốn) nên gắn `userData.noBatch = true` cho khỏi tốn công gộp.
+- Ô đất phẳng chỉ vẽ mặt trên + mặt đáy; texture mây tính ở luồng phụ (Web Worker); shader biên dịch song song trước khung đầu.
+- `build.py --check` có **ngân sách dung lượng nén** (`BUDGET_KB`): `js/app.js` ≤ 380 KB gzip, cả trang ≤ 400 KB — vượt thì Actions báo lỗi.
 
 ## Dựng & đưa lên
 

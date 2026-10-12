@@ -124,7 +124,7 @@
           // màng vây dựng đứng bị Lambert chiếu cạnh → xám; ép pháp tuyến vây hướng lên để màng luôn sáng
           { const nrm = bodyGeo.attributes.normal; for (let i = finStart; i < pos.length / 3; i++) nrm.setXYZ(i, 0, 1, 0); }
           const body = new THREE.Mesh(bodyGeo, koiSkinM);
-          body.castShadow = true; body.userData.noBake = true; g.add(body);
+          body.castShadow = true; body.userData.noBake = body.userData.noBatch = true; g.add(body);   // thân uốn mỗi khung (đỉnh dời trên CPU) → không gộp vẽ
 
           // --- cặp vây NGỰC quạt màng 2 lớp, vỗ riêng ---
           const pects = [];

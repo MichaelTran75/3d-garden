@@ -2,7 +2,7 @@
         //      + nhiễu fbm (mép xơ, mặt súp-lơ) → chiếu sáng theo hướng nắng thật; các bông che nắng lẫn nhau (tính trên CPU),
         //      đáy phẳng, chân xám-lam, viền bạc khi ngược sáng; đổ bóng mềm xuống địa hình qua shadow map (dither theo độ dày);
         //      trôi theo hướng/tốc độ gió thật, tự hình thành rồi tan; số đám theo độ phủ mây Open-Meteo; mưa → mây dày, xám chì ----
-        function makeCloudAtlas() {   // 2×2 ô 256²: RG = pháp tuyến (hệ billboard) · B = độ dày · A = độ phủ
+        function cloudAtlasPixels() {   // 2×2 ô 256²: RG = pháp tuyến (hệ billboard) · B = độ dày · A = độ phủ — JS thuần (chạy được trong Web Worker)
           const TS = 256, N = TS * 2, data = new Uint8Array(N * N * 4), Hf = new Float32Array(TS * TS);
           let seed = 20261007;
           const rnd = () => { seed = (seed + 0x6D2B79F5) | 0; let q = Math.imul(seed ^ (seed >>> 15), 1 | seed); q = (q + Math.imul(q ^ (q >>> 7), 61 | q)) ^ q; return ((q ^ (q >>> 14)) >>> 0) / 4294967296; };
@@ -32,7 +32,22 @@
               data[o] = Math.round((nx * 0.5 + 0.5) * 255); data[o + 1] = Math.round((ny * 0.5 + 0.5) * 255); data[o + 2] = Math.round(Math.min(1, h / 0.62) * 255); data[o + 3] = Math.round(a * rim * 255);
             }
           }
-          const tex = new THREE.DataTexture(data, N, N, THREE.RGBAFormat); tex.magFilter = THREE.LinearFilter; tex.minFilter = THREE.LinearMipmapLinearFilter; tex.generateMipmaps = true; tex.needsUpdate = true;
+          return data;
+        }
+        function makeCloudAtlas() {   // ~0,1 s tính toán → làm ở LUỒNG PHỤ (Worker từ Blob, không cần tệp ngoài); trang hiện ngay, mây hiện dần khi xong
+          const N = 512, tex = new THREE.DataTexture(new Uint8Array(N * N * 4), N, N, THREE.RGBAFormat);
+          tex.magFilter = THREE.LinearFilter; tex.minFilter = THREE.LinearMipmapLinearFilter; tex.generateMipmaps = true; tex.needsUpdate = true;
+          const fill = data => { if (disposed) return; tex.image.data = data; tex.needsUpdate = true; };
+          let worker = null, url = null;
+          const done = () => { worker?.terminate(); worker = null; if (url) URL.revokeObjectURL(url); url = null; };
+          try {
+            url = URL.createObjectURL(new Blob(['onmessage = () => { const d = (' + cloudAtlasPixels.toString() + ')(); postMessage(d, [d.buffer]); };'], { type: 'text/javascript' }));
+            worker = new Worker(url);
+            worker.onmessage = e => { done(); fill(e.data); };
+            worker.onerror = e => { e.preventDefault?.(); done(); fill(cloudAtlasPixels()); };
+            worker.postMessage(0);
+            sceneEvents.signal.addEventListener('abort', done);
+          } catch (e) { done(); fill(cloudAtlasPixels()); }   // trình duyệt chặn Worker → tính ngay trên luồng chính như trước
           return tex;
         }
         function cloudShape(size, wet) {   // đáy phẳng y=0, 2–5 tháp đối lưu, đỉnh vòm súp-lơ; trục dài theo x cục bộ
@@ -224,18 +239,122 @@
           cloudDepthMat.uniforms.uShadow.value = 0.95 + 0.1 * cloudWet;   // lõi mây dày chặn gần hết nắng, mép thưa → bóng loang
         }
 
-        // ---- Mưa rơi từ đáy các đám mây đang hiện, chỉ theo thời tiết hiện tại (không theo dự báo ngày). ----
-        const rainMat = new THREE.LineBasicMaterial({ color: 0x89a7bb, transparent: true, opacity: 0.56, depthWrite: false });
-        const RAIN_PER_CLOUD = 60, rainDrops = [];
-        for (let ci = 0; ci < MAX_CLOUDS; ci++) {
-          for (let i = 0; i < RAIN_PER_CLOUD; i++) {
-            const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random());
-            rainDrops.push({ ci, u: Math.cos(a) * r, v: Math.sin(a) * r, k: Math.random(), fall: Math.random(), speed: 16 + Math.random() * 10 });
-          }
+        // ===== MƯA trên GPU — mỗi hạt là 1 vệt mảnh (instance 4 đỉnh); vị trí tính trong shader theo thời gian → CPU không cập nhật từng hạt =====
+        //  · Hạt rơi từ đáy đám mây đang hiện (vị trí · trục dài · độ hiện của từng đám), xiên theo gió thật, tốc độ rơi ~14–22 đv/s.
+        //  · Dừng ở MẶT CHẮN THẬT: bản đồ độ cao nhìn từ trên xuống (mái nhà, tán cây, xe, người, mặt nước, đất) vẽ lại ~15 giây/lần khi đang mưa,
+        //    chạm mặt thì bắn 1 vòng tia nhỏ (~0,13 s). Thêm 1 lớp hạt quanh khung nhìn khi phóng to để mưa không thưa đi.
+        //  · Cường độ theo mã thời tiết WMO + lượng mưa Open-Meteo (mưa phùn thưa, mưa rào/dông dày); vệt dài/rộng tính theo pixel → nét ở mọi mức zoom.
+        const RAIN_PER_CLOUD = 520, RAIN_NEAR = 3600, RAIN_N = MAX_CLOUDS * RAIN_PER_CLOUD + RAIN_NEAR, RAIN_PERIOD = 7.2, RAIN_SPLASH = 0.13;
+        function rainTarget() {   // 0–1: cường độ mưa hiện tại (chỉ thời tiết lúc này, không theo dự báo)
+          const w = liveWeather.state; if (!w.raining) return 0;
+          const c = w.data?.current || {}, code = c.weather_code;
+          let k = code >= 51 && code <= 57 ? 0.28 : code === 61 || code === 80 ? 0.5 : code === 63 || code === 66 || code === 81 ? 0.72 : code === 65 || code === 67 || code === 82 ? 0.95 : code >= 95 ? 0.9 : 0.5;
+          const mm = Math.max(c.precipitation || 0, (c.rain || 0) + (c.showers || 0));
+          if (mm > 0) k = Math.max(k, Math.min(1, 0.32 + mm / 7));   // ~7 mm/h trở lên → mưa to
+          return k;
         }
-        const rainPos = new Float32Array(rainDrops.length * 6), rainGeo = new THREE.BufferGeometry();
-        rainGeo.setAttribute('position', new THREE.BufferAttribute(rainPos, 3).setUsage(THREE.DynamicDrawUsage));
-        const rainMesh = new THREE.LineSegments(rainGeo, rainMat); rainMesh.visible = false; rainMesh.frustumCulled = false; scene.add(rainMesh);
+        const rainOcc = (() => {   // bản đồ độ cao MẶT CHẮN MƯA: vẽ độ sâu từ trên xuống (camera trực giao) vào texture RGBA (độ sâu nén)
+          const N = 512, X0 = -134, X1 = 134, Z0 = -124, Z1 = 124, TOP = 120, NEAR = 0.5, FAR = 175;
+          const rt = new THREE.WebGLRenderTarget(N, N, { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, generateMipmaps: false, depthBuffer: true });
+          rt.texture.name = 'Bản đồ mặt chắn mưa';
+          const cam = new THREE.OrthographicCamera(X0, X1, -Z0, -Z1, NEAR, FAR); cam.position.set(0, TOP, 0); cam.up.set(0, 0, -1); cam.lookAt(0, 0, 0); cam.updateMatrixWorld(true);
+          const depthMat = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking }), white = new THREE.Color(1, 1, 1), _cc = new THREE.Color();
+          let ready = false, lastT = -1e9;
+          function render(t, skip) {   // skip(o) = true → ẩn trong lượt vẽ này (mây, chính hạt mưa, nhãn, chùm đèn…)
+            const hidden = [];
+            scene.traverseVisible(o => { if (o.isSprite || o.isPoints || skip(o)) hidden.push(o); });
+            for (const o of hidden) o.visible = false;
+            const bg = scene.background, auto = renderer.shadowMap.autoUpdate, a = renderer.getClearAlpha(); renderer.getClearColor(_cc);
+            scene.background = null; scene.overrideMaterial = depthMat; renderer.shadowMap.autoUpdate = false;
+            renderer.setRenderTarget(rt); renderer.setClearColor(white, 1); renderer.clear(); renderer.render(scene, cam);
+            renderer.setRenderTarget(null); renderer.setClearColor(_cc, a);
+            scene.overrideMaterial = null; scene.background = bg; renderer.shadowMap.autoUpdate = auto;
+            for (const o of hidden) o.visible = true;
+            ready = true; lastT = t;
+          }
+          return { rt, tex: rt.texture, box: new THREE.Vector4(X0, Z1, 1 / (X1 - X0), 1 / (Z1 - Z0)), ys: new THREE.Vector3(TOP, NEAR, FAR), render, get ready() { return ready; }, get lastT() { return lastT; }, dispose() { rt.dispose(); depthMat.dispose(); } };
+        })();
+        sceneEvents.signal.addEventListener('abort', () => rainOcc.dispose());
+        const rainU = {
+          uTime: { value: 0 }, uPx: { value: 0.1 }, uCloud: { value: Array.from({ length: MAX_CLOUDS }, () => new THREE.Vector4(0, 0, 0, 0)) },
+          uCloudAx: { value: Array.from({ length: MAX_CLOUDS }, () => new THREE.Vector4(1, 0, 1, 1)) }, uWind: { value: new THREE.Vector2() }, uDrift: { value: new THREE.Vector2() },
+          uNear: { value: 0 }, uView: { value: new THREE.Vector4() }, uCamF: { value: new THREE.Vector3(0, -1, 0) },
+          uOcc: { value: rainOcc.tex }, uOccBox: { value: rainOcc.box }, uOccY: { value: rainOcc.ys }, uOccOn: { value: 0 },
+          uCol: { value: new THREE.Color(0.62, 0.68, 0.74) }, uAlpha: { value: 0.5 }
+        };
+        const rainMat = new THREE.ShaderMaterial({
+          uniforms: rainU, transparent: true, depthWrite: false, toneMapped: false,
+          vertexShader: `
+            #include <packing>
+            attribute vec4 aSeed; attribute vec2 aMeta;   // aSeed: u, v (đĩa đơn vị / hộp) · pha · tốc độ ngẫu nhiên — aMeta: ô mây (−1 = lớp quanh khung nhìn) · ngưỡng dày
+            uniform float uTime, uPx, uNear, uOccOn; uniform vec4 uCloud[${MAX_CLOUDS}], uCloudAx[${MAX_CLOUDS}], uView, uOccBox;
+            uniform vec2 uWind, uDrift; uniform vec3 uCamF, uOccY; uniform sampler2D uOcc;
+            varying vec2 vUv; varying float vA; varying float vMode;
+            float groundY(vec2 xz) {   // độ cao mặt chắn (mái, tán, mặt nước, đất) tại xz
+              vec2 uv = vec2((xz.x - uOccBox.x) * uOccBox.z, (uOccBox.y - xz.y) * uOccBox.w);
+              if (uOccOn < 0.5 || uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) return 1.0;
+              return uOccY.x - (uOccY.y + unpackRGBAToDepth(texture2D(uOcc, uv)) * (uOccY.z - uOccY.y));
+            }
+            void main() {
+              float speed = 14.0 + 8.0 * aSeed.w, on; vec3 p;
+              if (aMeta.x >= 0.0) {   // hạt rơi từ đáy 1 đám mây: chu kỳ cố định → không giật pha khi mây trôi qua chỗ cao/thấp
+                vec4 C = uCloud[int(aMeta.x + 0.5)], X = uCloudAx[int(aMeta.x + 0.5)];
+                on = step(aMeta.y, C.w);
+                vec2 o = aSeed.xy * X.zw;
+                float tau = fract(aSeed.z + uTime / ${RAIN_PERIOD.toFixed(1)}) * ${RAIN_PERIOD.toFixed(1)};
+                p = vec3(C.x + o.x * X.x - o.y * X.y + uWind.x * tau, C.y - speed * tau, C.z + o.x * X.y + o.y * X.x + uWind.y * tau);
+              } else {   // lớp quanh khung nhìn: hộp 2R quanh tâm nhìn, hạt cố định trong thế giới, cuộn vòng qua mép hộp
+                on = step(aMeta.y, uNear);
+                float R = uView.w, L = 2.0 * R; vec3 c0 = uView.xyz - vec3(R, 0.6 * R, R);   // hộp lệch lên: ít hạt nằm dưới mặt đất
+                vec3 w = vec3(aSeed.x * L + uDrift.x, aSeed.z * L - speed * uTime, aSeed.y * L + uDrift.y);
+                p = c0 + mod(w - c0, L);
+              }
+              float g = groundY(p.xz), h = p.y - g;   // h < 0: đã chạm mặt (−h/speed giây trước)
+              vec3 vel = normalize(vec3(uWind.x, -speed, uWind.y));
+              vA = on * (0.55 + 0.45 * fract(aSeed.z * 7.13));
+              if (h >= 0.0) {   // vệt rơi: đầu ở dưới, đuôi kéo ngược chiều bay; dài ≤ 36 px, rộng ~1,3 px
+                vMode = 0.0;
+                float len = min(2.4, 52.0 * uPx) * (0.7 + 0.3 * aSeed.w);
+                vec3 side = normalize(cross(vel, uCamF)) * uPx * 1.0;
+                p += -vel * len * position.y + side * position.x;
+                vUv = vec2(position.x, position.y);
+              } else {   // chạm mặt: vòng tia nhỏ nằm ngang, nở ra rồi tắt
+                float age = -h / speed;
+                vMode = 1.0; vA *= step(age, ${RAIN_SPLASH.toFixed(2)}) * (1.0 - age / ${RAIN_SPLASH.toFixed(2)});
+                float r = max(0.04 + 1.25 * age, uPx * 1.6);
+                p = vec3(p.x, g + 0.02, p.z) + vec3(position.x, 0.0, position.y * 2.0 - 1.0) * r;
+                vUv = vec2(position.x, position.y * 2.0 - 1.0);
+              }
+              gl_Position = vA > 0.002 ? projectionMatrix * viewMatrix * vec4(p, 1.0) : vec4(2.0, 2.0, 2.0, 1.0);
+            }`,
+          fragmentShader: `
+            uniform vec3 uCol; uniform float uAlpha;
+            varying vec2 vUv; varying float vA; varying float vMode;
+            void main() {
+              float a; vec3 col = uCol;
+              if (vMode < 0.5) a = (1.0 - abs(vUv.x)) * (1.0 - vUv.y * 0.6);   // giữa vệt đậm, đuôi nhạt dần
+              else { float r = length(vUv); a = smoothstep(1.0, 0.78, r) * smoothstep(0.3, 0.75, r) * 1.5; col = mix(uCol, vec3(0.8, 0.86, 0.92), 0.55); }   // vòng tia bắn sáng hơn
+              gl_FragColor = vec4(col, min(1.0, a * vA * uAlpha));
+              #include <tonemapping_fragment>
+              #include <colorspace_fragment>
+            }`
+        });
+        const rainGeo = new THREE.InstancedBufferGeometry();
+        rainGeo.setAttribute('position', new THREE.Float32BufferAttribute([-1, 0, 0, 1, 0, 0, 1, 1, 0, -1, 1, 0], 3)); rainGeo.setIndex([0, 1, 2, 0, 2, 3]);
+        {
+          const seed = new Float32Array(RAIN_N * 4), meta = new Float32Array(RAIN_N * 2);
+          for (let i = 0; i < RAIN_N; i++) {
+            const cloud = i < MAX_CLOUDS * RAIN_PER_CLOUD, a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random());
+            seed.set(cloud ? [Math.cos(a) * r, Math.sin(a) * r, Math.random(), Math.random()] : [Math.random(), Math.random(), Math.random(), Math.random()], i * 4);
+            meta.set([cloud ? Math.floor(i / RAIN_PER_CLOUD) : -1, Math.random()], i * 2);
+          }
+          rainGeo.setAttribute('aSeed', new THREE.InstancedBufferAttribute(seed, 4)); rainGeo.setAttribute('aMeta', new THREE.InstancedBufferAttribute(meta, 2));
+          rainGeo.instanceCount = RAIN_N;
+        }
+        const rainMesh = new THREE.Mesh(rainGeo, rainMat); rainMesh.name = 'Mưa (GPU)'; rainMesh.visible = false; rainMesh.frustumCulled = false; rainMesh.renderOrder = 5; rainMesh.raycast = () => {};
+        rainMesh.userData.noBatch = true; scene.add(rainMesh);
+        let rainK = 0, sceneWet = 0;   // cường độ mưa đang hiện (mượt) · độ ướt mặt đất 0–1 (thấm dần khi mưa, khô dần khi tạnh)
+        const wetMats = [grassMat, shoreMat, dirtMat].map(m => [m, m.color.clone()]), _rainNight = new THREE.Color(0.33, 0.40, 0.50);
         const lightningMat = new THREE.LineBasicMaterial({ color: 0xE2D6C0, transparent: true, opacity: 0.75, depthWrite: false });
         const lightning = new THREE.Line(new THREE.BufferGeometry(), lightningMat); lightning.visible = false; lightning.frustumCulled = false; scene.add(lightning);
         lightning.geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(7 * 3), 3).setUsage(THREE.DynamicDrawUsage));   // 7 điểm cấp sẵn, mỗi lần sét chỉ ghi đè
@@ -243,21 +362,26 @@
         const storm = { next: 18, until: -1 };
         const reducedFlashes = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
         function updateWeatherRain(dt, t) {
-          const w = liveWeather.state;
-          rainMesh.visible = w.raining;
-          if (w.raining) {
-            const wind = Math.min(1.8, (w.windSpeed || 0) / 35), angle = (w.windDirection || 0) * Math.PI / 180;
-            const driftX = -Math.sin(angle) * wind, driftZ = Math.cos(angle) * wind;
-            for (let i = 0; i < rainDrops.length; i++) {
-              const drop = rainDrops[i], c = cloudSlots[drop.ci], o = i * 6;
-              if (!c || drop.k > c.alpha) { rainPos[o + 1] = rainPos[o + 4] = -1e4; continue; }   // đám đang hình thành/tan → thưa hạt
-              const top = c.pos.y + 0.4, fallH = Math.max(10, top - 0.6), lu = drop.u * c.L * 0.42, lv = drop.v * c.W * 0.42;
-              drop.fall = (drop.fall + drop.speed * dt / fallH) % 1;
-              const x = c.pos.x + lu * c.ax - lv * c.az, y = top - drop.fall * fallH, z = c.pos.z + lu * c.az + lv * c.ax;
-              rainPos[o] = x; rainPos[o + 1] = y; rainPos[o + 2] = z;
-              rainPos[o + 3] = x + driftX; rainPos[o + 4] = Math.max(0.6, y - 1.7); rainPos[o + 5] = z + driftZ;
+          const w = liveWeather.state, want = rainTarget();
+          rainK += (want - rainK) * Math.min(1, dt * 0.35);   // vào/ra mưa mượt trong vài giây
+          sceneWet = Math.min(1, Math.max(0, sceneWet + (want > 0 ? dt * (0.004 + 0.012 * want) : -dt * (0.0011 + 0.0016 * (1 - nightFactor)))));
+          const wetK = 1 - 0.24 * sceneWet; for (const [m, c] of wetMats) m.color.copy(c).multiplyScalar(wetK);   // đất cỏ thẫm lại khi ướt
+          if (scene.fog) { scene.fog.near = 280 - 30 * rainK; scene.fog.far = 700 - 70 * rainK; }   // mưa → không khí mờ hơn
+          rainMesh.visible = rainK > 0.01;
+          if (rainMesh.visible) {
+            const U = rainU, wd = sceneWind.dir, ws = Math.min(9, 1.2 + sceneWind.ms * 0.9);   // hạt xiên theo gió (đv/s ngang)
+            U.uTime.value = t % 3600; U.uWind.value.set(wd.x * ws, wd.y * ws); U.uDrift.value.addScaledVector(U.uWind.value, dt);
+            for (let s = 0; s < MAX_CLOUDS; s++) {
+              const c = cloudSlots[s], C = U.uCloud.value[s], X = U.uCloudAx.value[s];
+              if (!c) { C.w = 0; continue; }
+              C.set(c.pos.x, c.pos.y + 0.4, c.pos.z, c.alpha * rainK); X.set(c.ax, c.az, c.L * 0.42, c.W * 0.42);
             }
-            rainGeo.attributes.position.needsUpdate = true;
+            const vh = (camera.top - camera.bottom) / camera.zoom, px = vh / Math.max(1, renderer.domElement.height);   // đv thế giới / pixel
+            U.uPx.value = px; U.uNear.value = rainK * THREE.MathUtils.smoothstep(camera.zoom, 1.4, 3.5);
+            U.uView.value.set(target.x, target.y, target.z, vh * 0.75);
+            camera.getWorldDirection(U.uCamF.value);
+            U.uCol.value.setRGB(0.21, 0.29, 0.39).lerp(_rainNight, nightFactor); U.uAlpha.value = 0.85 - 0.25 * nightFactor;   // ngày: vệt xám lam trên nền sáng · đêm: vệt sáng nhẹ
+            if (t - rainOcc.lastT > 15) { rainOcc.render(t, o => o === rainMesh || o === cloudMesh || o === lightning || o.name === 'Ánh đèn đường' || o.userData.noRainOcc); U.uOccOn.value = 1; }
           }
           if (w.thunder && !reducedFlashes && t > storm.next) {
             const live = cloudSlots.filter(c => c && c.alpha > 0.5);
