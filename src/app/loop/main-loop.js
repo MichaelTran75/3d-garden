@@ -195,10 +195,7 @@
               c.thumb.rotation.y = -0.3 * c.sz + Math.sin(t * 4.0) * 0.1 * c.sz;
             }
           }
-          for (const l of lotuses) {   // lá sen nổi đúng mặt nước mô phỏng: dâng/hạ theo sóng, nghiêng theo độ dốc mặt nước (gốc cắm đáy nên không trôi)
-            const p = l.g.position, y = waterSurfaceY(p.x, p.z), gx = waterSurfaceY(p.x + 0.4, p.z) - y, gz = waterSurfaceY(p.x, p.z + 0.4) - y;
-            p.y = y + 0.01 + Math.sin(t * 1.2 + l.ph) * 0.012; l.g.rotation.z = Math.max(-0.2, Math.min(0.2, -gx * 2.5)) + Math.sin(t * 0.8 + l.ph) * 0.015; l.g.rotation.x = Math.max(-0.2, Math.min(0.2, gz * 2.5));
-          }
+          lotusPond.update(dt, t);   // đầm sen: lá nổi theo sóng, cuống ngả theo gió, hoa nở/khép theo giờ, giọt sương
           if (cherryCtl) updateLeafFall(cherryCtl, dt, t);           // cánh hoa anh đào rụng theo gió, rơi xuống sông thì nổi, trôi, có chiếc chìm
           if (oldTreeLeafCtl) updateLeafFall(oldTreeLeafCtl, dt, t);   // lá vàng cây cổ thụ
           waterFx.update(dt, t);                                     // gợn nước nhỏ (lá chạm nước, cá đớp) + bọt khí

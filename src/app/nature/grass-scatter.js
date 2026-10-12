@@ -83,20 +83,4 @@
         for (const k in vegPools) buildVegPool(vegPools[k]);
         _forestVariants.length = 0;   // dựng toàn bộ InstancedMesh cỏ/cây/hoa sau khi gom xong
 
-        const lotuses = [];
-        const padMat = new THREE.MeshLambertMaterial({ color: 0x4f944f }), lp1 = new THREE.MeshLambertMaterial({ color: 0xf3aecb }), lp2 = new THREE.MeshLambertMaterial({ color: 0xe884b0 }), lcen = new THREE.MeshLambertMaterial({ color: 0xe8d572 });
-        function lotus() {
-          const g = new THREE.Group();
-          const pad = new THREE.Mesh(new THREE.CylinderGeometry(1.15, 1.15, 0.07, 14), padMat); pad.position.y = 0.04; pad.receiveShadow = true; g.add(pad);
-          for (let layer = 0; layer < 2; layer++) {
-            const r = 0.42 - layer * 0.16, pm = layer ? lp2 : lp1, n = 6;
-            for (let p = 0; p < n; p++) {
-              const pv = new THREE.Group(); pv.rotation.y = layer * 0.5 + p / n * 6.283;
-              const pe = new THREE.Mesh(new THREE.ConeGeometry(0.17 - layer * 0.03, 0.52 - layer * 0.1, 5), pm); pe.scale.z = 0.12; pe.castShadow = true; pe.position.set(r, 0.26 + layer * 0.13, 0); pe.rotation.z = -0.72 + layer * 0.22; pv.add(pe); g.add(pv);   // ép mỏng cánh sen thành lá dẹt (z 1→0.12)
-            }
-          }
-          const ce = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.17, 0.24, 8), lcen); ce.position.y = 0.42; g.add(ce); return g;
-        }
-        // hồ hạ lưu — nơi có cá (dùng lakeY khai báo cùng resTopY/downY)
-        for (const off of [[0, 0], [3.6, 2.2], [-3.2, 2.6]]) { const g = lotus(); g.position.set(X0 + 73 + off[0], lakeY, Z0 + 113 + off[1]); g.rotation.y = Math.random() * 6.28; scene.add(g); lotuses.push({ g, base: lakeY, ph: Math.random() * 6 }); }   // hoa sen về tọa độ góc (73, _, 113)
 
