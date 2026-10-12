@@ -5959,9 +5959,12 @@
           studyBox(desk, 'Sổ trên bàn', .27, .014, .2, deskX - .34, yIn + deskHeight + .01, deskZ - .09, caravanDark);   // sổ dời sang trái, nhường giữa bàn cho laptop
           studyBox(desk, 'Giấy trong sổ', .253, .009, .185, deskX - .34, yIn + deskHeight + .019, deskZ - .09, caravanRoofM);
           bakeStudyFurniture(desk); study.add(desk);
+          // bàn học to thêm 20% (dài, sâu, cao), giữ góc sau–phải áp vách: phóng quanh điểm (2,88; sàn; −1,37)
+          const DESK_K = 1.2; desk.scale.setScalar(DESK_K); desk.position.set(2.88 * (1 - DESK_K), yIn * (1 - DESK_K), -1.37 * (1 - DESK_K));
+          const dX = 2.88 - (2.88 - deskX) * DESK_K, dZ = -1.37 + (deskZ + 1.37) * DESK_K, dH = deskHeight * DESK_K;   // tâm + chiều cao mới
 
           const studyChair = new THREE.Group(); studyChair.name = 'Ghế bàn học';
-          const chairX = deskX - .02, chairZ = -.48;
+          const chairX = dX - .02, chairZ = -.38;   // ghế theo bàn: vẫn cách mép bàn 17,5 cm
           studyBox(studyChair, 'Đệm ghế học', .43, .065, .43, chairX, yIn + .455, chairZ, caravanRoofM, true);
           for (const sx of [-1, 1]) for (const sz of [-1, 1])
             studyBox(studyChair, 'Chân ghế học', .035, .425, .035, chairX + sx * .17, yIn + .2125, chairZ + sz * .17, metalMat);
@@ -5972,7 +5975,7 @@
 
           // Đèn bàn: đế gỗ ở góc sau-phải mặt bàn, tay đèn vươn chéo về phía cuốn sổ; mặt LED nằm trong lòng chụp.
           const lamp = workLamp(study), lampHead = WORK_LAMP_HEAD;
-          lamp.position.set(deskX + .28, yIn + deskHeight + .001, deskZ - .13); lamp.rotation.y = -1.0;
+          lamp.position.set(dX + .28 * DESK_K, yIn + dH + .001, dZ - .13 * DESK_K); lamp.rotation.y = -1.0;
           const bulbMat = new THREE.MeshStandardMaterial({ color: 0xE2D6C0, emissive: 0xffc46d, emissiveIntensity: 0, roughness: .65 });
           const bulb = new THREE.Mesh(new THREE.CircleGeometry(lampHead.radius * .86, 18), bulbMat);
           bulb.name = 'Bóng đèn bàn học'; bulb.rotation.x = Math.PI / 2; bulb.position.set(lampHead.x, lampHead.ledY, lampHead.z); lamp.add(bulb);
@@ -5981,10 +5984,10 @@
           studyLight.castShadow = false; lamp.add(studyLight);
           studyDeskLighting.light = studyLight; studyDeskLighting.bulb = bulbMat;
           // Lon nước ngọt ở góc trái phía trước mặt bàn, giữa nhãn quay về phía cửa hông.
-          const coke = sodaCan(); coke.scale.setScalar(1.05); coke.position.set(deskX - .37, yIn + deskHeight + .001, deskZ + .09); coke.rotation.y = -.6; study.add(coke);   // lon to thêm 5%, gốc ở tâm đáy nên vẫn đứng sát mặt bàn
+          const coke = sodaCan(); coke.scale.setScalar(1.05); coke.position.set(dX - .37 * DESK_K, yIn + dH + .001, dZ + .09 * DESK_K); coke.rotation.y = -.6; study.add(coke);   // lon to thêm 5%, gốc ở tâm đáy nên vẫn đứng sát mặt bàn
           // Laptop giữa bàn, trước ghế: thân nhôm xám, bàn phím + touchpad; nắp gắn bản lề mép sau (đóng phẳng khi rảnh, mở ~106° khi làm việc)
           {
-            const lap = new THREE.Group(); lap.name = 'Laptop'; lap.position.set(deskX - .01, yIn + deskHeight + .001, deskZ + .05); study.add(lap);
+            const lap = new THREE.Group(); lap.name = 'Laptop'; lap.position.set(dX - .01, yIn + dH + .001, dZ + .05 * DESK_K); study.add(lap);
             const alu = new THREE.MeshLambertMaterial({ color: 0x3d4046 });
             const kc = document.createElement('canvas'); kc.width = 128; kc.height = 48; const kx = kc.getContext('2d');
             kx.fillStyle = '#1e2024'; kx.fillRect(0, 0, 128, 48); kx.fillStyle = '#3a3e45';
@@ -6013,7 +6016,7 @@
             Object.assign(studyLaptop, { hinge, screen: screenMat, light: glow, group: lap, canvas: sc, ctx: sx2, tex: scrTex, dash: sx2.getImageData(0, 0, sc.width, sc.height), mode: 'dash', drawnAt: -1 });
           }
           study.userData.layout = {
-            desk: { center: [deskX, deskZ], size: [1.08, .5], height: deskHeight },
+            desk: { center: [dX, dZ], size: [1.08 * DESK_K, .5 * DESK_K], height: dH },
             chair: { center: [chairX, chairZ], size: [.43, .43], facing: '-Z' }, lampSchedule: '18:30–06:00 Asia/Ho_Chi_Minh'
           };
           g.add(study);
@@ -7350,7 +7353,7 @@
         })();
         // ghế bàn học: khe mép ghế–mép bàn chỉ 17,5 cm (đv xe), giữa đuôi giường và ghế 62 cm < bề ngang vai kỹ sư ⇒ đứng sau ghế nắm tựa lưng KÉO GHẾ RA
         // 55 cm (ra lối đi), vòng bên trái ra trước mặt ghế, quay lưng, ngồi xuống rồi nhích cả ghế vào sát bàn; hết giờ: nhích ghế ra, đứng dậy, vòng ra sau, đẩy ghế vào
-        const STUDY_PULL = 0.55, STUDY_FZ = 0.37;
+        const STUDY_PULL = 0.45, STUDY_FZ = 0.37;
         const STUDY_SEAT = makeSeat({ name: 'study', indoor: true, pos: new THREE.Vector3(), yaw: engStudyPts.yaw, seatZ: 0, standZ: STUDY_FZ * CAMP_SCALE, contactZ: 0.09,
           seatDrop: 0.56, legs: [-1.48, -1.44], knees: [0.98, 0.94], arm: null, ground: () => dogInside.y });   // ghế thấp hơn ghế xếp: cẳng chân chếch ra trước dưới gầm bàn
         function studyChairAt(off) {   // dời ghế bàn học dọc trục trước–sau của nó (đv xe) + cập nhật mô tả ghế cho bộ điều khiển ngồi
@@ -7411,7 +7414,7 @@
         const VAN_FLOOR = dogInside.y, vanFloor = () => VAN_FLOOR, VYAW = caravanObj.rotation.y;
         const VY = { pz: VYAW, nz: VYAW + Math.PI, px: VYAW + Math.PI / 2, nx: VYAW - Math.PI / 2 };   // hướng nhìn dọc các trục của xe
         const VN = {};
-        for (const [k, x, z] of [['door', 0.33, 1.0], ['hall', 0.33, 0.12], ['tbl', 0.05, 0.33], ['bed', 0.62, -0.15], ['mid', 1.45, 0.25], ['rear', 2.45, 0.02],
+        for (const [k, x, z] of [['door', 0.33, 1.0], ['hall', 0.33, 0.12], ['tbl', 0.05, 0.33], ['bed', 0.62, -0.15], ['mid', 1.45, 0.25], ['rear', 2.5, 0.08],
           ['stove', 1.33, 0.5], ['board', 2.04, 0.5], ['ksink', 2.5, 0.5], ['bathOut', 2.6, -0.145], ['bathIn', 3.3, 0.0], ['sink', 3.475, 0.74], ['shelf', 3.45, 0.45], ['towel', 3.75, 0.08], ['wcOut', 3.255, -0.2], ['wcIn', 3.255, -0.64]]) { VN[k] = vanPt(x, 1.07, z); VN[k].node = k; }
         const VAN_EDGES = [['door', 'hall'], ['hall', 'tbl'], ['hall', 'bed'], ['hall', 'mid'], ['bed', 'mid'], ['mid', 'rear'], ['rear', 'bathOut'], ['bathOut', 'bathIn', 'entry'],
           ['bathIn', 'sink'], ['bathIn', 'shelf'], ['shelf', 'sink'], ['bathIn', 'towel'], ['bathIn', 'wcOut'], ['towel', 'wcOut'], ['wcOut', 'wcIn', 'wc'],
@@ -7577,8 +7580,8 @@
               const beat = t * Math.PI * 2 * 1.45, cyc = (t + V.ph) % 30, rel = cyc > 21;
               e.seatLean = rel ? -0.07 : 0.09; e.headRollT = Math.sin(beat / 2) * 0.07;
               e.head.rotation.x = (rel ? 0.02 : 0.22) + Math.sin(beat) * 0.06;
-              if (rel) { e.arms[0].rotation.x = -0.82 + Math.max(0, Math.sin(beat)) * 0.14; e.arms[1].rotation.x = -0.82 + Math.max(0, Math.sin(beat + Math.PI)) * 0.14; }
-              else { const tap = (t % 6) < 3.8 ? 0.05 : 0; e.arms[0].rotation.x = -0.98 + Math.sin(t * 11) * tap; e.arms[1].rotation.x = -0.98 + Math.sin(t * 11 + 1.7) * tap; }
+              if (rel) { e.arms[0].rotation.x = -0.95 + Math.max(0, Math.sin(beat)) * 0.14; e.arms[1].rotation.x = -0.95 + Math.max(0, Math.sin(beat + Math.PI)) * 0.14; }
+              else { const tap = (t % 6) < 3.8 ? 0.05 : 0; e.arms[0].rotation.x = -1.1 + Math.sin(t * 11) * tap; e.arms[1].rotation.x = -1.1 + Math.sin(t * 11 + 1.7) * tap; }
             } else {   // nghiên cứu: gõ phím, thỉnh thoảng ngả lưng nhìn màn hình suy nghĩ; ~7 phút vươn vai 1 lần, ~1 phút đan tay sau gáy 1 lần
               const cyc = (t + V.ph) % 400, cyc2 = (t + V.ph * 0.7) % 63;
               if (cyc < 5.5) {
@@ -7586,13 +7589,13 @@
                 e.seatLean = -0.12 * k; e.arms[0].rotation.x = e.arms[1].rotation.x = -0.45 - 2.45 * k; e.head.rotation.x = 0.05 - 0.3 * k;
               } else if (cyc2 < 8) {
                 const k = Math.min(1, Math.sin(Math.PI * cyc2 / 8) * 2.5);
-                e.seatLean = -0.1 * k + 0.1 * (1 - k); e.arms[0].rotation.x = e.arms[1].rotation.x = -0.98 - 1.6 * k; rt[0] = -0.55 * k; rt[1] = 0.55 * k; e.head.rotation.x = 0.24 - 0.26 * k;
+                e.seatLean = -0.1 * k + 0.1 * (1 - k); e.arms[0].rotation.x = e.arms[1].rotation.x = -1.1 - 1.5 * k; rt[0] = -0.55 * k; rt[1] = 0.55 * k; e.head.rotation.x = 0.24 - 0.26 * k;
               } else {
                 const pause = (t % 11) < 2.2, tap = pause ? 0 : 0.06;
                 e.seatLean = pause ? -0.05 : 0.1;
-                e.arms[0].rotation.x = pause ? -0.45 : -0.98 + Math.sin(t * 13) * tap;
-                e.arms[1].rotation.x = pause ? -0.5 : -0.98 + Math.sin(t * 13 + 1.7) * tap;
-                e.head.rotation.x = pause ? 0.05 + Math.sin(t * 0.8) * 0.04 : 0.24 + Math.sin(t * 0.7) * 0.03;
+                e.arms[0].rotation.x = pause ? -0.55 : -1.1 + Math.sin(t * 13) * tap;
+                e.arms[1].rotation.x = pause ? -0.6 : -1.1 + Math.sin(t * 13 + 1.7) * tap;
+                e.head.rotation.x = pause ? 0.05 + Math.sin(t * 0.8) * 0.04 : 0.18 + Math.sin(t * 0.7) * 0.03;
               }
             }
           }
