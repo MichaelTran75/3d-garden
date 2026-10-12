@@ -44,12 +44,7 @@
         const _fishReturnStart = new THREE.Vector3(), _fishReturnDir = new THREE.Vector3();
         const _aTip = new THREE.Vector3(), _aV = new THREE.Vector3(), _aV2 = new THREE.Vector3(), _aV3 = new THREE.Vector3(), _aQ = new THREE.Quaternion(), _aQ2 = new THREE.Quaternion(), _aS = new THREE.Vector3(), _aM = new THREE.Matrix4();
         let returningFishingFish = null, fishReturnTime = 0;
-        function lakeSurfaceY(x, z) {   // đúng hàm sóng của shader mặt nước (2 sóng chạy + gợn tròn quanh cửa xả đập)
-          const sh = waterMat.userData.shader; if (!sh) return lakeY;
-          const T = sh.uniforms.uTime.value; let w = Math.sin(T * 3 + x * 0.6) * 0.05 + Math.cos(T * 2.2 + z * 0.6) * 0.05;
-          for (const c of sh.uniforms.uRippleCenters.value) { const d = Math.hypot(x - c.x, z - c.y); if (d < 18) w += Math.sin(d * 3 - T * 7.5) * 0.48 * (1 - d / 18) / (1 + d * 0.25); }
-          return lakeY + w;
-        }
+        function lakeSurfaceY(x, z) { return lakeY + waveAt(x, z); }   // mặt hồ câu = mực tĩnh + sóng của mô phỏng nước nông (cùng số liệu shader)
         // ---- bọt nước: vòng sóng loang + giọt bắn (pool cố định, không cấp phát khi chạy) ----
         const splashFx = (() => {
           const ringGeo = new THREE.RingGeometry(0.82, 1, 28); ringGeo.rotateX(-Math.PI / 2);
@@ -62,6 +57,7 @@
           let di = 0, live = 0;
           return {
             spawn(x, z, power) {
+              fluids?.splash(x, z, 0.4 + power * 0.6, 0.1 + power * 0.25);   // phao rơi, cá quẫy → sóng lan thật trên mặt hồ
               const y = lakeSurfaceY(x, z) + 0.01, r = rings.find(o => o.t >= o.dur) || rings[0];
               Object.assign(r, { t: 0, dur: 0.9 + power * 0.6, size: 0.3 + power * 0.7 }); r.m.position.set(x, y, z); r.m.visible = true;
               for (let k = Math.round(3 + power * 9); k > 0; k--) { const d = D[di++ % N], a = anglingRandom() * 6.283, s = (0.4 + anglingRandom()) * power; d.p.set(x, y, z); d.v.set(Math.cos(a) * s, 0.9 + anglingRandom() * 1.6 * power, Math.sin(a) * s); d.on = true; }

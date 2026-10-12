@@ -1,19 +1,15 @@
         // ---- MẶT NƯỚC & DÒNG CHẢY cho vật trôi (lá, cánh hoa) và cá ----
-        //  · Mực nước tĩnh theo ô: hồ trên đập 6,6 m · sông dưới đập 3,0 m (đúng mặt lưới nước), cộng ĐÚNG hàm sóng của shader mặt nước.
+        //  · Mực nước tĩnh theo ô: hồ trên đập 6,6 m · sông dưới đập 3,0 m (đúng mặt lưới nước), cộng độ cao sóng của MÔ PHỎNG NƯỚC NÔNG (fluids.water).
         //    (Độ cao địa hình của vài ô nước sát bãi san phẳng bị nội suy lên 7,2 m — không dùng cho mặt nước.)
-        //  · Dòng chảy mặt: dọc tim sông về hạ lưu (+z), mặt cắt ngang parabol (giữa nhanh, sát bờ còn ~15%), lòng rộng thì chậm lại
+        //  · Dòng chảy mặt = vận tốc của mô phỏng nước nông khi đã có; trước đó dùng công thức: dọc tim sông về hạ lưu (+z), mặt cắt ngang parabol (giữa nhanh, sát bờ còn ~15%), lòng rộng thì chậm lại
         //    (bảo toàn lưu lượng); hồ trên đập gần như lặng; dưới đập nước tỏa ra từ 3 cửa xả rồi nhập dòng; thêm xoáy nhỏ trôi chậm.
         //  · Theo độ sâu: luật lũy thừa 1/7 — sát đáy chậm, gần mặt nhanh.
         const DAM_J1 = DAM_J + 2 * S, RIVER_U = 0.32, LAKE_U = 0.03;
+        let fluids = null;   // nước nông + khói/hơi nước (nature/fluids.js gán ngay sau mảnh này)
         const DAM_OUTLETS = [[dcx - 1.8, dz + dsZ + 3.8], [dcx + 5.0, dz + dsZ + 3.8], [dcx + 11.8, dz + dsZ + 3.8]];
         const waterCell = (i, j) => isWater(i, j) && !(j >= DAM_J && j < DAM_J1);   // ô thân đập không phải mặt nước
         const waterBaseY = j => Math.round((j < DAM_J ? RES : DOWN) * S) * BLOCK;
-        function waveAt(x, z) {
-          const sh = waterMat.userData.shader; if (!sh) return 0;
-          const T = sh.uniforms.uTime.value; let w = Math.sin(T * 3 + x * 0.6) * 0.05 + Math.cos(T * 2.2 + z * 0.6) * 0.05;
-          for (const c of sh.uniforms.uRippleCenters.value) { const d = Math.hypot(x - c.x, z - c.y); if (d < 18) w += Math.sin(d * 3 - T * 7.5) * 0.48 * (1 - d / 18) / (1 + d * 0.25); }
-          return w;
-        }
+        function waveAt(x, z) { return fluids && fluids.water.ready ? fluids.water.height(x, z) : 0; }   // đúng số liệu shader dùng để dời đỉnh mặt nước
         const waterSurfaceY = (x, z) => waterBaseY(Math.round(z2gj(z))) + waveAt(x, z);
         function riverBedY(i, j) {   // đúng công thức đáy sông lúc dựng địa hình (đáy nhấp nhô, sâu ở giữa lòng)
           const surf = Math.round((j < DAM_J ? RES : DOWN) * S), tt = Math.min(1, riverDist(i, j) / Math.max(1, riverHalf(j)));
@@ -21,6 +17,7 @@
           return Math.max(0, Math.min(surf - 1, bed)) * BLOCK;
         }
         function waterFlow(x, z, t, out) {   // vận tốc dòng mặt nước (m/s) → out.x, out.z
+          if (fluids && fluids.water.ready) return fluids.water.flow(x, z, out);
           const i = x2gi(x), j = z2gj(z), dc = riverC(j + 0.5) - riverC(j - 0.5), n = Math.hypot(dc, 1);
           const half = Math.max(1, riverHalf(j)), d = Math.min(1, riverDist(i, j) / half);
           const u = (j < DAM_J ? LAKE_U : RIVER_U * RHALF / half) * Math.max(0.15, 1 - d * d);
@@ -52,7 +49,7 @@
           for (let k = 0; k < NB; k++) bub.setMatrixAt(k, zero);
           let ri = 0, bi = 0, active = 0;
           const fx = {
-            ring(x, y, z, size) { const r = rings[ri++ % rings.length]; Object.assign(r, { t: 0, dur: 1.1 + size * 2, size }); r.m.position.set(x, y + 0.008, z); r.m.scale.setScalar(0.01); r.m.visible = true; active = 1; },
+            ring(x, y, z, size) { fluids?.splash(x, z, Math.max(0.45, size * 1.6), 0.04 + size * 0.22); const r = rings[ri++ % rings.length]; Object.assign(r, { t: 0, dur: 1.1 + size * 2, size }); r.m.position.set(x, y + 0.008, z); r.m.scale.setScalar(0.01); r.m.visible = true; active = 1; },
             bubbles(x, y, z, n) { for (let k = 0; k < n; k++) { const b = B[bi++ % NB]; b.p.set(x + (Math.random() - 0.5) * 0.06, y + k * 0.03, z + (Math.random() - 0.5) * 0.06); b.on = true; b.ph = Math.random() * TAU; b.v = 0.25 + Math.random() * 0.2; } active = 1; },
             update(dt, t) {
               if (!active) return;

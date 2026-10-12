@@ -1022,6 +1022,7 @@
               let stride = 0, peck = 0;
               if (b.peckElapsed >= 0) {
                 b.peckElapsed += dt;
+                if (b.peckElapsed >= .85 && b.peckElapsed - dt < .85) { const ry = b.m.rotation.y; fluids?.splash(b.foot.x + Math.sin(ry) * .6, b.foot.z + Math.cos(ry) * .6, .55, .14); }   // mỏ cắm xuống nước
                 if (b.peckElapsed <= 1.65) peck = 1.8 * Math.sin(Math.PI * b.peckElapsed / 1.65);
                 b.caughtFish.visible = b.peckSuccess && b.peckElapsed >= .9 && b.peckElapsed < 2.4;
                 if (b.peckElapsed >= 2.8) { b.peckElapsed = -1; b.caughtFish.visible = false; b.nextPeck = 6 + b.rng() * 4; }
@@ -1033,6 +1034,7 @@
                 if (distance < .12) pickStorkWadeTarget(b);
                 else {
                   const step = Math.min(distance, dt * .48); b.foot.x += dx / distance * step; b.foot.z += dz / distance * step; stride = 1;
+                  if ((b.wadeSplash = (b.wadeSplash || 0) + step) > .3) { b.wadeSplash = 0; fluids?.splash(b.foot.x, b.foot.z, .5, .07); }   // mỗi bước lội: chân khuấy nước → gợn lan
                   const heading = Math.atan2(dx, dz), turn = Math.atan2(Math.sin(heading - b.m.rotation.y), Math.cos(heading - b.m.rotation.y)); b.m.rotation.y += turn * Math.min(1, dt * 3);
                 }
               }

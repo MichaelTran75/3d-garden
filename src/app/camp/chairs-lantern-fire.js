@@ -396,4 +396,7 @@
         { const tb = campTable(); tb.position.set(X0 + 65, cowY(X0 + 65, Z0 + 99.85), Z0 + 99.85);   // toạ độ hover (65, _, 100), lùi 15 cm khỏi tay ghế cắm trại cho khỏi chạm; xa cột chống bạt ~1,4 m
            tb.rotation.y = Math.PI * 0.15; tb.name = 'Bàn trà (Camp Table)'; scene.add(tb); }
         { const wc = woodCamp(); wc.name = 'Đống củi (Woodpile)'; wc.position.set(X0 + 68, woodCampY, Z0 + 100); wc.rotation.y = 0.5; scene.add(wc); }
-
+        // ---- khói bếp lửa + hơi ấm reo = chất lỏng 2D (nature/fluids.js) thay 10 cụm khói & 7 cụm hơi vẽ sẵn: nổi vì nóng, gió thật cuốn, cuộn xoáy ----
+        const campPlume = fluids.addPlume('camp', { nx: 72, ny: 76, w: 7.6, h: 8, buoy: 5, weight: 0.3, windDrag: 1.2, vort: 4, iters: 18, tauS: 9, tauQ: 1.4, tauT: 1.2, jitter: 0.6 },
+          { name: 'Khói bếp lửa (mô phỏng chất lỏng)', opacity: 0.9, detail: 7 });
+        campPlume.sources = [{ p: new THREE.Vector3(), r: 0.36, smoke: 0, heat: 0, steam: 0, vel: new THREE.Vector3() }, { p: new THREE.Vector3(), r: 0.14, smoke: 0, heat: 0, steam: 0, vel: new THREE.Vector3() }];

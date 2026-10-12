@@ -205,53 +205,41 @@
         };
         const dcx = wx(riverC(DAM_J)), dz = (wz(DAM_J) + wz(DAM_J + 2 * S - 1)) / 2;
         const dsZ = (2 * S * BLOCK) / 2;
-        // ---- MẶT NƯỚC: giữ NGUYÊN sóng dời đỉnh cũ (lá trôi, phao câu, cá đọc lại đúng hàm này trên CPU qua waveAt) + shader mảnh:
-        //  · gợn lăn tăn = nhiễu có đạo hàm, TRÔI THEO DÒNG thật (flow map 2 pha, vận tốc từng đỉnh lấy từ waterFlow), mạnh lên theo gió;
+        // ---- MẶT NƯỚC: độ cao mặt + vận tốc + bọt lấy từ MÔ PHỎNG NƯỚC NÔNG (nature/fluids.js, texture uSim; lá, cá, phao đọc cùng số liệu trên CPU):
+        //  · sóng lớn (dội bờ, vệt sau đá, tia cửa xả, sóng do cá/cò/phao/giọt mưa) = dời đỉnh theo uSim, pháp tuyến theo độ dốc uSim từng điểm ảnh;
+        //  · gợn lăn tăn nhỏ hơn ô lưới = nhiễu có đạo hàm, TRÔI THEO DÒNG mô phỏng (flow map 2 pha), mạnh lên theo gió;
         //  · màu theo ĐỘ SÂU: ven bờ trong, thấy đáy cát · lòng sâu xanh đậm, đục hơn; phản chiếu màu trời theo Fresnel; lấp lánh nắng/trăng (Phong);
-        //  · BỌT trắng ven bờ (theo khoảng cách tới bờ) và quanh 3 cửa xả dưới đập, cuốn theo dòng; khi MƯA: vòng gợn giọt mưa dày theo cường độ.
+        //  · BỌT trắng ven bờ (theo khoảng cách tới bờ) + bọt của mô phỏng (chỗ nước xiết, cửa xả, chỗ bị khuấy) trôi theo dòng; MƯA: vòng gợn giọt mưa.
         const waterMat = new THREE.MeshPhongMaterial({ color: 0x3f86c4, specular: 0xd8ecff, shininess: 70, transparent: true, opacity: 0.6, side: THREE.DoubleSide });
         const waterU = { uRain: { value: 0 }, uWindK: { value: 0.5 }, uSky: { value: new THREE.Color(0xa8d4f2) }, uFoamCol: { value: new THREE.Color(0.85, 0.88, 0.9) },
-          uShallow: { value: new THREE.Color(0x5cb0d4) }, uDeep: { value: new THREE.Color(0x2b6aa8) } };
+          uShallow: { value: new THREE.Color(0x5cb0d4) }, uDeep: { value: new THREE.Color(0x2b6aa8) },
+          uSim: { value: null }, uSimBox: { value: new THREE.Vector4(0, 0, 1, 1) }, uSimTexel: { value: new THREE.Vector2(1, 1) }, uSimDx: { value: BLOCK }, uSimOn: { value: 0 } };
         const WATER_SKY = { day: new THREE.Color(0xa8d4f2), dusk: new THREE.Color(0xe8b48c), night: new THREE.Color(0x1a2640), rain: new THREE.Color(0x8b99a8) }, _wsC = new THREE.Color();
         const WATER_COL = { shallow: waterU.uShallow.value.clone(), deep: waterU.uDeep.value.clone(), spec: waterMat.specular.clone() };
         let waterSurfMesh = null;   // lưới mặt nước gộp (dựng ở phần địa hình), thuộc tính aWater: dòng chảy xz · độ sâu · gần bờ
         waterMat.onBeforeCompile = (shader) => {
           shader.uniforms.uTime = { value: 0 };
-          shader.uniforms.uRippleCenters = {
-            value: [
-              new THREE.Vector2(dcx - 1.8, dz + dsZ + 3.8),
-              new THREE.Vector2(dcx + 5.0, dz + dsZ + 3.8),
-              new THREE.Vector2(dcx + 11.8, dz + dsZ + 3.8)
-            ]
-          };
           Object.assign(shader.uniforms, waterU);
           shader.vertexShader = `
-            uniform float uTime;
-            uniform vec2 uRippleCenters[3];
+            uniform float uTime, uSimOn; uniform sampler2D uSim; uniform vec4 uSimBox;
             attribute vec4 aWater;
-            varying vec4 vWater; varying vec3 vWPos;
+            varying vec4 vWater; varying vec3 vWPos; varying vec2 vSimUv;
           ` + shader.vertexShader;
           shader.vertexShader = shader.vertexShader.replace(
             '#include <begin_vertex>',
             `
             #include <begin_vertex>
-            float wave = sin(uTime * 3.0 + position.x * 0.6) * 0.05 + cos(uTime * 2.2 + position.z * 0.6) * 0.05;
-            for (int i = 0; i < 3; i++) {
-              float d = distance(position.xz, uRippleCenters[i]);
-              if (d < 18.0) {
-                float r = sin(d * 3.0 - uTime * 7.5) * 0.48 * (1.0 - d / 18.0) / (1.0 + d * 0.25);
-                wave += r;
-              }
-            }
-            transformed.y += wave;
-            vWater = aWater; vWPos = (modelMatrix * vec4(transformed, 1.0)).xyz;
+            vSimUv = vec2((position.x - uSimBox.x) * uSimBox.z, (position.z - uSimBox.y) * uSimBox.w);
+            vec4 wSim = texture2D(uSim, vSimUv) * uSimOn;   // r: độ cao mặt so với mực tĩnh · gb: vận tốc · a: bọt
+            transformed.y += wSim.r;
+            vWater = vec4(mix(aWater.xy, wSim.gb, uSimOn), aWater.zw); vWPos = (modelMatrix * vec4(transformed, 1.0)).xyz;
             `
           );
           shader.fragmentShader = `
-            uniform float uTime, uRain, uWindK;
+            uniform float uTime, uRain, uWindK, uSimOn, uSimDx;
             uniform vec3 uSky, uFoamCol, uShallow, uDeep;
-            uniform vec2 uRippleCenters[3];
-            varying vec4 vWater; varying vec3 vWPos;
+            uniform sampler2D uSim; uniform vec2 uSimTexel;
+            varying vec4 vWater; varying vec3 vWPos; varying vec2 vSimUv;
             float wHash(vec2 p) { vec3 q = fract(vec3(p.xyx) * 0.1031); q += dot(q, q.yzx + 33.33); return fract((q.x + q.y) * q.z); }
             vec3 wNoised(vec2 p) {   // nhiễu giá trị + đạo hàm giải tích
               vec2 i = floor(p), f = fract(p), u = f * f * (3.0 - 2.0 * f), du = 6.0 * f * (1.0 - f);
@@ -285,10 +273,12 @@
             .replace('#include <color_fragment>', `#include <color_fragment>
             vec2 wFlow = vWater.xy; float wDepth = vWater.z, wShore = vWater.w, wFlowS = length(wFlow);
             vec2 wSl = wSlope(vWPos.xz, wFlow, uTime) * (0.05 + 0.12 * uWindK + 0.35 * min(wFlowS, 0.6)) + wRain(vWPos.xz, uTime, uRain) * uRain;
+            vec2 wTx = vec2(uSimTexel.x, 0.0), wTz = vec2(0.0, uSimTexel.y);   // độ dốc sóng mô phỏng tại từng điểm ảnh (sai phân trung tâm)
+            wSl += uSimOn * vec2(texture2D(uSim, vSimUv + wTx).r - texture2D(uSim, vSimUv - wTx).r, texture2D(uSim, vSimUv + wTz).r - texture2D(uSim, vSimUv - wTz).r) / (2.0 * uSimDx) * 4.0;   // sóng vài cm → nhấn độ dốc khi tô sáng cho thấy rõ ở góc nhìn mô hình
             float wN = wNoised(vWPos.xz * 1.9 - wFlow * uTime * 1.7).x * 0.6 + wNoised(vWPos.xz * 4.7 - wFlow * uTime * 2.3).x * 0.4;
             float wFoam = smoothstep(0.62, 0.98, wShore + (wN - 0.5) * 0.6) * 0.62;   // bọt ven bờ
-            float wOut = 0.0; for (int i = 0; i < 3; i++) wOut = max(wOut, 1.0 - smoothstep(0.8, 9.0, distance(vWPos.xz, uRippleCenters[i]) - (wN - 0.5) * 2.0));
-            wFoam = max(wFoam, wOut * smoothstep(0.25, 0.6, wN + wOut * 0.3) * 0.9);   // nước trắng quanh cửa xả
+            float wSimFoam = texture2D(uSim, vSimUv).a * uSimOn;
+            wFoam = max(wFoam, smoothstep(0.12, 0.95, wSimFoam * (0.45 + 1.1 * wN)) * 0.85);   // bọt mô phỏng: nước xiết, cửa xả, chỗ bị khuấy — vỡ vụn theo nhiễu
             float wDk = smoothstep(0.15, 2.4, wDepth);
             diffuseColor.rgb = mix(uShallow, uDeep, wDk);
             diffuseColor.a = mix(0.50, 0.80, wDk);`)

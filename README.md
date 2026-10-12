@@ -17,7 +17,7 @@ Mã nguồn nằm trong `src/` — đây là nơi duy nhất cần sửa (ngay t
 | `src/app/manifest.txt` | **thứ tự** ghép các mảnh mã cảnh chính (kèm mô tả từng tệp) |
 | `src/app/core/` | khởi động, bầu trời, mặt trời/mặt trăng, mặt nước, địa hình; **gộp lượt vẽ** (`draw-batch.js`) |
 | `src/app/world/` | thủy điện, tua-bin, pin mặt trời, nhà, đường, trạm biến áp, cột khí tượng, đèn đường |
-| `src/app/nature/` | gió, cây, rừng, cỏ hoa, dòng chảy, lá rơi, mây, **mưa trên GPU** (`clouds-rain.js`) |
+| `src/app/nature/` | gió, cây, rừng, cỏ hoa, lá rơi, mây, **mưa trên GPU** (`clouds-rain.js`), **chất lỏng** (`fluids.js`: nước nông + khói/sương, chạy ở luồng phụ) |
 | `src/app/animals/` | cá, bò, hươu, cua, thỏ, chó, gấu mèo, ong bướm, cò |
 | `src/app/engineer/` | **kỹ sư**: hình người (`model.js`), tư thế + IK, ngồi ghế, suy nghĩ, lịch cả ngày (`schedule.js`), đi lại + các trạm trong xe, nấu ăn, cập nhật mỗi khung hình (`loop-update.js`) |
 | `src/app/van/` | **xe van**: cabin, vỏ, nội thất (`caravan.js`), bếp, đồ bếp, đèn bàn, lon nước, Zzz |
@@ -37,6 +37,9 @@ Các mảnh trong `src/app/` được **nối nguyên văn** theo `manifest.txt`
   Vật mới dựng lúc mở trang **tự được gộp**, không cần làm gì (vật tạo thêm lúc đang chạy thì tự vẽ như thường). Code đổi màu/độ mờ vật liệu, thay hình, thay vật liệu lúc chạy thì mảnh đó tự tách ra vẽ riêng.
   Hình biến dạng đỉnh mỗi khung (vd. thân cá uốn) nên gắn `userData.noBatch = true` cho khỏi tốn công gộp.
 - Ô đất phẳng chỉ vẽ mặt trên + mặt đáy; texture mây tính ở luồng phụ (Web Worker); shader biên dịch song song trước khung đầu.
+- **Chất lỏng** (`nature/fluids.js`, Web Worker dựng từ Blob): sông/hồ là lưới nước nông (Saint-Venant) trùng ô địa hình — mặt nước, lá, cá, phao
+  đều đọc cùng số liệu (`waterSurfaceY`, `waterFlow`). Vật mới chạm nước thì gọi `fluids.splash(x, z, bánKính, cườngĐộ)`.
+  Khói/sương là `fluids.addPlume(...)` (stable fluids 2D trên tấm quay về camera): đặt `base`, `sources`, `wind0/wind1` mỗi khung.
 - `build.py --check` có **ngân sách dung lượng nén** (`BUDGET_KB`): `js/app.js` ≤ 380 KB gzip, cả trang ≤ 400 KB — vượt thì Actions báo lỗi.
 
 ## Dựng & đưa lên

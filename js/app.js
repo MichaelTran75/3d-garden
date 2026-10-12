@@ -300,53 +300,41 @@
         };
         const dcx = wx(riverC(DAM_J)), dz = (wz(DAM_J) + wz(DAM_J + 2 * S - 1)) / 2;
         const dsZ = (2 * S * BLOCK) / 2;
-        // ---- MẶT NƯỚC: giữ NGUYÊN sóng dời đỉnh cũ (lá trôi, phao câu, cá đọc lại đúng hàm này trên CPU qua waveAt) + shader mảnh:
-        //  · gợn lăn tăn = nhiễu có đạo hàm, TRÔI THEO DÒNG thật (flow map 2 pha, vận tốc từng đỉnh lấy từ waterFlow), mạnh lên theo gió;
+        // ---- MẶT NƯỚC: độ cao mặt + vận tốc + bọt lấy từ MÔ PHỎNG NƯỚC NÔNG (nature/fluids.js, texture uSim; lá, cá, phao đọc cùng số liệu trên CPU):
+        //  · sóng lớn (dội bờ, vệt sau đá, tia cửa xả, sóng do cá/cò/phao/giọt mưa) = dời đỉnh theo uSim, pháp tuyến theo độ dốc uSim từng điểm ảnh;
+        //  · gợn lăn tăn nhỏ hơn ô lưới = nhiễu có đạo hàm, TRÔI THEO DÒNG mô phỏng (flow map 2 pha), mạnh lên theo gió;
         //  · màu theo ĐỘ SÂU: ven bờ trong, thấy đáy cát · lòng sâu xanh đậm, đục hơn; phản chiếu màu trời theo Fresnel; lấp lánh nắng/trăng (Phong);
-        //  · BỌT trắng ven bờ (theo khoảng cách tới bờ) và quanh 3 cửa xả dưới đập, cuốn theo dòng; khi MƯA: vòng gợn giọt mưa dày theo cường độ.
+        //  · BỌT trắng ven bờ (theo khoảng cách tới bờ) + bọt của mô phỏng (chỗ nước xiết, cửa xả, chỗ bị khuấy) trôi theo dòng; MƯA: vòng gợn giọt mưa.
         const waterMat = new THREE.MeshPhongMaterial({ color: 0x3f86c4, specular: 0xd8ecff, shininess: 70, transparent: true, opacity: 0.6, side: THREE.DoubleSide });
         const waterU = { uRain: { value: 0 }, uWindK: { value: 0.5 }, uSky: { value: new THREE.Color(0xa8d4f2) }, uFoamCol: { value: new THREE.Color(0.85, 0.88, 0.9) },
-          uShallow: { value: new THREE.Color(0x5cb0d4) }, uDeep: { value: new THREE.Color(0x2b6aa8) } };
+          uShallow: { value: new THREE.Color(0x5cb0d4) }, uDeep: { value: new THREE.Color(0x2b6aa8) },
+          uSim: { value: null }, uSimBox: { value: new THREE.Vector4(0, 0, 1, 1) }, uSimTexel: { value: new THREE.Vector2(1, 1) }, uSimDx: { value: BLOCK }, uSimOn: { value: 0 } };
         const WATER_SKY = { day: new THREE.Color(0xa8d4f2), dusk: new THREE.Color(0xe8b48c), night: new THREE.Color(0x1a2640), rain: new THREE.Color(0x8b99a8) }, _wsC = new THREE.Color();
         const WATER_COL = { shallow: waterU.uShallow.value.clone(), deep: waterU.uDeep.value.clone(), spec: waterMat.specular.clone() };
         let waterSurfMesh = null;   // lưới mặt nước gộp (dựng ở phần địa hình), thuộc tính aWater: dòng chảy xz · độ sâu · gần bờ
         waterMat.onBeforeCompile = (shader) => {
           shader.uniforms.uTime = { value: 0 };
-          shader.uniforms.uRippleCenters = {
-            value: [
-              new THREE.Vector2(dcx - 1.8, dz + dsZ + 3.8),
-              new THREE.Vector2(dcx + 5.0, dz + dsZ + 3.8),
-              new THREE.Vector2(dcx + 11.8, dz + dsZ + 3.8)
-            ]
-          };
           Object.assign(shader.uniforms, waterU);
           shader.vertexShader = `
-            uniform float uTime;
-            uniform vec2 uRippleCenters[3];
+            uniform float uTime, uSimOn; uniform sampler2D uSim; uniform vec4 uSimBox;
             attribute vec4 aWater;
-            varying vec4 vWater; varying vec3 vWPos;
+            varying vec4 vWater; varying vec3 vWPos; varying vec2 vSimUv;
           ` + shader.vertexShader;
           shader.vertexShader = shader.vertexShader.replace(
             '#include <begin_vertex>',
             `
             #include <begin_vertex>
-            float wave = sin(uTime * 3.0 + position.x * 0.6) * 0.05 + cos(uTime * 2.2 + position.z * 0.6) * 0.05;
-            for (int i = 0; i < 3; i++) {
-              float d = distance(position.xz, uRippleCenters[i]);
-              if (d < 18.0) {
-                float r = sin(d * 3.0 - uTime * 7.5) * 0.48 * (1.0 - d / 18.0) / (1.0 + d * 0.25);
-                wave += r;
-              }
-            }
-            transformed.y += wave;
-            vWater = aWater; vWPos = (modelMatrix * vec4(transformed, 1.0)).xyz;
+            vSimUv = vec2((position.x - uSimBox.x) * uSimBox.z, (position.z - uSimBox.y) * uSimBox.w);
+            vec4 wSim = texture2D(uSim, vSimUv) * uSimOn;   // r: độ cao mặt so với mực tĩnh · gb: vận tốc · a: bọt
+            transformed.y += wSim.r;
+            vWater = vec4(mix(aWater.xy, wSim.gb, uSimOn), aWater.zw); vWPos = (modelMatrix * vec4(transformed, 1.0)).xyz;
             `
           );
           shader.fragmentShader = `
-            uniform float uTime, uRain, uWindK;
+            uniform float uTime, uRain, uWindK, uSimOn, uSimDx;
             uniform vec3 uSky, uFoamCol, uShallow, uDeep;
-            uniform vec2 uRippleCenters[3];
-            varying vec4 vWater; varying vec3 vWPos;
+            uniform sampler2D uSim; uniform vec2 uSimTexel;
+            varying vec4 vWater; varying vec3 vWPos; varying vec2 vSimUv;
             float wHash(vec2 p) { vec3 q = fract(vec3(p.xyx) * 0.1031); q += dot(q, q.yzx + 33.33); return fract((q.x + q.y) * q.z); }
             vec3 wNoised(vec2 p) {   // nhiễu giá trị + đạo hàm giải tích
               vec2 i = floor(p), f = fract(p), u = f * f * (3.0 - 2.0 * f), du = 6.0 * f * (1.0 - f);
@@ -380,10 +368,12 @@
             .replace('#include <color_fragment>', `#include <color_fragment>
             vec2 wFlow = vWater.xy; float wDepth = vWater.z, wShore = vWater.w, wFlowS = length(wFlow);
             vec2 wSl = wSlope(vWPos.xz, wFlow, uTime) * (0.05 + 0.12 * uWindK + 0.35 * min(wFlowS, 0.6)) + wRain(vWPos.xz, uTime, uRain) * uRain;
+            vec2 wTx = vec2(uSimTexel.x, 0.0), wTz = vec2(0.0, uSimTexel.y);   // độ dốc sóng mô phỏng tại từng điểm ảnh (sai phân trung tâm)
+            wSl += uSimOn * vec2(texture2D(uSim, vSimUv + wTx).r - texture2D(uSim, vSimUv - wTx).r, texture2D(uSim, vSimUv + wTz).r - texture2D(uSim, vSimUv - wTz).r) / (2.0 * uSimDx) * 4.0;   // sóng vài cm → nhấn độ dốc khi tô sáng cho thấy rõ ở góc nhìn mô hình
             float wN = wNoised(vWPos.xz * 1.9 - wFlow * uTime * 1.7).x * 0.6 + wNoised(vWPos.xz * 4.7 - wFlow * uTime * 2.3).x * 0.4;
             float wFoam = smoothstep(0.62, 0.98, wShore + (wN - 0.5) * 0.6) * 0.62;   // bọt ven bờ
-            float wOut = 0.0; for (int i = 0; i < 3; i++) wOut = max(wOut, 1.0 - smoothstep(0.8, 9.0, distance(vWPos.xz, uRippleCenters[i]) - (wN - 0.5) * 2.0));
-            wFoam = max(wFoam, wOut * smoothstep(0.25, 0.6, wN + wOut * 0.3) * 0.9);   // nước trắng quanh cửa xả
+            float wSimFoam = texture2D(uSim, vSimUv).a * uSimOn;
+            wFoam = max(wFoam, smoothstep(0.12, 0.95, wSimFoam * (0.45 + 1.1 * wN)) * 0.85);   // bọt mô phỏng: nước xiết, cửa xả, chỗ bị khuấy — vỡ vụn theo nhiễu
             float wDk = smoothstep(0.15, 2.4, wDepth);
             diffuseColor.rgb = mix(uShallow, uDeep, wDk);
             diffuseColor.a = mix(0.50, 0.80, wDk);`)
@@ -2839,21 +2829,17 @@
           return g;
         }
         // ---- MẶT NƯỚC & DÒNG CHẢY cho vật trôi (lá, cánh hoa) và cá ----
-        //  · Mực nước tĩnh theo ô: hồ trên đập 6,6 m · sông dưới đập 3,0 m (đúng mặt lưới nước), cộng ĐÚNG hàm sóng của shader mặt nước.
+        //  · Mực nước tĩnh theo ô: hồ trên đập 6,6 m · sông dưới đập 3,0 m (đúng mặt lưới nước), cộng độ cao sóng của MÔ PHỎNG NƯỚC NÔNG (fluids.water).
         //    (Độ cao địa hình của vài ô nước sát bãi san phẳng bị nội suy lên 7,2 m — không dùng cho mặt nước.)
-        //  · Dòng chảy mặt: dọc tim sông về hạ lưu (+z), mặt cắt ngang parabol (giữa nhanh, sát bờ còn ~15%), lòng rộng thì chậm lại
+        //  · Dòng chảy mặt = vận tốc của mô phỏng nước nông khi đã có; trước đó dùng công thức: dọc tim sông về hạ lưu (+z), mặt cắt ngang parabol (giữa nhanh, sát bờ còn ~15%), lòng rộng thì chậm lại
         //    (bảo toàn lưu lượng); hồ trên đập gần như lặng; dưới đập nước tỏa ra từ 3 cửa xả rồi nhập dòng; thêm xoáy nhỏ trôi chậm.
         //  · Theo độ sâu: luật lũy thừa 1/7 — sát đáy chậm, gần mặt nhanh.
         const DAM_J1 = DAM_J + 2 * S, RIVER_U = 0.32, LAKE_U = 0.03;
+        let fluids = null;   // nước nông + khói/hơi nước (nature/fluids.js gán ngay sau mảnh này)
         const DAM_OUTLETS = [[dcx - 1.8, dz + dsZ + 3.8], [dcx + 5.0, dz + dsZ + 3.8], [dcx + 11.8, dz + dsZ + 3.8]];
         const waterCell = (i, j) => isWater(i, j) && !(j >= DAM_J && j < DAM_J1);   // ô thân đập không phải mặt nước
         const waterBaseY = j => Math.round((j < DAM_J ? RES : DOWN) * S) * BLOCK;
-        function waveAt(x, z) {
-          const sh = waterMat.userData.shader; if (!sh) return 0;
-          const T = sh.uniforms.uTime.value; let w = Math.sin(T * 3 + x * 0.6) * 0.05 + Math.cos(T * 2.2 + z * 0.6) * 0.05;
-          for (const c of sh.uniforms.uRippleCenters.value) { const d = Math.hypot(x - c.x, z - c.y); if (d < 18) w += Math.sin(d * 3 - T * 7.5) * 0.48 * (1 - d / 18) / (1 + d * 0.25); }
-          return w;
-        }
+        function waveAt(x, z) { return fluids && fluids.water.ready ? fluids.water.height(x, z) : 0; }   // đúng số liệu shader dùng để dời đỉnh mặt nước
         const waterSurfaceY = (x, z) => waterBaseY(Math.round(z2gj(z))) + waveAt(x, z);
         function riverBedY(i, j) {   // đúng công thức đáy sông lúc dựng địa hình (đáy nhấp nhô, sâu ở giữa lòng)
           const surf = Math.round((j < DAM_J ? RES : DOWN) * S), tt = Math.min(1, riverDist(i, j) / Math.max(1, riverHalf(j)));
@@ -2861,6 +2847,7 @@
           return Math.max(0, Math.min(surf - 1, bed)) * BLOCK;
         }
         function waterFlow(x, z, t, out) {   // vận tốc dòng mặt nước (m/s) → out.x, out.z
+          if (fluids && fluids.water.ready) return fluids.water.flow(x, z, out);
           const i = x2gi(x), j = z2gj(z), dc = riverC(j + 0.5) - riverC(j - 0.5), n = Math.hypot(dc, 1);
           const half = Math.max(1, riverHalf(j)), d = Math.min(1, riverDist(i, j) / half);
           const u = (j < DAM_J ? LAKE_U : RIVER_U * RHALF / half) * Math.max(0.15, 1 - d * d);
@@ -2892,7 +2879,7 @@
           for (let k = 0; k < NB; k++) bub.setMatrixAt(k, zero);
           let ri = 0, bi = 0, active = 0;
           const fx = {
-            ring(x, y, z, size) { const r = rings[ri++ % rings.length]; Object.assign(r, { t: 0, dur: 1.1 + size * 2, size }); r.m.position.set(x, y + 0.008, z); r.m.scale.setScalar(0.01); r.m.visible = true; active = 1; },
+            ring(x, y, z, size) { fluids?.splash(x, z, Math.max(0.45, size * 1.6), 0.04 + size * 0.22); const r = rings[ri++ % rings.length]; Object.assign(r, { t: 0, dur: 1.1 + size * 2, size }); r.m.position.set(x, y + 0.008, z); r.m.scale.setScalar(0.01); r.m.visible = true; active = 1; },
             bubbles(x, y, z, n) { for (let k = 0; k < n; k++) { const b = B[bi++ % NB]; b.p.set(x + (Math.random() - 0.5) * 0.06, y + k * 0.03, z + (Math.random() - 0.5) * 0.06); b.on = true; b.ph = Math.random() * TAU; b.v = 0.25 + Math.random() * 0.2; } active = 1; },
             update(dt, t) {
               if (!active) return;
@@ -3056,6 +3043,373 @@
           cherryCtl = makeLeafFall({ name: 'Cánh hoa anh đào rơi theo gió', group: ct, pts: ct.userData.blossomPts, n: 36, geo: new THREE.BoxGeometry(0.19 * 1.2, 0.002 * 1.2, 0.19 * 1.2), opacity: 0.75,
             color: () => cherryPinks[(Math.random() * cherryPinks.length) | 0], scale: 1, tw: cherryWind, g: 3.5, vTerm: 0.45, flutA: 0.5, flutW: [3.5, 5], tumble: 0.15, tumbleW: [9, 14], slideU: 0.5, rate0: 0.35, rateK: 3.0, restLife: [10, 20], floatLife: [25, 45], sinkP: 0.25, sinkV: [0.05, 0.08], leeway: 0.035 }); }
 
+        // ===== CHẤT LỎNG — Navier–Stokes dạng rút gọn, chạy ở LUỒNG PHỤ (Web Worker dựng từ Blob, không cần tệp ngoài) =====
+        //  1) NƯỚC NÔNG (Saint-Venant = Navier–Stokes lấy trung bình theo độ sâu) trên lưới trùng ô khối địa hình (0,6 m):
+        //     độ sâu h ở tâm ô, vận tốc u, v ở mặt ô (lưới so le). Mỗi bước: cuốn vận tốc theo chính nó (bán Lagrange) → mực nước đổi theo
+        //     thông lượng (độ sâu lấy phía ngược dòng) → gia tốc theo độ dốc mặt nước (g = 9,81) + ma sát đáy + lớp hút sóng sát biên mở.
+        //     Hồ trên đập gần lặng, trôi rất nhẹ về đập; dưới đập 3 cửa xả phụt nước (mực dâng nhẹ) → nước tự tỏa, cuộn xoáy dọc bờ, chảy về hạ lưu.
+        //     Bọt trắng sinh ở chỗ nước xiết / bị khuấy, trôi theo dòng rồi tan. Vật chạm nước (cá đớp, phao, cò lội, giọt mưa) gây sóng lan, dội bờ.
+        //     Mỗi khung trả về (độ cao mặt · vận tốc · bọt) dạng half-float → texture cho shader mặt nước + đọc trên CPU cho lá, cá, phao.
+        //  2) KHÓI & HƠI NƯỚC ("stable fluids" của Stam, 2D trên tấm đứng luôn quay về phía camera): khói bếp lửa + hơi ấm reo, màn sương chân đập.
+        //     Nổi vì nóng, bị gió thật (thành phần ngang trong mặt tấm) cuốn, xoáy nhờ "vorticity confinement", chiếu áp suất để không nén được.
+        function fluidKernel() {   // JS thuần, không đọc biến bên ngoài → chạy được trong Worker lẫn trên luồng chính (dự phòng)
+          const f32 = new Float32Array(1), i32 = new Int32Array(f32.buffer);
+          function toHalf(val) {
+            f32[0] = val; const x = i32[0];
+            let bits = (x >> 16) & 0x8000, m = (x >> 12) & 0x07ff; const e = (x >> 23) & 0xff;
+            if (e < 103) return bits;
+            if (e > 142) return bits | 0x7c00;
+            if (e < 113) { m |= 0x0800; return bits | ((m >> (114 - e)) + ((m >> (113 - e)) & 1)); }
+            bits |= ((e - 112) << 10) | (m >> 1); return bits + (m & 1);
+          }
+          function bil(arr, w, h, fx, fz) {   // nội suy song tuyến trên lưới w × h (toạ độ theo ô, kẹp trong lưới)
+            fx = fx < 0 ? 0 : fx > w - 1.0001 ? w - 1.0001 : fx; fz = fz < 0 ? 0 : fz > h - 1.0001 ? h - 1.0001 : fz;
+            const a = fx | 0, b = fz | 0, tx = fx - a, tz = fz - b, c = b * w + a;
+            return (arr[c] * (1 - tx) + arr[c + 1] * tx) * (1 - tz) + (arr[c + w] * (1 - tx) + arr[c + w + 1] * tx) * tz;
+          }
+
+          // ---------------- 1) NƯỚC NÔNG ----------------
+          const G = 9.81, WSTEP = 1 / 60;
+          let W = null;
+          function initWater(g) {
+            const { nx, nz, dx, mask, kind, bed, target, rest, jets, u0, v0 } = g, N = nx * nz;
+            const h = new Float32Array(N), cells = [], uf = [], vf = [];
+            for (let c = 0; c < N; c++) if (mask[c]) { h[c] = Math.max(0.05, target[c] - bed[c]); cells.push(c); }
+            for (let b = 0; b < nz; b++) for (let a = 1; a < nx; a++) if (mask[b * nx + a - 1] && mask[b * nx + a]) uf.push(b * (nx + 1) + a);
+            for (let b = 1; b < nz; b++) for (let a = 0; a < nx; a++) if (mask[(b - 1) * nx + a] && mask[b * nx + a]) vf.push(b * nx + a);
+            // lớp hút sóng: hệ số cản tăng dần trong ~8 ô sát biên mở (sóng chạy ra khỏi bản đồ không dội ngược)
+            const sponge = new Float32Array(N), dist = new Int16Array(N).fill(99), q = [];
+            for (let c = 0; c < N; c++) if (kind[c] === 1) { dist[c] = 0; q.push(c); }
+            for (let k = 0; k < q.length; k++) {
+              const c = q[k], d = dist[c]; if (d >= 8) continue;
+              for (const n of [c - 1, c + 1, c - nx, c + nx]) if (n >= 0 && n < N && mask[n] && dist[n] > d + 1) { dist[n] = d + 1; q.push(n); }
+            }
+            for (let c = 0; c < N; c++) if (dist[c] < 9) sponge[c] = 2.5 * (1 - dist[c] / 9) ** 2;
+            const u = new Float32Array((nx + 1) * nz), v = new Float32Array(nx * (nz + 1));
+            if (u0) { for (const f of uf) u[f] = u0[f]; for (const f of vf) v[f] = v0[f]; }
+            W = { nx, nz, dx, mask, kind, bed, target, rest, jets: Int32Array.from(jets.faces), jetV: Float32Array.from(jets.speeds), h, h2: new Float32Array(N),
+              u, u2: new Float32Array((nx + 1) * nz), v, v2: new Float32Array(nx * (nz + 1)),
+              foam: new Float32Array(N), foam2: new Float32Array(N), cells: Int32Array.from(cells), uf: Int32Array.from(uf), vf: Int32Array.from(vf), sponge, acc: 0 };
+          }
+          function splashWater(imp, n) {   // imp: [x, z (ô), bán kính (ô), cường độ] — mặt nước lõm xuống rồi tự dội thành sóng tròn lan ra
+            const { nx, nz, mask, kind, h, foam } = W;
+            for (let k = 0; k < n; k++) {
+              const cx = imp[k * 4], cz = imp[k * 4 + 1], r = Math.max(0.6, imp[k * 4 + 2]), s = imp[k * 4 + 3];
+              for (let b = Math.max(0, Math.floor(cz - r)); b <= Math.min(nz - 1, Math.ceil(cz + r)); b++)
+                for (let a = Math.max(0, Math.floor(cx - r)); a <= Math.min(nx - 1, Math.ceil(cx + r)); a++) {
+                  const c = b * nx + a; if (!mask[c] || kind[c]) continue;
+                  const d = Math.hypot(a + 0.5 - cx, b + 0.5 - cz) / r; if (d >= 1) continue;
+                  const w = (1 - d) * (1 - d); h[c] = Math.max(0.05, h[c] - s * w); foam[c] = Math.min(1.5, foam[c] + s * w * 4);
+                }
+            }
+          }
+          function stepWater(dt, windX, windZ) {
+            const { nx, nz, dx, kind, bed, target, h, sponge, cells, uf, vf, jets, jetV } = W;
+            let { u, v, u2, v2, h2, foam, foam2 } = W;
+            const idx = 1 / dx, vmax = 0.45 * dx / dt, nx1 = nx + 1;
+            // 1) cuốn vận tốc theo chính nó (bán Lagrange) — tạo xoáy sau chỗ bờ lồi, dòng uốn theo lòng sông
+            for (let k = 0; k < uf.length; k++) {
+              const f = uf[k], b = (f / nx1) | 0, a = f - b * nx1, uu = u[f], vv = bil(v, nx, nz + 1, a - 0.5, b + 0.5);
+              u2[f] = bil(u, nx1, nz, a - dt * uu * idx, b - dt * vv * idx);
+            }
+            for (let k = 0; k < vf.length; k++) {
+              const f = vf[k], b = (f / nx) | 0, a = f - b * nx, uu = bil(u, nx1, nz, a + 0.5, b - 0.5), vv = v[f];
+              v2[f] = bil(v, nx, nz + 1, a - dt * uu * idx, b - dt * vv * idx);
+            }
+            [u, u2] = [u2, u]; [v, v2] = [v2, v];
+            for (let k = 0; k < jets.length; k++) v[jets[k]] = jetV[k];   // cửa xả: nước phụt ra hạ lưu
+            // 2) mực nước theo thông lượng (độ sâu lấy phía ngược dòng → ổn định, bảo toàn khối nước)
+            for (let k = 0; k < cells.length; k++) {
+              const c = cells[k];
+              if (kind[c]) { h2[c] = target[c] - bed[c]; continue; }   // biên mở / cửa xả / mép hồ sát đập: giữ mực
+              const b = (c / nx) | 0, a = c - b * nx, fl = b * nx1 + a, uL = u[fl], uR = u[fl + 1], vB = v[c], vT = v[c + nx];
+              const flux = uR * (uR > 0 ? h[c] : h[c + 1]) - uL * (uL > 0 ? h[c - 1] : h[c]) + vT * (vT > 0 ? h[c] : h[c + nx]) - vB * (vB > 0 ? h[c - nx] : h[c]);
+              h2[c] = Math.max(0.05, h[c] - dt * idx * flux);
+            }
+            const ht = W.h; W.h = h2; W.h2 = ht;
+            const H = h2;
+            // 3) gia tốc theo độ dốc mặt nước + cản (tuyến tính · ma sát đáy bậc 2 · lớp hút sóng) + gió kéo mặt nước (~3% tốc độ gió)
+            for (let k = 0; k < uf.length; k++) {
+              const f = uf[k], b = (f / nx1) | 0, a = f - b * nx1, cR = b * nx + a, cL = cR - 1;
+              let uu = u[f] - G * dt * idx * (bed[cR] + H[cR] - bed[cL] - H[cL]);
+              const hf = 0.5 * (H[cL] + H[cR]), damp = 0.04 + 0.5 * (sponge[cL] + sponge[cR]) + 0.012 * Math.abs(uu) / hf;
+              uu = (uu + dt * windX) / (1 + dt * damp); u[f] = uu > vmax ? vmax : uu < -vmax ? -vmax : uu;
+            }
+            for (let k = 0; k < vf.length; k++) {
+              const f = vf[k], cT = f, cB = f - nx;
+              let vv = v[f] - G * dt * idx * (bed[cT] + H[cT] - bed[cB] - H[cB]);
+              const hf = 0.5 * (H[cB] + H[cT]), damp = 0.04 + 0.5 * (sponge[cB] + sponge[cT]) + 0.012 * Math.abs(vv) / hf;
+              vv = (vv + dt * windZ) / (1 + dt * damp); v[f] = vv > vmax ? vmax : vv < -vmax ? -vmax : vv;
+            }
+            for (let k = 0; k < jets.length; k++) v[jets[k]] = jetV[k];
+            // 4) bọt: sinh ở chỗ nước xiết (> 0,8 m/s) và ở cửa xả, trôi theo dòng, tan dần (~5 s)
+            const keep = Math.exp(-dt / 4);
+            for (let k = 0; k < cells.length; k++) {
+              const c = cells[k], b = (c / nx) | 0, a = c - b * nx;
+              const U = 0.5 * (u[b * nx1 + a] + u[b * nx1 + a + 1]), V = 0.5 * (v[c] + v[c + nx]), sp = Math.sqrt(U * U + V * V);
+              const src = (sp > 1.0 ? (sp - 1.0) * 0.6 : 0) + (kind[c] === 2 ? 0.9 : 0);
+              foam2[c] = Math.min(1.2, bil(foam, nx, nz, a - dt * U * idx, b - dt * V * idx) * keep + src * dt);
+            }
+            W.u = u; W.u2 = u2; W.v = v; W.v2 = v2; W.foam = foam2; W.foam2 = foam;
+          }
+          function encodeWater(out) {   // RGBA half-float mỗi ô: độ cao mặt so với mực tĩnh · vận tốc x · vận tốc z · bọt
+            const { nx, nz, mask, bed, rest, h, u, v, foam } = W, nx1 = nx + 1;
+            for (let b = 0, c = 0; b < nz; b++) for (let a = 0; a < nx; a++, c++) {
+              const o = c * 4;
+              if (!mask[c]) { out[o] = out[o + 1] = out[o + 2] = out[o + 3] = 0; continue; }
+              out[o] = toHalf(bed[c] + h[c] - rest[c]); out[o + 1] = toHalf(0.5 * (u[b * nx1 + a] + u[b * nx1 + a + 1]));
+              out[o + 2] = toHalf(0.5 * (v[c] + v[c + nx])); out[o + 3] = toHalf(foam[c]);
+            }
+            return out;
+          }
+
+          // ---------------- 2) KHÓI / HƠI NƯỚC ----------------
+          const plumes = new Map();
+          function addPlume(id, o) {
+            const N = o.nx * o.ny, F = () => new Float32Array(N);
+            plumes.set(id, Object.assign({ cs: o.w / o.nx, u: F(), v: F(), u2: F(), v2: F(), s: F(), q: F(), T: F(), s2: F(), q2: F(), T2: F(), p: F(), dv: F(), cu: F(), seed: 12345 }, o));
+          }
+          function stepPlume(P, dt, prm) {
+            const { nx, ny, cs } = P, idx = 1 / cs;
+            let { u, v, u2, v2, s, q, T, s2, q2, T2 } = P;
+            const rnd = () => { P.seed = (Math.imul(P.seed, 1664525) + 1013904223) >>> 0; return P.seed / 4294967296; };
+            // nguồn: [x, y (ô), bán kính (ô), khói/s, nhiệt/s, hơi/s, vx, vy (đv/s)] — vận tốc nguồn rung ngẫu nhiên → luồng khói không đều
+            for (const S of prm.src) {
+              const [sx, sy, r, rs, rh, rq, vx, vy] = S, jx = (rnd() - 0.5) * P.jitter, jy = (rnd() - 0.5) * P.jitter;
+              for (let j = Math.max(0, Math.floor(sy - r)); j <= Math.min(ny - 1, Math.ceil(sy + r)); j++)
+                for (let i = Math.max(0, Math.floor(sx - r)); i <= Math.min(nx - 1, Math.ceil(sx + r)); i++) {
+                  const d = Math.hypot(i - sx, j - sy) / r; if (d >= 1) continue;
+                  const w = 1 - d * d, c = j * nx + i;
+                  s[c] += rs * w * dt; T[c] += rh * w * dt; q[c] += rq * w * dt;
+                  u[c] += (vx + jx - u[c]) * Math.min(1, w * dt * 8); v[c] += (vy + jy - v[c]) * Math.min(1, w * dt * 8);
+                }
+            }
+            // lực: nổi (nóng lên, khói nặng xuống) · gió ngang theo độ cao kéo luồng khói · xoáy (vorticity confinement)
+            const kw = Math.min(1, P.windDrag * dt);
+            for (let j = 0; j < ny; j++) {
+              const amb = prm.wind0 + (prm.wind1 - prm.wind0) * j / (ny - 1);
+              for (let i = 0, c = j * nx; i < nx; i++, c++) { v[c] += dt * (P.buoy * T[c] - P.weight * s[c]); u[c] += (amb - u[c]) * kw * (0.35 + 0.65 * j / ny); }
+            }
+            const cu = P.cu;
+            for (let j = 1; j < ny - 1; j++) for (let i = 1, c = j * nx + 1; i < nx - 1; i++, c++) cu[c] = 0.5 * (v[c + 1] - v[c - 1] - u[c + nx] + u[c - nx]);
+            for (let j = 2; j < ny - 2; j++) for (let i = 2, c = j * nx + 2; i < nx - 2; i++, c++) {
+              const gx = Math.abs(cu[c + 1]) - Math.abs(cu[c - 1]), gy = Math.abs(cu[c + nx]) - Math.abs(cu[c - nx]), l = Math.hypot(gx, gy) + 1e-5;
+              u[c] += dt * P.vort * (gy / l) * cu[c]; v[c] -= dt * P.vort * (gx / l) * cu[c];
+            }
+            // cuốn vận tốc (bán Lagrange); ngoài mép lấy giá trị mép (gió vào/ra tự nhiên)
+            for (let j = 0, c = 0; j < ny; j++) for (let i = 0; i < nx; i++, c++) {
+              const x = i - dt * u[c] * idx, y = j - dt * v[c] * idx;
+              u2[c] = bil(u, nx, ny, x, y); v2[c] = bil(v, nx, ny, x, y);
+            }
+            [u, u2] = [u2, u]; [v, v2] = [v2, v];
+            for (let i = 0; i < nx; i++) if (v[i] < 0) v[i] = 0;   // mặt đất: khói không chui xuống
+            // chiếu áp suất (Gauss–Seidel): mép trên/2 bên mở (p = 0), đáy kín
+            const p = P.p, dv = P.dv;
+            for (let j = 0, c = 0; j < ny; j++) for (let i = 0; i < nx; i++, c++) {
+              const uR = i < nx - 1 ? u[c + 1] : u[c], uL = i > 0 ? u[c - 1] : u[c], vT = j < ny - 1 ? v[c + nx] : v[c], vB = j > 0 ? v[c - nx] : -v[c];
+              dv[c] = 0.5 * (uR - uL + vT - vB); p[c] = 0;
+            }
+            for (let it = 0; it < P.iters; it++) for (let j = 0, c = 0; j < ny; j++) for (let i = 0; i < nx; i++, c++) {
+              const pl = i > 0 ? p[c - 1] : 0, pr = i < nx - 1 ? p[c + 1] : 0, pb = j > 0 ? p[c - nx] : p[c], pt = j < ny - 1 ? p[c + nx] : 0;
+              p[c] = (pl + pr + pb + pt - dv[c]) * 0.25;
+            }
+            for (let j = 0, c = 0; j < ny; j++) for (let i = 0; i < nx; i++, c++) {
+              const pl = i > 0 ? p[c - 1] : 0, pr = i < nx - 1 ? p[c + 1] : 0, pb = j > 0 ? p[c - nx] : p[c], pt = j < ny - 1 ? p[c + nx] : 0;
+              u[c] -= 0.5 * (pr - pl); v[c] -= 0.5 * (pt - pb);
+            }
+            // cuốn khói · hơi · nhiệt theo dòng; ngoài mép coi như không khí sạch; tan dần
+            const ks = Math.exp(-dt / P.tauS), kq = Math.exp(-dt / P.tauQ), kt = Math.exp(-dt / P.tauT);
+            const sampleS = (a, x, y) => (x < -0.5 || y < -0.5 || x > nx - 0.5 || y > ny - 0.5) ? 0 : bil(a, nx, ny, x, y);
+            for (let j = 0, c = 0; j < ny; j++) for (let i = 0; i < nx; i++, c++) {
+              const x = i - dt * u[c] * idx, y = j - dt * v[c] * idx;
+              s2[c] = sampleS(s, x, y) * ks; q2[c] = sampleS(q, x, y) * kq; T2[c] = sampleS(T, x, y) * kt;
+            }
+            Object.assign(P, { u, v, u2, v2, s: s2, s2: s, q: q2, q2: q, T: T2, T2: T });
+          }
+          function encodePlume(P, out) {   // RGBA8: khói · hơi nước/sương · nhiệt
+            const { s, q, T } = P;
+            for (let c = 0, o = 0; c < s.length; c++, o += 4) { out[o] = Math.min(255, s[c] * 255) | 0; out[o + 1] = Math.min(255, q[c] * 255) | 0; out[o + 2] = Math.min(255, T[c] * 128) | 0; out[o + 3] = 255; }
+            return out;
+          }
+
+          // ---------------- giao tiếp ----------------
+          function handle(m) {
+            if (m.t === 'water') { initWater(m.grid); for (let t = 0; t < m.warm; t += WSTEP) stepWater(WSTEP, 0, 0); return null; }   // chạy trước ~40 s cho dòng ổn định
+            if (m.t === 'plume') { addPlume(m.id, m.cfg); return null; }
+            if (m.t !== 'step') return null;
+            const transfer = [], res = { t: 'out', plumes: {} };
+            if (W) {
+              splashWater(m.imp, m.nImp);
+              W.acc = Math.min(W.acc + m.dt, 0.1);
+              while (W.acc >= WSTEP) { stepWater(WSTEP, m.wind[0], m.wind[1]); W.acc -= WSTEP; }
+              const buf = m.bufs.water && m.bufs.water.byteLength === W.nx * W.nz * 8 ? new Uint16Array(m.bufs.water) : new Uint16Array(W.nx * W.nz * 4);
+              res.water = encodeWater(buf).buffer; transfer.push(res.water);
+            }
+            for (const [id, prm] of Object.entries(m.plumes)) {
+              const P = plumes.get(id); if (!P) continue;
+              const step = 1 / 30; P.acc = Math.min((P.acc || 0) + m.dt, 0.1);
+              while (P.acc >= step) { stepPlume(P, step, prm); P.acc -= step; }
+              const b = m.bufs[id], buf = b && b.byteLength === P.nx * P.ny * 4 ? new Uint8Array(b) : new Uint8Array(P.nx * P.ny * 4);
+              res.plumes[id] = encodePlume(P, buf).buffer; transfer.push(res.plumes[id]);
+            }
+            return { msg: res, transfer };
+          }
+          return { handle };
+        }
+
+        fluids = (() => {
+          // ---- lưới nước: hộp bao mọi ô nước (+1 ô viền), ô = 1 khối địa hình ----
+          let i0 = 1e9, i1 = -1e9, j0 = 1e9, j1 = -1e9;
+          for (let j = -MZ; j < GZ + MZ; j++) for (let i = -MX; i < GX + MX; i++) if (waterCell(i, j)) { if (i < i0) i0 = i; if (i > i1) i1 = i; if (j < j0) j0 = j; if (j > j1) j1 = j; }
+          i0--; i1++; j0--; j1++;
+          const nx = i1 - i0 + 1, nz = j1 - j0 + 1, N = nx * nz, dx = BLOCK, x0 = wx(i0) - dx / 2, z0 = wz(j0) - dx / 2;
+          const mask = new Uint8Array(N), kind = new Uint8Array(N), bed = new Float32Array(N), target = new Float32Array(N), rest = new Float32Array(N), wCells = [];
+          for (let b = 0; b < nz; b++) for (let a = 0; a < nx; a++) {
+            const i = i0 + a, j = j0 + b, c = b * nx + a;
+            if (!waterCell(i, j)) continue;
+            mask[c] = 1; wCells.push(c); bed[c] = riverBedY(i, j); target[c] = rest[c] = waterBaseY(j);
+            if (i <= -MX || i >= GX + MX - 1 || j <= -MZ || j >= GZ + MZ - 1) { kind[c] = 1; target[c] += j < DAM_J ? 0.004 : -0.06; }   // mép bản đồ: biên mở (thượng nguồn hồ dâng rất nhẹ · cuối sông thấp hơn chút cho nước chảy ra)
+            else if (j === DAM_J - 1) { kind[c] = 3; target[c] -= 0.004; }   // mép hồ sát đập: nước rút qua cửa lấy nước → hồ trôi rất chậm về đập
+          }
+          const jets = { faces: [], speeds: [] };
+          for (const [ox, oz] of DAM_OUTLETS) {   // 3 cửa xả: ô nguồn giữ mực dâng 10 cm, mặt ô phía hạ lưu phụt 2,4 m/s
+            const ca = Math.floor((ox - x0) / dx), cb = Math.floor((oz - z0) / dx);
+            for (let db = -1; db <= 0; db++) for (let da = -1; da <= 1; da++) {
+              const c = (cb + db) * nx + ca + da; if (!mask[c]) continue;
+              kind[c] = 2; target[c] = waterBaseY(j0 + cb + db) + 0.1;
+              if (db === 0 && da === 0 && mask[c + nx]) { jets.faces.push(c + nx); jets.speeds.push(2.2); }
+            }
+          }
+          // vận tốc ban đầu theo công thức dòng chảy cũ (giữa lòng nhanh, sát bờ chậm; hồ gần lặng) → mô phỏng khởi động gần trạng thái ổn định
+          const u0 = new Float32Array((nx + 1) * nz), v0 = new Float32Array(nx * (nz + 1));
+          const flow0 = (fi, fj) => {
+            const dc = riverC(fj + 0.5) - riverC(fj - 0.5), n = Math.hypot(dc, 1), hf = Math.max(1, riverHalf(fj)), d = Math.min(1, riverDist(fi, fj) / hf);
+            const sp = (fj < DAM_J ? LAKE_U : RIVER_U * RHALF / hf) * Math.max(0.15, 1 - d * d); return [dc / n * sp, sp / n];
+          };
+          for (let b = 0; b < nz; b++) for (let a = 0; a <= nx; a++) u0[b * (nx + 1) + a] = flow0(i0 + a - 0.5, j0 + b)[0];
+          for (let b = 0; b <= nz; b++) for (let a = 0; a < nx; a++) v0[b * nx + a] = flow0(i0 + a, j0 + b - 0.5)[1];
+          // ---- texture kết quả + đọc trên CPU (song tuyến, khớp đúng phép lấy mẫu LinearFilter của GPU) ----
+          const wTex = new THREE.DataTexture(new Uint16Array(N * 4), nx, nz, THREE.RGBAFormat, THREE.HalfFloatType);
+          wTex.magFilter = wTex.minFilter = THREE.LinearFilter; wTex.generateMipmaps = false; wTex.needsUpdate = true; wTex.name = 'Mô phỏng nước nông';
+          const P2 = Array.from({ length: 31 }, (_, e) => Math.pow(2, e - 15));
+          const half = hv => { const e = (hv >> 10) & 0x1f, m = hv & 0x3ff, s = hv & 0x8000 ? -1 : 1; return e ? s * P2[e] * (1 + m / 1024) : s * m * 5.960464477539063e-8; };
+          let wData = null, spareW = null;
+          function sampleW(x, z, ch) {
+            if (!wData) return 0;
+            const fx = Math.min(nx - 1.0001, Math.max(0, (x - x0) / dx - 0.5)), fz = Math.min(nz - 1.0001, Math.max(0, (z - z0) / dx - 0.5));
+            const a = fx | 0, b = fz | 0, tx = fx - a, tz = fz - b, c = (b * nx + a) * 4 + ch, r = nx * 4;
+            return (half(wData[c]) * (1 - tx) + half(wData[c + 4]) * tx) * (1 - tz) + (half(wData[c + r]) * (1 - tx) + half(wData[c + r + 4]) * tx) * tz;
+          }
+          const water = { tex: wTex, ready: false, x0, z0, nx, nz, dx,
+            height: (x, z) => sampleW(x, z, 0), flow(x, z, out) { out.x = sampleW(x, z, 1); out.z = sampleW(x, z, 2); return out; }, foam: (x, z) => sampleW(x, z, 3) };
+          waterU.uSim.value = wTex; waterU.uSimBox.value.set(x0, z0, 1 / (nx * dx), 1 / (nz * dx)); waterU.uSimTexel.value.set(1 / nx, 1 / nz); waterU.uSimDx.value = dx;
+          // ---- khói / hơi: tấm đứng quay về camera ----
+          const plumeVS = `varying vec2 vUv;
+            #include <fog_pars_vertex>
+            void main() { vUv = uv; vec4 mvPosition = modelViewMatrix * vec4(position, 1.0); gl_Position = projectionMatrix * mvPosition;
+            #include <fog_vertex>
+            }`;
+          const plumeFS = `uniform sampler2D uDye; uniform vec3 uSmoke, uSteam, uGlow; uniform float uOpacity, uTime, uDetail, uFadeB;
+            varying vec2 vUv;
+            #include <fog_pars_fragment>
+            float pHash(vec2 p) { vec3 q = fract(vec3(p.xyx) * 0.1031); q += dot(q, q.yzx + 33.33); return fract((q.x + q.y) * q.z); }
+            float pNoise(vec2 p) { vec2 i = floor(p), f = fract(p), u = f * f * (3.0 - 2.0 * f); return mix(mix(pHash(i), pHash(i + vec2(1, 0)), u.x), mix(pHash(i + vec2(0, 1)), pHash(i + vec2(1, 1)), u.x), u.y); }
+            void main() {
+              vec4 d = texture2D(uDye, vUv);
+              float det = 0.7 + 0.6 * pNoise(vUv * uDetail + vec2(0.0, -uTime * 0.5)) * pNoise(vUv * uDetail * 2.3 + vec2(uTime * 0.13, -uTime * 0.9));   // chi tiết mịn hơn ô lưới
+              float a = (1.0 - exp(-(d.r * 2.6 + d.g * 2.2) * det)) * uOpacity;
+              a *= smoothstep(0.0, 0.07, vUv.x) * smoothstep(1.0, 0.93, vUv.x) * smoothstep(1.0, 0.88, vUv.y) * smoothstep(0.0, uFadeB, vUv.y);   // mép tấm mờ dần (đáy: khỏi lộ đường cắt mặt nước)
+              if (a < 0.004) discard;
+              gl_FragColor = vec4(mix(uSmoke, uSteam, d.g / (d.r + d.g + 1e-3)) + uGlow * d.b * d.b * 4.0, a);
+              #include <tonemapping_fragment>
+              #include <colorspace_fragment>
+              #include <fog_fragment>
+            }`;
+          const plumes = new Map(), _pr = new THREE.Vector3(), _pf = new THREE.Vector3(), _pd = new THREE.Vector3();
+          function addPlume(id, cfg, look) {   // cfg: lưới (nx, ny, w, h) + vật lý · look: màu, độ đục, chi tiết
+            const tex = new THREE.DataTexture(new Uint8Array(cfg.nx * cfg.ny * 4), cfg.nx, cfg.ny, THREE.RGBAFormat);
+            tex.magFilter = tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false; tex.needsUpdate = true;
+            const mat = new THREE.ShaderMaterial({ vertexShader: plumeVS, fragmentShader: plumeFS, transparent: true, depthWrite: false, fog: true, toneMapped: false, side: THREE.DoubleSide,
+              uniforms: Object.assign({ uDye: { value: tex }, uSmoke: { value: new THREE.Color() }, uSteam: { value: new THREE.Color() }, uGlow: { value: new THREE.Color() },
+                uOpacity: { value: look.opacity }, uTime: { value: 0 }, uDetail: { value: look.detail }, uFadeB: { value: look.fadeBottom ?? 0.02 } }, THREE.UniformsUtils.clone(THREE.UniformsLib.fog)) });
+            const geo = new THREE.PlaneGeometry(cfg.w, cfg.h); geo.translate(0, cfg.h / 2, 0);
+            const mesh = new THREE.Mesh(geo, mat); mesh.name = look.name; mesh.frustumCulled = false; mesh.renderOrder = 4; mesh.raycast = () => {};
+            mesh.userData.noRainOcc = mesh.userData.noBatch = true; scene.add(mesh);
+            const P = { id, cfg, look, tex, mat, mesh, data: null, spare: null, base: new THREE.Vector3(), wind0: new THREE.Vector3(), wind1: new THREE.Vector3(), sources: [], on: true, right: new THREE.Vector3(1, 0, 0) };
+            plumes.set(id, P); post({ t: 'plume', id, cfg });
+            return P;
+          }
+          // ---- luồng phụ (dự phòng: chạy ngay trên luồng chính) ----
+          let worker = null, local = null, busy = false, accDt = 0, url = null;
+          const imp = new Float32Array(4 * 96); let nImp = 0;
+          function onOut(m) {
+            busy = false;
+            if (m.water) { const arr = new Uint16Array(m.water); spareW = wData ? wData.buffer : null; wData = arr; wTex.image.data = arr; wTex.needsUpdate = true; if (!water.ready) { water.ready = true; waterU.uSimOn.value = 1; } }
+            for (const [id, buf] of Object.entries(m.plumes || {})) {
+              const P = plumes.get(id); if (!P) continue;
+              const arr = new Uint8Array(buf); P.spare = P.data ? P.data.buffer : null; P.data = arr; P.tex.image.data = arr; P.tex.needsUpdate = true;
+            }
+          }
+          function post(m, transfer) {
+            if (worker) { worker.postMessage(m, transfer || []); return; }
+            const r = local.handle(m); if (r) onOut(r.msg);
+          }
+          try {
+            url = URL.createObjectURL(new Blob(['const K = (' + fluidKernel.toString() + ')(); onmessage = e => { const r = K.handle(e.data); if (r) postMessage(r.msg, r.transfer); };'], { type: 'text/javascript' }));
+            worker = new Worker(url);
+            worker.onmessage = e => onOut(e.data);
+            worker.onerror = e => { e.preventDefault?.(); worker.terminate(); worker = null; busy = false; local = fluidKernel(); local.handle(initMsg); for (const P of plumes.values()) local.handle({ t: 'plume', id: P.id, cfg: P.cfg }); };
+          } catch (e) { worker = null; local = fluidKernel(); }
+          const initMsg = { t: 'water', warm: worker ? 12 : 0, grid: { nx, nz, dx, mask, kind, bed, target, rest, jets, u0, v0 } };   // luồng phụ: chạy trước 12 s cho tia cửa xả & xoáy hình thành
+          post(initMsg);
+          sceneEvents.signal.addEventListener('abort', () => { worker?.terminate(); worker = null; if (url) URL.revokeObjectURL(url); });
+          return {
+            water, addPlume, wCells,
+            splash(x, z, r, s) {   // vật chạm nước tại (x, z) thế giới: bán kính r (đv), cường độ s (m lún xuống)
+              if (nImp >= 96) return;
+              imp.set([(x - x0) / dx, (z - z0) / dx, r / dx, s], nImp * 4); nImp++;
+            },
+            update(dt, t, rain) {
+              accDt += dt;
+              for (const P of plumes.values()) P.mat.uniforms.uTime.value = t % 1000;
+              if (busy) return;
+              // giọt mưa rơi xuống mặt nước: vài cú chạm ngẫu nhiên mỗi khung theo cường độ mưa
+              for (let k = Math.round(rain * 6 * (0.5 + Math.random())); k > 0; k--) { const c = wCells[(Math.random() * wCells.length) | 0], a = c % nx, b = (c / nx) | 0; this.splash(x0 + (a + 0.5) * dx, z0 + (b + 0.5) * dx, 0.5, 0.008 + 0.01 * Math.random()); }
+              const msg = { t: 'step', dt: Math.min(accDt, 0.1), nImp, imp: imp.slice(0, nImp * 4), wind: [sceneWind.dir.x * sceneWind.U * 0.0036, sceneWind.dir.y * sceneWind.U * 0.0036], plumes: {}, bufs: { water: spareW } };
+              const transfer = spareW ? [spareW] : []; spareW = null; nImp = 0; accDt = 0;
+              camera.getWorldDirection(_pf); _pr.set(-_pf.z, 0, _pf.x).normalize();   // trục ngang của tấm khói (vuông góc hướng nhìn)
+              for (const P of plumes.values()) {
+                P.mesh.visible = P.on; if (!P.on) continue;
+                P.mesh.position.copy(P.base); P.mesh.rotation.set(0, Math.atan2(-_pr.z, _pr.x), 0); P.right.copy(_pr);
+                const cs = P.cfg.w / P.cfg.nx, src = [];
+                for (const S of P.sources) {   // nguồn (thế giới) → toạ độ ô trên tấm; vận tốc nguồn chiếu lên trục ngang + đứng
+                  _pd.copy(S.p).sub(P.base);
+                  src.push([P.cfg.nx / 2 + _pd.dot(_pr) / cs, _pd.y / cs, S.r / cs, S.smoke, S.heat, S.steam, S.vel ? S.vel.dot(_pr) : 0, S.vel ? S.vel.y : 0]);
+                }
+                msg.plumes[P.id] = { src, wind0: P.wind0.dot(_pr), wind1: P.wind1.dot(_pr) };
+                msg.bufs[P.id] = P.spare; if (P.spare) transfer.push(P.spare); P.spare = null;
+              }
+              busy = true; post(msg, transfer);
+            }
+          };
+        })();
+        // ---- màn sương chân đập: 3 cửa xả tung hơi nước, nổi nhẹ, gió thật cuốn đi (thay 3 tấm sương vẽ sẵn) ----
+        const damPlume = (() => {
+          const xs = DAM_OUTLETS.map(o => o[0]), P = fluids.addPlume('dam', { nx: 96, ny: 44, w: 28, h: 12.8, buoy: 3.2, weight: 0, windDrag: 0.7, vort: 3.5, iters: 16, tauS: 4, tauQ: 6, tauT: 2.5, jitter: 1.6 },
+            { name: 'Sương chân đập (mô phỏng chất lỏng)', opacity: 0.62, detail: 9, fadeBottom: 0.14 });
+          P.base.set((Math.min(...xs) + Math.max(...xs)) / 2, lakeY - 0.3, DAM_OUTLETS[0][1] + 1.6);
+          P.sources = DAM_OUTLETS.map(([x, z]) => ({ p: new THREE.Vector3(x, lakeY + 0.7, z + 1.6), r: 2.4, smoke: 0, heat: 0.5, steam: 1.1, vel: new THREE.Vector3(0, 1.2, 1.2) }));
+          return P;
+        })();
+        const PLUME_COL = { smoke: new THREE.Color(0.42, 0.40, 0.38), steam: new THREE.Color(0.92, 0.93, 0.95), mist: new THREE.Color(0.86, 0.90, 0.93), glow: new THREE.Color(1.0, 0.42, 0.1), none: new THREE.Color(0, 0, 0) };
+        const _plumeGlow = new THREE.Color(), _plumeQ = new THREE.Quaternion();
+        function plumeLight(P, smoke, steam, glow) {   // màu khói/hơi theo ánh sáng cảnh lúc này (đêm tối hẳn, chỉ sáng nơi lửa hắt lên)
+          const lit = Math.min(1.05, hemi.intensity * 0.5 + amb.intensity * 0.55 + sun.intensity * 0.42), U = P.mat.uniforms;
+          U.uSmoke.value.copy(smoke).multiplyScalar(lit); U.uSteam.value.copy(steam).multiplyScalar(lit); U.uGlow.value.copy(glow);
+        }
+        function plumeWind(P, h0, h1) {   // gió thật tại 2 độ cao trên chân tấm (mô hình log + nhiễu loạn) → mô phỏng lấy thành phần ngang trong mặt tấm
+          windAt(P.base.x, P.base.y + h0, P.base.z, h0, P.wind0); windAt(P.base.x, P.base.y + h1, P.base.z, h1, P.wind1);
+        }
         // ---- fish in the downstream river ----
         const fishies = [];
         // phân sắc tố cho đàn koi: 2 con đầu ĐEN · con thứ 3 ĐỎ-ĐEN lẫn · còn lại ĐỎ (tổng 10 con)
@@ -7087,7 +7441,10 @@
         { const tb = campTable(); tb.position.set(X0 + 65, cowY(X0 + 65, Z0 + 99.85), Z0 + 99.85);   // toạ độ hover (65, _, 100), lùi 15 cm khỏi tay ghế cắm trại cho khỏi chạm; xa cột chống bạt ~1,4 m
            tb.rotation.y = Math.PI * 0.15; tb.name = 'Bàn trà (Camp Table)'; scene.add(tb); }
         { const wc = woodCamp(); wc.name = 'Đống củi (Woodpile)'; wc.position.set(X0 + 68, woodCampY, Z0 + 100); wc.rotation.y = 0.5; scene.add(wc); }
-
+        // ---- khói bếp lửa + hơi ấm reo = chất lỏng 2D (nature/fluids.js) thay 10 cụm khói & 7 cụm hơi vẽ sẵn: nổi vì nóng, gió thật cuốn, cuộn xoáy ----
+        const campPlume = fluids.addPlume('camp', { nx: 72, ny: 76, w: 7.6, h: 8, buoy: 5, weight: 0.3, windDrag: 1.2, vort: 4, iters: 18, tauS: 9, tauQ: 1.4, tauT: 1.2, jitter: 0.6 },
+          { name: 'Khói bếp lửa (mô phỏng chất lỏng)', opacity: 0.9, detail: 7 });
+        campPlume.sources = [{ p: new THREE.Vector3(), r: 0.36, smoke: 0, heat: 0, steam: 0, vel: new THREE.Vector3() }, { p: new THREE.Vector3(), r: 0.14, smoke: 0, heat: 0, steam: 0, vel: new THREE.Vector3() }];
         // ---- chú chó nhỏ sưởi ấm bên bếp lửa ----
         function dogModel(s) {
           const g = new THREE.Group();
@@ -8598,12 +8955,7 @@
         const _fishReturnStart = new THREE.Vector3(), _fishReturnDir = new THREE.Vector3();
         const _aTip = new THREE.Vector3(), _aV = new THREE.Vector3(), _aV2 = new THREE.Vector3(), _aV3 = new THREE.Vector3(), _aQ = new THREE.Quaternion(), _aQ2 = new THREE.Quaternion(), _aS = new THREE.Vector3(), _aM = new THREE.Matrix4();
         let returningFishingFish = null, fishReturnTime = 0;
-        function lakeSurfaceY(x, z) {   // đúng hàm sóng của shader mặt nước (2 sóng chạy + gợn tròn quanh cửa xả đập)
-          const sh = waterMat.userData.shader; if (!sh) return lakeY;
-          const T = sh.uniforms.uTime.value; let w = Math.sin(T * 3 + x * 0.6) * 0.05 + Math.cos(T * 2.2 + z * 0.6) * 0.05;
-          for (const c of sh.uniforms.uRippleCenters.value) { const d = Math.hypot(x - c.x, z - c.y); if (d < 18) w += Math.sin(d * 3 - T * 7.5) * 0.48 * (1 - d / 18) / (1 + d * 0.25); }
-          return lakeY + w;
-        }
+        function lakeSurfaceY(x, z) { return lakeY + waveAt(x, z); }   // mặt hồ câu = mực tĩnh + sóng của mô phỏng nước nông (cùng số liệu shader)
         // ---- bọt nước: vòng sóng loang + giọt bắn (pool cố định, không cấp phát khi chạy) ----
         const splashFx = (() => {
           const ringGeo = new THREE.RingGeometry(0.82, 1, 28); ringGeo.rotateX(-Math.PI / 2);
@@ -8616,6 +8968,7 @@
           let di = 0, live = 0;
           return {
             spawn(x, z, power) {
+              fluids?.splash(x, z, 0.4 + power * 0.6, 0.1 + power * 0.25);   // phao rơi, cá quẫy → sóng lan thật trên mặt hồ
               const y = lakeSurfaceY(x, z) + 0.01, r = rings.find(o => o.t >= o.dur) || rings[0];
               Object.assign(r, { t: 0, dur: 0.9 + power * 0.6, size: 0.3 + power * 0.7 }); r.m.position.set(x, y, z); r.m.visible = true;
               for (let k = Math.round(3 + power * 9); k > 0; k--) { const d = D[di++ % N], a = anglingRandom() * 6.283, s = (0.4 + anglingRandom()) * power; d.p.set(x, y, z); d.v.set(Math.cos(a) * s, 0.9 + anglingRandom() * 1.6 * power, Math.sin(a) * s); d.on = true; }
@@ -10551,6 +10904,7 @@
               let stride = 0, peck = 0;
               if (b.peckElapsed >= 0) {
                 b.peckElapsed += dt;
+                if (b.peckElapsed >= .85 && b.peckElapsed - dt < .85) { const ry = b.m.rotation.y; fluids?.splash(b.foot.x + Math.sin(ry) * .6, b.foot.z + Math.cos(ry) * .6, .55, .14); }   // mỏ cắm xuống nước
                 if (b.peckElapsed <= 1.65) peck = 1.8 * Math.sin(Math.PI * b.peckElapsed / 1.65);
                 b.caughtFish.visible = b.peckSuccess && b.peckElapsed >= .9 && b.peckElapsed < 2.4;
                 if (b.peckElapsed >= 2.8) { b.peckElapsed = -1; b.caughtFish.visible = false; b.nextPeck = 6 + b.rng() * 4; }
@@ -10562,6 +10916,7 @@
                 if (distance < .12) pickStorkWadeTarget(b);
                 else {
                   const step = Math.min(distance, dt * .48); b.foot.x += dx / distance * step; b.foot.z += dz / distance * step; stride = 1;
+                  if ((b.wadeSplash = (b.wadeSplash || 0) + step) > .3) { b.wadeSplash = 0; fluids?.splash(b.foot.x, b.foot.z, .5, .07); }   // mỗi bước lội: chân khuấy nước → gợn lan
                   const heading = Math.atan2(dx, dz), turn = Math.atan2(Math.sin(heading - b.m.rotation.y), Math.cos(heading - b.m.rotation.y)); b.m.rotation.y += turn * Math.min(1, dt * 3);
                 }
               }
@@ -11202,7 +11557,8 @@
           // bọt mặt nước trôi lệch theo gió mặt nước
           for (const j of tailJets) { const p = (t * (j.sp * 0.5) + j.ph) % 1; windAt(dox + j.x, j.y, doz + j.z0 + p * j.len, 0.5, _plA); _dmP.set(j.x + Math.sin(t * 1.0 + j.ph * 6) * 0.5 + _plA.x * p * 1.2, j.y + Math.sin(p * 3.14159) * 0.25, j.z0 + p * j.len + _plA.z * p * 1.2); _dmS.setScalar(j.sc * Math.max(0.08, Math.sin(p * 3.14159))); j.im.setMatrixAt(j.id, _dmM.compose(_dmP, _dmQ, _dmS)); }   // nước xả hạ lưu chậm 1/2
           // màn hơi chân đập & bụi nước: bị gió (độ cao ~3 đv, gồm cơn giật) đẩy lệch; đập không xoay nên trục cục bộ = thế giới
-          for (const m of damMist) { windAt(dox + m.x, m.y, doz + m.z, 3, _plA); m.s.position.set(m.x + _plA.x * 1.2, m.y + _plA.y * 0.8 + Math.sin(t * 0.3 + m.ph) * 0.15, m.z + _plA.z * 1.2); }
+          if (damPlume) { for (const m of damMist) m.s.visible = false; plumeWind(damPlume, 1.5, 8); plumeLight(damPlume, PLUME_COL.mist, PLUME_COL.mist, PLUME_COL.none); }   // sương = mô phỏng chất lỏng
+          else for (const m of damMist) { windAt(dox + m.x, m.y, doz + m.z, 3, _plA); m.s.position.set(m.x + _plA.x * 1.2, m.y + _plA.y * 0.8 + Math.sin(t * 0.3 + m.ph) * 0.15, m.z + _plA.z * 1.2); }
           for (const s of sprayBits) { const a = (t * (s.sp * 0.5) + s.ph) % 1, kk = Math.sin(a * 3.14159); windAt(dox + s.x, s.y0 + kk * s.h, doz + s.z, 1 + kk * s.h, _plA); _dmP.set(s.x + Math.sin(t * 1.2 + s.ph * 7) * 0.3 + _plA.x * a * 1.4, s.y0 + kk * s.h + _plA.y * a * 0.5, s.z + _plA.z * a * 1.4); _dmS.setScalar(s.r * (0.5 + 0.7 * kk)); s.im.setMatrixAt(s.id, _dmM.compose(_dmP, _dmQ, _dmS)); }
           for (const im of damIMs) im.instanceMatrix.needsUpdate = true;
           const cowWantHut = cowHutWanted();
@@ -11351,7 +11707,10 @@
               c.thumb.rotation.y = -0.3 * c.sz + Math.sin(t * 4.0) * 0.1 * c.sz;
             }
           }
-          for (const l of lotuses) { l.g.position.y = l.base + Math.sin(t * 1.2 + l.ph) * 0.06; l.g.rotation.z = Math.sin(t * 0.8 + l.ph) * 0.03; }
+          for (const l of lotuses) {   // lá sen nổi đúng mặt nước mô phỏng: dâng/hạ theo sóng, nghiêng theo độ dốc mặt nước (gốc cắm đáy nên không trôi)
+            const p = l.g.position, y = waterSurfaceY(p.x, p.z), gx = waterSurfaceY(p.x + 0.4, p.z) - y, gz = waterSurfaceY(p.x, p.z + 0.4) - y;
+            p.y = y + 0.01 + Math.sin(t * 1.2 + l.ph) * 0.012; l.g.rotation.z = Math.max(-0.2, Math.min(0.2, -gx * 2.5)) + Math.sin(t * 0.8 + l.ph) * 0.015; l.g.rotation.x = Math.max(-0.2, Math.min(0.2, gz * 2.5));
+          }
           if (cherryCtl) updateLeafFall(cherryCtl, dt, t);           // cánh hoa anh đào rụng theo gió, rơi xuống sông thì nổi, trôi, có chiếc chìm
           if (oldTreeLeafCtl) updateLeafFall(oldTreeLeafCtl, dt, t);   // lá vàng cây cổ thụ
           waterFx.update(dt, t);                                     // gợn nước nhỏ (lá chạm nước, cá đớp) + bọt khí
@@ -11404,16 +11763,25 @@
             const fireScale = campfireLevel(liveWeather.localHour);   // 100% lúc 19:00 → 5% lúc 07:00, ban ngày 5%
             const steamAmt = Math.min(1, Math.max(0, (fireScale - 0.2) / 0.55));   // lửa lớn → ấm sôi phụt hơi qua còi; lửa ngày 5% → không có hơi
             const kGrp = kettleSteam.length ? kettleSteam[0].m.parent : null; if (kGrp) kGrp.localToWorld(_plS.set(0, 0, 0));
-            for (const p of kettleSteam) {   // tia hơi phụt khỏi còi, chậm dần, rồi bốc lên (nổi yếu, trần thấp) và bị gió tại độ cao vòi cuốn đi
+            if (campPlume) for (const p of kettleSteam) p.m.visible = false;   // hơi ấm reo nằm trong mô phỏng khói (nguồn thứ 2)
+            else for (const p of kettleSteam) {   // tia hơi phụt khỏi còi, chậm dần, rồi bốc lên (nổi yếu, trần thấp) và bị gió tại độ cao vòi cuốn đi
               const k = (t * 0.45 + p.ph) % 1, a = k / 0.45, jet = 0.16 * (1 - Math.exp(-a * 4));
               plumeOffset(_plS, a, KETTLE_PLUME, _plA); windInLocal(kGrp, _plA, _steamW);
               p.m.position.set(p.dir.x * jet + _steamW.x, 0.02 + _steamW.y, p.dir.z * jet + _steamW.z);
               p.m.scale.setScalar(0.5 + k * 2.8); p.m.material.opacity = steamAmt * 0.4 * Math.sin(k * Math.PI);
             }
             for (const fl of campObj.flames) { fl.m.scale.y = fireScale * Math.max(0.6, 0.92 + 0.24 * Math.sin(t * 7 + fl.ph) + 0.12 * Math.sin(t * 13 + fl.ph * 1.6)); fl.m.scale.x = fl.m.scale.z = fireScale * (0.82 + 0.2 * Math.sin(t * 7 + fl.ph * 1.3)); fl.m.material.opacity = 0.72 + 0.26 * Math.sin(t * 12 + fl.ph); }
-            // khói bếp lửa: luồng nổi Briggs (xem plumeOffset) — cụm khói nở theo độ cao bốc, loãng dần; trời ổn định thì dẹt ra như quạt
-            campObj.g.localToWorld(_plS.set(0, 0.9, 0));
-            for (const sm of campObj.smoke) {
+            if (campPlume) {   // khói + hơi = mô phỏng chất lỏng 2D: lửa cấp nhiệt & khói theo cỡ lửa, ấm reo phụt hơi theo hướng vòi
+              for (const sm of campObj.smoke) sm.m.visible = false;
+              const F = campPlume.sources[0], K = campPlume.sources[1];
+              campObj.g.localToWorld(campPlume.base.set(0, 0, 0)); campObj.g.localToWorld(F.p.set(0, 0.75, 0));
+              F.smoke = 2.2 + 10 * fireScale; F.heat = 1.0 + 2.4 * fireScale; F.vel.set(0, 0.4 + 0.8 * fireScale, 0);
+              if (kGrp) { kGrp.localToWorld(K.p.set(0, 0, 0)); K.vel.copy(kettleSteam[0].dir).applyQuaternion(kGrp.getWorldQuaternion(_plumeQ)).multiplyScalar(0.9); K.vel.y += 0.3; }
+              K.steam = 2.6 * steamAmt; K.heat = 0.5 * steamAmt;
+              plumeWind(campPlume, 1, 5); plumeLight(campPlume, PLUME_COL.smoke, PLUME_COL.steam, _plumeGlow.copy(PLUME_COL.glow).multiplyScalar(0.25 + 0.75 * fireScale));
+            } else campObj.g.localToWorld(_plS.set(0, 0.9, 0));
+            // khói bếp lửa kiểu cũ (dự phòng): luồng nổi Briggs (xem plumeOffset) — cụm khói nở theo độ cao bốc, loãng dần; trời ổn định thì dẹt ra như quạt
+            if (!campPlume) for (const sm of campObj.smoke) {
               const life = 6, a = ((t / life + sm.ph) % 1) * life, pr = a / life;
               const z = plumeOffset(_plS, a, CAMP_PLUME, _plA); windInLocal(campObj.g, _plA, _smokeW);
               sm.m.position.set(_smokeW.x, 0.9 + _smokeW.y, _smokeW.z);
@@ -12037,6 +12405,7 @@
             coordTip.style.top = (rc.top + (-_tailV.y * 0.5 + 0.5) * rc.height - 10) + 'px';
           }
           updateAnimalVisibility(); updateDrawBatches();
+          fluids.update(dt, t, rainK);   // gửi bước mô phỏng nước + khói cho luồng phụ (kèm các cú chạm nước trong khung này), nhận kết quả bước trước
           if (skyOn) updateSky(); renderer.render(scene, camera); mastLabel?.updateScreen(); updateZoomPct();
           if (!started) { started = true; const l = document.getElementById('loading'); if (l) l.style.display = 'none'; }
         }

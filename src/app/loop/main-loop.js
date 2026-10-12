@@ -46,7 +46,8 @@
           // bọt mặt nước trôi lệch theo gió mặt nước
           for (const j of tailJets) { const p = (t * (j.sp * 0.5) + j.ph) % 1; windAt(dox + j.x, j.y, doz + j.z0 + p * j.len, 0.5, _plA); _dmP.set(j.x + Math.sin(t * 1.0 + j.ph * 6) * 0.5 + _plA.x * p * 1.2, j.y + Math.sin(p * 3.14159) * 0.25, j.z0 + p * j.len + _plA.z * p * 1.2); _dmS.setScalar(j.sc * Math.max(0.08, Math.sin(p * 3.14159))); j.im.setMatrixAt(j.id, _dmM.compose(_dmP, _dmQ, _dmS)); }   // nước xả hạ lưu chậm 1/2
           // màn hơi chân đập & bụi nước: bị gió (độ cao ~3 đv, gồm cơn giật) đẩy lệch; đập không xoay nên trục cục bộ = thế giới
-          for (const m of damMist) { windAt(dox + m.x, m.y, doz + m.z, 3, _plA); m.s.position.set(m.x + _plA.x * 1.2, m.y + _plA.y * 0.8 + Math.sin(t * 0.3 + m.ph) * 0.15, m.z + _plA.z * 1.2); }
+          if (damPlume) { for (const m of damMist) m.s.visible = false; plumeWind(damPlume, 1.5, 8); plumeLight(damPlume, PLUME_COL.mist, PLUME_COL.mist, PLUME_COL.none); }   // sương = mô phỏng chất lỏng
+          else for (const m of damMist) { windAt(dox + m.x, m.y, doz + m.z, 3, _plA); m.s.position.set(m.x + _plA.x * 1.2, m.y + _plA.y * 0.8 + Math.sin(t * 0.3 + m.ph) * 0.15, m.z + _plA.z * 1.2); }
           for (const s of sprayBits) { const a = (t * (s.sp * 0.5) + s.ph) % 1, kk = Math.sin(a * 3.14159); windAt(dox + s.x, s.y0 + kk * s.h, doz + s.z, 1 + kk * s.h, _plA); _dmP.set(s.x + Math.sin(t * 1.2 + s.ph * 7) * 0.3 + _plA.x * a * 1.4, s.y0 + kk * s.h + _plA.y * a * 0.5, s.z + _plA.z * a * 1.4); _dmS.setScalar(s.r * (0.5 + 0.7 * kk)); s.im.setMatrixAt(s.id, _dmM.compose(_dmP, _dmQ, _dmS)); }
           for (const im of damIMs) im.instanceMatrix.needsUpdate = true;
           const cowWantHut = cowHutWanted();
@@ -195,7 +196,10 @@
               c.thumb.rotation.y = -0.3 * c.sz + Math.sin(t * 4.0) * 0.1 * c.sz;
             }
           }
-          for (const l of lotuses) { l.g.position.y = l.base + Math.sin(t * 1.2 + l.ph) * 0.06; l.g.rotation.z = Math.sin(t * 0.8 + l.ph) * 0.03; }
+          for (const l of lotuses) {   // lá sen nổi đúng mặt nước mô phỏng: dâng/hạ theo sóng, nghiêng theo độ dốc mặt nước (gốc cắm đáy nên không trôi)
+            const p = l.g.position, y = waterSurfaceY(p.x, p.z), gx = waterSurfaceY(p.x + 0.4, p.z) - y, gz = waterSurfaceY(p.x, p.z + 0.4) - y;
+            p.y = y + 0.01 + Math.sin(t * 1.2 + l.ph) * 0.012; l.g.rotation.z = Math.max(-0.2, Math.min(0.2, -gx * 2.5)) + Math.sin(t * 0.8 + l.ph) * 0.015; l.g.rotation.x = Math.max(-0.2, Math.min(0.2, gz * 2.5));
+          }
           if (cherryCtl) updateLeafFall(cherryCtl, dt, t);           // cánh hoa anh đào rụng theo gió, rơi xuống sông thì nổi, trôi, có chiếc chìm
           if (oldTreeLeafCtl) updateLeafFall(oldTreeLeafCtl, dt, t);   // lá vàng cây cổ thụ
           waterFx.update(dt, t);                                     // gợn nước nhỏ (lá chạm nước, cá đớp) + bọt khí
@@ -248,16 +252,25 @@
             const fireScale = campfireLevel(liveWeather.localHour);   // 100% lúc 19:00 → 5% lúc 07:00, ban ngày 5%
             const steamAmt = Math.min(1, Math.max(0, (fireScale - 0.2) / 0.55));   // lửa lớn → ấm sôi phụt hơi qua còi; lửa ngày 5% → không có hơi
             const kGrp = kettleSteam.length ? kettleSteam[0].m.parent : null; if (kGrp) kGrp.localToWorld(_plS.set(0, 0, 0));
-            for (const p of kettleSteam) {   // tia hơi phụt khỏi còi, chậm dần, rồi bốc lên (nổi yếu, trần thấp) và bị gió tại độ cao vòi cuốn đi
+            if (campPlume) for (const p of kettleSteam) p.m.visible = false;   // hơi ấm reo nằm trong mô phỏng khói (nguồn thứ 2)
+            else for (const p of kettleSteam) {   // tia hơi phụt khỏi còi, chậm dần, rồi bốc lên (nổi yếu, trần thấp) và bị gió tại độ cao vòi cuốn đi
               const k = (t * 0.45 + p.ph) % 1, a = k / 0.45, jet = 0.16 * (1 - Math.exp(-a * 4));
               plumeOffset(_plS, a, KETTLE_PLUME, _plA); windInLocal(kGrp, _plA, _steamW);
               p.m.position.set(p.dir.x * jet + _steamW.x, 0.02 + _steamW.y, p.dir.z * jet + _steamW.z);
               p.m.scale.setScalar(0.5 + k * 2.8); p.m.material.opacity = steamAmt * 0.4 * Math.sin(k * Math.PI);
             }
             for (const fl of campObj.flames) { fl.m.scale.y = fireScale * Math.max(0.6, 0.92 + 0.24 * Math.sin(t * 7 + fl.ph) + 0.12 * Math.sin(t * 13 + fl.ph * 1.6)); fl.m.scale.x = fl.m.scale.z = fireScale * (0.82 + 0.2 * Math.sin(t * 7 + fl.ph * 1.3)); fl.m.material.opacity = 0.72 + 0.26 * Math.sin(t * 12 + fl.ph); }
-            // khói bếp lửa: luồng nổi Briggs (xem plumeOffset) — cụm khói nở theo độ cao bốc, loãng dần; trời ổn định thì dẹt ra như quạt
-            campObj.g.localToWorld(_plS.set(0, 0.9, 0));
-            for (const sm of campObj.smoke) {
+            if (campPlume) {   // khói + hơi = mô phỏng chất lỏng 2D: lửa cấp nhiệt & khói theo cỡ lửa, ấm reo phụt hơi theo hướng vòi
+              for (const sm of campObj.smoke) sm.m.visible = false;
+              const F = campPlume.sources[0], K = campPlume.sources[1];
+              campObj.g.localToWorld(campPlume.base.set(0, 0, 0)); campObj.g.localToWorld(F.p.set(0, 0.75, 0));
+              F.smoke = 2.2 + 10 * fireScale; F.heat = 1.0 + 2.4 * fireScale; F.vel.set(0, 0.4 + 0.8 * fireScale, 0);
+              if (kGrp) { kGrp.localToWorld(K.p.set(0, 0, 0)); K.vel.copy(kettleSteam[0].dir).applyQuaternion(kGrp.getWorldQuaternion(_plumeQ)).multiplyScalar(0.9); K.vel.y += 0.3; }
+              K.steam = 2.6 * steamAmt; K.heat = 0.5 * steamAmt;
+              plumeWind(campPlume, 1, 5); plumeLight(campPlume, PLUME_COL.smoke, PLUME_COL.steam, _plumeGlow.copy(PLUME_COL.glow).multiplyScalar(0.25 + 0.75 * fireScale));
+            } else campObj.g.localToWorld(_plS.set(0, 0.9, 0));
+            // khói bếp lửa kiểu cũ (dự phòng): luồng nổi Briggs (xem plumeOffset) — cụm khói nở theo độ cao bốc, loãng dần; trời ổn định thì dẹt ra như quạt
+            if (!campPlume) for (const sm of campObj.smoke) {
               const life = 6, a = ((t / life + sm.ph) % 1) * life, pr = a / life;
               const z = plumeOffset(_plS, a, CAMP_PLUME, _plA); windInLocal(campObj.g, _plA, _smokeW);
               sm.m.position.set(_smokeW.x, 0.9 + _smokeW.y, _smokeW.z);

@@ -353,6 +353,7 @@
             coordTip.style.top = (rc.top + (-_tailV.y * 0.5 + 0.5) * rc.height - 10) + 'px';
           }
           updateAnimalVisibility(); updateDrawBatches();
+          fluids.update(dt, t, rainK);   // gửi bước mô phỏng nước + khói cho luồng phụ (kèm các cú chạm nước trong khung này), nhận kết quả bước trước
           if (skyOn) updateSky(); renderer.render(scene, camera); mastLabel?.updateScreen(); updateZoomPct();
           if (!started) { started = true; const l = document.getElementById('loading'); if (l) l.style.display = 'none'; }
         }

@@ -15,6 +15,7 @@ nature/flowers-trees.js                # hoa, cây ăn quả, cây đệ quy
 nature/wind-physics.js                 # mô hình gió + shader cây, cỏ, rừng, hoa; khói
 nature/forest.js                       # rừng, cây táo, khúc gỗ, gốc cây, anh đào
 nature/water-leaves.js                 # mặt nước, dòng chảy, lá rơi trôi sông
+nature/fluids.js                       # CHẤT LỎNG ở luồng phụ: nước nông (sóng, dòng, bọt) + khói/hơi nước 2D (Navier–Stokes rút gọn)
 animals/fish.js                        # cá koi, cá đớp lá
 nature/clouds-rain.js                  # mây tích, mưa, sương góc
 animals/cows-hut.js                    # đàn bò + chuồng bò
