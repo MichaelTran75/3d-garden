@@ -16,13 +16,13 @@
         // ====== LỊCH SINH HOẠT CẢ NGÀY CỦA KỸ SƯ (theo giờ Pleiku thật) ======
         //  06:00 dậy, ngồi mép giường rồi đi vệ sinh · 06:12 ăn sáng ở bàn vuông trong xe (ngũ cốc, sữa, cà phê), ăn xong rửa bát · 06:40 ra trại:
         //  cột khí tượng, trà, dạo, uống nước, vuốt chó · 07:15–10:45 nghiên cứu ở bàn học · 10:45 vệ sinh · 10:55 nấu udon · 11:25 ăn udon ở bàn vuông,
-        //  rửa bát · 12:15 trà rồi ngủ trưa trên ghế · 13:00–16:00 nghiên cứu · 16:00 vệ sinh · 16:10 ra trại · 16:45 chiên cơm trứng · 17:15 bưng chảo
+        //  rửa bát · 12:15 trà rồi ngủ trưa trên ghế · 13:00–16:00 nghiên cứu · 16:00 vệ sinh · 16:10 ra cây táo hái 4 quả bằng sào (engineer/apple-pick.js) · 16:35 dạo trại · 16:45 chiên cơm trứng · 17:15 bưng chảo
         //  ra hiên ăn tối · 18:00 mang chảo vào rửa, tắm · 18:20 câu cá · 19:30 đọc sách, ăn khoai tây chiên
         //  20:30 học bài, laptop mở nhạc · 20:57 ngồi mép giường tháo mũ · 21:00 ngủ.
         //  Mưa: việc ngoài trời trống (dạo trại, câu cá) đổi sang ngồi dưới hiên; ăn, nghỉ, đọc sách vốn đã dưới hiên nên giữ nguyên.
         //  Việc có điểm dừng (vệ sinh, tắm, nấu, ăn trong xe): xong sớm thì sang luôn việc kế tiếp; hết giờ mà chưa xong thì làm nốt rồi mới đi.
         const ENG_DAY = [[0, 'sleep'], [6, 'toilet'], [6.2, 'breakfast'], [6 + 40 / 60, 'outdoor'], [7.25, 'research'], [10.75, 'toilet'], [10 + 55 / 60, 'cook'], [11 + 25 / 60, 'lunch'],
-          [12.25, 'rest'], [13, 'research'], [16, 'toilet'], [16 + 10 / 60, 'outdoor'], [16.75, 'cook'], [17.25, 'dinner'], [18, 'shower'], [18 + 20 / 60, 'fish'],
+          [12.25, 'rest'], [13, 'research'], [16, 'toilet'], [16 + 10 / 60, 'apples'], [16 + 35 / 60, 'outdoor'], [16.75, 'cook'], [17.25, 'dinner'], [18, 'shower'], [18 + 20 / 60, 'fish'],
           [19.5, 'read'], [20.5, 'music'], [20.95, 'bedtime'], [21, 'sleep']];
         const ENG_ACTS = {
           sleep: { van: 1, label: 'Ngủ' }, toilet: { van: 1, once: 1, label: 'Vệ sinh', plan: ['wc', 'sink'] },
@@ -30,7 +30,7 @@
           cook: { van: 1, once: 1, label: 'Nấu ăn', plan: ['stove'] }, lunch: { van: 1, once: 1, label: 'Ăn trưa', plan: ['table', 'dishes'] },
           shower: { van: 1, once: 1, label: 'Tắm', plan: ['shelfOff', 'shower', 'towel', 'shelfOn'] },
           music: { van: 1, label: 'Học bài, nghe nhạc', plan: ['desk'] }, bedtime: { van: 1, label: 'Chuẩn bị ngủ', plan: ['bed'] },
-          outdoor: { label: 'Dạo quanh trại' }, rest: { label: 'Nghỉ trưa' }, dinner: { label: 'Ăn tối' },
+          outdoor: { label: 'Dạo quanh trại' }, apples: { once: 1, label: 'Hái táo' }, rest: { label: 'Nghỉ trưa' }, dinner: { label: 'Ăn tối' },
           fish: { label: 'Câu cá' }, read: { label: 'Đọc sách' }, shelter: { label: 'Trú mưa dưới hiên' }
         };
         function engScheduleAt(h) {
@@ -45,10 +45,10 @@
             if (e.doneAct === key) { act = s.next; left = (s.nextEnd - hh) * 3600; }
             else if (e.onceKey !== key) { e.onceKey = key; e.onceEnd = s.end; }
           } else if (e.act && ENG_ACTS[e.act].once && e.onceKey && e.doneAct !== e.onceKey && e.onceKey.startsWith(e.act + '@') && hh < e.onceEnd + 0.2 && hh > e.onceEnd - 1) { act = e.act; left = 0; }
-          if ((act === 'outdoor' || act === 'fish') && liveWeather.state.fresh && liveWeather.state.raining) act = 'shelter';
+          if ((act === 'outdoor' || act === 'fish' || act === 'apples') && liveWeather.state.fresh && liveWeather.state.raining) act = 'shelter';
           e.actLeft = Math.max(0, left); return act;
         }
-        const engPhaseFor = act => ENG_ACTS[act].van ? 'van' : act === 'fish' ? 'toFish' : act === 'outdoor' ? 'toMast' : act === 'shelter' ? 'toShelter' : 'toChair';
+        const engPhaseFor = act => ENG_ACTS[act].van ? 'van' : act === 'fish' ? 'toFish' : act === 'apples' ? 'apple' : act === 'outdoor' ? 'toMast' : act === 'shelter' ? 'toShelter' : 'toChair';
         function engChairPhase(e, act) {   // đã ngồi ghế cắm trại: làm gì, bao lâu
           if (act === 'lunch' || act === 'dinner') { e.timer = Math.max(60, Math.min(1200, e.actLeft - 900)); return 'eat'; }
           if (act === 'rest') { e.timer = Math.max(30, Math.min(720, e.actLeft - 1200)); return 'tea'; }

@@ -8,6 +8,7 @@
           for (const sx of [-1, 1]) { const pad = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.05, 14), padM); pad.rotation.z = Math.PI / 2; pad.position.set(sx * 0.215, 0.0, 0); h.add(pad); }
           return h;
         }
+        const ENG_ARM_L1 = 0.28, ENG_ARM_L2 = 0.40;   // cánh tay trên · cẳng tay tới tâm bàn tay (đv cục bộ kỹ sư)
         function engineer() {
           const g = new THREE.Group();
           const P = (par, w, h, d, mat, x, y, z, o) => { const m = bx(w, h, d, mat, true, o !== false, lineDark); m.position.set(x, y, z); par.add(m); return m; };
@@ -61,20 +62,27 @@
           const hairM = plastic(0x4a3423, { side: THREE.DoubleSide }), hair = new THREE.Group(); hair.name = 'Tóc'; hair.visible = false; headG.add(hair);   // tóc rời kiểu LEGO, chỉ thấy khi bỏ mũ
           const hairTop = new THREE.Mesh(new THREE.SphereGeometry(0.232, 18, 10, 0, Math.PI * 2, 0, 1.38), hairM); hairTop.position.y = 0.04; hair.add(hairTop);   // trùm kín núm đầu
           const hairBack = new THREE.Mesh(new THREE.CylinderGeometry(0.226, 0.226, 0.2, 18, 1, true, Math.PI / 2, Math.PI), hairM); hairBack.position.y = -0.01; hair.add(hairBack);
-          // ---- TAY: tròn thuôn, dải phản quang ở cổ tay, bàn tay chữ C (tâm ở y −0,66 như găng cũ) ----
+          // ---- TAY 3 KHỚP (G 13/10: "có khuỷu tay"): VAI (cầu) → cánh tay trên 0,28 → KHUỶU (cầu) → cẳng tay 0,40 tới tâm bàn tay → CỔ TAY.
+          //      Tỉ lệ người thật: cánh tay trên ≈ 0,186·H, cẳng tay ≈ 0,146·H, nửa bàn tay ≈ 0,054·H (bảng nhân trắc Drillis–Contini / Winter) ⇒ trên : dưới ≈ 0,28 : 0,40.
+          //      Tổng 0,68 > tầm với cũ 0,66 ⇒ tay buông vẫn hơi gập (~28°) như người thả lỏng. Mọi pha vẫn ghi "góc vai" của tay thẳng như trước;
+          //      engArmPost (lớp tư thế) giải IK để bàn tay tới đúng chỗ đó, khuỷu luôn gập về trước, cổ tay bù để đồ cầm tay giữ hướng ----
           const handGeo = new THREE.TorusGeometry(0.068, 0.034, 8, 16, 1.62 * Math.PI); handGeo.rotateZ(-2.2); handGeo.rotateY(Math.PI / 2);   // miệng chữ C quay ra trước, hơi chúc
-          const arms = [];
+          const arms = [], elbows = [], wrists = [], armCore = [];
           for (const s of [-1, 1]) {
             const piv = new THREE.Group(); piv.position.set(s * 0.34, 1.86, 0); g.add(piv);
             const shoulder = new THREE.Mesh(new THREE.SphereGeometry(0.085, 12, 8), vestM); shoulder.position.y = -0.04; piv.add(shoulder);
-            const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.078, 0.066, 0.5, 12), vestM); arm.position.y = -0.29; arm.castShadow = true; piv.add(arm);
-            const cuff = new THREE.Mesh(new THREE.CylinderGeometry(0.071, 0.069, 0.04, 12), plastic(0xd8dcdf)); cuff.position.y = -0.47; piv.add(cuff);
-            const wrist = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.07, 10), legoYellow); wrist.position.y = -0.57; piv.add(wrist);
-            const hand = new THREE.Mesh(handGeo, legoYellow); hand.position.y = -0.66; hand.castShadow = true; piv.add(hand);
-            arms.push(piv);
+            const upper = new THREE.Mesh(new THREE.CylinderGeometry(0.078, 0.073, 0.26, 12), vestM); upper.position.y = -0.15; upper.castShadow = true; piv.add(upper);
+            const elbow = new THREE.Group(); elbow.position.y = -ENG_ARM_L1; piv.add(elbow);   // KHỚP KHUỶU — gập quanh trục ngang (chỉ gập về trước)
+            const eJoint = new THREE.Mesh(new THREE.SphereGeometry(0.074, 12, 8), vestM); elbow.add(eJoint);
+            const fore = new THREE.Mesh(new THREE.CylinderGeometry(0.073, 0.066, 0.28, 12), vestM); fore.position.y = -0.14; fore.castShadow = true; elbow.add(fore);
+            const cuff = new THREE.Mesh(new THREE.CylinderGeometry(0.071, 0.069, 0.04, 12), plastic(0xd8dcdf)); cuff.position.y = -0.21; elbow.add(cuff);   // dải phản quang cổ tay áo
+            const wrist = new THREE.Group(); wrist.position.y = -ENG_ARM_L2; elbow.add(wrist);   // KHỚP CỔ TAY (gốc = tâm bàn tay) — mọi đồ cầm tay gắn ở đây
+            const wCyl = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.07, 10), legoYellow); wCyl.position.y = 0.09; wrist.add(wCyl);
+            const hand = new THREE.Mesh(handGeo, legoYellow); hand.castShadow = true; wrist.add(hand);
+            arms.push(piv); elbows.push(elbow); wrists.push(wrist); armCore.push(new Set([shoulder, upper, elbow]));
           }
           const clip = bx(0.28, 0.36, 0.04, engPad, true, true, lineDark); clip.position.set(0, -0.58, 0.16); arms[1].add(clip);
-          P(arms[1], 0.2, 0.05, 0.05, metalMat, 0, -0.44, 0.18, false);  // kẹp clipboard
+          P(clip, 0.2, 0.05, 0.05, metalMat, 0, 0.14, 0.02, false);  // kẹp clipboard (con của bảng ⇒ ẩn cùng bảng, trước đây treo lơ lửng khi cất bảng)
           // ---- CHÂN khối liền (rộng 0,26 · dày 0,27, khe giữa 2 chân 4 cm), gối gập được để ngồi ghế; bàn chân nhô ra trước ----
           const legs = [], knees = [], ankles = [];
           const thighGeo = new THREE.BoxGeometry(0.26, 0.44, 0.27), shinGeo = new THREE.BoxGeometry(0.26, 0.34, 0.27), footGeo = new THREE.BoxGeometry(0.26, 0.13, 0.36);
@@ -133,5 +141,10 @@
           const spBlade = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.008, 0.09), kitchenSteel); spBlade.position.set(0, -0.02, 0.26); spBlade.rotation.x = 0.35; spatula.add(spBlade);
           const handBowl = udonBowl(); handBowl.scale.setScalar(1 / ENGINEER_BASE_SCALE); handBowl.position.set(0, -0.74, 0.09); handBowl.rotation.x = 0.9; handBowl.visible = false; arms[1].add(handBowl);
           const handPan = fryPan(); handPan.scale.setScalar(1 / ENGINEER_BASE_SCALE); handPan.position.set(0, -0.8, 0.11); handPan.rotation.set(0.9, Math.PI / 2, 0); handPan.visible = false; arms[1].add(handPan);
-          g.userData = { legs, knees, ankles, arms, head: headG, helmet, hair, towel, rodGrp, rodTilt, rodTip, rod, clip, props: { spoon, bottle, cup, book, bookLeaf, chip, chopsticks, knife, spatula, handBowl, handPan } }; g.scale.setScalar(ENGINEER_BASE_SCALE * CAMP_SCALE); return g;
+          // đồ cầm tay ở trên đã đặt theo khung VAI kiểu tay thẳng cũ (tâm bàn tay y −0,66) → chuyển sang khung CỔ TAY (gốc = tâm bàn tay)
+          for (let i = 0; i < 2; i++) for (const c of [...arms[i].children]) if (!armCore[i].has(c)) { arms[i].remove(c); c.position.y += 0.66; wrists[i].add(c); }
+          // ---- EO (khớp thắt lưng, y 1,255): thân + đầu + 2 tay + khăn — vặn ngược nhịp hông khi đi, cúi / ngửa người khi với hái táo, nhặt đồ ----
+          const spine = new THREE.Group(); spine.position.y = 1.255; spine.name = 'Eo'; g.add(spine);
+          for (const o of [torso, neck, headG, towel, ...arms]) { g.remove(o); o.position.y -= 1.255; spine.add(o); }
+          g.userData = { elbows, wrists, spine, legs, knees, ankles, arms, head: headG, helmet, hair, towel, rodGrp, rodTilt, rodTip, rod, clip, props: { spoon, bottle, cup, book, bookLeaf, chip, chopsticks, knife, spatula, handBowl, handPan } }; g.scale.setScalar(ENGINEER_BASE_SCALE * CAMP_SCALE); return g;
         }

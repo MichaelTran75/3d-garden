@@ -84,6 +84,7 @@
           const stemGeom = new THREE.CylinderGeometry(0.005 * s, 0.008 * s, 0.09 * s, 4);
           const stemMat = new THREE.MeshLambertMaterial({ color: 0x5a3e29, flatShading: true });
 
+          const fruit = new THREE.Group(), apples = []; fruit.name = 'Quả táo';   // quả RIÊNG (không gộp tĩnh) ⇒ kỹ sư hái được từng quả
           for (let i = 0; i < tips.length; i += 3) {
             const tp = tips[i], apple = new THREE.Group();
             const rVal = rnd();
@@ -108,9 +109,11 @@
 
             apple.position.set(tp.x + (rnd() - 0.5) * 0.4 * s, tp.y - 0.28 * s, tp.z + (rnd() - 0.5) * 0.4 * s);
             apple.rotation.y = rnd() * 6.28;
-            g.add(apple);
+            fruit.add(apple); apples.push({ g: apple, home: apple.position.clone(), rot: apple.rotation.y, on: true, sw: 0, sv: 0, swy: 0, svy: 0 });
           }
-          return bakeStatic(g);   // gộp toàn bộ cành + táo theo vật liệu → vài draw call/cây
+          const out = bakeStatic(g);   // gộp toàn bộ cành theo vật liệu → vài draw call/cây
+          out.add(fruit); out.userData.apples = apples; out.userData.appleR = 0.12 * s;   // quả gắn SAU khi gộp: lô vẽ chung (draw-batch) vẫn gom chung 1 lượt vẽ
+          return out;
         }
 
         const ft1 = fruitTree(1.25, 1337), ft2 = fruitTree(1.35, 2024);
@@ -118,6 +121,8 @@
         ft1.position.copy(worldCell(21.5, 31.5)); ft1.rotation.y = -1.852; scene.add(ft1);
         ft2.position.copy(worldCell(24.5, 34.5)); ft2.rotation.y = -0.794; scene.add(ft2);
         flightRoots.push(ft1, ft2);
+        const appleTrees = [ft1, ft2];   // kỹ sư hái táo (engineer/apple-pick.js)
+        for (const T of appleTrees) obstacleCoords.push({ x: T.position.x, y: T.position.y, z: T.position.z, r: 0.35, h: 3 });   // thân cây: người & chó đi vòng
 
         // ---- Khúc gỗ chết (Dead Log) + Gốc cây bị cưa (Sawed Stump) ----
         (function environmentalDetails() {

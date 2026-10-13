@@ -11,6 +11,13 @@
           [14, 'afternoon', 'Buổi chiều', '🌥'], [17, 'dusk', 'Chiều tà', '🌇'], [19, 'evening', 'Buổi tối', '🌙'], [22, 'night', 'Đêm khuya', '🌙']
         ];
         const ENG_THOUGHT_LINES = [
+          // ---- hái táo bằng sào (16:10) ----
+          'apple|||Đưa rổ từ dưới lên, vặn nhẹ là cuống gãy, khỏi giật cả chồi.',
+          'apple|||Quả thấp nhất chín đỏ rồi, hái trước.',
+          'apple|||Đặt nhẹ vào giỏ thôi, táo dập là thâm ngay.',
+          'apple||wind||Gió lay cành, rổ cứ chệch khỏi quả.',
+          'apple||!rain||Bốn quả là đủ cho tối nay với sáng mai.',
+          'apple|15-17.5|clear,partly||Nắng chiều chiếu xuyên tán, quả nào chín nhìn rõ hẳn.',
           // ---- câu cá: theo giờ, nắng, gió ----
           'fish|6-7.5|||Sáng sớm, giờ này cá ăn mồi mạnh nhất.',
           'fish|6-8.5|humid,fog||Sương còn phủ mặt hồ, phao đỏ lúc ẩn lúc hiện.',
@@ -390,6 +397,7 @@
           else if (e.phase === 'fish') { act = 'fish'; label = 'Đang câu cá'; }
           else if (e.phase === 'tea' || e.phase === 'toChair') { act = 'tea'; label = e.act === 'rest' ? 'Nghỉ trưa' : ctx.slot === 'dusk' || ctx.slot === 'evening' ? 'Bên bếp lửa' : 'Giờ uống trà'; }
           else if (e.phase === 'wander') { act = 'wander'; label = 'Dạo quanh trại'; }
+          else if (e.phase === 'apple') { act = 'apple'; label = 'Hái táo'; }
           else { act = 'walk'; label = 'Đang đi'; }
           if (act === 'fish' && !ctx.event && !['wait', 'approach', 'settle', 'rig', 'done'].includes(angling.stage)) { idleThoughtAt = now + 4000; return; }   // đang giật/dìu/thả/thay mồi: tập trung, chưa nghĩ vẩn vơ
           if (act !== 'fish') ctx.event = null;

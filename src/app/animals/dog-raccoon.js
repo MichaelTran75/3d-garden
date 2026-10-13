@@ -1,24 +1,39 @@
-        // ---- chú chó nhỏ sưởi ấm bên bếp lửa ----
+        // ---- CHÓ (G 13/10: "research and improve dog behaviour and movement") — mô hình khớp thật (toạ độ cục bộ: +x mũi, +y lên, ±z hai bên):
+        //      thân = khung ngực + hông trên khớp THÂN (cao, chúc/ngóc quanh trục ngang) · CỔ (ngẩng/cúi, quay) → đầu, mõm, mũi, mắt, 2 TAI cụp (lò xo) ·
+        //      4 chân 2 đoạn (vai/hông → khuỷu/gối → bàn chân): chân trước khớp gập chĩa RA SAU (khuỷu), chân sau chĩa RA TRƯỚC (gối) như chó thật;
+        //      bàn chân giữ phẳng. Toàn bộ dáng (đứng · ngồi · nằm sấp · cúi chào vươn vai · đánh hơi) do animals/dog-brain.js đặt bằng IK bàn chân ----
         function dogModel(s) {
           const g = new THREE.Group();
-          const dogFur = new THREE.MeshLambertMaterial({ color: 0xc19a6b });
-          const dogDark = new THREE.MeshLambertMaterial({ color: 0x4a3621 });
-          const dogNose = new THREE.MeshLambertMaterial({ color: 0x111111 });
-          const body = bx(0.55 * s, 0.24 * s, 0.32 * s, dogFur, true, true, lineDark); body.position.y = 0.12 * s; g.add(body);
-          const head = bx(0.24 * s, 0.24 * s, 0.24 * s, dogFur, true, true, lineDark); head.position.set(0.22 * s, 0.26 * s, 0); g.add(head);
-          const snout = bx(0.14 * s, 0.12 * s, 0.14 * s, dogFur, true, true, lineDark); snout.position.set(0.36 * s, 0.22 * s, 0); g.add(snout);
-          const nose = bx(0.04 * s, 0.04 * s, 0.05 * s, dogNose, false, false); nose.position.set(0.44 * s, 0.23 * s, 0); g.add(nose);
-          for (const sz of [-1, 1]) { const ear = bx(0.06 * s, 0.16 * s, 0.08 * s, dogDark, true, false); ear.position.set(0.18 * s, 0.24 * s, sz * 0.14 * s); g.add(ear); }
-          const frontPaws = [];
-          for (const sz of [-1, 1]) { const paw = bx(0.18 * s, 0.08 * s, 0.1 * s, dogFur, true, false); paw.position.set(0.28 * s, 0.04 * s, sz * 0.11 * s); g.add(paw); frontPaws.push(paw); }
-          const rearPaws = [];
-          for (const sz of [-1, 1]) { const paw = bx(0.18 * s, 0.12 * s, 0.1 * s, dogFur, true, false); paw.position.set(-0.2 * s, 0.06 * s, sz * 0.14 * s); g.add(paw); rearPaws.push(paw); }
-          const tail = bx(0.18 * s, 0.06 * s, 0.06 * s, dogDark, true, false); tail.position.set(-0.3 * s, 0.08 * s, 0); tail.rotation.z = -0.2; g.add(tail);
-          g.userData = { frontPaws, rearPaws, tail, body, head };
+          const fur = new THREE.MeshLambertMaterial({ color: 0xc19a6b }), furL = new THREE.MeshLambertMaterial({ color: 0xe0c49a }), dark = new THREE.MeshLambertMaterial({ color: 0x4a3621 }), black = new THREE.MeshLambertMaterial({ color: 0x111111 });
+          const torso = new THREE.Group(); torso.position.y = 0.32 * s; g.add(torso);
+          const chest = bx(0.27 * s, 0.22 * s, 0.25 * s, fur, true, true, lineDark); chest.position.x = 0.1 * s; torso.add(chest);
+          const rear = bx(0.29 * s, 0.2 * s, 0.23 * s, fur, true, true, lineDark); rear.position.set(-0.14 * s, 0.005 * s, 0); torso.add(rear);
+          const belly = bx(0.4 * s, 0.04 * s, 0.18 * s, furL, false, false); belly.position.set(-0.01 * s, -0.1 * s, 0); torso.add(belly);
+          const neck = new THREE.Group(); neck.position.set(0.21 * s, 0.07 * s, 0); torso.add(neck);
+          const neckM = bx(0.12 * s, 0.15 * s, 0.13 * s, fur, true, false); neckM.position.set(0.03 * s, 0.05 * s, 0); neckM.rotation.z = -0.35; neck.add(neckM);
+          const head = new THREE.Group(); head.position.set(0.08 * s, 0.13 * s, 0); neck.add(head);
+          const skull = bx(0.2 * s, 0.19 * s, 0.2 * s, fur, true, true, lineDark); head.add(skull);
+          const snout = bx(0.13 * s, 0.1 * s, 0.12 * s, furL, true, true, lineDark); snout.position.set(0.15 * s, -0.04 * s, 0); head.add(snout);
+          const nose = bx(0.04 * s, 0.04 * s, 0.05 * s, black, false, false); nose.position.set(0.22 * s, -0.02 * s, 0); head.add(nose);
+          for (const sz of [-1, 1]) { const eye = bx(0.015 * s, 0.03 * s, 0.03 * s, black, false, false); eye.position.set(0.1 * s, 0.03 * s, sz * 0.055 * s); head.add(eye); }
+          const ears = [];
+          for (const sz of [-1, 1]) { const ep = new THREE.Group(); ep.position.set(-0.02 * s, 0.09 * s, sz * 0.1 * s); head.add(ep); const ear = bx(0.07 * s, 0.14 * s, 0.035 * s, dark, true, false); ear.position.y = -0.06 * s; ep.add(ear); ears.push(ep); }
+          const legs = [];   // thứ tự: trước-trái, trước-phải, sau-trái, sau-phải (trái = +z)
+          for (const [fx, sz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+            const hip = new THREE.Group(); hip.position.set(fx > 0 ? 0.17 * s : -0.2 * s, -0.08 * s, sz * 0.09 * s); torso.add(hip);
+            const up = bx(0.075 * s, 0.13 * s, 0.075 * s, fur, true, false); up.position.y = -0.06 * s; hip.add(up);
+            const knee = new THREE.Group(); knee.position.y = -0.12 * s; hip.add(knee);
+            const lo = bx(0.06 * s, 0.11 * s, 0.06 * s, fur, true, false); lo.position.y = -0.05 * s; knee.add(lo);
+            const pawG = new THREE.Group(); pawG.position.y = -0.105 * s; knee.add(pawG);
+            const paw = bx(0.09 * s, 0.035 * s, 0.07 * s, furL, true, false); paw.position.x = 0.015 * s; pawG.add(paw);
+            legs.push({ hip, knee, paw: pawG, front: fx > 0, side: sz });
+          }
+          const tail = bx(0.18 * s, 0.06 * s, 0.06 * s, dark, true, false); tail.position.set(-0.3 * s, 0.08 * s, 0); tail.visible = false; torso.add(tail);   // giữ "lệnh vẫy" (rotation.y) cho đuôi mềm đọc
+          g.userData = { torso, neck, head, ears, legs, tail, body: chest, s, L1: 0.12 * s, L2: 0.1225 * s, H0: 0.32 * s };
           return g;
         }
-        const dogObj = dogModel(1.1); dogObj.scale.multiplyScalar(CAMP_SCALE * 1.1);   // to thêm 10% dogObj.name = 'Chó (Dog)';
-        const dogP = worldCell(FIRE_CELL[0], FIRE_CELL[1]).add(new THREE.Vector3(0.9, 0.04 * CAMP_SCALE, 0.3));
+        const dogObj = dogModel(1.1); dogObj.scale.multiplyScalar(CAMP_SCALE * 1.1); dogObj.name = 'Chó (Dog)';
+        const dogP = worldCell(FIRE_CELL[0], FIRE_CELL[1]).add(new THREE.Vector3(0.9, 0, 0.3));
         dogObj.position.copy(dogP); dogObj.rotation.y = Math.atan2(-0.3, -0.9); scene.add(dogObj);
         // ---- ĐUÔI MỀM = chuỗi hạt XPBD (vật lý dựa trên vị trí, tích phân Verlet): hạt gốc gắn thân; ràng buộc ĐỘ DÀI đoạn (cứng) và lực kéo mềm
         //      về DÁNG NGHỈ (mềm dần từ gốc ra ngọn) ⇒ đuôi có quán tính thật: chạy thì bị kéo về sau, dừng/quay thì vung theo, vẫy thành sóng
@@ -62,69 +77,44 @@
             m.position.copy(_stA).add(_stB).multiplyScalar(0.5); _stD.copy(_stB).sub(_stA).normalize(); m.quaternion.setFromUnitVectors(_stX, _stD);
           }
         }
-        const dogTail = makeSoftTail(dogObj, { base: new THREE.Vector3(-0.26 * 1.1, 0.17 * 1.1, 0), dir: new THREE.Vector3(-Math.cos(0.5), Math.sin(0.5), 0), n: 4, len: 0.055 * 1.1, w: 0.06 * 1.1, mat: dogObj.userData.tail.material, stiff: [0.22, 0.07] });
-        dogObj.userData.tail.visible = false;   // đuôi cứng cũ chỉ còn giữ "lệnh vẫy" (rotation.y) cho đuôi mềm đọc
-        let dogGaitPh = 0; const _dogPrev = new THREE.Vector3().copy(dogObj.position);   // nhịp chân chó theo QUÃNG ĐƯỜNG (1 chu kỳ = 0,36 đv) → chân không trượt
+        const dogTail = makeSoftTail(dogObj.userData.torso, { base: new THREE.Vector3(-0.28 * 1.1, 0.07 * 1.1, 0), dir: new THREE.Vector3(-Math.cos(0.5), Math.sin(0.5), 0), n: 4, len: 0.055 * 1.1, w: 0.06 * 1.1, mat: dogObj.userData.tail.material, stiff: [0.22, 0.07] });
 
         // ---- Chú gấu mèo Raccoon voxel chạy lung tung rồi chui vào khúc gỗ ----
+        // ---- GẤU MÈO (Procyon lotor) — hình thái: chân sau dài hơn chân trước ⇒ mông cao, lưng gù; đi bằng cả bàn chân (bàn chân sau dài, đen);
+        //      tay trước 5 ngón rất khéo; mặt nạ đen quanh mắt + lông mày trắng, mõm trắng, tai viền trắng; đuôi rậm 5–7 khoanh đen–xám buông THẤP
+        //      (không cong vểnh). Khớp như chó (thân · cổ · 4 chân 2 đoạn) để dùng chung bộ chân IK; mắt phản quang ban đêm (lớp tapetum lucidum) ----
         function createRaccoon(s) {
           const rc = new THREE.Group();
-          const furGrey = new THREE.MeshLambertMaterial({ color: 0x8f939a, flatShading: true });
-          const furDark = new THREE.MeshLambertMaterial({ color: 0x2d2f33, flatShading: true });
-          const furWhite = new THREE.MeshLambertMaterial({ color: 0xE2D6C0, flatShading: true });
-
-          // Thân (Body)
-          const body = bx(0.46 * s, 0.2 * s, 0.26 * s, furGrey, true, true, lineDark);
-          body.position.set(0, 0.1 * s, 0); rc.add(body);
-
-          // Đầu (Head)
-          const headGroup = new THREE.Group();
-          headGroup.position.set(0.22 * s, 0.16 * s, 0);
-          const head = bx(0.18 * s, 0.16 * s, 0.2 * s, furGrey, true, true, lineDark); headGroup.add(head);
-
-          // Mặt nạ đen quanh mắt (Mask)
-          const maskL = bx(0.02 * s, 0.08 * s, 0.07 * s, furDark, false, false); maskL.position.set(0.091 * s, -0.01 * s, 0.05 * s);
-          const maskR = bx(0.02 * s, 0.08 * s, 0.07 * s, furDark, false, false); maskR.position.set(0.091 * s, -0.01 * s, -0.05 * s);
-          headGroup.add(maskL, maskR);
-
-          // Mõm (Muzzle) & Mũi (Nose)
-          const muzzle = bx(0.07 * s, 0.07 * s, 0.09 * s, furWhite, true, false); muzzle.position.set(0.11 * s, -0.03 * s, 0);
-          const nose = bx(0.035 * s, 0.035 * s, 0.035 * s, furDark, false, false); nose.position.set(0.135 * s, -0.01 * s, 0);
-          headGroup.add(muzzle, nose);
-
-          // Tai viền trắng (Ears)
-          for (const sz of [-1, 1]) {
-            const ear = bx(0.03 * s, 0.07 * s, 0.05 * s, furWhite, true, false);
-            ear.position.set(-0.03 * s, 0.1 * s, sz * 0.08 * s); ear.rotation.y = sz * 0.15;
-            headGroup.add(ear);
+          const grey = new THREE.MeshLambertMaterial({ color: 0x8f939a, flatShading: true }), greyD = new THREE.MeshLambertMaterial({ color: 0x6c7077, flatShading: true });
+          const dark = new THREE.MeshLambertMaterial({ color: 0x2d2f33, flatShading: true }), white = new THREE.MeshLambertMaterial({ color: 0xe2d6c0, flatShading: true });
+          const torso = new THREE.Group(); torso.position.y = 0.2 * s; rc.add(torso);
+          const chest = bx(0.2 * s, 0.17 * s, 0.21 * s, grey, true, true, lineDark); chest.position.set(0.09 * s, -0.005 * s, 0); torso.add(chest);
+          const rump = bx(0.25 * s, 0.21 * s, 0.26 * s, grey, true, true, lineDark); rump.position.set(-0.1 * s, 0.025 * s, 0); torso.add(rump);
+          const saddle = bx(0.3 * s, 0.03 * s, 0.16 * s, greyD, false, false); saddle.position.set(-0.04 * s, 0.13 * s, 0); torso.add(saddle);
+          const neck = new THREE.Group(); neck.position.set(0.18 * s, 0.03 * s, 0); torso.add(neck);
+          const head = new THREE.Group(); head.position.set(0.07 * s, 0.05 * s, 0); neck.add(head);
+          head.add(bx(0.15 * s, 0.14 * s, 0.18 * s, grey, true, true, lineDark));
+          const mask = bx(0.02 * s, 0.05 * s, 0.185 * s, dark, false, false); mask.position.set(0.07 * s, 0.005 * s, 0); head.add(mask);          // dải mặt nạ đen ngang mắt
+          const brow = bx(0.02 * s, 0.022 * s, 0.15 * s, white, false, false); brow.position.set(0.072 * s, 0.045 * s, 0); head.add(brow);     // lông mày trắng
+          const muzzle = bx(0.08 * s, 0.065 * s, 0.085 * s, white, true, false); muzzle.position.set(0.105 * s, -0.035 * s, 0); head.add(muzzle);
+          const nose = bx(0.03 * s, 0.03 * s, 0.035 * s, dark, false, false); nose.position.set(0.15 * s, -0.022 * s, 0); head.add(nose);
+          const eyeM = new THREE.MeshBasicMaterial({ color: 0xd9f2a2 }), eyes = [];   // mắt phản quang (chỉ hiện khi trời tối)
+          for (const sz of [-1, 1]) { const e = new THREE.Mesh(new THREE.SphereGeometry(0.013 * s, 6, 4), eyeM); e.position.set(0.083 * s, 0.008 * s, sz * 0.045 * s); e.visible = false; head.add(e); eyes.push(e); }
+          const ears = [];
+          for (const sz of [-1, 1]) { const ep = new THREE.Group(); ep.position.set(-0.03 * s, 0.07 * s, sz * 0.065 * s); head.add(ep); const ear = bx(0.03 * s, 0.065 * s, 0.05 * s, grey, true, false); ear.position.y = 0.03 * s; ep.add(ear); const rim = bx(0.012 * s, 0.05 * s, 0.04 * s, white, false, false); rim.position.set(0.016 * s, 0.032 * s, 0); ep.add(rim); ep.rotation.x = -sz * 0.18; ears.push(ep); }
+          const legs = [];   // trước-T, trước-P, sau-T, sau-P (trái = +z) · chân trước ngắn (0,08 + 0,075), chân sau dài (0,1 + 0,1)
+          for (const [fx, sz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+            const fr = fx > 0, l1 = (fr ? 0.08 : 0.1) * s, l2 = (fr ? 0.075 : 0.1) * s;
+            const hip = new THREE.Group(); hip.position.set(fr ? 0.12 * s : -0.15 * s, fr ? -0.06 * s : -0.04 * s, sz * (fr ? 0.075 : 0.085) * s); torso.add(hip);
+            const up = bx((fr ? 0.06 : 0.075) * s, l1 * 1.1, (fr ? 0.06 : 0.075) * s, grey, true, false); up.position.y = -l1 / 2; hip.add(up);
+            const knee = new THREE.Group(); knee.position.y = -l1; hip.add(knee);
+            const lo = bx(0.05 * s, l2 * 0.85, 0.05 * s, greyD, true, false); lo.position.y = -l2 * 0.42; knee.add(lo);
+            const pawG = new THREE.Group(); pawG.position.y = -l2 + 0.012 * s; knee.add(pawG);
+            const paw = bx((fr ? 0.06 : 0.1) * s, 0.024 * s, 0.055 * s, dark, false, false); paw.position.x = (fr ? 0.012 : 0.028) * s; pawG.add(paw);   // bàn chân đen, chân sau dài (đi cả bàn)
+            legs.push({ hip, knee, paw: pawG, front: fr, side: sz, L1: l1, L2: l2 });
           }
-          rc.add(headGroup);
-
-          // Bốn chân thon đen (Legs & Paws)
-          const legs = [];
-          for (const sx of [-0.14, 0.14]) {
-            for (const sz of [-0.09, 0.09]) {
-              const leg = bx(0.07 * s, 0.12 * s, 0.07 * s, furGrey, true, false);
-              leg.position.set(sx * s, -0.03 * s, sz * s);
-              const foot = bx(0.08 * s, 0.03 * s, 0.08 * s, furDark, false, false);
-              foot.position.y = -0.07 * s; leg.add(foot);
-              rc.add(leg);
-              legs.push(leg);
-            }
-          }
-
-          // Đuôi sọc xám đen cong lên siêu đặc trưng (Striped Tail)
-          const tail = new THREE.Group();
-          tail.position.set(-0.22 * s, 0.14 * s, 0); tail.rotation.z = 0.65;
-          const segLen = 0.1 * s;
-          for (let i = 0; i < 5; i++) {
-            const segMat = (i % 2 === 0) ? furDark : furGrey;
-            const seg = bx(segLen, 0.11 * s, 0.11 * s, segMat, true, false);
-            seg.position.set(-i * segLen, 0, 0); tail.add(seg);
-          }
-          rc.add(tail);
-
-          rc.userData = { legs, tail, headGroup };
+          const tailHost = new THREE.Group(); tailHost.position.set(-0.22 * s, 0.03 * s, 0); torso.add(tailHost);
+          rc.userData = { torso, neck, head, headGroup: head, ears, eyes, legs, tailHost, ringA: dark, ringB: grey, s, H0: 0.2 * s };
           return rc;
         }
         const raccoonObj = createRaccoon(0.99);

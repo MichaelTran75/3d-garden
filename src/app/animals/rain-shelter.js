@@ -51,7 +51,6 @@
         const dogDoorField = buildFlowField(dogDoorFar.x, dogDoorFar.z), dogFireField = buildFlowField(dogLie.x, dogLie.z);
         const dogRain = { st: null, t: 0, yaw: 0 };
         let engPetting = false; const _petTgt = new THREE.Vector3();   // kỹ sư đang vuốt chó → chó vẫy đuôi
-        const dogPettable = () => !dogRain.st && (clock.elapsedTime % 190) >= 10 && (clock.elapsedTime % 190) < 180;   // chó đang nằm cạnh lửa, không sắp chạy vòng
         // Zzz của chó: 3 chữ z nhỏ bay ngắn ngay trên đầu chó đang ngủ (nhìn qua vách xe mờ, rõ nhất ở chế độ xem xuyên)
         const dogZzzGroup = new THREE.Group(); dogZzzGroup.visible = false; dogZzzGroup.name = 'Zzz của chó'; scene.add(dogZzzGroup);
         const dogZzz = [], _dogHead = new THREE.Vector3();
@@ -64,50 +63,4 @@
         if (!liveWeather.wildlifeAwake) {   // mở trang lúc tối: chó đã nằm ngủ sẵn trong xe
           dogRain.st = 'in'; dogObj.position.set(dogBed.x, dogInside.y + 0.02 * CAMP_SCALE, dogBed.z); dogObj.rotation.y = Math.atan2(-vanOut.z, vanOut.x);
         }
-        function dogShelterTick(dt, t) {   // true = chó đang vào xe / nằm trong xe / ra lại bếp lửa (thay vòng chạy quanh lửa) — khi mưa hoặc tối (18:30–06:00)
-          const rain = liveWeather.state.raining, night = !liveWeather.wildlifeAwake, want = rain || night, D = dogRain, p = dogObj.position, u = dogObj.userData;
-          if (want && (!D.st || D.st === 'toFire')) D.st = 'toDoor';
-          else if (!want && D.st) { if (D.st === 'toDoor') D.st = 'toFire'; else if (D.st === 'toBed' || D.st === 'in') D.st = 'toExit'; }
-          if (!D.st) { dogZzzGroup.visible = false; return false; }
-          let walk = false, hx = 0, hz = 0;
-          const go = (tx, tz, field, spd) => {
-            const dx = tx - p.x, dz = tz - p.z, dd = Math.hypot(dx, dz);
-            if (dd < 0.06) return true;
-            let ux = dx / dd, uz = dz / dd;
-            if (field && dd > 1.2) { const f = ffDir(field, p.x, p.z); if (f) { ux = f.x; uz = f.z; } }
-            const s = Math.min(dd, spd * dt); p.x += ux * s; p.z += uz * s; hx = ux; hz = uz; walk = true; return false;
-          };
-          const floorY = dogInside.y, groundAt = () => cowY(p.x, p.z);
-          if (D.st === 'toDoor') { if (go(dogDoorFar.x, dogDoorFar.z, dogDoorField, 2.2)) D.st = 'toStep'; p.y = groundAt() + 0.12 * CAMP_SCALE; }
-          else if (D.st === 'toStep') { if (go(dogDoorStep.x, dogDoorStep.z, null, 1.4)) { D.st = 'hopIn'; D.t = 0; } p.y = groundAt() + 0.12 * CAMP_SCALE; }
-          else if (D.st === 'hopIn' || D.st === 'hopOut') {   // nhảy lên / xuống bậc cửa hông
-            D.t = Math.min(1, D.t + dt / 0.55); const inn = D.st === 'hopIn', A = inn ? dogDoorStep : dogInside, B = inn ? dogInside : dogDoorStep;
-            const ya = (inn ? cowY(A.x, A.z) : floorY) + 0.12 * CAMP_SCALE, yb = (inn ? floorY : cowY(B.x, B.z)) + 0.12 * CAMP_SCALE;
-            p.x = A.x + (B.x - A.x) * D.t; p.z = A.z + (B.z - A.z) * D.t; p.y = ya + (yb - ya) * D.t + Math.sin(Math.PI * D.t) * 0.3;
-            hx = B.x - A.x; hz = B.z - A.z; walk = true;
-            if (D.t >= 1) D.st = inn ? 'toBed' : 'toFire';
-          }
-          else if (D.st === 'toBed') { if (go(dogBed.x, dogBed.z, null, 0.9)) D.st = 'in'; p.y = floorY + 0.12 * CAMP_SCALE; }
-          else if (D.st === 'toExit') { if (go(dogInside.x, dogInside.z, null, 0.9)) { D.st = 'hopOut'; D.t = 0; } p.y = floorY + 0.12 * CAMP_SCALE; }
-          else if (D.st === 'toFire') { if (go(dogLie.x, dogLie.z, dogFireField, 2.0)) { D.st = null; return false; } p.y = groundAt() + 0.12 * CAMP_SCALE; }
-          else { p.y = floorY + (night ? 0.02 : 0.04) * CAMP_SCALE; hx = dogInside.x - dogBed.x; hz = dogInside.z - dogBed.z; }   // 'in': nằm dưới gầm bàn vuông, mặt nhìn ra cửa (tối thì nằm ép sát sàn ngủ)
-          const sleeping = D.st === 'in' && night;
-          dogObj.rotation.z += ((sleeping ? -0.12 : 0) - dogObj.rotation.z) * Math.min(1, dt * 2);   // ngủ: gục mõm xuống sàn
-          u.body.scale.y = sleeping ? 1 + 0.05 * Math.sin(t * 1.6) : 1;                               // thở chậm đều
-          dogZzzGroup.visible = sleeping;
-          if (sleeping) {
-            u.head.getWorldPosition(_dogHead);
-            for (const z of dogZzz) {   // 3 chữ z nhỏ hơn của kỹ sư, lắc nhẹ, mờ dần khi lên cao
-              const k = (t * 0.32 + z.ph) % 1;
-              z.m.position.set(_dogHead.x + Math.sin(t * 1.7 + z.ph * 6) * 0.07, _dogHead.y + 0.12 + k * 1.3, _dogHead.z);   // nhỏ & bay ngắn: lơ lửng ngay trên đầu chó
-              z.m.material.opacity = 0.9 * Math.min(1, (1 - k) * 2.6); z.m.scale.setScalar(0.15 + k * 0.28);
-            }
-          }
-          if (hx || hz) { D.yaw = Math.atan2(-hz, hx); let turn = D.yaw - dogObj.rotation.y; turn = Math.atan2(Math.sin(turn), Math.cos(turn)); dogObj.rotation.y += turn * Math.min(1, dt * (walk ? 8 : 3)); }
-          const sw = walk ? Math.sin(dogGaitPh) * 0.4 : 0;
-          u.frontPaws[0].rotation.z = sw; u.frontPaws[1].rotation.z = -sw; u.rearPaws[0].rotation.z = -sw; u.rearPaws[1].rotation.z = sw;
-          u.frontPaws[0].position.y = u.frontPaws[1].position.y = (walk ? -0.04 : 0.04) * 1.1;
-          u.rearPaws[0].position.y = u.rearPaws[1].position.y = (walk ? -0.02 : 0.06) * 1.1;
-          u.tail.rotation.y = walk ? Math.sin(t * 18) * 0.35 : sleeping ? 0.25 : Math.sin(t * 1.5) * 0.1;   // ngủ: đuôi cuộn sát thân
-          return true;
-        }
+        // (chó vào xe khi mưa / tối: animals/dog-brain.js — shelterTick)

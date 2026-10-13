@@ -7,7 +7,7 @@
           engSpring.v = (v - w * tmp) * ex; return target + (c + tmp) * ex;
         }
         function engPoseBegin(e) {   // đầu frame: trả mọi thứ về giá trị ĐÍCH của frame trước (pha nào không ghi lại thì giữ đích cũ)
-          e.walking = false; e.lean = 0; e.bank = 0; e.seatCtl = false;   // seatCtl: bộ điều khiển ghế (ngồi xuống / đang ngồi / đứng dậy) tự tính chính xác thân + chân
+          e.walking = false; e.lean = 0; e.bank = 0; e.seatCtl = false; e.noFootIK = false;   // noFootIK: pha tự hạ người (ngồi xổm hái táo)   // seatCtl: bộ điều khiển ghế (ngồi xuống / đang ngồi / đứng dậy) tự tính chính xác thân + chân
           const P = e.pose; if (!P) return;
           for (let i = 0; i < P.joints.length; i++) P.joints[i].rotation.x = P.raw[i];
           e.g.position.copy(P.rawPos); e.g.rotation.set(P.rawRX, P.rawYaw, P.rawRZ);
@@ -58,7 +58,7 @@
         function engFootIK(e, dt) {
           const g = e.g, P = e.pose;
           if (e.seatCtl) { e.ikW = 0; e.ikPelvis = 0; return; }   // ngồi / đứng dậy: bộ điều khiển ghế tự giải IK bàn chân bám đất
-          const onFoot = !!P && g.parent === scene && !e.inVan && e.phase !== 'van' && e.phase !== 'pet' && Math.abs(e.legs[0].rotation.x) < 0.95 && Math.abs(e.legs[1].rotation.x) < 0.95 && e.knees[0].rotation.x < 1.15 && e.knees[1].rotation.x < 1.15;
+          const onFoot = !!P && !e.noFootIK && g.parent === scene && !e.inVan && e.phase !== 'van' && e.phase !== 'pet' && Math.abs(e.legs[0].rotation.x) < 0.95 && Math.abs(e.legs[1].rotation.x) < 0.95 && e.knees[0].rotation.x < 1.15 && e.knees[1].rotation.x < 1.15;
           e.ikW = (e.ikW || 0) + ((onFoot ? 1 : 0) - (e.ikW || 0)) * (1 - Math.exp(-dt * 6));
           if (e.ikW < 0.01) { e.ankles[0].rotation.x = e.ankles[1].rotation.x = 0; e.ikPelvis = 0; return; }
           const w = e.ikW, S = g.scale.y; g.updateMatrixWorld(true);
@@ -83,6 +83,45 @@
             const plant = 1 - ikSmooth(0.03, 0.15, f.lift);   // chân trụ: đế phẳng theo mặt đất · chân đang vung: để mũi giày buông tự nhiên
             e.ankles[i].rotation.x = -(g.rotation.x + a + b) * plant * w;
           }
+        }
+        // ---- KHUỶU TAY + EO (chạy cuối khung, sau cả cần câu): mọi pha vẫn ghi "góc vai" θ của tay thẳng (tâm bàn tay cách vai D = 0,66);
+        //      ở đây giải IK 2 đoạn (định lý cos) cho tay 0,28 + 0,40 tới ĐÚNG điểm ấy: vai lùi α, khuỷu gập φ (luôn về trước, không gập ngược),
+        //      cổ tay bù (φ − α) ⇒ bàn tay & đồ đang cầm giữ đúng hướng đã thiết kế. Khung sau lớp tư thế lại trả θ gốc nên không cộng dồn.
+        //      Dáng đi (nghiên cứu dáng đi người: khuỷu ~15–20° khi tay lùi sau, ~40–50° khi vung trước; ngực vặn NGƯỢC chậu hông ±3–5°):
+        //      tay vung trước kéo bàn tay gần vai hơn ⇒ khuỷu gập thêm; eo vặn theo nhịp bước. Pha có thể đặt e.elbowFlexT[i] (gập thêm,
+        //      đơn vị = rút ngắn khoảng vai–tay) và e.spineT = {x: cúi(+)/ngửa(−), y: vặn} (vd hái táo: ngửa người với cao, cúi bỏ táo vào giỏ).
+        const ENG_ARM_D = 0.66;
+        function engArmPost(e, dt) {
+          if (!e.elbows) return;
+          const L1 = ENG_ARM_L1, L2 = ENG_ARM_L2, kf = 1 - Math.exp(-dt * 6);
+          e.armWalk = (e.armWalk || 0) + ((e.walking ? Math.min(1, (e.vel || 0) / 1.1) : 0) - (e.armWalk || 0)) * kf;
+          const fx = e.elbowFlex || (e.elbowFlex = [0, 0]), ft = e.elbowFlexT || [0, 0];
+          const sp = e.spine, st = e.spineT || { x: 0, y: 0 }, sv = e.spineV || (e.spineV = { x: 0, y: 0 });
+          sv.x += (st.x - sv.x) * kf; sv.y += (st.y - sv.y) * kf;
+          sp.rotation.set(sv.x, sv.y + 0.07 * Math.sin(e.gait || 0) * e.armWalk, 0);   // vai bên tay vung trước cùng tiến lên (ngược chân cùng bên)
+          e.spineT = null;
+          // với tới điểm thế giới (e.reachT[i], pha đặt mỗi khung: điểm nắm trên sào, quả, giỏ…) — hướng vai + khoảng vai–tay, hoà vào dần
+          const RT = e.reachT, RW = e.reachW || (e.reachW = [0, 0]), RL = e.reachL || (e.reachL = [new THREE.Vector3(), new THREE.Vector3()]);
+          if ((RT && (RT[0] || RT[1])) || RW[0] > 1e-3 || RW[1] > 1e-3) { e.g.updateMatrixWorld(true); }
+          for (let i = 0; i < 2; i++) {
+            fx[i] += (ft[i] - fx[i]) * kf;
+            const A = e.arms[i]; let th = A.rotation.x;
+            const fwd = Math.max(0, Math.min(1, -th / 0.45)) * e.armWalk;
+            let D = Math.max(0.3, Math.min(L1 + L2 - 1e-3, ENG_ARM_D - 0.04 * fwd - fx[i]));
+            const tgt = RT && RT[i]; if (tgt) RL[i].copy(tgt);
+            RW[i] += ((tgt ? 1 : 0) - RW[i]) * (1 - Math.exp(-dt * 7));
+            if (RW[i] > 1e-3) {
+              const v = sp.worldToLocal(_ikW.copy(RL[i])).sub(A.position), dl = v.length() || 1;
+              const gm = Math.asin(Math.max(-1, Math.min(1, v.x / dl))), tr = Math.atan2(-v.z, -v.y), w = RW[i];
+              th = th + Math.atan2(Math.sin(tr - th), Math.cos(tr - th)) * w; A.rotation.z += (gm - A.rotation.z) * w;
+              D = D + (Math.max(0.3, Math.min(L1 + L2 - 1e-3, dl)) - D) * w;
+            }
+            const phi = Math.PI - Math.acos(Math.max(-1, Math.min(1, (L1 * L1 + L2 * L2 - D * D) / (2 * L1 * L2))));
+            const al = Math.acos(Math.max(-1, Math.min(1, (L1 * L1 + D * D - L2 * L2) / (2 * L1 * D))));
+            A.rotation.x = th + al; e.elbows[i].rotation.x = -phi; e.wrists[i].rotation.x = phi - al;
+          }
+          if (e.elbowFlexT) e.elbowFlexT[0] = e.elbowFlexT[1] = 0;
+          e.reachT = null;
         }
         function engSitLean(e, k) { e.lean = Math.max(e.lean, 1.15 * k * (1 - k)); }   // ngồi xuống / đứng dậy: dồn trọng tâm, cúi người về trước giữa chừng
         function engStep(e, tgt, dt, t, avoidPt, avoidR, field) {

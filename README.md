@@ -18,8 +18,8 @@ Mã nguồn nằm trong `src/` — đây là nơi duy nhất cần sửa (ngay t
 | `src/app/core/` | khởi động, bầu trời, mặt trời/mặt trăng, mặt nước, địa hình; **gộp lượt vẽ** (`draw-batch.js`) |
 | `src/app/world/` | thủy điện, tua-bin, pin mặt trời, nhà, đường, trạm biến áp, cột khí tượng, đèn đường |
 | `src/app/nature/` | gió, cây, rừng, cỏ hoa, lá rơi, mây, **mưa trên GPU** (`clouds-rain.js`), **chất lỏng** (`fluids.js`: nước nông + sợi khói bếp lửa, chạy ở luồng phụ), **đầm sen** (`lotus.js`) |
-| `src/app/animals/` | cá, bò, hươu, cua, thỏ, chó, gấu mèo, ong bướm, cò |
-| `src/app/engineer/` | **kỹ sư**: hình người (`model.js`), tư thế + IK, ngồi ghế, suy nghĩ, lịch cả ngày (`schedule.js`), đi lại + các trạm trong xe, nấu ăn, cập nhật mỗi khung hình (`loop-update.js`) |
+| `src/app/animals/` | cá, bò, hươu, cua, thỏ, ong bướm, cò · **bộ chân 4 chi IK dùng chung** (`quadruped.js`) · **chó** (`dog-brain.js`: nằm sưởi, vươn vai, đánh hơi, theo chủ, uống nước, chạy vòng; đi bộ / nước kiệu / phi) · **gấu mèo** (`raccoon-brain.js`: chạng vạng–đêm, cào bới, đứng 2 chân, ngồi ăn, bỏ chạy về hang) |
+| `src/app/engineer/` | **kỹ sư**: hình người có khuỷu tay, cổ tay, eo (`model.js`), tư thế + IK (chân, khuỷu tay `engArmPost`), **hái táo bằng sào** (`apple-pick.js`), ngồi ghế, suy nghĩ, lịch cả ngày (`schedule.js`), đi lại + các trạm trong xe, nấu ăn, cập nhật mỗi khung hình (`loop-update.js`) |
 | `src/app/van/` | **xe van**: cabin, vỏ, nội thất (`caravan.js`), bếp, đồ bếp, đèn bàn, lon nước, Zzz |
 | `src/app/camp/` | ghế, đèn lồng, lửa trại, ấm, bàn trà |
 | `src/app/fishing/` | cần câu, xô, câu cá |

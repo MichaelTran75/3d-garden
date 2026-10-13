@@ -12,7 +12,7 @@
           g.position.copy(wp[0]); g.position.y -= ENG_FEET; g.name = 'Kỹ sư (Engineer)'; g.rotation.order = 'YXZ'; scene.add(g);   // YXZ: quay hướng trước, nghiêng người theo thân sau
           const chairW = wp[3], faceWater = Math.atan2(bobberBase.x - chairW.x, bobberBase.z - chairW.z);
           return {
-            g, legs: g.userData.legs, knees: g.userData.knees, ankles: g.userData.ankles, arms: g.userData.arms, head: g.userData.head,
+            g, elbows: g.userData.elbows, wrists: g.userData.wrists, spine: g.userData.spine, legs: g.userData.legs, knees: g.userData.knees, ankles: g.userData.ankles, arms: g.userData.arms, head: g.userData.head,
             rodGrp: g.userData.rodGrp, rodTilt: g.userData.rodTilt, rodTip: g.userData.rodTip, rod: g.userData.rod, clip: g.userData.clip, props: g.userData.props,
             helmet: g.userData.helmet, hair: g.userData.hair, towel: g.userData.towel,
             wp, phase: 'toFish', timer: 0, wanderTgt: null, wanderTmr: 0, spd: 1.1, groundY: chairW.y, faceWater

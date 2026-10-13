@@ -335,7 +335,7 @@
         daytimeAnimals.name = 'Động vật ban ngày'; nighttimeFireflies.name = 'Đom đóm ban đêm';
         scene.add(daytimeAnimals, nighttimeFireflies);
         for (const group of [fishies, bunnies, butterflies, bees]) for (const animal of group) daytimeAnimals.add(animal.g);   // bò không ẩn ban đêm: về ngủ trong chuồng
-        for (const animal of [stag?.g, crab?.g, raccoonObj]) if (animal) daytimeAnimals.add(animal);   // chó không ẩn ban đêm: vào ngủ trong caravan
+        for (const animal of [stag?.g, crab?.g]) if (animal) daytimeAnimals.add(animal);   // gấu mèo hoạt động chạng vạng → đêm: tự ẩn/hiện (animals/raccoon-brain.js)   // chó không ẩn ban đêm: vào ngủ trong caravan
         for (const firefly of fireflies) nighttimeFireflies.add(firefly.g);
         function updateAnimalVisibility() {
           const isNight = !liveWeather.wildlifeAwake; // Animals return at 06:00 and rest at 18:30 in Pleiku.

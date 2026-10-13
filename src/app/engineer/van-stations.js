@@ -150,6 +150,7 @@
           else if (V.st === 'rise') { e.seatCtl = true; if (engRiseStep(e, C, s, dt, t)) { e.seat = null; return 'released'; } }
           return 'busy';
         } };
+        const ENG_WC_SIT = 30, ENG_SHOWER_WASH = 60;   // G 13/10: ngồi WC đúng 30 s · tắm (nước chảy) đúng 1 phút — không kéo dài theo khung giờ còn trống
         const stWc = { node: 'wcIn', tick(e, V, dt, t, keep) {   // buồng WC: lật nắp → quay lưng → ngồi (khuỷu tì đùi) → đứng dậy → đậy nắp, bấm xả → ra
           const C = TOILET_SEAT, s = e.seat;
           if (!V.st) V.st = 'go';
@@ -160,7 +161,7 @@
             LID.target = 1;
             if (engSeatTurn(e, VY.pz, dt, vanFloor) && LID.k >= 1) { e.seat = engNewSeat(C, 'sit'); engSeatStartSit(e, C, e.seat); V.st = 'sit'; }
           }
-          else if (V.st === 'sit') { e.seatCtl = true; if (engSitStep(e, C, s, dt, t)) { s.st = 'seated'; V.st = 'seated'; V.until = clock.elapsedTime + Math.max(35, Math.min(240, e.actLeft - 75)); } }
+          else if (V.st === 'sit') { e.seatCtl = true; if (engSitStep(e, C, s, dt, t)) { s.st = 'seated'; V.st = 'seated'; V.until = clock.elapsedTime + ENG_WC_SIT; } }
           else if (V.st === 'seated') {
             e.seatCtl = true; e.seatLean = 0.3; engSeatHold(e, C, s, dt, t);
             e.arms[0].rotation.x = -0.62; e.arms[1].rotation.x = -0.58; e.head.rotation.x = 0.28 + Math.sin(t * 0.4) * 0.04;
@@ -215,7 +216,7 @@
             e.arms[0].rotation.x = -1.15 * r; e.lean = 0.12 * r; e.head.rotation.x = 0.25 * r;
             if (V.k > 0.6) showerFx.on = V.st === 'tapOn';
             if (V.k > 1.7) {
-              if (V.st === 'tapOn') { V.st = 'wash'; V.until = clock.elapsedTime + Math.max(60, Math.min(600, e.actLeft - 130)); }
+              if (V.st === 'tapOn') { V.st = 'wash'; V.until = clock.elapsedTime + ENG_SHOWER_WASH; }
               else { V.st = 'drip'; V.k = 0; }
             }
           }

@@ -63,21 +63,42 @@
           }
         }
 
-        // ---- THẢM CỎ LÔNG HEO: cỏ li ti ngắn phủ ~1/3 bản đồ bằng VALUE-NOISE (không lưu mảng, dùng lại pool 'blade' → 0 draw call thêm) ----
+        // ---- THẢM CỎ PHỦ 45% ĐẤT (G 13/10: "research and improve grass, add more grass (45% of the land)") ----
+        //  Cỏ ngoài tự nhiên mọc LOANG theo mảng (vài mét) do ẩm đất, ánh sáng, giẫm đạp: dày & cao gần nước, thưa dưới tán, trụi trên lối mòn và quanh
+        //  bếp lửa / cửa xe (đất nện); không mọc trên đường nhựa, bệ bê tông, gốc cây. Điểm mỗi ô = nhiễu fbm 2 tầng (mảng 3–10 m)
+        //  + ẩm (khoảng cách tới nước, loang BFS) − giẫm đạp; lấy NGƯỠNG phân vị để đúng 45% số ô đất có cỏ. Mỗi ô 1 bụi 3 lá (vegPools.sod),
+        //  cao 0,16–0,42 đv theo điểm, xoay & lệch ngẫu nhiên trong ô; gió uốn dọc lá (grassWindShader, sóng honami).
         {
-          const hsh = (a, b) => { const s = Math.sin(a * 127.1 + b * 311.7) * 43758.545; return s - Math.floor(s); };   // hash 0..1 mỗi mắt lưới
-          const vnoise = (x, z) => { const xi = Math.floor(x), zi = Math.floor(z), xf = x - xi, zf = z - zi, u = xf * xf * (3 - 2 * xf), v = zf * zf * (3 - 2 * zf); return (hsh(xi, zi) * (1 - u) + hsh(xi + 1, zi) * u) * (1 - v) + (hsh(xi, zi + 1) * (1 - u) + hsh(xi + 1, zi + 1) * u) * v; };   // value noise mượt 0..1 → mảng loang tự nhiên
-          const rnd = mulberry32(9999);
-          for (let i = 4; i < GX - 4; i += 2) for (let j = 4; j < GZ - 4; j += 2) {
-            if (vnoise(i * 0.06, j * 0.06) < 0.62 || isWater(i, j) || padH(i, j) !== null || !freeTree(i, j)) continue;   // ngưỡng 0.62 ≈ 32.8% ≈ 1/3 bản đồ · bỏ nước/bệ/khu cấm
-            const nB = rnd() < 0.5 ? 2 : 1;   // 50% ô mọc 2 cọng → tổng số cỏ +50%
-            for (let b = 0; b < nB; b++) {
-              const px = wx(i) + (rnd() - 0.5) * BLOCK, pz = wz(j) + (rnd() - 0.5) * BLOCK;
-              const h = (0.15 + rnd() * 0.1) * 0.75;   // thấp đi 25% (cao ~0.11-0.19)
-              vegGroup(px, surfaceY(i, j), pz, rnd() * 6.28, 1);
-              vegPush(vegPools.blade, _vp.set(0, h / 2, 0), _vqI, _vs.set(0.25, h, 0.25), bladeGreenCols[(rnd() * bladeGreenCols.length) | 0]);   // thân mảnh 1/2 (rộng ×0.25) · gốc chạm đất
-            }
+          const hsh = (a, b) => { const s = Math.sin(a * 127.1 + b * 311.7) * 43758.545; return s - Math.floor(s); };
+          const vnoise = (x, z) => { const xi = Math.floor(x), zi = Math.floor(z), xf = x - xi, zf = z - zi, u = xf * xf * (3 - 2 * xf), v = zf * zf * (3 - 2 * zf); return (hsh(xi, zi) * (1 - u) + hsh(xi + 1, zi) * u) * (1 - v) + (hsh(xi, zi + 1) * (1 - u) + hsh(xi + 1, zi + 1) * u) * v; };
+          const rnd = mulberry32(4545), N = GX * GZ;
+          const wd = new Uint8Array(N).fill(255), q = new Int32Array(N); let qh = 0, qt = 0;   // khoảng cách (ô) tới nước gần nhất, tối đa 40
+          for (let j = 0; j < GZ; j++) for (let i = 0; i < GX; i++) if (isWater(i, j)) { wd[i + j * GX] = 0; q[qt++] = i + j * GX; }
+          while (qh < qt) { const c = q[qh++], d = wd[c] + 1; if (d > 40) continue; const ci = c % GX, cj = (c / GX) | 0;
+            for (const n of [ci > 0 ? c - 1 : -1, ci < GX - 1 ? c + 1 : -1, cj > 0 ? c - GX : -1, cj < GZ - 1 ? c + GX : -1]) if (n >= 0 && wd[n] > d) { wd[n] = d; q[qt++] = n; } }
+          const camps = [[pf.x, pf.z, 3.2], [vanPt(0.33, 0, 2.6).x, vanPt(0.33, 0, 2.6).z, 1.8]];   // đất nện quanh bếp lửa · trước cửa xe
+          let land = 0; const cand = [];
+          for (let j = 4; j < GZ - 4; j++) for (let i = 4; i < GX - 4; i++) {
+            if (isWater(i, j)) continue; land++;
+            if (padH(i, j) !== null || !freeTree(i, j)) continue;
+            const x = wx(i), z = wz(j);
+            let sc = 0.62 * vnoise(i * 0.045, j * 0.045) + 0.38 * vnoise(i * 0.14 + 17, j * 0.14 + 5) + 0.28 * Math.exp(-wd[i + j * GX] / 9);
+            for (const [cx, cz, r] of camps) { const d = Math.hypot(x - cx, z - cz); if (d < r) sc -= 0.8 * (1 - d / r); }
+            cand.push(sc, i, j);
           }
+          const want = Math.round(0.45 * land), nC = cand.length / 3, scores = new Float32Array(nC);
+          for (let k = 0; k < nC; k++) scores[k] = cand[k * 3];
+          const sorted = Float32Array.from(scores).sort(), thr = nC > want ? sorted[nC - want] : -1e9, top = sorted[nC - 1] || 1;
+          let placed = 0;
+          for (let k = 0; k < nC; k++) {
+            const sc = scores[k]; if (sc < thr) continue;
+            const i = cand[k * 3 + 1], j = cand[k * 3 + 2], dens = Math.min(1, (sc - thr) / Math.max(1e-3, top - thr));
+            const px = wx(i) + (rnd() - 0.5) * BLOCK * 0.9, pz = wz(j) + (rnd() - 0.5) * BLOCK * 0.9, h = 0.16 + 0.26 * Math.pow(dens, 0.7) * (0.75 + 0.5 * rnd());
+            vegGroup(px, surfaceY(i, j), pz, rnd() * 6.283, 1);
+            vegPush(vegPools.sod, _vp.set(0, h / 2, 0), _vqI, _vs.set(0.9 + 0.5 * rnd(), h, 0.9 + 0.5 * rnd()), bladeGreenCols[(rnd() * bladeGreenCols.length) | 0]);
+            placed++;
+          }
+          window.__grassCover = { land, placed, frac: placed / land };   // (đo kiểm: tỉ lệ đất có cỏ)
         }
 
         for (const k in vegPools) buildVegPool(vegPools[k]);

@@ -184,6 +184,9 @@
                 engPetting = k > 0.5;
                 if (e.timer <= 0 || !dogPettable()) { e.phase = (e.loopN = (e.loopN || 0) + 1) % 2 ? 'toMast' : 'toChair'; engPetting = false; }
               }
+              else if (e.phase === 'apple') {              // hái táo bằng sào rút: nhắm · luồn rổ · vặn bứt · lấy quả bỏ giỏ · xách giỏ về (engineer/apple-pick.js)
+                if (applePick.update(e, dt, t)) e.doneAct = e.onceKey;
+              }
               else if (e.phase === 'toMast') {             // đi tới cột khí tượng
                 if (engStep(e, e.wp[2], dt, t, pf, FIRE_AVOID_R, mastField)) { e.phase = 'check'; e.timer = 40; }
               }
@@ -217,7 +220,7 @@
                 else { e.arms[0].rotation.x = e.arms[1].rotation.x = -0.85; rt[0] = 0.28; rt[1] = -0.28; }
               }
               engDishShow(e); kitchenTick(dt, t);
-              if (e.clip) e.clip.visible = !e.inVan && e.phase !== 'van' && !fishing && !atSeat && !H.spoon && !H.cup && !H.bottle && !H.book && !dishHand && e.phase !== 'pet';
+              if (e.clip) e.clip.visible = !e.inVan && e.phase !== 'van' && !fishing && !atSeat && !H.pole && e.phase !== 'apple' && !H.spoon && !H.cup && !H.bottle && !H.book && !dishHand && e.phase !== 'pet';
               chipsBag.visible = e.phase === 'read' && !e.inVan && !leavingSeat;
               const atDesk = e.inVan && !!e.van && e.van.station === 'desk';
               studyLaptop.target = atDesk && (e.van.st === 'sit' || e.van.st === 'scoot' || e.van.st === 'work') ? 1 : 0;
@@ -234,4 +237,6 @@
             engSeatPost(e, dt);     // dang tay tới tay vịn · đầu quay dẫn hướng · đám mây suy nghĩ đứng thẳng trên hông
             if (e.fishBiteK !== undefined) { if (e.phase === 'fish') updateFishingBite(e, dt, t, e.fishBiteK); e.fishBiteK = undefined; }
             splashFx.update(dt);   // giật cần + dây câu tính SAU khi tư thế đã mượt → đầu dây luôn khớp ngọn cần
+            engArmPost(e, dt);      // khuỷu tay + cổ tay (IK 2 đoạn giữ đúng chỗ bàn tay) · eo vặn theo nhịp bước
+            applePick.tick(e, dt);  // sào, quả trong rổ / tay / giỏ theo bàn tay đã đặt xong · quả trên cây đung đưa
           }

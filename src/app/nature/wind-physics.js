@@ -245,7 +245,7 @@
           out.set(sceneWind.dir.x * x + _plT.x * tl, z + _plT.y * tl, sceneWind.dir.y * x + _plT.z * tl);
           return z;
         }
-        grassWindShader(vegPools.blade.mat);   // cỏ (cả thảm cỏ lông heo) gợn sóng theo gió
+        grassWindShader(vegPools.blade.mat); grassWindShader(vegPools.sod.mat);   // cỏ (cả thảm cỏ lông heo) gợn sóng theo gió
         vegPools.stem.autoSway = 'vertex'; vegPools.fcube.autoSway = 'rigid'; vegPools.petal.autoSway = 'rigid'; vegPools.fcen.autoSway = 'rigid';
         for (const k of ['stem', 'fcube', 'petal', 'fcen']) flowerWindShader(vegPools[k].mat, 0.37);   // thân & đầu hoa đung đưa cùng gió sát đất
         forestWindShader(leafMatInst);         // khối tán cây rừng
