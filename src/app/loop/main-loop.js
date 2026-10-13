@@ -248,7 +248,7 @@
             const fireScale = campfireLevel(liveWeather.localHour);   // 100% lúc 19:00 → 5% lúc 07:00, ban ngày 5%
             const steamAmt = Math.min(1, Math.max(0, (fireScale - 0.2) / 0.55));   // lửa lớn → ấm sôi phụt hơi qua còi; lửa ngày 5% → không có hơi
             const kGrp = kettleSteam.length ? kettleSteam[0].m.parent : null; if (kGrp) kGrp.localToWorld(_plS.set(0, 0, 0));
-            if (campPlume) for (const p of kettleSteam) p.m.visible = false;   // hơi ấm reo nằm trong mô phỏng khói (nguồn thứ 2)
+            if (campSmoke) for (const p of kettleSteam) p.m.visible = false;   // hơi ấm reo = hạt hơi trong mô phỏng sợi khói
             else for (const p of kettleSteam) {   // tia hơi phụt khỏi còi, chậm dần, rồi bốc lên (nổi yếu, trần thấp) và bị gió tại độ cao vòi cuốn đi
               const k = (t * 0.45 + p.ph) % 1, a = k / 0.45, jet = 0.16 * (1 - Math.exp(-a * 4));
               plumeOffset(_plS, a, KETTLE_PLUME, _plA); windInLocal(kGrp, _plA, _steamW);
@@ -256,17 +256,18 @@
               p.m.scale.setScalar(0.5 + k * 2.8); p.m.material.opacity = steamAmt * 0.4 * Math.sin(k * Math.PI);
             }
             for (const fl of campObj.flames) { fl.m.scale.y = fireScale * Math.max(0.6, 0.92 + 0.24 * Math.sin(t * 7 + fl.ph) + 0.12 * Math.sin(t * 13 + fl.ph * 1.6)); fl.m.scale.x = fl.m.scale.z = fireScale * (0.82 + 0.2 * Math.sin(t * 7 + fl.ph * 1.3)); fl.m.material.opacity = 0.72 + 0.26 * Math.sin(t * 12 + fl.ph); }
-            if (campPlume) {   // khói + hơi = mô phỏng chất lỏng 2D: lửa cấp nhiệt & khói theo cỡ lửa, ấm reo phụt hơi theo hướng vòi
+            if (campSmoke) {   // khói + hơi = sợi khói: lửa cấp nhiệt & khói theo cỡ lửa, ấm reo phụt hơi theo hướng vòi
               for (const sm of campObj.smoke) sm.m.visible = false;
-              const F = campPlume.sources[0], K = campPlume.sources[1];
-              campObj.g.localToWorld(campPlume.base.set(0, 0, 0)); campObj.g.localToWorld(F.p.set(0, 0.75, 0));
-              F.smoke = 2.2 + 10 * fireScale; F.heat = 1.0 + 2.4 * fireScale; F.vel.set(0, 0.4 + 0.8 * fireScale, 0);
-              if (kGrp) { kGrp.localToWorld(K.p.set(0, 0, 0)); K.vel.copy(kettleSteam[0].dir).applyQuaternion(kGrp.getWorldQuaternion(_plumeQ)).multiplyScalar(0.9); K.vel.y += 0.3; }
-              K.steam = 2.6 * steamAmt; K.heat = 0.5 * steamAmt;
-              plumeWind(campPlume, 1, 5); plumeLight(campPlume, PLUME_COL.smoke, PLUME_COL.steam, _plumeGlow.copy(PLUME_COL.glow).multiplyScalar(0.25 + 0.75 * fireScale));
+              const S = campSmoke, B = S.base; campObj.g.localToWorld(B.set(0, 0, 0)); campObj.g.localToWorld(_smokeTop.set(0, 0.75, 0));
+              S.zF = Math.max(0.3, _smokeTop.y - B.y); S.heat = 0.45 + 1.05 * fireScale; S.smoke = 0.5 + 2.5 * fireScale; S.rate = 0.12 + 0.88 * fireScale; S.steam = steamAmt;
+              if (kGrp) {
+                kGrp.localToWorld(_smokeTop.set(0, 0, 0)).sub(B); _smokeJet.copy(kettleSteam[0].dir).applyQuaternion(kGrp.getWorldQuaternion(_plumeQ)).multiplyScalar(0.9);
+                S.spout[0] = _smokeTop.x; S.spout[1] = _smokeTop.y; S.spout[2] = _smokeTop.z; S.spout[3] = _smokeJet.x; S.spout[4] = _smokeJet.y + 0.3; S.spout[5] = _smokeJet.z;
+              }
+              plumeLight(S, PLUME_COL.smoke, PLUME_COL.steam, _plumeGlow.copy(PLUME_COL.glow).multiplyScalar(0.25 + 0.75 * fireScale));
             } else campObj.g.localToWorld(_plS.set(0, 0.9, 0));
             // khói bếp lửa kiểu cũ (dự phòng): luồng nổi Briggs (xem plumeOffset) — cụm khói nở theo độ cao bốc, loãng dần; trời ổn định thì dẹt ra như quạt
-            if (!campPlume) for (const sm of campObj.smoke) {
+            if (!campSmoke) for (const sm of campObj.smoke) {
               const life = 6, a = ((t / life + sm.ph) % 1) * life, pr = a / life;
               const z = plumeOffset(_plS, a, CAMP_PLUME, _plA); windInLocal(campObj.g, _plA, _smokeW);
               sm.m.position.set(_smokeW.x, 0.9 + _smokeW.y, _smokeW.z);

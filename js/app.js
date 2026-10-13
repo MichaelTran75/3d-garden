@@ -3050,8 +3050,8 @@
         //     Hồ trên đập gần lặng, trôi rất nhẹ về đập; dưới đập 3 cửa xả phụt nước (mực dâng nhẹ) → nước tự tỏa, cuộn xoáy dọc bờ, chảy về hạ lưu.
         //     Bọt chỉ sinh khi có vật khuấy nước (cá đớp, phao, cò lội), trôi theo dòng rồi tan; vật chạm nước gây sóng lan, dội bờ.
         //     Mỗi khung trả về (độ cao mặt · vận tốc · bọt) dạng half-float → texture cho shader mặt nước + đọc trên CPU cho lá, cá, phao.
-        //  2) KHÓI & HƠI NƯỚC ("stable fluids" của Stam, 2D trên tấm đứng luôn quay về phía camera): khói bếp lửa + hơi ấm reo.
-        //     Nổi vì nóng, bị gió thật (thành phần ngang trong mặt tấm) cuốn, xoáy nhờ "vorticity confinement", chiếu áp suất để không nén được.
+        //  2) KHÓI BẾP LỬA + HƠI ẤM REO: kỹ thuật luồng khói động cơ ở sân bay — trường Navier–Stokes đối xứng trục quanh cột khí nóng,
+        //     hạt đi theo trường + rối Langevin + gió thật, vẽ thành dải sợi khói mép mềm (xem chi tiết ở mục 2 bên dưới).
         function fluidKernel() {   // JS thuần, không đọc biến bên ngoài → chạy được trong Worker lẫn trên luồng chính (dự phòng)
           const f32 = new Float32Array(1), i32 = new Int32Array(f32.buffer);
           function toHalf(val) {
@@ -3162,81 +3162,185 @@
             return out;
           }
 
-          // ---------------- 2) KHÓI / HƠI NƯỚC ----------------
-          const plumes = new Map();
-          function addPlume(id, o) {
-            const N = o.nx * o.ny, F = () => new Float32Array(N);
-            plumes.set(id, Object.assign({ cs: o.w / o.nx, u: F(), v: F(), u2: F(), v2: F(), s: F(), q: F(), T: F(), s2: F(), q2: F(), T2: F(), p: F(), dv: F(), cu: F(), seed: 12345 }, o));
+          // ---------------- 2) KHÓI LỬA TRẠI — cùng kỹ thuật luồng khói động cơ ở sân bay (airport-gate/js/wind-worker.js) ----------------
+          //  · TRƯỜNG: Navier–Stokes không nén ĐỐI XỨNG TRỤC (r, z) quanh trục đứng qua tâm lửa, lưới SO LE (u trên mặt hướng kính,
+          //    w trên mặt đứng, áp suất / nhiệt T / khói S ở tâm ô). Lửa = bể nhiệt + nguồn khói; lực nổi Boussinesq kéo khí nóng lên.
+          //    Nhớt rối kiểu tia tự do theo từng tầng ν_t = k·w_c·r½ (w_c vận tốc trên trục, r½ bán kính nửa vận tốc) ⇒ chùm khói nở gần thẳng.
+          //    Đối lưu bán Lagrange, khuếch tán hiện (Laplace đối xứng trục), chiếu áp suất Poisson có trọng r — SOR đỏ-đen.
+          //    Trục: u = 0 · mặt đất: w = 0 · vách ngoài & đỉnh hở (p = 0) ⇒ không khí xung quanh tự bị cuốn vào chùm khói.
+          //  · HẠT: đi theo trường + dao động rối Langevin (Thomson 1987) σ = 1.49·√(ν_t·|S|), T_L = 1/(|S| + ½), cả theo góc vòng ⇒ khói tản 3D;
+          //    gió thật (bảng 9 tầng) kéo hạt ngang với quán tính ~1 s ⇒ chùm khói ngả theo gió, càng lên cao càng ngả.
+          //    Hơi ấm reo: hạt phụt khỏi vòi theo hướng vòi, tia tắt nhanh, rồi bị chùm khí nóng cuốn lên và bay hơi.
+          //  · VỆT: 2 đỉnh / điểm, dải quay mặt về camera, mép mềm (1 − e² ở shader), nở ~4× về đuôi, mờ dần — dựng sẵn ở luồng phụ.
+          let SM = null, gSpare = null;
+          const sU = (r, z) => bil(SM.u, SM.NR + 1, SM.NZ, r / SM.H, z / SM.H - 0.5);
+          const sW = (r, z) => bil(SM.w, SM.NR, SM.NZ + 1, r / SM.H - 0.5, z / SM.H);
+          const sC = (a, r, z) => bil(a, SM.NR, SM.NZ, r / SM.H - 0.5, z / SM.H - 0.5);
+          function gauss() { if (gSpare !== null) { const v = gSpare; gSpare = null; return v; } let u = 0; while (u < 1e-12) u = Math.random(); const m = Math.sqrt(-2 * Math.log(u)), v = 6.283185307 * Math.random(); gSpare = m * Math.sin(v); return m * Math.cos(v); }
+          function initSmoke(c) {
+            const { NR, NZ, NP, NT } = c, NC = NR * NZ, F = n => new Float32Array(n);
+            SM = Object.assign({ NC, u: F((NR + 1) * NZ), u2: F((NR + 1) * NZ), w: F(NR * (NZ + 1)), w2: F(NR * (NZ + 1)), T: F(NC), T2: F(NC), S: F(NC), S2: F(NC), p: F(NC), dv: F(NC), SS: F(NC),
+              nu: F(NZ), wc: F(NZ), acc: 0, rec: 0, spS: 0, spQ: 0, pr: F(NP), pth: F(NP), pz: F(NP), dx: F(NP), dz: F(NP), vx: F(NP), vz: F(NP), pu: F(NP), pw: F(NP), pt: F(NP),
+              age: F(NP).fill(1e3), life: F(NP), pk: F(NP), pwid: F(NP), pd: F(NP), hist: F(NP * NT * 3) }, c);
+            const warm = { heat: 1, smoke: 0, rF: 0.3, zF: 0.6 };
+            for (let t = 0; t < 3; t += 1 / 30) stepSmoke(1 / 30, warm);   // khởi động: cột khí nóng đã thành hình
           }
-          function stepPlume(P, dt, prm) {
-            const { nx, ny, cs } = P, idx = 1 / cs;
-            let { u, v, u2, v2, s, q, T, s2, q2, T2 } = P;
-            const rnd = () => { P.seed = (Math.imul(P.seed, 1664525) + 1013904223) >>> 0; return P.seed / 4294967296; };
-            // nguồn: [x, y (ô), bán kính (ô), khói/s, nhiệt/s, hơi/s, vx, vy (đv/s)] — vận tốc nguồn rung ngẫu nhiên → luồng khói không đều
-            for (const S of prm.src) {
-              const [sx, sy, r, rs, rh, rq, vx, vy] = S, jx = (rnd() - 0.5) * P.jitter, jy = (rnd() - 0.5) * P.jitter;
-              for (let j = Math.max(0, Math.floor(sy - r)); j <= Math.min(ny - 1, Math.ceil(sy + r)); j++)
-                for (let i = Math.max(0, Math.floor(sx - r)); i <= Math.min(nx - 1, Math.ceil(sx + r)); i++) {
-                  const d = Math.hypot(i - sx, j - sy) / r; if (d >= 1) continue;
-                  const w = 1 - d * d, c = j * nx + i;
-                  s[c] += rs * w * dt; T[c] += rh * w * dt; q[c] += rq * w * dt;
-                  u[c] += (vx + jx - u[c]) * Math.min(1, w * dt * 8); v[c] += (vy + jy - v[c]) * Math.min(1, w * dt * 8);
+          function diffuseAx(a, b, nr, nz, rOff, nuOf, dt, vec, amb) {   // b = a + dt·ν·∇²a (Laplace đối xứng trục; vec: thêm −a/r² của vận tốc hướng kính; amb: giá trị ngoài vách, null = gradient 0)
+            const H2 = SM.H * SM.H;
+            for (let j = 0; j < nz; j++) {
+              const k = dt * nuOf(j) / H2, jm = j > 0 ? j - 1 : 0, jp = j < nz - 1 ? j + 1 : j;
+              for (let i = 0; i < nr; i++) {
+                const c = j * nr + i, f = a[c], rc = i + rOff;
+                if (rc === 0) { b[c] = 0; continue; }   // trục: u = 0
+                const fe = i < nr - 1 ? a[c + 1] : amb === null ? f : amb, fw = i > 0 ? a[c - 1] : f;
+                let L = ((rc + 0.5) * (fe - f) - Math.max(0, rc - 0.5) * (f - fw)) / rc + a[jp * nr + i] + a[jm * nr + i] - 2 * f;
+                if (vec) L -= f / (rc * rc);
+                b[c] = f + k * L;
+              }
+            }
+          }
+          function turbAx() {   // vận tốc trục w_c, bán kính nửa vận tốc r½ → ν_t từng tầng · |S| ≈ |∂w/∂r| + |∂u/∂z| ở tâm ô (cho rối của hạt)
+            const g = SM, { NR, NZ, H, w, u } = g, NU = NR + 1, wcen = (i, j) => 0.5 * (w[j * NR + i] + w[(j + 1) * NR + i]), ucen = (i, j) => 0.5 * (u[j * NU + i] + u[j * NU + i + 1]);
+            for (let j = 0; j < NZ; j++) {
+              let wm = 0, rh = NR * H;
+              for (let i = 0; i < NR; i++) wm = Math.max(wm, wcen(i, j));
+              for (let i = 0; i < NR; i++) if (wcen(i, j) < 0.5 * wm) { rh = (i + 0.5) * H; break; }
+              g.wc[j] = wm; g.nu[j] = Math.min(0.045, g.nu0 + g.kNu * wm * rh);
+              const jp = Math.min(NZ - 1, j + 1), jm = Math.max(0, j - 1);
+              for (let i = 0; i < NR; i++) {
+                const ip = Math.min(NR - 1, i + 1), im = Math.max(0, i - 1);
+                g.SS[j * NR + i] = Math.abs(wcen(ip, j) - wcen(im, j)) / ((ip - im) * H) + Math.abs(ucen(i, jp) - ucen(i, jm)) / ((jp - jm) * H);
+              }
+            }
+          }
+          function advectAx(dt) {
+            const g = SM, { NR, NZ, H } = g, NU = NR + 1, Rm = NR * H, Zm = NZ * H;
+            for (let j = 0; j < NZ; j++) for (let i = 1; i <= NR; i++) {   // u: truy ngược; qua trục thì lấy đối xứng (u đổi dấu)
+              const r = i * H, z = (j + 0.5) * H, c = j * NU + i;
+              let rb = r - dt * g.u[c], sg = 1; if (rb < 0) { rb = -rb; sg = -1; }
+              g.u2[c] = sg * sU(rb, z - dt * sW(r, z));
+            }
+            for (let j = 0; j < NZ; j++) g.u2[j * NU] = 0;
+            for (let j = 1; j <= NZ; j++) for (let i = 0; i < NR; i++) {
+              const r = (i + 0.5) * H, z = j * H, c = j * NR + i;
+              g.w2[c] = sW(Math.abs(r - dt * sU(r, z)), z - dt * g.w[c]);
+            }
+            for (let i = 0; i < NR; i++) g.w2[i] = 0;   // mặt đất
+            for (let j = 0; j < NZ; j++) for (let i = 0; i < NR; i++) {   // nhiệt & khói; khí đi vào từ ngoài miền = không khí sạch, nguội
+              const r = (i + 0.5) * H, z = (j + 0.5) * H, c = j * NR + i, rb = Math.abs(r - dt * sU(r, z)), zb = z - dt * sW(r, z), out = rb > Rm || zb > Zm;
+              g.T2[c] = out ? 0 : sC(g.T, rb, zb); g.S2[c] = out ? 0 : sC(g.S, rb, zb);
+            }
+            [g.u, g.u2] = [g.u2, g.u]; [g.w, g.w2] = [g.w2, g.w]; [g.T, g.T2] = [g.T2, g.T]; [g.S, g.S2] = [g.S2, g.S];
+          }
+          function projectAx(iters) {   // ∇·u = (1/r)∂(r·u)/∂r + ∂w/∂z = 0: Poisson có trọng r (nhân H²), SOR đỏ-đen ω 1.8, khởi động ấm
+            const g = SM, { NR, NZ, H, p, dv, u, w } = g, NU = NR + 1;
+            for (let j = 0; j < NZ; j++) for (let i = 0; i < NR; i++) dv[j * NR + i] = H * (((i + 1) * u[j * NU + i + 1] - i * u[j * NU + i]) / (i + 0.5) + w[(j + 1) * NR + i] - w[j * NR + i]);
+            for (let it = 0; it < iters; it++) for (let par = 0; par < 2; par++) for (let j = 0; j < NZ; j++) for (let i = (j + par) & 1; i < NR; i += 2) {
+              const c = j * NR + i, aE = (i + 1) / (i + 0.5), aW = i / (i + 0.5), aS = j > 0 ? 1 : 0;
+              const pn = (aE * (i < NR - 1 ? p[c + 1] : 0) + aW * (i > 0 ? p[c - 1] : 0) + (j < NZ - 1 ? p[c + NR] : 0) + aS * (j > 0 ? p[c - NR] : 0) - dv[c]) / (aE + aW + 1 + aS);
+              p[c] += 1.8 * (pn - p[c]);
+            }
+            for (let j = 0; j < NZ; j++) for (let i = 1; i <= NR; i++) u[j * NU + i] -= ((i < NR ? p[j * NR + i] : 0) - p[j * NR + i - 1]) / H;
+            for (let j = 1; j <= NZ; j++) for (let i = 0; i < NR; i++) w[j * NR + i] -= ((j < NZ ? p[j * NR + i] : 0) - p[(j - 1) * NR + i]) / H;
+          }
+          function stepSmoke(dt, m) {
+            const g = SM, { NR, NZ, H } = g, nF = Math.min(NR, Math.ceil(m.rF / H)), j1 = Math.min(NZ, Math.ceil(m.zF / H));
+            for (let j = 0; j < j1; j++) for (let i = 0; i < nF; i++) {   // lòng lửa: bể nhiệt + nguồn khói theo cỡ lửa
+              const c = j * NR + i, k = 1 - ((i + 0.5) * H / m.rF) ** 2; if (k <= 0) continue;
+              g.T[c] = Math.max(g.T[c], m.heat * k); g.S[c] = Math.min(1.5, g.S[c] + m.smoke * k * dt);
+            }
+            for (let j = 1; j < NZ; j++) for (let i = 0; i < NR; i++) g.w[j * NR + i] += dt * g.buoy * 0.5 * (g.T[j * NR + i] + g.T[(j - 1) * NR + i]);   // lực nổi
+            turbAx();
+            diffuseAx(g.u, g.u2, NR + 1, NZ, 0, j => g.nu[j], dt, true, null); [g.u, g.u2] = [g.u2, g.u];
+            diffuseAx(g.w, g.w2, NR, NZ + 1, 0.5, j => g.nu[Math.min(j, NZ - 1)], dt, false, null); [g.w, g.w2] = [g.w2, g.w];
+            diffuseAx(g.T, g.T2, NR, NZ, 0.5, j => g.nu[j] * 1.1, dt, false, 0); [g.T, g.T2] = [g.T2, g.T];   // Pr_t ≈ 0.9
+            diffuseAx(g.S, g.S2, NR, NZ, 0.5, j => g.nu[j] * 1.1, dt, false, 0); [g.S, g.S2] = [g.S2, g.S];
+            advectAx(dt);
+            const kc = Math.exp(-dt / g.tauT); for (let c = 0; c < g.NC; c++) g.T[c] *= kc;   // toả nhiệt ra môi trường
+            for (let i = 0; i < NR; i++) g.w[i] = 0;
+            projectAx(g.iters);
+          }
+          function smokeSpawn(n, m) {
+            const g = SM, NT = g.NT; let x, y, z;
+            if (n < g.NS) {   // hơi ấm: phụt khỏi vòi
+              const s = m.spout, q = 0.75 + 0.5 * Math.random();
+              x = s[0] + (Math.random() - 0.5) * 0.03; y = s[1] + (Math.random() - 0.5) * 0.03; z = s[2] + (Math.random() - 0.5) * 0.03;
+              const th = Math.atan2(z, x), c = Math.cos(th), sn = Math.sin(th);
+              g.pr[n] = Math.hypot(x, z); g.pth[n] = th; g.pz[n] = y; g.pu[n] = (s[3] * c + s[5] * sn) * q; g.pt[n] = (s[5] * c - s[3] * sn) * q; g.pw[n] = s[4] * q;
+              g.life[n] = 1 + Math.random() * 1.2;
+            } else {   // khói: bốc từ lòng lửa
+              const r = m.rF * 0.85 * Math.sqrt(Math.random()), th = Math.random() * 6.2832;
+              x = r * Math.cos(th); z = r * Math.sin(th); y = 0.12 + Math.random() * Math.max(0.1, m.zF - 0.12);
+              g.pr[n] = r; g.pth[n] = th; g.pz[n] = y; g.pu[n] = g.pw[n] = g.pt[n] = 0; g.life[n] = 6 + Math.random() * 5;
+            }
+            g.dx[n] = g.dz[n] = g.vx[n] = g.vz[n] = g.pd[n] = 0; g.age[n] = 0; g.pk[n] = 0.6 + 0.5 * Math.random(); g.pwid[n] = 0.7 + 0.6 * Math.random();
+            const o = n * NT * 3; for (let k = 0; k < NT; k++) { g.hist[o + k * 3] = x; g.hist[o + k * 3 + 1] = y; g.hist[o + k * 3 + 2] = z; }
+          }
+          function moveSmoke(dt, m, shift) {
+            const g = SM, { NP, NT, H, NS } = g, Rm = g.NR * H, Zm = g.NZ * H, W = m.wind, kw = 1 - Math.exp(-dt);
+            g.spS += dt * m.rate * (NP - NS) / 8.5; g.spQ += dt * m.steam * NS / 1.6;   // nhịp thả hạt ≈ số hạt / tuổi thọ trung bình
+            for (let n = 0; n < NP; n++) {
+              const steam = n < NS;
+              if (g.age[n] >= g.life[n]) { if (steam ? g.spQ < 1 : g.spS < 1) continue; if (steam) g.spQ--; else g.spS--; smokeSpawn(n, m); }
+              let r = g.pr[n], z = g.pz[n], ur = 0.04, wz = 0.3, sig = 0.06, TLi = 0.8;   // trên / ngoài miền tính: khí đã nguội, bốc chậm & tản
+              if (r < Rm && z < Zm) {
+                const S = sC(g.SS, r, z), j = Math.min(g.NZ - 1, (z / H) | 0);
+                ur = sU(r, z); wz = sW(r, z); TLi = S + 0.5;
+                g.pd[n] = Math.min(1, Math.sqrt(Math.max(0, sC(g.S, r, z))) * g.dens) * Math.exp(-Math.hypot(g.dx[n], g.dz[n]) / 4);   // độ đậm theo nồng độ khói tại chỗ (√: loãng dần đều) · gió ngang cuốn thêm khí sạch vào chùm ⇒ loãng theo quãng bị kéo đi
+                sig = Math.min(0.12 * g.wc[j] + 0.03, 1.49 * Math.sqrt(Math.max(0, g.nu[j] - g.nu0) * S));   // trần σ ≈ 12 % vận tốc trục (cường độ rối đo được ở chùm nổi)
+              } else g.pd[n] *= Math.exp(-dt / 1.5);   // ra khỏi miền tính: khói tiếp tục loãng, tan hẳn sau vài giây
+              if (steam) { TLi += 3.5; wz += 0.2; }   // tia hơi tắt nhanh · hơi ấm nhẹ hơn không khí
+              const a = Math.exp(-dt * TLi), b = sig * Math.sqrt(1 - a * a);
+              g.pu[n] = g.pu[n] * a + b * gauss(); g.pw[n] = g.pw[n] * a + b * gauss(); g.pt[n] = g.pt[n] * a + b * gauss();
+              r += (ur + g.pu[n]) * dt; z += (wz + g.pw[n]) * dt; let th = g.pth[n] + g.pt[n] * dt / Math.max(r, 0.05);
+              if (r < 0) { r = -r; th += Math.PI; }
+              if (z < 0.05) { z = 0.05; g.pw[n] = Math.abs(g.pw[n]); }
+              const zl = Math.min(7.999, z), k0 = zl | 0, f = zl - k0;   // gió thật tại độ cao hạt (tầng 1 đv), quán tính ~1 s
+              g.vx[n] += (W[k0 * 2] * (1 - f) + W[k0 * 2 + 2] * f - g.vx[n]) * kw; g.vz[n] += (W[k0 * 2 + 1] * (1 - f) + W[k0 * 2 + 3] * f - g.vz[n]) * kw;
+              g.dx[n] += g.vx[n] * dt; g.dz[n] += g.vz[n] * dt;
+              g.pr[n] = r; g.pz[n] = z; g.pth[n] = th; g.age[n] += dt; if (z > 14) g.age[n] = g.life[n];
+              const o = n * NT * 3;
+              if (shift) g.hist.copyWithin(o + 3, o, o + (NT - 1) * 3);
+              g.hist[o] = g.dx[n] + r * Math.cos(th); g.hist[o + 1] = z; g.hist[o + 2] = g.dz[n] + r * Math.sin(th);
+            }
+          }
+          function buildSmoke(m, P, D) {   // dải sợi khói quay mặt về camera · D = [độ đục, tỉ lệ hơi, nhiệt, mép] (Uint8)
+            const g = SM, { NP, NT, H, NS } = g, cam = m.cam, Rm = g.NR * H, Zm = g.NZ * H, Hs = g.hist;
+            for (let n = 0, v = 0; n < NP; n++) {
+              const steam = n < NS, age = g.age[n], life = g.life[n], o = n * NT * 3;
+              let a0 = 0, heat = 0;
+              if (age < life) {
+                const r = g.pr[n], z = g.pz[n], inD = r < Rm && z < Zm;
+                if (steam) a0 = 0.85 * Math.min(1, age / 0.06) * Math.pow(1 - age / life, 1.6);
+                else {
+                  a0 = g.pd[n] * Math.min(1, age / 0.35) * Math.min(1, (life - age) / 2);
+                  heat = inD ? Math.min(1, sC(g.T, r, z) / 1.2) : 0;
                 }
+                a0 *= g.pk[n];
+              }
+              const wid = ((steam ? 0.02 + 0.06 * Math.min(1, age / 1.2) : 0.035 + 0.09 * Math.min(1, age / 5)) + 1.4 * m.lpp) * g.pwid[n];
+              const A = Math.round(Math.min(1, a0) * 255), Q = steam ? 255 : 0, TQ = Math.round(heat * 255);
+              for (let j = 0; j < NT; j++, v += 2) {
+                const j0 = j > 0 ? j - 1 : 0, j1 = j < NT - 1 ? j + 1 : NT - 1;
+                let tx = Hs[o + j0 * 3] - Hs[o + j1 * 3], ty = Hs[o + j0 * 3 + 1] - Hs[o + j1 * 3 + 1], tz = Hs[o + j0 * 3 + 2] - Hs[o + j1 * 3 + 2];
+                if (tx * tx + ty * ty + tz * tz < 1e-12) { tx = 0; ty = 1; tz = 0; }
+                let sx = ty * cam[2] - tz * cam[1], sy = tz * cam[0] - tx * cam[2], sz = tx * cam[1] - ty * cam[0];
+                const uu = j / (NT - 1), k = wid * (0.8 + 2.4 * uu) / (Math.hypot(sx, sy, sz) || 1);
+                sx *= k; sy *= k; sz *= k;
+                const q = v * 3, X = Hs[o + j * 3], Y = Hs[o + j * 3 + 1], Z = Hs[o + j * 3 + 2];
+                P[q] = X + sx; P[q + 1] = Y + sy; P[q + 2] = Z + sz; P[q + 3] = X - sx; P[q + 4] = Y - sy; P[q + 5] = Z - sz;
+                const al = Math.round(A * Math.pow(1 - uu, steam ? 2.4 : 1.3) * Math.min(1, j / 1.5 + 0.35)), e = v * 4;   // vệt hơi ngắn hơn (bay hơi nhanh)
+                D[e] = D[e + 4] = al; D[e + 1] = D[e + 5] = Q; D[e + 2] = D[e + 6] = TQ; D[e + 3] = 255; D[e + 7] = 0;
+              }
             }
-            // lực: nổi (nóng lên, khói nặng xuống) · gió ngang theo độ cao kéo luồng khói · xoáy (vorticity confinement)
-            const kw = Math.min(1, P.windDrag * dt);
-            for (let j = 0; j < ny; j++) {
-              const amb = prm.wind0 + (prm.wind1 - prm.wind0) * j / (ny - 1);
-              for (let i = 0, c = j * nx; i < nx; i++, c++) { v[c] += dt * (P.buoy * T[c] - P.weight * s[c]); u[c] += (amb - u[c]) * kw * (0.35 + 0.65 * j / ny); }
-            }
-            const cu = P.cu;
-            for (let j = 1; j < ny - 1; j++) for (let i = 1, c = j * nx + 1; i < nx - 1; i++, c++) cu[c] = 0.5 * (v[c + 1] - v[c - 1] - u[c + nx] + u[c - nx]);
-            for (let j = 2; j < ny - 2; j++) for (let i = 2, c = j * nx + 2; i < nx - 2; i++, c++) {
-              const gx = Math.abs(cu[c + 1]) - Math.abs(cu[c - 1]), gy = Math.abs(cu[c + nx]) - Math.abs(cu[c - nx]), l = Math.hypot(gx, gy) + 1e-5;
-              u[c] += dt * P.vort * (gy / l) * cu[c]; v[c] -= dt * P.vort * (gx / l) * cu[c];
-            }
-            // cuốn vận tốc (bán Lagrange); ngoài mép lấy giá trị mép (gió vào/ra tự nhiên)
-            for (let j = 0, c = 0; j < ny; j++) for (let i = 0; i < nx; i++, c++) {
-              const x = i - dt * u[c] * idx, y = j - dt * v[c] * idx;
-              u2[c] = bil(u, nx, ny, x, y); v2[c] = bil(v, nx, ny, x, y);
-            }
-            [u, u2] = [u2, u]; [v, v2] = [v2, v];
-            for (let i = 0; i < nx; i++) if (v[i] < 0) v[i] = 0;   // mặt đất: khói không chui xuống
-            // chiếu áp suất (Gauss–Seidel): mép trên/2 bên mở (p = 0), đáy kín
-            const p = P.p, dv = P.dv;
-            for (let j = 0, c = 0; j < ny; j++) for (let i = 0; i < nx; i++, c++) {
-              const uR = i < nx - 1 ? u[c + 1] : u[c], uL = i > 0 ? u[c - 1] : u[c], vT = j < ny - 1 ? v[c + nx] : v[c], vB = j > 0 ? v[c - nx] : -v[c];
-              dv[c] = 0.5 * (uR - uL + vT - vB); p[c] = 0;
-            }
-            for (let it = 0; it < P.iters; it++) for (let j = 0, c = 0; j < ny; j++) for (let i = 0; i < nx; i++, c++) {
-              const pl = i > 0 ? p[c - 1] : 0, pr = i < nx - 1 ? p[c + 1] : 0, pb = j > 0 ? p[c - nx] : p[c], pt = j < ny - 1 ? p[c + nx] : 0;
-              p[c] = (pl + pr + pb + pt - dv[c]) * 0.25;
-            }
-            for (let j = 0, c = 0; j < ny; j++) for (let i = 0; i < nx; i++, c++) {
-              const pl = i > 0 ? p[c - 1] : 0, pr = i < nx - 1 ? p[c + 1] : 0, pb = j > 0 ? p[c - nx] : p[c], pt = j < ny - 1 ? p[c + nx] : 0;
-              u[c] -= 0.5 * (pr - pl); v[c] -= 0.5 * (pt - pb);
-            }
-            // cuốn khói · hơi · nhiệt theo dòng; ngoài mép coi như không khí sạch; tan dần
-            const ks = Math.exp(-dt / P.tauS), kq = Math.exp(-dt / P.tauQ), kt = Math.exp(-dt / P.tauT);
-            const sampleS = (a, x, y) => (x < -0.5 || y < -0.5 || x > nx - 0.5 || y > ny - 0.5) ? 0 : bil(a, nx, ny, x, y);
-            for (let j = 0, c = 0; j < ny; j++) for (let i = 0; i < nx; i++, c++) {
-              const x = i - dt * u[c] * idx, y = j - dt * v[c] * idx;
-              s2[c] = sampleS(s, x, y) * ks; q2[c] = sampleS(q, x, y) * kq; T2[c] = sampleS(T, x, y) * kt;
-            }
-            Object.assign(P, { u, v, u2, v2, s: s2, s2: s, q: q2, q2: q, T: T2, T2: T });
-          }
-          function encodePlume(P, out) {   // RGBA8: khói · hơi nước/sương · nhiệt
-            const { s, q, T } = P;
-            for (let c = 0, o = 0; c < s.length; c++, o += 4) { out[o] = Math.min(255, s[c] * 255) | 0; out[o + 1] = Math.min(255, q[c] * 255) | 0; out[o + 2] = Math.min(255, T[c] * 128) | 0; out[o + 3] = 255; }
-            return out;
           }
 
           // ---------------- giao tiếp ----------------
           function handle(m) {
             if (m.t === 'water') { initWater(m.grid); for (let t = 0; t < m.warm; t += WSTEP) stepWater(WSTEP, 0, 0); return null; }   // chạy trước ~40 s cho dòng ổn định
-            if (m.t === 'plume') { addPlume(m.id, m.cfg); return null; }
+            if (m.t === 'smoke') { initSmoke(m.cfg); return null; }
             if (m.t !== 'step') return null;
-            const transfer = [], res = { t: 'out', plumes: {} };
+            const transfer = [], res = { t: 'out' };
             if (W) {
               splashWater(m.imp, m.nImp);
               W.acc = Math.min(W.acc + m.dt, 0.1);
@@ -3244,16 +3348,17 @@
               const buf = m.bufs.water && m.bufs.water.byteLength === W.nx * W.nz * 8 ? new Uint16Array(m.bufs.water) : new Uint16Array(W.nx * W.nz * 4);
               res.water = encodeWater(buf).buffer; transfer.push(res.water);
             }
-            for (const [id, prm] of Object.entries(m.plumes)) {
-              const P = plumes.get(id); if (!P) continue;
-              const step = 1 / 30; P.acc = Math.min((P.acc || 0) + m.dt, 0.1);
-              while (P.acc >= step) { stepPlume(P, step, prm); P.acc -= step; }
-              const b = m.bufs[id], buf = b && b.byteLength === P.nx * P.ny * 4 ? new Uint8Array(b) : new Uint8Array(P.nx * P.ny * 4);
-              res.plumes[id] = encodePlume(P, buf).buffer; transfer.push(res.plumes[id]);
+            if (SM && m.smoke) {
+              const k = m.smoke, NV = SM.NP * SM.NT * 2, bp = m.bufs.smokeP, bd = m.bufs.smokeD;
+              SM.acc = Math.min(SM.acc + m.dt, 0.1);
+              while (SM.acc >= 1 / 30) { stepSmoke(1 / 30, k); SM.acc -= 1 / 30; }
+              for (let s = 0; s < 2; s++) { SM.rec += m.dt / 2; const sh = SM.rec >= 0.03; if (sh) SM.rec = Math.min(0.03, SM.rec - 0.03); moveSmoke(m.dt / 2, k, sh); }   // vệt: ghi 1 điểm mỗi 30 ms (~0,4 s đường đi)
+              const P = bp && bp.byteLength === NV * 12 ? new Float32Array(bp) : new Float32Array(NV * 3), D = bd && bd.byteLength === NV * 4 ? new Uint8Array(bd) : new Uint8Array(NV * 4);
+              buildSmoke(k, P, D); res.smoke = { pos: P.buffer, d: D.buffer }; transfer.push(P.buffer, D.buffer);
             }
             return { msg: res, transfer };
           }
-          return { handle };
+          return { handle, smokeState: () => SM };   // smokeState: cho bộ thử ngoài (Node) đọc trường khói
         }
 
         fluids = (() => {
@@ -3302,41 +3407,38 @@
           const water = { tex: wTex, ready: false, x0, z0, nx, nz, dx,
             height: (x, z) => sampleW(x, z, 0), flow(x, z, out) { out.x = sampleW(x, z, 1); out.z = sampleW(x, z, 2); return out; }, foam: (x, z) => sampleW(x, z, 3) };
           waterU.uSim.value = wTex; waterU.uSimBox.value.set(x0, z0, 1 / (nx * dx), 1 / (nz * dx)); waterU.uSimTexel.value.set(1 / nx, 1 / nz); waterU.uSimDx.value = dx;
-          // ---- khói / hơi: tấm đứng quay về camera ----
-          const plumeVS = `varying vec2 vUv;
+          // ---- khói lửa trại: dải sợi khói (luồng phụ dựng sẵn vị trí + độ đục), mép mềm 1 − e² như luồng khói động cơ ở sân bay ----
+          const smokeVS = `attribute vec4 aD; varying vec4 vD;
             #include <fog_pars_vertex>
-            void main() { vUv = uv; vec4 mvPosition = modelViewMatrix * vec4(position, 1.0); gl_Position = projectionMatrix * mvPosition;
+            void main() { vD = aD; vec4 mvPosition = modelViewMatrix * vec4(position, 1.0); gl_Position = projectionMatrix * mvPosition;
             #include <fog_vertex>
             }`;
-          const plumeFS = `uniform sampler2D uDye; uniform vec3 uSmoke, uSteam, uGlow; uniform float uOpacity, uTime, uDetail, uFadeB;
-            varying vec2 vUv;
+          const smokeFS = `uniform vec3 uSmoke, uSteam, uGlow; uniform float uOpacity; varying vec4 vD;
             #include <fog_pars_fragment>
-            float pHash(vec2 p) { vec3 q = fract(vec3(p.xyx) * 0.1031); q += dot(q, q.yzx + 33.33); return fract((q.x + q.y) * q.z); }
-            float pNoise(vec2 p) { vec2 i = floor(p), f = fract(p), u = f * f * (3.0 - 2.0 * f); return mix(mix(pHash(i), pHash(i + vec2(1, 0)), u.x), mix(pHash(i + vec2(0, 1)), pHash(i + vec2(1, 1)), u.x), u.y); }
             void main() {
-              vec4 d = texture2D(uDye, vUv);
-              float det = 0.7 + 0.6 * pNoise(vUv * uDetail + vec2(0.0, -uTime * 0.5)) * pNoise(vUv * uDetail * 2.3 + vec2(uTime * 0.13, -uTime * 0.9));   // chi tiết mịn hơn ô lưới
-              float a = (1.0 - exp(-(d.r * 2.6 + d.g * 2.2) * det)) * uOpacity;
-              a *= smoothstep(0.0, 0.07, vUv.x) * smoothstep(1.0, 0.93, vUv.x) * smoothstep(1.0, 0.88, vUv.y) * smoothstep(0.0, uFadeB, vUv.y);   // mép tấm mờ dần (đáy: khỏi lộ đường cắt mặt nước)
-              if (a < 0.004) discard;
-              gl_FragColor = vec4(mix(uSmoke, uSteam, d.g / (d.r + d.g + 1e-3)) + uGlow * d.b * d.b * 4.0, a);
+              float e = vD.w * 2.0 - 1.0, a = vD.x * (1.0 - e * e) * uOpacity;
+              if (a < 0.003) discard;
+              gl_FragColor = vec4(mix(uSmoke, uSteam, vD.y) + uGlow * vD.z * vD.z * vD.z * 1.2, a);   // khói xám · hơi trắng · lửa hắt cam nhẹ lên khói nóng sát bếp
               #include <tonemapping_fragment>
               #include <colorspace_fragment>
               #include <fog_fragment>
             }`;
-          const plumes = new Map(), _pr = new THREE.Vector3(), _pf = new THREE.Vector3(), _pd = new THREE.Vector3();
-          function addPlume(id, cfg, look) {   // cfg: lưới (nx, ny, w, h) + vật lý · look: màu, độ đục, chi tiết
-            const tex = new THREE.DataTexture(new Uint8Array(cfg.nx * cfg.ny * 4), cfg.nx, cfg.ny, THREE.RGBAFormat);
-            tex.magFilter = tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false; tex.needsUpdate = true;
-            const mat = new THREE.ShaderMaterial({ vertexShader: plumeVS, fragmentShader: plumeFS, transparent: true, depthWrite: false, fog: true, toneMapped: false, side: THREE.DoubleSide,
-              uniforms: Object.assign({ uDye: { value: tex }, uSmoke: { value: new THREE.Color() }, uSteam: { value: new THREE.Color() }, uGlow: { value: new THREE.Color() },
-                uOpacity: { value: look.opacity }, uTime: { value: 0 }, uDetail: { value: look.detail }, uFadeB: { value: look.fadeBottom ?? 0.02 } }, THREE.UniformsUtils.clone(THREE.UniformsLib.fog)) });
-            const geo = new THREE.PlaneGeometry(cfg.w, cfg.h); geo.translate(0, cfg.h / 2, 0);
+          let smoke = null;
+          const _pf = new THREE.Vector3(), _pw = new THREE.Vector3();
+          function addSmoke(cfg, look) {   // cfg: lưới (NR × NZ ô cạnh H) + số hạt NP (NS hạt đầu là hơi) × NT điểm vệt + hệ số vật lý · look: tên, độ đục
+            const NT = cfg.NT, NV = cfg.NP * NT * 2, idx = new Uint16Array(cfg.NP * (NT - 1) * 6);
+            for (let p = 0, o = 0; p < cfg.NP; p++) for (let j = 0; j < NT - 1; j++) { const b = (p * NT + j) * 2; idx[o++] = b; idx[o++] = b + 1; idx[o++] = b + 2; idx[o++] = b + 1; idx[o++] = b + 3; idx[o++] = b + 2; }
+            const geo = new THREE.BufferGeometry();
+            geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(NV * 3), 3).setUsage(THREE.DynamicDrawUsage));
+            geo.setAttribute('aD', new THREE.BufferAttribute(new Uint8Array(NV * 4), 4, true).setUsage(THREE.DynamicDrawUsage));
+            geo.setIndex(new THREE.BufferAttribute(idx, 1));
+            const mat = new THREE.ShaderMaterial({ vertexShader: smokeVS, fragmentShader: smokeFS, transparent: true, depthWrite: false, fog: true, toneMapped: false, side: THREE.DoubleSide,
+              uniforms: Object.assign({ uSmoke: { value: new THREE.Color() }, uSteam: { value: new THREE.Color() }, uGlow: { value: new THREE.Color() }, uOpacity: { value: look.opacity } }, THREE.UniformsUtils.clone(THREE.UniformsLib.fog)) });
             const mesh = new THREE.Mesh(geo, mat); mesh.name = look.name; mesh.frustumCulled = false; mesh.renderOrder = 4; mesh.raycast = () => {};
             mesh.userData.noRainOcc = mesh.userData.noBatch = true; scene.add(mesh);
-            const P = { id, cfg, look, tex, mat, mesh, data: null, spare: null, base: new THREE.Vector3(), wind0: new THREE.Vector3(), wind1: new THREE.Vector3(), sources: [], on: true, right: new THREE.Vector3(1, 0, 0) };
-            plumes.set(id, P); post({ t: 'plume', id, cfg });
-            return P;
+            smoke = { cfg, mat, mesh, geo, spare: null, base: new THREE.Vector3(), on: true, heat: 0, smoke: 0, rate: 0, steam: 0, rF: 0.3, zF: 0.7, spout: [0, 0, 0, 0, 0, 0], wind: new Array(18).fill(0) };
+            post({ t: 'smoke', cfg });
+            return smoke;
           }
           // ---- luồng phụ (dự phòng: chạy ngay trên luồng chính) ----
           let worker = null, local = null, busy = false, accDt = 0, url = null;
@@ -3344,9 +3446,9 @@
           function onOut(m) {
             busy = false;
             if (m.water) { const arr = new Uint16Array(m.water); spareW = wData ? wData.buffer : null; wData = arr; wTex.image.data = arr; wTex.needsUpdate = true; if (!water.ready) { water.ready = true; waterU.uSimOn.value = 1; } }
-            for (const [id, buf] of Object.entries(m.plumes || {})) {
-              const P = plumes.get(id); if (!P) continue;
-              const arr = new Uint8Array(buf); P.spare = P.data ? P.data.buffer : null; P.data = arr; P.tex.image.data = arr; P.tex.needsUpdate = true;
+            if (m.smoke && smoke) {
+              const at = smoke.geo.attributes, P = new Float32Array(m.smoke.pos), D = new Uint8Array(m.smoke.d);
+              at.position.array.set(P); at.aD.array.set(D); at.position.needsUpdate = at.aD.needsUpdate = true; smoke.spare = [P.buffer, D.buffer];
             }
           }
           function post(m, transfer) {
@@ -3357,49 +3459,46 @@
             url = URL.createObjectURL(new Blob(['const K = (' + fluidKernel.toString() + ')(); onmessage = e => { const r = K.handle(e.data); if (r) postMessage(r.msg, r.transfer); };'], { type: 'text/javascript' }));
             worker = new Worker(url);
             worker.onmessage = e => onOut(e.data);
-            worker.onerror = e => { e.preventDefault?.(); worker.terminate(); worker = null; busy = false; local = fluidKernel(); local.handle(initMsg); for (const P of plumes.values()) local.handle({ t: 'plume', id: P.id, cfg: P.cfg }); };
+            worker.onerror = e => { e.preventDefault?.(); worker.terminate(); worker = null; busy = false; local = fluidKernel(); local.handle(initMsg); if (smoke) local.handle({ t: 'smoke', cfg: smoke.cfg }); };
           } catch (e) { worker = null; local = fluidKernel(); }
           const initMsg = { t: 'water', warm: worker ? 12 : 0, grid: { nx, nz, dx, mask, kind, bed, target, rest, jets, u0, v0 } };   // luồng phụ: chạy trước 12 s cho tia cửa xả & xoáy hình thành
           post(initMsg);
           sceneEvents.signal.addEventListener('abort', () => { worker?.terminate(); worker = null; if (url) URL.revokeObjectURL(url); });
           return {
-            water, addPlume, wCells,
+            water, addSmoke, wCells,
             splash(x, z, r, s) {   // vật chạm nước tại (x, z) thế giới: bán kính r (đv), cường độ s (m lún xuống)
               if (nImp >= 96) return;
               imp.set([(x - x0) / dx, (z - z0) / dx, r / dx, s], nImp * 4); nImp++;
             },
             update(dt, t, rain) {
               accDt += dt;
-              for (const P of plumes.values()) P.mat.uniforms.uTime.value = t % 1000;
               if (busy) return;
               // giọt mưa rơi xuống mặt nước: vài cú chạm ngẫu nhiên mỗi khung theo cường độ mưa
               for (let k = Math.round(rain * 6 * (0.5 + Math.random())); k > 0; k--) { const c = wCells[(Math.random() * wCells.length) | 0], a = c % nx, b = (c / nx) | 0; this.splash(x0 + (a + 0.5) * dx, z0 + (b + 0.5) * dx, 0.5, 0.008 + 0.01 * Math.random()); }
-              const msg = { t: 'step', dt: Math.min(accDt, 0.1), nImp, imp: imp.slice(0, nImp * 4), wind: [sceneWind.dir.x * sceneWind.U * 0.0036, sceneWind.dir.y * sceneWind.U * 0.0036], plumes: {}, bufs: { water: spareW } };
+              const msg = { t: 'step', dt: Math.min(accDt, 0.1), nImp, imp: imp.slice(0, nImp * 4), wind: [sceneWind.dir.x * sceneWind.U * 0.0036, sceneWind.dir.y * sceneWind.U * 0.0036], bufs: { water: spareW } };
               const transfer = spareW ? [spareW] : []; spareW = null; nImp = 0; accDt = 0;
-              camera.getWorldDirection(_pf); _pr.set(-_pf.z, 0, _pf.x).normalize();   // trục ngang của tấm khói (vuông góc hướng nhìn)
-              for (const P of plumes.values()) {
-                P.mesh.visible = P.on; if (!P.on) continue;
-                P.mesh.position.copy(P.base); P.mesh.rotation.set(0, Math.atan2(-_pr.z, _pr.x), 0); P.right.copy(_pr);
-                const cs = P.cfg.w / P.cfg.nx, src = [];
-                for (const S of P.sources) {   // nguồn (thế giới) → toạ độ ô trên tấm; vận tốc nguồn chiếu lên trục ngang + đứng
-                  _pd.copy(S.p).sub(P.base);
-                  src.push([P.cfg.nx / 2 + _pd.dot(_pr) / cs, _pd.y / cs, S.r / cs, S.smoke, S.heat, S.steam, S.vel ? S.vel.dot(_pr) : 0, S.vel ? S.vel.y : 0]);
+              if (smoke) {
+                smoke.mesh.visible = smoke.on;
+                if (smoke.on) {   // gió thật 9 tầng trên tâm lửa · hướng nhìn (dải quay mặt về camera) · cỡ 1 điểm ảnh (sợi xa vẫn ≥ ~2 px)
+                  const B = smoke.base, W = smoke.wind; smoke.mesh.position.copy(B);
+                  // gió cảnh chạy chậm (U10_cảnh = 0,25 + 0,2·U10 cho lá khỏi bay mất) còn khói bốc theo tốc độ thật ⇒ quy gió về tốc độ thật (đv/s) cho tỉ lệ gió / tốc độ bốc đúng
+                  const kW = Math.min(5, Math.max(1, sceneWind.speed / 3.6 / 0.76 / Math.max(0.1, sceneWind.U)));
+                  for (let k = 0; k < 9; k++) { windAt(B.x, B.y + k, B.z, k + 0.3, _pw); W[k * 2] = _pw.x * kW; W[k * 2 + 1] = _pw.z * kW; }
+                  camera.getWorldDirection(_pf);
+                  msg.smoke = { heat: smoke.heat, smoke: smoke.smoke, rate: smoke.rate, steam: smoke.steam, rF: smoke.rF, zF: smoke.zF, spout: smoke.spout, wind: W,
+                    cam: [_pf.x, _pf.y, _pf.z], lpp: (camera.top - camera.bottom) / camera.zoom / Math.max(1, renderer.domElement.clientHeight) };
+                  if (smoke.spare) { [msg.bufs.smokeP, msg.bufs.smokeD] = smoke.spare; transfer.push(...smoke.spare); smoke.spare = null; }
                 }
-                msg.plumes[P.id] = { src, wind0: P.wind0.dot(_pr), wind1: P.wind1.dot(_pr) };
-                msg.bufs[P.id] = P.spare; if (P.spare) transfer.push(P.spare); P.spare = null;
               }
               busy = true; post(msg, transfer);
             }
           };
         })();
         const PLUME_COL = { smoke: new THREE.Color(0.42, 0.40, 0.38), steam: new THREE.Color(0.92, 0.93, 0.95), glow: new THREE.Color(1.0, 0.42, 0.1) };
-        const _plumeGlow = new THREE.Color(), _plumeQ = new THREE.Quaternion();
+        const _plumeGlow = new THREE.Color(), _plumeQ = new THREE.Quaternion(), _smokeTop = new THREE.Vector3(), _smokeJet = new THREE.Vector3();
         function plumeLight(P, smoke, steam, glow) {   // màu khói/hơi theo ánh sáng cảnh lúc này (đêm tối hẳn, chỉ sáng nơi lửa hắt lên)
           const lit = Math.min(1.05, hemi.intensity * 0.5 + amb.intensity * 0.55 + sun.intensity * 0.42), U = P.mat.uniforms;
           U.uSmoke.value.copy(smoke).multiplyScalar(lit); U.uSteam.value.copy(steam).multiplyScalar(lit); U.uGlow.value.copy(glow);
-        }
-        function plumeWind(P, h0, h1) {   // gió thật tại 2 độ cao trên chân tấm (mô hình log + nhiễu loạn) → mô phỏng lấy thành phần ngang trong mặt tấm
-          windAt(P.base.x, P.base.y + h0, P.base.z, h0, P.wind0); windAt(P.base.x, P.base.y + h1, P.base.z, h1, P.wind1);
         }
         // ---- fish in the downstream river ----
         const fishies = [];
@@ -7432,10 +7531,10 @@
         { const tb = campTable(); tb.position.set(X0 + 65, cowY(X0 + 65, Z0 + 99.85), Z0 + 99.85);   // toạ độ hover (65, _, 100), lùi 15 cm khỏi tay ghế cắm trại cho khỏi chạm; xa cột chống bạt ~1,4 m
            tb.rotation.y = Math.PI * 0.15; tb.name = 'Bàn trà (Camp Table)'; scene.add(tb); }
         { const wc = woodCamp(); wc.name = 'Đống củi (Woodpile)'; wc.position.set(X0 + 68, woodCampY, Z0 + 100); wc.rotation.y = 0.5; scene.add(wc); }
-        // ---- khói bếp lửa + hơi ấm reo = chất lỏng 2D (nature/fluids.js) thay 10 cụm khói & 7 cụm hơi vẽ sẵn: nổi vì nóng, gió thật cuốn, cuộn xoáy ----
-        const campPlume = fluids.addPlume('camp', { nx: 72, ny: 76, w: 7.6, h: 8, buoy: 5, weight: 0.3, windDrag: 1.2, vort: 4, iters: 18, tauS: 9, tauQ: 1.4, tauT: 1.2, jitter: 0.6 },
-          { name: 'Khói bếp lửa (mô phỏng chất lỏng)', opacity: 0.9, detail: 7 });
-        campPlume.sources = [{ p: new THREE.Vector3(), r: 0.36, smoke: 0, heat: 0, steam: 0, vel: new THREE.Vector3() }, { p: new THREE.Vector3(), r: 0.14, smoke: 0, heat: 0, steam: 0, vel: new THREE.Vector3() }];
+        // ---- khói bếp lửa + hơi ấm reo = SỢI KHÓI theo trường Navier–Stokes đối xứng trục (nature/fluids.js, kỹ thuật luồng khói động cơ ở sân bay):
+        //      lưới 30 × 90 ô 8 cm (bán kính 2,4 · cao 7,2 đv) · 900 hạt (140 hạt hơi) × vệt 14 điểm; nổi vì nóng, cuộn rối, gió thật làm ngả chùm khói ----
+        const campSmoke = fluids.addSmoke({ NR: 30, NZ: 90, H: 0.08, NP: 900, NS: 140, NT: 14, buoy: 4, kNu: 0.03, nu0: 0.002, tauT: 6, iters: 36, dens: 0.8 },
+          { name: 'Khói bếp lửa (sợi khói Navier–Stokes)', opacity: 0.6 });
         // ---- chú chó nhỏ sưởi ấm bên bếp lửa ----
         function dogModel(s) {
           const g = new THREE.Group();
@@ -11979,7 +12078,7 @@
             const fireScale = campfireLevel(liveWeather.localHour);   // 100% lúc 19:00 → 5% lúc 07:00, ban ngày 5%
             const steamAmt = Math.min(1, Math.max(0, (fireScale - 0.2) / 0.55));   // lửa lớn → ấm sôi phụt hơi qua còi; lửa ngày 5% → không có hơi
             const kGrp = kettleSteam.length ? kettleSteam[0].m.parent : null; if (kGrp) kGrp.localToWorld(_plS.set(0, 0, 0));
-            if (campPlume) for (const p of kettleSteam) p.m.visible = false;   // hơi ấm reo nằm trong mô phỏng khói (nguồn thứ 2)
+            if (campSmoke) for (const p of kettleSteam) p.m.visible = false;   // hơi ấm reo = hạt hơi trong mô phỏng sợi khói
             else for (const p of kettleSteam) {   // tia hơi phụt khỏi còi, chậm dần, rồi bốc lên (nổi yếu, trần thấp) và bị gió tại độ cao vòi cuốn đi
               const k = (t * 0.45 + p.ph) % 1, a = k / 0.45, jet = 0.16 * (1 - Math.exp(-a * 4));
               plumeOffset(_plS, a, KETTLE_PLUME, _plA); windInLocal(kGrp, _plA, _steamW);
@@ -11987,17 +12086,18 @@
               p.m.scale.setScalar(0.5 + k * 2.8); p.m.material.opacity = steamAmt * 0.4 * Math.sin(k * Math.PI);
             }
             for (const fl of campObj.flames) { fl.m.scale.y = fireScale * Math.max(0.6, 0.92 + 0.24 * Math.sin(t * 7 + fl.ph) + 0.12 * Math.sin(t * 13 + fl.ph * 1.6)); fl.m.scale.x = fl.m.scale.z = fireScale * (0.82 + 0.2 * Math.sin(t * 7 + fl.ph * 1.3)); fl.m.material.opacity = 0.72 + 0.26 * Math.sin(t * 12 + fl.ph); }
-            if (campPlume) {   // khói + hơi = mô phỏng chất lỏng 2D: lửa cấp nhiệt & khói theo cỡ lửa, ấm reo phụt hơi theo hướng vòi
+            if (campSmoke) {   // khói + hơi = sợi khói: lửa cấp nhiệt & khói theo cỡ lửa, ấm reo phụt hơi theo hướng vòi
               for (const sm of campObj.smoke) sm.m.visible = false;
-              const F = campPlume.sources[0], K = campPlume.sources[1];
-              campObj.g.localToWorld(campPlume.base.set(0, 0, 0)); campObj.g.localToWorld(F.p.set(0, 0.75, 0));
-              F.smoke = 2.2 + 10 * fireScale; F.heat = 1.0 + 2.4 * fireScale; F.vel.set(0, 0.4 + 0.8 * fireScale, 0);
-              if (kGrp) { kGrp.localToWorld(K.p.set(0, 0, 0)); K.vel.copy(kettleSteam[0].dir).applyQuaternion(kGrp.getWorldQuaternion(_plumeQ)).multiplyScalar(0.9); K.vel.y += 0.3; }
-              K.steam = 2.6 * steamAmt; K.heat = 0.5 * steamAmt;
-              plumeWind(campPlume, 1, 5); plumeLight(campPlume, PLUME_COL.smoke, PLUME_COL.steam, _plumeGlow.copy(PLUME_COL.glow).multiplyScalar(0.25 + 0.75 * fireScale));
+              const S = campSmoke, B = S.base; campObj.g.localToWorld(B.set(0, 0, 0)); campObj.g.localToWorld(_smokeTop.set(0, 0.75, 0));
+              S.zF = Math.max(0.3, _smokeTop.y - B.y); S.heat = 0.45 + 1.05 * fireScale; S.smoke = 0.5 + 2.5 * fireScale; S.rate = 0.12 + 0.88 * fireScale; S.steam = steamAmt;
+              if (kGrp) {
+                kGrp.localToWorld(_smokeTop.set(0, 0, 0)).sub(B); _smokeJet.copy(kettleSteam[0].dir).applyQuaternion(kGrp.getWorldQuaternion(_plumeQ)).multiplyScalar(0.9);
+                S.spout[0] = _smokeTop.x; S.spout[1] = _smokeTop.y; S.spout[2] = _smokeTop.z; S.spout[3] = _smokeJet.x; S.spout[4] = _smokeJet.y + 0.3; S.spout[5] = _smokeJet.z;
+              }
+              plumeLight(S, PLUME_COL.smoke, PLUME_COL.steam, _plumeGlow.copy(PLUME_COL.glow).multiplyScalar(0.25 + 0.75 * fireScale));
             } else campObj.g.localToWorld(_plS.set(0, 0.9, 0));
             // khói bếp lửa kiểu cũ (dự phòng): luồng nổi Briggs (xem plumeOffset) — cụm khói nở theo độ cao bốc, loãng dần; trời ổn định thì dẹt ra như quạt
-            if (!campPlume) for (const sm of campObj.smoke) {
+            if (!campSmoke) for (const sm of campObj.smoke) {
               const life = 6, a = ((t / life + sm.ph) % 1) * life, pr = a / life;
               const z = plumeOffset(_plS, a, CAMP_PLUME, _plA); windInLocal(campObj.g, _plA, _smokeW);
               sm.m.position.set(_smokeW.x, 0.9 + _smokeW.y, _smokeW.z);
