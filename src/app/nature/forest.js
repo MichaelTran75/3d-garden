@@ -336,8 +336,8 @@
             const a = rnd() * 6.283, r = rnd() * 2.2 * s; _q.setFromEuler(new THREE.Euler(0, rnd() * 3.14, 0)); _p.set(Math.cos(a) * r, 0.03 * s, Math.sin(a) * r); _mm.compose(_p, _q, _sc); fallen.setMatrixAt(k, _mm);
             _col.setHex(cherryPinks[(rnd() * cherryPinks.length) | 0]); fallen.setColorAt(k, _col);
           }
-          fallen.instanceMatrix.needsUpdate = true; if (fallen.instanceColor) fallen.instanceColor.needsUpdate = true; g.add(fallen);
+          fallen.instanceMatrix.needsUpdate = true; if (fallen.instanceColor) fallen.instanceColor.needsUpdate = true; g.add(fallen); fallen.name = 'Cánh hoa rụng dưới gốc';
           bakeStatic(g);   // gộp cành cherryBark thành 1 mesh (các InstancedMesh hoa được bake bỏ qua, giữ nguyên)
-          g.userData.treeWind = tw; g.userData.blossomPts = blossomPts;   // cánh hoa rơi sinh từ chính các chùm hoa (toạ độ cục bộ)
+          g.userData.treeWind = tw; g.userData.blossomPts = blossomPts; g.userData.fallen = fallen;   // cánh hoa rơi sinh từ chính các chùm hoa (toạ độ cục bộ)
           return g;
         }

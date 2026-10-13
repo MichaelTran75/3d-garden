@@ -2823,9 +2823,9 @@
             const a = rnd() * 6.283, r = rnd() * 2.2 * s; _q.setFromEuler(new THREE.Euler(0, rnd() * 3.14, 0)); _p.set(Math.cos(a) * r, 0.03 * s, Math.sin(a) * r); _mm.compose(_p, _q, _sc); fallen.setMatrixAt(k, _mm);
             _col.setHex(cherryPinks[(rnd() * cherryPinks.length) | 0]); fallen.setColorAt(k, _col);
           }
-          fallen.instanceMatrix.needsUpdate = true; if (fallen.instanceColor) fallen.instanceColor.needsUpdate = true; g.add(fallen);
+          fallen.instanceMatrix.needsUpdate = true; if (fallen.instanceColor) fallen.instanceColor.needsUpdate = true; g.add(fallen); fallen.name = 'Cánh hoa rụng dưới gốc';
           bakeStatic(g);   // gộp cành cherryBark thành 1 mesh (các InstancedMesh hoa được bake bỏ qua, giữ nguyên)
-          g.userData.treeWind = tw; g.userData.blossomPts = blossomPts;   // cánh hoa rơi sinh từ chính các chùm hoa (toạ độ cục bộ)
+          g.userData.treeWind = tw; g.userData.blossomPts = blossomPts; g.userData.fallen = fallen;   // cánh hoa rơi sinh từ chính các chùm hoa (toạ độ cục bộ)
           return g;
         }
         // ---- MẶT NƯỚC & DÒNG CHẢY cho vật trôi (lá, cánh hoa) và cá ----
@@ -3040,6 +3040,20 @@
         let cherryCtl = null, oldTreeLeafCtl = null, cherryWind = null, oldTreeWind = null;
         { const ct = cherryTree(1.2); ct.position.copy(worldCell(29, 35.5)); ct.rotation.y = Math.random() * 6.28; ct.name = 'Cây anh đào (Cherry Blossom Tree)'; scene.add(ct);   // 1 cây duy nhất cạnh xe van
           cherryWind = ct.userData.treeWind; finalizeTreeWind(cherryWind, ct);
+          { // cánh hoa rải sẵn dưới gốc: đặt lúc dựng cây theo độ cao cố định ⇒ lơ lửng trên mép bậc đất / lệch độ cao. Nay hạ đúng mặt ô đất;
+            // cánh rơi trên mặt nước hoặc vắt qua mép bậc (4 góc không cùng độ cao) thì bỏ
+            const F = ct.userData.fallen, m = new THREE.Matrix4(), p = new THREE.Vector3(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), inv = new THREE.Matrix4();
+            ct.updateMatrixWorld(true); inv.copy(F.matrixWorld).invert();
+            const cell = (x, z) => [Math.round(x / BLOCK + cx - 0.5), Math.round(z / BLOCK + cz - 0.5)], hd = 0.09;   // (= x2gi/z2gj, khai báo sau tệp này)
+            for (let k = 0; k < F.count; k++) {
+              F.getMatrixAt(k, m); m.decompose(p, q, sc); p.applyMatrix4(F.matrixWorld);
+              const ys = [[-hd, -hd], [hd, -hd], [-hd, hd], [hd, hd], [0, 0]].map(([dx, dz]) => { const [i, j] = cell(p.x + dx, p.z + dz); return waterCell(i, j) ? NaN : surfaceY(i, j); });   // (cowY chưa khai báo lúc này; quanh gốc anh đào không có mặt đập nên trùng nhau)
+              const ok = ys.every(y => Math.abs(y - ys[4]) < 1e-3);
+              if (ok) { p.y = ys[4] + 0.01; p.applyMatrix4(inv); } else sc.setScalar(0);
+              F.setMatrixAt(k, m.compose(p, q, sc));
+            }
+            F.instanceMatrix.needsUpdate = true;
+          }
           cherryCtl = makeLeafFall({ name: 'Cánh hoa anh đào rơi theo gió', group: ct, pts: ct.userData.blossomPts, n: 36, geo: new THREE.BoxGeometry(0.19 * 1.2, 0.002 * 1.2, 0.19 * 1.2), opacity: 0.75,
             color: () => cherryPinks[(Math.random() * cherryPinks.length) | 0], scale: 1, tw: cherryWind, g: 3.5, vTerm: 0.45, flutA: 0.5, flutW: [3.5, 5], tumble: 0.15, tumbleW: [9, 14], slideU: 0.5, rate0: 0.35, rateK: 3.0, restLife: [10, 20], floatLife: [25, 45], sinkP: 0.25, sinkV: [0.05, 0.08], leeway: 0.035 }); }
 
