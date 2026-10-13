@@ -239,7 +239,7 @@
           if (engSeatWalk(e, s.pts, s, dt, false, C.ground)) { e.seat = null; return false; }
           return true;
         }
-        const engPhaseSeat = ph => (ph === 'toFish' || ph === 'fish') ? FISH_SEAT : (ph === 'toChair' || ph === 'eat' || ph === 'tea' || ph === 'read' || ph === 'nap' || ph === 'toShelter' || ph === 'shelter') ? CAMP_SEAT : null;
+        const engPhaseSeat = ph => (ph === 'toFish' || ph === 'fish') ? FISH_SEAT : (ph === 'toChair' || ph === 'eat' || ph === 'eatFish' || ph === 'tossFish' || ph === 'tea' || ph === 'read' || ph === 'nap' || ph === 'toShelter' || ph === 'shelter') ? CAMP_SEAT : null;
         function engPhaseGoal(e, want) {   // hướng sẽ đi sau khi rời ghế (chọn lối ra phía đó)
           if (want) return want.laneW[0];
           if (e.phase === 'toMast' || e.phase === 'check') return e.wp[2];

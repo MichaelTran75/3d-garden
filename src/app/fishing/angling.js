@@ -81,6 +81,7 @@
         function releaseFishingFish(splash = false) {   // cá rời lưỡi: lấy lại thăng bằng rồi lặn ra xa bờ, sau đó bơi lang thang như cũ
           const f = angling.fish;
           if (!f) return;
+          if (f.keeper) { grill.lost(); angling.fish = null; angFloat.bKin = false; return; }   // cá rô sổng (thôi câu giữa chừng): bếp vẫn trống cá
           f.g.updateWorldMatrix(true, false); f.g.localToWorld(_fishReturnStart.copy(f.mouth));
           const a = Math.atan2(_fishReturnStart.z - _aTip.z, _fishReturnStart.x - _aTip.x) + (anglingRandom() - 0.5) * 1.2;
           _fishReturnDir.set(Math.cos(a), 0, Math.sin(a));
@@ -88,7 +89,15 @@
           if (splash) splashFx.spawn(_fishReturnStart.x, _fishReturnStart.z, 0.8);
           angling.fish = null; angFloat.bKin = false;
         }
+        const bucketTop = (() => { let b = null; return out => { b = b || scene.getObjectByName('Xô nhỏ (Metal Bucket)'); if (!b) return out.copy(engObj.g.position); b.getWorldPosition(out); out.y += 0.24; return out; }; })();
         function beginFishingFish() {
+          if (grill.st === 'empty' && (!liveWeather.wildlifeAwake || anglingRandom() < 0.6)) {   // bếp chưa có cá nướng: con cắn câu là cá rô (~0,4 kg, nhấc lên bờ được) — giữ lại mang về nướng
+            const kf = grill.toKeeper(), gp = engObj.g.position, a = Math.atan2(angFloat.B.z - gp.z, angFloat.B.x - gp.x) + (anglingRandom() - 0.5) * 1.2;
+            kf.g.position.set(angFloat.B.x + Math.cos(a) * 2.4, lakeY - 0.55, angFloat.B.z + Math.sin(a) * 2.4); kf.g.rotation.set(0, 0, 0); kf.g.updateWorldMatrix(true, true);
+            angling.fish = kf; kf.g.localToWorld(_anglerFishStart.copy(kf.mouth));
+            angling.heading = Math.atan2(angFloat.B.z - _anglerFishStart.z, angFloat.B.x - _anglerFishStart.x); angling.approachDuration = 3.5;
+            anglingGo('approach'); return true;
+          }
           let best = null, distance = Infinity;
           // These seven fish belong to the lower lake; leave the three upper-lake fish alone.
           for (let i = 0; i < Math.min(7, fishies.length); i++) {
@@ -128,6 +137,7 @@
             case 'strike': return 'Giật cần!';
             case 'fight': return angFish.slip ? 'Cá chạy, phanh nhả dây' : 'Đang dìu cá';
             case 'release': return 'Thả cá dưới nước';
+            case 'land': return 'Nhấc cá rô lên bờ';
             case 'missed': return 'Hụt rồi!';
             case 'retrieve': case 'reel_in': return 'Thu dây';
             case 'rebait': return 'Thay mồi';
@@ -143,6 +153,7 @@
             case 'strike': return -0.03;
             case 'fight': return A.pump === 'lift' || angFish.slip ? -0.04 : 0.05;
             case 'release': return 0.2;
+            case 'land': return 0.1;
             case 'cast': return A.time < 0.62 ? -0.05 : 0.1;
             case 'rebait': return 0.03;
           }
@@ -206,7 +217,7 @@
           }
           A.time += dt;
           const k = A.time;
-          if (!awake && A.fish && (A.stage === 'approach' || A.stage === 'bite')) { releaseFishingFish(); anglingGo('wait'); A.wait = 15; }
+          if (!awake && A.fish && !A.fish.keeper && (A.stage === 'approach' || A.stage === 'bite')) { releaseFishingFish(); anglingGo('wait'); A.wait = 15; }
           // ===== 1) giai đoạn → đích tư thế (góc cần beta, xoay cổ tay tau, vai cầm cần arm), tay kia, ánh nhìn, tốc độ quay máy =====
           let betaT = 0.6, tauT = 0, armT = -1.02, free = 'knee', crank = 0, direct = false, gaze = P.F;
           const T0 = A.T;
@@ -251,9 +262,9 @@
                 const drift = Math.hypot(P.F.x - A.land.x, P.F.z - A.land.z);   // trôi so với chỗ phao đã đứng
                 if (A.stopReq) { A.rebait = false; anglingGo('retrieve'); }
                 else if (drift > 1.25) { A.rebait = false; anglingGo('retrieve'); anglingEvent('drift', 0.85); }   // "gió đẩy phao trôi dạt, phải quăng lại chỗ cũ"
-                else if (A.wait <= 0 && awake && e.timer > 24) beginFishingFish();
+                else if (A.wait <= 0 && (awake || grill.st === 'empty') && e.timer > 24) beginFishingFish();   // cá rô kiếm ăn cả lúc chạng vạng
               } else if (k >= A.approachDuration) {
-                anglingGo('bite'); A.take = false; A.biteDur = 1.4 + anglingRandom() * 1.6; A.hooked = anglingRandom() < .42; anglingEvent('bite', 0.55);
+                anglingGo('bite'); A.take = false; A.biteDur = 1.4 + anglingRandom() * 1.6; A.hooked = anglingRandom() < (A.fish && A.fish.keeper ? 0.8 : .42);   // cá rô đớp mồi mạnh, dễ dính lưỡi anglingEvent('bite', 0.55);
                 A.B0.copy(P.B); P.bKin = true;
                 _aV.set(P.B.x - _aTip.x, 0, P.B.z - _aTip.z).normalize(); A.takeDir.set(-_aV.z, 0, _aV.x).multiplyScalar(anglingRandom() < 0.5 ? 1 : -1).addScaledVector(_aV, 0.6).normalize();
               }
@@ -275,7 +286,7 @@
               if (!A.struck && k >= 0.1) {
                 A.struck = true;
                 if (A.hooked) {   // mắc câu: cá giật lại, lao đi lần đầu
-                  angFish.M.copy(P.B); angFish.V.set(A.takeDir.x * 0.8, -0.2, A.takeDir.z * 0.8); angFish.stam = 1; angFish.ext = 0; angFish.slip = false; angFish.head = A.heading;
+                  angFish.M.copy(P.B); angFish.V.set(A.takeDir.x * 0.8, -0.2, A.takeDir.z * 0.8); angFish.stam = A.fish.keeper ? 0.45 : 1; angFish.ext = 0; angFish.slip = false; angFish.head = A.heading;
                   fishMode('run'); P.S = Math.max(P.F.distanceTo(_aTip) - 0.05, 0.5); splashFx.spawn(P.F.x, P.F.z, 0.7);
                 } else { releaseFishingFish(true); A.T = 2.2; }   // hụt: cá nhả mồi, phao bật lên
               }
@@ -299,7 +310,21 @@
               if (k > 30) F.stam = Math.min(F.stam, 0.25);
               break;
             }
+            case 'land': {   // cá rô nhẹ: nâng cần nhấc cá khỏi mặt nước, đu lên bờ theo cung → tay phải nắm thân cá, gỡ lưỡi → bỏ vào xô bên trái ghế
+              const F = angFish, kf = A.fish; free = 'knee'; gaze = F.M; betaT = 1.25; crank = k < 1.4 ? 1.5 : 0;
+              P.S = Math.max(FISH_DROP, P.S - LINE_PER_TURN * A.crankRate * dt);
+              if (!A.land0) { A.land0 = F.M.clone(); splashFx.spawn(F.M.x, F.M.z, 0.6); }
+              if (kf) {
+                const hold = g.localToWorld((A.rh || (A.rh = new THREE.Vector3())).set(-0.3, 1.55, 0.7)), R = e.reachT || (e.reachT = [null, null]);   // vector riêng: đích tay đọc ở engArmPost cuối khung
+                if (k < 1.5) { const u = fishingEase(k / 1.5); F.M.lerpVectors(A.land0, hold, u); F.M.y += Math.sin(u * Math.PI) * 0.9; if (k > 1.1) R[0] = F.M; }
+                else { R[0] = k < 2.5 ? hold : bucketTop(A.rb || (A.rb = new THREE.Vector3())); e.wrists[0].getWorldPosition(F.M); F.M.y += 0.1; gaze = k < 2.5 ? F.M : R[0]; }   // nắm cá trong tay → bỏ xô
+                if (k >= 3.3) { grill.toBucket(); A.fish = null; P.bKin = false; A.catches++; A.lastOutcome = 'catch'; anglingEvent('keep', 0.9); }
+              }
+              if (k >= 3.8) { A.land0 = null; A.rebait = true; anglingGo('retrieve'); }
+              break;
+            }
             case 'release': {   // cá đuối nổi dưới chân bờ: hạ ngọn chùng dây, rung ngọn 2 nhịp cho lưỡi không ngạnh tuột — cá không rời nước
+              if (A.fish && A.fish.keeper) { anglingGo('land'); break; }
               free = 'knee'; gaze = A.fish ? angFish.M : P.F;
               const fl = (u) => Math.exp(-Math.pow((k - u) / 0.07, 2));
               betaT = 0.36 + 0.13 * (fl(0.85) + fl(1.15)); direct = k > 0.6 && k < 1.4;
@@ -356,6 +381,7 @@
           g.updateWorldMatrix(true, true); U.tip.getWorldPosition(_aTip);
           // ===== 4) cá mắc câu =====
           if (A.stage === 'fight' && A.fish) { fishFightStep(dt, t); P.B.copy(angFish.M); P.bKin = true; }
+          else if (A.stage === 'land' && A.fish) { P.B.copy(angFish.M); P.bKin = true; }
           // ===== 5) phao + mồi (Verlet + ràng buộc dây) =====
           const Fbefore = _aV3.copy(P.F); let tipPull = 0;
           floatStep(dt, (pull) => { tipPull += pull; });
@@ -371,7 +397,8 @@
               placeFishingFish(f, _anglerMouth, A.heading, 0, t, .08 * Math.sin(t * 4));
             } else if (A.stage === 'bite' || A.stage === 'strike') {
               placeFishingFish(f, P.B, A.heading, A.take ? 0.15 : 0, t * (A.take ? 1.5 : 1), A.take ? 0.2 : 0.05);
-            } else {
+            } else if (A.stage === 'land') placeFishingFish(f, angFish.M, angFish.head, 1.45, t * 2.4, 0.55);   // treo dưới lưỡi, quẫy
+            else {
               const F = angFish, sp = Math.hypot(F.V.x, F.V.z);
               if (sp > 0.15) F.head += Math.atan2(Math.sin(Math.atan2(F.V.z, F.V.x) - F.head), Math.cos(Math.atan2(F.V.z, F.V.x) - F.head)) * Math.min(1, dt * 5);
               const depth = lakeSurfaceY(F.M.x, F.M.z) - F.M.y, tired = F.mode === 'tired' || A.stage === 'release';
@@ -386,7 +413,7 @@
           if (lk > 1e-4) _aV.multiplyScalar(1 / lk); else _aV.set(0, 1, 0);
           _aV.lerp(_aV2.set(0, 1, 0), (1 - upW) * (P.mode === 'water' ? 0 : 1)).normalize();   // phao nằm khi mồi chưa kéo căng (vừa rơi), dựng theo dây phao–lưỡi khi căng
           P.up.lerp(_aV, 1 - Math.exp(-dt * 8)).normalize(); bobber.quaternion.setFromUnitVectors(_aV2.set(0, 1, 0), P.up);
-          fishingBait.position.copy(P.B); fishingBait.quaternion.copy(bobber.quaternion); fishingBait.visible = !(A.fish && (A.stage === 'fight' || A.stage === 'release'));
+          fishingBait.position.copy(P.B); fishingBait.quaternion.copy(bobber.quaternion); fishingBait.visible = !(A.fish && (A.stage === 'fight' || A.stage === 'release' || A.stage === 'land'));
           drawFishLine(rod);
           // ===== 8) tay kia (quay máy · nắm chuôi khi quăng · bắt mồi · nghỉ trên đùi) & ánh mắt =====
           const fr = A.free;

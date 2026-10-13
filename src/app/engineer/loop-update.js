@@ -52,8 +52,8 @@
               const act = engWantAct(e, hh);
               if (!e.act) engSpawn(e, act); else if (act !== e.act) engSetAct(e, act);
               const H = e.hold || (e.hold = {}); for (const k in H) H[k] = false;
-              e.armsBusy = false;
-              if (e.dish && e.dish.at === 'camp' && !['eat', 'tea', 'toChair'].includes(e.phase)) e.dish.at = 'hand';   // hết bữa tối: nhấc chảo khỏi bàn trà mang vào rửa
+              e.armsBusy = false; grill.update(dt, hh);
+              if (e.dish && e.dish.at === 'camp' && !['eat', 'eatFish', 'tossFish', 'tea', 'toChair'].includes(e.phase)) e.dish.at = 'hand';   // hết bữa tối: nhấc chảo khỏi bàn trà mang vào rửa
               if (e.dish && e.dish.at === 'hand' && !e.inVan && e.phase !== 'van' && e.act !== 'dinner' && e.dish.food < 0.05 && e.dish.kind !== 'pan') e.dish = null;
               e.headRollT = 0;
               // ---- dùng ghế ngoài trời: việc mới không cần chiếc ghế đang ngồi → đứng dậy rồi rời ghế theo làn trước, không đi xuyên ghế ----
@@ -87,6 +87,7 @@
                     angling.stopReq = true;                                           // hết giờ: đang dìu thì dìu xong, thu dây về rồi mới đứng dậy
                     if (angling.stage === 'done' || !angling.active || e.timer < -45) {
                       e.phase = e.act === 'fish' ? 'toChair' : engPhaseFor(e.act); e.timer = 0; resetFishingBite();
+                      if (grill.st === 'bucket') { grill.toHand(e); e.phase = 'toPlant'; }   // lấy con cá rô trong xô, mang về bếp xiên que cắm nướng
                       e.rodGrp.visible = false; groundRod.visible = true; fishLine.visible = false; bobber.visible = false;
                     }
                   }
@@ -98,18 +99,18 @@
                   if (e.act === 'dinner') { if (!e.dish || e.dish.kind !== 'pan') e.dish = { kind: 'pan', food: 1 }; e.dish.at = 'camp'; e.eatT0 = e.timer; }   // đặt chảo cơm chiên lên bàn trà
                 }
               }
-              else if (e.phase === 'eat') {                // ăn trưa / tối bằng thìa từ chảo trên bàn (xúc → đưa lên miệng → nhai), người đổ về phía bàn
+              else if (e.phase === 'eat') {                // ăn trưa / tối: bưng chảo tay trái, thìa tay phải xúc → đưa lên → vào miệng → nhai (engEatRice)
                 if (engUseSeat(e, CAMP_SEAT, dt, t)) {
-                  e.timer -= dt; e.seatLean = 0.12; e.seatSwing = 0; H.spoon = true;
-                  if (e.dish && e.dish.at === 'camp' && e.eatT0 > 0) e.dish.food = Math.max(0, e.timer / e.eatT0);   // cơm trong chảo vơi dần
-                  const bt = t % 3.2, scoop = bt < 1.1, lift = bt >= 1.1 && bt < 1.7, chew = bt >= 1.7;
-                  const toMouth = scoop ? 0 : lift ? (bt - 1.1) / 0.6 : Math.max(0, 1 - (bt - 1.7) / 0.9);
-                  e.arms[0].rotation.x = -0.62 - toMouth * 0.7 + (scoop ? Math.sin(bt * 9) * 0.06 : 0);   // thìa xuống chảo rồi lên miệng
-                  e.arms[1].rotation.x = -0.3;                                                          // tay kia giữ mép bàn
-                  e.head.rotation.x = (scoop ? 0.22 : 0.04) + (chew ? Math.abs(Math.sin(t * 9)) * 0.05 : 0);   // cúi nhìn chảo · nhai gật gù
-                  if (e.timer <= 0) { e.phase = 'tea'; e.timer = e.actLeft + 60; }   // ăn xong ngồi uống trà tới hết giờ
+                  e.timer -= dt;
+                  if (e.dish && e.eatT0 > 0) e.dish.food = Math.max(0, e.timer / e.eatT0);   // cơm trong chảo vơi dần
+                  e.arms[0].rotation.x = -1.2; e.arms[1].rotation.x = -0.9;                 // góc tay thẳng ước lượng (IK + hướng cổ tay ghi đè)
+                  engEatRice(e, dt, t);
+                  if (e.timer <= 0) { if (e.dish) e.dish.at = 'camp'; e.phase = 'tea'; e.timer = e.actLeft + 60; }   // ăn xong đặt chảo lại bàn trà, ngồi uống trà tới hết giờ
                 }
               }
+              else if (e.phase === 'eatFish') { if (engUseSeat(e, CAMP_SEAT, dt, t)) { e.arms[0].rotation.x = e.arms[1].rotation.x = -1.3; engEatFish(e, dt, t); } }   // 2 tay cầm que cá như bắp ngô
+              else if (e.phase === 'tossFish') { if (engUseSeat(e, CAMP_SEAT, dt, t)) engTossFish(e, dt, t); }
+              else if (e.phase === 'toGrill' || e.phase === 'grab' || e.phase === 'toPlant' || e.phase === 'plant') engGrillPhase(e, dt, t);   // lấy que cá nướng · xiên & cắm cá mới
               else if (e.phase === 'tea') {                // nhấp trà thư giãn, ngả lưng nhẹ; hết giờ: nghỉ trưa thì chợp mắt luôn trên ghế, dạo trại thì đứng dậy đi tiếp
                 if (engUseSeat(e, CAMP_SEAT, dt, t)) {
                   e.timer -= dt; e.seatLean = -0.03; e.seatSwing = 0.06; H.cup = true;
@@ -131,18 +132,8 @@
                   e.head.rotation.x = 0.45; e.headRollT = 0.24;
                 }
               }
-              else if (e.phase === 'read') {               // đọc sách (tay phải cầm sách mở) · tay trái thỉnh thoảng bốc khoai tây chiên trong gói trên bàn trà bên trái đưa lên miệng · ~47 s lật 1 trang
-                if (engUseSeat(e, CAMP_SEAT, dt, t)) {
-                  e.seatLean = -0.03; e.seatSwing = 0.03; H.book = true;
-                  const ct = (t + (e.readPh || 0)) % 9, reach = segK(ct, 0, 0.9) * (1 - segK(ct, 1.0, 1.6)), toMouth = segK(ct, 1.4, 2.2) * (1 - segK(ct, 2.8, 3.6)), chew = ct > 2.2 && ct < 4.6;
-                  const rt = e.armRollT || (e.armRollT = [0, 0]);
-                  e.arms[0].rotation.x = -1.3 + Math.sin(t * 0.5) * 0.03; rt[0] = 0.12;
-                  e.arms[1].rotation.x = -0.28 - reach * 0.5 - toMouth * 1.95; rt[1] = 0.5 * reach - 0.4 * toMouth;
-                  e.head.rotation.x = 0.36 - toMouth * 0.22 + (chew ? Math.abs(Math.sin(t * 10)) * 0.035 : 0);
-                  H.chip = (reach > 0.6 && ct > 0.6) || (toMouth > 0.05 && ct < 2.85);
-                  const pt = (t + (e.readPh || 0) * 5) % 47, pk = minJerk(segK(pt, 0, 0.9));   // trang giấy quay quanh gáy từ nửa phải sang nửa trái
-                  e.props.bookLeaf.visible = pt < 0.95; e.props.bookLeaf.rotation.z = 0.22 + (Math.PI - 0.44) * pk;
-                }
+              else if (e.phase === 'read') {               // đọc sách to (gấp đôi) bằng 2 tay trước ngực · tay phải lật trang ~40 s/lần · tay trái bốc khoai ~20 s/lần (engRead)
+                if (engUseSeat(e, CAMP_SEAT, dt, t)) { e.arms[0].rotation.x = e.arms[1].rotation.x = -1.2; engRead(e, dt, t); }
               }
               else if (e.phase === 'wander') {             // đứng dậy, đi lang thang ngẫu nhiên quanh trại
                 e.timer -= dt; e.wanderTmr -= dt;
@@ -202,6 +193,9 @@
               else {                                       // 'toFish' → vào làn phía sau–trái ghế câu, quay lưng, lùi, ngồi
                 if (engUseSeat(e, FISH_SEAT, dt, t)) { e.phase = 'fish'; e.timer = e.act === 'fish' ? e.actLeft : 90; }
               }
+              if (grill.st === 'held' && !['grab', 'eatFish', 'tossFish'].includes(e.phase)) engCarryFish(e);   // đi đường: que cá dựng đứng tay phải
+              if (grill.st === 'carried') { const ax = engAxesW(e); engHandSet(e, 1, engBodyW(e, 0.32, 1.38, 0.32, _grT), aimQ(_mrQ, ax.f, _mrUp)); }   // cá rô sống tay trái
+              const fishInHand = ['held', 'carried', 'plant'].includes(grill.st);
               // ---- đồ cầm tay theo việc đang làm (bảng ghi chép chỉ cầm khi đi ngoài trời, tay rảnh) ----
               const atSeat = !!e.seat && (e.seat.st === 'back' || e.seat.st === 'sit' || e.seat.st === 'seated' || e.seat.st === 'rise');   // tay cần nắm tay vịn
               const P = e.props;
@@ -220,7 +214,7 @@
                 else { e.arms[0].rotation.x = e.arms[1].rotation.x = -0.85; rt[0] = 0.28; rt[1] = -0.28; }
               }
               engDishShow(e); kitchenTick(dt, t);
-              if (e.clip) e.clip.visible = !e.inVan && e.phase !== 'van' && !fishing && !atSeat && !H.pole && e.phase !== 'apple' && !H.spoon && !H.cup && !H.bottle && !H.book && !dishHand && e.phase !== 'pet';
+              if (e.clip) e.clip.visible = !e.inVan && e.phase !== 'van' && !fishing && !atSeat && !H.pole && e.phase !== 'apple' && !H.spoon && !H.cup && !H.bottle && !H.book && !dishHand && e.phase !== 'pet' && !fishInHand;
               chipsBag.visible = e.phase === 'read' && !e.inVan && !leavingSeat;
               const atDesk = e.inVan && !!e.van && e.van.station === 'desk';
               studyLaptop.target = atDesk && (e.van.st === 'sit' || e.van.st === 'scoot' || e.van.st === 'work') ? 1 : 0;

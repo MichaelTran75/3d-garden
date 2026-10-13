@@ -49,6 +49,12 @@
           'fish|||evHook|Dính rồi! Cá to, cần cong vòng, để phanh nhả dây.',
           'fish|||evHook|Nâng cần chậm, hạ cần thì quay máy, đừng để chùng dây.',
           'fish|||evRelease|Koi đẹp quá, lưỡi không ngạnh nên thả dưới nước là tuột.',
+          'fish|||evKeep|Con cá rô vừa cỡ, bỏ xô mang về xiên que nướng.',
+          'fish|||evKeep|Cá rô nhẹ nên nhấc lên bờ được, tối mai có cá nướng rồi.',
+          'grill|||Xiên que từ đuôi ra miệng, cắm xiên cạnh than chứ đừng để vào lửa.',
+          'grill|||Mười mấy phút là cá chín vàng, mai ăn vừa.',
+          'eatfish|||Cá nướng thơm, cắn dọc sườn từng miếng, chừa xương.',
+          'eatfish|||Ăn xong quăng que với xương vào bếp cho gọn.',
           'fish|||evRelease|Bờ cao thế này không lôi cá lên, để nó dưới nước cho khỏe.',
           'fish|||evMiss|Giật sớm quá, cá nhả mồi mất rồi.',
           'fish|||evMiss|Hụt! Lần sau đợi phao chìm hẳn mới giật.',
@@ -282,7 +288,7 @@
           tomorrowRain: ctx => !!ctx.tmr && (ctx.tmr.code >= 51 || ctx.tmr.pop >= 60),
           tomorrowCloudy: ctx => !!ctx.tmr && ctx.tmr.code < 51 && ctx.tmr.pop < 60 && (ctx.tmr.code === 3 || ctx.tmr.code === 45 || ctx.tmr.code === 48),
           tomorrowClear: ctx => !!ctx.tmr && ctx.tmr.code <= 1 && ctx.tmr.pop < 30,
-          evCast: ctx => ctx.event === 'cast', evBite: ctx => ctx.event === 'bite', evHook: ctx => ctx.event === 'hook', evRelease: ctx => ctx.event === 'release',
+          evCast: ctx => ctx.event === 'cast', evBite: ctx => ctx.event === 'bite', evHook: ctx => ctx.event === 'hook', evRelease: ctx => ctx.event === 'release', evKeep: ctx => ctx.event === 'keep',
           evMiss: ctx => ctx.event === 'miss', evDrift: ctx => ctx.event === 'drift', evRebait: ctx => ctx.event === 'rebait'
         };
         for (const l of ENG_THOUGHT_LINES) for (const [, n] of l.nd) if (!THOUGHT_NEED[n]) console.warn('Suy nghĩ kỹ sư: thiếu điều kiện', n, l.text);
@@ -390,6 +396,8 @@
             else { act = 'walk'; label = 'Đang đi'; }
           }
           else if (e.phase === 'shelter' || e.phase === 'toShelter') { act = 'shelter'; label = 'Trú mưa dưới hiên'; }
+          else if (e.phase === 'eatFish' || e.phase === 'tossFish' || e.phase === 'grab' || e.phase === 'toGrill') { act = 'eatfish'; label = 'Ăn cá nướng'; }
+          else if (e.phase === 'toPlant' || e.phase === 'plant') { act = 'grill'; label = 'Nướng cá'; }
           else if (e.phase === 'eat' || (e.phase === 'toChair' && (e.act === 'lunch' || e.act === 'dinner'))) { act = 'eat'; label = e.act === 'lunch' ? 'Ăn trưa' : e.act === 'dinner' ? 'Ăn tối' : 'Bữa ăn'; }
           else if (e.phase === 'read' || (e.phase === 'toChair' && e.act === 'read')) { act = 'read'; label = 'Đọc sách'; }
           else if (e.phase === 'drink') { act = 'drink'; label = 'Uống nước'; }

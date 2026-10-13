@@ -123,7 +123,7 @@
           leafM.rotation.x = -Math.PI / 2; leafM.position.set(0.075, 0.023, 0); bookLeaf.add(leafM);
           // miếng khoai tây chiên kẹp giữa các ngón (tay trái, phía bàn trà) lúc bốc từ gói lên miệng
           const chip = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.008, 10), new THREE.MeshLambertMaterial({ color: 0xe8c25a }));
-          chip.scale.z = 0.75; chip.position.set(0, -0.76, 0.07); chip.rotation.x = 0.4; chip.visible = false; arms[1].add(chip);
+          chip.scale.z = 0.75; chip.position.set(0, -0.67, 0.11); chip.rotation.x = 0.4;   // kẹp ở đầu ngón, trước nắm tay chip.visible = false; arms[1].add(chip);
           // khăn tắm vắt qua gáy, 2 đầu buông trước ngực (sau khi tắm)
           const towel = new THREE.Group(); towel.name = 'Khăn vắt cổ'; towel.visible = false; g.add(towel);
           const towelMat = new THREE.MeshLambertMaterial({ color: 0xd98c6a });

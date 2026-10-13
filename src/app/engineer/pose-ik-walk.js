@@ -53,7 +53,7 @@
         //  Dáng đi/đứng (FK) giả định mặt đất PHẲNG ngang tâm người; địa hình voxel có bậc ⇒ mỗi bàn chân dời đúng độ chênh mặt đất dưới nó,
         //  hông hạ theo chân thấp hơn (có giới hạn), chân cao hơn gập gối với tới như bước lên bậc; giữ nguyên độ nhấc chân của nhịp bước,
         //  chân trụ không nhún theo nhịp nhún của thân (không trượt/lún). Chạy SAU lớp tư thế, chỉ đổi phần hiển thị (khung sau lại lấy tư thế đích gốc).
-        const ENG_L1 = 0.42, ENG_L2 = 0.36, ENG_SOLE = 0.10, ENG_HIP_Y = 1.18, _ikW = new THREE.Vector3();
+        const ENG_L1 = 0.42, ENG_L2 = 0.36, ENG_SOLE = 0.10, ENG_HIP_Y = 1.18, _ikW = new THREE.Vector3(), _ikQ = new THREE.Quaternion(), _ikM = new THREE.Matrix4(), _ikA = new THREE.Vector3(), _ikB = new THREE.Vector3(), _ikC = new THREE.Vector3(), _ikP = new THREE.Vector3();
         const ikSmooth = (a, b, x) => { const k = Math.max(0, Math.min(1, (x - a) / (b - a))); return k * k * (3 - 2 * k); };
         function engFootIK(e, dt) {
           const g = e.g, P = e.pose;
@@ -105,7 +105,7 @@
           if ((RT && (RT[0] || RT[1])) || RW[0] > 1e-3 || RW[1] > 1e-3) { e.g.updateMatrixWorld(true); }
           for (let i = 0; i < 2; i++) {
             fx[i] += (ft[i] - fx[i]) * kf;
-            const A = e.arms[i]; let th = A.rotation.x;
+            const A = e.arms[i]; A.rotation.y = 0; let th = A.rotation.x;   // (xoắn trục y chỉ do IK chính xác đặt ở khung trước)
             const fwd = Math.max(0, Math.min(1, -th / 0.45)) * e.armWalk;
             let D = Math.max(0.3, Math.min(L1 + L2 - 1e-3, ENG_ARM_D - 0.04 * fwd - fx[i]));
             const tgt = RT && RT[i]; if (tgt) RL[i].copy(tgt);
@@ -118,10 +118,24 @@
             }
             const phi = Math.PI - Math.acos(Math.max(-1, Math.min(1, (L1 * L1 + L2 * L2 - D * D) / (2 * L1 * L2))));
             const al = Math.acos(Math.max(-1, Math.min(1, (L1 * L1 + D * D - L2 * L2) / (2 * L1 * D))));
-            A.rotation.x = th + al; e.elbows[i].rotation.x = -phi; e.wrists[i].rotation.x = phi - al;
+            if (RW[i] > 1e-3) {   // có đích với tay: IK CHÍNH XÁC (hệ eo) — khuỷu theo vectơ cực chĩa xuống–ra ngoài, cánh tay trên xoay đúng mặt phẳng vai–khuỷu–tay
+              const cg = Math.cos(A.rotation.z), u = _ikP.set(Math.sin(A.rotation.z), -cg * Math.cos(th), -cg * Math.sin(th));   // hướng vai→tay đã hoà (thứ tự XYZ)
+              const a = (L1 * L1 - L2 * L2 + D * D) / (2 * D), hh = Math.sqrt(Math.max(0, L1 * L1 - a * a));
+              const pole = _ikA.set(i ? 0.6 : -0.6, -1, -0.15); pole.addScaledVector(u, -pole.dot(u)).normalize();
+              const E = _ikB.copy(u).multiplyScalar(a).addScaledVector(pole, hh);                       // khuỷu (so với vai)
+              const yA = _ikW.copy(E).negate().normalize(), f = _ikC.copy(u).multiplyScalar(D).sub(E).normalize();   // trục +y cánh tay trên · hướng cẳng tay
+              const zA = f.addScaledVector(yA, -f.dot(yA)).normalize(), xA = _ikA.crossVectors(yA, zA);   // cẳng tay gập về +z cục bộ
+              A.quaternion.setFromRotationMatrix(_ikM.makeBasis(xA, yA, zA)); e.elbows[i].rotation.x = -phi; e.wrists[i].rotation.x = phi - al;
+            } else { A.rotation.x = th + al; e.elbows[i].rotation.x = -phi; e.wrists[i].rotation.x = phi - al; }
+            // hướng bàn tay (e.handQ[i]: quaternion thế giới của khung cổ tay, pha đặt mỗi khung — thìa vào miệng, mép sách, que cá):
+            // cổ tay gập/ngửa + cẳng tay sấp/ngửa gộp thành 1 phép quay ở cổ tay (tay LEGO xoay ở cổ tay), hoà vào/ra dần
+            const hq = e.handQ && e.handQ[i], HW = e.handQW || (e.handQW = [0, 0]), HL = e.handQL || (e.handQL = [new THREE.Quaternion(), new THREE.Quaternion()]);
+            if (hq) HL[i].copy(hq);
+            HW[i] += ((hq ? 1 : 0) - HW[i]) * (1 - Math.exp(-dt * 8));
+            if (HW[i] > 1e-3) { e.elbows[i].updateWorldMatrix(true, false); e.elbows[i].getWorldQuaternion(_ikQ).invert().multiply(HL[i]); e.wrists[i].quaternion.slerp(_ikQ, HW[i]); }
           }
           if (e.elbowFlexT) e.elbowFlexT[0] = e.elbowFlexT[1] = 0;
-          e.reachT = null;
+          e.reachT = null; e.handQ = null;
         }
         function engSitLean(e, k) { e.lean = Math.max(e.lean, 1.15 * k * (1 - k)); }   // ngồi xuống / đứng dậy: dồn trọng tâm, cúi người về trước giữa chừng
         function engStep(e, tgt, dt, t, avoidPt, avoidR, field) {

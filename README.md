@@ -19,7 +19,7 @@ Mã nguồn nằm trong `src/` — đây là nơi duy nhất cần sửa (ngay t
 | `src/app/world/` | thủy điện, tua-bin, pin mặt trời, nhà, đường, tháp nước, trạm biến áp 110 kV sơ đồ cầu H (`substation-bess.js`), cột khí tượng, đèn đường |
 | `src/app/nature/` | gió, cây, rừng, cỏ hoa, lá rơi, mây, **mưa trên GPU** (`clouds-rain.js`), **chất lỏng** (`fluids.js`: nước nông + sợi khói bếp lửa, chạy ở luồng phụ), **đầm sen** (`lotus.js`: hiệu ứng lá sen — mưa đọng thành hạt tròn, lăn về lòng lá, gộp lại; lá trĩu rồi nghiêng đổ nước xuống hồ), **thảm cỏ** (`meadow.js`: phủ 45% đất, lá cong mọc từ màu đất, 3 mức chi tiết theo zoom, ngọn ửng vàng khi nắng thấp) |
 | `src/app/animals/` | cá, bò, hươu, cua, thỏ, ong bướm, cò · **bộ chân 4 chi IK dùng chung** (`quadruped.js`) · **chó** (`dog-brain.js`: nằm sưởi, vươn vai, đánh hơi, theo chủ, uống nước, chạy vòng; đi bộ / nước kiệu / phi) · **gấu mèo** (`raccoon-brain.js`: chạng vạng–đêm, cào bới, đứng 2 chân, ngồi ăn, bỏ chạy về hang) |
-| `src/app/engineer/` | **kỹ sư**: hình người có khuỷu tay, cổ tay, eo (`model.js`), tư thế + IK (chân, khuỷu tay `engArmPost`), **hái táo bằng sào** (`apple-pick.js`), ngồi ghế, suy nghĩ, lịch cả ngày (`schedule.js`), đi lại + các trạm trong xe, nấu ăn, cập nhật mỗi khung hình (`loop-update.js`) |
+| `src/app/engineer/` | **kỹ sư**: hình người có khuỷu tay, cổ tay, eo (`model.js`), tư thế + IK (chân; tay `engArmPost`: IK 2 khớp chính xác vai–khuỷu–cổ tay, đích `e.reachT[i]` + hướng bàn tay `e.handQ[i]`), **hái táo bằng sào** (`apple-pick.js`), **ăn, đọc, cá nướng** (`meal-read.js`: tay trái bưng chảo, thìa xúc trong lòng chảo đưa lên miệng; sách to gấp đôi cầm hai tay, lật trang, bốc snack; ra lửa trại ngồi xổm rút que cá → ăn 8 miếng còn xương → ném vào lửa; câu được cá rô thì thả xô, hết buổi xiên que cắm lại bên lửa), ngồi ghế, suy nghĩ, lịch cả ngày (`schedule.js`), đi lại + các trạm trong xe, nấu ăn, cập nhật mỗi khung hình (`loop-update.js`) |
 | `src/app/van/` | **xe van**: cabin, vỏ, nội thất (`caravan.js`), bếp, đồ bếp, đèn bàn, lon nước, Zzz |
 | `src/app/camp/` | ghế, đèn lồng, lửa trại, ấm, bàn trà |
 | `src/app/fishing/` | cần câu, xô, câu cá |
@@ -36,6 +36,7 @@ Các mảnh trong `src/app/` được **nối nguyên văn** theo `manifest.txt`
   lưới "skinning cứng" — mảnh gốc vẫn nằm trong cây đối tượng (xoay, dời, ẩn/hiện, công cụ Chọn đều như cũ) nhưng không tự vẽ.
   Vật mới dựng lúc mở trang **tự được gộp**, không cần làm gì (vật tạo thêm lúc đang chạy thì tự vẽ như thường). Code đổi màu/độ mờ vật liệu, thay hình, thay vật liệu lúc chạy thì mảnh đó tự tách ra vẽ riêng.
   Hình biến dạng đỉnh mỗi khung (vd. thân cá uốn) nên gắn `userData.noBatch = true` cho khỏi tốn công gộp.
+  Vật dựng sẵn mà lúc chạy bị mang đi xa chỗ cũ (vd. que cá nướng kỹ sư cầm về ghế) cũng phải `noBatch`: lưới gộp bị loại theo khung nhìn ở chỗ cũ, vật mang đi sẽ biến mất.
 - Ô đất phẳng chỉ vẽ mặt trên + mặt đáy; texture mây tính ở luồng phụ (Web Worker); shader biên dịch song song trước khung đầu.
 - **Chất lỏng** (`nature/fluids.js`, Web Worker dựng từ Blob): sông/hồ là lưới nước nông (Saint-Venant) trùng ô địa hình — mặt nước, lá, cá, phao
   đều đọc cùng số liệu (`waterSurfaceY`, `waterFlow`). Vật mới chạm nước thì gọi `fluids.splash(x, z, bánKính, cườngĐộ)`.

@@ -48,8 +48,9 @@
           if ((act === 'outdoor' || act === 'fish' || act === 'apples') && liveWeather.state.fresh && liveWeather.state.raining) act = 'shelter';
           e.actLeft = Math.max(0, left); return act;
         }
-        const engPhaseFor = act => ENG_ACTS[act].van ? 'van' : act === 'fish' ? 'toFish' : act === 'apples' ? 'apple' : act === 'outdoor' ? 'toMast' : act === 'shelter' ? 'toShelter' : 'toChair';
+        const engPhaseFor = act => ENG_ACTS[act].van ? 'van' : act === 'dinner' && grill.st === 'ready' ? 'toGrill' : act === 'fish' ? 'toFish' : act === 'apples' ? 'apple' : act === 'outdoor' ? 'toMast' : act === 'shelter' ? 'toShelter' : 'toChair';
         function engChairPhase(e, act) {   // đã ngồi ghế cắm trại: làm gì, bao lâu
+          if (act === 'dinner' && grill.st === 'held') { e.timer = e.eatLen = 76; return 'eatFish'; }   // cầm que cá nướng về: ăn cá trước (8 miếng), rồi mới ăn cơm chiên
           if (act === 'lunch' || act === 'dinner') { e.timer = Math.max(60, Math.min(1200, e.actLeft - 900)); return 'eat'; }
           if (act === 'rest') { e.timer = Math.max(30, Math.min(720, e.actLeft - 1200)); return 'tea'; }
           if (act === 'read') return 'read';

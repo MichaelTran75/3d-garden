@@ -187,8 +187,8 @@
             }
             for (let i = 0; i < 6; i++) { const j = k + i * 2; markIndices.push(j, j + 1, j + 3, j, j + 3, j + 2); }
           }
-          const marksGeo = new THREE.BufferGeometry(); marksGeo.setAttribute('position', new THREE.Float32BufferAttribute(marks, 3)); marksGeo.setIndex(markIndices); marksGeo.computeVertexNormals(); dMat.side = THREE.DoubleSide; fg.add(new THREE.Mesh(marksGeo, dMat));
-          bakeStatic(fg);
+          const marksGeo = new THREE.BufferGeometry(); marksGeo.setAttribute('position', new THREE.Float32BufferAttribute(marks, 3)); marksGeo.setIndex(markIndices); marksGeo.computeVertexNormals(); dMat.side = THREE.DoubleSide;
+          const marksM = new THREE.Mesh(marksGeo, dMat); fg.add(marksM);   // không gộp tĩnh: cá đổi màu sống → chín, bị cắn dần, được cầm / xiên / cắm lại (engineer/meal-read.js)
 
           // ---- than hồng ở tâm (dư âm ngọn lửa): quầng sáng loang trên tro + ụ than góc cạnh dưới chân củi, vẫn âm ỉ khi lửa còn 5% ----
           const glowC = document.createElement('canvas'); glowC.width = glowC.height = 128; const gc = glowC.getContext('2d');
@@ -209,7 +209,7 @@
           }
           bakeStatic(coreGroup); g.add(coreGroup);
           const light = new THREE.PointLight(0xff7a2a, 0.6, 11, 2); light.position.y = 0.7; g.add(light);
-          return { g, flames, smoke, sparks, light, logMat, cutMat, emberMat, glowMat, hotMat, dimMat };
+          return { g, flames, smoke, sparks, light, logMat, cutMat, emberMat, glowMat, hotMat, dimMat, fish: { stick: fsg, rod: sk, fg, body: fBody, fMat, finMat, marks: marksM } };
         }
         const campObj = campfire(); campObj.g.scale.multiplyScalar(CAMP_SCALE); // Grilled fish, stones, logs and flame children inherit this once.
         { const p = worldCell(FIRE_CELL[0], FIRE_CELL[1]); campObj.g.position.copy(p); campObj.g.name = 'Bếp lửa trại (Campfire)'; scene.add(campObj.g); }
