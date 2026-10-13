@@ -3,6 +3,8 @@
 
 core/boot.js                           # nạp three.js, renderer, scene, camera, ánh sáng, bầu trời nền
 core/sky-sun-moon.js                   # mặt trời, mặt trăng, pha trăng, quỹ đạo theo giờ thật Pleiku
+core/star-catalog.js                   # danh mục 2.887 sao sáng (Yale BSC5, đóng gói base64)
+core/night-sky.js                      # TRỜI ĐÊM: sao thật theo giờ sao, Ngân Hà, chạng vạng, mây thật, sao băng + mưa sao băng (lớp nền vẽ trước cảnh)
 core/terrain.js                        # địa hình voxel, sông, hồ, đập (dữ liệu ô lưới)
 core/axes-pin-bake.js                  # trục toạ độ, ghim, sáng khối khi rê chuột, bakeStatic (gộp lưới tĩnh)
 world/hydro-dam.js                     # nhà máy thủy điện + đập

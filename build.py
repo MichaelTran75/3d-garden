@@ -8,7 +8,7 @@
   src/app/manifest.txt     thứ tự ghép các mảnh mã cảnh chính src/app/**.js
 
 Đầu ra:
-  index.html, css/app.css, js/weather.js, js/flight-nav.js, js/app.js   — trang nhiều tệp cho GitHub Pages
+  index.html, css/app.css, js/weather.js, js/flight-nav.js, js/app.js   — trang nhiều tệp cho GitHub Pages (js/app.js bỏ dòng chú thích)
                                                                           (mỗi tệp đóng dấu ?v=<băm>: tệp nào không đổi thì trình duyệt giữ bản đã lưu)
   ../3D garden.html                                                     — bản một tệp tự chứa (chỉ khi chạy trên máy, cạnh thư mục tests/)
 
@@ -55,7 +55,9 @@ single = page.replace('@@CSS@@', css).replace('@@WEATHER@@', weather).replace('@
 head = re.search(r'^(.*?)\n  <style>\n(.*?)\n  </style>\n</head>\n', single, re.S)
 body = re.search(r'<body>\n(.*?)\n  <script id="garden-weather-controller">', single, re.S)
 if not head or not body: die('khung trang src/page.html sai cấu trúc')
-files = {'css/app.css': css + '\n', 'js/weather.js': weather.strip('\n') + '\n', 'js/flight-nav.js': flight.strip('\n') + '\n', 'js/app.js': app.strip('\n') + '\n'}
+# trang web: bỏ các dòng chỉ có chú thích (// …) trong mã cảnh — người xem tải nhẹ hơn ~13%; src/ và bản một tệp (để thử, gỡ lỗi) giữ nguyên chú thích
+web_app = '\n'.join(l for l in app.split('\n') if not l.lstrip().startswith('//'))
+files = {'css/app.css': css + '\n', 'js/weather.js': weather.strip('\n') + '\n', 'js/flight-nav.js': flight.strip('\n') + '\n', 'js/app.js': web_app.strip('\n') + '\n'}
 for rel, text in files.items():
     p = HERE / rel; p.parent.mkdir(parents=True, exist_ok=True); p.write_text(text, encoding='utf-8')
 ver = {rel: hashlib.sha1(text.encode('utf-8')).hexdigest()[:10] for rel, text in files.items()}

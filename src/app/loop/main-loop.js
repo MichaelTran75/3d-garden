@@ -1,5 +1,4 @@
         const SHADER_TIME_LOOP = 1140 * Math.PI;              // ≈ 3581 s: ω = 3,0 · 2,2 · 7,5 (nước) và 3,5 (cỏ cây) đều quay số nguyên vòng
-        const STAR_TIME_LOOP = 670 * 2 * Math.PI / 1.17;      // ≈ 3598 s: nhịp lấp lánh ω = 1,17 quay đúng 670 vòng
         function loop() {
           if (disposed || suspended) { frameId = 0; return; }
           frameId = requestAnimationFrame(loop); const dt = Math.min(clock.getDelta(), 0.05) || 1 / 60;   // khung đầu: Clock.getDelta() trả 0 (mô phỏng chia cho dt sẽ ra NaN)
@@ -13,9 +12,7 @@
           if (keys['d'] || keys['arrowright']) { target.x -= Math.sin(theta) * panSpd; target.z += Math.cos(theta) * panSpd; autoRotate = false; }
           camera.position.set(target.x + radius * Math.sin(phi) * Math.cos(theta), target.y + radius * Math.cos(phi), target.z + radius * Math.sin(phi) * Math.sin(theta)); camera.lookAt(target);
           const t = clock.elapsedTime;
-          if (starsGroup) starsGroup.rotation.y = t * 0.0012;
           // thời gian đưa vào shader quay vòng ở chu kỳ chung của các tần số đang dùng → liền mạch, và giữ độ chính xác float32 dù trang mở nhiều ngày
-          if (starMaterial) starMaterial.uniforms.uTime.value = t % STAR_TIME_LOOP;
           updateSceneWind(dt, t);   // hướng + tốc độ gió thật, cơn giật, lò xo thân cây (trước khi cây/lá/khói dùng)
           for (const u of windUniforms.values()) u.uTime.value = t % SHADER_TIME_LOOP;
           // tua-bin: quay theo gió TẠI ĐỘ CAO TRỤC (profile log + cơn giật) kiểu đường công suất — dưới 2,5 m/s chạy không tải chậm,

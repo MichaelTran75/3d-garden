@@ -42,8 +42,6 @@
         const dayBg = new THREE.Color(0xE2D6C0), nightBg = new THREE.Color(0x44547d).multiplyScalar(0.8), duskBg = new THREE.Color(0xc89c74).multiplyScalar(0.8);
         const dayLi = new THREE.Color(0xfff4e0), duskLi = new THREE.Color(0xffb066), nightLi = new THREE.Color(0x8fa6cf);
         const liveWeather = window.gardenWeather; let nightFactor = 0, skyDusk = 0, sunElevSin = 0.5;   // skyDusk: 1 khi mặt trời sát chân trời (mây nhuộm cam)
-        const starsGroup = new THREE.Group(); scene.add(starsGroup);
-        let starMaterial = null;
         // ---- vị trí THẬT tại Pleiku 13,98°B · 108,0°Đ, UTC+7 (thuật toán rút gọn của Astronomical Almanac: mặt trời ~0,01°, mặt trăng ~0,3°) ----
         //      Hướng trong cảnh giữ như quỹ đạo cũ: mọc phía −x của nhóm bầu trời, lặn phía +x, trưa nghiêng về phía nam (−z) ⇒ đông/bắc/đỉnh trời thế giới.
         const SUN_LAT = 13.98333 * Math.PI / 180, SUN_LON = 108.0, SUN_TZ = 7, RD = Math.PI / 180;
@@ -110,67 +108,8 @@
             _nv.copy(_mp).multiplyScalar(ORB); _tv.copy(_wp).addScaledVector(_mp, -_wp.dot(_mp)).multiplyScalar(8).add(_nv).project(camera); _nv.project(camera);
             skyMoon.material.rotation = Math.atan2((_tv.y - _nv.y) * renderer.domElement.height, (_tv.x - _nv.x) * renderer.domElement.width);
           }
-          if (starMaterial) { const so = Math.max(0, (nightFactor - 0.2) / 0.8) * 0.95; starMaterial.uniforms.uOpacity.value = so; starsGroup.visible = so > 0; }   // ban ngày ẩn hẳn 6000 sao thay vì vẽ với opacity 0
         }
         updateSky();
-        function buildStarrySky() {
-          const starsCount = 6000, radius = 650;
-          const positions = [], sizes = [], phases = [];
-          for (let i = 0; i < starsCount; i++) {
-            const u = Math.random(), v = Math.random(), theta = u * 2 * Math.PI, phi = Math.acos(2 * v - 1);
-            const x = radius * Math.sin(phi) * Math.cos(theta);
-            const y = Math.abs(radius * Math.cos(phi));
-            const z = radius * Math.sin(phi) * Math.sin(theta);
-            positions.push(x, y, z);
-            sizes.push(1.2 + Math.random() * 4.3); // max size 5.5
-            phases.push(Math.random());
-          }
-          const geo = new THREE.BufferGeometry();
-          geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-          geo.setAttribute('aSize', new THREE.Float32BufferAttribute(sizes, 1));
-          geo.setAttribute('aPhase', new THREE.Float32BufferAttribute(phases, 1));
-          function starTexture() {
-            const c = document.createElement('canvas'); c.width = c.height = 16;
-            const x = c.getContext('2d');
-            x.fillStyle = '#E2D6C0'; x.beginPath(); x.arc(8, 8, 5, 0, Math.PI * 2); x.fill();
-            return new THREE.CanvasTexture(c);
-          }
-          const mat = new THREE.ShaderMaterial({
-            uniforms: {
-              uTime: { value: 0 },
-              uMap: { value: starTexture() },
-              uOpacity: { value: 0 }
-            },
-            vertexShader: `
-              uniform float uTime;
-              attribute float aSize;
-              attribute float aPhase;
-              varying float vTwinkle;
-              void main() {
-                // Twinkling speed slowed down 3x (3.5 -> 1.17)
-                float twinkle = 0.5 + 0.5 * sin(uTime * 1.17 + aPhase * 12.0);
-                vTwinkle = twinkle;
-                vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-                gl_PointSize = aSize * (0.35 + 0.65 * twinkle);
-                gl_Position = projectionMatrix * mvPosition;
-              }
-            `,
-            fragmentShader: `
-              uniform sampler2D uMap;
-              uniform float uOpacity;
-              varying float vTwinkle;
-              void main() {
-                vec4 texColor = texture2D(uMap, gl_PointCoord);
-                gl_FragColor = vec4(texColor.rgb, texColor.a * uOpacity * (0.45 + 0.55 * vTwinkle));
-              }
-            `,
-            transparent: true,
-            blending: THREE.NormalBlending,
-            depthWrite: false
-          });
-          const points = new THREE.Points(geo, mat); starsGroup.add(points); return mat;
-        }
-        starMaterial = buildStarrySky();
 
         /* ============ TUNABLE ============ */
         const S = 4;                       // mật độ: 1 khối gốc = S^3 khối nhỏ (S=4 → 64)

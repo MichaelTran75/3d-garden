@@ -15,7 +15,7 @@ Mã nguồn nằm trong `src/` — đây là nơi duy nhất cần sửa (ngay t
 | `src/js/weather.js` | thời tiết Open-Meteo + đồng hồ Pleiku |
 | `src/js/flight-nav.js` | dẫn đường bay cho ong, bướm |
 | `src/app/manifest.txt` | **thứ tự** ghép các mảnh mã cảnh chính (kèm mô tả từng tệp) |
-| `src/app/core/` | khởi động, bầu trời, mặt trời/mặt trăng theo vị trí thật ở Pleiku (đường chấm = đường đi thật trong ngày của từng thiên thể), mặt nước, địa hình; **gộp lượt vẽ** (`draw-batch.js`) |
+| `src/app/core/` | khởi động, bầu trời, mặt trời/mặt trăng theo vị trí thật ở Pleiku (đường chấm = đường đi thật trong ngày của từng thiên thể), mặt nước, địa hình; **gộp lượt vẽ** (`draw-batch.js`); **trời đêm** (`night-sky.js` + `star-catalog.js`: 2.887 sao thật của Yale Bright Star Catalog quay theo giờ sao địa phương, sao mờ sinh thêm dày về Ngân Hà, Ngân Hà theo toạ độ thiên hà, chạng vạng, trăng làm mờ sao, mây che theo độ phủ mây thật, sao băng + lịch các trận mưa sao băng IMO; lớp nền vẽ trước cảnh, chiếu nổi quanh chân trời theo hướng camera) |
 | `src/app/world/` | thủy điện, tua-bin, pin mặt trời, nhà, đường, tháp nước, trạm biến áp 110 kV sơ đồ cầu H (`substation-bess.js`), cột khí tượng, đèn đường |
 | `src/app/nature/` | gió, cây, rừng, cỏ hoa, lá rơi, mây, **mưa trên GPU** (`clouds-rain.js`), **chất lỏng** (`fluids.js`: nước nông + sợi khói bếp lửa, chạy ở luồng phụ), **đầm sen** (`lotus.js`: hiệu ứng lá sen — mưa đọng thành hạt tròn, lăn về lòng lá, gộp lại; lá trĩu rồi nghiêng đổ nước xuống hồ), **thảm cỏ** (`meadow.js`: phủ 45% đất, lá cong mọc từ màu đất, 3 mức chi tiết theo zoom, ngọn ửng vàng khi nắng thấp) |
 | `src/app/animals/` | cá, bò, hươu, cua, thỏ, ong bướm, cò · **bộ chân 4 chi IK dùng chung** (`quadruped.js`) · **chó** (`dog-brain.js`: nằm sưởi, vươn vai, đánh hơi, theo chủ, uống nước, chạy vòng; đi bộ / nước kiệu / phi) · **gấu mèo** (`raccoon-brain.js`: chạng vạng–đêm, cào bới, đứng 2 chân, ngồi ăn, bỏ chạy về hang) |
@@ -28,7 +28,7 @@ Mã nguồn nằm trong `src/` — đây là nơi duy nhất cần sửa (ngay t
 Các mảnh trong `src/app/` được **nối nguyên văn** theo `manifest.txt` thành một khối script, dùng chung một phạm vi biến
 (không `import`/`export`) — nên giữ đúng thứ tự trong manifest; thêm tệp mới thì ghi thêm một dòng vào manifest.
 
-`index.html`, `css/`, `js/` là tệp **dựng ra** từ `src/` — đừng sửa tay.
+`index.html`, `css/`, `js/` là tệp **dựng ra** từ `src/` — đừng sửa tay. `js/app.js` trên web bỏ các dòng chỉ có chú thích (người xem tải nhẹ hơn ~13%); muốn đọc chú thích thì xem `src/` hoặc bản một tệp `../3D garden.html`.
 
 ## Hiệu năng (đọc trước khi thêm vật mới)
 
