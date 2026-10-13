@@ -10406,9 +10406,13 @@
             stem: new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true }),
             petal: new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true, side: THREE.DoubleSide }),
             core: new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true }),
-            bead: new THREE.MeshPhongMaterial({ color: 0xd5e6ec, specular: 0xffffff, shininess: 140 }),   // giọt nước trên lá sáp: tròn, bóng như thuỷ ngân
+            bead: new THREE.MeshPhongMaterial({ color: 0xe4f4ea, specular: 0xffffff, shininess: 160, transparent: true }),   // giọt nước trên lá sáp: tròn như bi thuỷ tinh — lòng trong, viền tối, đốm phản chiếu trắng
           };
           for (const k in M) M[k].name = 'sen: ' + k;
+          M.bead.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <dithering_fragment>', `#include <dithering_fragment>
+            float fr = pow(1.0 - abs(dot(normalize(vNormal), normalize(vViewPosition))), 1.5);   // giữa giọt: thấu kính hội tụ → sáng, thấy lá · mép: khúc xạ nền tối → viền sẫm
+            vec3 dif = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse;
+            gl_FragColor = vec4(mix(dif * 1.12, dif * 0.32, smoothstep(0.35, 0.9, fr)) + reflectedLight.directSpecular * 1.7 + reflectedLight.indirectSpecular, mix(0.4, 0.95, fr));`); };
 
           // --- tiện ích hình học ---
           function paint(geo, f) {   // màu đỉnh: f(x, y, z) → THREE.Color
@@ -10423,21 +10427,18 @@
           function leafGeo(R, aerial) {   // phiến khiên tròn: lưới cực 7 vòng × 44 tia · lá vươn lõm phễu + rủ 1 bên · mép lượn sóng
             const RS = 7, AS = 44, pos = [0, 0, 0], uv = [0.5, 0.5], idx = [];
             const p1 = rnd() * 6.28, p2 = rnd() * 6.28, nw = 5 + ((rnd() * 4) | 0), wa = aerial ? 0.05 + rnd() * 0.04 : 0.014, tilt = rnd() * 6.28, droop = aerial ? 0.06 + rnd() * 0.12 : 0;
+            const hf = (f, th, lip = 1) => lip * (aerial ? R * 0.3 * Math.pow(f, 1.5) : R * 0.06 * Math.pow(f, 6))   // lòng phễu · lá nổi chỉ vểnh mép
+              + wa * R * Math.pow(f, 3) * (Math.sin(th * nw + p1) + 0.5 * Math.sin(th * (nw + 3) + p2)) - droop * R * Math.pow(f, 2.5) * Math.max(0, Math.cos(th - tilt));
             for (let r = 1; r <= RS; r++) {
               const f = r / RS;
-              for (let a = 0; a < AS; a++) {
-                const th = a / AS * 6.2832;
-                let y = aerial ? R * 0.3 * Math.pow(f, 1.5) : R * 0.06 * Math.pow(f, 6);   // lòng phễu · lá nổi chỉ vểnh mép
-                y += wa * R * Math.pow(f, 3) * (Math.sin(th * nw + p1) + 0.5 * Math.sin(th * (nw + 3) + p2));
-                y -= droop * R * Math.pow(f, 2.5) * Math.max(0, Math.cos(th - tilt));
-                pos.push(Math.cos(th) * R * f, y, Math.sin(th) * R * f); uv.push(0.5 + 0.5 * f * Math.cos(th), 0.5 + 0.5 * f * Math.sin(th));
-              }
+              for (let a = 0; a < AS; a++) { const th = a / AS * 6.2832; pos.push(Math.cos(th) * R * f, hf(f, th), Math.sin(th) * R * f); uv.push(0.5 + 0.5 * f * Math.cos(th), 0.5 + 0.5 * f * Math.sin(th)); }
             }
             const V = (r, a) => 1 + (r - 1) * AS + (a % AS);
             for (let a = 0; a < AS; a++) idx.push(0, V(1, a + 1), V(1, a));
             for (let r = 2; r <= RS; r++) for (let a = 0; a < AS; a++) idx.push(V(r - 1, a), V(r - 1, a + 1), V(r, a), V(r - 1, a + 1), V(r, a + 1), V(r, a));
             const g = new THREE.BufferGeometry();
             g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
+            g.userData.leaf = { tilt, h: (x, z, lip) => hf(Math.min(1, Math.hypot(x, z) / R), Math.atan2(z, x), lip) };   // độ cao mặt lá tại (x, z) hệ lá · hướng mép rủ
             return g;
           }
 
@@ -10485,7 +10486,7 @@
           }
 
           const geoPetal = [petalGeo(0.08, 0.55, petalStops), petalGeo(0.16, 0.6, petalStops), petalGeo(0.26, 0.65, petalStops)], geoSepal = petalGeo(0.02, 0.4, sepalStops);
-          const geoCore = coreGeo(0.78, true), geoPod = coreGeo(1.3, false), geoStamen = stamenGeo(), geoBead = new THREE.SphereGeometry(1, 10, 6);
+          const geoCore = coreGeo(0.78, true), geoPod = coreGeo(1.3, false), geoStamen = stamenGeo(), geoBead = new THREE.SphereGeometry(1, 12, 8);
           const WHORL = [   // vòng: số cánh · bán kính chân · độ cao chân · dài · hệ số rộng · góc nghiêng khép (a0) / nở (a1)
             { n: 3, r: 0.045, y: 0, L: 0.17, w: 0.85, a0: 0.9, a1: 2.0, g: geoSepal },   // đài ngoài: luôn ngả ra
             { n: 6, r: 0.06, y: 0.005, L: 0.44, w: 1, a0: 0.13, a1: 1.32, g: geoPetal[0] },
@@ -10495,7 +10496,7 @@
           const cStem = col(0x5d8c3c), cPrick = col(0x3d5a26);
 
           // --- dựng cây ---
-          const floats = [], stalks = [], flowers = [], beads = [];
+          const floats = [], stalks = [], flowers = [], pads = [];   // pads: lá hứng được giọt nước
           const inWater = (dx, dz, r) => { for (let k = 0; k <= 8; k++) { const a = k / 8 * 6.2832, rr = k ? r : 0, x = C0x + dx + Math.cos(a) * rr, z = C0z + dz + Math.sin(a) * rr; if (!waterCell(Math.round(x2gi(x)), Math.round(z2gj(z)))) return false; } return true; };
           function stalk(dx, dz, H, r, lean, k) {   // cuống mọc từ bùn đáy: cong nhẹ, gai li ti (đốm sẫm), phần chìm thấy mờ qua nước; gốc lắc quanh mặt nước theo gió
             const g = new THREE.Group(); g.position.set(C0x + dx, lakeY, C0z + dz); pond.add(g);
@@ -10540,15 +10541,19 @@
               const g = new THREE.Group(); g.position.set(C0x + dx, lakeY, C0z + dz); pond.add(g); top.position.y = 0.03; g.add(top);   // cao hơn đỉnh gợn sóng của shader nước
               const a = rnd() * 6.28, pts = [new THREE.Vector3(0, 0, 0), new THREE.Vector3(Math.cos(a) * 0.1, -0.3, Math.sin(a) * 0.1), new THREE.Vector3(Math.cos(a) * 0.3, -0.9, Math.sin(a) * 0.3)];
               g.add(new THREE.Mesh(paint(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 6, 0.02, 4, false), () => cStem), M.stem));
-              floats.push({ g, ph: rnd() * 6.28 }); return;
+              floats.push({ g, ph: rnd() * 6.28 });
+              pads.push({ top, R, L: null, h: geo.userData.leaf.h, beads: [], seed: [[0, 0, 0.02]], Vd: Math.pow(0.04 * R / 0.5, 3), V: 0, bt: 0, bv: 0, dump: 0 }); return;
             }
             const S = stalk(dx, dz, H, 0.024, 0.06 + rnd() * 0.1, 0.022), L = new THREE.Group();
             L.position.copy(S.top).y += 0.025; L.rotation.set((rnd() - 0.5) * 0.5, 0, (rnd() - 0.5) * 0.5); S.g.add(L);
             top.castShadow = true; L.add(top); const un = new THREE.Mesh(geo, M.under); un.rotation.y = top.rotation.y; un.castShadow = true; L.add(un);
-            for (let i = 0; i < 1 + ((rnd() * 3) | 0); i++) {   // giọt sương / mưa đọng lòng lá: giọt lớn ở rốn, giọt nhỏ quanh
-              const b = new THREE.Mesh(geoBead, M.bead), a = rnd() * 6.28, r = i ? R * (0.12 + rnd() * 0.25) : R * 0.03, s = i ? 0.012 + rnd() * 0.01 : 0.03 + rnd() * 0.012;
-              b.position.set(Math.cos(a) * r, R * 0.3 * Math.pow(r / R, 1.5) + s * 0.5, Math.sin(a) * r); L.add(b); beads.push({ m: b, s });
+            const seed = [];
+            for (let i = 0; i < 1 + ((rnd() * 3) | 0); i++) {   // chỗ giọt sương / mưa còn đọng khi mở trang: giọt lớn ở rốn, giọt nhỏ quanh
+              const a = rnd() * 6.28, r = i ? R * (0.12 + rnd() * 0.25) : R * 0.03, s = i ? 0.012 + rnd() * 0.01 : 0.03 + rnd() * 0.012;
+              seed.push([Math.cos(a) * r, Math.sin(a) * r, s]);
             }
+            const az = geo.userData.leaf.tilt - top.rotation.y;   // hướng mép rủ trong hệ nhóm lá L: phía lá nghiêng đổ nước
+            pads.push({ top, R, L, rx0: L.rotation.x, rz0: L.rotation.z, dx: Math.cos(az), dz: Math.sin(az), h: geo.userData.leaf.h, beads: [], seed, Vd: Math.pow((0.06 + 0.02 * Math.random()) * Math.max(0.75, R / 0.8), 3), V: 0, bt: 0, bv: 0, dump: 0 });
           }
 
           // bố cục quanh tâm (dx, dz so với góc 73, 113): lá nổi · lá vươn · hoa (tuổi 0–2 = ngày nở 1–3) · búp · gương sen · cánh rụng
@@ -10564,6 +10569,109 @@
             floats.push({ g, ph: rnd() * 6.28 });
           }
           scene.add(pond);
+
+          // --- GIỌT NƯỚC TRÊN LÁ (hiệu ứng lá sen) ---
+          //  Mặt lá: gai thịt 10–20 µm phủ sáp → giọt chỉ chạm đỉnh gai (trạng thái Cassie), góc tiếp xúc >160°, giọt cỡ 1 cm nghiêng ~2° đã lăn.
+          //  · góc trượt theo Furmidge: lực bám mép giọt ∝ r, trọng lượng ∝ r³ ⇒ sin(góc trượt) ∝ 1/r² — giọt li ti đọng lại, giọt nặng mới lăn.
+          //  · hạt mưa chạm lá: nảy rồi đậu lại, ~1/3 vỡ toé thành 3 giọt nhỏ; trúng giọt có sẵn thì nhập vào, giọt đó rung + giật nhẹ.
+          //  · giọt lăn theo dốc thật của mặt lá (gia tốc lăn 5/7·g·sinα), gió đẩy giọt nhỏ; chạm nhau thì gộp (cộng thể tích, rung rồi tắt).
+          //  · giọt nhỏ tròn như bi; giọt lớn dẹt thành vũng, dày tối đa ≈ 2 lần độ dài mao dẫn (ở đây phóng to ~6 lần cho dễ thấy).
+          //  · lá vươn: nước dồn về rốn làm lá trĩu dần; đủ nặng thì lá nghiêng hẳn về phía mép rủ, cuống cong — vũng lăn khỏi mép rơi
+          //    xuống hồ (gợn sóng thật) rồi lá bật về, nhún vài nhịp. Lá nổi: giọt trôi theo dốc sóng, đầy thì tràn qua mép.
+          //  · sương đêm ngưng thành hạt li ti lớn dần; trời khô thì bay hơi (nắng nhanh hơn).
+          const BEAD_MAX = 700, PAD_MAX = 36, RAIN_R = 0.011, HMAX = 0.045, G7 = 9.81 * 5 / 7;   // cỡ giọt phóng to theo lá (lá trong cảnh ~3 lần lá thật)
+          const dropMesh = (geo, n, name) => { const m = new THREE.InstancedMesh(geo, M.bead, n); m.count = 0; m.visible = false; m.frustumCulled = false; m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.name = name; m.userData.noBatch = m.userData.noRainOcc = true; pond.add(m); return m; };
+          const beadMesh = dropMesh(geoBead, BEAD_MAX, 'Giọt nước trên lá sen'), poolMesh = dropMesh(new THREE.SphereGeometry(1, 32, 14), 64, 'Vũng nước lòng lá sen');   // vũng lớn: lưới mịn cho mép tròn
+          const falls = [], _inv = new THREE.Matrix4(), _rl = new THREE.Matrix3(), _rw = new THREE.Matrix3(), _mb = new THREE.Matrix4(), _qb = new THREE.Quaternion();
+          const _gl = new THREE.Vector3(), _wl = new THREE.Vector3(), _n = new THREE.Vector3(), _p = new THREE.Vector3(), _sc = new THREE.Vector3(), _up = new THREE.Vector3(0, 1, 0);
+          const shape = b => { b.c = Math.min(b.r, HMAX / 2); b.a = Math.sqrt(b.r * b.r * b.r / b.c); };   // giữ thể tích: giọt lớn dẹt ra, bề dày chặn ở HMAX
+          function addBead(P, x, z, r, vx = 0, vz = 0) {
+            const B = P.beads;
+            if (B.length >= PAD_MAX) { let q = B[0], d = 1e9; for (const b of B) { const e = (b.x - x) ** 2 + (b.z - z) ** 2; if (e < d) { d = e; q = b; } } q.r = Math.cbrt(q.r ** 3 + r ** 3); q.w = 1; shape(q); return; }
+            const b = { x, z, vx, vz, r, w: 0.7, nx: 0, nz: 0, a: 0, c: 0 }; shape(b); B.push(b);
+          }
+          function seedPad(P, wet) {   // gieo lại theo độ ướt hiện tại (lúc mở trang / tua giờ): giọt lớn ở rốn + vài giọt nhỏ
+            P.beads.length = 0; P.bt = P.bv = 0; P.dump = 0;
+            if (wet > 0.15) for (const [x, z, s] of P.seed) addBead(P, x, z, s * Math.min(1, wet) * 0.75);
+          }
+          function impact(P) {   // 1 hạt mưa rơi trúng lá
+            const rr = P.R * 0.96 * Math.sqrt(Math.random()), th = Math.random() * 6.2832, x = Math.cos(th) * rr, z = Math.sin(th) * rr, r = RAIN_R * (0.8 + Math.random() * 0.4);
+            const hit = P.beads.find(b => (b.x - x) ** 2 + (b.z - z) ** 2 < b.a * b.a);
+            if (hit) { hit.r = Math.cbrt(hit.r ** 3 + r ** 3); shape(hit); hit.w = 1; hit.vx += (Math.random() - 0.5) * 0.25; hit.vz += (Math.random() - 0.5) * 0.25; return; }
+            const n = Math.random() < 0.35 ? 3 : 1;
+            for (let k = 0; k < n; k++) { const a = Math.random() * 6.2832, sp = n > 1 ? 0.2 + Math.random() * 0.3 : 0.03; addBead(P, x, z, n > 1 ? r * 0.7 : r, Math.cos(a) * sp, Math.sin(a) * sp); }
+          }
+          function stepPad(P, dt, dtr, dew, dry) {   // dt: bước chuyển động (kẹp ≤ 0,05 s) · dtr: thời gian thật cho mưa / sương / bay hơi
+            const T = P.top, B = P.beads, e = 0.015, lip = P.L ? 1 : 0.3;   // lá nổi: mép vểnh ít cản giọt hơn (sóng đã làm lá chao)
+            T.updateWorldMatrix(true, false); _inv.copy(T.matrixWorld).invert(); _rl.setFromMatrix4(_inv); _rw.setFromMatrix4(T.matrixWorld);
+            _gl.set(0, -1, 0).applyMatrix3(_rl);   // trọng lực trong hệ lá
+            T.getWorldPosition(_p); windAt(_p.x, _p.y, _p.z, 1, _wl); _wl.y = 0; _wl.applyMatrix3(_rl); const ws = _wl.length();
+            for (let lam = rainK * 12 * P.R * P.R * dtr; lam > 0; lam--) if (Math.random() < lam) impact(P);   // số hạt trúng lá ~ cường độ mưa × diện tích (Poisson)
+            const cond = dew > 0.5 && rainK < 0.05 && P.V < P.Vd * 0.35;   // sương ngưng (chỉ tới ~1/3 ngưỡng đổ: sương không đủ làm lá nghiêng)
+            if (cond && Math.random() < dtr * 0.012 * dew * P.R * P.R) { const rr = P.R * 0.9 * Math.sqrt(Math.random()), th = Math.random() * 6.2832; addBead(P, Math.cos(th) * rr, Math.sin(th) * rr, 0.004 + Math.random() * 0.002); }
+            const dr = cond ? dtr * 1.2e-6 * dew : dew > 0.5 ? 0 : dry * dtr;   // sương làm giọt lớn dần · trời khô thì bay hơi
+            for (let i = B.length - 1; i >= 0; i--) {
+              const b = B[i];
+              if (dr) { b.r += dr; if (b.r < 0.0022) { B.splice(i, 1); continue; } shape(b); }
+              const hx = (P.h(b.x + e, b.z, lip) - P.h(b.x - e, b.z, lip)) / (2 * e), hz = (P.h(b.x, b.z + e, lip) - P.h(b.x, b.z - e, lip)) / (2 * e);
+              _n.set(-hx, 1, -hz).normalize(); b.nx = _n.x; b.nz = _n.z;
+              const gn = _gl.dot(_n), tx = _gl.x - gn * _n.x, tz = _gl.z - gn * _n.z, kw = 0.00025 * ws / b.r, sl = Math.min(0.6, 0.035 * (0.012 / b.r) ** 2);
+              if (tx * tx + tz * tz < sl * sl && b.vx * b.vx + b.vz * b.vz < 4e-4 && kw * ws < sl * G7) b.vx = b.vz = 0;   // dốc dưới góc trượt của cỡ giọt này: nằm yên
+              else { const d = Math.exp(-dt * 1.4); b.vx = (b.vx + (tx * G7 + kw * _wl.x) * dt) * d; b.vz = (b.vz + (tz * G7 + kw * _wl.z) * dt) * d; b.x += b.vx * dt; b.z += b.vz * dt; }
+              b.w *= Math.exp(-dt * 4);
+              if (b.x * b.x + b.z * b.z > (P.R * 0.975) ** 2 && b.x * b.vx + b.z * b.vz > 0) {   // lăn qua mép lá → rơi tự do
+                falls.push({ p: new THREE.Vector3(b.x, P.h(b.x, b.z, 1) + b.c, b.z).applyMatrix4(T.matrixWorld), v: new THREE.Vector3(b.vx, hx * b.vx + hz * b.vz, b.vz).applyMatrix3(_rw), r: b.r });
+                B.splice(i, 1);
+              }
+            }
+            for (let i = 0; i < B.length; i++) for (let j = B.length - 1; j > i; j--) {   // giọt chạm nhau thì gộp
+              const p = B[i], q = B[j], dx = p.x - q.x, dz = p.z - q.z, s = (p.a + q.a) * 0.85;
+              if (dx * dx + dz * dz > s * s) continue;
+              const vp = p.r ** 3, vq = q.r ** 3, k = vq / (vp + vq);
+              p.x += (q.x - p.x) * k; p.z += (q.z - p.z) * k; p.vx += (q.vx - p.vx) * k; p.vz += (q.vz - p.vz) * k; p.r = Math.cbrt(vp + vq); p.w = 1; shape(p); B.splice(j, 1);
+            }
+            let V = 0; for (const b of B) V += b.r * b.r * b.r; P.V = V;
+            if (P.L) {   // lá vươn trĩu theo lượng nước; quá ngưỡng thì nghiêng đổ, xong bật về nhún vài nhịp
+              if (!P.dump && V > P.Vd) P.dump = 1e-3; else if (P.dump && ((P.dump += dt) > 3.5 || V < P.Vd * 0.12)) P.dump = 0;
+              const tgt = P.dump ? 0.5 : 0.14 * Math.min(1, V / P.Vd), k = P.dump ? 26 : 34, c = P.dump ? 7 : 3.6;   // đổ ~29° · bật về vọt ~25% rồi tắt
+              P.bv += (k * (tgt - P.bt) - c * P.bv) * dt; P.bt += P.bv * dt;
+              P.L.rotation.x = P.rx0 + P.bt * P.dz; P.L.rotation.z = P.rz0 - P.bt * P.dx;
+            } else if (V > P.Vd && B.length) {   // lá nổi đầy: giọt lớn nhất trôi về phía thấp, tràn qua mép xuống nước
+              let q = B[0]; for (const b of B) if (b.r > q.r) q = b;
+              const gl = Math.hypot(_gl.x, _gl.z) || 1; q.vx += _gl.x / gl * 0.9 * dt; q.vz += _gl.z / gl * 0.9 * dt;
+            }
+          }
+          let lastH = null;
+          function drops(dtr, t, h, dew) {
+            const dt = Math.min(dtr, 0.05); dtr = Math.min(dtr, 2);
+            if (lastH === null || Math.abs(((h - lastH + 36) % 24) - 12) > 0.5) { const wet = Math.min(1, Math.max(dew, sceneWet * 1.5, rainK)); for (const P of pads) seedPad(P, P.L ? wet : wet * 0.4); falls.length = 0; }   // mở trang / tua giờ (tính vòng 24 h: qua nửa đêm không phải tua)
+            lastH = h;
+            const dry = rainK < 0.02 && dew < 0.35 ? -(5e-6 + 1.6e-5 * Math.max(0, sunElevSin)) : 0;   // tốc độ bay hơi (bán kính, đv/s)
+            for (const P of pads) stepPad(P, dt, dtr, dew, dry);
+            for (let i = falls.length - 1; i >= 0; i--) {   // giọt rơi: trọng lực → chạm mặt hồ thì tạo gợn (vũng lớn: vòng sóng thấy rõ)
+              const f = falls[i]; f.v.y -= 9.81 * dt; f.p.addScaledVector(f.v, dt);
+              const wy = waterSurfaceY(f.p.x, f.p.z);
+              if (f.p.y - f.r > wy && f.p.y > lakeY - 1) continue;
+              if (f.r > 0.02) waterFx.ring(f.p.x, wy, f.p.z, Math.min(0.35, f.r * 4)); else fluids?.splash(f.p.x, f.p.z, 0.45, 0.006 + f.r);
+              falls.splice(i, 1);
+            }
+            let n = 0, np = 0;
+            if (renderer.domElement.height * camera.zoom / (camera.top - camera.bottom) > 40) {   // xa quá thì giọt nhỏ hơn 1 điểm ảnh: khỏi dựng
+              for (const P of pads) {
+                const T = P.top; _rw.setFromMatrix4(T.matrixWorld);
+                for (const b of P.beads) {
+                  const big = b.a > 0.03 && np < 64; if (!big && n >= BEAD_MAX) continue;
+                  const wob = b.w * Math.sin(t * 26 + b.x * 40);   // rung sau va chạm / gộp
+                  _p.set(b.x, P.h(b.x, b.z, 1) + b.c * 0.92, b.z).applyMatrix4(T.matrixWorld);
+                  _n.set(b.nx, Math.sqrt(Math.max(0, 1 - b.nx * b.nx - b.nz * b.nz)), b.nz).applyMatrix3(_rw).normalize();
+                  _mb.compose(_p, _qb.setFromUnitVectors(_up, _n), _sc.set(b.a * (1 + 0.12 * wob), b.c * (1 - 0.2 * wob), b.a * (1 + 0.12 * wob)));
+                  if (big) poolMesh.setMatrixAt(np++, _mb); else beadMesh.setMatrixAt(n++, _mb);
+                }
+              }
+              for (const f of falls) if (n < BEAD_MAX) beadMesh.setMatrixAt(n++, _mb.compose(f.p, _qb.identity(), _sc.set(f.r, f.r * 1.3, f.r)));
+            }
+            for (const [m, c] of [[beadMesh, n], [poolMesh, np]]) { m.count = c; m.visible = c > 0; if (c) m.instanceMatrix.needsUpdate = true; }
+          }
 
           function lotusOpen(h, age) {   // độ nở theo giờ Pleiku: hé từ ~5 giờ, rộ nhất buổi sáng, khép dần sau trưa; ngày 3 không khép kín được nữa
             const day = sm(5.0, 7.8, h) * (1 - sm(13.5, 17.5, h)), lo = [0.04, 0.12, 0.7][age], hi = [0.6, 1, 1.3][age];
@@ -10591,10 +10699,9 @@
               for (const p of fl.petals) p.m.rotation.x = p.a0 + (p.a1 - p.a0) * fl.o;
               if (fl.stamen) { const s = 0.55 + 0.45 * Math.min(1, fl.o); fl.stamen.scale.set(s, 0.9 + 0.1 * s, s); }
             }
-            const dew = h < 12 ? 1 - sm(8, 10.5, h) : sm(19, 23.5, h), wet = Math.min(1, Math.max(dew, sceneWet * 1.5, rainK));   // sương đêm–sáng sớm, hoặc lá còn ướt mưa
-            for (const b of beads) { const s = wet * b.s; b.m.visible = s > b.s * 0.08; if (b.m.visible) b.m.scale.set(s, s * 0.62, s); }
+            drops(dt, t, h, h < 12 ? 1 - sm(8, 10.5, h) : sm(19, 23.5, h));   // giọt mưa / sương (độ sương: đêm–sáng sớm)
           }
-          return { group: pond, flowers, update };
+          return { group: pond, flowers, pads, update };
         })();
         // ===== THẢM CỎ MỀM (G 13/10: "research from other artist… thảm cỏ nhìn gớm, không mịn màng lãng mạn") =====
         //  Học từ cách các nghệ sĩ/studio làm cỏ:
