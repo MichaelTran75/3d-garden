@@ -205,7 +205,13 @@
         }
         const _aimOut = [0, 0];
         function updateFishingBite(e, dt, t) {
-          const A = angling, P = angFloat, rod = e.rod, U = rod.userData, g = e.g;
+          const A = angling, P = angFloat, rod = e.rod, U = rod.userData, g = e.g, X = U.flex;
+          if (!(dt > 0)) return;   // phao (vận tốc = Δx/dt) và lực dây (÷dt²) chia cho dt: dt = 0 ⇒ NaN
+          if (!Number.isFinite(A.T + P.F.x + P.B.x + X.th[0] + X.acc[0].x + A.head.p + A.head.pv + A.free.p + A.free.pv)) {   // NaN đã lọt vào thì trạng thái tích phân giữ NaN mãi (mất đầu, mất cần) ⇒ đặt lại cần, phao, đầu, khởi động lại buổi câu
+            X.th.fill(0); X.vel.fill(0); X.n = 0; for (const a of X.acc) a.set(0, 0, 0); for (const s of X.segs) s.g.rotation.set(0, 0, 0);
+            Object.assign(A, { active: false, T: 0 }); A.Tdir.set(0, -1, 0); Object.assign(A.head, { pv: 0, yv: 0 }); Object.assign(A.free, { pv: 0, r: -0.05, rv: 0 });
+            e.head.rotation.set(0.3, 0, 0); e.arms[0].rotation.x = -0.15;
+          }
           const lam = g.rotation.x, awake = liveWeather.wildlifeAwake;
           if (!A.active) {   // vừa cầm cần: phao treo dưới ngọn, chọn điểm quăng (lệch ngẫu nhiên quanh điểm phao quen thuộc)
             g.updateWorldMatrix(true, true); U.tip.getWorldPosition(_aTip);

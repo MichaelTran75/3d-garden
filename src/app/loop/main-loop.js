@@ -2,7 +2,7 @@
         const STAR_TIME_LOOP = 670 * 2 * Math.PI / 1.17;      // ≈ 3598 s: nhịp lấp lánh ω = 1,17 quay đúng 670 vòng
         function loop() {
           if (disposed || suspended) { frameId = 0; return; }
-          frameId = requestAnimationFrame(loop); const dt = Math.min(clock.getDelta(), 0.05);
+          frameId = requestAnimationFrame(loop); const dt = Math.min(clock.getDelta(), 0.05) || 1 / 60;   // khung đầu: Clock.getDelta() trả 0 (mô phỏng chia cho dt sẽ ra NaN)
           const insectsAwake = liveWeather.wildlifeAwake;
           if (insectsAwake) flightNav.update();
           if (autoRotate) tTheta += 0.0008; theta += (tTheta - theta) * 0.08; phi += (tPhi - phi) * 0.08;
