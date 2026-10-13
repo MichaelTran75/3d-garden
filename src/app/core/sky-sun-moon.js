@@ -1,31 +1,26 @@
         // ---- mặt trời / mặt trăng theo GIỜ THẬT + quỹ đạo chấm ----
-        const sky = new THREE.Group(); sky.rotation.set(0, -0.8, 0.2); scene.add(sky);  // quỹ đạo song song trục X thế giới
-        const ORB = 150;
-        const pathPts = [];
-        {
-          const tilt = -30 * Math.PI / 180;
-          const cosT = Math.cos(tilt), sinT = Math.sin(tilt);
-          for (let k = 0; k <= 84; k++) {
-            const a = k / 84 * 6.283;
-            pathPts.push(new THREE.Vector3(Math.cos(a) * ORB, Math.sin(a) * ORB * cosT, Math.sin(a) * ORB * sinT));
-          }
+        //      Quỹ đạo chấm = đường đi THẬT trong 1 ngày của từng thiên thể (vòng nhật động ở xích vĩ hiện tại, tự tính lại khi xích vĩ đổi):
+        //      đen = mặt trời, xám xanh = mặt trăng. Trăng có vị trí riêng (không còn đặt đối diện mặt trời) ⇒ giờ mọc/lặn, pha và phía sáng đúng thực tế.
+        const sky = new THREE.Group(); sky.rotation.set(0, -0.8, 0.2); scene.add(sky);
+        const ORB = 150, PATH_N = 96;
+        function dashPath(color, opacity) {   // nét đứt 1px, đỉnh điền lúc chạy (fillPath)
+          const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array((PATH_N + 1) * 3), 3));
+          const l = new THREE.Line(geo, new THREE.LineDashedMaterial({ color, dashSize: 1.1, gapSize: 1.9, transparent: true, opacity })); l.frustumCulled = false; l.userData.dec = 9; sky.add(l); return l;
         }
-        const pathLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pathPts), new THREE.LineDashedMaterial({ color: 0x000000, dashSize: 1.1, gapSize: 1.9, transparent: true, opacity: 0.7 })); pathLine.computeLineDistances(); sky.add(pathLine);  // nét đứt 1px
+        const pathLine = dashPath(0x000000, 0.7), moonPath = dashPath(0x3d4f6e, 0.55);
         function glowTex() { const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'); const gr = x.createRadialGradient(64, 64, 3, 64, 64, 64); gr.addColorStop(0, 'rgba(255,226,135,0.95)'); gr.addColorStop(0.4, 'rgba(255,200,80,0.4)'); gr.addColorStop(1, 'rgba(255,200,80,0)'); x.fillStyle = gr; x.fillRect(0, 0, 128, 128); return new THREE.CanvasTexture(c); }
         const sunGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), transparent: true, opacity: 0.25, blending: THREE.AdditiveBlending, depthWrite: false })); sunGlow.scale.set(24, 24, 1); sky.add(sunGlow);
         const skySun = new THREE.Mesh(new THREE.SphereGeometry(5, 18, 18), new THREE.MeshBasicMaterial({ color: 0xffd34a, transparent: true, opacity: 0.5 })); sky.add(skySun);
-        // ---- PHA TRĂNG THẬT theo ngày (live realistic moon phases): tính tuổi trăng từ trăng non chuẩn 06/01/2000 18:14 UTC,
-        //      chu kỳ giao hội 29.53 ngày → vẽ đĩa trăng per-pixel (phần sáng/terminator/earthshine + biển trăng mờ) lên canvas ----
-        const MOON_SYNODIC = 29.53058867, MOON_EPOCH = Date.UTC(2000, 0, 6, 18, 14, 0);
-        function moonPhase(ms) { const age = ((ms - MOON_EPOCH) / 86400000) % MOON_SYNODIC; return (age < 0 ? age + MOON_SYNODIC : age) / MOON_SYNODIC; }   // 0=trăng non · 0.25=thượng huyền · 0.5=trăng tròn · 0.75=hạ huyền
+        // ---- PHA TRĂNG theo góc lệch THẬT giữa trăng và mặt trời: vẽ đĩa trăng per-pixel (phần sáng/terminator/earthshine + biển trăng mờ) lên canvas,
+        //      phía sáng luôn ở +x của ảnh; mỗi khung xoay sprite cho phía sáng hướng về mặt trời trên màn hình ----
         const moonCanvas = document.createElement('canvas'); moonCanvas.width = moonCanvas.height = 160;
         const moonTex = new THREE.CanvasTexture(moonCanvas); moonTex.colorSpace = THREE.SRGBColorSpace;
         const _maria = [[-0.32, -0.18, 0.34], [0.18, -0.3, 0.26], [0.05, 0.24, 0.3], [-0.08, 0.04, 0.17]];   // vùng biển trăng (maria) cố định
-        function drawMoonPhase(p) {
+        function drawMoonPhase(psi, shine) {   // psi: góc lệch trăng–mặt trời (0 = trăng non, π = trăng tròn), phần sáng luôn ở phía +x · shine: độ hiện phần khuất (ánh đất)
           const ctx = moonCanvas.getContext('2d'), Sz = 160, R = 74, cx = Sz / 2, cy = Sz / 2;
           ctx.clearRect(0, 0, Sz, Sz);
           const img = ctx.createImageData(Sz, Sz), d = img.data;
-          const a = p * 6.283185307, sx = Math.sin(a), szn = -Math.cos(a);   // hướng mặt trời trong hệ toạ độ trăng
+          const sx = Math.sin(psi), szn = -Math.cos(psi);   // hướng mặt trời trong hệ toạ độ trăng
           for (let y = 0; y < Sz; y++) for (let x = 0; x < Sz; x++) {
             const dx = (x - cx) / R, dy = (y - cy) / R, rr = dx * dx + dy * dy;
             if (rr > 1) continue;
@@ -36,51 +31,85 @@
             const edge = Math.min(1, (1 - Math.sqrt(rr)) * R * 0.9);         // viền mềm ~1px
             const i = (y * Sz + x) * 4;
             d[i] = Math.min(255, 233 * v + 18); d[i + 1] = Math.min(255, 238 * v + 18); d[i + 2] = Math.min(255, 246 * v + 20);
-            d[i + 3] = Math.round(255 * edge * (lit ? 0.92 : 0.5));
+            d[i + 3] = Math.round(255 * edge * (lit ? 0.92 : shine));
           }
           ctx.putImageData(img, 0, 0); moonTex.needsUpdate = true;
         }
-        let _moonBucket = -1;
+        let _moonKey = '';
         const skyMoon = new THREE.Sprite(new THREE.SpriteMaterial({ map: moonTex, color: 0xE2D6C0, transparent: true, opacity: 0.92, depthWrite: false })); skyMoon.scale.set(9.5, 9.5, 1); sky.add(skyMoon);
-        const _wp = new THREE.Vector3(), _mp = new THREE.Vector3(), _sunV = new THREE.Vector3(), _liC = new THREE.Color(), _bgC = new THREE.Color();   // scratch: updateSky chạy mỗi frame, không clone() mới
+        const _wp = new THREE.Vector3(), _mp = new THREE.Vector3(), _sunV = new THREE.Vector3(), _tv = new THREE.Vector3(), _nv = new THREE.Vector3(), _liC = new THREE.Color(), _bgC = new THREE.Color();   // scratch: updateSky chạy mỗi frame, không clone() mới
+        const moonDayC = new THREE.Color(0xffffff), moonNightC = new THREE.Color(0xE2D6C0), mPathDay = new THREE.Color(0x3d4f6e), mPathNight = new THREE.Color(0xc9d3e6), sPathDay = new THREE.Color(0x000000), sPathNight = new THREE.Color(0xc2b190);   // đường chấm: sẫm trên nền trời ngày, sáng trên nền đêm
         const dayBg = new THREE.Color(0xE2D6C0), nightBg = new THREE.Color(0x44547d).multiplyScalar(0.8), duskBg = new THREE.Color(0xc89c74).multiplyScalar(0.8);
         const dayLi = new THREE.Color(0xfff4e0), duskLi = new THREE.Color(0xffb066), nightLi = new THREE.Color(0x8fa6cf);
         const liveWeather = window.gardenWeather; let nightFactor = 0, skyDusk = 0, sunElevSin = 0.5;   // skyDusk: 1 khi mặt trời sát chân trời (mây nhuộm cam)
         const starsGroup = new THREE.Group(); scene.add(starsGroup);
         let starMaterial = null;
-        // ---- vị trí mặt trời thật (thuật toán thiên văn rút gọn của Almanac/NOAA, sai số ~0,01°) tại Pleiku 13,98°B · 108,0°Đ, UTC+7 ----
+        // ---- vị trí THẬT tại Pleiku 13,98°B · 108,0°Đ, UTC+7 (thuật toán rút gọn của Astronomical Almanac: mặt trời ~0,01°, mặt trăng ~0,3°) ----
         //      Hướng trong cảnh giữ như quỹ đạo cũ: mọc phía −x của nhóm bầu trời, lặn phía +x, trưa nghiêng về phía nam (−z) ⇒ đông/bắc/đỉnh trời thế giới.
-        const SUN_LAT = 13.98333 * Math.PI / 180, SUN_LON = 108.0, SUN_TZ = 7;
+        const SUN_LAT = 13.98333 * Math.PI / 180, SUN_LON = 108.0, SUN_TZ = 7, RD = Math.PI / 180;
         sky.updateMatrixWorld();
         const SKY_UP = new THREE.Vector3(0, 1, 0), SKY_EAST = new THREE.Vector3(-1, 0, 0).applyQuaternion(sky.quaternion).setY(0).normalize(), SKY_NORTH = new THREE.Vector3().crossVectors(SKY_UP, SKY_EAST);
-        function solarPosition(hh) {   // → { el, az } (rad; az tính từ hướng bắc theo chiều kim đồng hồ) cho ngày hôm nay ở Pleiku lúc hh giờ địa phương
-          const d = new Date(Date.now() + SUN_TZ * 3600000), t = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) + (hh - SUN_TZ) * 3600000;
-          const n = t / 86400000 + 2440587.5 - 2451545, rd = Math.PI / 180;
-          const L = 280.46 + 0.9856474 * n, g = (357.528 + 0.9856003 * n) * rd, lam = (L + 1.915 * Math.sin(g) + 0.02 * Math.sin(2 * g)) * rd, eps = (23.439 - 4e-7 * n) * rd;
-          const ra = Math.atan2(Math.cos(eps) * Math.sin(lam), Math.cos(lam)), dec = Math.asin(Math.sin(eps) * Math.sin(lam));
-          const gmst = 18.697374558 + 24.06570982441908 * n, H = ((gmst + SUN_LON / 15) * 15) * rd - ra;
-          const el = Math.asin(Math.sin(SUN_LAT) * Math.sin(dec) + Math.cos(SUN_LAT) * Math.cos(dec) * Math.cos(H));
-          const az = Math.atan2(-Math.sin(H), Math.tan(dec) * Math.cos(SUN_LAT) - Math.sin(SUN_LAT) * Math.cos(H));
-          return { el, az, dec };
+        function sceneDay(hh) {   // số ngày kể từ J2000 tại giờ cảnh hh (giờ Pleiku) của ngày hôm nay ở Pleiku
+          const d = new Date(Date.now() + SUN_TZ * 3600000);
+          return (Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) + (hh - SUN_TZ) * 3600000) / 86400000 + 2440587.5 - 2451545;
         }
+        function sunEq(n) {   // mặt trời → xích kinh, xích vĩ (rad)
+          const L = 280.46 + 0.9856474 * n, g = (357.528 + 0.9856003 * n) * RD, lam = (L + 1.915 * Math.sin(g) + 0.02 * Math.sin(2 * g)) * RD, eps = (23.439 - 4e-7 * n) * RD;
+          return { ra: Math.atan2(Math.cos(eps) * Math.sin(lam), Math.cos(lam)), dec: Math.asin(Math.sin(eps) * Math.sin(lam)), par: 0 };
+        }
+        function moonEq(n) {   // mặt trăng → xích kinh, xích vĩ, thị sai ngang (rad): 6 số hạng kinh độ hoàng đạo, 4 vĩ độ, 5 thị sai
+          const T = n / 36525, s = (a, b) => Math.sin((a + b * T) * RD), c = (a, b) => Math.cos((a + b * T) * RD);
+          const lam = (218.32 + 481267.881 * T + 6.29 * s(134.9, 477198.85) - 1.27 * s(259.2, -413335.38) + 0.66 * s(235.7, 890534.23) + 0.21 * s(269.9, 954397.7) - 0.19 * s(357.5, 35999.05) - 0.11 * s(186.6, 966404.05)) * RD;
+          const bet = (5.13 * s(93.3, 483202.03) + 0.28 * s(228.2, 960400.87) - 0.28 * s(318.3, 6003.18) - 0.17 * s(217.6, -407332.2)) * RD;
+          const par = (0.9508 + 0.0518 * c(134.9, 477198.85) + 0.0095 * c(259.2, -413335.38) + 0.0078 * c(235.7, 890534.23) + 0.0028 * c(269.9, 954397.7)) * RD;
+          const eps = (23.439 - 4e-7 * n) * RD, cb = Math.cos(bet), sl = Math.sin(lam);
+          return { ra: Math.atan2(Math.cos(eps) * cb * sl - Math.sin(eps) * Math.sin(bet), cb * Math.cos(lam)), dec: Math.asin(Math.sin(eps) * cb * sl + Math.cos(eps) * Math.sin(bet)), par };
+        }
+        const hourAngle = (n, ra) => (18.697374558 + 24.06570982441908 * n + SUN_LON / 15) * 15 * RD - ra;
+        function horiz(H, dec, par) {   // góc giờ H + xích vĩ → { el, az } (az từ hướng bắc theo chiều kim đồng hồ); thị sai par hạ trăng thấp xuống tới ~1°
+          const el = Math.asin(Math.sin(SUN_LAT) * Math.sin(dec) + Math.cos(SUN_LAT) * Math.cos(dec) * Math.cos(H));
+          return { el: el - par * Math.cos(el), az: Math.atan2(-Math.sin(H), Math.tan(dec) * Math.cos(SUN_LAT) - Math.sin(SUN_LAT) * Math.cos(H)) };
+        }
+        function solarPosition(hh) { const n = sceneDay(hh), q = sunEq(n), h = horiz(hourAngle(n, q.ra), q.dec, 0); h.dec = q.dec; return h; }   // { el, az, dec } lúc hh giờ hôm nay
+        const skyDir = (h, out) => { const ce = Math.cos(h.el); return out.copy(SKY_EAST).multiplyScalar(ce * Math.sin(h.az)).addScaledVector(SKY_NORTH, ce * Math.cos(h.az)).addScaledVector(SKY_UP, Math.sin(h.el)); };   // vector đơn vị, toạ độ thế giới
+        function fillPath(line, q) {   // vòng nhật động: đường thiên thể đi qua trong 1 vòng quay của Trái Đất ở xích vĩ hiện tại
+          const a = line.geometry.attributes.position;
+          for (let i = 0; i <= PATH_N; i++) { sky.worldToLocal(skyDir(horiz(i / PATH_N * 2 * Math.PI, q.dec, q.par), _tv).multiplyScalar(ORB)); a.setXYZ(i, _tv.x, _tv.y, _tv.z); }
+          a.needsUpdate = true; line.geometry.computeBoundingSphere(); line.computeLineDistances(); line.userData.dec = q.dec;
+        }
+        const smooth01 = (a, b, x) => { const k = Math.max(0, Math.min(1, (x - a) / (b - a))); return k * k * (3 - 2 * k); };
+        const viaUp = (a, b, t, out) => (t < 0.5 ? out.copy(a).lerp(SKY_UP, t * 2) : out.copy(SKY_UP).lerp(b, t * 2 - 1)).normalize();   // a → thiên đỉnh → b
         function updateSky() {
-          const now = Date.now(); const hh = liveWeather.localHour;
-          const mp = moonPhase(now), mb = Math.round(mp * 240);   // vẽ lại pha trăng khi tuổi trăng đổi ~3h (240 bậc/chu kỳ)
-          if (mb !== _moonBucket) { _moonBucket = mb; drawMoonPhase(mp); }
-          // vị trí mặt trời THẬT ở Pleiku theo ngày + giờ cảnh (mọc/lặn, độ cao giữa trưa, hướng đổi theo mùa); mặt trăng đối diện như cũ
-          const sp = solarPosition(hh);
-          const ce = Math.cos(sp.el);
-          _wp.copy(SKY_EAST).multiplyScalar(ce * Math.sin(sp.az)).addScaledVector(SKY_NORTH, ce * Math.cos(sp.az)).addScaledVector(SKY_UP, Math.sin(sp.el)).multiplyScalar(ORB);
-          sky.updateMatrixWorld(); skySun.position.copy(sky.worldToLocal(_mp.copy(_wp)));
-          skyMoon.position.copy(skySun.position).negate();
-          skySun.getWorldPosition(_wp); skyMoon.getWorldPosition(_mp);
-          const elev = _wp.y / ORB, dayF = Math.min(1, Math.max(0, (elev + 0.04) / 0.34)), dusk = Math.max(0, 1 - Math.abs(elev) / 0.2); nightFactor = 1 - dayF; skyDusk = dusk; sunElevSin = elev;
-          sun.position.copy(_sunV.copy(elev >= -0.02 ? _wp : _mp).normalize().multiplyScalar(150));
+          const n = sceneDay(liveWeather.localHour), sq = sunEq(n), mq = moonEq(n);
+          if (Math.abs(sq.dec - pathLine.userData.dec) > 3e-4) fillPath(pathLine, sq);   // xích vĩ mặt trời đổi ~0,4°/ngày, trăng tới ~6°/ngày
+          if (Math.abs(mq.dec - moonPath.userData.dec) > 3e-4) fillPath(moonPath, mq);
+          const mh = horiz(hourAngle(n, mq.ra), mq.dec, mq.par);
+          skyDir(horiz(hourAngle(n, sq.ra), sq.dec, 0), _wp); skyDir(mh, _mp);   // hướng tới mặt trời / mặt trăng (thế giới)
+          sky.updateMatrixWorld();
+          skySun.position.copy(sky.worldToLocal(_tv.copy(_wp).multiplyScalar(ORB))); skyMoon.position.copy(sky.worldToLocal(_tv.copy(_mp).multiplyScalar(ORB)));
+          const elev = _wp.y, dayF = Math.min(1, Math.max(0, (elev + 0.04) / 0.34)), dusk = Math.max(0, 1 - Math.abs(elev) / 0.2); nightFactor = 1 - dayF; skyDusk = dusk; sunElevSin = elev;
+          // đèn chính: ngày theo mặt trời; đêm theo trăng nếu trăng đã mọc, chưa mọc thì từ phía đối diện mặt trời như cũ (nâng tối thiểu ~15° cho bóng khỏi dài vô tận)
+          //   đổi hướng qua thiên đỉnh (viaUp) để bóng không lật 180° khi 2 hướng gần đối nhau (vd trăng non phía tây ↔ hướng đối diện mặt trời)
+          _nv.copy(_wp).negate(); _nv.y = Math.max(_nv.y, 0.26); _nv.normalize();
+          _tv.copy(_mp); _tv.y = Math.max(_tv.y, 0.26); _tv.normalize();
+          viaUp(_nv, _tv, smooth01(-0.02, 0.12, _mp.y), _sunV); _nv.copy(_sunV); viaUp(_nv, _wp, smooth01(-0.08, 0.03, elev), _sunV);
+          sun.position.copy(_sunV).multiplyScalar(150);
           sun.intensity = 0.36 + dayF * 0.74;
           sun.color.copy(_liC.copy(dayLi).lerp(nightLi, 1 - dayF).lerp(duskLi, dusk * 0.75));
           hemi.intensity = 0.46 + dayF * 0.46; amb.intensity = 0.26 + dayF * 0.12;
           const bg = _bgC.copy(dayBg).lerp(nightBg, 1 - dayF).lerp(duskBg, dusk * 0.55); scene.background.copy(bg); if (scene.fog) scene.fog.color.copy(bg);
-          skySun.visible = elev > -0.16; skyMoon.visible = elev < 0.16; sunGlow.position.copy(skySun.position); sunGlow.visible = skySun.visible;
+          skySun.visible = elev > -0.16; sunGlow.position.copy(skySun.position); sunGlow.visible = skySun.visible; moonPath.material.color.copy(mPathNight).lerp(mPathDay, dayF); pathLine.material.color.copy(sPathNight).lerp(sPathDay, dayF);
+          // trăng: hiện khi ở trên chân trời và đủ sáng; ban ngày trắng nhạt, phần khuất (ánh đất) chỉ thấy khi trời tối
+          const cpsi = Math.sin(sq.dec) * Math.sin(mq.dec) + Math.cos(sq.dec) * Math.cos(mq.dec) * Math.cos(sq.ra - mq.ra);
+          skyMoon.visible = mh.el > -0.04 && cpsi < 0.975;
+          if (skyMoon.visible) {
+            const dq = Math.round(dayF * 4) / 4, key = Math.round(Math.acos(Math.max(-1, cpsi)) * 90) + '|' + dq;   // vẽ lại khi pha đổi ~0,6° hoặc trời sáng/tối hẳn
+            if (key !== _moonKey) { _moonKey = key; drawMoonPhase(Math.acos(Math.max(-1, cpsi)), 0.5 * (1 - dq)); }
+            skyMoon.material.color.copy(moonNightC).lerp(moonDayC, dayF); skyMoon.material.opacity = 0.92 - 0.17 * dayF;
+            // phía sáng hướng về mặt trời: tiếp tuyến cung lớn trăng → mặt trời, chiếu lên màn hình
+            _nv.copy(_mp).multiplyScalar(ORB); _tv.copy(_wp).addScaledVector(_mp, -_wp.dot(_mp)).multiplyScalar(8).add(_nv).project(camera); _nv.project(camera);
+            skyMoon.material.rotation = Math.atan2((_tv.y - _nv.y) * renderer.domElement.height, (_tv.x - _nv.x) * renderer.domElement.width);
+          }
           if (starMaterial) { const so = Math.max(0, (nightFactor - 0.2) / 0.8) * 0.95; starMaterial.uniforms.uOpacity.value = so; starsGroup.visible = so > 0; }   // ban ngày ẩn hẳn 6000 sao thay vì vẽ với opacity 0
         }
         updateSky();

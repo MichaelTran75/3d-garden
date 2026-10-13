@@ -85,6 +85,11 @@
         const mistMap = mistTex();
         function bx(w, h, d, mat, cast, out, lm) { const geo = new THREE.BoxGeometry(w, h, d); const m = new THREE.Mesh(geo, mat); m.castShadow = cast !== false; m.receiveShadow = true; if (out !== false) edge(m, geo, lm); return m; }
         function cyl(rt, rb, h, mat, cast, out, lm, segs = 7) { const geo = new THREE.CylinderGeometry(rt, rb, h, segs); const m = new THREE.Mesh(geo, mat); m.castShadow = cast !== false; m.receiveShadow = true; if (out !== false) edge(m, geo, lm); return m; }
+        const _rbUp = new THREE.Vector3(0, 1, 0), _rbD = new THREE.Vector3();
+        function rodBetween(parent, a, b, r, mat, segs = 6, cast = true) {   // ống tròn nối 2 điểm: giằng, thanh néo, ống, thanh thang
+          _rbD.subVectors(b, a); const m = cyl(r, r, _rbD.length(), mat, cast, false, null, segs);
+          m.position.addVectors(a, b).multiplyScalar(0.5); m.quaternion.setFromUnitVectors(_rbUp, _rbD.normalize()); parent.add(m); return m;
+        }
         function sph(r, mat, cast, out, lm, segs = 8) { const geo = new THREE.SphereGeometry(r, segs, segs); const m = new THREE.Mesh(geo, mat); m.castShadow = cast !== false; m.receiveShadow = true; if (out !== false) edge(m, geo, lm); return m; }
         function cone(r, h, mat, cast, out, lm, segs = 9) { const geo = new THREE.ConeGeometry(r, h, segs); const m = new THREE.Mesh(geo, mat); m.castShadow = cast !== false; m.receiveShadow = true; if (out !== false) edge(m, geo, lm); return m; }
         function torus(r, tube, mat, cast, out, lm, radSegs = 6, tubSegs = 12) { const geo = new THREE.TorusGeometry(r, tube, radSegs, tubSegs); const m = new THREE.Mesh(geo, mat); m.castShadow = cast !== false; m.receiveShadow = true; if (out !== false) edge(m, geo, lm); return m; }

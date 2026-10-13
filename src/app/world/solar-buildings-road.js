@@ -325,36 +325,68 @@
           };
           bakeStatic(campusRoad); scene.add(campusRoad);
         }
-        // ---- bồn chứa nước (water silo) cạnh cụm 3 nhà ----
+        // ---- THÁP NƯỚC thép cạnh cụm 3 nhà — dựng theo tháp nước thật (bồn tôn sóng trên tháp 4 cột):
+        //      4 cột ống choãi chân trên móng bê-tông, 2 tầng giằng ngang + thanh giằng chéo chữ X ở mọi ô, ống đứng giữa (riser) có thanh néo;
+        //      sàn dầm + ban công vòng có lan can 2 tầng; bồn tôn sóng (gân ngang thật bằng LatheGeometry), đai mối ghép, mái nón tôn có gân,
+        //      ống thông hơi kiểu nấm, nắp thăm; thang có lồng an toàn lên ban công + thang lên mái, ống tràn xuống đất, thước đo mực nước ----
         function waterSilo() {
-          const g = new THREE.Group();
+          const g = new THREE.Group(), v3 = (x, y, z) => new THREE.Vector3(x, y, z);
           const tankMat = new THREE.MeshLambertMaterial({ color: 0xc4c8cd }), tankDark = new THREE.MeshLambertMaterial({ color: 0xa6abb1 });
-          const bodyR = 1.5, legH = 1.6, hopperH = 1.5, bodyH = 2.8, roofH = 0.8;
-          const hopY = legH, bodyY = legH + hopperH, topY = bodyY + bodyH;
-          // chân đỡ + giằng chéo
-          for (let n = 0; n < 6; n++) {
-            const a = n / 6 * 6.283; const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, legH + hopperH * 0.6, 8), legMat);
-            leg.position.set(Math.cos(a) * bodyR * 0.9, (legH + hopperH * 0.6) / 2, Math.sin(a) * bodyR * 0.9); leg.castShadow = true; g.add(leg);
+          const TH = 3.0, R = 1.45, SH = 2.6, y0 = TH + 0.12, yTop = y0 + SH, RB = 1.55, RT = 1.06, RD = R + 0.4, roofH = 0.52;
+          const add = (m, x, y, z) => { m.position.set(x, y, z); g.add(m); return m; };
+          const rod = (a, b, r, mat = legMat, segs = 6) => rodBetween(g, a, b, r, mat, segs, r > 0.02);
+          const C = (r0, r1, h, mat, x, y, z, segs, out) => add(cyl(r0, r1, h, mat, true, !!out, lineMat, segs), x, y, z);
+          const ring = (rad, tube, y) => { add(new THREE.Mesh(new THREE.TorusGeometry(rad, tube, 4, 48), legMat), 0, y, 0).rotation.x = Math.PI / 2; };
+          // 4 cột choãi (chân r 1,55 → đỉnh r 1,06) + móng; at(k, f) = điểm trên cột k ở tỉ lệ cao f
+          const at = (k, f) => { const a = Math.PI / 4 + (k % 4) * Math.PI / 2, c = Math.cos(a), s = Math.sin(a); return v3(RB * c, 0.12, RB * s).lerp(v3(RT * c, TH, RT * s), f); };
+          for (let k = 0; k < 4; k++) { rod(at(k, 0), at(k, 1), 0.075, legMat, 8); const b = at(k, 0); add(bx(0.44, 0.26, 0.44, concreteMat, true, true), b.x, 0.02, b.z); }
+          const lv = [0, 0.36, 0.7, 1];
+          for (let k = 0; k < 4; k++) for (let i = 0; i < 3; i++) {
+            if (i) rod(at(k, lv[i]), at(k + 1, lv[i]), 0.045);                                                                        // giằng ngang
+            rod(at(k, lv[i]), at(k + 1, lv[i + 1]), 0.014, legMat, 4); rod(at(k + 1, lv[i]), at(k, lv[i + 1]), 0.014, legMat, 4);   // giằng chéo X (thanh néo gió)
           }
-          for (let n = 0; n < 6; n++) {
-            const a = n / 6 * 6.283, a2 = (n + 1) / 6 * 6.283, x1 = Math.cos(a) * bodyR * 0.9, z1 = Math.sin(a) * bodyR * 0.9, x2 = Math.cos(a2) * bodyR * 0.9, z2 = Math.sin(a2) * bodyR * 0.9;
-            const br = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, Math.hypot(x2 - x1, z2 - z1), 5), legMat); br.position.set((x1 + x2) / 2, legH * 0.55, (z1 + z2) / 2); br.rotation.y = -Math.atan2(z2 - z1, x2 - x1); br.rotation.z = Math.PI / 2; g.add(br);
-          }
-          // phễu đáy + cửa xả
-          const hopper = new THREE.Mesh(new THREE.ConeGeometry(bodyR, hopperH, 18, 1, true), tankMat); hopper.position.y = hopY + hopperH / 2; hopper.castShadow = true; edge(hopper, hopper.geometry, lineMat); g.add(hopper);
-          const outlet = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.45, 10), legMat); outlet.position.y = hopY - 0.12; outlet.castShadow = true; g.add(outlet);
-          // thân trụ + gân sóng
-          const body = new THREE.Mesh(new THREE.CylinderGeometry(bodyR, bodyR, bodyH, 18), tankMat); body.position.y = bodyY + bodyH / 2; body.castShadow = true; edge(body, body.geometry, lineMat); g.add(body);
-          for (let r = 0; r < 7; r++) { const ring = new THREE.Mesh(new THREE.TorusGeometry(bodyR + 0.015, 0.045, 6, 22), tankDark); ring.rotation.x = Math.PI / 2; ring.position.y = bodyY + 0.3 + r * (bodyH - 0.6) / 6; g.add(ring); }
-          // mái chóp + nắp thông hơi
-          const roof = new THREE.Mesh(new THREE.ConeGeometry(bodyR + 0.12, roofH, 18), tankDark); roof.position.y = topY + roofH / 2; roof.castShadow = true; edge(roof, roof.geometry, lineMat); g.add(roof);
-          const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.28, 10), legMat); cap.position.y = topY + roofH + 0.1; cap.castShadow = true; g.add(cap);
-          // thang leo bên hông
-          const ladR = bodyR + 0.05, ladBot = hopY + 0.3, ladTopY = topY + 0.2, ladLen = ladTopY - ladBot, ladCy = (ladBot + ladTopY) / 2;
-          for (const sz of [-0.15, 0.15]) { const rail = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, ladLen, 6), legMat); rail.position.set(ladR, ladCy, sz); g.add(rail); }
-          for (let r = 0; r < Math.floor(ladLen / 0.5); r++) { const rung = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.32, 5), legMat); rung.rotation.x = Math.PI / 2; rung.position.set(ladR, ladBot + 0.2 + r * 0.5, 0); g.add(rung); }
-          // ống dẫn nước xuống đất
-          const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, legH + 0.4, 8), legMat); pipe.position.set(-bodyR * 0.5, legH / 2, bodyR * 0.35); g.add(pipe);
+          // ống đứng giữa (riser) + thanh néo về cột ở 2 tầng giằng; chân có mặt bích + tay van
+          C(0.13, 0.13, TH, legMat, 0, TH / 2, 0, 12); C(0.2, 0.2, 0.08, legMat, 0, 0.3, 0, 12);
+          for (const f of [0.36, 0.7]) for (let k = 0; k < 4; k++) rod(v3(0, 0.12 + (TH - 0.12) * f, 0), at(k, f), 0.012, legMat, 4);
+          add(new THREE.Mesh(new THREE.TorusGeometry(0.14, 0.02, 4, 14), tankDark), 0.2, 0.55, 0).rotation.y = Math.PI / 2;
+          // sàn: khung dầm vuông trên đỉnh cột + dầm chữ thập, mặt sàn tròn rộng hơn bồn làm ban công, lan can 2 tầng
+          for (let k = 0; k < 4; k++) rod(at(k, 1), at(k + 1, 1), 0.06);
+          rod(v3(-RD + 0.1, TH - 0.04, 0), v3(RD - 0.1, TH - 0.04, 0), 0.05); rod(v3(0, TH - 0.04, -RD + 0.1), v3(0, TH - 0.04, RD - 0.1), 0.05);
+          C(RD, RD, 0.12, tankDark, 0, TH + 0.06, 0, 40, true);
+          for (let k = 0; k < 16; k++) { const a = k / 16 * Math.PI * 2; add(cyl(0.018, 0.018, 0.56, legMat, false, false, null, 4), (RD - 0.05) * Math.cos(a), y0 + 0.28, (RD - 0.05) * Math.sin(a)); }
+          ring(RD - 0.05, 0.022, y0 + 0.56); ring(RD - 0.05, 0.014, y0 + 0.3);
+          // bồn tôn sóng: biên dạng gợn sin theo chiều cao (~8 sóng / 1 m), đai đáy · 2 mối ghép · đai đỉnh
+          const pr = [new THREE.Vector2(R, 0)], NW = 21;
+          for (let i = 0; i <= NW * 4; i++) pr.push(new THREE.Vector2(R + 0.022 * Math.sin(i * Math.PI / 2), 0.08 + (SH - 0.16) * i / (NW * 4)));
+          pr.push(new THREE.Vector2(R, SH));
+          const shell = add(new THREE.Mesh(new THREE.LatheGeometry(pr, 40), tankMat), 0, y0, 0); shell.castShadow = shell.receiveShadow = true;
+          for (const y of [y0 + 0.04, y0 + SH * 0.36, y0 + SH * 0.7, yTop - 0.03]) C(R + 0.03, R + 0.03, 0.06, tankDark, 0, y, 0, 40);
+          // mái nón tôn có 20 gân, ống thông hơi nấm ở đỉnh, nắp thăm cạnh đầu thang
+          C(0.12, R + 0.1, roofH, tankMat, 0, yTop + roofH / 2, 0, 40, true);
+          for (let k = 0; k < 20; k++) { const a = k / 20 * Math.PI * 2, c = Math.cos(a), s = Math.sin(a); rod(v3(0.14 * c, yTop + roofH - 0.01, 0.14 * s), v3((R + 0.09) * c, yTop + 0.01, (R + 0.09) * s), 0.014, tankDark, 4); }
+          C(0.09, 0.09, 0.26, tankDark, 0, yTop + roofH + 0.12, 0, 10); C(0.03, 0.22, 0.12, tankMat, 0, yTop + roofH + 0.3, 0, 12, true);
+          const hatch = new THREE.Group(), hr = 0.86; hatch.position.set(hr * Math.SQRT1_2, yTop + roofH * (1 - (hr - 0.12) / (R - 0.02)) + 0.03, hr * Math.SQRT1_2); hatch.rotation.y = -Math.PI / 4; g.add(hatch);
+          const hb = bx(0.34, 0.07, 0.34, tankDark, true, true); hb.rotation.z = -Math.atan2(roofH, R - 0.02); hatch.add(hb);
+          // thang ở hướng 45° (phía camera): thang đất → ban công có lồng an toàn, thang bồn → mái; P(r, y, t) = bán kính r, cao y, lệch ngang t
+          const P = (r, y, t) => v3((r - t) * Math.SQRT1_2, y, (r + t) * Math.SQRT1_2);
+          const ladder = (r, y1, y2, cage, cageTop) => {
+            for (const t of [-0.17, 0.17]) rod(P(r, y1, t), P(r, y2, t), 0.018, legMat, 5);
+            for (let y = y1 + 0.2; y < y2 - 0.05; y += 0.28) rod(P(r, y, -0.17), P(r, y, 0.17), 0.011, legMat, 4);
+            if (!cage) return;
+            for (let y = cage; y < cageTop; y += 0.5) { const h = add(new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.012, 4, 12, Math.PI), legMat), ...P(r, y, 0).toArray()); h.rotation.set(-Math.PI / 2, -3 * Math.PI / 4, 0, 'YXZ'); }
+            for (const q of [0.25, 0.5, 0.75]) { const a = q * Math.PI; rod(P(r + 0.3 * Math.sin(a), cage, 0.3 * Math.cos(a)), P(r + 0.3 * Math.sin(a), cageTop, 0.3 * Math.cos(a)), 0.01, legMat, 4); }
+          };
+          ladder(RB + 0.22, 0.1, y0 + 0.9, 1.7, TH - 0.08); ladder(R + 0.16, y0 + 0.05, yTop + 0.3, 0);
+          for (const f of [0.36, 0.7]) rod(P(RB + 0.22, 0.12 + (TH - 0.12) * f, 0), at(0, f), 0.016, legMat, 4);   // chân đỡ thang vào cột
+          // ống tràn (hướng 120°): cút ngang ra khỏi bồn → dọc thành bồn → xiên theo cột xuống tấm đỡ
+          const oc = Math.cos(2.09), os = Math.sin(2.09);
+          rod(v3(R * oc, yTop - 0.12, R * os), v3((R + 0.12) * oc, yTop - 0.12, (R + 0.12) * os), 0.04);
+          rod(v3((R + 0.12) * oc, yTop - 0.12, (R + 0.12) * os), v3((R + 0.12) * oc, TH - 0.05, (R + 0.12) * os), 0.04);
+          rod(v3((R + 0.12) * oc, TH - 0.05, (R + 0.12) * os), v3(-1.28, 0.16, 1.28), 0.04); add(bx(0.32, 0.06, 0.32, concreteMat, true, true), -1.32, 0.03, 1.32);
+          // thước đo mực nước (hướng −20°): bảng trắng + kim vàng, dây phao vắt qua mép mái
+          const gg = new THREE.Group(), ga = -0.35; gg.position.set((R + 0.05) * Math.cos(ga), y0 + SH / 2, (R + 0.05) * Math.sin(ga)); gg.rotation.y = -ga; g.add(gg);
+          gg.add(bx(0.03, SH * 0.82, 0.16, wallMat, true, true)); const nd = bx(0.06, 0.05, 0.22, warningMat, true, true); nd.position.y = 0.32; gg.add(nd);
+          rod(v3((R + 0.06) * Math.cos(ga), yTop - 0.2, (R + 0.06) * Math.sin(ga)), v3((R + 0.06) * Math.cos(ga), yTop + 0.06, (R + 0.06) * Math.sin(ga)), 0.008, legMat, 4);
           return bakeStatic(g);
         }
         { const silo = waterSilo(); silo.position.set(X0 + 43, 7, Z0 + 57); silo.scale.setScalar(1.25 * ARCHITECTURE_SCALE); silo.name = 'Bồn chứa nước (Water Silo)'; scene.add(silo); }
