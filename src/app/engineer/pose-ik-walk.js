@@ -91,51 +91,59 @@
         //      tay vung trước kéo bàn tay gần vai hơn ⇒ khuỷu gập thêm; eo vặn theo nhịp bước. Pha có thể đặt e.elbowFlexT[i] (gập thêm,
         //      đơn vị = rút ngắn khoảng vai–tay) và e.spineT = {x: cúi(+)/ngửa(−), y: vặn} (vd hái táo: ngửa người với cao, cúi bỏ táo vào giỏ).
         const ENG_ARM_D = 0.66;
+        //      engArmSolve(e, i): giải 1 tay, mỗi khung 1 lần — pha cần vị trí tay THẬT giữa khung (tay cầm cần câu trước khi đọc ngọn/khoen) gọi sớm,
+        //      engArmPost bỏ qua tay đã giải. e.handW[i] = tâm bàn tay cuối khung trước (đồ cầm ở tay kia: cá, mồi).
+        function engArmSolve(e, i, dt) {
+          const S = e.armDone || (e.armDone = [0, 0, 0]), L1 = ENG_ARM_L1, L2 = ENG_ARM_L2, kf = 1 - Math.exp(-dt * 6), sp = e.spine;
+          const RT = e.reachT, RW = e.reachW || (e.reachW = [0, 0]), RL = e.reachL || (e.reachL = [new THREE.Vector3(), new THREE.Vector3()]);
+          if (!S[2]) {   // eo + nhịp vung tay: 1 lần/khung
+            S[2] = 1;
+            e.armWalk = (e.armWalk || 0) + ((e.walking ? Math.min(1, (e.vel || 0) / 1.1) : 0) - (e.armWalk || 0)) * kf;
+            const st = e.spineT || { x: 0, y: 0 }, sv = e.spineV || (e.spineV = { x: 0, y: 0 });
+            sv.x += (st.x - sv.x) * kf; sv.y += (st.y - sv.y) * kf;
+            sp.rotation.set(sv.x, sv.y + 0.07 * Math.sin(e.gait || 0) * e.armWalk, 0);   // vai bên tay vung trước cùng tiến lên (ngược chân cùng bên)
+            e.spineT = null;
+            if ((RT && (RT[0] || RT[1])) || RW[0] > 1e-3 || RW[1] > 1e-3) { e.g.updateMatrixWorld(true); }
+          }
+          if (S[i]) return; S[i] = 1;
+          const fx = e.elbowFlex || (e.elbowFlex = [0, 0]), ft = e.elbowFlexT || [0, 0];
+          // với tới điểm thế giới (e.reachT[i], pha đặt mỗi khung: điểm nắm trên sào, quả, giỏ…) — hướng vai + khoảng vai–tay, hoà vào dần
+          fx[i] += (ft[i] - fx[i]) * kf;
+          const A = e.arms[i]; A.rotation.y = 0; let th = A.rotation.x;   // (xoắn trục y chỉ do IK chính xác đặt ở khung trước)
+          const fwd = Math.max(0, Math.min(1, -th / 0.45)) * e.armWalk;
+          let D = Math.max(0.3, Math.min(L1 + L2 - 1e-3, ENG_ARM_D - 0.04 * fwd - fx[i]));
+          const tgt = RT && RT[i]; if (tgt) RL[i].copy(tgt);
+          RW[i] += ((tgt ? 1 : 0) - RW[i]) * (1 - Math.exp(-dt * 7));
+          if (RW[i] > 1e-3) {
+            const v = sp.worldToLocal(_ikW.copy(RL[i])).sub(A.position), dl = v.length() || 1;
+            const gm = Math.asin(Math.max(-1, Math.min(1, v.x / dl))), tr = Math.atan2(-v.z, -v.y), w = RW[i];
+            th = th + Math.atan2(Math.sin(tr - th), Math.cos(tr - th)) * w; A.rotation.z += (gm - A.rotation.z) * w;
+            D = D + (Math.max(0.3, Math.min(L1 + L2 - 1e-3, dl)) - D) * w;
+          }
+          const phi = Math.PI - Math.acos(Math.max(-1, Math.min(1, (L1 * L1 + L2 * L2 - D * D) / (2 * L1 * L2))));
+          const al = Math.acos(Math.max(-1, Math.min(1, (L1 * L1 + D * D - L2 * L2) / (2 * L1 * D))));
+          if (RW[i] > 1e-3) {   // có đích với tay: IK CHÍNH XÁC (hệ eo) — khuỷu theo vectơ cực chĩa xuống–ra ngoài, cánh tay trên xoay đúng mặt phẳng vai–khuỷu–tay
+            const cg = Math.cos(A.rotation.z), u = _ikP.set(Math.sin(A.rotation.z), -cg * Math.cos(th), -cg * Math.sin(th));   // hướng vai→tay đã hoà (thứ tự XYZ)
+            const a = (L1 * L1 - L2 * L2 + D * D) / (2 * D), hh = Math.sqrt(Math.max(0, L1 * L1 - a * a));
+            const pole = _ikA.set(i ? 0.6 : -0.6, -1, -0.15); pole.addScaledVector(u, -pole.dot(u)).normalize();
+            const E = _ikB.copy(u).multiplyScalar(a).addScaledVector(pole, hh);                       // khuỷu (so với vai)
+            const yA = _ikW.copy(E).negate().normalize(), f = _ikC.copy(u).multiplyScalar(D).sub(E).normalize();   // trục +y cánh tay trên · hướng cẳng tay
+            const zA = f.addScaledVector(yA, -f.dot(yA)).normalize(), xA = _ikA.crossVectors(yA, zA);   // cẳng tay gập về +z cục bộ
+            A.quaternion.setFromRotationMatrix(_ikM.makeBasis(xA, yA, zA)); e.elbows[i].rotation.x = -phi; e.wrists[i].rotation.x = phi - al;
+          } else { A.rotation.x = th + al; e.elbows[i].rotation.x = -phi; e.wrists[i].rotation.x = phi - al; }
+          // hướng bàn tay (e.handQ[i]: quaternion thế giới của khung cổ tay, pha đặt mỗi khung — thìa vào miệng, mép sách, que cá):
+          // cổ tay gập/ngửa + cẳng tay sấp/ngửa gộp thành 1 phép quay ở cổ tay (tay LEGO xoay ở cổ tay), hoà vào/ra dần
+          const hq = e.handQ && e.handQ[i], HW = e.handQW || (e.handQW = [0, 0]), HL = e.handQL || (e.handQL = [new THREE.Quaternion(), new THREE.Quaternion()]);
+          if (hq) HL[i].copy(hq);
+          HW[i] += ((hq ? 1 : 0) - HW[i]) * (1 - Math.exp(-dt * 8));
+          if (HW[i] > 1e-3) { e.elbows[i].updateWorldMatrix(true, false); e.elbows[i].getWorldQuaternion(_ikQ).invert().multiply(HL[i]); e.wrists[i].quaternion.slerp(_ikQ, HW[i]); }
+        }
         function engArmPost(e, dt) {
           if (!e.elbows) return;
-          const L1 = ENG_ARM_L1, L2 = ENG_ARM_L2, kf = 1 - Math.exp(-dt * 6);
-          e.armWalk = (e.armWalk || 0) + ((e.walking ? Math.min(1, (e.vel || 0) / 1.1) : 0) - (e.armWalk || 0)) * kf;
-          const fx = e.elbowFlex || (e.elbowFlex = [0, 0]), ft = e.elbowFlexT || [0, 0];
-          const sp = e.spine, st = e.spineT || { x: 0, y: 0 }, sv = e.spineV || (e.spineV = { x: 0, y: 0 });
-          sv.x += (st.x - sv.x) * kf; sv.y += (st.y - sv.y) * kf;
-          sp.rotation.set(sv.x, sv.y + 0.07 * Math.sin(e.gait || 0) * e.armWalk, 0);   // vai bên tay vung trước cùng tiến lên (ngược chân cùng bên)
-          e.spineT = null;
-          // với tới điểm thế giới (e.reachT[i], pha đặt mỗi khung: điểm nắm trên sào, quả, giỏ…) — hướng vai + khoảng vai–tay, hoà vào dần
-          const RT = e.reachT, RW = e.reachW || (e.reachW = [0, 0]), RL = e.reachL || (e.reachL = [new THREE.Vector3(), new THREE.Vector3()]);
-          if ((RT && (RT[0] || RT[1])) || RW[0] > 1e-3 || RW[1] > 1e-3) { e.g.updateMatrixWorld(true); }
-          for (let i = 0; i < 2; i++) {
-            fx[i] += (ft[i] - fx[i]) * kf;
-            const A = e.arms[i]; A.rotation.y = 0; let th = A.rotation.x;   // (xoắn trục y chỉ do IK chính xác đặt ở khung trước)
-            const fwd = Math.max(0, Math.min(1, -th / 0.45)) * e.armWalk;
-            let D = Math.max(0.3, Math.min(L1 + L2 - 1e-3, ENG_ARM_D - 0.04 * fwd - fx[i]));
-            const tgt = RT && RT[i]; if (tgt) RL[i].copy(tgt);
-            RW[i] += ((tgt ? 1 : 0) - RW[i]) * (1 - Math.exp(-dt * 7));
-            if (RW[i] > 1e-3) {
-              const v = sp.worldToLocal(_ikW.copy(RL[i])).sub(A.position), dl = v.length() || 1;
-              const gm = Math.asin(Math.max(-1, Math.min(1, v.x / dl))), tr = Math.atan2(-v.z, -v.y), w = RW[i];
-              th = th + Math.atan2(Math.sin(tr - th), Math.cos(tr - th)) * w; A.rotation.z += (gm - A.rotation.z) * w;
-              D = D + (Math.max(0.3, Math.min(L1 + L2 - 1e-3, dl)) - D) * w;
-            }
-            const phi = Math.PI - Math.acos(Math.max(-1, Math.min(1, (L1 * L1 + L2 * L2 - D * D) / (2 * L1 * L2))));
-            const al = Math.acos(Math.max(-1, Math.min(1, (L1 * L1 + D * D - L2 * L2) / (2 * L1 * D))));
-            if (RW[i] > 1e-3) {   // có đích với tay: IK CHÍNH XÁC (hệ eo) — khuỷu theo vectơ cực chĩa xuống–ra ngoài, cánh tay trên xoay đúng mặt phẳng vai–khuỷu–tay
-              const cg = Math.cos(A.rotation.z), u = _ikP.set(Math.sin(A.rotation.z), -cg * Math.cos(th), -cg * Math.sin(th));   // hướng vai→tay đã hoà (thứ tự XYZ)
-              const a = (L1 * L1 - L2 * L2 + D * D) / (2 * D), hh = Math.sqrt(Math.max(0, L1 * L1 - a * a));
-              const pole = _ikA.set(i ? 0.6 : -0.6, -1, -0.15); pole.addScaledVector(u, -pole.dot(u)).normalize();
-              const E = _ikB.copy(u).multiplyScalar(a).addScaledVector(pole, hh);                       // khuỷu (so với vai)
-              const yA = _ikW.copy(E).negate().normalize(), f = _ikC.copy(u).multiplyScalar(D).sub(E).normalize();   // trục +y cánh tay trên · hướng cẳng tay
-              const zA = f.addScaledVector(yA, -f.dot(yA)).normalize(), xA = _ikA.crossVectors(yA, zA);   // cẳng tay gập về +z cục bộ
-              A.quaternion.setFromRotationMatrix(_ikM.makeBasis(xA, yA, zA)); e.elbows[i].rotation.x = -phi; e.wrists[i].rotation.x = phi - al;
-            } else { A.rotation.x = th + al; e.elbows[i].rotation.x = -phi; e.wrists[i].rotation.x = phi - al; }
-            // hướng bàn tay (e.handQ[i]: quaternion thế giới của khung cổ tay, pha đặt mỗi khung — thìa vào miệng, mép sách, que cá):
-            // cổ tay gập/ngửa + cẳng tay sấp/ngửa gộp thành 1 phép quay ở cổ tay (tay LEGO xoay ở cổ tay), hoà vào/ra dần
-            const hq = e.handQ && e.handQ[i], HW = e.handQW || (e.handQW = [0, 0]), HL = e.handQL || (e.handQL = [new THREE.Quaternion(), new THREE.Quaternion()]);
-            if (hq) HL[i].copy(hq);
-            HW[i] += ((hq ? 1 : 0) - HW[i]) * (1 - Math.exp(-dt * 8));
-            if (HW[i] > 1e-3) { e.elbows[i].updateWorldMatrix(true, false); e.elbows[i].getWorldQuaternion(_ikQ).invert().multiply(HL[i]); e.wrists[i].quaternion.slerp(_ikQ, HW[i]); }
-          }
+          engArmSolve(e, 0, dt); engArmSolve(e, 1, dt);
+          const W = e.handW || (e.handW = [new THREE.Vector3(), new THREE.Vector3()]); e.wrists[0].getWorldPosition(W[0]); e.wrists[1].getWorldPosition(W[1]);
           if (e.elbowFlexT) e.elbowFlexT[0] = e.elbowFlexT[1] = 0;
-          e.reachT = null; e.handQ = null;
+          e.reachT = null; e.handQ = null; e.armDone.fill(0);
         }
         function engSitLean(e, k) { e.lean = Math.max(e.lean, 1.15 * k * (1 - k)); }   // ngồi xuống / đứng dậy: dồn trọng tâm, cúi người về trước giữa chừng
         function engStep(e, tgt, dt, t, avoidPt, avoidR, field) {

@@ -210,7 +210,7 @@
           if (!A.active) {   // vừa cầm cần: phao treo dưới ngọn, chọn điểm quăng (lệch ngẫu nhiên quanh điểm phao quen thuộc)
             g.updateWorldMatrix(true, true); U.tip.getWorldPosition(_aTip);
             Object.assign(A, { active: true, stopReq: false, rebait: false, take: false, T: 0, beta: 1.08, betaV: 0, tau: 0, tauV: 0, arm: -1.15, armV: 0, crankRate: 0, wait: 10 + anglingRandom() * 14 });
-            e.arms[1].rotation.x = -1.15; e.rodTilt.rotation.x = Math.PI / 2 - 1.08 - 1.02 + 1.15 - lam; g.updateWorldMatrix(true, true); U.tip.getWorldPosition(_aTip);
+            e.arms[1].rotation.x = -1.15; e.rodTilt.rotation.x = Math.PI / 2 - 1.08 - 1.02 + 1.15 - lam; engArmSolve(e, 1, dt); e.armDone[1] = 0; g.updateWorldMatrix(true, true); U.tip.getWorldPosition(_aTip);
             A.free.p = e.arms[0].rotation.x; A.head.p = e.head.rotation.x; A.head.y = e.head.rotation.y;
             P.F.copy(_aTip); P.F.y -= FISH_DROP; P.Fp.copy(P.F); P.B.copy(P.F); P.B.y -= FISH_HOOK; P.Bp.copy(P.B); P.S = FISH_DROP; P.mode = 'hang'; P.bKin = false;
             anglingGo('rig'); pickCastTarget();
@@ -317,7 +317,7 @@
               if (kf) {
                 const hold = g.localToWorld((A.rh || (A.rh = new THREE.Vector3())).set(-0.3, 1.55, 0.7)), R = e.reachT || (e.reachT = [null, null]);   // vector riêng: đích tay đọc ở engArmPost cuối khung
                 if (k < 1.5) { const u = fishingEase(k / 1.5); F.M.lerpVectors(A.land0, hold, u); F.M.y += Math.sin(u * Math.PI) * 0.9; if (k > 1.1) R[0] = F.M; }
-                else { R[0] = k < 2.5 ? hold : bucketTop(A.rb || (A.rb = new THREE.Vector3())); e.wrists[0].getWorldPosition(F.M); F.M.y += 0.1; gaze = k < 2.5 ? F.M : R[0]; }   // nắm cá trong tay → bỏ xô
+                else { R[0] = k < 2.5 ? hold : bucketTop(A.rb || (A.rb = new THREE.Vector3())); F.M.copy(e.handW[0]); F.M.y += 0.1; gaze = k < 2.5 ? F.M : R[0]; }   // nắm cá trong tay → bỏ xô
                 if (k >= 3.3) { grill.toBucket(); A.fish = null; P.bKin = false; A.catches++; A.lastOutcome = 'catch'; anglingEvent('keep', 0.9); }
               }
               if (k >= 3.8) { A.land0 = null; A.rebait = true; anglingGo('retrieve'); }
@@ -349,11 +349,11 @@
               free = A.caught ? 'chest' : 'bait'; gaze = P.B;
               if (!A.caught) {
                 betaT = k < 0.8 ? 1.25 + 0.2 * minJerk(k / 0.8) : 1.45 + 0.17 * Math.sin(Math.min(1, (k - 0.8) / 0.6) * Math.PI * 0.5);
-                _aV2.set(0, -0.66, 0); e.arms[0].localToWorld(_aV2);
+                _aV2.copy(e.handW[0]);
                 if (_aV2.distanceTo(P.B) < 0.2 || k > 2.6) { A.caught = true; A.catchT = k; P.bKin = true; }
               } else {
                 betaT = 1.32; const h = k - A.catchT;
-                _aV2.set(0, -0.66, 0); e.arms[0].localToWorld(_aV2); P.B.lerp(_aV2, Math.min(1, dt * 14));   // mồi trong tay
+                _aV2.copy(e.handW[0]); P.B.lerp(_aV2, Math.min(1, dt * 14));   // mồi trong tay
                 if (h > 0.4 && h < 1.6) gaze = _aV2;
                 if (h >= 1.7) { P.bKin = false; A.rebait = false; anglingGo('reel_in'); }
               }
@@ -374,6 +374,7 @@
           e.arms[1].rotation.x = A.arm; e.arms[1].rotation.z = 0;
           e.rodTilt.rotation.x = Math.PI / 2 - A.beta - 1.02 - A.arm - lam;   // cổ tay bù để ngọn đúng góc beta dù thân đang gập
           e.rodGrp.rotation.y = A.tau;
+          engArmSolve(e, 1, dt);   // giải khuỷu tay cầm cần NGAY: ngọn, khoen, tay quay đọc dưới đây đúng chỗ cần được vẽ (không thì dây lệch khỏi cần)
           A.crankRate += (crank - A.crankRate) * (1 - Math.exp(-dt * 10)); A.crankAng -= A.crankRate * Math.PI * 2 * dt; U.crank.rotation.x = A.crankAng;
           // ===== 3) cần uốn theo lực dây kỳ trước + quán tính khi vụt =====
           U.flex.F.copy(A.Tdir).multiplyScalar(A.T);
@@ -429,7 +430,7 @@
           hd.p = engSpring(hd.p, hd.pv, hp, 9, dt); hd.pv = engSpring.v; hd.y = engSpring(hd.y, hd.yv, hy, 9, dt); hd.yv = engSpring.v; A.shake = 0;
           e.head.rotation.x = hd.p; e.head.rotation.y = hd.y;
           // ghi ngược vào lớp tư thế: khi thôi câu, tay + đầu trôi mượt về tư thế thường thay vì nhảy
-          const PP = e.pose; if (PP) { PP.shown[4] = e.arms[0].rotation.x; PP.shown[5] = e.arms[1].rotation.x; PP.shown[6] = e.head.rotation.x; PP.jv[4] = PP.jv[5] = PP.jv[6] = 0; }
+          const PP = e.pose; if (PP) { PP.shown[4] = e.arms[0].rotation.x; PP.shown[5] = A.arm; PP.shown[6] = e.head.rotation.x; PP.jv[4] = PP.jv[5] = PP.jv[6] = 0; }
           const ar = e.armRoll || (e.armRoll = [0, 0]); ar[0] = e.arms[0].rotation.z; ar[1] = 0; e.headYaw = e.head.rotation.y;
           A.lean = anglingLean();
         }
