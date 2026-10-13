@@ -53,6 +53,7 @@ animals/cow-routing.js                 # đường về chuồng của bò
 fishing/angling.js                     # câu cá: dây, phao, mồi, cá giằng co, tay người câu
 nature/grass-scatter.js                # rải cỏ, hoa, thảm cỏ
 nature/lotus.js                        # ĐẦM SEN: lá khiên nổi & vươn, hoa 3 vòng cánh nở/khép theo giờ, búp, gương sen, giọt sương
+nature/meadow.js                       # THẢM CỎ MỀM 45% đất: lá mảnh dày, gốc = màu đất, pháp tuyến chĩa lên, sóng gió, hoa dại, LOD + cắt khung nhìn
 animals/insects.js                     # đom đóm, bướm, ong
 animals/storks.js                      # cò trắng (dựng theo số đo Stork.glb, MIT)
 ui/labels-controls.js                  # nhãn, điều khiển camera, toạ độ, zoom

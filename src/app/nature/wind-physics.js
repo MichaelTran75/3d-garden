@@ -140,7 +140,16 @@
             return vec3(dr.x * L * sin(th) * tt, -L * (1.0 - cos(th)) * tt, dr.y * L * sin(th) * tt);
           }`;
         function grassWindShader(mat) {
-          return injectWorldWind(mat, {}, GRASS_GLSL, 'grassWind( ( modelMatrix * windIM * vec4( 0.0, -0.5, 0.0, 1.0 ) ).xyz, position.y + 0.5, length( vec3( windIM[ 1 ] ) ) )', 'grassWind2');
+          injectWorldWind(mat, {}, GRASS_GLSL, 'grassWind( ( modelMatrix * windIM * vec4( 0.0, -0.5, 0.0, 1.0 ) ).xyz, position.y + 0.5, length( vec3( windIM[ 1 ] ) ) )', 'grassWind2');
+          const base = mat.onBeforeCompile;   // + kiểu cỏ mềm (như thảm cỏ meadow.js): pháp tuyến chĩa lên như mặt đất, gốc sẫm → ngọn sáng
+          mat.onBeforeCompile = shader => {
+            base(shader);
+            shader.vertexShader = 'varying float vGT;\n' + shader.vertexShader.replace('#include <beginnormal_vertex>', 'vec3 objectNormal = vec3( 0.0, 1.0, 0.0 ); vGT = position.y + 0.5;');
+            shader.fragmentShader = 'varying float vGT;\n' + shader.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n diffuseColor.rgb *= mix( 0.8, 1.15, smoothstep( 0.0, 1.0, vGT ) );')
+              .replace('#include <normal_fragment_begin>', '#include <normal_fragment_begin>\n normal = normalize( vNormal );');
+          };
+          mat.customProgramCacheKey = () => 'grassWind3';
+          return mat;
         }
         // ---- RỪNG (cành instanced + khối tán): cả cây nghiêng tựa tĩnh theo gió tại tâm tán của chính nó (lực |w|^1,3), ∝ (độ cao/H)².
         //      aSway = (độ cao tâm khối tán trên gốc — 0 với cành thì tính theo từng đỉnh, chiều cao cây) ----
@@ -245,7 +254,7 @@
           out.set(sceneWind.dir.x * x + _plT.x * tl, z + _plT.y * tl, sceneWind.dir.y * x + _plT.z * tl);
           return z;
         }
-        grassWindShader(vegPools.blade.mat); grassWindShader(vegPools.sod.mat);   // cỏ (cả thảm cỏ lông heo) gợn sóng theo gió
+        grassWindShader(vegPools.blade.mat);   // cỏ (cả thảm cỏ lông heo) gợn sóng theo gió
         vegPools.stem.autoSway = 'vertex'; vegPools.fcube.autoSway = 'rigid'; vegPools.petal.autoSway = 'rigid'; vegPools.fcen.autoSway = 'rigid';
         for (const k of ['stem', 'fcube', 'petal', 'fcen']) flowerWindShader(vegPools[k].mat, 0.37);   // thân & đầu hoa đung đưa cùng gió sát đất
         forestWindShader(leafMatInst);         // khối tán cây rừng

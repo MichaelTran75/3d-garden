@@ -122,22 +122,6 @@
           blob: { geo: new THREE.IcosahedronGeometry(1, 0), mat: leafMatInst, color: true, cast: true, list: [] },  // tán lá TRIANGLE BALL (icosahedron thô)
           blade: { geo: (() => { const bg = new THREE.BufferGeometry(); bg.setAttribute('position', new THREE.Float32BufferAttribute([-0.035, -0.5, 0, 0.035, -0.5, 0, 0, 0.5, 0], 3)); bg.computeVertexNormals(); return bg; })(), mat: new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide }), color: true, cast: false, list: [] },  // lá cỏ PHẲNG mỏng tuyệt đối: tam giác dẹt 1 mặt phẳng (thay trụ nhọn), DoubleSide để nhìn 2 phía
           stem: { geo: new THREE.CylinderGeometry(0.0125, 0.015, 0.7, 5), mat: flStem, color: false, cast: false, list: [] },
-          sod: { geo: (() => {   // BỤI CỎ 3 lá (cao chuẩn hoá −0,5 → 0,5, gốc ở tâm đáy): lá thuôn nhọn, cong võng ra ngoài như dầm công-xôn tự trọng (lệch ∝ t²),
-            //   3 đoạn ⇒ gió uốn được dọc lá; màu đỉnh: gốc sẫm (lá che nhau) → giữa xanh → ngọn nhạt ngả vàng (đầu lá già, nắng gắt)
-            const P = [], C = [], I = [], N = 3, W = 0.055;
-            for (const [a, hk, bend] of [[0.3, 1, 0.16], [2.4, 0.84, 0.26], [4.4, 0.72, 0.33]]) {
-              const b0 = P.length / 3, ca = Math.cos(a), sa = Math.sin(a);
-              for (let r = 0; r <= N; r++) {
-                const t = r / N, y = -0.5 + t * hk, out = 0.02 + bend * t * t, w = W * (1 - t), k = 0.7 + 0.35 * Math.min(1, t * 1.6), yl = 0.12 * t * t * t;
-                const cx = ca * out, cz = sa * out, col = [k + yl, k + yl * 0.5, k * 0.95];
-                if (r < N) { P.push(cx - sa * w, y, cz + ca * w, cx + sa * w, y, cz - ca * w); C.push(...col, ...col); }
-                else { P.push(cx, y, cz); C.push(...col); }
-              }
-              for (let r = 0; r < N - 1; r++) { const q = b0 + r * 2; I.push(q, q + 1, q + 2, q + 1, q + 3, q + 2); }
-              const q = b0 + (N - 1) * 2; I.push(q, q + 1, q + 2);
-            }
-            const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(C, 3)); g.setIndex(I); g.computeVertexNormals(); return g;
-          })(), mat: new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide, vertexColors: true }), color: true, cast: false, list: [] },
 
           petal: { geo: new THREE.SphereGeometry(0.17, 6, 5), mat: new THREE.MeshLambertMaterial({ color: 0xffffff }), color: true, cast: false, list: [] },
           fcen: { geo: new THREE.SphereGeometry(0.12, 6, 6), mat: flCen, color: false, cast: false, list: [] },
@@ -145,7 +129,7 @@
         };
         const _vgm = new THREE.Matrix4(), _vlm = new THREE.Matrix4(), _vp = new THREE.Vector3(), _vs = new THREE.Vector3(), _ve = new THREE.Euler(), _vq = new THREE.Quaternion(), _vqI = new THREE.Quaternion();
         function vegGroup(px, py, pz, rotY, scl) { _vgm.makeRotationY(rotY); if (scl !== 1) _vgm.scale(_vs.set(scl, scl, scl)); _vgm.setPosition(px, py, pz); }   // ma trận cụm (T·Ry·S)
-        function vegPush(pool, pos, quat, scl, color, sway) { if ((pool === vegPools.blade || pool === vegPools.sod || pool === vegPools.stem || pool === vegPools.petal || pool === vegPools.fcen || pool === vegPools.fcube) && roadContains(_vgm.elements[12], _vgm.elements[14], .35)) return; _vlm.compose(pos, quat, scl); const m = new THREE.Matrix4().multiplyMatrices(_vgm, _vlm); const e = color ? { m, c: color } : { m };
+        function vegPush(pool, pos, quat, scl, color, sway) { if ((pool === vegPools.blade || pool === vegPools.stem || pool === vegPools.petal || pool === vegPools.fcen || pool === vegPools.fcube) && roadContains(_vgm.elements[12], _vgm.elements[14], .35)) return; _vlm.compose(pos, quat, scl); const m = new THREE.Matrix4().multiplyMatrices(_vgm, _vlm); const e = color ? { m, c: color } : { m };
           if (!sway && pool.autoSway) { const gs = Math.hypot(_vgm.elements[4], _vgm.elements[5], _vgm.elements[6]); sway = [pool.autoSway === 'vertex' ? -pos.y * gs : pos.y * gs, 0]; }   // hoa: độ cao trên gốc cụm
           if (sway) e.s = sway; pool.list.push(e); }   // sway = [độ cao trên gốc, chiều cao cây] cho gió rừng
         function buildVegPool(pool) {

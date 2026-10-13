@@ -195,7 +195,8 @@
               c.thumb.rotation.y = -0.3 * c.sz + Math.sin(t * 4.0) * 0.1 * c.sz;
             }
           }
-          lotusPond.update(dt, t);   // đầm sen: lá nổi theo sóng, cuống ngả theo gió, hoa nở/khép theo giờ, giọt sương
+          lotusPond.update(dt, t);
+          meadow.update(dt, t);   // thảm cỏ: LOD theo mức phóng, cắt khung nhìn, gió, giẫm, ráng chiều   // đầm sen: lá nổi theo sóng, cuống ngả theo gió, hoa nở/khép theo giờ, giọt sương
           if (cherryCtl) updateLeafFall(cherryCtl, dt, t);           // cánh hoa anh đào rụng theo gió, rơi xuống sông thì nổi, trôi, có chiếc chìm
           if (oldTreeLeafCtl) updateLeafFall(oldTreeLeafCtl, dt, t);   // lá vàng cây cổ thụ
           waterFx.update(dt, t);                                     // gợn nước nhỏ (lá chạm nước, cá đớp) + bọt khí
