@@ -36,19 +36,20 @@
           const onPole = (cfg, s, out) => out.subVectors(cfg.H, cfg.B).normalize().multiplyScalar(s).add(cfg.B);
           const cfgLerp = (c0, c1, k, out) => { out.B.lerpVectors(c0.B, c1.B, k); out.H.lerpVectors(c0.H, c1.H, k); return out; };
           const cfgNew = () => ({ B: new THREE.Vector3(), H: new THREE.Vector3() }), cfgCopy = (o, c) => { o.B.copy(c.B); o.H.copy(c.H); return o; };
-          // ---- giỏ mây (đan): thành loe, vành, quai cong; 4 chỗ đặt quả ----
+          // ---- giỏ mây (đan): thành loe, vành, quai cong; 4 chỗ đặt quả · G 15/10: giỏ nhỏ đi 25% ⇒ mọi kích thước × BK ----
+          const BK = 0.75;
           const basket = new THREE.Group(); basket.name = 'Giỏ táo'; basket.userData.noBatch = true; scene.add(basket);
           { const c = document.createElement('canvas'); c.width = 64; c.height = 64; const x = c.getContext('2d');
             x.fillStyle = '#a77a43'; x.fillRect(0, 0, 64, 64);
             for (let j = 0; j < 8; j++) for (let i = 0; i < 8; i++) { x.fillStyle = (i + j) % 2 ? '#8c6234' : '#bf9257'; x.fillRect(i * 8 + 1, j * 8 + 1, 6, 6); }   // nan đan nong mốt
             const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(6, 2);
             const wick = new THREE.MeshLambertMaterial({ map: tex, side: THREE.DoubleSide }), rimM = new THREE.MeshLambertMaterial({ color: 0x7c5529 });
-            const body = new THREE.Mesh(new THREE.LatheGeometry([[0, 0.005], [0.27, 0.005], [0.3, 0.09], [0.35, 0.27]].map(([r, y]) => new THREE.Vector2(r, y)), 20), wick); body.castShadow = true; basket.add(body);
-            const rim = new THREE.Mesh(new THREE.TorusGeometry(0.35, 0.018, 6, 24), rimM); rim.rotation.x = Math.PI / 2; rim.position.y = 0.27; basket.add(rim);
-            const handle = new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.016, 6, 20, Math.PI), rimM); handle.position.y = 0.27; handle.scale.y = 0.75; basket.add(handle);   // quai cong qua miệng giỏ
+            const body = new THREE.Mesh(new THREE.LatheGeometry([[0, 0.005], [0.27, 0.005], [0.3, 0.09], [0.35, 0.27]].map(([r, y]) => new THREE.Vector2(r * BK, y * BK)), 20), wick); body.castShadow = true; basket.add(body);
+            const rim = new THREE.Mesh(new THREE.TorusGeometry(0.35 * BK, 0.015, 6, 24), rimM); rim.rotation.x = Math.PI / 2; rim.position.y = 0.27 * BK; basket.add(rim);
+            const handle = new THREE.Mesh(new THREE.TorusGeometry(0.34 * BK, 0.014, 6, 20, Math.PI), rimM); handle.position.y = 0.27 * BK; handle.scale.y = 0.75; basket.add(handle);   // quai cong qua miệng giỏ
           }
-          const BASKET_TOP = 0.53;   // đỉnh quai (đv thế giới, tính từ đáy giỏ)
-          const SLOTS = [[-0.1, 0.15, -0.09], [0.1, 0.15, 0.09], [0.1, 0.16, -0.1], [-0.1, 0.17, 0.1], [0, 0.3, 0]].map(p => new THREE.Vector3(...p));
+          const BASKET_TOP = 0.53 * BK;   // đỉnh quai (đv thế giới, tính từ đáy giỏ)
+          const SLOTS = [[0.115, 0.11, 0], [-0.058, 0.11, 0.1], [-0.058, 0.11, -0.1], [0.03, 0.27, 0.02], [-0.06, 0.31, -0.05]].map(p => new THREE.Vector3(...p));   // giỏ nhỏ: 3 quả đáy xếp tam giác chạm nhau, quả thứ 4 chồng lên khe giữa (ló khỏi miệng giỏ)
           // ---- cây, quả, chỗ đứng ----
           const trees = appleTrees.map(T => { T.updateMatrixWorld(true); return { T, base: T.getWorldPosition(new THREE.Vector3()), rA: T.userData.appleR * T.scale.x, apples: T.userData.apples }; });
           for (const tr of trees) for (const a of tr.apples) { a.tr = tr; a.st = 'tree'; a.world = a.g.getWorldPosition(new THREE.Vector3()); a.stemL = tr.rA * 1.1; }

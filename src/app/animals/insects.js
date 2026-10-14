@@ -274,7 +274,7 @@
 
         // ---- ONG bay tới hoa, hút mật, mang về tổ (G 15/10: "study bee glb and improve · make bee smaller 50%") — dựng theo tỉ lệ mẫu "Bee (Low Poly)"
         //      (EsiHere, Sketchfab, CC-BY-4.0; chỉ đo): đầu ~20% · ngực ~27% · bụng ~50% chiều dài; bụng thon nhọn có kim, 4 khoang vàng cam xen đen;
-        //      mắt kép đen bóng 2 bên đầu, râu gập khuỷu, 6 chân đen 2 đốt buông sau bụng khi bay; 2 cặp cánh trong (trước to, sau nhỏ). Cỡ = 50% ong cũ ----
+        //      mắt kép đen bóng 2 bên đầu, râu gập khuỷu, 6 chân đen 2 đốt buông sau bụng khi bay; 2 cặp cánh trong (trước to, sau nhỏ). Cỡ = 75% ong cũ (G: nhỏ 50% rồi to lại 50%) ----
         function createBee() {
           const g = new THREE.Group(), dark = new THREE.MeshLambertMaterial({ color: 0x231b14, flatShading: true });
           const vc = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }), C = (h) => new THREE.Color(h);
@@ -306,7 +306,7 @@
           };
           const wingL = mkWing(1), wingR = mkWing(-1);
           wingL.userData.noBake = wingR.userData.noBake = true; bakeStatic(g);   // thân + chân + râu gộp; 2 cặp cánh giữ động
-          g.scale.setScalar(0.75 * NATURE_SCALE * 0.5); return { g, wingL, wingR };
+          g.scale.setScalar(0.75 * NATURE_SCALE * 0.75); return { g, wingL, wingR };
         }
         // Ong chọn hoa có lối tiếp cận an toàn; ưu tiên hoa gần để không bay vòng cả khu vườn.
         function pickBeeFlowerTarget(from = null, out = new THREE.Vector3()) {
@@ -365,7 +365,7 @@
           const c = document.createElement('canvas'); c.width = 64; c.height = 32;
           const tex = new THREE.CanvasTexture(c);
           const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
-          spr.scale.set(1.8, 0.9, 1); spr.position.set(0, 0.72, 0);   // ong thu 50% ⇒ nhãn nhân đôi để giữ cỡ chữ cũ
+          spr.scale.set(1.2, 0.6, 1); spr.position.set(0, 0.48, 0);   // ong còn 75% cỡ cũ ⇒ nhãn ×4/3 để giữ cỡ chữ cũ
           return { c, tex, spr };
         }
         function setBeePct(b, pctOverride) {
