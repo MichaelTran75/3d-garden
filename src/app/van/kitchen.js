@@ -65,6 +65,15 @@
           box(S, 0.012, 0.37, 0.63, 2.957, 1.85 + 0.185, 0.59, M.lid, true);
           const flap = new THREE.Group(); flap.position.set(2.957, 1.85, 0.905); flap.rotation.y = 0.5; S.add(flap);
           box(flap, 0.42, 0.26, 0.012, -0.21, 0.13, 0.006, M.lid, true);
+          // máy hút mùi inox trên vách sau bếp: thân hút + gờ trước vát, lưới lọc dầu, đèn; ỐNG GIÓ đứng dẫn lên trần → ống khói trên mái xe (van/caravan.js)
+          box(S, 0.33, 0.1, 0.6, 2.79, 2.35, 0.59, M.steel, true);
+          const lip = box(S, 0.05, 0.12, 0.6, 2.62, 2.34, 0.59, M.steel, true); lip.rotation.z = 0.35;
+          box(S, 0.27, 0.006, 0.52, 2.8, 2.297, 0.59, M.dark);
+          for (let k = 0; k < 7; k++) box(S, 0.27, 0.004, 0.006, 2.8, 2.293, 0.37 + k * 0.073, M.steel);   // nan lưới lọc
+          box(S, 0.12, 1.16, 0.12, 2.79, 2.98, 0.47, M.steel, true);   // ống gió lên trần (2,40 → 3,56)
+          box(S, 0.16, 0.025, 0.16, 2.79, 3.545, 0.47, M.steel);   // mặt bích trần
+          // dải núm vặn ga ở mép trước mặt bếp
+          box(S, 0.014, 0.045, 0.6, 2.384, 1.812, 0.59, M.dark, true);
           bakeStatic(S); galley.add(S);
 
           // ---- đồ động ----
@@ -75,6 +84,15 @@
             const inner = new THREE.Mesh(new THREE.TorusGeometry(0.033, 0.004, 4, 18), new THREE.MeshBasicMaterial({ color: 0xbfe0ff, transparent: true, opacity: 0.9, depthWrite: false })); inner.rotation.x = Math.PI / 2; inner.position.y = 0.004; f.add(inner);
             return f;
           });
+          // 4 núm vặn ga (xoay khi bật / tắt): thứ tự theo họng lửa BURN · đèn máy hút mùi (sáng khi nấu)
+          const KNOB_Z = [0.47, 0.37, 0.71, 0.81];
+          const knobs = KNOB_Z.map(z => {
+            const k = new THREE.Group(); k.position.set(2.372, 1.812, z); k.rotation.order = 'ZYX'; P.add(k);
+            const c = new THREE.Mesh(new THREE.CylinderGeometry(0.017, 0.019, 0.022, 12), M.iron); c.rotation.z = Math.PI / 2; k.add(c);
+            const nb = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.026, 0.006), M.steel); nb.position.x = -0.012; k.add(nb);   // gờ chỉ vạch
+            return k;
+          });
+          const hoodLamp = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.006, 0.04), new THREE.MeshBasicMaterial({ color: 0x8a8578 })); hoodLamp.position.set(2.7, 2.292, 0.59); P.add(hoodLamp);
           // nồi inox để sẵn trên họng sau–trái: nước, sợi udon, hơi nước
           const pot = new THREE.Group(); pot.name = 'Nồi luộc udon'; pot.position.set(BURN[1][0], 1.894, BURN[1][1]); P.add(pot);
           const potM = new THREE.MeshLambertMaterial({ color: 0xa9b4b6, side: THREE.DoubleSide });
@@ -87,7 +105,7 @@
           const potSteam = [0, 1, 2, 3].map(i => { const m = new THREE.Mesh(new THREE.IcosahedronGeometry(0.03, 1), new THREE.MeshBasicMaterial({ color: 0xf4f6f8, transparent: true, opacity: 0, depthWrite: false })); m.visible = false; pot.add(m); return { m, ph: i / 4 }; });
           // chảo: treo móc trên bảng (bình thường) · đặt trên họng trước–phải (lúc chiên cơm)
           const pegPan = fryPan(); pegPan.rotation.z = Math.PI / 2; pegPan.position.set(2.926, 2.215 - 0.215, 0.12); P.add(pegPan);
-          const stovePan = fryPan(); stovePan.rotation.y = Math.PI; stovePan.position.set(BURN[2][0], 1.894, BURN[2][1]); stovePan.visible = false; P.add(stovePan);
+          const stovePan = fryPan(); stovePan.rotation.y = Math.PI; stovePan.position.set(BURN[0][0], 1.894, BURN[0][1]); stovePan.visible = false; P.add(stovePan);   // họng trước–trái: tay trái nắm cán (quay ra lối đi), tay phải cầm xẻng
           // dao treo trên bảng (cán lên)
           const pegKnife = new THREE.Group(); pegKnife.position.set(2.916, 2.205, -0.19); P.add(pegKnife);
           box(pegKnife, 0.022, 0.075, 0.024, 0, -0.04, 0, M.wood); box(pegKnife, 0.006, 0.15, 0.036, 0, -0.15, 0.004, M.blade);
@@ -98,6 +116,6 @@
           const counterBowl = udonBowl(); counterBowl.position.set(2.6, TOP, 0.17); counterBowl.visible = false; P.add(counterBowl);
           const tapWater = new THREE.Mesh(new THREE.CylinderGeometry(0.007, 0.01, 0.2, 6), new THREE.MeshLambertMaterial({ color: 0xbfe2ff, transparent: true, opacity: 0.7, depthWrite: false }));
           tapWater.position.set(2.775, 1.94, -0.68); tapWater.visible = false; P.add(tapWater);
-          return { flames, pot, potWater, potNoodles, potSteam, pegPan, stovePan, pegKnife, scallions, counterBowl, tapWater, burners: BURN, steam: 0 };
+          return { flames, knobs, hoodLamp, pot, potWater, potNoodles, potSteam, pegPan, stovePan, pegKnife, scallions, counterBowl, tapWater, burners: BURN, steam: 0, TOP };
         }
 

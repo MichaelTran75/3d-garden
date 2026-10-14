@@ -698,13 +698,34 @@
           const heading = b.m.rotation.y; b.m.rotation.y = b.perch.heading;
           storkBodyAtFoot(b, storkScratch, b.roostTarget); b.m.rotation.y = heading;
         }
+        // ---- CHÂN CÒ 2 đoạn: hông (trong lông bụng) → khớp cổ chân (gập RA SAU — "đầu gối ngược" của chim) → bàn chân; đỉnh lưới chân xoay cứng theo
+        //      từng đoạn (vùng khớp hoà 2 phép xoay), IK định lý cos tới điểm đặt chân. Điểm đặt: dáng cũ (đứng / đậu cành / chùn khi đáp) hoặc bàn chân
+        //      trụ cố định trên đất khi đi (storkWalk, b.gw = 1). Toạ độ đơn vị lưới GLB (×0,1), cò hướng +z, chân ở z = −14 ----
+        const STORK_LEG = { hy: -6, hz: -14, L1: 31, L2: 31.3 };   // hông · đùi–cổ chân · cổ chân–bàn (thẳng: bàn chân ở −68,3 như cũ)
+        function storkLegSolve(ty, tz, out) {   // → góc 2 đoạn (từ thẳng đứng xuống, dương = về trước) + vị trí khớp, bàn chân thực
+          const { hy, hz, L1, L2 } = STORK_LEG, dy = ty - hy, dz = tz - hz, D = Math.max(8, Math.min(L1 + L2 - 1e-3, Math.hypot(dy, dz))), th = Math.atan2(dz, -dy);
+          const al = Math.acos(Math.max(-1, Math.min(1, (L1 * L1 + D * D - L2 * L2) / (2 * L1 * D)))), be = Math.acos(Math.max(-1, Math.min(1, (L2 * L2 + D * D - L1 * L1) / (2 * L2 * D))));
+          const t1 = th - al, t2 = th + be;   // khớp nằm SAU đường hông–bàn chân
+          out.c1 = Math.cos(t1); out.s1 = Math.sin(t1); out.c2 = Math.cos(t2); out.s2 = Math.sin(t2);
+          out.jy = hy - L1 * out.c1; out.jz = hz + L1 * out.s1; out.fy = out.jy - L2 * out.c2; out.fz = out.jz + L2 * out.s2;
+          return out;
+        }
+        const _skLeg = [{}, {}];
         function poseStandingStork(b, peck = 0, sleep = 0, stride = 0, seconds = 0, force = false, wingSpread = 0, gaitSpeed = 8) {
           const tick = Math.floor(seconds * 30);
-          if (!force && b.poseTick === tick) return;
+          if (!force && !b.gw && b.poseTick === tick) return;   // đang đi (bàn chân trụ cố định): dựng lại mỗi khung, không chờ nhịp 30 Hz
           b.poseTick = tick; b.posePeck = peck; b.poseSleep = sleep; b.wingSpread = wingSpread;
           const base = storkDefinition.points, p = b.standing.geometry.attributes.position.array, fp = b.flightPos;   // tư thế bay riêng của con này
           const c = Math.cos(peck), s = Math.sin(peck);
           const crouch = b.crouch, feet = b.footMix >= 0 ? b.footMix : sleep;   // crouch: gối chùn khi chạm đất (bàn chân giữ nguyên, hông hạ)
+          const gw = b.gw || 0, hb = gw ? (b.hb || 0) : 0;
+          for (let side = 0; side < 2; side++) {   // điểm đặt 2 bàn chân (dáng cũ ↔ bàn chân trụ khi đi) → IK
+            const phase = seconds * gaitSpeed + side * Math.PI;
+            let ty = -68.3 + Math.max(0, Math.sin(phase)) * 7 * stride + b.perch.footOffsets[side] * feet + crouch, tz = STORK_FOOT_Z + Math.cos(phase) * 12 * stride;
+            let dx = 0; if (gw > 0) { const g = b.gl[side]; ty += (g.y - ty) * gw; tz += (g.z - tz) * gw; dx = Math.max(-8, Math.min(8, g.x - STORK_SIDE_X[side])) * gw; }
+            storkLegSolve(ty, tz, _skLeg[side]).dx = dx;   // dx: bàn chân lệch ngang (xoay thân khi đang trụ) — chân nghiêng dần từ hông
+          }
+          const { hy, hz, L1 } = STORK_LEG, jy0 = hy - L1;
           for (let i = 0; i < storkParts.length; i++) {
             const offset = i * 3, part = storkParts[i];
             let x = base[offset] * .1, y = base[offset + 1] * .1, z = base[offset + 2] * .1;
@@ -714,12 +735,17 @@
               y = 7 + (fp[offset + 1] - 7) * wingSpread;
               z = -5 + (fp[offset + 2] + 5) * wingSpread;
             } else if (part === 5 || part === 7 || part === 8) {
-              // The GLB's trailing legs rotate downward; lift alternating feet when wading.
+              // The GLB's trailing legs rotate downward, then bend at the intertarsal joint to reach the foot point.
               const oldY = y; y = z + 14; z = -14 - oldY;
-              const side = part === 7 ? 1 : 0, phase = seconds * gaitSpeed + side * Math.PI;
-              const weight = storkSmooth((-y - 8) / 55);
-              y += weight * (Math.max(0, Math.sin(phase)) * 7 * stride + b.perch.footOffsets[side] * feet + crouch);
-              z += weight * Math.cos(phase) * 12 * stride;
+              const K = _skLeg[part === 7 ? 1 : 0], dz = z - hz;
+              let dy = y - hy;
+              const uz = hz + dz * K.c1 - dy * K.s1, uy = hy + dz * K.s1 + dy * K.c1;   // đoạn trên: xoay quanh hông
+              dy = y - jy0;
+              const lz = K.jz + dz * K.c2 - dy * K.s2, ly = K.jy + dz * K.s2 + dy * K.c2;   // đoạn dưới: xoay quanh khớp mới
+              const w = storkSmooth((jy0 + 2.5 - y) / 5), top = storkSmooth((hy - y) / 6);   // hoà quanh khớp · lông đùi sát bụng giữ gần nguyên
+              const nz = uz + (lz - uz) * w, ny = uy + (ly - uy) * w;
+              x += K.dx * Math.max(0, Math.min(1, (hy - y) / (STORK_LEG.L1 + STORK_LEG.L2)));
+              z += (nz - z) * top; y += (ny - y) * top;
             } else if ((part === 1 && z > 18) || part === 3 || part === 6 || part === 9) {
               // Raise the extended flight neck for standing. The head and bill remain level.
               const rise = Math.min(32, Math.max(0, z - 18));
@@ -732,6 +758,7 @@
                 tz = -10.8 - dy * Math.sin(tuck) - dz * Math.cos(tuck); tx = -x;
               }
               x += (tx - x) * sleep; y = sy + (ty - sy) * sleep; z = sz + (tz - sz) * sleep;
+              if (hb) z += hb * storkSmooth(rise / 26);   // gật đầu khi đi: đầu đứng yên trong không gian rồi vươn tới (cổ co–duỗi, gốc cổ giữ nguyên)
               if (peck) { const dy = y - 7, dz = z - 18; y = 7 + dy * c - dz * s; z = 18 + dy * s + dz * c; }
             }
             const mix = b.groundMix;
@@ -742,13 +769,61 @@
           b.standing.geometry.attributes.position.needsUpdate = true;
           b.torso.scale.setScalar(b.groundMix);
           b.foldedWings.scale.setScalar(b.groundMix * (1 - wingSpread));
-          for (let side = 0; side < 2; side++) {
-            const phase = seconds * gaitSpeed + side * Math.PI, toe = b.toes[side];
-            toe.position.set(side === 0 ? -6 : 7, -68.3 + Math.max(0, Math.sin(phase)) * 7 * stride + b.perch.footOffsets[side] * feet + crouch, STORK_FOOT_Z + Math.cos(phase) * 12 * stride);
+          for (let side = 0; side < 2; side++) {   // ngón chân ở bàn chân thực (sau IK); chân đang bước thì ngón cụp xuống
+            const toe = b.toes[side], K = _skLeg[side];
+            toe.position.set(STORK_SIDE_X[side] + K.dx, K.fy, K.fz); toe.rotation.x = gw ? (b.gc ? b.gc[side] : 0) : 0;
             toe.scale.setScalar(b.groundMix);
           }
           const tip = storkBeakTip * 3; b.caughtFish.position.set(p[tip], p[tip + 1] - 2, p[tip + 2] - 1);
         }
+        // ---- CÒ ĐI BỘ (lội tìm mồi, chạy lấy đà cất cánh): bàn chân trụ CỐ ĐỊNH trên nền (toạ độ thế giới), nhịp theo QUÃNG ĐƯỜNG; chân vung theo cung
+        //      nhấc cao rồi đáp phía trước; đứng yên mà lệch chỗ thì nhích từng chân. Đầu GẬT kiểu chim: pha GIỮ (đầu đứng yên trong không gian, thân
+        //      tiến tới) + pha ĐẨY (đầu vươn nhanh tới trước) mỗi bước, bắt đầu khi chân sau nhấc lên; đi nhanh / chạy thì pha giữ ngắn lại rồi mất.
+        //      Thân nhấp lên ở giữa pha trụ, nghiêng nhẹ về chân trụ. (Nghiên cứu gật đầu khi đi của chim: Necker 2007; Hancock et al. 2014) ----
+        const STORK_SIDE_X = [-6, 7], _swA = new THREE.Vector3(), _swB = new THREE.Vector3();
+        function storkWalk(b, dt, dist, speed, run, anchor = b.foot) {
+          const W = b.walk || (b.walk = { psi: 0, init: false, hbS: 0, cr: 0, feet: [0, 1].map(() => ({ w: new THREE.Vector3(), s0: new THREE.Vector3(), tg: new THREE.Vector3(), sw: false, mode: '', u: 0 })) });
+          const S = STORK_SCALE, yaw = b.m.rotation.y, fx = Math.sin(yaw), fz = Math.cos(yaw), cx = Math.cos(yaw), cz = -Math.sin(yaw);
+          const home = (side, out) => out.set(anchor.x + cx * STORK_SIDE_X[side] * S, anchor.y, anchor.z + cz * STORK_SIDE_X[side] * S);
+          if (!W.init) { W.feet.forEach((F, i) => { home(i, F.w); F.sw = false; }); W.init = true; }
+          const duty = run ? 0.38 : 0.62, stride = run ? 1.6 : 1.0 * Math.min(1.2, Math.max(0.6, Math.sqrt(speed / 0.48))), lift = run ? 0.16 : 0.2, moving = speed > 0.03;
+          W.psi = (W.psi + dist / stride) % 1000;
+          let swinging = W.feet.reduce((n, F) => n + (F.sw ? 1 : 0), 0);
+          const ease = k => storkSmooth(k);
+          W.feet.forEach((F, i) => {
+            home(i, _swA);
+            if (F.sw && F.mode === 'settle') {
+              F.u += dt / 0.45; F.w.lerpVectors(F.s0, _swA, ease(F.u)); F.w.y += Math.sin(Math.PI * Math.min(1, F.u)) * 0.12;
+              if (F.u >= 1) { F.sw = false; F.w.copy(_swA); swinging--; }
+            } else if (moving) {
+              const ph = (W.psi + i * 0.5) % 1, inSwing = ph >= duty;
+              if (inSwing && !F.sw) { F.sw = true; F.mode = 'gait'; F.s0.copy(F.w); }
+              if (F.sw && F.mode === 'gait') {
+                const u = inSwing ? (ph - duty) / (1 - duty) : 1, ahead = ((1 - u) * (1 - duty) + duty * 0.5) * stride;
+                F.tg.set(_swA.x + fx * ahead, _swA.y, _swA.z + fz * ahead);
+                F.w.lerpVectors(F.s0, F.tg, ease(u)); F.w.y += Math.sin(Math.PI * u) * lift; F.u = u;
+                if (!inSwing) { F.sw = false; F.w.copy(F.tg); fluids?.splash(F.w.x, F.w.z, run ? .55 : .5, run ? .1 : .07); }   // mỗi bước lội: bàn chân đặt xuống nước → gợn lan
+              }
+            } else {
+              if (F.sw && F.mode === 'gait') { F.sw = false; F.w.y = _swA.y; swinging--; }
+              if (!F.sw && swinging < 1 && Math.hypot(F.w.x - _swA.x, F.w.z - _swA.z) > 0.09) { F.sw = true; F.mode = 'settle'; F.u = 0; F.s0.copy(F.w); swinging++; }
+            }
+          });
+          // gật đầu: mỗi bước (2 lần/chu kỳ) — đẩy 35% (đầu vươn từ −A tới +A), giữ 65% (đầu đứng yên: lùi so với thân đúng bằng quãng thân tiến)
+          const k = Math.min(1, speed / 0.25) * (run ? 0 : 1), q = (((W.psi - duty) % 0.5) + 0.5) % 0.5 / 0.5, A = 0.1625 * stride / S;
+          const hbT = k * (q < 0.35 ? -A + 2 * A * storkSmooth(q / 0.35) : A - 2 * A * (q - 0.35) / 0.65);
+          W.hbS += (hbT - W.hbS) * Math.min(1, dt * (moving ? 30 : 4)); b.hb = W.hbS;
+          // thân: hạ thấp khi đi (khớp cổ chân hơi gập ⇒ chân với tới điểm đặt), nhấp lên giữa pha trụ mỗi chân, nghiêng về chân trụ
+          const m = Math.min(1, speed / 0.2); W.cr += ((moving ? (run ? 7 : 5) : 0) - (W.cr || 0)) * Math.min(1, dt * 3);
+          b.m.position.y += ((run ? 0.6 : 1.1) * m * Math.cos(4 * Math.PI * (W.psi - duty * 0.5)) - W.cr) * S;
+          b.m.rotation.z = 0.045 * m * Math.cos(2 * Math.PI * (W.psi - duty * 0.5)) * (run ? 0.5 : 1);
+          // bàn chân → toạ độ lưới cò (sau khi thân đã đặt) · ngón cụp khi vung
+          b.m.updateMatrixWorld(true);
+          const gl = b.gl || (b.gl = [{ x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: 0 }]), gc = b.gc || (b.gc = [0, 0]);
+          W.feet.forEach((F, i) => { b.m.worldToLocal(_swB.copy(F.w)); gl[i].x = _swB.x; gl[i].y = _swB.y; gl[i].z = _swB.z; gc[i] = F.sw ? 0.85 * Math.sin(Math.PI * Math.min(1, F.u)) : 0; });
+          b.gw = 1;
+        }
+        function storkWalkOff(b) { b.gw = 0; b.hb = 0; if (b.walk) b.walk.init = false; }
         function storksAwake() { const hour = liveWeather.localHour; return hour >= 6 && hour < 19 && !liveWeather.state.raining; }   // mưa → bay về đậu cành cây cổ thụ như lúc tối
         function makeCodeStork(index) {
           const dayWalkingOnly = index === 2;
@@ -911,6 +986,7 @@
             const q = Math.min(1, b.launchElapsed / .85), turn = Math.atan2(Math.sin(b.launchHeading - b.launchYaw), Math.cos(b.launchHeading - b.launchYaw));
             b.m.rotation.set(0, b.launchYaw + turn * storkSmooth(q), 0);
             storkBodyAtFoot(b, b.launchFoot, b.m.position); if (b.launchOnBranch) b.m.position.add(treeWindAt(oldTreeWind, b.launchFoot, _storkSway));
+            else storkWalk(b, dt, 0, 0, false, b.launchFoot);   // quay về hướng cất cánh: nhích chân tại chỗ
             poseStandingStork(b, b.launchPeck * (1 - q), b.launchSleep * (1 - q), .15, seconds, false, .15 * storkSmooth(q), 12);
             if (q === 1) { b.state = 'runup'; b.launchElapsed = 0; }
           } else if (b.state === 'runup') {
@@ -918,8 +994,10 @@
             storkScratch.lerpVectors(b.launchStartFoot, b.launchEndFoot, progress);
             // Stay on the existing water surface; lift off early if the next step reaches the bank.
             const blocked = !b.launchOnBranch && !isWater(Math.round(x2gi(storkScratch.x)), Math.round(z2gj(storkScratch.z)));
+            const runD = blocked ? 0 : Math.hypot(storkScratch.x - b.launchFoot.x, storkScratch.z - b.launchFoot.z);
             if (!blocked) b.launchFoot.copy(storkScratch);
             b.m.rotation.set(0, b.launchHeading, 0); storkBodyAtFoot(b, b.launchFoot, b.m.position); if (b.launchOnBranch) b.m.position.add(treeWindAt(oldTreeWind, b.launchFoot, _storkSway));
+            else storkWalk(b, dt, runD, runD / Math.max(dt, 1e-3), true, b.launchFoot);   // chạy lấy đà: sải dài, bàn chân đạp nước cố định
             poseStandingStork(b, 0, 0, b.launchOnBranch ? .35 : 1.45, seconds, false, .15 + .85 * storkSmooth(q / .5), 17);
             if (q === 1 || blocked) {
               b.state = 'climb'; b.launchElapsed = 0;
@@ -954,6 +1032,7 @@
           const awake = storksAwake();
           updateCodeStork(seconds);
           for (const b of birds) {
+            if (b.gw && !(b.state === 'wade' || ((b.state === 'preflight' || b.state === 'runup') && !b.launchOnBranch))) storkWalkOff(b);   // rời mặt nước / bay: chân về dáng cũ
             if (awake !== b.awake) {
               b.awake = awake;
               if (awake) startStorkDeparture(b, b.dayWalkingOnly ? 'feeding' : 'orbit', seconds);
@@ -1019,7 +1098,7 @@
               }
             } else if (b.state === 'wade') {
               b.wadeRemaining -= dt; b.nextPeck -= dt;
-              let stride = 0, peck = 0;
+              let stride = 0, peck = 0, moved = 0;
               if (b.peckElapsed >= 0) {
                 b.peckElapsed += dt;
                 if (b.peckElapsed >= .85 && b.peckElapsed - dt < .85) { const ry = b.m.rotation.y; fluids?.splash(b.foot.x + Math.sin(ry) * .6, b.foot.z + Math.cos(ry) * .6, .55, .14); }   // mỏ cắm xuống nước
@@ -1033,12 +1112,12 @@
                 const dx = b.wadeTarget.x - b.foot.x, dz = b.wadeTarget.z - b.foot.z, distance = Math.hypot(dx, dz);
                 if (distance < .12) pickStorkWadeTarget(b);
                 else {
-                  const step = Math.min(distance, dt * .48); b.foot.x += dx / distance * step; b.foot.z += dz / distance * step; stride = 1;
-                  if ((b.wadeSplash = (b.wadeSplash || 0) + step) > .3) { b.wadeSplash = 0; fluids?.splash(b.foot.x, b.foot.z, .5, .07); }   // mỗi bước lội: chân khuấy nước → gợn lan
+                  const step = Math.min(distance, dt * .48); b.foot.x += dx / distance * step; b.foot.z += dz / distance * step; moved = step;
                   const heading = Math.atan2(dx, dz), turn = Math.atan2(Math.sin(heading - b.m.rotation.y), Math.cos(heading - b.m.rotation.y)); b.m.rotation.y += turn * Math.min(1, dt * 3);
                 }
               }
               storkBodyAtFoot(b, b.foot, b.m.position); b.groundMix = 1; b.m.rotation.x = b.m.rotation.z = 0;
+              storkWalk(b, dt, moved, moved / Math.max(dt, 1e-3), false);
               poseStandingStork(b, peck, 0, stride, seconds);
               if (!b.dayWalkingOnly && b.wadeRemaining <= 0 && b.peckElapsed < 0) storkTakeoff(b, seconds);
             }

@@ -19,12 +19,13 @@
           };
         })();
         // ---- di chuyển 1 bước tới đích: né bếp lửa + MỌI vật cản (xe van, cột, tua-bin...) bằng lực đẩy, xoay mượt, dáng đi vung tay-chân + nhún ----
-        function engGait(e, dist) {   // nhịp chân theo QUÃNG ĐƯỜNG thật (1 chu kỳ 2 bước = 1,35 m) → chân không trượt; biên độ chân/tay theo tốc độ
-          e.gait = ((e.gait || 0) + dist * (Math.PI * 2 / 1.35)) % (Math.PI * 2000);
+        function engGait(e, dist) {   // nhịp chân theo QUÃNG ĐƯỜNG thật (1 chu kỳ 2 bước = sải 0,65–1,15 đv theo tốc độ); góc chân FK (dự phòng khi IK tắt) + tay vung ngược chân
           const k = Math.min(1, (e.vel || 0) / 1.1), amp = 0.52 * (0.35 + 0.65 * k), kneeAmp = 0.58 * (0.4 + 0.6 * k);
+          e.gStride = 1.05 * Math.min(1.1, Math.max(0.62, 0.5 + 0.5 * k));   // sải ~1,6 lần chiều dài chân, dài theo tốc độ (đi chậm bước ngắn) — bàn chân trụ cố định dùng đúng sải này
+          e.gait = ((e.gait || 0) + dist * (Math.PI * 2 / e.gStride)) % (Math.PI * 2000);
           const sw = Math.sin(e.gait) * amp, kb = Math.cos(e.gait);
           e.legs[0].rotation.x = sw; e.legs[1].rotation.x = -sw;
           e.knees[0].rotation.x = Math.max(0, kb) * kneeAmp; e.knees[1].rotation.x = Math.max(0, -kb) * kneeAmp;   // gối gập khi chân vung tới trước
           e.arms[0].rotation.x = -sw * 0.65; e.arms[1].rotation.x = sw * 0.65; e.head.rotation.x = 0.03 * k;
-          return Math.abs(Math.sin(e.gait)) * 0.035 * (0.4 + 0.6 * k);   // nhún người 2 lần/chu kỳ
+          return 0;   // nảy / lắc / xoay chậu hông theo đúng pha chân trụ: engFootIK (engWalkFeet)
         }

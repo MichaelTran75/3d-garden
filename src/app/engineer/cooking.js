@@ -2,6 +2,21 @@
         //  e.dish = { kind: 'udon' | 'cereal' | 'pan', at: 'hand' | 'table' | 'counter' | 'stove' | 'camp', food: 0–1 } — món đang ở đâu, còn bao nhiêu
         const VKIT = caravanObj.userData.interior.kitchen, VCEREAL = caravanObj.userData.interior.cerealBowl, VTUDON = caravanObj.userData.interior.tableUdon;
         VKIT.stovePan.userData.home = VKIT.stovePan.position.clone(); VKIT.pot.userData.home = VKIT.pot.position.clone();
+        // ---- NẤU ĂN BẰNG IK TAY: bàn tay đặt vào ĐIỂM THẬT trên đồ bếp (engArmSolve qua e.reachT) — núm ga, mép bếp, quai nồi, cán chảo, thớt, móc treo;
+        //      đầu cúi nhìn đúng chỗ tay làm; cúi người = gập EO (e.lean lớn được lớp tư thế chuyển sang eo, chân vẫn đứng thẳng) ----
+        const _ckP = VKIT.pot.parent, _ckT = [new THREE.Vector3(), new THREE.Vector3()], _ckA = new THREE.Vector3(), _ckB = new THREE.Vector3(), _ckE = new THREE.Vector3(), _ckL = new THREE.Vector3();
+        const ckW = (x, y, z, out) => _ckP.localToWorld(out.set(x, y, z));   // toạ độ bếp (mặt tủ x≈2,40, vách 2,97, mặt đá y 1,865) → thế giới
+        const ckS = (u, a, b) => { const k = Math.max(0, Math.min(1, (u - a) / (b - a))); return k * k * (3 - 2 * k); };
+        function ckHand(e, i, p, w = 1) {   // tay i (0 phải, 1 trái) với tới p (thế giới); w < 1: đi dần từ chỗ buông cạnh hông
+          const R = e.reachT || (e.reachT = [null, null]);
+          if (w <= 0.02) { R[i] = null; return; }
+          if (w < 1) p = engBodyW(e, i ? 0.3 : -0.3, 1.2, 0.15, _ckA).lerp(p, w);
+          R[i] = _ckT[i].copy(p);
+        }
+        function ckLook(e, p, w = 1) {   // cúi / ngẩng đầu nhìn điểm p (trừ phần thân đã cúi)
+          e.head.getWorldPosition(_ckE); const want = Math.atan2(_ckE.y + 0.15 - p.y, Math.max(0.12, Math.hypot(p.x - _ckE.x, p.z - _ckE.z))) - (e.lean || 0) * 1.1;
+          e.head.rotation.x += (Math.max(-0.35, Math.min(0.75, want)) - e.head.rotation.x) * w;
+        }
         function setFood(food, k, drop) {   // phần thức ăn vơi dần: thu nhỏ + hạ mặt nước dùng / sữa
           if (food.userData.y0 === undefined) food.userData.y0 = food.position.y;
           food.visible = k > 0.04; if (!food.visible) return;
@@ -38,7 +53,41 @@
           K.pegPan.visible = !(D && D.kind === 'pan');
           if (campPanRig) { campPanRig.pan.visible = at === 'camp'; if (campPanRig.pan.visible) setFood(campPanRig.food, f, 0); }
         }
-        function kitchenTick(dt, t) {   // lửa ga nhảy nhẹ · hơi nước bốc từ nồi
+        // ---- KHÓI ỐNG BẾP: máy hút mùi hút hơi nước + khói dầu lên ống gió, thoát ở chụp ống khói trên mái. Mỗi cụm khói là một hạt có quán tính:
+        //      lực nổi do nóng (nguội dần ~1,4 s), cản không khí, bị gió thật tại chỗ kéo ngang (windAt — cả bản đồ gió NS), xoáy nhẹ; nở to theo √tuổi,
+        //      nhạt dần. Lửa tắt thì quạt hút chạy thêm ~25 s cho hết mùi. (Bộ khói Navier–Stokes ở luồng phụ chỉ có 1 nguồn — dành cho lửa trại.) ----
+        const ventSmoke = (() => {
+          const N = 22, geo = new THREE.IcosahedronGeometry(0.1, 1), parts = [], top = new THREE.Vector3(), _w = new THREE.Vector3();
+          for (let i = 0; i < N; i++) {
+            const m = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: 0xeef0f2, transparent: true, opacity: 0, depthWrite: false }));
+            m.visible = false; m.userData.noBatch = true; m.raycast = () => {}; m.renderOrder = 3; m.name = 'Khói ống bếp'; scene.add(m);
+            parts.push({ m, p: new THREE.Vector3(), v: new THREE.Vector3(), age: 0, life: 1, T: 0, on: false, s0: 0, a0: 0, ph: Math.random() * 6 });
+          }
+          let acc = 0;
+          return { update(dt, t, rate, grey) {   // rate: cụm khói / giây · grey: 0 hơi nước trắng → 1 khói dầu xám
+            caravanObj.localToWorld(top.copy(caravanObj.userData.chimneyTop)); acc = Math.min(2, acc + rate * dt);
+            const gy = cowY(top.x, top.z);
+            for (const P of parts) {
+              if (!P.on) {
+                if (acc < 1) continue;
+                acc -= 1; P.on = true; P.age = 0; P.life = 2.8 + Math.random() * 1.8; P.T = 1; P.s0 = 0.42 + Math.random() * 0.2; P.a0 = 0.46 + 0.22 * grey;
+                P.p.copy(top); P.p.x += (Math.random() - 0.5) * 0.03; P.p.z += (Math.random() - 0.5) * 0.03; P.v.set((Math.random() - 0.5) * 0.15, 0.5 + Math.random() * 0.25, (Math.random() - 0.5) * 0.15);
+                const c = 0.94 - 0.3 * grey; P.m.material.color.setRGB(c, c + 0.005, c + 0.012);
+              }
+              P.age += dt; if (P.age >= P.life) { P.on = false; P.m.visible = false; continue; }
+              P.T *= Math.exp(-dt / 1.4);
+              windAt(P.p.x, P.p.y, P.p.z, Math.max(0.5, P.p.y - gy), _w);
+              const k = 1 - Math.exp(-dt * 1.5);   // bị gió kéo ngang dần
+              P.v.x += (_w.x - P.v.x) * k; P.v.z += (_w.z - P.v.z) * k;
+              P.v.y += (1.3 * P.T - 0.9 * P.v.y + 0.2 * Math.sin(t * 2.1 + P.ph)) * dt;   // nổi do nóng − cản; xoáy nhẹ
+              P.p.addScaledVector(P.v, dt); P.p.x += Math.sin(t * 1.7 + P.ph * 3) * 0.04 * dt; P.p.z += Math.cos(t * 1.3 + P.ph * 2) * 0.04 * dt;
+              P.m.position.copy(P.p); P.m.scale.setScalar(P.s0 * (0.45 + 1.5 * Math.sqrt(P.age)));
+              P.m.material.opacity = P.a0 * Math.min(1, P.age / 0.35) * Math.pow(1 - P.age / P.life, 1.5); P.m.visible = true;
+            }
+          } };
+        })();
+        let ventRun = 0;
+        function kitchenTick(dt, t) {   // lửa ga nhảy nhẹ · hơi nước bốc từ nồi · quạt hút + khói ống khói
           VKIT.flames.forEach((f, i) => { if (!f.visible) return; const k = 1 + Math.sin(t * 23 + i * 1.7) * 0.05 + Math.sin(t * 37 + i) * 0.04; f.scale.set(k, 1 + Math.sin(t * 29 + i * 2.3) * 0.35, k); });
           const st = VKIT.steam;
           for (const p of VKIT.potSteam) {
@@ -46,6 +95,11 @@
             const k = (t * 0.45 + p.ph) % 1;
             p.m.position.set(Math.sin(t * 1.3 + p.ph * 6) * 0.02, 0.12 + k * 0.35, Math.cos(t * 1.1 + p.ph * 5) * 0.02); p.m.scale.setScalar(0.6 + k * 1.4); p.m.material.opacity = 0.32 * st * Math.sin(Math.PI * k);
           }
+          const lit = VKIT.flames.some(f => f.visible), fry = lit && VKIT.stovePan.visible && VKIT.stovePan.userData.food.visible;
+          ventRun = lit ? 25 : Math.max(0, ventRun - dt);
+          VKIT.hoodLamp.material.color.setHex(ventRun > 0 ? 0xfff1c9 : 0x8a8578);
+          const heat = lit ? Math.max(0.35, st, fry ? 1 : 0) : 0.12 * ventRun / 25;   // còn hơi trong ống sau khi tắt lửa
+          ventSmoke.update(dt, t, 5.5 * heat, fry ? 0.6 : 0.1);
         }
         function engSay(label, text) {   // nảy ý ngay khi có sự việc (múc xong udon…): dùng chung đám mây suy nghĩ
           const now = Date.now(), ctx = engContext(now);
@@ -55,13 +109,14 @@
         }
         function kitchenReset() {   // tắt lửa, đổ nước nồi, dao về móc (bỏ dở việc nấu / đi ngủ)
           for (const f of VKIT.flames) f.visible = false;
+          for (const k of VKIT.knobs) k.rotation.x = 0;
           VKIT.potWater.visible = VKIT.potNoodles.visible = VKIT.tapWater.visible = false; VKIT.steam = 0; VKIT.pegKnife.visible = true;
           for (const s of VKIT.scallions) s.visible = false;
           VKIT.pot.position.copy(VKIT.pot.userData.home); VKIT.pot.rotation.set(0, 0, 0);
           VKIT.stovePan.position.copy(VKIT.stovePan.userData.home); VKIT.stovePan.rotation.set(0, Math.PI, 0);
         }
-        const stStove = { node: 'stove', tick(e, V, dt, t, keep) {   // bếp ga: trưa luộc udon (nồi họng sau–trái, thái hành trên thớt) · chiều chiên cơm trứng (chảo họng trước–phải)
-          const K = VKIT, H = e.hold, rt = e.armRollT || (e.armRollT = [0, 0]), now = clock.elapsedTime, POT = 1, PAN = 2;
+        const stStove = { node: 'stove', tick(e, V, dt, t, keep) {   // bếp ga: trưa luộc udon (nồi họng sau–trái, thái hành trên thớt) · chiều chiên cơm trứng (chảo họng trước–trái)
+          const K = VKIT, H = e.hold, rt = e.armRollT || (e.armRollT = [0, 0]), now = clock.elapsedTime, POT = 1, PAN = 0, TOP = K.TOP;
           if (!V.st) {
             V.recipe = liveWeather.localHour < 14 ? 'udon' : 'rice';
             V.T = V.recipe === 'udon' ? Math.max(420, Math.min(1320, e.actLeft - 100)) : Math.max(300, Math.min(840, e.actLeft - 100));
@@ -70,72 +125,98 @@
           if (!keep && !['take', 'garnish'].includes(V.st)) {   // bỏ dở (nhảy giờ): tắt bếp, dọn, chảo về móc
             kitchenReset(); if (e.dish && e.dish.kind === 'pan') e.dish = null; if (e.dish && e.dish.at === 'counter') e.dish = null; return 'released';
           }
-          const knob = (k, on, i) => {   // cúi xuống vặn núm ga ở mặt trước khối bếp
-            const r = segK(k, 0, 0.6) * (1 - segK(k, 1.0, 1.5)); e.lean = 0.3 * r; e.arms[0].rotation.x = -0.6 * r; e.head.rotation.x = 0.45 * r;
+          if (!/^(to|back)|Face$|^face$/.test(V.st)) e.armsBusy = true;   // đi lại / quay người: tay để lớp dáng đi (bưng chảo nếu đang cầm)
+          const knob = (k, on, i) => {   // tay phải với xuống núm ga ở mép trước mặt bếp, vặn ¼ vòng (gập eo, cúi nhìn núm)
+            const r = ckS(k, 0, 0.55) * (1 - ckS(k, 1.05, 1.5)), kn = K.knobs[i];
+            ckHand(e, 0, ckW(2.315, 1.805, kn.position.z, _ckB), r); e.lean = 0.3 * r; ckLook(e, kn.getWorldPosition(_ckL), r);
+            const turn = ckS(k, 0.55, 0.85); kn.rotation.x = -1.4 * (on ? turn : 1 - turn);
             if (k > 0.7) K.flames[i].visible = on;
           };
-          const lookStove = () => { e.arms[0].rotation.x = e.arms[1].rotation.x = -0.5; rt[0] = 0.1; rt[1] = -0.1; e.head.rotation.x = 0.38 + Math.sin(t * 0.5) * 0.04; e.lean = 0.06 + 0.06 * Math.max(0, Math.sin(t * 0.3)); };
-          const reachUp = (k, flip) => { const r = segK(k, 0, 0.7) * (1 - segK(k, 1.0, 1.5)); e.arms[flip ? 1 : 0].rotation.x = -1.75 * r; e.head.rotation.x = -0.12 * r; return r; };
+          const lookAt = x => ckLook(e, x === 'pan' ? K.stovePan.getWorldPosition(_ckL) : K.pot.getWorldPosition(_ckL), 1);
+          const brace = (what) => {   // chờ: hai tay chống mép mặt đá / viền bếp, cúi nhìn nồi (chảo)
+            ckHand(e, 1, ckW(2.43, TOP + 0.035, 0.2, _ckB)); ckHand(e, 0, ckW(2.43, TOP + 0.035, 0.93, _ckA.clone()));
+            e.lean = 0.1 + 0.05 * Math.max(0, Math.sin(t * 0.3)); lookAt(what);
+          };
+          const reachPeg = (k, i, lx, ly, lz) => {   // với lên móc trên bảng đục lỗ (dao / chảo)
+            const r = ckS(k, 0, 0.7) * (1 - ckS(k, 1.0, 1.5)), p = ckW(lx, ly, lz, _ckB);
+            ckHand(e, i, p, r); ckLook(e, p, r); e.lean = -0.04 * r; return r;
+          };
           switch (V.st) {
             // ===== udon =====
             case 'face': if (engSeatTurn(e, VY.pz, dt, vanFloor)) { V.st = 'on'; V.k = 0; } break;
             case 'on': V.k += dt; knob(V.k, true, POT); if (V.k > 0.7) { K.potWater.visible = true; K.potWater.material.color.set(0x9cc7d8); } if (V.k > 1.6) { V.st = 'boil'; V.t0 = now; V.boilDur = V.T * 0.4; } break;
             case 'boil': {   // chờ nước sôi: tay chống mép bếp, nhìn nồi; giữa chừng sang thớt thái hành
-              const p = (now - V.t0) / V.boilDur; K.steam = Math.min(1, p * 1.3); lookStove();
+              const p = (now - V.t0) / V.boilDur; K.steam = Math.min(1, p * 1.3); brace('pot');
               if (!V.chopped && p > 0.3) V.st = 'toBoard';
               else if (p >= 1) { V.st = 'noodles'; V.k = 0; }
               break;
             }
             case 'toBoard': if (vanWalkTo(e, VN.board, dt, 0.45)) V.st = 'boardFace'; break;
             case 'boardFace': if (engSeatTurn(e, VY.pz, dt, vanFloor)) { V.st = 'knifeTake'; V.k = 0; } break;
-            case 'knifeTake': V.k += dt; reachUp(V.k); if (V.k > 0.75) K.pegKnife.visible = false; H.knife = V.k > 0.75; if (V.k > 1.4) { V.st = 'chop'; V.k = 0; } break;
-            case 'chop': {   // thái hành lá: dao lên xuống nhanh, tay trái giữ cọng hành
-              V.k += dt; H.knife = true; const n = Math.floor(Math.min(1, V.k / 40) * K.scallions.length);
+            case 'knifeTake': V.k += dt; reachPeg(V.k, 0, 2.87, 2.165, -0.19); if (V.k > 0.75) K.pegKnife.visible = false; H.knife = V.k > 0.75; if (V.k > 1.4) { V.st = 'chop'; V.k = 0; } break;
+            case 'chop': {   // thái hành lá: tay trái giữ bó hành, lùi dần về phía dao; dao lên xuống ~3 nhát/giây ngay sát ngón
+              V.k += dt; H.knife = true; const prog = Math.min(1, V.k / 40), n = Math.floor(prog * K.scallions.length), r = ckS(V.k, 0, 0.6);
               K.scallions.forEach((s, i) => { s.visible = i < n; });
-              e.arms[0].rotation.x = -0.95 + Math.max(0, Math.sin(t * 16)) * 0.18; e.arms[1].rotation.x = -0.85; rt[1] = -0.12; e.lean = 0.18; e.head.rotation.x = 0.45;
+              const cut = Math.max(0, Math.sin(t * 19));
+              ckHand(e, 0, ckW(2.5, TOP + 0.09 + 0.05 * cut, -0.03 - 0.07 * prog, _ckB), r);
+              ckHand(e, 1, ckW(2.56, TOP + 0.05, -0.21 + 0.09 * prog, _ckA.clone()), r);
+              e.lean = 0.22 * r; ckLook(e, ckW(2.6, TOP, -0.12, _ckL), r);
               if (V.k > 40) { V.st = 'knifeBack'; V.k = 0; }
               break;
             }
-            case 'knifeBack': V.k += dt; reachUp(V.k); H.knife = V.k < 0.75; if (V.k > 0.75) K.pegKnife.visible = true; if (V.k > 1.4) { V.chopped = true; V.st = 'backStove'; } break;
+            case 'knifeBack': V.k += dt; reachPeg(V.k, 0, 2.87, 2.165, -0.19); H.knife = V.k < 0.75; if (V.k > 0.75) K.pegKnife.visible = true; if (V.k > 1.4) { V.chopped = true; V.st = 'backStove'; } break;
             case 'backStove': if (vanWalkTo(e, VN.stove, dt, 0.45)) V.st = 'backFace'; break;
             case 'backFace': if (engSeatTurn(e, VY.pz, dt, vanFloor)) V.st = 'boil'; break;
-            case 'noodles': {   // thả udon vào nồi nước sôi
-              V.k += dt; const r = segK(V.k, 0, 0.8) * (1 - segK(V.k, 1.6, 2.4)); e.arms[0].rotation.x = e.arms[1].rotation.x = -1.05 * r; e.lean = 0.2 * r; e.head.rotation.x = 0.4 * r;
+            case 'noodles': {   // hai tay đưa nắm udon tới trên miệng nồi, thả vào nước sôi
+              V.k += dt; const r = ckS(V.k, 0, 0.8) * (1 - ckS(V.k, 1.6, 2.4)), c = K.pot.getWorldPosition(_ckL);
+              ckHand(e, 0, _ckB.copy(c).add(_ckA.set(0, 0.2, 0)).addScaledVector(ckW(0, 0, 1, _ckE).sub(ckW(0, 0, 0, _ckA)), 0.05), r);
+              ckHand(e, 1, ckW(2.74, 2.09, 0.38, _ckA.clone()), r); e.lean = 0.2 * r; lookAt('pot');
               if (V.k > 1.0) K.potNoodles.visible = true;
               if (V.k > 2.5) { V.st = 'stir'; V.t0 = now; V.stirDur = V.T * 0.5; }
               break;
             }
-            case 'stir': {   // đũa dài đảo sợi cho khỏi dính; ~30 s nghỉ tay một lần
+            case 'stir': {   // đũa dài đảo sợi vòng tròn trong nồi cho khỏi dính; ~30 s nghỉ tay một lần
               K.steam = 1; const rest = ((now - V.t0) % 30) > 22;
-              if (rest) lookStove();
-              else { H.chop = true; e.arms[0].rotation.x = -1.15 + Math.sin(t * 3.2) * 0.12; rt[0] = 0.18 + Math.cos(t * 3.2) * 0.1; e.arms[1].rotation.x = -0.5; e.lean = 0.22; e.head.rotation.x = 0.42; }
+              if (rest) brace('pot');
+              else {
+                H.chop = true; const a = t * 3.2;
+                ckHand(e, 0, ckW(2.66 + 0.03 * Math.cos(a), 2.07, 0.47 + 0.03 * Math.sin(a), _ckB)); ckHand(e, 1, ckW(2.43, TOP + 0.035, 0.2, _ckA.clone()));
+                e.lean = 0.18; lookAt('pot');
+              }
               if (now - V.t0 >= V.stirDur) { V.st = 'off'; V.k = 0; }
               break;
             }
             case 'off': V.k += dt; knob(V.k, false, V.recipe === 'udon' ? POT : PAN); if (V.k > 1.6) { V.st = V.recipe === 'udon' ? 'bowl' : 'take'; V.k = 0; } break;
-            case 'bowl': {   // cúi lấy bát trong tủ dưới, đặt lên mặt đá cạnh bếp
-              V.k += dt; const d = segK(V.k, 0, 0.8) * (1 - segK(V.k, 1.2, 1.8)); e.lean = 0.4 * d; e.arms[1].rotation.x = -0.45 * d; e.head.rotation.x = 0.45 * d;
+            case 'bowl': {   // cúi (gập eo) lấy bát trong tủ dưới, đặt lên mặt đá cạnh bếp
+              V.k += dt; const d = ckS(V.k, 0, 0.8) * (1 - ckS(V.k, 1.2, 1.8)), up = ckS(V.k, 1.0, 1.7);
+              ckHand(e, 1, ckW(2.36, 1.28 + (TOP + 0.05 - 1.28) * up, 0.17, _ckB), Math.max(d, up * (1 - ckS(V.k, 1.7, 1.95)))); e.lean = 0.5 * d; ckLook(e, _ckB, 0.8);
               if (V.k > 0.9 && !e.dish) e.dish = { kind: 'udon', at: 'counter', food: 0 };
               if (V.k > 1.9) { V.st = 'pour'; V.k = 0; }
               break;
             }
-            case 'pour': {   // nhấc nồi, nghiêng đổ sợi + nước dùng vào bát
-              V.k += dt; const k = V.k, up = segK(k, 0, 0.8) * (1 - segK(k, 2.3, 3.1)), tilt = segK(k, 0.8, 1.4) * (1 - segK(k, 1.9, 2.4)), home = K.pot.userData.home;
+            case 'pour': {   // hai tay nắm 2 quai nồi, nhấc lên, nghiêng đổ sợi + nước dùng vào bát
+              V.k += dt; const k = V.k, up = ckS(k, 0, 0.8) * (1 - ckS(k, 2.3, 3.1)), tilt = ckS(k, 0.8, 1.4) * (1 - ckS(k, 1.9, 2.4)), home = K.pot.userData.home, grip = ckS(k, 0, 0.35) * (1 - ckS(k, 3.0, 3.3));
               K.pot.position.set(home.x - 0.04 * up, home.y + 0.12 * up, home.z - 0.16 * up); K.pot.rotation.x = -0.9 * tilt;
-              e.arms[0].rotation.x = e.arms[1].rotation.x = -1.05 - 0.2 * up; rt[0] = 0.25 * up; rt[1] = -0.05 * up; e.lean = 0.2 * up; e.head.rotation.x = 0.4;
+              K.pot.updateWorldMatrix(true, false);
+              ckHand(e, 0, K.pot.localToWorld(_ckB.set(0, 0.098, 0.11)), grip); ckHand(e, 1, K.pot.localToWorld(_ckA.set(0, 0.098, -0.11)).clone(), grip);
+              e.lean = 0.12 + 0.1 * up; ckLook(e, ckW(2.6, TOP, 0.17, _ckL));
               if (k > 1.5 && K.potNoodles.visible) { K.potNoodles.visible = false; K.potWater.visible = false; if (e.dish) e.dish.food = 1; }
-              K.steam = Math.max(0, 1 - segK(k, 1.5, 3.1));
+              K.steam = Math.max(0, 1 - ckS(k, 1.5, 3.1));
               if (k > 3.2) { K.pot.position.copy(home); K.pot.rotation.set(0, 0, 0); V.st = 'garnish'; V.k = 0; }
               break;
             }
-            case 'garnish': {   // vốc hành lá trên thớt rắc lên bát
-              V.k += dt; const r = segK(V.k, 0, 0.6) * (1 - segK(V.k, 1.2, 1.8)); e.arms[1].rotation.x = -0.9 * r; rt[1] = -0.35 * r; e.lean = 0.15 * r;
-              if (V.k > 0.7) for (const s of K.scallions) s.visible = false;
+            case 'garnish': {   // tay trái vốc hành lá trên thớt, đưa qua rắc lên bát
+              V.k += dt; const r = ckS(V.k, 0, 0.5) * (1 - ckS(V.k, 1.4, 1.9)), over = ckS(V.k, 0.6, 1.0);
+              ckHand(e, 1, ckW(2.58, TOP + 0.03 + 0.12 * over + 0.015 * Math.sin(t * 14) * over, -0.02 + 0.19 * over, _ckB), r); e.lean = 0.15 * r; ckLook(e, _ckB, r);
+              if (V.k > 1.0) for (const s of K.scallions) s.visible = false;
               if (V.k > 1.9) { V.st = 'take'; V.k = 0; }
               break;
             }
-            case 'take': {   // bưng bát (udon) / nhấc chảo (cơm chiên) lên
-              V.k += dt; const r = segK(V.k, 0, 0.5); e.lean = 0.12 * r;
+            case 'take': {   // hai tay nâng bát (udon) / cán chảo (cơm chiên) lên
+              V.k += dt; const r = ckS(V.k, 0, 0.5);
+              if (V.recipe === 'udon') { ckHand(e, 0, ckW(2.56, TOP + 0.05, 0.25, _ckB), r * (1 - ckS(V.k, 0.5, 0.6))); ckHand(e, 1, ckW(2.56, TOP + 0.05, 0.09, _ckA.clone()), r * (1 - ckS(V.k, 0.5, 0.6))); }
+              else ckHand(e, 1, K.stovePan.localToWorld(_ckB.set(0.175, 0.045, 0)), r * (1 - ckS(V.k, 0.5, 0.6)));
+              e.lean = 0.12 * r;
               if (V.k > 0.5 && e.dish && e.dish.at !== 'hand') {
                 e.dish.at = 'hand';
                 if (V.recipe === 'udon') engSay('Nấu udon', 'Tới giờ ăn udon rồi!'); else engSay('Nấu bữa tối', 'Cơm chiên xong, mang ra hiên ăn thôi.');
@@ -146,25 +227,36 @@
             // ===== cơm chiên trứng =====
             case 'toPeg': if (vanWalkTo(e, VN.board, dt, 0.45)) V.st = 'pegFace'; break;
             case 'pegFace': if (engSeatTurn(e, VY.pz, dt, vanFloor)) { V.st = 'takePan'; V.k = 0; } break;
-            case 'takePan': V.k += dt; reachUp(V.k, true); if (V.k > 0.8 && !e.dish) e.dish = { kind: 'pan', at: 'hand', food: 0 }; if (V.k > 1.5) V.st = 'toStove'; break;
+            case 'takePan': V.k += dt; reachPeg(V.k, 1, 2.86, 2.17, 0.12); if (V.k > 0.8 && !e.dish) e.dish = { kind: 'pan', at: 'hand', food: 0 }; if (V.k > 1.5) V.st = 'toStove'; break;
             case 'toStove': if (vanWalkTo(e, VN.stove, dt, 0.45)) V.st = 'stoveFace'; break;
             case 'stoveFace': if (engSeatTurn(e, VY.pz, dt, vanFloor)) { V.st = 'place'; V.k = 0; } break;
-            case 'place': { V.k += dt; const r = segK(V.k, 0, 0.6) * (1 - segK(V.k, 0.9, 1.4)); e.arms[1].rotation.x = -0.95 * r; e.lean = 0.2 * r; if (V.k > 0.7 && e.dish) e.dish.at = 'stove'; if (V.k > 1.5) { V.st = 'panOn'; V.k = 0; } break; }
+            case 'place': {   // tay trái đặt chảo lên họng trước–trái (cán quay ra lối đi)
+              V.k += dt; const r = ckS(V.k, 0, 0.6) * (1 - ckS(V.k, 0.9, 1.4)); ckHand(e, 1, ckW(2.375, 1.94, 0.43, _ckB), r); e.lean = 0.2 * r; ckLook(e, _ckB, r);
+              if (V.k > 0.7 && e.dish) e.dish.at = 'stove';
+              if (V.k > 1.5) { V.st = 'panOn'; V.k = 0; }
+              break;
+            }
             case 'panOn': V.k += dt; knob(V.k, true, PAN); if (V.k > 1.6) { V.st = 'heat'; V.k = 0; } break;
-            case 'heat': V.k += dt; lookStove(); if (V.k > 12) { V.st = 'add'; V.k = 0; } break;
-            case 'add': {   // cho cơm, trứng, hành vào chảo nóng
-              V.k += dt; const r = segK(V.k, 0, 0.7) * (1 - segK(V.k, 1.5, 2.2)); e.arms[0].rotation.x = e.arms[1].rotation.x = -1.0 * r; e.lean = 0.2 * r; e.head.rotation.x = 0.4 * r;
+            case 'heat': V.k += dt; brace('pan'); if (V.k > 12) { V.st = 'add'; V.k = 0; } break;
+            case 'add': {   // hai tay đổ cơm, trứng, hành vào chảo nóng
+              V.k += dt; const r = ckS(V.k, 0, 0.7) * (1 - ckS(V.k, 1.5, 2.2)), c = K.stovePan.getWorldPosition(_ckL);
+              ckHand(e, 0, _ckB.copy(c).add(_ckE.set(0, 0.17, 0)).addScaledVector(ckW(1, 0, 0, _ckA).sub(ckW(0, 0, 0, _ckE)), -0.08), r);
+              ckHand(e, 1, ckW(2.42, 2.02, 0.36, _ckA.clone()), r); e.lean = 0.2 * r; lookAt('pan');
               if (V.k > 1.1 && e.dish) e.dish.food = 1;
               if (V.k > 2.3) { V.st = 'fry'; V.t0 = now; V.fryDur = Math.max(120, V.T - 60); }
               break;
             }
-            case 'fry': {   // xẻng đảo đều tay; ~7 s hất chảo một lần (tay trái nắm cán, cơm bay lên rơi xuống)
+            case 'fry': {   // tay phải xẻng đảo đều trong lòng chảo; tay trái nắm cán, ~7 s hất chảo một lần (cơm bay lên rơi xuống)
               H.spatula = true; const ph = ((now - V.t0) % 7) / 0.9, home = K.stovePan.userData.home, food = K.stovePan.userData.food;
-              e.arms[0].rotation.x = -1.0 + Math.sin(t * 5) * 0.15; rt[0] = 0.15 + Math.cos(t * 5) * 0.08; e.lean = 0.2; e.head.rotation.x = 0.42;
               if (ph < 1) {
-                const s = Math.sin(Math.PI * ph); e.arms[1].rotation.x = -0.85 - 0.25 * s;
+                const s = Math.sin(Math.PI * ph);
                 K.stovePan.position.set(home.x - 0.02 * s, home.y + 0.04 * s, home.z); K.stovePan.rotation.set(0, Math.PI, 0.25 * s); food.position.y = 0.035 * Math.sin(Math.PI * Math.min(1, ph * 1.3));
-              } else { e.arms[1].rotation.x = -0.45; K.stovePan.position.copy(home); K.stovePan.rotation.set(0, Math.PI, 0); food.position.y = 0; }
+              } else { K.stovePan.position.copy(home); K.stovePan.rotation.set(0, Math.PI, 0); food.position.y = 0; }
+              K.stovePan.updateWorldMatrix(true, false);
+              const a = t * 5, c = K.stovePan.getWorldPosition(_ckL);
+              ckHand(e, 0, ckW(2.5 + 0.035 * Math.sin(a), 2.0 + 0.012 * Math.cos(2 * a), 0.47 + 0.03 * Math.cos(a), _ckB));
+              ckHand(e, 1, K.stovePan.localToWorld(_ckA.set(0.175, 0.045, 0)).clone());
+              e.lean = 0.2; ckLook(e, c);
               if (now - V.t0 >= V.fryDur) { K.stovePan.position.copy(home); K.stovePan.rotation.set(0, Math.PI, 0); food.position.y = 0; V.st = 'off'; V.k = 0; }
               break;
             }

@@ -57,6 +57,7 @@
           T.last.copy(T.R[0]);
           windAt(T.R[0].x, T.R[0].y, T.R[0].z, 0.4, _stW);
           const al = fixedSteps(T, dt, 1 / 240, (h) => {   // bước cố định 240 Hz (core/fixed-step.js) = đúng nhịp cũ ở 60 hình/giây × 4 bước con, giờ như nhau ở mọi tốc độ khung
+            if (T.kick) { for (let i = 1; i <= o.n; i++) T.Q[i].addScaledVector(T.kick, -h * i / o.n); T.kick = null; }   // cú hất (vd bò phẩy ruồi): cộng vận tốc, ngọn nhiều hơn gốc
             for (let i = 1; i <= o.n; i++) {   // Verlet: quán tính (tắt dần nhẹ) + trọng lực + kéo theo gió
               const p = T.P[i], q = T.Q[i];
               _stA.copy(p).sub(q).multiplyScalar(0.985); q.copy(p);

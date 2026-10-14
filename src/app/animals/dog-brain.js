@@ -225,7 +225,7 @@
               updateSoftTail(dogTail, dt, U.tail.rotation.y, dogZzzGroup.visible ? 1 : 0);
             },
             pettable: () => !dogRain.st && B.st === 'lie' && dogObj.position.distanceTo(restP) < 0.8,
-            state: B
+            state: B, rig
           };
         })();
         const dogPettable = () => dogBrain.pettable();

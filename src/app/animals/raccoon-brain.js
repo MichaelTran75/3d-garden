@@ -12,17 +12,17 @@
           function damp(S, target, w, dt) { const k = w * dt, ex = 1 / (1 + k + 0.48 * k * k + 0.235 * k * k * k), c = S.x - target, tmp = (S.v + w * c) * dt; S.v = (S.v - w * tmp) * ex; S.x = target + (c + tmp) * ex; return S.x; }
           const yawOf = (dx, dz) => Math.atan2(-dz, dx), fwd = () => _b.set(Math.cos(O.rotation.y), 0, -Math.sin(O.rotation.y));
           const GAITS = {
-            walk: { off: [0, 0.5, 0.08, 0.58], duty: 0.62, stride: 0.3, lift: 0.04 },
-            trot: { off: [0, 0.5, 0.5, 0], duty: 0.45, stride: 0.48, lift: 0.05 },
-            gallop: { off: [0.5, 0.56, 0, 0.06], duty: 0.3, stride: 0.78, lift: 0.07 }
+            walk: { off: [0, 0.5, 0.08, 0.58], duty: 0.62, stride: 0.25, lift: 0.04, vRef: 0.6 },   // sải vừa tầm chân ngắn (chân trước 0,15): bước ngắn, nhanh — chân với tới, không trượt
+            trot: { off: [0, 0.5, 0.5, 0], duty: 0.45, stride: 0.42, lift: 0.05, vRef: 1.2 },
+            gallop: { off: [0.5, 0.56, 0, 0.06], duty: 0.3, stride: 0.7, lift: 0.07, vRef: 2.4 }
           };
-          const P = { h: spr(H0), pitch: spr(-0.16), stand: spr(0), sit: spr(0), roll: spr(0), hp: spr(0), hy: spr(0) };
+          const P = { h: spr(H0), pitch: spr(-0.16), stand: spr(0), sit: spr(0), roll: spr(0), hp: spr(0), hy: spr(0), bank: spr(0), tp: spr(0), gy: null, yaw0: 0, turn: 0 };
           function homeLocal(L, out) {
             const hx = L.hip.position.x, hz = L.hip.position.z, st = P.stand.x, si = P.sit.x, n = Math.max(0, 1 - st - si);
             if (L.front) return out.set((hx + 0.01 * s) * n + 0.08 * s * (st + si), 0, hz);
             return out.set((hx - 0.01 * s) * n + (-0.01 * s) * st + 0.06 * s * si, 0, hz * (n + st + 1.2 * si));
           }
-          const rig = quadRig(O, { legs: U.legs, gaits: GAITS, home: homeLocal, ground: (x, z) => cowY(x, z) });
+          const rig = quadRig(O, { legs: U.legs, gaits: GAITS, home: homeLocal, ground: (x, z) => cowY(x, z), size: 0.2, settleT: 0.18, settleLift: 0.03 });
           const tail = makeSoftTail(U.tailHost, { base: new THREE.Vector3(0, 0, 0), dir: new THREE.Vector3(-1, -0.28, 0).normalize(), n: 6, len: 0.05 * s, w: 0.1 * s, mat: U.ringB, stiff: [0.3, 0.1] });
           tail.segs.forEach((m, i) => { m.material = i % 2 ? U.ringB : U.ringA; });   // đuôi khoanh đen–xám, ngọn đen
           // ---- trạng thái ----
@@ -40,7 +40,7 @@
             rep(pf.x, pf.z, FIRE_AVOID_R * 0.7);
             const ul = Math.hypot(ux, uz) || 1; ux /= ul; uz /= ul;
             let dy = yawOf(ux, uz) - O.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
-            const mt = (B.v < 0.4 ? 4.5 : 3) * dt; O.rotation.y += Math.max(-mt, Math.min(mt, dy * Math.min(1, dt * 7)));
+            const mt = (B.v < 0.4 ? 2.6 : 2.2) * dt; O.rotation.y += Math.max(-mt, Math.min(mt, dy * Math.min(1, dt * 7)));   // quay ≤ 150°/giây: chân kịp bước theo
             B.want = speed * Math.max(0.25, Math.cos(dy)) * Math.min(1, 0.35 + dd / 0.6); return false;
           }
           function move(dt) {
@@ -123,16 +123,25 @@
               if (!O.visible) return;
               const sp = B.v;
               if (B.gait === 'walk' && sp > 0.95) B.gait = 'trot'; else if (B.gait === 'trot' && sp < 0.75) B.gait = 'walk'; else if (B.gait === 'trot' && sp > 2.1) B.gait = 'gallop'; else if (B.gait === 'gallop' && sp < 1.8) B.gait = 'trot';
-              if (!inLog && B.st !== 'out' && B.st !== 'toMouth') O.position.y = cowY(O.position.x, O.position.z);
+              if (!inLog) {   // thân theo chỗ chân đứng: đất TB dưới 2 chân trước / 2 chân sau → độ cao + chúc/ngóc (lên bậc: chân trước lên trước, thân ngóc dần) — không nhảy bậc
+                const yF = (rig.support(0) + rig.support(1)) / 2, yH = (rig.support(2) + rig.support(3)) / 2, ref = cowY(O.position.x, O.position.z), gy = Math.abs((yF + yH) / 2 - ref) < 1.5 ? (yF + yH) / 2 : ref;   // chân chưa đặt (vừa ra khỏi hang) ⇒ lấy đất tại chỗ
+                if (!P.gy || Math.abs(P.gy.x - gy) > 1.5) P.gy = spr(gy);
+                O.position.y = damp(P.gy, gy, 9, dt);
+                damp(P.tp, Math.max(-0.45, Math.min(0.45, Math.atan2(yF - yH, 0.27 * s * O.scale.y))), 7, dt);
+              } else { P.gy = null; P.tp.x = P.tp.v = 0; }
               if (B.pounce > 0) { B.pounce -= dt; O.position.y += Math.sin(Math.max(0, Math.min(1, (0.5 - B.pounce) / 0.5)) * Math.PI) * 0.35; }
               // dáng: lưng gù (mông cao) khi đi · đứng 2 chân · ngồi xổm ăn
               const stT = B.mode === 'stand' ? 1 : 0, siT = B.mode === 'sit' ? 1 : 0, psi = rig.psi;
               damp(P.stand, stT, 5, dt); damp(P.sit, siT, 5, dt);
               const pitchT = -0.16 * (1 - stT - siT) + 1.25 * stT + 0.95 * siT + (B.mode === 'dig' ? -0.18 : 0) + (B.gait === 'gallop' && sp > 0.1 ? 0.15 * Math.cos(2 * Math.PI * psi) : 0);
-              const hT = H0 * (1 - stT - siT) + 0.325 * s * stT + 0.205 * s * siT - (B.mode === 'dig' ? 0.03 * s : 0) + (sp > 0.1 && B.gait === 'gallop' ? 0.025 * s * Math.sin(2 * Math.PI * psi) : 0);
-              damp(P.pitch, pitchT, 8, dt); damp(P.h, hT, 8, dt);
+              const crouch = (B.gait === 'walk' ? 0.016 : 0.026) * s * Math.min(1, sp / 0.3) * (1 - stT - siT);   // đi khom thấp (dáng gù của gấu mèo) ⇒ chân đủ với tới điểm đặt, bàn chân trụ không trượt
+              const hT = H0 * (1 - stT - siT) + 0.325 * s * stT + 0.205 * s * siT - (B.mode === 'dig' ? 0.03 * s : 0) - crouch + (sp > 0.1 && B.gait === 'gallop' ? 0.025 * s * Math.sin(2 * Math.PI * psi) : 0);
+              const bob = sp > 0.06 && B.gait !== 'gallop' ? 0.007 * s * Math.cos(4 * Math.PI * psi) : 0;   // nảy 2 lần/chu kỳ khi đi / kiệu (con lắc ngược)
+              damp(P.pitch, pitchT + P.tp.x, 8, dt); damp(P.h, hT + bob, 8, dt);
               U.torso.position.y = P.h.x; U.torso.rotation.z = P.pitch.x;
-              damp(P.roll, sp > 0.05 && B.gait === 'walk' ? 0.07 * Math.sin(2 * Math.PI * psi) : 0, 12, dt); U.torso.rotation.x = P.roll.x;   // lắc ngang khi đi tà tà (2 chân cùng bên gần cùng nhịp)
+              damp(P.roll, sp > 0.05 && B.gait === 'walk' ? 0.07 * Math.sin(2 * Math.PI * psi) : 0, 12, dt);   // lắc ngang khi đi tà tà (2 chân cùng bên gần cùng nhịp)
+              let yr = O.rotation.y - P.yaw0; yr = Math.atan2(Math.sin(yr), Math.cos(yr)); P.yaw0 = O.rotation.y; P.turn += (yr / Math.max(dt, 1e-3) - P.turn) * Math.min(1, dt * 6);
+              damp(P.bank, Math.max(-0.16, Math.min(0.16, -P.turn * sp * 0.06)), 8, dt); U.torso.rotation.x = P.roll.x + P.bank.x;   // nghiêng vào khúc cua khi chạy (như chó)
               // tay: đứng thì buông trước ngực · cào đất luân phiên · ôm táo trước miệng
               const free = rig.free, hipF = U.legs[0].hip.position, pc = Math.cos(P.pitch.x), ps = Math.sin(P.pitch.x);
               const shX = hipF.x * pc - hipF.y * ps, shY = P.h.x + hipF.x * ps + hipF.y * pc;
@@ -146,6 +155,7 @@
               // đầu: nhìn đích / cúi mũi; giữ gần ngang khi thân dựng
               let hp = B.headP != null ? B.headP : 0, hy = 0;
               if (B.look) { O.worldToLocal(_a.copy(B.look)); hy = Math.max(-0.9, Math.min(0.9, Math.atan2(-_a.z, Math.max(0.05, _a.x)))); }
+              if (sp > 0.06 && B.gait === 'walk') hp += 0.05 * Math.cos(4 * Math.PI * psi);   // đầu nhấp theo nhịp chân trước
               hp -= P.pitch.x * 0.85; damp(P.hp, hp, 7, dt); damp(P.hy, hy + (B.mode === 'dig' ? 0.2 * Math.sin(t * 6) : 0), 6, dt);
               U.neck.rotation.set(0, P.hy.x * 0.6, P.hp.x * 0.7); U.head.rotation.set(0, P.hy.x * 0.4, P.hp.x * 0.3);
               U.ears.forEach((ep, i) => { ep.rotation.z = -Math.min(0.5, sp * 0.18); });
@@ -153,6 +163,6 @@
               for (const e of U.eyes) e.visible = nightFactor > 0.7;   // mắt phản quang khi trời tối
               updateSoftTail(tail, dt, sp > 0.05 ? 0.12 * Math.sin(2 * Math.PI * psi) : 0, 0);
             },
-            state: B
+            state: B, rig
           };
         })();

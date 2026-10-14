@@ -284,6 +284,14 @@
             }
           }
           roofVent(x1 - .45, -.55, .66, .21);
+          {   // ống khói bếp (thông máy hút mùi): tấm bích kín nước + ống inox Ø9 cm cao 32 cm + chụp nón che mưa trên 3 chân — ngay trên bếp, cạnh giàn pin
+            const cx = 1.45, cz = 1.22, y = yRoof + .1, pipe = new THREE.MeshLambertMaterial({ color: 0xa7b0b3 });
+            roofBox(.18, .02, .18, cx, y + .01, cz, metalMat);
+            const tube = new THREE.Mesh(new THREE.CylinderGeometry(.045, .048, .32, 14), pipe); tube.position.set(cx, y + .17, cz); tube.castShadow = true; roofDetails.add(tube);
+            const cap = new THREE.Mesh(new THREE.ConeGeometry(.095, .07, 16), pipe); cap.position.set(cx, y + .395, cz); cap.castShadow = true; roofDetails.add(cap);
+            for (let k = 0; k < 3; k++) { const a = k * 2.094, leg = new THREE.Mesh(new THREE.BoxGeometry(.008, .06, .008), pipe); leg.position.set(cx + Math.cos(a) * .04, y + .345, cz + Math.sin(a) * .04); roofDetails.add(leg); }
+            g.userData.chimneyTop = new THREE.Vector3(cx, y + .35, cz);   // miệng thoát khói (toạ độ xe)
+          }
           const acX = x0 + .35, acBottom = yRoof + .1;
           roofBox(1.01, .055, .86, acX, acBottom + .0275, 0, caravanDark);
           roofLid(.995, .845, .21, .12, acX, acBottom + .055, 0, caravanRoofM);

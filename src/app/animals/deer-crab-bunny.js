@@ -1,4 +1,6 @@
-        // ---- 1 chú hươu có sừng ----
+        // ---- 1 chú hươu có sừng — khung khớp như bò: THÂN NGANG HÔNG (torso: cao, chúc/ngóc) → khối thân + cổ/đầu + đuôi; 4 chân 2 đoạn IK dùng chung
+        //      (animals/quadruped.js): khớp vai/hông nằm trong thân (cao hơn mặt bụng 0,2), gối chân trước chĩa TRƯỚC, khuỷu chân sau chĩa SAU, móng phẳng ----
+        const STAG_PIV = 0.2, STAG_H0 = 1.17;   // khớp chân cao hơn mặt bụng · mặt bụng khi đứng (thấp hơn chân duỗi thẳng ~6% ⇒ chân với tới khi bước dài)
         function createStag() {
           const g = new THREE.Group();
           const deerMat = new THREE.MeshLambertMaterial({ color: 0x9b6e43 });
@@ -7,9 +9,11 @@
           const P = (par, w, h, d, mat, x, y, z, rx = 0, ry = 0, rz = 0) => {
             const m = bx(w, h, d, mat, true, true); m.position.set(x, y, z); m.rotation.set(rx, ry, rz); par.add(m); return m;
           };
-          P(g, 1.4, 0.72, 0.64, deerMat, 0, 1.6, 0);
-          P(g, 1.0, 0.12, 0.44, bellyMat, 0, 1.25, 0);
-          const neckG = new THREE.Group(); neckG.position.set(0.65, 1.85, 0); neckG.rotation.z = -0.42; g.add(neckG);
+          const torso = new THREE.Group(); torso.position.y = STAG_H0; g.add(torso);
+          const body = new THREE.Group(); body.position.y = -1.25; torso.add(body);   // khối thân giữ toạ độ cũ (mặt bụng ở 1,25)
+          P(body, 1.4, 0.72, 0.64, deerMat, 0, 1.6, 0);
+          P(body, 1.0, 0.12, 0.44, bellyMat, 0, 1.25, 0);
+          const neckG = new THREE.Group(); neckG.position.set(0.65, 1.85, 0); neckG.rotation.z = -0.42; body.add(neckG);
           const neck = P(neckG, 0.36, 0.8, 0.36, deerMat, 0, 0.4, 0);
           const headG = new THREE.Group(); headG.position.set(0, 0.8, 0); neckG.add(headG);
           const head = P(headG, 0.55, 0.4, 0.4, deerMat, 0.1, 0.2, 0);
@@ -24,18 +28,20 @@
             P(baseHorn, 0.06, 0.3, 0.06, hornMat, 0.08, 0.12, sz * 0.08, 0.3 * sz, 0, 0.5);
             P(baseHorn, 0.06, 0.25, 0.06, hornMat, -0.08, 0.24, -sz * 0.04, -0.2 * sz, 0, -0.4);
           }
-          const legs = [];
-          const legDefs = [[0.45, 0.22], [0.45, -0.22], [-0.48, 0.22], [-0.48, -0.22]];
+          const legs = [], hoofMat = new THREE.MeshLambertMaterial({ color: 0x222222 });
+          const legDefs = [[0.45, 0.22], [0.45, -0.22], [-0.48, 0.22], [-0.48, -0.22]];   // trước-T, trước-P, sau-T, sau-P (trái = +z)
           for (const lp of legDefs) {
-            const hip = new THREE.Group(); hip.position.set(lp[0], 1.25, lp[1]); g.add(hip);
-            P(hip, 0.18, 0.55, 0.18, deerMat, 0, -0.275, 0);
-            const knee = new THREE.Group(); knee.position.y = -0.55; hip.add(knee);
+            const hip = new THREE.Group(); hip.position.set(lp[0], STAG_PIV, lp[1]); torso.add(hip);
+            P(hip, 0.18, 0.55 + STAG_PIV * 0.6, 0.18, deerMat, 0, -0.275 - STAG_PIV * 0.3, 0);   // đùi kéo dài lên trong thân
+            const knee = new THREE.Group(); knee.position.y = -0.55 - STAG_PIV; hip.add(knee);
             P(knee, 0.14, 0.6, 0.14, deerMat, 0, -0.3, 0);
-            P(knee, 0.16, 0.08, 0.16, new THREE.MeshLambertMaterial({ color: 0x222222 }), 0, -0.64, 0);
-            legs.push({ hip, knee });
+            const paw = new THREE.Group(); paw.position.y = -0.6; knee.add(paw);
+            P(paw, 0.16, 0.08, 0.16, hoofMat, 0, -0.04, 0);   // móng: đế ở −0,08 dưới cổ chân
+            legs.push({ hip, knee, paw, front: lp[0] > 0, side: Math.sign(lp[1]), L1: 0.55 + STAG_PIV, L2: 0.6, ankleH: 0.08, bend: lp[0] > 0 ? 1 : -1 });
           }
-          P(g, 0.12, 0.35, 0.12, deerMat, -0.72, 1.82, 0, 0, 0, -0.55);
-          g.userData = { neck: neckG, legs };
+          const tailG = new THREE.Group(); tailG.position.set(-0.7, 1.9, 0); body.add(tailG);
+          P(tailG, 0.12, 0.35, 0.12, deerMat, -0.02, -0.08, 0, 0, 0, -0.55);   // đuôi (phẩy lên khi đi)
+          g.userData = { neck: neckG, head: headG, legs, torso, body, tail: tailG };
           return g;
         }
         let stag = null;
@@ -54,8 +60,57 @@
             ang: -0.8,
             tmr: 5.0,
             state: 'walk',
-            targetX: x, targetZ: z
+            targetX: x, targetZ: z, v: 0
           };
+          const Ss = m.scale.y;
+          stag.rig = quadRig(m, { legs: stag.legs, gaits: {   // đi bộ 4 phách trình tự bên, chạm đất ~60% (thú móng guốc) · nước kiệu khi vội
+            walk: { off: [0.27, 0.77, 0, 0.5], duty: 0.6, stride: 1.3 * Ss, lift: 0.11, vRef: 1.1 },
+            trot: { off: [0, 0.5, 0.5, 0], duty: 0.42, stride: 1.9 * Ss, lift: 0.16, vRef: 2.0 } },
+            home: (L, out) => out.set(L.hip.position.x, 0, L.hip.position.z), ground: (x, z) => cowY(x, z), size: 1.2 * Ss, settleT: 0.38, settleLift: 0.08 });
+        }
+        // ---- HƯƠU mỗi khung: hành vi (đi tới gốc cây → vươn cổ gặm lá) + dáng: quay đầu dần rồi bước (vừa quay vừa đi chậm), tăng/giảm tốc mượt;
+        //      bộ chân IK bàn móng trụ cố định · thân theo chỗ chân đứng (lên/xuống bậc: chân trước trước, thân ngóc/chúc dần) · nảy theo chân trụ ·
+        //      cổ gật 2 lần/chu kỳ theo chân trước · đuôi phẩy ----
+        const stagSpr = x => ({ x, v: 0 });
+        function stagDamp(S, target, w, dt) { const k = w * dt, ex = 1 / (1 + k + 0.48 * k * k + 0.235 * k * k * k), c = S.x - target, tmp = (S.v + w * c) * dt; S.v = (S.v - w * tmp) * ex; S.x = target + (c + tmp) * ex; return S.x; }
+        function stagTick(dt, t) {
+          const s = stag, g = s.g, U = g.userData, Sc = g.scale.y;
+          if (!s.ps) { g.position.set(s.x, cowY(s.x, s.z), s.z); g.updateMatrixWorld(true); s.rig.plant(cowY); s.ps = { y: stagSpr(g.position.y), p: stagSpr(0), nk: stagSpr(-0.42) }; }
+          const P = s.ps; s.tmr -= dt;
+          let want = 0, neckT = -0.42;
+          if (s.state === 'walk') {
+            const dx = s.targetX - s.x, dz = s.targetZ - s.z, dist = Math.hypot(dx, dz);
+            if (dist < 0.6 || s.tmr <= 0) { s.state = 'eat'; s.tmr = 30.0; }
+            else {   // xoay trước (≤ 80°/giây) · lệch nhiều thì chỉ nhích chậm, gần đúng hướng mới bước đều
+              let dturn = Math.atan2(-dz, dx) - g.rotation.y; dturn = Math.atan2(Math.sin(dturn), Math.cos(dturn));
+              g.rotation.y += Math.sign(dturn) * Math.min(Math.abs(dturn), 1.4 * dt); s.ang = g.rotation.y;
+              want = 1.1 * Math.max(0.15, Math.cos(Math.min(1.5, Math.abs(dturn)))) * Math.min(1, 0.4 + dist / 1.2);
+            }
+          } else if (s.state === 'eat') {   // vươn cao cổ gặm lá, nhai
+            neckT = 0.18;
+            if (s.neck.children[1]) s.neck.children[1].rotation.z = Math.sin(t * 8.0) * 0.08;
+            if (s.tmr <= 0) {
+              s.state = 'walk'; s.tmr = 15.0;
+              const candidates = typeof treeCoords !== 'undefined' ? treeCoords.filter(tc => Math.hypot(tc.x - (X0 + 176), tc.z - (Z0 + 171)) < 25.0) : [];   // một cây gần đồi của hươu
+              if (candidates.length > 0) { const tt = candidates[Math.floor(Math.random() * candidates.length)], a = Math.random() * 6.28; s.targetX = tt.x + Math.cos(a) * 1.15; s.targetZ = tt.z + Math.sin(a) * 1.15; }
+              else { s.targetX = X0 + 176 + (Math.random() - 0.5) * 16.0; s.targetZ = Z0 + 171 + (Math.random() - 0.5) * 16.0; }
+            }
+          }
+          s.v += Math.max(-1.6 * dt, Math.min(1.0 * dt, want - s.v));   // tăng tốc êm, phanh nhanh hơn
+          const d = s.v * dt; s.x += Math.cos(g.rotation.y) * d; s.z -= Math.sin(g.rotation.y) * d;
+          g.position.x = s.x; g.position.z = s.z;
+          const rig = s.rig, yF = (rig.support(0) + rig.support(1)) / 2, yH = (rig.support(2) + rig.support(3)) / 2;
+          g.position.y = stagDamp(P.y, (yF + yH) / 2, 7, dt);
+          stagDamp(P.p, Math.max(-0.42, Math.min(0.42, Math.atan2(yF - yH, 0.93 * Sc))), 6, dt);
+          const psi = rig.psi, walkA = Math.min(1, s.v / 0.35), gait = s.v > 1.7 ? 'trot' : 'walk';
+          const bF = 0.03 * walkA * Math.cos(4 * Math.PI * (psi - 0.03)), bH = 0.03 * walkA * Math.cos(4 * Math.PI * (psi - 0.3));   // con lắc ngược: vai / hông cao nhất giữa pha trụ của chân trước / sau
+          const h = STAG_H0 + (bF + bH) / 2, pitch = P.p.x + (bF - bH) / 0.93;
+          U.torso.position.y = h; U.torso.rotation.z = pitch;
+          rig.step(dt, d, s.v, gait, h, pitch, false);
+          U.body.rotation.x = 0.03 * walkA * Math.sin(2 * Math.PI * (psi + 0.05));   // thân lắc nhẹ về phía 2 chân cùng bên đang trụ
+          stagDamp(P.nk, neckT, 4, dt);
+          s.neck.rotation.z = P.nk.x - 0.06 * walkA * Math.cos(4 * Math.PI * (psi - 0.25)) - 0.5 * pitch;   // cổ gật theo chân trước, bù chúc/ngóc của thân
+          U.tail.rotation.z = 0.25 * walkA + 0.12 * Math.sin(t * 2.3) * Math.max(0.3, walkA) + (Math.sin(t * 0.7) > 0.93 ? 0.4 * Math.sin(t * 14) : 0);   // đuôi phẩy
         }
 
         // ---- 1 chú cua bể ----

@@ -87,7 +87,7 @@
           const legs = [], knees = [], ankles = [];
           const thighGeo = new THREE.BoxGeometry(0.26, 0.44, 0.27), shinGeo = new THREE.BoxGeometry(0.26, 0.34, 0.27), footGeo = new THREE.BoxGeometry(0.26, 0.13, 0.36);
           for (const s of [-1, 1]) {
-            const piv = new THREE.Group(); piv.position.set(s * 0.15, 1.18, 0); g.add(piv);
+            const piv = new THREE.Group(); piv.position.set(s * 0.15, 1.18, 0); piv.rotation.order = 'XZY'; g.add(piv);   // XZY: xoay trong/ngoài quanh trục chân trước, rồi dạng/khép, rồi vung trước–sau
             const thigh = new THREE.Mesh(thighGeo, pantsM); thigh.position.y = -0.21; thigh.castShadow = true; edge(thigh, thighGeo, lineDark); piv.add(thigh);
             const knee = new THREE.Group(); knee.position.set(0, -0.42, 0); piv.add(knee);   // KHỚP GỐI — cẳng chân gập độc lập với đùi
             const shin = new THREE.Mesh(shinGeo, pantsM); shin.position.y = -0.17; shin.castShadow = true; edge(shin, shinGeo, lineDark); knee.add(shin);
