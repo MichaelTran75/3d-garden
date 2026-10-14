@@ -62,7 +62,7 @@ nature/wind-field.js                   # BẢN ĐỒ GIÓ NS 2D: vật cản (nh
 nature/meadow.js                       # THẢM CỎ MỀM 45% đất: lá mảnh dày, gốc = màu đất, pháp tuyến chĩa lên, sóng gió, hoa dại, LOD + cắt khung nhìn
 animals/insects.js                     # đom đóm, bướm, ong
 animals/storks.js                      # cò trắng (dựng theo số đo Stork.glb, MIT)
-animals/songbird.js                    # CHIM SẺ: con ở trại (thanh treo đèn → cỏ → cây táo → nóc xe → dây điện; ngủ cây táo) + hộp tổ góc chuồng bò, cặp làm tổ mớm chim non
+animals/songbird.js                    # CHIM SẺ: con ở trại (thanh treo đèn → cỏ → cây táo → nóc xe → dây điện; ngủ cây táo) + hộp tổ treo cành cây táo, cặp làm tổ mớm chim non
 ui/labels-controls.js                  # nhãn, điều khiển camera, toạ độ, zoom
 ui/xray-lifecycle.js                   # xem xuyên xe, tạm dừng/tiếp tục, dọn dẹp
 loop/close-up.js                       # CẬN CẢNH: bóng nắng ôm vùng nhìn, vật tròn đổi bản nhiều cạnh khi zoom gần · độ phân giải tự điều chỉnh
