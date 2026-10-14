@@ -66,11 +66,13 @@
           const flap = new THREE.Group(); flap.position.set(2.957, 1.85, 0.905); flap.rotation.y = 0.5; S.add(flap);
           box(flap, 0.42, 0.26, 0.012, -0.21, 0.13, 0.006, M.lid, true);
           // máy hút mùi inox trên vách sau bếp: thân hút + gờ trước vát, lưới lọc dầu, đèn; ỐNG GIÓ đứng dẫn lên trần → ống khói trên mái xe (van/caravan.js)
-          box(S, 0.33, 0.1, 0.6, 2.79, 2.35, 0.59, M.steel, true);
-          const lip = box(S, 0.05, 0.12, 0.6, 2.62, 2.34, 0.59, M.steel, true); lip.rotation.z = 0.35;
-          box(S, 0.27, 0.006, 0.52, 2.8, 2.297, 0.59, M.dark);
-          for (let k = 0; k < 7; k++) box(S, 0.27, 0.004, 0.006, 2.8, 2.293, 0.37 + k * 0.073, M.steel);   // nan lưới lọc
-          box(S, 0.12, 1.16, 0.12, 2.79, 2.98, 0.47, M.steel, true);   // ống gió lên trần (2,40 → 3,56)
+          //  (G 14/10: nâng thêm nửa ống gió ⇒ đáy máy cao 2,88 — cách mặt bếp ~1 m, đầu người đứng nấu không vướng)
+          const HY = 0.58;
+          box(S, 0.33, 0.1, 0.6, 2.79, 2.35 + HY, 0.59, M.steel, true);
+          const lip = box(S, 0.05, 0.12, 0.6, 2.62, 2.34 + HY, 0.59, M.steel, true); lip.rotation.z = 0.35;
+          box(S, 0.27, 0.006, 0.52, 2.8, 2.297 + HY, 0.59, M.dark);
+          for (let k = 0; k < 7; k++) box(S, 0.27, 0.004, 0.006, 2.8, 2.293 + HY, 0.37 + k * 0.073, M.steel);   // nan lưới lọc
+          box(S, 0.12, 1.16 - HY, 0.12, 2.79, 2.98 + HY / 2, 0.47, M.steel, true);   // ống gió lên trần (2,98 → 3,56)
           box(S, 0.16, 0.025, 0.16, 2.79, 3.545, 0.47, M.steel);   // mặt bích trần
           // dải núm vặn ga ở mép trước mặt bếp
           box(S, 0.014, 0.045, 0.6, 2.384, 1.812, 0.59, M.dark, true);
@@ -92,7 +94,7 @@
             const nb = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.026, 0.006), M.steel); nb.position.x = -0.012; k.add(nb);   // gờ chỉ vạch
             return k;
           });
-          const hoodLamp = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.006, 0.04), new THREE.MeshBasicMaterial({ color: 0x8a8578 })); hoodLamp.position.set(2.7, 2.292, 0.59); P.add(hoodLamp);
+          const hoodLamp = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.006, 0.04), new THREE.MeshBasicMaterial({ color: 0x8a8578 })); hoodLamp.position.set(2.7, 2.292 + 0.58, 0.59); P.add(hoodLamp);
           // nồi inox để sẵn trên họng sau–trái: nước, sợi udon, hơi nước
           const pot = new THREE.Group(); pot.name = 'Nồi luộc udon'; pot.position.set(BURN[1][0], 1.894, BURN[1][1]); P.add(pot);
           const potM = new THREE.MeshLambertMaterial({ color: 0xa9b4b6, side: THREE.DoubleSide });

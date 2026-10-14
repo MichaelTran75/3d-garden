@@ -596,6 +596,7 @@
               }` })), -1001);
           const SHOWERS = [[1, 3.6, 0.6, 110, 230, 49, 41], [4, 22.5, 1.5, 18, 271, 34, 49], [5, 6, 4, 50, 338, -1, 66], [7, 30, 6, 25, 340, -16, 41], [8, 12.5, 3, 100, 48, 58, 59],
             [10, 8.5, 0.5, 10, 262, 54, 20], [10, 10, 15, 5, 32, 9, 27], [10, 21.5, 6, 20, 95, 16, 66], [11, 12, 15, 5, 58, 22, 29], [11, 17.5, 2, 15, 152, 22, 71], [12, 14, 2.5, 150, 112, 33, 35], [12, 22, 1, 10, 217, 76, 33]];
+          let islandBase = null;   // 4 góc đáy khối đảo (thế giới), đo 1 lần sau khi địa hình dựng xong
           const meteors = [], _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3(), _d = new THREE.Vector3(), _e = new THREE.Vector3(), _f = new THREE.Vector3();
           const M = new THREE.Matrix3(), Mt = new THREE.Matrix3(), _cv = new THREE.Color();
           let mix = 0, lim = -2, drift = 0, nq = 0;
@@ -651,7 +652,13 @@
             camera.getWorldDirection(_a); const camEl = Math.asin(Math.max(-1, Math.min(1, -_a.y))) / RD;
             _a.y = 0; if (_a.lengthSq() < 1e-6) _a.set(0, 0, -1); _a.normalize();
             U.uF.value.copy(_a); U.uR.value.crossVectors(_a, SKY_UP).normalize();
-            U.uOff.value = -0.2 - 0.5 * Math.min(1, Math.max(0, camEl / 81));
+            if (!islandBase && terrainMeshes.length) {
+              const bb = new THREE.Box3(); for (const m of terrainMeshes) bb.union(new THREE.Box3().setFromObject(m));
+              islandBase = [[bb.min.x, bb.min.z], [bb.max.x, bb.min.z], [bb.min.x, bb.max.z], [bb.max.x, bb.max.z]].map(([x, z]) => new THREE.Vector3(x, bb.min.y, z));
+            }
+            let hz = -0.2 - 0.5 * Math.min(1, Math.max(0, camEl / 81));
+            if (islandBase) { camera.updateMatrixWorld(); hz = 1e9; for (const c of islandBase) hz = Math.min(hz, _b.copy(c).project(camera).y); }
+            U.uOff.value = Math.max(-1.15, Math.min(0.5, hz));
             U.uK.value.set(1.05 * (camera.top - camera.bottom) / (camera.right - camera.left), 1.05);
             U.uPx.value = renderer.getPixelRatio(); U.uTime.value = t % 3600;
             const lst = (18.697374558 + 24.06570982441908 * n + SUN_LON / 15) * 15 * RD, cl = Math.cos(lst), sl = Math.sin(lst), cp = Math.cos(SUN_LAT), sp = Math.sin(SUN_LAT);
@@ -6585,11 +6592,12 @@
           box(S, 0.012, 0.37, 0.63, 2.957, 1.85 + 0.185, 0.59, M.lid, true);
           const flap = new THREE.Group(); flap.position.set(2.957, 1.85, 0.905); flap.rotation.y = 0.5; S.add(flap);
           box(flap, 0.42, 0.26, 0.012, -0.21, 0.13, 0.006, M.lid, true);
-          box(S, 0.33, 0.1, 0.6, 2.79, 2.35, 0.59, M.steel, true);
-          const lip = box(S, 0.05, 0.12, 0.6, 2.62, 2.34, 0.59, M.steel, true); lip.rotation.z = 0.35;
-          box(S, 0.27, 0.006, 0.52, 2.8, 2.297, 0.59, M.dark);
-          for (let k = 0; k < 7; k++) box(S, 0.27, 0.004, 0.006, 2.8, 2.293, 0.37 + k * 0.073, M.steel);   // nan lưới lọc
-          box(S, 0.12, 1.16, 0.12, 2.79, 2.98, 0.47, M.steel, true);   // ống gió lên trần (2,40 → 3,56)
+          const HY = 0.58;
+          box(S, 0.33, 0.1, 0.6, 2.79, 2.35 + HY, 0.59, M.steel, true);
+          const lip = box(S, 0.05, 0.12, 0.6, 2.62, 2.34 + HY, 0.59, M.steel, true); lip.rotation.z = 0.35;
+          box(S, 0.27, 0.006, 0.52, 2.8, 2.297 + HY, 0.59, M.dark);
+          for (let k = 0; k < 7; k++) box(S, 0.27, 0.004, 0.006, 2.8, 2.293 + HY, 0.37 + k * 0.073, M.steel);   // nan lưới lọc
+          box(S, 0.12, 1.16 - HY, 0.12, 2.79, 2.98 + HY / 2, 0.47, M.steel, true);   // ống gió lên trần (2,98 → 3,56)
           box(S, 0.16, 0.025, 0.16, 2.79, 3.545, 0.47, M.steel);   // mặt bích trần
           box(S, 0.014, 0.045, 0.6, 2.384, 1.812, 0.59, M.dark, true);
           bakeStatic(S); galley.add(S);
@@ -6608,7 +6616,7 @@
             const nb = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.026, 0.006), M.steel); nb.position.x = -0.012; k.add(nb);   // gờ chỉ vạch
             return k;
           });
-          const hoodLamp = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.006, 0.04), new THREE.MeshBasicMaterial({ color: 0x8a8578 })); hoodLamp.position.set(2.7, 2.292, 0.59); P.add(hoodLamp);
+          const hoodLamp = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.006, 0.04), new THREE.MeshBasicMaterial({ color: 0x8a8578 })); hoodLamp.position.set(2.7, 2.292 + 0.58, 0.59); P.add(hoodLamp);
           const pot = new THREE.Group(); pot.name = 'Nồi luộc udon'; pot.position.set(BURN[1][0], 1.894, BURN[1][1]); P.add(pot);
           const potM = new THREE.MeshLambertMaterial({ color: 0xa9b4b6, side: THREE.DoubleSide });
           const potLathe = pts => { const m = new THREE.Mesh(new THREE.LatheGeometry(pts.map(([r, y]) => new THREE.Vector2(r, y)), 20), potM); m.castShadow = true; pot.add(m); };

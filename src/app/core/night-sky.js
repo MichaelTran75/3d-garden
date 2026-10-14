@@ -1,7 +1,7 @@
         // ====== TRỜI ĐÊM THẬT: sao theo danh mục + Ngân Hà + chạng vạng + mây thật + sao băng ======
         //  Lớp nền vẽ TRƯỚC cả cảnh, không ghi độ sâu (đảo che lên trên). Mỗi điểm ảnh nền = một hướng trên trời nhìn từ đảo, chiếu nổi (stereographic:
-        //  giữ đúng hình chòm sao) với tâm chiếu đặt ĐÚNG chân trời theo hướng camera ⇒ chân trời là đường thẳng; hạ chân trời xuống thấp hơn khi camera
-        //  nhìn chúc xuống (thấy nhiều trời hơn). Xoay cảnh = quay người nhìn trời; không đổi theo zoom/kéo cảnh vì trời ở rất xa. Sao dời theo giờ sao địa phương (giờ thật Pleiku): mọc phía đông, lặn phía tây, quay quanh thiên cực bắc ~14°.
+        //  giữ đúng hình chòm sao) với tâm chiếu đặt ĐÚNG chân trời theo hướng camera ⇒ chân trời là đường thẳng; đường chân trời neo vào đáy khối đảo
+        //  (đảo đậu trên chân trời ở mọi góc nhìn). Xoay cảnh = quay người nhìn trời. Sao dời theo giờ sao địa phương (giờ thật Pleiku): mọc phía đông, lặn phía tây, quay quanh thiên cực bắc ~14°.
         //  Nghiên cứu: độ rọi sao ∝ 10^(−0,4m) → kích thước/độ sáng theo log độ rọi, sao rất sáng thêm quầng (Gaia Sky, OpenSpace); màu theo nhiệt độ
         //  màu của danh mục (B−V → K), mắt đêm kém thấy màu nên chỉ sao sáng mới rõ màu; tắt dần qua khí quyển ~0,22 cấp/khối khí (khối khí Kasten–Young);
         //  lấp lánh mạnh và chậm hơn khi gần chân trời, sao sáng sát chân trời chớp đổi màu; cấp sao giới hạn theo chạng vạng (mặt trời −6° thấy tới
@@ -135,6 +135,7 @@
           // ---- trận mưa sao băng lớn (IMO): [tháng, ngày cực đại, nửa bề rộng (ngày), ZHR, xích kinh tâm (°), xích vĩ tâm (°), vận tốc km/s] ----
           const SHOWERS = [[1, 3.6, 0.6, 110, 230, 49, 41], [4, 22.5, 1.5, 18, 271, 34, 49], [5, 6, 4, 50, 338, -1, 66], [7, 30, 6, 25, 340, -16, 41], [8, 12.5, 3, 100, 48, 58, 59],
             [10, 8.5, 0.5, 10, 262, 54, 20], [10, 10, 15, 5, 32, 9, 27], [10, 21.5, 6, 20, 95, 16, 66], [11, 12, 15, 5, 58, 22, 29], [11, 17.5, 2, 15, 152, 22, 71], [12, 14, 2.5, 150, 112, 33, 35], [12, 22, 1, 10, 217, 76, 33]];
+          let islandBase = null;   // 4 góc đáy khối đảo (thế giới), đo 1 lần sau khi địa hình dựng xong
           const meteors = [], _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3(), _d = new THREE.Vector3(), _e = new THREE.Vector3(), _f = new THREE.Vector3();
           const M = new THREE.Matrix3(), Mt = new THREE.Matrix3(), _cv = new THREE.Color();
           let mix = 0, lim = -2, drift = 0, nq = 0;
@@ -192,7 +193,16 @@
             camera.getWorldDirection(_a); const camEl = Math.asin(Math.max(-1, Math.min(1, -_a.y))) / RD;
             _a.y = 0; if (_a.lengthSq() < 1e-6) _a.set(0, 0, -1); _a.normalize();
             U.uF.value.copy(_a); U.uR.value.crossVectors(_a, SKY_UP).normalize();
-            U.uOff.value = -0.2 - 0.5 * Math.min(1, Math.max(0, camEl / 81));
+            // chân trời = ĐÁY KHỐI ĐẢO (G 14/10: "land nằm đúng đường chân trời"): góc đáy thấp nhất trên màn hình nằm đúng chân trời ⇒ đảo đậu trên
+            //  chân trời ở mọi góc xoay / zoom / kéo cảnh. Camera trực giao không có điểm tụ — dời cả đảo xuống chỉ khớp ở một mức zoom — nên neo
+            //  chân trời vào đáy đảo; zoom gần (đáy ra khỏi khung) thì chân trời nằm ngay dưới mép màn hình.
+            if (!islandBase && terrainMeshes.length) {
+              const bb = new THREE.Box3(); for (const m of terrainMeshes) bb.union(new THREE.Box3().setFromObject(m));
+              islandBase = [[bb.min.x, bb.min.z], [bb.max.x, bb.min.z], [bb.min.x, bb.max.z], [bb.max.x, bb.max.z]].map(([x, z]) => new THREE.Vector3(x, bb.min.y, z));
+            }
+            let hz = -0.2 - 0.5 * Math.min(1, Math.max(0, camEl / 81));
+            if (islandBase) { camera.updateMatrixWorld(); hz = 1e9; for (const c of islandBase) hz = Math.min(hz, _b.copy(c).project(camera).y); }
+            U.uOff.value = Math.max(-1.15, Math.min(0.5, hz));
             U.uK.value.set(1.05 * (camera.top - camera.bottom) / (camera.right - camera.left), 1.05);
             U.uPx.value = renderer.getPixelRatio(); U.uTime.value = t % 3600;
             // xích đạo J2000 → chân trời (đông, bắc, thiên đỉnh) theo giờ sao địa phương → thế giới
