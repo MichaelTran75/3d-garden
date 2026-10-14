@@ -100,9 +100,12 @@
           add(bx(W + 0.4, 0.16, 0.14, wood[1], true, true, lineDark), 0, Hb - 0.08, -D / 2);   // xà đầu sau
           // kèo + mái tôn dốc về sau (nước mưa chảy ra sau chuồng)
           const pitch = Math.atan((Hf - Hb) / D), rz = 0.1, ry = Hb + (Hf - Hb) * (rz + D / 2) / D;
+          const EXT = 0.8;   // G 14/10: mái kéo dài sang TÂY 0,8 m che hộp tổ chim sẻ ở góc tây–bắc (animals/songbird.js); kèo + thanh chống đỡ phần chìa
           for (let k = 0; k <= n; k += (n > 4 ? 2 : 1)) { const r = add(bx(0.09, 0.12, D + 0.8, wood[2], true, false), -W / 2 + k * SW, ry + 0.02, rz); r.rotation.x = -pitch; }
-          const roof = add(bx(W + 0.9, 0.035, D + 1.0, tin, true, true, lineDark), 0, ry + 0.1, rz); roof.rotation.x = -pitch;
-          const fascia = add(bx(W + 0.9, 0.12, 0.04, wood[0], true, false), 0, Hf + 0.06 + Math.tan(pitch) * 0.45, D / 2 + 0.47); fascia.rotation.x = -pitch;
+          { const r = add(bx(0.09, 0.12, D + 0.8, wood[2], true, false), -W / 2 - 0.35 - EXT, ry + 0.02, rz); r.rotation.x = -pitch;
+            for (const z of [D / 2, -D / 2 + 0.5]) { const H = z > 0 ? Hf : Hb + 0.08, br = add(bx(Math.hypot(0.75 + EXT, 0.6), 0.07, 0.06, wood[1], true, false), -W / 2 - (0.75 + EXT) / 2, H - 0.4, z); br.rotation.z = -Math.atan2(0.6, 0.75 + EXT); } }   // thanh chống chéo: chân ở cột / vách tây, đầu đỡ kèo mép mái (phía sau lùi vào 0,5 m nhường chỗ hộp tổ)
+          const roof = add(bx(W + 0.9 + EXT, 0.035, D + 1.0, tin, true, true, lineDark), -EXT / 2, ry + 0.1, rz); roof.rotation.x = -pitch;
+          const fascia = add(bx(W + 0.9 + EXT, 0.12, 0.04, wood[0], true, false), -EXT / 2, Hf + 0.06 + Math.tan(pitch) * 0.45, D / 2 + 0.47); fascia.rotation.x = -pitch;
           // vách ván: sau kín tới mái, hai hông cao 1,4 m + thanh giằng trên
           for (let y = 0.27, k = 0; y < Hb - 0.15; y += 0.25, k++) add(bx(W + 0.3, 0.22, 0.05, wood[k % 3], true, false), 0, y, -D / 2 - 0.13);
           for (const sx of [-1, 1]) {
@@ -143,7 +146,7 @@
           const stalls = [];
           for (let k = 0; k < n; k++) { const sx = hx - W / 2 + (k + 0.5) * SW; stalls.push({ x: sx, z: hz + 0.2, ex: sx, ez: hz + D / 2 + 1.3 }); }
           cowHutRect = { x0: hx - W / 2 - 1.7, x1: hx + W / 2 + 1.45, z0: hz - D / 2 - 0.35, z1: hz + D / 2 + 0.25 };
-          return { g, x: hx, z: hz, W, D, stalls, light, bulbMat, door: { x: hx, z: hz + D / 2 + 2.2 } };
+          return { g, x: hx, z: hz, y: y0, W, D, Hf, Hb, stalls, light, bulbMat, door: { x: hx, z: hz + D / 2 + 2.2 } };
         })();
         cows.forEach((c, k) => { c.stall = k; c.mode = 'free'; c.leg = ''; c.sub = 'stand'; });
         const cowHutWanted = () => { const h = liveWeather.localHour; return liveWeather.state.raining || h >= 17.9 || h < 6.2; };   // chiều tối hoặc mưa → về chuồng
