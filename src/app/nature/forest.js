@@ -74,14 +74,15 @@
             geom.computeVertexNormals();
           }
 
-          const bodyGeom = new THREE.SphereGeometry(0.12 * s, 8, 8); deformApple(bodyGeom);
-          const leftGeom = new THREE.SphereGeometry(0.12 * s, 8, 8, 0, Math.PI); deformApple(leftGeom);
-          const rightGeom = new THREE.SphereGeometry(0.12 * s, 8, 8, Math.PI, Math.PI); deformApple(rightGeom);
+          const AK = 0.8;   // G 14/10: quả táo nhỏ đi 20%
+          const bodyGeom = new THREE.SphereGeometry(0.12 * s, 8, 8); deformApple(bodyGeom); bodyGeom.scale(AK, AK, AK);
+          const leftGeom = new THREE.SphereGeometry(0.12 * s, 8, 8, 0, Math.PI); deformApple(leftGeom); leftGeom.scale(AK, AK, AK);
+          const rightGeom = new THREE.SphereGeometry(0.12 * s, 8, 8, Math.PI, Math.PI); deformApple(rightGeom); rightGeom.scale(AK, AK, AK);
 
           const bodyMat = new THREE.MeshLambertMaterial({ color: 0xd93d2b, flatShading: true });
           const yellowMat = new THREE.MeshLambertMaterial({ color: 0xe5b82c, flatShading: true });
           const greenMat = new THREE.MeshLambertMaterial({ color: 0x6e8e3d, flatShading: true }); // xanh lá táo tươi
-          const stemGeom = new THREE.CylinderGeometry(0.005 * s, 0.008 * s, 0.09 * s, 4);
+          const stemGeom = new THREE.CylinderGeometry(0.005 * s * AK, 0.008 * s * AK, 0.09 * s * AK, 4);
           const stemMat = new THREE.MeshLambertMaterial({ color: 0x5a3e29, flatShading: true });
 
           const fruit = new THREE.Group(), apples = []; fruit.name = 'Quả táo';   // quả RIÊNG (không gộp tĩnh) ⇒ kỹ sư hái được từng quả
@@ -103,7 +104,7 @@
             }
 
             const stem = new THREE.Mesh(stemGeom, stemMat);
-            stem.position.y = 0.11 * s;
+            stem.position.y = 0.11 * s * AK;
             stem.rotation.set(0.12, 0, -0.18);
             stem.castShadow = true; apple.add(stem);
 
@@ -112,7 +113,7 @@
             fruit.add(apple); apples.push({ g: apple, home: apple.position.clone(), rot: apple.rotation.y, on: true, sw: 0, sv: 0, swy: 0, svy: 0 });
           }
           const out = bakeStatic(g);   // gộp toàn bộ cành theo vật liệu → vài draw call/cây
-          out.add(fruit); out.userData.apples = apples; out.userData.appleR = 0.12 * s;   // quả gắn SAU khi gộp: lô vẽ chung (draw-batch) vẫn gom chung 1 lượt vẽ
+          out.add(fruit); out.userData.apples = apples; out.userData.appleR = 0.12 * s * AK;   // quả gắn SAU khi gộp: lô vẽ chung (draw-batch) vẫn gom chung 1 lượt vẽ
           return out;
         }
 

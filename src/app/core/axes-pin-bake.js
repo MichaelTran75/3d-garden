@@ -75,7 +75,8 @@
         // cá KOI realistic: thân fusiform shading MƯỢT + đốm Kohaku/Sumi vertex-color mép mềm · vây màng trắng 2 lớp — vật liệu share cho cả đàn
         const koiWhiteM = new THREE.MeshLambertMaterial({ color: 0xE2D6C0, side: THREE.DoubleSide }),
           koiSkinM = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }),   // da cá tô màu theo ĐỈNH (mép đốm pha mềm) — đốm nằm trên da, không lồi khối
-          koiEyeM = new THREE.MeshBasicMaterial({ color: 0x1e1c1a });
+          koiEyeM = new THREE.MeshPhongMaterial({ color: 0x111012, shininess: 90, specular: 0x666666 }),   // con ngươi ướt có ánh
+          koiIrisM = new THREE.MeshLambertMaterial({ color: 0xd8c89a }), koiBarbelM = new THREE.MeshLambertMaterial({ color: 0xe6d3c6 });   // viền mống vàng nhạt · râu
         const _koiC = { white: new THREE.Color(0xE2D6C0), red: new THREE.Color(0xd8492f), black: new THREE.Color(0x2b2724) };
         const metalMat = new THREE.MeshLambertMaterial({ color: 0x7b858c });
         const cableMat = new THREE.LineBasicMaterial({ color: 0x20262b, transparent: true, opacity: 0.72 });

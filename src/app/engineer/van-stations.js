@@ -150,7 +150,7 @@
           else if (V.st === 'rise') { e.seatCtl = true; if (engRiseStep(e, C, s, dt, t)) { e.seat = null; return 'released'; } }
           return 'busy';
         } };
-        const ENG_WC_SIT = 30, ENG_SHOWER_WASH = 60;   // G 13/10: ngồi WC đúng 30 s · tắm (nước chảy) đúng 1 phút — không kéo dài theo khung giờ còn trống
+        const ENG_WC_SIT = 30, ENG_SHOWER_WASH = 45, ENG_TOWEL_DRY = 35;   // G 13/10: ngồi WC đúng 30 s · G 14/10: cả việc tắm (rửa chảo + tắm + lau + đội mũ) 3 phút ⇒ nước chảy 45 s, lau khô 35 s
         const stWc = { node: 'wcIn', tick(e, V, dt, t, keep) {   // buồng WC: lật nắp → quay lưng → ngồi (khuỷu tì đùi) → đứng dậy → đậy nắp, bấm xả → ra
           const C = TOILET_SEAT, s = e.seat;
           if (!V.st) V.st = 'go';
@@ -244,9 +244,9 @@
           }
           else {
             V.k += dt;
-            if (V.k < 30) { e.arms[0].rotation.x = -2.55 + Math.sin(t * 8) * 0.18; e.arms[1].rotation.x = -2.55 - Math.sin(t * 8) * 0.18; e.head.rotation.x = 0.25; e.headRollT = Math.sin(t * 2.2) * 0.12; }
-            else { e.arms[0].rotation.x = -1.9 + Math.sin(t * 6) * 0.15; e.arms[1].rotation.x = -1.6; e.head.rotation.x = -0.1; }
-            if (V.k > 50) { V.st = 'hang'; V.k = 0; }
+            if (V.k < ENG_TOWEL_DRY * 0.6) { e.arms[0].rotation.x = -2.55 + Math.sin(t * 8) * 0.18; e.arms[1].rotation.x = -2.55 - Math.sin(t * 8) * 0.18; e.head.rotation.x = 0.25; e.headRollT = Math.sin(t * 2.2) * 0.12; }   // lau tóc
+            else { e.arms[0].rotation.x = -1.9 + Math.sin(t * 6) * 0.15; e.arms[1].rotation.x = -1.6; e.head.rotation.x = -0.1; }   // lau mặt
+            if (V.k > ENG_TOWEL_DRY) { V.st = 'hang'; V.k = 0; }
           }
           return 'busy';
         } };
