@@ -2289,8 +2289,19 @@
           k: 0.27, gust: 1, sceneSpeed: 0.69,   // giữ tên cũ cho chỗ khác đọc
           modes: [], phase: new Float64Array(WIND_N), flutPhase: 0,
           u: { uTime: { value: 0 }, uWindDir: { value: new THREE.Vector2(0.977, 0.213) }, uWindU: { value: 0.69 }, uFlutPhase: { value: 0 },
-            uTk: { value: Array.from({ length: WIND_N }, () => new THREE.Vector4()) }, uTa: { value: Array.from({ length: WIND_N }, () => new THREE.Vector4()) } }
+            uTk: { value: Array.from({ length: WIND_N }, () => new THREE.Vector4()) }, uTa: { value: Array.from({ length: WIND_N }, () => new THREE.Vector4()) },
+            uWMap: { value: new THREE.DataTexture(new Uint16Array(4), 1, 1, THREE.RGBAFormat, THREE.HalfFloatType) }, uWBox: { value: new THREE.Vector4(0, 0, 1, 1) }, uWOn: { value: 0 } }
         };
+        const windMap = { on: 0, data: null, x0: 0, z0: 0, nx: 1, nz: 1, dx: 1 };
+        const _hP2 = Array.from({ length: 31 }, (_, e) => Math.pow(2, e - 15));
+        const halfF = hv => { const e = (hv >> 10) & 0x1f, m = hv & 0x3ff, sg = hv & 0x8000 ? -1 : 1; return e ? sg * _hP2[e] * (1 + m / 1024) : sg * m * 5.960464477539063e-8; };
+        function windMapSample(x, z, out) {   // → out (gió TB chuẩn hoá x, z · hệ số nhiễu loạn); khớp phép lấy mẫu LinearFilter trên GPU
+          const M = windMap, D = sceneWind.dir; out.set(D.x, D.y, 1); if (!M.on || !M.data) return out;
+          const fx = Math.min(M.nx - 1.0001, Math.max(0, (x - M.x0) / M.dx - 0.5)), fz = Math.min(M.nz - 1.0001, Math.max(0, (z - M.z0) / M.dx - 0.5));
+          const a = fx | 0, b = fz | 0, tx = fx - a, tz = fz - b, c = (b * M.nx + a) * 4, r = M.nx * 4, d = M.data, k = M.on;
+          const s = ch => (halfF(d[c + ch]) * (1 - tx) + halfF(d[c + 4 + ch]) * tx) * (1 - tz) + (halfF(d[c + r + ch]) * (1 - tx) + halfF(d[c + r + 4 + ch]) * tx) * tz;
+          return out.set(D.x + (s(0) - D.x) * k, D.y + (s(1) - D.y) * k, 1 + (s(2) - 1) * k);
+        }
         { const r = mulberry32(51423); let sum = 0;
           for (let n = 0; n < WIND_N; n++) {
             const lam = WIND_LAMS[n], k = TAU / lam, th = r() * TAU, el = (r() - 0.5) * 1.2;
@@ -2309,17 +2320,22 @@
           for (let n = 0; n < WIND_N; n++) { const k = _wkW[n], a = _waW[n], c = Math.cos(k.x * x + k.y * y + k.z * z + P[n]); out.x += a.x * c; out.y += a.y * c; out.z += a.z * c; }
           return out;
         }
-        function windAt(x, y, z, zAbove, out) {   // gió (đv/s) tại điểm có độ cao zAbove trên mặt đất: trung bình theo profile log + nhiễu loạn
-          const f = windProfile(zAbove), g = Math.min(1.1, Math.max(0.3, 0.35 + 0.65 * f));
-          windTurb(x, y, z, out).multiplyScalar(g);
-          out.x += sceneWind.dir.x * sceneWind.U * f; out.z += sceneWind.dir.y * sceneWind.U * f;
+        const _wmS = new THREE.Vector3();
+        function windAt(x, y, z, zAbove, out) {   // gió (đv/s) tại điểm có độ cao zAbove trên mặt đất: trung bình (bản đồ gió × profile log) + nhiễu loạn
+          const f = windProfile(zAbove), g = Math.min(1.1, Math.max(0.3, 0.35 + 0.65 * f)), m = windMapSample(x, z, _wmS);
+          windTurb(x, y, z, out).multiplyScalar(g * m.z);
+          out.x += m.x * sceneWind.U * f; out.z += m.y * sceneWind.U * f;
           return out;
         }
         const WIND_GLSL_COMMON = `
           uniform float uTime; uniform vec2 uWindDir; uniform float uWindU; uniform vec4 uTk[${WIND_N}]; uniform vec4 uTa[${WIND_N}]; uniform float uFlutPhase;
+          uniform sampler2D uWMap; uniform vec4 uWBox; uniform float uWOn;
           vec3 windTurb(vec3 p) { vec3 u = vec3(0.0); for (int i = 0; i < ${WIND_N}; i++) u += uTa[i].xyz * cos(dot(uTk[i].xyz, p) + uTa[i].w); return u; }
           float windProf(float zu) { return log(max(zu * ${WIND_M_PER_U.toFixed(2)}, ${(2 * WIND_Z0).toFixed(2)}) / ${WIND_Z0.toFixed(2)}) / ${Math.log(10 / WIND_Z0).toFixed(6)}; }
-          vec3 windVec(vec3 p, float zu) { float f = windProf(zu); return vec3(uWindDir.x, 0.0, uWindDir.y) * (uWindU * f) + windTurb(p) * clamp(0.35 + 0.65 * f, 0.3, 1.1); }`;
+          vec3 windVec(vec3 p, float zu) {
+            float f = windProf(zu); vec3 m = mix(vec3(uWindDir, 1.0), texture2D(uWMap, (p.xz - uWBox.xy) * uWBox.zw).xyz, uWOn);   // bản đồ gió NS: hướng + độ lớn TB · nhiễu loạn
+            return vec3(m.x, 0.0, m.y) * (uWindU * f) + windTurb(p) * (clamp(0.35 + 0.65 * f, 0.3, 1.1) * m.z);
+          }`;
         function injectWorldWind(mat, own, header, dispExpr, key) {
           mat.onBeforeCompile = (shader) => {
             Object.assign(shader.uniforms, sceneWind.u, own);
@@ -2342,16 +2358,18 @@
           mat.customProgramCacheKey = () => key; mat.needsUpdate = true;
           return mat;
         }
-        const treeWinds = [];
+        const treeWinds = [], BR_K = [1.15, 2.1, 3.4], BR_MU = [0.18, 0.1, 0.05], BR_PH = [0, 1.7, 4.1];   // cành: tần số / tần số thân · tỉ lệ khối lượng với thân · pha quanh thân
         const TREE_GLSL = `
-          uniform vec3 uTreeBase; uniform vec4 uTreeDim; uniform vec2 uBend; uniform float uFlutter; uniform float uLeafLean;
+          uniform vec3 uTreeBase; uniform vec4 uTreeDim; uniform vec2 uBend; uniform float uFlutter; uniform float uLeafLean; uniform vec2 uBr[3];
           vec3 treeWind(vec3 wp, vec3 seed) {
             vec3 rel = wp - uTreeBase, d = vec3(0.0);
             float h = max(0.0, rel.y) / uTreeDim.x, hb = h * h;
             d.xz += uBend * hb;                                                    // cả cây nghiêng theo lò xo (dịch chuyển ∝ h²)
             float rn = length(rel.xz) / uTreeDim.y, flex = uTreeDim.w * min(rn * rn + hb * 0.3, 1.6);
             vec3 w = windVec(wp, rel.y);
-            d += flex * w * pow(length(w) + 1e-3, 0.3);                            // cành: lực ∝ |w|^1,3 tại chính chỗ đó
+            d += 0.6 * flex * w * pow(length(w) + 1e-3, 0.3);                      // cành: lực ∝ |w|^1,3 tại chính chỗ đó (tựa tĩnh)
+            float az = atan(rel.z, rel.x);                                          // + dao động riêng của cành, mỗi phía tán một pha
+            d.xz += (uBr[0] * (0.5 + 0.5 * cos(az)) + uBr[1] * (0.5 + 0.5 * cos(2.0 * az + 1.7)) + uBr[2] * (0.5 + 0.5 * cos(3.0 * az + 4.1))) * min(rn * rn + hb * 0.3, 1.6);
             if (uLeafLean > 0.0) {   // LÁ NGẢ NHƯ CỎ: cả chiếc lá nghiêng theo gió tại chính nó, góc bão hoà; cơn giật qua thì ngả thêm, lặng thì co về
               vec3 wl = windVec(seed, clamp(seed.y - uTreeBase.y, 1.0, 15.0)); float sp = length(wl.xz);
               float th = 1.15 * (1.0 - exp(-0.75 * pow(sp, 1.3)));
@@ -2368,12 +2386,13 @@
           }`;
         function windShader(mat, tw, flutter) {
           mat.userData.treeWind = tw;
-          return injectWorldWind(mat, { uTreeBase: tw.u.uTreeBase, uTreeDim: tw.u.uTreeDim, uBend: tw.u.uBend, uFlutter: { value: flutter * TREE_SWAY_K * 0.3 }, uLeafLean: { value: flutter * 3 } }, TREE_GLSL,
-            'treeWind( windW.xyz, ( modelMatrix * vec4( windSeed, 1.0 ) ).xyz )', 'treeWind2');
+          return injectWorldWind(mat, { uTreeBase: tw.u.uTreeBase, uTreeDim: tw.u.uTreeDim, uBend: tw.u.uBend, uBr: tw.u.uBr, uFlutter: { value: flutter * TREE_SWAY_K * 0.3 }, uLeafLean: { value: flutter * 3 } }, TREE_GLSL,
+            'treeWind( windW.xyz, ( modelMatrix * vec4( windSeed, 1.0 ) ).xyz )', 'treeWind3');
         }
         function makeTreeWind(o) {   // o: freq (Hz), zeta (tắt dần cấu trúc), lean (đv ở ngọn khi gió 30 km/h), branchAmp (độ mềm ngọn cành)
-          const tw = Object.assign({ bx: 0, bz: 0, vx: 0, vz: 0, H: 1, R: 1, F: 0, active: false, crown: new THREE.Vector3(), crownZ: 1 }, o, { lean: o.lean * TREE_SWAY_K, branchAmp: o.branchAmp * TREE_SWAY_K });
-          tw.u = { uTreeBase: { value: new THREE.Vector3(0, -1e4, 0) }, uTreeDim: { value: new THREE.Vector4(1, 1, 0, tw.branchAmp) }, uBend: { value: new THREE.Vector2() } };
+          const tw = Object.assign({ bx: 0, bz: 0, vx: 0, vz: 0, px: 0, pz: 0, ex: 0, ez: 0, aero: 0, H: 1, R: 1, F: 0, shake: 0, shakeRaw: 0, active: false, crown: new THREE.Vector3(), crownZ: 1, ph: {} }, o, { lean: o.lean * TREE_SWAY_K, branchAmp: o.branchAmp * TREE_SWAY_K });
+          tw.br = BR_K.map(() => ({ x: 0, z: 0, vx: 0, vz: 0, px: 0, pz: 0, ex: 0, ez: 0 }));
+          tw.u = { uTreeBase: { value: new THREE.Vector3(0, -1e4, 0) }, uTreeDim: { value: new THREE.Vector4(1, 1, 0, tw.branchAmp) }, uBend: { value: new THREE.Vector2() }, uBr: { value: BR_K.map(() => new THREE.Vector2()) } };
           tw.depthMat = windShader(new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking }), tw, 0);   // bóng đổ đung đưa cùng cây
           treeWinds.push(tw); return tw;
         }
@@ -2392,8 +2411,10 @@
           out.set(0, 0, 0); if (!tw || !tw.active) return out;
           const B = tw.u.uBend.value, rx = p.x - tw.base.x, ry = p.y - tw.base.y, rz = p.z - tw.base.z, h = Math.max(0, ry) / tw.H, hb = h * h;
           const flex = tw.branchAmp * Math.min(Math.pow(Math.hypot(rx, rz) / tw.R, 2) + hb * 0.3, 1.6);
-          windAt(p.x, p.y, p.z, ry, _wtmp2); const L = flex * Math.pow(_wtmp2.length() + 1e-3, 0.3);
-          out.set(B.x * hb + _wtmp2.x * L, _wtmp2.y * L, B.y * hb + _wtmp2.z * L);
+          windAt(p.x, p.y, p.z, ry, _wtmp2); const L = 0.6 * flex * Math.pow(_wtmp2.length() + 1e-3, 0.3);
+          const az = Math.atan2(rz, rx), fb = Math.min(Math.pow(Math.hypot(rx, rz) / tw.R, 2) + hb * 0.3, 1.6), Br = tw.u.uBr.value;
+          const w0 = (0.5 + 0.5 * Math.cos(az)) * fb, w1 = (0.5 + 0.5 * Math.cos(2 * az + 1.7)) * fb, w2 = (0.5 + 0.5 * Math.cos(3 * az + 4.1)) * fb;
+          out.set(B.x * hb + _wtmp2.x * L + Br[0].x * w0 + Br[1].x * w1 + Br[2].x * w2, _wtmp2.y * L, B.y * hb + _wtmp2.z * L + Br[0].y * w0 + Br[1].y * w1 + Br[2].y * w2);
           out.y -= (B.x * B.x + B.y * B.y) * hb * 0.5 / Math.max(tw.H * Math.max(h, 0.2), 0.5);
           return out;
         }
@@ -2477,16 +2498,37 @@
             if (!tw.active || !tw.lean) continue;
             windAt(tw.crown.x, tw.crown.y, tw.crown.z, tw.crownZ, _wtmp);   // gió tại tâm áp lực tán
             const s = Math.hypot(_wtmp.x, _wtmp.z) + 1e-6, F = Math.pow(s / WIND_SREF, 1.3);
-            tw.F = F;                                                       // lực chuẩn hoá — lá rụng nhiều khi lực lớn
-            const ex = _wtmp.x / s * F * tw.lean, ez = _wtmp.z / s * F * tw.lean;
-            const om = TAU * tw.freq, ze = tw.zeta + 0.12 * Math.min(2, s / WIND_SREF), c2 = 2 * ze * om, o2 = om * om;
-            for (let k = 0, n = Math.ceil(h / 0.02); k < n; k++) {   // tích phân bán ẩn, bước ≤ 20 ms
-              const hh = h / n;
-              tw.vx += (o2 * (ex - tw.bx) - c2 * tw.vx) * hh; tw.bx += tw.vx * hh;
-              tw.vz += (o2 * (ez - tw.bz) - c2 * tw.vz) * hh; tw.bz += tw.vz * hh;
+            tw.F = F; tw.aero = 0.12 * Math.min(2, s / WIND_SREF);          // lực chuẩn hoá · tắt dần khí động tăng theo gió
+            tw.ex = _wtmp.x / s * F * tw.lean; tw.ez = _wtmp.z / s * F * tw.lean;
+            for (let i = 0; i < 3; i++) {   // gió ở từng phía tán: cơn giật chạm các cành lệch nhau → cành đẩy theo PHẦN CHÊNH so với tâm tán
+              const B = tw.br[i], a = BR_PH[i];
+              windAt(tw.crown.x + Math.cos(a) * tw.R * 0.6, tw.crown.y, tw.crown.z + Math.sin(a) * tw.R * 0.6, tw.crownZ, _wtmp2);
+              const s2 = Math.hypot(_wtmp2.x, _wtmp2.z) + 1e-6, F2 = Math.pow(s2 / WIND_SREF, 1.3) - F;
+              B.ex = _wtmp2.x / s2 * F2 * tw.lean * 0.45; B.ez = _wtmp2.z / s2 * F2 * tw.lean * 0.45;
             }
-            tw.u.uBend.value.set(tw.bx, tw.bz);
+            tw.shakeRaw = 0; const al = fixedSteps(tw.ph, dt, PHYS_H, hh => treeStep(tw, hh));
+            tw.shake = Math.max(tw.shakeRaw, tw.shake * Math.exp(-dt / 0.4));   // giữ đỉnh gia tốc cành, nhả dần
+            tw.u.uBend.value.set(tw.px + (tw.bx - tw.px) * al, tw.pz + (tw.bz - tw.pz) * al);
+            for (let i = 0; i < 3; i++) { const B = tw.br[i]; tw.u.uBr.value[i].set(B.px + (B.x - B.px) * al, B.pz + (B.z - B.pz) * al); }
           }
+        }
+        function treeStep(tw, hh) {   // 1 bước 1/120 s: thân (lò xo 2 chiều) + 3 cành ghép (toạ độ tương đối với thân, bị thân giật) — Euler bán ẩn
+          const om = TAU * tw.freq, o2 = om * om, c2 = 2 * (tw.zeta + tw.aero) * om;
+          let rx = 0, rz = 0;
+          for (let i = 0; i < 3; i++) {   // phản lực lò xo + giảm chấn của cành lên thân (theo tỉ lệ khối lượng)
+            const B = tw.br[i], ob = om * BR_K[i], cb = 2 * (0.07 + tw.aero) * ob;
+            rx += BR_MU[i] * (cb * B.vx + ob * ob * (B.x - B.ex)); rz += BR_MU[i] * (cb * B.vz + ob * ob * (B.z - B.ez));
+          }
+          const ax = o2 * (tw.ex - tw.bx) - c2 * tw.vx + rx, az = o2 * (tw.ez - tw.bz) - c2 * tw.vz + rz;
+          tw.px = tw.bx; tw.pz = tw.bz; tw.vx += ax * hh; tw.vz += az * hh; tw.bx += tw.vx * hh; tw.bz += tw.vz * hh;
+          let sh = 0;
+          for (let i = 0; i < 3; i++) {
+            const B = tw.br[i], ob = om * BR_K[i], cb = 2 * (0.07 + tw.aero) * ob;
+            const bx = ob * ob * (B.ex - B.x) - cb * B.vx - ax, bz = ob * ob * (B.ez - B.z) - cb * B.vz - az;   // cành: lò xo + giảm chấn − gia tốc thân
+            B.px = B.x; B.pz = B.z; B.vx += bx * hh; B.vz += bz * hh; B.x += B.vx * hh; B.z += B.vz * hh;
+            sh = Math.max(sh, Math.hypot(bx + ax, bz + az));   // gia tốc tuyệt đối của cành
+          }
+          tw.shakeRaw = Math.max(tw.shakeRaw, sh);
         }
         const _wq = new THREE.Quaternion(), _wpv = new THREE.Vector3(), _wsv = new THREE.Vector3(), _rotW = new THREE.Vector3();
         function windInLocal(obj, vec, out) {   // véc-tơ thế giới → hệ toạ độ của obj (độ dài theo đơn vị cục bộ)
@@ -2577,7 +2619,7 @@
           const { tips, rnd } = recTree(g, { seed, s, barkMat, trunkLen: 1.7 * s, trunkR: 0.125 * s, maxDepth: 4, nMin: 2, nMax: 3, lenK: 0.74, radK: 0.6, spread: 0.72, upBias: 0.22, firstSplitN: 4 });
           const pts = []; for (const tp of tips) cloudPts(rnd, tp.x, tp.y + 0.08 * s, tp.z, 0.62 * s, 40, pts);
           cloudPts(rnd, 0, 2.7 * s, 0, 1.05 * s, 130, pts);   // chùm trung tâm cho tán dày ruột
-          tuftInstanced(g, rnd, pts, new THREE.CylinderGeometry(0.09 * s, 0.09 * s, 0.003 * s, 6), [0x86a364, 0x78935b, 0x6e8754, 0x61784a], 0.60);   // lá cây trong suốt hơn 20% (0.75 * 0.8 = 0.60)
+          tuftInstanced(g, rnd, pts, new THREE.CylinderGeometry(0.09 * s, 0.09 * s, 0.003 * s, 6), [0x86a364, 0x78935b, 0x6e8754, 0x61784a], 0.60); g.userData.leafPts = pts;   // điểm lá: lá rụng theo cơn giật (nature/wind-field.js)   // lá cây trong suốt hơn 20% (0.75 * 0.8 = 0.60)
           function deformApple(geom) {
             const pos = geom.attributes.position;
             for (let i = 0; i < pos.count; i++) {
@@ -2924,13 +2966,15 @@
         }
         function updateLeafFall(L, dt, t) {
           const o = L.o, h = Math.min(dt, 0.05), tw = o.tw, cd = o.g / (o.vTerm * o.vTerm);
-          L.acc = Math.min(2, L.acc + (o.rate0 + o.rateK * Math.max(0, (tw ? tw.F : 0) - 0.15)) * h);
+          L.acc = Math.min(2, L.acc + (o.rate ? o.rate(h) : o.rate0 + o.rateK * (0.35 * Math.max(0, (tw ? tw.F : 0) - 0.15) + (tw && o.shake0 ? Math.pow(Math.max(0, tw.shake / o.shake0 - 1), 1.5) : 0))) * h);
           const M = o.group.matrixWorld;
           for (let k = 0; k < L.parts.length; k++) {
             const q = L.parts[k];
             if (q.st === 0) {   // còn trên tán
               if (L.acc < 1) { L.im.setMatrixAt(k, _lfM.compose(_lfP.set(0, -999, 0), _lfQ.identity(), _lfS.setScalar(0))); continue; }
-              L.acc -= 1; const pt = o.pts[(Math.random() * o.pts.length) | 0];
+              const pt = o.pick ? o.pick() : o.pts[(Math.random() * o.pts.length) | 0];
+              if (!pt) { L.acc = Math.min(L.acc, 0.99); L.im.setMatrixAt(k, _lfM.compose(_lfP.set(0, -999, 0), _lfQ.identity(), _lfS.setScalar(0))); continue; }
+              L.acc -= 1;
               q.p.set(pt[0], pt[1], pt[2]).applyMatrix4(M); q.p.x += (Math.random() - 0.5) * 0.3; q.p.z += (Math.random() - 0.5) * 0.3;
               windAt(q.p.x, q.p.y, q.p.z, q.p.y - cowY(q.p.x, q.p.z), q.v); q.v.multiplyScalar(0.5);   // bứt ra mang sẵn một phần vận tốc gió
               q.st = 1; q.age = 0; q.mode = Math.random() < o.tumble ? 1 : 0; q.ph = Math.random() * TAU; q.ax = Math.random() * TAU; q.rot = 0;
@@ -3051,7 +3095,7 @@
             F.instanceMatrix.needsUpdate = true;
           }
           cherryCtl = makeLeafFall({ name: 'Cánh hoa anh đào rơi theo gió', group: ct, pts: ct.userData.blossomPts, n: 36, geo: new THREE.BoxGeometry(0.19 * 1.2, 0.002 * 1.2, 0.19 * 1.2), opacity: 0.75,
-            color: () => cherryPinks[(Math.random() * cherryPinks.length) | 0], scale: 1, tw: cherryWind, g: 3.5, vTerm: 0.45, flutA: 0.5, flutW: [3.5, 5], tumble: 0.15, tumbleW: [9, 14], slideU: 0.5, rate0: 0.35, rateK: 3.0, restLife: [10, 20], floatLife: [25, 45], sinkP: 0.25, sinkV: [0.05, 0.08], leeway: 0.035 }); }
+            color: () => cherryPinks[(Math.random() * cherryPinks.length) | 0], scale: 1, tw: cherryWind, g: 3.5, vTerm: 0.45, flutA: 0.5, flutW: [3.5, 5], tumble: 0.15, tumbleW: [9, 14], slideU: 0.5, rate0: 0.15, rateK: 3.0, shake0: 0.02, restLife: [10, 20], floatLife: [25, 45], sinkP: 0.25, sinkV: [0.05, 0.08], leeway: 0.035 }); }
 
         function fluidKernel() {   // JS thuần, không đọc biến bên ngoài → chạy được trong Worker lẫn trên luồng chính (dự phòng)
           const f32 = new Float32Array(1), i32 = new Int32Array(f32.buffer);
@@ -3320,9 +3364,65 @@
             }
           }
 
+          let WF = null;
+          function initWind(c) {   // c: { nx, nz, dx, drag (cản lỗ rỗng /đv), expo (độ phơi gió địa hình), lrec, conf, iters, warm, ux, uz }
+            const N = c.nx * c.nz, A = () => new Float32Array(N);
+            WF = Object.assign({ N, u: A(), v: A(), u2: A(), v2: A(), p: A(), p2: A(), dv: A(), w: A(), acc: 0 }, c);
+            WF.u.fill(c.ux); WF.v.fill(c.uz);
+            for (let t = 0; t < c.warm; t += 0.05) stepWind(0.05, c.ux, c.uz);   // chạy trước cho vệt khuất gió & xoáy hình thành
+          }
+          function stepWind(dt, ux, uz) {
+            const F = WF, nx = F.nx, nz = F.nz, dx = F.dx, N = F.N, u = F.u, v = F.v, u2 = F.u2, v2 = F.v2, w = F.w, drag = F.drag, s = dt / dx;
+            const U0 = Math.max(1e-4, Math.hypot(ux, uz));
+            for (let b = 0; b < nz; b++) for (let a = 0; a < nx; a++) {   // cuốn theo chính nó (bán Lagrange)
+              const c = b * nx + a, x = a - u[c] * s, z = b - v[c] * s;
+              u2[c] = bil(u, nx, nz, x, z); v2[c] = bil(v, nx, nz, x, z);
+            }
+            for (let c = 0; c < N; c++) {   // trộn động lượng từ trên cao (phục hồi theo quãng đường) + cản lỗ rỗng bậc 2 (ẩn)
+              const sp = Math.hypot(u2[c], v2[c]), kr = 1 - Math.exp(-Math.max(sp, 0.3 * U0) * dt / F.lrec);
+              const uu = u2[c] + (ux - u2[c]) * kr, vv = v2[c] + (uz - v2[c]) * kr, kd = 1 / (1 + dt * drag[c] * Math.hypot(uu, vv));
+              u[c] = uu * kd; v[c] = vv * kd;
+            }
+            for (let b = 1; b < nz - 1; b++) for (let a = 1; a < nx - 1; a++) { const c = b * nx + a; w[c] = ((v[c + 1] - v[c - 1]) - (u[c + nx] - u[c - nx])) / (2 * dx); }   // xoáy
+            for (let b = 5; b < nz - 5; b++) for (let a = 5; a < nx - 5; a++) {   // giữ xoáy: f = ε·dx·(N × ω), N = ∇|ω|/|∇|ω|| (trừ dải sát mép)
+              const c = b * nx + a, gx = Math.abs(w[c + 1]) - Math.abs(w[c - 1]), gz = Math.abs(w[c + nx]) - Math.abs(w[c - nx]), l = Math.hypot(gx, gz) + 1e-9;
+              u[c] += dt * F.conf * dx * (gz / l) * w[c]; v[c] -= dt * F.conf * dx * (gx / l) * w[c];
+            }
+            const iL = ux > 0, iR = ux < 0, iT = uz > 0, iB = uz < 0;   // mép nào là mép gió vào
+            const edges = () => {   // biên: mép gió vào + VÙNG ĐỆM 4 ô hoà dần về gió tự do (khỏi sọc số) · mép gió ra: gradient 0
+              for (let b = 0; b < nz; b++) for (let a = 0; a < nx; a++) {
+                const din = Math.min(iL ? a : 99, iR ? nx - 1 - a : 99, iT ? b : 99, iB ? nz - 1 - b : 99), c = b * nx + a;
+                if (din < 4) { const k = 1 - din / 4; u[c] += (ux - u[c]) * k; v[c] += (uz - v[c]) * k; continue; }
+                if (a > 0 && a < nx - 1 && b > 0 && b < nz - 1) continue;
+                const ci = Math.min(nz - 2, Math.max(1, b)) * nx + Math.min(nx - 2, Math.max(1, a)); u[c] = u[ci]; v[c] = v[ci];
+              }
+            };
+            edges();
+            const p = F.p, p2 = F.p2, dv = F.dv;   // chiếu không phân kỳ: ∇²p = ∇·u (Jacobi, khởi động ấm) · mép gió vào ∂p/∂n = 0, mép gió ra p = 0 · u −= ∇p
+            for (let b = 1; b < nz - 1; b++) for (let a = 1; a < nx - 1; a++) { const c = b * nx + a; dv[c] = ((u[c + 1] - u[c - 1]) + (v[c + nx] - v[c - nx])) * 0.5 * dx; }
+            for (let it = 0; it < F.iters; it++) {
+              for (let b = 1; b < nz - 1; b++) for (let a = 1; a < nx - 1; a++) { const c = b * nx + a; p2[c] = (p[c - 1] + p[c + 1] + p[c - nx] + p[c + nx] - dv[c]) * 0.25; }
+              for (let b = 0; b < nz; b++) { const l = b * nx, r = l + nx - 1; p2[l] = iL ? p2[l + 1] : 0; p2[r] = iR ? p2[r - 1] : 0; }
+              for (let a = 0; a < nx; a++) { const t = a, bo = (nz - 1) * nx + a; p2[t] = iT ? p2[t + nx] : 0; p2[bo] = iB ? p2[bo - nx] : 0; }
+              p.set(p2);
+            }
+            for (let b = 1; b < nz - 1; b++) for (let a = 1; a < nx - 1; a++) { const c = b * nx + a; u[c] -= (p[c + 1] - p[c - 1]) * 0.5 / dx; v[c] -= (p[c + nx] - p[c - nx]) * 0.5 / dx; }
+            edges(); F.U0 = U0;
+          }
+          function encodeWind(out) {   // RGBA half-float: gió TB chuẩn hoá theo gió tự do × độ phơi (x, z) · hệ số nhiễu loạn · |gió| chuẩn hoá
+            const F = WF, U0 = F.U0 || 1;
+            for (let c = 0; c < F.N; c++) {
+              const e = F.expo[c], mx = F.u[c] / U0 * e, mz = F.v[c] / U0 * e, sp = Math.hypot(mx, mz);
+              const tb = Math.min(1.8, Math.max(0.55, 0.65 + 0.35 * Math.min(1.2, sp) + 1.6 * Math.abs(F.w[c]) * F.dx / U0));   // mép vệt khuất gió / sau vật cản: nhiễu loạn mạnh hơn
+              out[c * 4] = toHalf(mx); out[c * 4 + 1] = toHalf(mz); out[c * 4 + 2] = toHalf(tb); out[c * 4 + 3] = toHalf(sp);
+            }
+            return out;
+          }
+
           function handle(m) {
             if (m.t === 'water') { initWater(m.grid); for (let t = 0; t < m.warm; t += WSTEP) stepWater(WSTEP, 0, 0); return null; }   // chạy trước ~40 s cho dòng ổn định
             if (m.t === 'smoke') { initSmoke(m.cfg); return null; }
+            if (m.t === 'wind') { initWind(m.cfg); return null; }
             if (m.t !== 'step') return null;
             const transfer = [], res = { t: 'out' };
             if (W) {
@@ -3340,9 +3440,14 @@
               const P = bp && bp.byteLength === NV * 12 ? new Float32Array(bp) : new Float32Array(NV * 3), D = bd && bd.byteLength === NV * 4 ? new Uint8Array(bd) : new Uint8Array(NV * 4);
               buildSmoke(k, P, D); res.smoke = { pos: P.buffer, d: D.buffer }; transfer.push(P.buffer, D.buffer);
             }
+            if (WF && m.wind2) {   // bản đồ gió: bước cố định 0,05 s, gửi về khi có bước mới
+              WF.acc = Math.min(WF.acc + m.dt, 0.2); let n = 0;
+              while (WF.acc >= 0.05) { stepWind(0.05, m.wind2[0], m.wind2[1]); WF.acc -= 0.05; n++; }
+              if (n) { const b = m.bufs.wmap && m.bufs.wmap.byteLength === WF.N * 8 ? new Uint16Array(m.bufs.wmap) : new Uint16Array(WF.N * 4); res.wmap = encodeWind(b).buffer; transfer.push(res.wmap); }
+            }
             return { msg: res, transfer };
           }
-          return { handle, smokeState: () => SM };   // smokeState: cho bộ thử ngoài (Node) đọc trường khói
+          return { handle, smokeState: () => SM, windState: () => WF };   // smokeState: cho bộ thử ngoài (Node) đọc trường khói
         }
 
         fluids = (() => {
@@ -3378,7 +3483,7 @@
           wTex.magFilter = wTex.minFilter = THREE.LinearFilter; wTex.generateMipmaps = false; wTex.needsUpdate = true; wTex.name = 'Mô phỏng nước nông';
           const P2 = Array.from({ length: 31 }, (_, e) => Math.pow(2, e - 15));
           const half = hv => { const e = (hv >> 10) & 0x1f, m = hv & 0x3ff, s = hv & 0x8000 ? -1 : 1; return e ? s * P2[e] * (1 + m / 1024) : s * m * 5.960464477539063e-8; };
-          let wData = null, spareW = null;
+          let wData = null, spareW = null, spareWind = null, windCfg = null;
           function sampleW(x, z, ch) {
             if (!wData) return 0;
             const fx = Math.min(nx - 1.0001, Math.max(0, (x - x0) / dx - 0.5)), fz = Math.min(nz - 1.0001, Math.max(0, (z - z0) / dx - 0.5));
@@ -3425,6 +3530,12 @@
           function onOut(m) {
             busy = false;
             if (m.water) { const arr = new Uint16Array(m.water); spareW = wData ? wData.buffer : null; wData = arr; wTex.image.data = arr; wTex.needsUpdate = true; if (!water.ready) { water.ready = true; waterU.uSimOn.value = 1; } }
+            if (m.wmap) {   // bản đồ gió mới: thay dữ liệu texture + mảng đọc trên CPU (windMapSample)
+              const arr = new Uint16Array(m.wmap), tx = sceneWind.u.uWMap.value; spareWind = windMap.data ? windMap.data.buffer : null; windMap.data = arr;
+              if (tx.image.width !== windMap.nx) { const t2 = new THREE.DataTexture(arr, windMap.nx, windMap.nz, THREE.RGBAFormat, THREE.HalfFloatType); t2.magFilter = t2.minFilter = THREE.LinearFilter; t2.generateMipmaps = false; t2.name = 'Bản đồ gió NS'; sceneWind.u.uWMap.value = t2; tx.dispose(); t2.needsUpdate = true; }
+              else { tx.image.data = arr; tx.needsUpdate = true; }
+              if (!windMap.on) windMap.on = 1e-3;
+            }
             if (m.smoke && smoke) {
               const at = smoke.geo.attributes, P = new Float32Array(m.smoke.pos), D = new Uint8Array(m.smoke.d);
               at.position.array.set(P); at.aD.array.set(D); at.position.needsUpdate = at.aD.needsUpdate = true; smoke.spare = [P.buffer, D.buffer];
@@ -3444,7 +3555,12 @@
           post(initMsg);
           sceneEvents.signal.addEventListener('abort', () => { worker?.terminate(); worker = null; if (url) URL.revokeObjectURL(url); });
           return {
-            water, addSmoke, wCells,
+            water, addSmoke, wCells, windCfg: () => windCfg,   // windCfg: cấu hình bản đồ gió (vật cản, độ phơi) — gỡ lỗi
+            initWind(cfg) {   // nature/wind-field.js gọi sau khi cảnh dựng xong: lưới vật cản + độ phơi gió
+              cfg.warm = worker ? 30 : 3; windCfg = cfg; Object.assign(windMap, { x0: cfg.x0, z0: cfg.z0, nx: cfg.nx, nz: cfg.nz, dx: cfg.dx });
+              sceneWind.u.uWBox.value.set(cfg.x0, cfg.z0, 1 / (cfg.nx * cfg.dx), 1 / (cfg.nz * cfg.dx));
+              post({ t: 'wind', cfg });
+            },
             splash(x, z, r, s) {   // vật chạm nước tại (x, z) thế giới: bán kính r (đv), cường độ s (m lún xuống)
               if (nImp >= 96) return;
               imp.set([(x - x0) / dx, (z - z0) / dx, r / dx, s], nImp * 4); nImp++;
@@ -3455,6 +3571,12 @@
               for (let k = Math.round(rain * 6 * (0.5 + Math.random())); k > 0; k--) { const c = wCells[(Math.random() * wCells.length) | 0], a = c % nx, b = (c / nx) | 0; this.splash(x0 + (a + 0.5) * dx, z0 + (b + 0.5) * dx, 0.5, 0.008 + 0.01 * Math.random()); }
               const msg = { t: 'step', dt: Math.min(accDt, 0.1), nImp, imp: imp.slice(0, nImp * 4), wind: [sceneWind.dir.x * sceneWind.U * 0.0036, sceneWind.dir.y * sceneWind.U * 0.0036], bufs: { water: spareW } };
               const transfer = spareW ? [spareW] : []; spareW = null; nImp = 0; accDt = 0;
+              if (windCfg) {   // mép gió vào: giải theo đơn vị CHUẨN HOÁ (gió tự do = 1, chỉ đổi hướng) ⇒ gió mạnh/yếu đi thì bản đồ đúng ngay, tốc độ thật nhân ở windVec/windAt
+                msg.wind2 = [sceneWind.dir.x, sceneWind.dir.y];
+                if (spareWind) { msg.bufs.wmap = spareWind; transfer.push(spareWind); spareWind = null; }
+                if (windMap.on && windMap.on < 1) { windMap.on = Math.min(1, windMap.on + Math.min(dt, 0.1) / 3); }   // hiện dần trong 3 s
+                sceneWind.u.uWOn.value = windMap.on;
+              }
               if (smoke) {
                 smoke.mesh.visible = smoke.on;
                 if (smoke.on) {   // gió thật 9 tầng trên tâm lửa · hướng nhìn (dải quay mặt về camera) · cỡ 1 điểm ảnh (sợi xa vẫn ≥ ~2 px)
@@ -4848,7 +4970,7 @@
           oldTreeWind = oldTreeGroup.userData.treeWind; finalizeTreeWind(oldTreeWind, oldTreeGroup);   // gốc/chiều cao/tán đo SAU khi thu theo NATURE_SCALE
           oldTreeLeafCtl = makeLeafFall({ name: 'Lá cây cổ thụ rụng theo gió', group: oldTreeGroup, pts: oldTreeGroup.userData.leafPts, n: 16,
             geo: new THREE.CylinderGeometry(0.045 * 2.3, 0.045 * 2.3, 0.0015 * 2.3, 6), opacity: 0.76, color: () => Math.random() < 0.85 ? 0xe5b82c : 0x5e8c44,   // 85% lá vàng, 15% lá xanh
-            scale: NATURE_SCALE, tw: oldTreeWind, g: 3.5, vTerm: 0.7, flutA: 0.7, flutW: [2.2, 3.2], tumble: 0.35, tumbleW: [6, 10], slideU: 0.6, rate0: 0.1, rateK: 1.2, restLife: [12, 24], floatLife: [30, 55], sinkP: 0.35, sinkV: [0.06, 0.1], leeway: 0.03 });
+            scale: NATURE_SCALE, tw: oldTreeWind, g: 3.5, vTerm: 0.7, flutA: 0.7, flutW: [2.2, 3.2], tumble: 0.35, tumbleW: [6, 10], slideU: 0.6, rate0: 0.05, rateK: 3.0, shake0: 0.012, restLife: [12, 24], floatLife: [30, 55], sinkP: 0.35, sinkV: [0.06, 0.1], leeway: 0.03 });
         }
 
         const hiVis = new THREE.MeshLambertMaterial({ color: 0xf0a500 }), engPants = new THREE.MeshLambertMaterial({ color: 0x3a4a63 }),
@@ -10350,6 +10472,77 @@
           }
           return { group: pond, flowers, pads, update };
         })();
+        let forestLeafCtl = null;
+        {
+          const DX = 2.4, SLICE = 4, x0 = wx(-MX) - BLOCK / 2, z0 = wz(-MZ) - BLOCK / 2;
+          const nx = Math.ceil((GX + 2 * MX) * BLOCK / DX), nz = Math.ceil((GZ + 2 * MZ) * BLOCK / DX), N = nx * nz;
+          const drag = new Float32Array(N), expo = new Float32Array(N), ground = new Float32Array(N), wet = new Uint8Array(N);
+          for (let b = 0; b < nz; b++) for (let a = 0; a < nx; a++) {   // mặt đất (mặt nước ở ô sông/hồ) tại tâm ô
+            const c = b * nx + a, x = x0 + (a + 0.5) * DX, z = z0 + (b + 0.5) * DX, gi = Math.round(x2gi(x)), gj = Math.round(z2gj(z));
+            wet[c] = waterCell(gi, gj) ? 1 : 0; ground[c] = wet[c] ? waterBaseY(gj) : cowY(x, z);
+          }
+          const box = new THREE.Box3();
+          const addBox = (bx, k) => {   // vật cản đặc: ô có tâm nằm trong hộp; cản theo phần chiều cao vật chạm lát cắt
+            const a0 = Math.max(0, Math.floor((bx.min.x - x0) / DX)), a1 = Math.min(nx - 1, Math.floor((bx.max.x - x0) / DX)), b0 = Math.max(0, Math.floor((bx.min.z - z0) / DX)), b1 = Math.min(nz - 1, Math.floor((bx.max.z - z0) / DX));
+            for (let b = b0; b <= b1; b++) for (let a = a0; a <= a1; a++) { const c = b * nx + a; drag[c] = Math.max(drag[c], k * Math.min(1, Math.max(0, (bx.max.y - ground[c]) / SLICE))); }
+          };
+          const addDisc = (x, z, r, k) => {   // tán thưa: cản lớn ở giữa, nhạt dần ra mép
+            const a0 = Math.max(0, Math.floor((x - r - x0) / DX)), a1 = Math.min(nx - 1, Math.floor((x + r - x0) / DX)), b0 = Math.max(0, Math.floor((z - r - z0) / DX)), b1 = Math.min(nz - 1, Math.floor((z + r - z0) / DX));
+            for (let b = b0; b <= b1; b++) for (let a = a0; a <= a1; a++) {
+              const d = Math.hypot(x0 + (a + 0.5) * DX - x, z0 + (b + 0.5) * DX - z) / Math.max(r, DX * 0.6);
+              if (d < 1) { const c = b * nx + a; drag[c] = Math.max(drag[c], Math.min(0.3, drag[c] + k * (1 - d))); }
+            }
+          };
+          const SOLID = [['Trạm thủy điện', 6], ['Nhà điều hành', 6], ['Xưởng bảo trì', 6], ['Nhà thiết bị', 6], ['Nhà kho mái pin', 5], ['Chuồng bò', 4], ['Xe Caravan', 6],
+            ['Bồn chứa nước', 3], ['Bồn nước nông thôn', 3], ['Cụm pin lưu trữ', 2], ['Trạm biến áp', 0.6], ['Cánh đồng pin mặt trời', 0.02]];
+          for (const o of scene.children) { const s = o.name && SOLID.find(([p]) => o.name.startsWith(p)); if (s) addBox(box.setFromObject(o), s[1]); }
+          const canopy = [], _m = new THREE.Matrix4(), _p = new THREE.Vector3(), _q = new THREE.Quaternion(), _s = new THREE.Vector3();
+          scene.traverse(o => {
+            if (!o.isInstancedMesh || o.material !== leafMatInst) return;
+            for (let k = 0; k < o.count; k++) { o.getMatrixAt(k, _m); _m.premultiply(o.matrixWorld).decompose(_p, _q, _s); addDisc(_p.x, _p.z, _s.x * 1.1, 0.025); canopy.push(_p.x, _p.y, _p.z, _s.x); }
+          });
+          for (const tw of [oldTreeWind, cherryWind]) if (tw && tw.active) addDisc(tw.crown.x, tw.crown.z, tw.R, 0.12);
+          for (const T of appleTrees) {
+            T.updateMatrixWorld(true); addDisc(T.position.x, T.position.z, 2.6, 0.12);
+            const L = T.userData.leafPts || []; for (let k = 0; k < L.length; k += 3) { _p.set(L[k][0], L[k][1], L[k][2]).applyMatrix4(T.matrixWorld); canopy.push(_p.x, _p.y, _p.z, 0.3); }
+          }
+          const hs = new Float32Array(N), tmp = new Float32Array(N), R = 6;
+          for (let b = 0; b < nz; b++) for (let a = 0; a < nx; a++) { let s = 0, n = 0; for (let d = -R; d <= R; d++) { const aa = a + d; if (aa >= 0 && aa < nx) { s += ground[b * nx + aa]; n++; } } tmp[b * nx + a] = s / n; }
+          for (let b = 0; b < nz; b++) for (let a = 0; a < nx; a++) { let s = 0, n = 0; for (let d = -R; d <= R; d++) { const bb = b + d; if (bb >= 0 && bb < nz) { s += tmp[bb * nx + a]; n++; } } hs[b * nx + a] = s / n; }
+          for (let c = 0; c < N; c++) expo[c] = Math.min(1.35, Math.max(0.75, 1 + 0.045 * (ground[c] - hs[c]))) * (wet[c] ? 1.12 : 1);
+          fluids.initWind({ x0, z0, nx, nz, dx: DX, drag, expo, lrec: 16, conf: 0.25, iters: 30, sliceH: SLICE, ux: sceneWind.dir.x, uz: sceneWind.dir.y });
+          const NC = canopy.length / 4, _w = new THREE.Vector3(), _mm = new THREE.Vector3(), _cd = new THREE.Vector3(), best = new THREE.Vector4();
+          let bestK = 0;
+          const nearView = () => {   // chọn ngẫu nhiên 1 điểm tán trong vùng đất đang thấy
+            const hx = (camera.right - camera.left) / 2 / camera.zoom, hy = (camera.top - camera.bottom) / 2 / camera.zoom;
+            camera.getWorldDirection(_cd); const rv = Math.hypot(hx, hy / Math.max(0.12, -_cd.y));
+            for (let t = 0; t < 24; t++) { const i = ((Math.random() * NC) | 0) * 4; if (Math.hypot(canopy[i] - target.x, canopy[i + 2] - target.z) < rv) return i; }
+            return -1;
+          };
+          const root = new THREE.Object3D(); root.updateMatrixWorld();
+          forestLeafCtl = makeLeafFall({ name: 'Lá rừng rụng theo cơn giật', group: root, pts: [[0, -999, 0]], n: 60,
+            geo: new THREE.CylinderGeometry(0.045 * 2.1, 0.045 * 2.1, 0.0015 * 2.1, 6), opacity: 0.78,
+            color: () => [0xd9a93a, 0xc08a2e, 0xa8742c, 0x6f9a4b, 0x5e8c44][(Math.random() * 5) | 0],   // lá già vàng nâu bứt trước, ít lá xanh
+            scale: NATURE_SCALE, tw: null, g: 3.5, vTerm: 0.7, flutA: 0.6, flutW: [2.2, 3.4], tumble: 0.35, tumbleW: [6, 10], slideU: 0.6, rate0: 0, rateK: 0,
+            restLife: [10, 20], floatLife: [25, 45], sinkP: 0.3, sinkV: [0.06, 0.1], leeway: 0.03,
+            rate: () => {   // số lá bứt ra mỗi giây (cộng dồn), chỉ tính các tán đang thấy
+              let sum = 0; bestK = 0;
+              for (let k = 0; k < 4; k++) {
+                const i = nearView(); if (i < 0) continue;
+                const x = canopy[i], y = canopy[i + 1], z = canopy[i + 2], zu = Math.max(1, y - cowY(x, z));
+                windAt(x, y, z, zu, _w); windMapSample(x, z, _mm);
+                const mean = Math.max(0.05, Math.hypot(_mm.x, _mm.y) * sceneWind.U * windProfile(zu)), sp = Math.hypot(_w.x, _w.z);
+                const kk = Math.pow(sp / WIND_SREF, 2.6) * Math.pow(Math.max(0, sp / mean - 1.25), 1.5);   // (lực gió)² × độ "giật" so với nền tại chỗ: gió nhẹ hầu như không bứt lá
+                sum += kk; if (kk > bestK) { bestK = kk; best.set(x, y, z, canopy[i + 3]); }
+              }
+              return 5 * sum;
+            },
+            pick: () => {   // bứt ra ở điểm tán bị giật mạnh nhất vừa thử, trên mặt khối tán
+              if (bestK <= 0) return null;
+              const a = Math.random() * TAU, r = best.w * 0.8;
+              return [best.x + Math.cos(a) * r, best.y - Math.random() * r * 0.5, best.z + Math.sin(a) * r];
+            } });
+        }
         const meadow = (() => {
           const rnd = mulberry32(4545), CH = 24;
           const hsh = (a, b) => { const s = Math.sin(a * 127.1 + b * 311.7) * 43758.545; return s - Math.floor(s); };
@@ -12674,7 +12867,8 @@
           lotusPond.update(dt, t);
           meadow.update(dt, t);   // thảm cỏ: LOD theo mức phóng, cắt khung nhìn, gió, giẫm, ráng chiều   // đầm sen: lá nổi theo sóng, cuống ngả theo gió, hoa nở/khép theo giờ, giọt sương
           if (cherryCtl) updateLeafFall(cherryCtl, dt, t);           // cánh hoa anh đào rụng theo gió, rơi xuống sông thì nổi, trôi, có chiếc chìm
-          if (oldTreeLeafCtl) updateLeafFall(oldTreeLeafCtl, dt, t);   // lá vàng cây cổ thụ
+          if (oldTreeLeafCtl) updateLeafFall(oldTreeLeafCtl, dt, t);
+          if (forestLeafCtl) updateLeafFall(forestLeafCtl, dt, t);   // lá rừng + cây táo bứt theo cơn giật trong vùng đang nhìn   // lá vàng cây cổ thụ
           waterFx.update(dt, t);                                     // gợn nước nhỏ (lá chạm nước, cá đớp) + bọt khí
           for (const lamp of streetLamps) {   // đèn đường: tắt ban ngày, sáng ấm ban đêm
             lamp.light.intensity = 60 * nightFactor; lamp.ledMat.color.setRGB(0.37 + 0.63 * nightFactor, 0.38 + 0.55 * nightFactor, 0.4 + 0.32 * nightFactor);

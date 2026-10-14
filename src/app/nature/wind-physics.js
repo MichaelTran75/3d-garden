@@ -14,8 +14,22 @@
           k: 0.27, gust: 1, sceneSpeed: 0.69,   // giữ tên cũ cho chỗ khác đọc
           modes: [], phase: new Float64Array(WIND_N), flutPhase: 0,
           u: { uTime: { value: 0 }, uWindDir: { value: new THREE.Vector2(0.977, 0.213) }, uWindU: { value: 0.69 }, uFlutPhase: { value: 0 },
-            uTk: { value: Array.from({ length: WIND_N }, () => new THREE.Vector4()) }, uTa: { value: Array.from({ length: WIND_N }, () => new THREE.Vector4()) } }
+            uTk: { value: Array.from({ length: WIND_N }, () => new THREE.Vector4()) }, uTa: { value: Array.from({ length: WIND_N }, () => new THREE.Vector4()) },
+            uWMap: { value: new THREE.DataTexture(new Uint16Array(4), 1, 1, THREE.RGBAFormat, THREE.HalfFloatType) }, uWBox: { value: new THREE.Vector4(0, 0, 1, 1) }, uWOn: { value: 0 } }
         };
+        // ---- BẢN ĐỒ GIÓ Navier–Stokes 2D ở độ cao tán (nature/fluids.js giải ở luồng phụ, nature/wind-field.js dựng vật cản): mỗi ô RGBA half-float =
+        //      gió trung bình CHUẨN HOÁ theo gió tự do (x, z — đã gồm hướng: sau nhà/xe/rừng nhỏ đi, lệch hướng vòng qua vật cản; đỉnh đồi, mặt hồ lớn hơn)
+        //      · hệ số nhiễu loạn (mép vệt khuất gió cao hơn). on: 0 → 1 trong 3 s khi có kết quả đầu (khỏi giật cảnh) ----
+        const windMap = { on: 0, data: null, x0: 0, z0: 0, nx: 1, nz: 1, dx: 1 };
+        const _hP2 = Array.from({ length: 31 }, (_, e) => Math.pow(2, e - 15));
+        const halfF = hv => { const e = (hv >> 10) & 0x1f, m = hv & 0x3ff, sg = hv & 0x8000 ? -1 : 1; return e ? sg * _hP2[e] * (1 + m / 1024) : sg * m * 5.960464477539063e-8; };
+        function windMapSample(x, z, out) {   // → out (gió TB chuẩn hoá x, z · hệ số nhiễu loạn); khớp phép lấy mẫu LinearFilter trên GPU
+          const M = windMap, D = sceneWind.dir; out.set(D.x, D.y, 1); if (!M.on || !M.data) return out;
+          const fx = Math.min(M.nx - 1.0001, Math.max(0, (x - M.x0) / M.dx - 0.5)), fz = Math.min(M.nz - 1.0001, Math.max(0, (z - M.z0) / M.dx - 0.5));
+          const a = fx | 0, b = fz | 0, tx = fx - a, tz = fz - b, c = (b * M.nx + a) * 4, r = M.nx * 4, d = M.data, k = M.on;
+          const s = ch => (halfF(d[c + ch]) * (1 - tx) + halfF(d[c + 4 + ch]) * tx) * (1 - tz) + (halfF(d[c + r + ch]) * (1 - tx) + halfF(d[c + r + 4 + ch]) * tx) * tz;
+          return out.set(D.x + (s(0) - D.x) * k, D.y + (s(1) - D.y) * k, 1 + (s(2) - 1) * k);
+        }
         { const r = mulberry32(51423); let sum = 0;
           for (let n = 0; n < WIND_N; n++) {
             const lam = WIND_LAMS[n], k = TAU / lam, th = r() * TAU, el = (r() - 0.5) * 1.2;
@@ -35,18 +49,23 @@
           for (let n = 0; n < WIND_N; n++) { const k = _wkW[n], a = _waW[n], c = Math.cos(k.x * x + k.y * y + k.z * z + P[n]); out.x += a.x * c; out.y += a.y * c; out.z += a.z * c; }
           return out;
         }
-        function windAt(x, y, z, zAbove, out) {   // gió (đv/s) tại điểm có độ cao zAbove trên mặt đất: trung bình theo profile log + nhiễu loạn
-          const f = windProfile(zAbove), g = Math.min(1.1, Math.max(0.3, 0.35 + 0.65 * f));
-          windTurb(x, y, z, out).multiplyScalar(g);
-          out.x += sceneWind.dir.x * sceneWind.U * f; out.z += sceneWind.dir.y * sceneWind.U * f;
+        const _wmS = new THREE.Vector3();
+        function windAt(x, y, z, zAbove, out) {   // gió (đv/s) tại điểm có độ cao zAbove trên mặt đất: trung bình (bản đồ gió × profile log) + nhiễu loạn
+          const f = windProfile(zAbove), g = Math.min(1.1, Math.max(0.3, 0.35 + 0.65 * f)), m = windMapSample(x, z, _wmS);
+          windTurb(x, y, z, out).multiplyScalar(g * m.z);
+          out.x += m.x * sceneWind.U * f; out.z += m.y * sceneWind.U * f;
           return out;
         }
         // cùng công thức trên GPU (6 cos/đỉnh) — CPU & GPU dùng chung pha/véc-tơ sóng nên vật đậu trên cành khớp đúng cành
         const WIND_GLSL_COMMON = `
           uniform float uTime; uniform vec2 uWindDir; uniform float uWindU; uniform vec4 uTk[${WIND_N}]; uniform vec4 uTa[${WIND_N}]; uniform float uFlutPhase;
+          uniform sampler2D uWMap; uniform vec4 uWBox; uniform float uWOn;
           vec3 windTurb(vec3 p) { vec3 u = vec3(0.0); for (int i = 0; i < ${WIND_N}; i++) u += uTa[i].xyz * cos(dot(uTk[i].xyz, p) + uTa[i].w); return u; }
           float windProf(float zu) { return log(max(zu * ${WIND_M_PER_U.toFixed(2)}, ${(2 * WIND_Z0).toFixed(2)}) / ${WIND_Z0.toFixed(2)}) / ${Math.log(10 / WIND_Z0).toFixed(6)}; }
-          vec3 windVec(vec3 p, float zu) { float f = windProf(zu); return vec3(uWindDir.x, 0.0, uWindDir.y) * (uWindU * f) + windTurb(p) * clamp(0.35 + 0.65 * f, 0.3, 1.1); }`;
+          vec3 windVec(vec3 p, float zu) {
+            float f = windProf(zu); vec3 m = mix(vec3(uWindDir, 1.0), texture2D(uWMap, (p.xz - uWBox.xy) * uWBox.zw).xyz, uWOn);   // bản đồ gió NS: hướng + độ lớn TB · nhiễu loạn
+            return vec3(m.x, 0.0, m.y) * (uWindU * f) + windTurb(p) * (clamp(0.35 + 0.65 * f, 0.3, 1.1) * m.z);
+          }`;
         // Dịch đỉnh trong HỆ THẾ GIỚI (sau instanceMatrix + modelMatrix) — mọi lá/cọng dù xoay ngẫu nhiên đều theo cùng 1 trường gió
         function injectWorldWind(mat, own, header, dispExpr, key) {
           mat.onBeforeCompile = (shader) => {
@@ -74,17 +93,24 @@
         //      Lực ∝ |U|^(2+V) với số mũ Vogel V ≈ −0,7 (tán và lá xếp gọn khi gió to ⇒ lực tăng chậm hơn bình phương); hệ số tắt dần = cấu trúc
         //      (lá làm tăng) + khí động (tăng theo gió); lắc ngang gió đến từ thành phần nhiễu loạn ngang chứ không phải sóng sin dựng sẵn.
         //      Cành: tần số riêng 1–3 Hz cao hơn tần số cơn giật ⇒ đáp ứng gần như tĩnh với gió ĐỊA PHƯƠNG tại chính cành (bị gió "đánh" — buffeting).
-        //      Lá: rung (flutter) tần số chỉ tăng nhẹ theo gió, biên độ bão hoà — đúng quan sát gió nhẹ do lá rung chi phối, gió mạnh do cành chi phối. ----
-        const treeWinds = [];
+        //      Lá: rung (flutter) tần số chỉ tăng nhẹ theo gió, biên độ bão hoà — đúng quan sát gió nhẹ do lá rung chi phối, gió mạnh do cành chi phối.
+        //      CÀNH CÓ QUÁN TÍNH (3 dao động riêng ghép với thân — "giảm chấn đa cộng hưởng", Spatz 2007 · "giảm chấn khối lượng", James 2003): cành lớn
+        //      tần số ≈ 1,15× thân (điều hưởng gần thân để hút năng lượng), cành vừa 2,1×, cành nhỏ 3,4×; mỗi cành bị gió ĐỊA PHƯƠNG ở phía tán của nó đẩy và
+        //      bị thân GIẬT (gia tốc gốc) ⇒ lắc lệch pha thân, phản lực cành làm thân tắt dần nhanh hơn. Trên GPU: 3 dạng theo hướng quanh thân
+        //      (lưỡng cực, tứ cực, lục cực) ⇒ cành hai phía tán chuyển động khác nhau. Tích phân bước cố định 120 Hz + vẽ nội suy (core/fixed-step.js).
+        //      tw.shake = gia tốc tuyệt đối lớn nhất của cành (giữ đỉnh, nhả 0,4 s) → lá bứt rụng khi cành giật mạnh (nature/water-leaves.js). ----
+        const treeWinds = [], BR_K = [1.15, 2.1, 3.4], BR_MU = [0.18, 0.1, 0.05], BR_PH = [0, 1.7, 4.1];   // cành: tần số / tần số thân · tỉ lệ khối lượng với thân · pha quanh thân
         const TREE_GLSL = `
-          uniform vec3 uTreeBase; uniform vec4 uTreeDim; uniform vec2 uBend; uniform float uFlutter; uniform float uLeafLean;
+          uniform vec3 uTreeBase; uniform vec4 uTreeDim; uniform vec2 uBend; uniform float uFlutter; uniform float uLeafLean; uniform vec2 uBr[3];
           vec3 treeWind(vec3 wp, vec3 seed) {
             vec3 rel = wp - uTreeBase, d = vec3(0.0);
             float h = max(0.0, rel.y) / uTreeDim.x, hb = h * h;
             d.xz += uBend * hb;                                                    // cả cây nghiêng theo lò xo (dịch chuyển ∝ h²)
             float rn = length(rel.xz) / uTreeDim.y, flex = uTreeDim.w * min(rn * rn + hb * 0.3, 1.6);
             vec3 w = windVec(wp, rel.y);
-            d += flex * w * pow(length(w) + 1e-3, 0.3);                            // cành: lực ∝ |w|^1,3 tại chính chỗ đó
+            d += 0.6 * flex * w * pow(length(w) + 1e-3, 0.3);                      // cành: lực ∝ |w|^1,3 tại chính chỗ đó (tựa tĩnh)
+            float az = atan(rel.z, rel.x);                                          // + dao động riêng của cành, mỗi phía tán một pha
+            d.xz += (uBr[0] * (0.5 + 0.5 * cos(az)) + uBr[1] * (0.5 + 0.5 * cos(2.0 * az + 1.7)) + uBr[2] * (0.5 + 0.5 * cos(3.0 * az + 4.1))) * min(rn * rn + hb * 0.3, 1.6);
             if (uLeafLean > 0.0) {   // LÁ NGẢ NHƯ CỎ: cả chiếc lá nghiêng theo gió tại chính nó, góc bão hoà; cơn giật qua thì ngả thêm, lặng thì co về
               vec3 wl = windVec(seed, clamp(seed.y - uTreeBase.y, 1.0, 15.0)); float sp = length(wl.xz);
               float th = 1.15 * (1.0 - exp(-0.75 * pow(sp, 1.3)));
@@ -101,12 +127,13 @@
           }`;
         function windShader(mat, tw, flutter) {
           mat.userData.treeWind = tw;
-          return injectWorldWind(mat, { uTreeBase: tw.u.uTreeBase, uTreeDim: tw.u.uTreeDim, uBend: tw.u.uBend, uFlutter: { value: flutter * TREE_SWAY_K * 0.3 }, uLeafLean: { value: flutter * 3 } }, TREE_GLSL,
-            'treeWind( windW.xyz, ( modelMatrix * vec4( windSeed, 1.0 ) ).xyz )', 'treeWind2');
+          return injectWorldWind(mat, { uTreeBase: tw.u.uTreeBase, uTreeDim: tw.u.uTreeDim, uBend: tw.u.uBend, uBr: tw.u.uBr, uFlutter: { value: flutter * TREE_SWAY_K * 0.3 }, uLeafLean: { value: flutter * 3 } }, TREE_GLSL,
+            'treeWind( windW.xyz, ( modelMatrix * vec4( windSeed, 1.0 ) ).xyz )', 'treeWind3');
         }
         function makeTreeWind(o) {   // o: freq (Hz), zeta (tắt dần cấu trúc), lean (đv ở ngọn khi gió 30 km/h), branchAmp (độ mềm ngọn cành)
-          const tw = Object.assign({ bx: 0, bz: 0, vx: 0, vz: 0, H: 1, R: 1, F: 0, active: false, crown: new THREE.Vector3(), crownZ: 1 }, o, { lean: o.lean * TREE_SWAY_K, branchAmp: o.branchAmp * TREE_SWAY_K });
-          tw.u = { uTreeBase: { value: new THREE.Vector3(0, -1e4, 0) }, uTreeDim: { value: new THREE.Vector4(1, 1, 0, tw.branchAmp) }, uBend: { value: new THREE.Vector2() } };
+          const tw = Object.assign({ bx: 0, bz: 0, vx: 0, vz: 0, px: 0, pz: 0, ex: 0, ez: 0, aero: 0, H: 1, R: 1, F: 0, shake: 0, shakeRaw: 0, active: false, crown: new THREE.Vector3(), crownZ: 1, ph: {} }, o, { lean: o.lean * TREE_SWAY_K, branchAmp: o.branchAmp * TREE_SWAY_K });
+          tw.br = BR_K.map(() => ({ x: 0, z: 0, vx: 0, vz: 0, px: 0, pz: 0, ex: 0, ez: 0 }));
+          tw.u = { uTreeBase: { value: new THREE.Vector3(0, -1e4, 0) }, uTreeDim: { value: new THREE.Vector4(1, 1, 0, tw.branchAmp) }, uBend: { value: new THREE.Vector2() }, uBr: { value: BR_K.map(() => new THREE.Vector2()) } };
           tw.depthMat = windShader(new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking }), tw, 0);   // bóng đổ đung đưa cùng cây
           treeWinds.push(tw); return tw;
         }
@@ -125,8 +152,10 @@
           out.set(0, 0, 0); if (!tw || !tw.active) return out;
           const B = tw.u.uBend.value, rx = p.x - tw.base.x, ry = p.y - tw.base.y, rz = p.z - tw.base.z, h = Math.max(0, ry) / tw.H, hb = h * h;
           const flex = tw.branchAmp * Math.min(Math.pow(Math.hypot(rx, rz) / tw.R, 2) + hb * 0.3, 1.6);
-          windAt(p.x, p.y, p.z, ry, _wtmp2); const L = flex * Math.pow(_wtmp2.length() + 1e-3, 0.3);
-          out.set(B.x * hb + _wtmp2.x * L, _wtmp2.y * L, B.y * hb + _wtmp2.z * L);
+          windAt(p.x, p.y, p.z, ry, _wtmp2); const L = 0.6 * flex * Math.pow(_wtmp2.length() + 1e-3, 0.3);
+          const az = Math.atan2(rz, rx), fb = Math.min(Math.pow(Math.hypot(rx, rz) / tw.R, 2) + hb * 0.3, 1.6), Br = tw.u.uBr.value;
+          const w0 = (0.5 + 0.5 * Math.cos(az)) * fb, w1 = (0.5 + 0.5 * Math.cos(2 * az + 1.7)) * fb, w2 = (0.5 + 0.5 * Math.cos(3 * az + 4.1)) * fb;
+          out.set(B.x * hb + _wtmp2.x * L + Br[0].x * w0 + Br[1].x * w1 + Br[2].x * w2, _wtmp2.y * L, B.y * hb + _wtmp2.z * L + Br[0].y * w0 + Br[1].y * w1 + Br[2].y * w2);
           out.y -= (B.x * B.x + B.y * B.y) * hb * 0.5 / Math.max(tw.H * Math.max(h, 0.2), 0.5);
           return out;
         }
@@ -218,16 +247,37 @@
             if (!tw.active || !tw.lean) continue;
             windAt(tw.crown.x, tw.crown.y, tw.crown.z, tw.crownZ, _wtmp);   // gió tại tâm áp lực tán
             const s = Math.hypot(_wtmp.x, _wtmp.z) + 1e-6, F = Math.pow(s / WIND_SREF, 1.3);
-            tw.F = F;                                                       // lực chuẩn hoá — lá rụng nhiều khi lực lớn
-            const ex = _wtmp.x / s * F * tw.lean, ez = _wtmp.z / s * F * tw.lean;
-            const om = TAU * tw.freq, ze = tw.zeta + 0.12 * Math.min(2, s / WIND_SREF), c2 = 2 * ze * om, o2 = om * om;
-            for (let k = 0, n = Math.ceil(h / 0.02); k < n; k++) {   // tích phân bán ẩn, bước ≤ 20 ms
-              const hh = h / n;
-              tw.vx += (o2 * (ex - tw.bx) - c2 * tw.vx) * hh; tw.bx += tw.vx * hh;
-              tw.vz += (o2 * (ez - tw.bz) - c2 * tw.vz) * hh; tw.bz += tw.vz * hh;
+            tw.F = F; tw.aero = 0.12 * Math.min(2, s / WIND_SREF);          // lực chuẩn hoá · tắt dần khí động tăng theo gió
+            tw.ex = _wtmp.x / s * F * tw.lean; tw.ez = _wtmp.z / s * F * tw.lean;
+            for (let i = 0; i < 3; i++) {   // gió ở từng phía tán: cơn giật chạm các cành lệch nhau → cành đẩy theo PHẦN CHÊNH so với tâm tán
+              const B = tw.br[i], a = BR_PH[i];
+              windAt(tw.crown.x + Math.cos(a) * tw.R * 0.6, tw.crown.y, tw.crown.z + Math.sin(a) * tw.R * 0.6, tw.crownZ, _wtmp2);
+              const s2 = Math.hypot(_wtmp2.x, _wtmp2.z) + 1e-6, F2 = Math.pow(s2 / WIND_SREF, 1.3) - F;
+              B.ex = _wtmp2.x / s2 * F2 * tw.lean * 0.45; B.ez = _wtmp2.z / s2 * F2 * tw.lean * 0.45;
             }
-            tw.u.uBend.value.set(tw.bx, tw.bz);
+            tw.shakeRaw = 0; const al = fixedSteps(tw.ph, dt, PHYS_H, hh => treeStep(tw, hh));
+            tw.shake = Math.max(tw.shakeRaw, tw.shake * Math.exp(-dt / 0.4));   // giữ đỉnh gia tốc cành, nhả dần
+            tw.u.uBend.value.set(tw.px + (tw.bx - tw.px) * al, tw.pz + (tw.bz - tw.pz) * al);
+            for (let i = 0; i < 3; i++) { const B = tw.br[i]; tw.u.uBr.value[i].set(B.px + (B.x - B.px) * al, B.pz + (B.z - B.pz) * al); }
           }
+        }
+        function treeStep(tw, hh) {   // 1 bước 1/120 s: thân (lò xo 2 chiều) + 3 cành ghép (toạ độ tương đối với thân, bị thân giật) — Euler bán ẩn
+          const om = TAU * tw.freq, o2 = om * om, c2 = 2 * (tw.zeta + tw.aero) * om;
+          let rx = 0, rz = 0;
+          for (let i = 0; i < 3; i++) {   // phản lực lò xo + giảm chấn của cành lên thân (theo tỉ lệ khối lượng)
+            const B = tw.br[i], ob = om * BR_K[i], cb = 2 * (0.07 + tw.aero) * ob;
+            rx += BR_MU[i] * (cb * B.vx + ob * ob * (B.x - B.ex)); rz += BR_MU[i] * (cb * B.vz + ob * ob * (B.z - B.ez));
+          }
+          const ax = o2 * (tw.ex - tw.bx) - c2 * tw.vx + rx, az = o2 * (tw.ez - tw.bz) - c2 * tw.vz + rz;
+          tw.px = tw.bx; tw.pz = tw.bz; tw.vx += ax * hh; tw.vz += az * hh; tw.bx += tw.vx * hh; tw.bz += tw.vz * hh;
+          let sh = 0;
+          for (let i = 0; i < 3; i++) {
+            const B = tw.br[i], ob = om * BR_K[i], cb = 2 * (0.07 + tw.aero) * ob;
+            const bx = ob * ob * (B.ex - B.x) - cb * B.vx - ax, bz = ob * ob * (B.ez - B.z) - cb * B.vz - az;   // cành: lò xo + giảm chấn − gia tốc thân
+            B.px = B.x; B.pz = B.z; B.vx += bx * hh; B.vz += bz * hh; B.x += B.vx * hh; B.z += B.vz * hh;
+            sh = Math.max(sh, Math.hypot(bx + ax, bz + az));   // gia tốc tuyệt đối của cành
+          }
+          tw.shakeRaw = Math.max(tw.shakeRaw, sh);
         }
         const _wq = new THREE.Quaternion(), _wpv = new THREE.Vector3(), _wsv = new THREE.Vector3(), _rotW = new THREE.Vector3();
         function windInLocal(obj, vec, out) {   // véc-tơ thế giới → hệ toạ độ của obj (độ dài theo đơn vị cục bộ)

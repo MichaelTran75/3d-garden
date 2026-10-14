@@ -7,6 +7,10 @@
         //     Mỗi khung trả về (độ cao mặt · vận tốc · bọt) dạng half-float → texture cho shader mặt nước + đọc trên CPU cho lá, cá, phao.
         //  2) KHÓI BẾP LỬA + HƠI ẤM REO: kỹ thuật luồng khói động cơ ở sân bay — trường Navier–Stokes đối xứng trục quanh cột khí nóng,
         //     hạt đi theo trường + rối Langevin + gió thật, vẽ thành dải sợi khói mép mềm (xem chi tiết ở mục 2 bên dưới).
+        //  3) BẢN ĐỒ GIÓ ở độ cao tán cây: Navier–Stokes không nén 2D (Stam "stable fluids") trên lưới 2,4 đv phủ cả đảo — cuốn theo chính nó
+        //     (bán Lagrange) → trộn động lượng từ lớp gió trên cao (vệt khuất gió phục hồi sau ~lrec, như hàng chắn gió thật: thấp nhất ở 3–5 H,
+        //     hồi lại ~10–30 H) → cản lỗ rỗng bậc 2 (tán lá thưa, nhà/xe/đập gần như kín) → giữ xoáy (vorticity confinement) → mép gió vào = gió
+        //     tự do, mép gió ra để trôi → chiếu không phân kỳ (Jacobi, khởi động ấm). Giải với gió tự do = 1 (đơn vị chuẩn hoá), nhân độ phơi gió địa hình.
         function fluidKernel() {   // JS thuần, không đọc biến bên ngoài → chạy được trong Worker lẫn trên luồng chính (dự phòng)
           const f32 = new Float32Array(1), i32 = new Int32Array(f32.buffer);
           function toHalf(val) {
@@ -290,10 +294,67 @@
             }
           }
 
+          // ---------------- 3) BẢN ĐỒ GIÓ 2D ----------------
+          let WF = null;
+          function initWind(c) {   // c: { nx, nz, dx, drag (cản lỗ rỗng /đv), expo (độ phơi gió địa hình), lrec, conf, iters, warm, ux, uz }
+            const N = c.nx * c.nz, A = () => new Float32Array(N);
+            WF = Object.assign({ N, u: A(), v: A(), u2: A(), v2: A(), p: A(), p2: A(), dv: A(), w: A(), acc: 0 }, c);
+            WF.u.fill(c.ux); WF.v.fill(c.uz);
+            for (let t = 0; t < c.warm; t += 0.05) stepWind(0.05, c.ux, c.uz);   // chạy trước cho vệt khuất gió & xoáy hình thành
+          }
+          function stepWind(dt, ux, uz) {
+            const F = WF, nx = F.nx, nz = F.nz, dx = F.dx, N = F.N, u = F.u, v = F.v, u2 = F.u2, v2 = F.v2, w = F.w, drag = F.drag, s = dt / dx;
+            const U0 = Math.max(1e-4, Math.hypot(ux, uz));
+            for (let b = 0; b < nz; b++) for (let a = 0; a < nx; a++) {   // cuốn theo chính nó (bán Lagrange)
+              const c = b * nx + a, x = a - u[c] * s, z = b - v[c] * s;
+              u2[c] = bil(u, nx, nz, x, z); v2[c] = bil(v, nx, nz, x, z);
+            }
+            for (let c = 0; c < N; c++) {   // trộn động lượng từ trên cao (phục hồi theo quãng đường) + cản lỗ rỗng bậc 2 (ẩn)
+              const sp = Math.hypot(u2[c], v2[c]), kr = 1 - Math.exp(-Math.max(sp, 0.3 * U0) * dt / F.lrec);
+              const uu = u2[c] + (ux - u2[c]) * kr, vv = v2[c] + (uz - v2[c]) * kr, kd = 1 / (1 + dt * drag[c] * Math.hypot(uu, vv));
+              u[c] = uu * kd; v[c] = vv * kd;
+            }
+            for (let b = 1; b < nz - 1; b++) for (let a = 1; a < nx - 1; a++) { const c = b * nx + a; w[c] = ((v[c + 1] - v[c - 1]) - (u[c + nx] - u[c - nx])) / (2 * dx); }   // xoáy
+            for (let b = 5; b < nz - 5; b++) for (let a = 5; a < nx - 5; a++) {   // giữ xoáy: f = ε·dx·(N × ω), N = ∇|ω|/|∇|ω|| (trừ dải sát mép)
+              const c = b * nx + a, gx = Math.abs(w[c + 1]) - Math.abs(w[c - 1]), gz = Math.abs(w[c + nx]) - Math.abs(w[c - nx]), l = Math.hypot(gx, gz) + 1e-9;
+              u[c] += dt * F.conf * dx * (gz / l) * w[c]; v[c] -= dt * F.conf * dx * (gx / l) * w[c];
+            }
+            const iL = ux > 0, iR = ux < 0, iT = uz > 0, iB = uz < 0;   // mép nào là mép gió vào
+            const edges = () => {   // biên: mép gió vào + VÙNG ĐỆM 4 ô hoà dần về gió tự do (khỏi sọc số) · mép gió ra: gradient 0
+              for (let b = 0; b < nz; b++) for (let a = 0; a < nx; a++) {
+                const din = Math.min(iL ? a : 99, iR ? nx - 1 - a : 99, iT ? b : 99, iB ? nz - 1 - b : 99), c = b * nx + a;
+                if (din < 4) { const k = 1 - din / 4; u[c] += (ux - u[c]) * k; v[c] += (uz - v[c]) * k; continue; }
+                if (a > 0 && a < nx - 1 && b > 0 && b < nz - 1) continue;
+                const ci = Math.min(nz - 2, Math.max(1, b)) * nx + Math.min(nx - 2, Math.max(1, a)); u[c] = u[ci]; v[c] = v[ci];
+              }
+            };
+            edges();
+            const p = F.p, p2 = F.p2, dv = F.dv;   // chiếu không phân kỳ: ∇²p = ∇·u (Jacobi, khởi động ấm) · mép gió vào ∂p/∂n = 0, mép gió ra p = 0 · u −= ∇p
+            for (let b = 1; b < nz - 1; b++) for (let a = 1; a < nx - 1; a++) { const c = b * nx + a; dv[c] = ((u[c + 1] - u[c - 1]) + (v[c + nx] - v[c - nx])) * 0.5 * dx; }
+            for (let it = 0; it < F.iters; it++) {
+              for (let b = 1; b < nz - 1; b++) for (let a = 1; a < nx - 1; a++) { const c = b * nx + a; p2[c] = (p[c - 1] + p[c + 1] + p[c - nx] + p[c + nx] - dv[c]) * 0.25; }
+              for (let b = 0; b < nz; b++) { const l = b * nx, r = l + nx - 1; p2[l] = iL ? p2[l + 1] : 0; p2[r] = iR ? p2[r - 1] : 0; }
+              for (let a = 0; a < nx; a++) { const t = a, bo = (nz - 1) * nx + a; p2[t] = iT ? p2[t + nx] : 0; p2[bo] = iB ? p2[bo - nx] : 0; }
+              p.set(p2);
+            }
+            for (let b = 1; b < nz - 1; b++) for (let a = 1; a < nx - 1; a++) { const c = b * nx + a; u[c] -= (p[c + 1] - p[c - 1]) * 0.5 / dx; v[c] -= (p[c + nx] - p[c - nx]) * 0.5 / dx; }
+            edges(); F.U0 = U0;
+          }
+          function encodeWind(out) {   // RGBA half-float: gió TB chuẩn hoá theo gió tự do × độ phơi (x, z) · hệ số nhiễu loạn · |gió| chuẩn hoá
+            const F = WF, U0 = F.U0 || 1;
+            for (let c = 0; c < F.N; c++) {
+              const e = F.expo[c], mx = F.u[c] / U0 * e, mz = F.v[c] / U0 * e, sp = Math.hypot(mx, mz);
+              const tb = Math.min(1.8, Math.max(0.55, 0.65 + 0.35 * Math.min(1.2, sp) + 1.6 * Math.abs(F.w[c]) * F.dx / U0));   // mép vệt khuất gió / sau vật cản: nhiễu loạn mạnh hơn
+              out[c * 4] = toHalf(mx); out[c * 4 + 1] = toHalf(mz); out[c * 4 + 2] = toHalf(tb); out[c * 4 + 3] = toHalf(sp);
+            }
+            return out;
+          }
+
           // ---------------- giao tiếp ----------------
           function handle(m) {
             if (m.t === 'water') { initWater(m.grid); for (let t = 0; t < m.warm; t += WSTEP) stepWater(WSTEP, 0, 0); return null; }   // chạy trước ~40 s cho dòng ổn định
             if (m.t === 'smoke') { initSmoke(m.cfg); return null; }
+            if (m.t === 'wind') { initWind(m.cfg); return null; }
             if (m.t !== 'step') return null;
             const transfer = [], res = { t: 'out' };
             if (W) {
@@ -311,9 +372,14 @@
               const P = bp && bp.byteLength === NV * 12 ? new Float32Array(bp) : new Float32Array(NV * 3), D = bd && bd.byteLength === NV * 4 ? new Uint8Array(bd) : new Uint8Array(NV * 4);
               buildSmoke(k, P, D); res.smoke = { pos: P.buffer, d: D.buffer }; transfer.push(P.buffer, D.buffer);
             }
+            if (WF && m.wind2) {   // bản đồ gió: bước cố định 0,05 s, gửi về khi có bước mới
+              WF.acc = Math.min(WF.acc + m.dt, 0.2); let n = 0;
+              while (WF.acc >= 0.05) { stepWind(0.05, m.wind2[0], m.wind2[1]); WF.acc -= 0.05; n++; }
+              if (n) { const b = m.bufs.wmap && m.bufs.wmap.byteLength === WF.N * 8 ? new Uint16Array(m.bufs.wmap) : new Uint16Array(WF.N * 4); res.wmap = encodeWind(b).buffer; transfer.push(res.wmap); }
+            }
             return { msg: res, transfer };
           }
-          return { handle, smokeState: () => SM };   // smokeState: cho bộ thử ngoài (Node) đọc trường khói
+          return { handle, smokeState: () => SM, windState: () => WF };   // smokeState: cho bộ thử ngoài (Node) đọc trường khói
         }
 
         fluids = (() => {
@@ -352,7 +418,7 @@
           wTex.magFilter = wTex.minFilter = THREE.LinearFilter; wTex.generateMipmaps = false; wTex.needsUpdate = true; wTex.name = 'Mô phỏng nước nông';
           const P2 = Array.from({ length: 31 }, (_, e) => Math.pow(2, e - 15));
           const half = hv => { const e = (hv >> 10) & 0x1f, m = hv & 0x3ff, s = hv & 0x8000 ? -1 : 1; return e ? s * P2[e] * (1 + m / 1024) : s * m * 5.960464477539063e-8; };
-          let wData = null, spareW = null;
+          let wData = null, spareW = null, spareWind = null, windCfg = null;
           function sampleW(x, z, ch) {
             if (!wData) return 0;
             const fx = Math.min(nx - 1.0001, Math.max(0, (x - x0) / dx - 0.5)), fz = Math.min(nz - 1.0001, Math.max(0, (z - z0) / dx - 0.5));
@@ -401,6 +467,12 @@
           function onOut(m) {
             busy = false;
             if (m.water) { const arr = new Uint16Array(m.water); spareW = wData ? wData.buffer : null; wData = arr; wTex.image.data = arr; wTex.needsUpdate = true; if (!water.ready) { water.ready = true; waterU.uSimOn.value = 1; } }
+            if (m.wmap) {   // bản đồ gió mới: thay dữ liệu texture + mảng đọc trên CPU (windMapSample)
+              const arr = new Uint16Array(m.wmap), tx = sceneWind.u.uWMap.value; spareWind = windMap.data ? windMap.data.buffer : null; windMap.data = arr;
+              if (tx.image.width !== windMap.nx) { const t2 = new THREE.DataTexture(arr, windMap.nx, windMap.nz, THREE.RGBAFormat, THREE.HalfFloatType); t2.magFilter = t2.minFilter = THREE.LinearFilter; t2.generateMipmaps = false; t2.name = 'Bản đồ gió NS'; sceneWind.u.uWMap.value = t2; tx.dispose(); t2.needsUpdate = true; }
+              else { tx.image.data = arr; tx.needsUpdate = true; }
+              if (!windMap.on) windMap.on = 1e-3;
+            }
             if (m.smoke && smoke) {
               const at = smoke.geo.attributes, P = new Float32Array(m.smoke.pos), D = new Uint8Array(m.smoke.d);
               at.position.array.set(P); at.aD.array.set(D); at.position.needsUpdate = at.aD.needsUpdate = true; smoke.spare = [P.buffer, D.buffer];
@@ -420,7 +492,12 @@
           post(initMsg);
           sceneEvents.signal.addEventListener('abort', () => { worker?.terminate(); worker = null; if (url) URL.revokeObjectURL(url); });
           return {
-            water, addSmoke, wCells,
+            water, addSmoke, wCells, windCfg: () => windCfg,   // windCfg: cấu hình bản đồ gió (vật cản, độ phơi) — gỡ lỗi
+            initWind(cfg) {   // nature/wind-field.js gọi sau khi cảnh dựng xong: lưới vật cản + độ phơi gió
+              cfg.warm = worker ? 30 : 3; windCfg = cfg; Object.assign(windMap, { x0: cfg.x0, z0: cfg.z0, nx: cfg.nx, nz: cfg.nz, dx: cfg.dx });
+              sceneWind.u.uWBox.value.set(cfg.x0, cfg.z0, 1 / (cfg.nx * cfg.dx), 1 / (cfg.nz * cfg.dx));
+              post({ t: 'wind', cfg });
+            },
             splash(x, z, r, s) {   // vật chạm nước tại (x, z) thế giới: bán kính r (đv), cường độ s (m lún xuống)
               if (nImp >= 96) return;
               imp.set([(x - x0) / dx, (z - z0) / dx, r / dx, s], nImp * 4); nImp++;
@@ -432,6 +509,12 @@
               for (let k = Math.round(rain * 6 * (0.5 + Math.random())); k > 0; k--) { const c = wCells[(Math.random() * wCells.length) | 0], a = c % nx, b = (c / nx) | 0; this.splash(x0 + (a + 0.5) * dx, z0 + (b + 0.5) * dx, 0.5, 0.008 + 0.01 * Math.random()); }
               const msg = { t: 'step', dt: Math.min(accDt, 0.1), nImp, imp: imp.slice(0, nImp * 4), wind: [sceneWind.dir.x * sceneWind.U * 0.0036, sceneWind.dir.y * sceneWind.U * 0.0036], bufs: { water: spareW } };
               const transfer = spareW ? [spareW] : []; spareW = null; nImp = 0; accDt = 0;
+              if (windCfg) {   // mép gió vào: giải theo đơn vị CHUẨN HOÁ (gió tự do = 1, chỉ đổi hướng) ⇒ gió mạnh/yếu đi thì bản đồ đúng ngay, tốc độ thật nhân ở windVec/windAt
+                msg.wind2 = [sceneWind.dir.x, sceneWind.dir.y];
+                if (spareWind) { msg.bufs.wmap = spareWind; transfer.push(spareWind); spareWind = null; }
+                if (windMap.on && windMap.on < 1) { windMap.on = Math.min(1, windMap.on + Math.min(dt, 0.1) / 3); }   // hiện dần trong 3 s
+                sceneWind.u.uWOn.value = windMap.on;
+              }
               if (smoke) {
                 smoke.mesh.visible = smoke.on;
                 if (smoke.on) {   // gió thật 9 tầng trên tâm lửa · hướng nhìn (dải quay mặt về camera) · cỡ 1 điểm ảnh (sợi xa vẫn ≥ ~2 px)

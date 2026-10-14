@@ -196,7 +196,8 @@
           lotusPond.update(dt, t);
           meadow.update(dt, t);   // thảm cỏ: LOD theo mức phóng, cắt khung nhìn, gió, giẫm, ráng chiều   // đầm sen: lá nổi theo sóng, cuống ngả theo gió, hoa nở/khép theo giờ, giọt sương
           if (cherryCtl) updateLeafFall(cherryCtl, dt, t);           // cánh hoa anh đào rụng theo gió, rơi xuống sông thì nổi, trôi, có chiếc chìm
-          if (oldTreeLeafCtl) updateLeafFall(oldTreeLeafCtl, dt, t);   // lá vàng cây cổ thụ
+          if (oldTreeLeafCtl) updateLeafFall(oldTreeLeafCtl, dt, t);
+          if (forestLeafCtl) updateLeafFall(forestLeafCtl, dt, t);   // lá rừng + cây táo bứt theo cơn giật trong vùng đang nhìn   // lá vàng cây cổ thụ
           waterFx.update(dt, t);                                     // gợn nước nhỏ (lá chạm nước, cá đớp) + bọt khí
           for (const lamp of streetLamps) {   // đèn đường: tắt ban ngày, sáng ấm ban đêm
             lamp.light.intensity = 60 * nightFactor; lamp.ledMat.color.setRGB(0.37 + 0.63 * nightFactor, 0.38 + 0.55 * nightFactor, 0.4 + 0.32 * nightFactor);
