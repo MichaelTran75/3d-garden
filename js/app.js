@@ -4769,6 +4769,61 @@
           bakeStatic(g);
         })();
 
+        {
+          const L = 3.6, X = X0 + 68, Z = Z0 + 50;
+          const bU = u => 0.156 * Math.pow(Math.sin(Math.PI * u), 0.7), ysU = u => 0.128 + 0.037 * Math.pow(Math.abs(2 * u - 1), 6), ykU = u => -0.026 + 0.14 * Math.pow(Math.abs(2 * u - 1), 2.4);
+          const cv = document.createElement('canvas'); cv.width = 512; cv.height = 256; const c = cv.getContext('2d');
+          c.fillStyle = '#5b4632'; c.fillRect(0, 0, 512, 256);
+          for (let k = 0; k < 900; k++) { const y = Math.random() * 256, x = Math.random() * 512, l = 20 + Math.random() * 80; c.strokeStyle = `rgba(${Math.random() < 0.5 ? '40,28,18' : '120,96,70'},${0.15 + Math.random() * 0.2})`; c.lineWidth = 0.6 + Math.random(); c.beginPath(); c.moveTo(x, y); c.lineTo(x + l, y + (Math.random() - 0.5) * 2); c.stroke(); }   // vân gỗ dọc ván
+          for (let k = 0; k < 26; k++) { const g = c.createRadialGradient(0, 0, 0, 0, 0, 1); g.addColorStop(0, 'rgba(150,140,125,0.35)'); g.addColorStop(1, 'rgba(150,140,125,0)'); c.save(); c.translate(Math.random() * 512, Math.random() * 256); c.scale(30 + Math.random() * 70, 10 + Math.random() * 20); c.fillStyle = g; c.beginPath(); c.arc(0, 0, 1, 0, 7); c.fill(); c.restore(); }   // phong hoá
+          for (let s = 1; s < 6; s++) {   // mạch ván + đinh
+            const y = 256 - s * 256 / 6; c.fillStyle = 'rgba(25,17,10,0.85)'; c.fillRect(0, y - 1.5, 512, 3); c.fillStyle = 'rgba(160,150,140,0.55)'; c.fillRect(0, y + 1.5, 512, 1);
+            c.fillStyle = 'rgba(30,26,24,0.9)'; for (let x = 6; x < 512; x += 22) { c.beginPath(); c.arc(x, y + 4, 1.4, 0, 7); c.fill(); }
+          }
+          const gb = c.createLinearGradient(0, 256, 0, 190); gb.addColorStop(0, 'rgba(35,40,22,0.75)'); gb.addColorStop(1, 'rgba(35,40,22,0)'); c.fillStyle = gb; c.fillRect(0, 190, 512, 66);   // rêu, nước ngấm sát đáy
+          c.fillStyle = 'rgba(20,14,9,0.9)'; c.fillRect(0, 248, 512, 8);   // sống đáy
+          const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+          const hullM = new THREE.MeshLambertMaterial({ map: tex, side: THREE.DoubleSide }), woodM = new THREE.MeshLambertMaterial({ color: 0x6b5238 }), darkM = new THREE.MeshLambertMaterial({ color: 0x3e2f22 });
+          const NU = 28, NT = 9, pos = [], uv = [], idx = [], W = 2 * NT - 1;
+          for (let i = 0; i <= NU; i++) {
+            const u = i / NU, b = bU(u), ys = ysU(u), yk = ykU(u);
+            for (let j = 0; j < W; j++) {
+              const t = Math.abs(j - (NT - 1)) / (NT - 1), sd = j < NT - 1 ? -1 : 1;
+              pos.push((u - 0.5) * L, (yk + (ys - yk) * Math.pow(1 - Math.cos(Math.PI / 2 * t), 0.85)) * L, sd * b * Math.sin(Math.PI / 2 * t) * L);
+              uv.push(u * 2.2, t);   // CanvasTexture lật dọc: t = 0 sống đáy (đáy canvas) → 1 mạn
+            }
+          }
+          for (let i = 0; i < NU; i++) for (let j = 0; j < W - 1; j++) { const a = i * W + j, b = a + W; idx.push(a, b, a + 1, a + 1, b, b + 1); }
+          const hg = new THREE.BufferGeometry(); hg.setIndex(idx); hg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); hg.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); hg.computeVertexNormals();
+          tex.wrapS = THREE.RepeatWrapping;
+          const boat = new THREE.Group(); boat.name = 'Xuồng gỗ (Rowboat)';
+          const hull = new THREE.Mesh(hg, hullM); hull.castShadow = hull.receiveShadow = true; boat.add(hull);
+          const at = (u, k) => new THREE.Vector3((u - 0.5) * L, (ykU(u) + (ysU(u) - ykU(u)) * k) * L, 0);
+          for (const u of [0, 1]) { const st = new THREE.Mesh(new THREE.BoxGeometry(0.07, (0.165 - ykU(u)) * L + 0.05, 0.06), darkM); st.position.set((u - 0.5) * L * 0.995, ((0.165 + ykU(u)) / 2) * L, 0); st.rotation.z = (u ? -1 : 1) * 0.12; st.castShadow = true; boat.add(st); }
+          for (const sd of [-1, 1]) {
+            const pts = []; for (let i = 0; i <= 20; i++) { const u = 0.02 + i / 20 * 0.96; pts.push(new THREE.Vector3((u - 0.5) * L, ysU(u) * L + 0.012, sd * bU(u) * L)); }
+            const rail = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 40, 0.028, 5), woodM); rail.castShadow = true; boat.add(rail);
+          }
+          const fl = new THREE.Mesh(new THREE.BoxGeometry(0.5 * L, 0.025, 0.11 * L), woodM); fl.position.set(0, (ykU(0.5) + 0.06) * L, 0); fl.receiveShadow = true; boat.add(fl);
+          for (const u of [0.3, 0.5, 0.72]) { const th = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.04, 2 * bU(u) * L * 0.9), woodM); th.position.set((u - 0.5) * L, 0.1 * L, 0); th.castShadow = th.receiveShadow = true; boat.add(th); }
+          for (const sd of [-1, 1]) for (const dx of [-0.07, 0.07]) { const pin = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.014, 0.12, 5), darkM); pin.position.set(0.05 + dx, ysU(0.52) * L + 0.07, sd * bU(0.52) * L); boat.add(pin); }
+          for (const sd of [-1, 1]) {   // 2 mái chèo để nằm dọc trong xuồng, gác lên băng ngồi
+            const oar = new THREE.Group(); oar.position.set(-0.05, 0.1 * L + 0.04, sd * 0.13); oar.rotation.set(sd * 0.05, sd * 0.06, 0.04); boat.add(oar);
+            const sh = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.026, 2.1, 6), woodM); sh.rotation.z = Math.PI / 2; sh.castShadow = true; oar.add(sh);
+            const bl = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.018, 0.13), woodM); bl.position.x = 1.15; bl.castShadow = true; oar.add(bl);
+          }
+          let bx = 0, bz = 0; for (let a = 0; a < 16; a++) { const ang = a / 16 * TAU, px = X + Math.cos(ang) * 2.5, pz = Z + Math.sin(ang) * 2.5; if (!isWater(Math.round(x2gi(px)), Math.round(z2gj(pz)))) { bx += Math.cos(ang); bz += Math.sin(ang); } }
+          const yaw = Math.atan2(-bz, bx), fx = Math.cos(yaw), fz = -Math.sin(yaw);   // +x cục bộ (mũi u = 1) chĩa về phía đất
+          const sup = d => { const x = X + fx * d, z = Z + fz * d, gi = Math.round(x2gi(x)), gj = Math.round(z2gj(z)); return isWater(gi, gj) ? waterSurfaceY(x, z) - 0.05 : cowY(x, z) - 0.02; };
+          const yB = sup(0.32 * L), yS = sup(-0.32 * L), pitch = Math.atan2(yB - yS, 0.64 * L);
+          boat.position.set(X, (yB + yS) / 2 - ykU(0.5) * L, Z); boat.rotation.order = 'YZX'; boat.rotation.set(0.04, yaw, pitch);
+          scene.add(boat); obstacleCoords.push({ x: X, y: boat.position.y, z: Z, r: 1.6, h: 0.8 });
+          boat.updateMatrixWorld(true);
+          const bow = boat.localToWorld(new THREE.Vector3(0.48 * L, 0.16 * L, 0)), sx = bow.x + fx * 1.1, sz = bow.z + fz * 1.1, sy = cowY(sx, sz);
+          const stake = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.05, 0.55, 6), darkM); stake.position.set(sx, sy + 0.24, sz); stake.rotation.z = 0.15; stake.castShadow = true; stake.name = 'Cọc buộc xuồng'; scene.add(stake);
+          const mid = bow.clone().lerp(new THREE.Vector3(sx, sy + 0.42, sz), 0.5); mid.y -= 0.18;
+          const rope = new THREE.Mesh(new THREE.TubeGeometry(new THREE.QuadraticBezierCurve3(bow, mid, new THREE.Vector3(sx, sy + 0.42, sz)), 14, 0.012, 4), new THREE.MeshLambertMaterial({ color: 0xb59a6a })); rope.name = 'Dây buộc xuồng'; scene.add(rope);
+        }
         (function stoneRing() {
           const g = new THREE.Group(); g.position.set(X0 + 89, 7.0, Z0 + 117); scene.add(g); flightRoots.push(g);
           const dirtMatRound = new THREE.MeshLambertMaterial({ color: 0x3d3024 });   // đất bùn đậm quanh gốc
@@ -12514,6 +12569,153 @@
         }
         for (let index = 0; index < 3; index++) birds.push(makeCodeStork(index));
 
+        const songbird = (() => {
+          const SC = 0.18, up = new THREE.Vector3(0, 1, 0);
+          const vc = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }), lam = c => new THREE.MeshLambertMaterial({ color: c, flatShading: true });
+          const BROWN = new THREE.Color(0xa8754f), CREAM = new THREE.Color(0xf1e6cc), DARK = 0x4a3328;
+          const paint = (geo, f) => { const p = geo.attributes.position, c = []; for (let i = 0; i < p.count; i++) { const k = f(p.getX(i), p.getY(i), p.getZ(i)); c.push(k.r, k.g, k.b); } geo.setAttribute('color', new THREE.Float32BufferAttribute(c, 3)); return geo; };
+          const root = new THREE.Group(); root.name = 'Chim sẻ'; root.scale.setScalar(SC); scene.add(root);
+          const bodyP = new THREE.Group(); bodyP.position.y = 0.26; root.add(bodyP);   // gốc = điểm chân bám
+          const mesh = (geo, m, par, x = 0, y = 0, z = 0) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.castShadow = true; o.userData.noBatch = true; par.add(o); return o; };
+          const bodyG = new THREE.SphereGeometry(0.5, 10, 7); bodyG.scale(0.34, 0.36, 0.56);
+          const body = mesh(paint(bodyG, (x, y, z) => y > -0.04 + 0.05 * z ? BROWN : CREAM), vc, bodyP);
+          const head = new THREE.Group(); head.position.set(0, 0.13, 0.25); bodyP.add(head);
+          const headG = new THREE.SphereGeometry(0.5, 9, 7); headG.scale(0.29, 0.28, 0.31);
+          mesh(paint(headG, (x, y, z) => y > 0.0 - 0.05 * z ? BROWN : CREAM), vc, head, 0, 0.06, 0.03);
+          const beakG = new THREE.ConeGeometry(0.042, 0.11, 6); beakG.rotateX(Math.PI / 2); mesh(beakG, lam(0x4a4630), head, 0, 0.04, 0.22);
+          const eyes = [-1, 1].map(s => mesh(new THREE.SphereGeometry(0.03, 6, 5), lam(0x0d0d0d), head, s * 0.12, 0.09, 0.1));
+          const wingShape = (pts) => { const sh = new THREE.Shape(); pts.forEach(([x, z], i) => i ? sh.lineTo(x, z) : sh.moveTo(x, z)); const g = new THREE.ShapeGeometry(sh); g.rotateX(Math.PI / 2); return g; };
+          const armG = wingShape([[0, 0.06], [0.22, 0.05], [0.22, -0.16], [0.12, -0.19], [0, -0.17]]);
+          const handG = wingShape([[0, 0.05], [0.16, 0.03], [0.27, -0.02], [0.25, -0.07], [0.19, -0.1], [0.12, -0.15], [0, -0.16]]);
+          const wings = [-1, 1].map(s => {   // vai → cánh tay (nâu, vạch kem) → bàn cánh (lông cánh sơ cấp nâu sẫm); s = −1 trái(+x)… gương: scale.x
+            const sh = new THREE.Group(); sh.position.set(s * 0.15, 0.09, 0.1); sh.scale.x = -s; bodyP.add(sh);
+            mesh(armG, new THREE.MeshLambertMaterial({ color: 0x9c6c48, side: THREE.DoubleSide, flatShading: true }), sh);
+            const bar = mesh(new THREE.BoxGeometry(0.2, 0.004, 0.025), lam(0xefe4c8), sh, 0.11, 0.004, -0.04);
+            const wr = new THREE.Group(); wr.position.x = 0.21; sh.add(wr);
+            mesh(handG, new THREE.MeshLambertMaterial({ color: DARK, side: THREE.DoubleSide, flatShading: true }), wr);
+            return { sh, wr, s, bar };
+          });
+          const tail = new THREE.Group(); tail.position.set(0, 0.02, -0.26); bodyP.add(tail);
+          const tailG = wingShape([[-0.045, 0], [0.045, 0], [0.075, -0.3], [0, -0.33], [-0.075, -0.3]]); tailG.rotateY(0); mesh(tailG, new THREE.MeshLambertMaterial({ color: 0x6b4a36, side: THREE.DoubleSide }), tail);
+          const legs = [-1, 1].map(s => {   // cẳng chân xám + 3 ngón trước 1 ngón sau (bám cành)
+            const lg = new THREE.Group(); lg.position.set(s * 0.055, -0.14, 0.03); bodyP.add(lg);
+            const parts = [new THREE.CylinderGeometry(0.011, 0.013, 0.12, 5).translate(0, -0.06, 0)];
+            for (const a of [-0.45, 0, 0.45]) parts.push(new THREE.BoxGeometry(0.012, 0.01, 0.075).translate(0, -0.12, 0.035).rotateY(a * 0.6));
+            parts.push(new THREE.BoxGeometry(0.012, 0.01, 0.05).translate(0, -0.12, -0.025));
+            mesh(mergeGeometries(parts), lam(0x4a4a4a), lg); return lg;
+          });
+          root.traverse(o => { if (o.isMesh) o.userData.noBatch = true; });
+          const LG = lanternObj.g, LY = LG.rotation.y;
+          const tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3();
+          const sitHome = () => ({ p: LG.localToWorld(new THREE.Vector3(0, 2.525, 0.12 + Math.random() * 0.32)), yaw: LY + (Math.random() < 0.5 ? 1 : -1) * Math.PI / 2, kind: 'home' });
+          const tree = appleTrees[1] || appleTrees[0], treeS = tree.userData.appleR / (0.12 * 0.8);
+          const sitApple = () => { tree.updateMatrixWorld(true); const A = tree.userData.apples, a = A[(Math.random() * A.length) | 0]; return { p: tree.localToWorld(a.home.clone().add(tmp.set(0, 0.28 * treeS + 0.02, 0))), yaw: Math.random() * TAU, kind: 'apple' }; };
+          const roost = () => { tree.updateMatrixWorld(true); return { p: tree.localToWorld(new THREE.Vector3(0.18 * treeS, 1.78 * treeS, 0.08 * treeS)), yaw: Math.random() * TAU, kind: 'roost' }; };   // chạc cây sát thân, trong tán
+          const sitRoof = () => ({ p: caravanObj.localToWorld(new THREE.Vector3(2.2 + Math.random() * 0.3, 3.75, 0.95 + Math.random() * 0.2)), yaw: caravanObj.rotation.y + Math.PI + (Math.random() - 0.5), kind: 'roof' });
+          const sitWire = () => {   // dây pha giữa nhịp cột 1 → cổng néo trạm (Bézier bậc 2 võng 0,3 như world/substation-bess.js)
+            const a = gridPoles[0], b = subTie.e, t = 0.35 + Math.random() * 0.3, m = a.clone().lerp(b, 0.5); m.y -= 0.3;
+            const p = a.clone().multiplyScalar((1 - t) * (1 - t)).addScaledVector(m, 2 * t * (1 - t)).addScaledVector(b, t * t);
+            return { p, yaw: Math.atan2(b.x - a.x, b.z - a.z) + (Math.random() < 0.5 ? 1 : -1) * Math.PI / 2, kind: 'wire' };
+          };
+          const sitGround = () => {
+            const c = LG.getWorldPosition(tmp2);
+            for (let k = 0; k < 20; k++) {
+              const a = Math.random() * TAU, r = 1.4 + Math.random() * 2.6, x = c.x + Math.cos(a) * r, z = c.z + Math.sin(a) * r;
+              if (isWater(Math.round(x2gi(x)), Math.round(z2gj(z))) || obstacleCoords.some(o => Math.hypot(x - o.x, z - o.z) < o.r + 0.3) || ENG_PROPS.some(o => Math.hypot(x - o.x, z - o.z) < o.r + 0.25)) continue;
+              return { p: new THREE.Vector3(x, cowY(x, z), z), yaw: Math.random() * TAU, kind: 'ground' };
+            }
+            return sitHome();
+          };
+          const spr = x => ({ x, v: 0 }), damp = (S, tg, w, dt) => { const k = w * dt, ex = 1 / (1 + k + 0.48 * k * k + 0.235 * k * k * k), c = S.x - tg, tp = (S.v + w * c) * dt; S.v = (S.v - w * tp) * ex; S.x = tg + (c + tp) * ex; return S.x; };
+          const P = { pitch: spr(-0.45), wing: spr(0), tailP: spr(0), tailS: spr(0), hy: spr(0), hp: spr(0), fluff: spr(1), tuck: spr(0), legs: spr(1), crouch: spr(0) };
+          const B = { st: 'perch', at: null, T: 10, k: 0, next: 0, hyT: 0, hpT: 0, hT: 0, flick: 3, preen: 0, flapPh: 0, A: new THREE.Vector3(), Bp: new THREE.Vector3(), c1: new THREE.Vector3(), c2: new THREE.Vector3(), dur: 1, yaw: 0, dYaw: 0, hop: null, peck: 0, nPeck: 0, scan: 0, vy: 0 };
+          const ROUTE = ['home', 'ground', 'apple', 'roof', 'wire'];
+          const awake = () => { const h = liveWeather.localHour; return h >= 5.75 && h < 19 && !liveWeather.state.raining; };
+          const pick = kind => kind === 'home' ? sitHome() : kind === 'ground' ? sitGround() : kind === 'apple' ? sitApple() : kind === 'roof' ? sitRoof() : kind === 'wire' ? sitWire() : roost();
+          function land(w) { B.at = w; root.position.copy(w.p); B.yaw = w.yaw; B.st = w.kind === 'ground' ? 'forage' : 'perch'; B.k = 0; B.T = w.kind === 'home' ? 12 + Math.random() * 18 : w.kind === 'ground' ? 12 + Math.random() * 12 : w.kind === 'wire' ? 8 + Math.random() * 10 : 6 + Math.random() * 10; B.scan = 0.4; }
+          function flyTo(w) {
+            B.st = 'fly'; B.k = 0; B.to = w; B.A.copy(root.position); B.Bp.copy(w.p);
+            const d = B.A.distanceTo(B.Bp), dir = tmp.subVectors(B.Bp, B.A).setY(0).normalize();
+            B.dur = Math.max(0.9, d / 4.2 + 0.4);
+            B.c1.copy(B.A).addScaledVector(up, 0.3 + 0.1 * d).addScaledVector(dir, 0.25 * d); B.c2.copy(B.Bp).addScaledVector(up, 0.25 + 0.08 * d).addScaledVector(dir, -0.22 * d);
+          }
+          const bez = (u, out) => { const v = 1 - u; return out.copy(B.A).multiplyScalar(v * v * v).addScaledVector(B.c1, 3 * v * v * u).addScaledVector(B.c2, 3 * v * u * u).addScaledVector(B.Bp, u * u * u); };
+          const start = awake() ? sitHome() : roost(); land(start); if (start.kind === 'roost') B.st = 'sleep';
+          const _p = new THREE.Vector3(), _q = new THREE.Vector3();
+          return {
+            root, state: B,
+            update(dt, t) {
+              dt = Math.min(dt, 0.05); B.k += dt;
+              const day = awake();
+              if (!day && B.st !== 'fly' && B.at && B.at.kind !== 'roost') flyTo(roost());
+              if (day && B.st === 'sleep') { B.st = 'perch'; B.T = 4 + Math.random() * 4; B.k = 0; }
+              let flap = 0, legsOut = 1, pitchT = -0.45, wingT = 0, tailST = 0, crouchT = 0, fluffT = 1, tuckT = 0;
+              if (B.st === 'fly') {
+                const u = Math.min(1, B.k / B.dur), s = u * u * (3 - 2 * u);
+                bez(s, _p); bez(Math.min(1, s + 0.02), _q);
+                const ph = (B.k % 0.55) / 0.55, bounding = u > 0.18 && u < 0.78;   // vỗ – xếp cánh: 0,3 s vỗ rồi 0,25 s gập cánh
+                const flapping = !bounding || ph < 0.55;
+                if (bounding) _p.y += 0.05 * Math.sin(ph * TAU - 0.6) * Math.min(1, (u - 0.18) / 0.1) * Math.min(1, (0.78 - u) / 0.1);
+                root.position.copy(_p);
+                const dx = _q.x - _p.x, dz = _q.z - _p.z, dh = Math.hypot(dx, dz);
+                if (dh > 1e-4) B.yaw = Math.atan2(dx, dz);
+                const flare = Math.max(0, (u - 0.8) / 0.2);
+                pitchT = Math.max(-0.5, Math.min(0.5, -Math.atan2(_q.y - _p.y, Math.max(1e-3, dh)) * 0.6)) - 0.75 * flare - 0.3 * Math.max(0, 1 - u / 0.12);
+                wingT = flapping ? 1 : 0.15; flap = flapping ? (u < 0.15 ? 16 : u > 0.8 ? 9 : 13) : 0;
+                legsOut = u < 0.12 ? 1 - u / 0.12 : u > 0.82 ? 1 : 0; tailST = Math.max(flare, u < 0.12 ? 0.6 : 0);
+                if (u >= 1) { land(B.to); B.k = 0; P.crouch.x = 0.6; if (B.to.kind === 'roost' && !day) B.st = 'sleep'; }
+              } else if (B.st === 'perch' || B.st === 'sleep') {
+                if (B.st === 'sleep') { fluffT = 1.18; tuckT = 1; pitchT = -0.2; legsOut = 0.3; }
+                else {
+                  if ((B.hT -= dt) <= 0) { B.hT = 0.3 + Math.random() * 1.2; B.hyT = (Math.random() - 0.5) * 2.4; B.hpT = (Math.random() - 0.5) * 0.6; }
+                  if ((B.flick -= dt) <= 0) { B.flick = 2 + Math.random() * 4; P.tailP.v -= 9; }
+                  if ((B.preen -= dt) <= 0 && Math.random() < dt * 0.05) B.preen = 1.6;
+                  if (B.preen > 0) { B.preen -= dt; B.hyT = 2.2 * Math.sign(B.hyT || 1); B.hpT = 0.5; }
+                  if (B.k > B.T && day) {
+                    const kind = B.at.kind === 'roost' ? 'home' : ROUTE[(ROUTE.indexOf(B.at.kind) + 1) % ROUTE.length];
+                    flyTo(pick(kind === 'ground' && Math.random() < 0.4 ? 'apple' : kind));   // "thỉnh thoảng" mới xuống cỏ
+                  }
+                }
+              } else if (B.st === 'forage') {   // nhảy 2 chân · mổ 1–3 cú · ngẩng canh chừng
+                pitchT = -0.15; const g = cowY(root.position.x, root.position.z);
+                if (B.hop) {
+                  B.hop.k += dt; const q = Math.min(1, B.hop.k / 0.15);
+                  root.position.lerpVectors(B.hop.a, B.hop.b, q); root.position.y = B.hop.a.y + (B.hop.b.y - B.hop.a.y) * q + Math.sin(Math.PI * q) * 0.045;
+                  legsOut = 1 - 0.5 * Math.sin(Math.PI * q); crouchT = 0;
+                  if (q >= 1) { B.hop.n--; P.crouch.x = 0.35; if (B.hop.n > 0) { B.hop.a.copy(root.position); B.hop.b.copy(B.hop.a).add(tmp.set(Math.sin(B.yaw), 0, Math.cos(B.yaw)).multiplyScalar(0.07 + Math.random() * 0.06)); B.hop.b.y = cowY(B.hop.b.x, B.hop.b.z); B.hop.k = -0.06; } else { B.hop = null; B.nPeck = 1 + (Math.random() * 3 | 0); B.peck = 0; } }
+                } else if (B.nPeck > 0) {   // mổ: đầu chúc nhanh 0,08 s rồi ngóc
+                  B.peck += dt; const q = (B.peck % 0.28) / 0.28; B.hpT = q < 0.3 ? 1.25 : 0.5; B.hyT = 0; pitchT = 0.15; crouchT = 0.25;
+                  if (B.peck > 0.28 * B.nPeck) { B.nPeck = 0; B.scan = 0.4 + Math.random() * 1.0; }
+                } else if (B.scan > 0) {   // ngẩng đầu canh chừng, liếc 2 bên
+                  B.scan -= dt; if ((B.hT -= dt) <= 0) { B.hT = 0.25 + Math.random() * 0.4; B.hyT = (Math.random() - 0.5) * 2; B.hpT = -0.2; }
+                } else {
+                  B.yaw += (Math.random() - 0.5) * 1.6; const n = 1 + (Math.random() * 3 | 0), a = root.position.clone(), b = a.clone().add(tmp.set(Math.sin(B.yaw), 0, Math.cos(B.yaw)).multiplyScalar(0.08 + Math.random() * 0.06));
+                  if (isWater(Math.round(x2gi(b.x)), Math.round(z2gj(b.z)))) B.yaw += Math.PI; else { b.y = cowY(b.x, b.z); B.hop = { a, b, k: -0.07, n }; }
+                }
+                if (!B.hop) root.position.y = g;
+                const e = engObj && !engObj.inVan && engObj.g.parent === scene ? engObj.g.position : null;
+                const near = (e && Math.hypot(e.x - root.position.x, e.z - root.position.z) < 1.3) || (!dogRain.st && Math.hypot(dogObj.position.x - root.position.x, dogObj.position.z - root.position.z) < 1.6);
+                if (near || B.k > B.T) flyTo(pick(near ? 'apple' : 'apple'));
+              }
+              damp(P.pitch, pitchT, 10, dt); damp(P.wing, wingT, 18, dt); damp(P.tailS, tailST, 10, dt); damp(P.fluff, fluffT, 2, dt); damp(P.tuck, tuckT, 1.5, dt); damp(P.legs, legsOut, 12, dt); damp(P.crouch, crouchT, 14, dt);
+              damp(P.tailP, 0, 22, dt); damp(P.hy, B.st === 'fly' ? 0 : B.hyT, 30, dt); damp(P.hp, B.st === 'fly' ? 0 : B.hpT, 26, dt);
+              let dy = B.yaw - root.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); root.rotation.y += dy * Math.min(1, dt * (B.st === 'fly' ? 10 : 14));
+              bodyP.rotation.x = P.pitch.x; bodyP.position.y = 0.26 - 0.06 * P.crouch.x; bodyP.scale.setScalar(P.fluff.x);
+              const tk = P.tuck.x;   // ngủ: ngoái đầu ra sau, rúc mỏ vào lông vai, nhắm mắt
+              head.rotation.set(-P.pitch.x * 0.7 + P.hp.x * (1 - tk) + 0.35 * tk, P.hy.x * (1 - tk) + 2.7 * tk, 0.25 * Math.sin(t * 0.7) * (1 - tk) * (B.st === 'perch' ? 1 : 0));
+              head.position.set(0, 0.13 - 0.05 * tk, 0.25 - 0.12 * tk); for (const e of eyes) e.visible = tk < 0.5;
+              if (flap > 0) B.flapPh += dt * flap * TAU;
+              const w = P.wing.x, beat = Math.sin(B.flapPh) * w;
+              for (const W of wings) {   // gập: cánh xuôi dọc thân, đầu cánh chéo trên đuôi · xoè: dang ngang + vỗ quanh trục dọc thân
+                W.sh.rotation.set(0.1 * (1 - w), W.s * (1 - w) * 1.45, -W.s * (beat * 1.0 + 0.15 * w) - W.s * 0.25 * (1 - w));
+                W.wr.rotation.set(0, W.s * (1 - w) * 0.35, -W.s * Math.max(0, -beat) * 0.6);
+              }
+              tail.rotation.set(-0.15 + P.tailP.x * 0.06 - 0.25 * P.tailS.x, 0, 0); tail.scale.x = 1 + 0.8 * P.tailS.x;
+              for (const L of legs) { L.rotation.x = (1 - P.legs.x) * 1.2 - P.pitch.x * P.legs.x; L.scale.setScalar(0.35 + 0.65 * P.legs.x); }
+              root.visible = true;
+            }
+          };
+        })();
         const labelGroup = new THREE.Group(); scene.add(labelGroup);
         function rr(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
         const annotationLabelScale = 0.65; // Same text size as the Gia Lai weather label.
@@ -13702,7 +13904,7 @@
           }
           updateClouds(dt, t);
           updateWeatherRain(dt, t);
-          updateStorkLife(dt, t);
+          updateStorkLife(dt, t); songbird.update(dt, t);
           if (digMarks.length && (t | 0) !== _digTick) {   // kiểm 1 lần/giây là đủ cho fade 20 phút
             _digTick = t | 0;
             for (let i = digMarks.length - 1; i >= 0; i--) {

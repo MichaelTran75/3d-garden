@@ -22,7 +22,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 SRC = HERE / 'src'
 SINGLE = HERE.parent / '3D garden.html'
 STAMP = HERE / '.single-stamp'          # băm của bản một tệp dựng lần trước (không đưa lên git)
-BUDGET_KB = {'js/app.js': 380, 'tổng': 400}   # ngân sách dung lượng NÉN gzip (KB) người xem phải tải — vượt thì --check báo lỗi
+BUDGET_KB = {'js/app.js': 400, 'tổng': 420}   # ngân sách dung lượng NÉN gzip (KB) người xem phải tải — vượt thì --check báo lỗi (14/10: 380 → 400 khi thêm chim sẻ + thuyền)
 args = set(sys.argv[1:])
 
 def die(msg):

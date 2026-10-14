@@ -158,7 +158,7 @@
           // ---- Mây trôi và mưa hiện tại dưới toàn bộ mây. ----
           updateClouds(dt, t);
           updateWeatherRain(dt, t);
-          updateStorkLife(dt, t);
+          updateStorkLife(dt, t); songbird.update(dt, t);
           if (digMarks.length && (t | 0) !== _digTick) {   // kiểm 1 lần/giây là đủ cho fade 20 phút
             _digTick = t | 0;
             for (let i = digMarks.length - 1; i >= 0; i--) {

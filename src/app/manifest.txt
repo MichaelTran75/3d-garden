@@ -24,6 +24,7 @@ nature/clouds-rain.js                  # mây tích, mưa, sương góc
 animals/cows-hut.js                    # đàn bò + chuồng bò
 animals/deer-crab-bunny.js             # hươu, cua, thỏ
 world/barn-tank.js                     # nhà kho, bồn nước nông thôn
+world/rowboat.js                       # XUỒNG GỖ mép hồ thượng lưu (68, _, 50): dựng theo số đo mẫu Boat (CC-BY), kéo nửa lên bờ, dây buộc cọc
 nature/old-tree.js                     # cây cổ thụ, đá cuội
 engineer/constants.js                  # vật liệu áo quần, cỡ người, hằng số ngồi/đứng
 fishing/rod-bucket.js                  # cần câu (uốn được), xô tôn
@@ -61,6 +62,7 @@ nature/wind-field.js                   # BẢN ĐỒ GIÓ NS 2D: vật cản (nh
 nature/meadow.js                       # THẢM CỎ MỀM 45% đất: lá mảnh dày, gốc = màu đất, pháp tuyến chĩa lên, sóng gió, hoa dại, LOD + cắt khung nhìn
 animals/insects.js                     # đom đóm, bướm, ong
 animals/storks.js                      # cò trắng (dựng theo số đo Stork.glb, MIT)
+animals/songbird.js                    # CHIM SẺ: đậu thanh treo đèn → cỏ → cây táo → nóc xe → dây điện; bay vỗ–xếp cánh, nhảy mổ, ngủ trên cây táo
 ui/labels-controls.js                  # nhãn, điều khiển camera, toạ độ, zoom
 ui/xray-lifecycle.js                   # xem xuyên xe, tạm dừng/tiếp tục, dọn dẹp
 loop/close-up.js                       # CẬN CẢNH: bóng nắng ôm vùng nhìn, vật tròn đổi bản nhiều cạnh khi zoom gần · độ phân giải tự điều chỉnh
