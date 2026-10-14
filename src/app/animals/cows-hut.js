@@ -96,14 +96,20 @@
             const x = -W / 2 + k * SW;
             for (const [z, H] of [[D / 2, Hf], [-D / 2, Hb]]) { add(cyl(0.085, 0.1, H - 0.14, postWood, true, false, null, 8), x, 0.14 + (H - 0.14) / 2, z); add(bx(0.26, 0.12, 0.26, concrete, false, false), x, 0.2, z); }
           }
-          add(bx(W + 0.4, 0.16, 0.14, wood[1], true, true, lineDark), 0, Hf - 0.08, D / 2);    // xà đầu trước
-          add(bx(W + 0.4, 0.16, 0.14, wood[1], true, true, lineDark), 0, Hb - 0.08, -D / 2);   // xà đầu sau
-          // kèo + mái tôn dốc về sau (nước mưa chảy ra sau chuồng)
+          // mái kéo dài sang TÂY 0,8 m (G 14/10) che hộp tổ chim sẻ bắt ở vách tây (animals/songbird.js). Kết cấu phần chìa (sửa 15/10 theo ảnh G: 2 thanh chống
+          // cũ lơ lửng, thanh trước đâm ra ngoài mép mái 0,3 m, kèo mép không có gì đỡ): xà đầu trước / sau VƯƠN sang tây tới kèo mép mái, mỗi đầu
+          // vươn có 1 thanh chống góc từ cột góc tây lên đỡ dưới xà (tam giác cứng cột – xà – chống)
+          const EXT = 0.8, xW = -W / 2 - 0.35 - EXT - 0.06, xE = W / 2 + 0.2;   // mép tây xà = qua kèo mép mái 1 chút
+          add(bx(xE - xW, 0.16, 0.14, wood[1], true, true, lineDark), (xE + xW) / 2, Hf - 0.08, D / 2);    // xà đầu trước
+          add(bx(xE - xW, 0.16, 0.14, wood[1], true, true, lineDark), (xE + xW) / 2, Hb - 0.08, -D / 2);   // xà đầu sau
+          for (const [z, H] of [[D / 2, Hf], [-D / 2, Hb]]) {   // thanh chống góc: chân ở mặt tây cột góc (thấp hơn xà 0,95 m) → đầu đỡ dưới xà, cách cột 0,65 m
+            const ax = -W / 2 - 0.09, ay = H - 0.95, bx2 = -W / 2 - 0.09 - 0.65, by = H - 0.16, br = add(bx(Math.hypot(bx2 - ax, by - ay), 0.07, 0.06, wood[1], true, false), (ax + bx2) / 2, (ay + by) / 2, z);
+            br.rotation.z = Math.atan2(by - ay, bx2 - ax);
+          }
+          // kèo + mái tôn dốc về sau (nước mưa chảy ra sau chuồng); kèo mép mái tây gác lên 2 đầu xà vươn
           const pitch = Math.atan((Hf - Hb) / D), rz = 0.1, ry = Hb + (Hf - Hb) * (rz + D / 2) / D;
-          const EXT = 0.8;   // G 14/10: mái kéo dài sang TÂY 0,8 m che hộp tổ chim sẻ ở góc tây–bắc (animals/songbird.js); kèo + thanh chống đỡ phần chìa
           for (let k = 0; k <= n; k += (n > 4 ? 2 : 1)) { const r = add(bx(0.09, 0.12, D + 0.8, wood[2], true, false), -W / 2 + k * SW, ry + 0.02, rz); r.rotation.x = -pitch; }
-          { const r = add(bx(0.09, 0.12, D + 0.8, wood[2], true, false), -W / 2 - 0.35 - EXT, ry + 0.02, rz); r.rotation.x = -pitch;
-            for (const z of [D / 2, -D / 2 + 0.5]) { const H = z > 0 ? Hf : Hb + 0.08, br = add(bx(Math.hypot(0.75 + EXT, 0.6), 0.07, 0.06, wood[1], true, false), -W / 2 - (0.75 + EXT) / 2, H - 0.4, z); br.rotation.z = -Math.atan2(0.6, 0.75 + EXT); } }   // thanh chống chéo: chân ở cột / vách tây, đầu đỡ kèo mép mái (phía sau lùi vào 0,5 m nhường chỗ hộp tổ)
+          { const r = add(bx(0.09, 0.12, D + 0.8, wood[2], true, false), -W / 2 - 0.35 - EXT, ry + 0.02, rz); r.rotation.x = -pitch; }
           const roof = add(bx(W + 0.9 + EXT, 0.035, D + 1.0, tin, true, true, lineDark), -EXT / 2, ry + 0.1, rz); roof.rotation.x = -pitch;
           const fascia = add(bx(W + 0.9 + EXT, 0.12, 0.04, wood[0], true, false), -EXT / 2, Hf + 0.06 + Math.tan(pitch) * 0.45, D / 2 + 0.47); fascia.rotation.x = -pitch;
           // vách ván: sau kín tới mái, hai hông cao 1,4 m + thanh giằng trên
@@ -161,8 +167,8 @@
           lamp.traverse(o => { o.userData.noBatch = true; });
           const lsw = { x: 0, z: 0, vx: 0, vz: 0 }, _lw = new THREE.Vector3(), lampW = new THREE.Vector3();
           const lampTick = (dt, n) => {   // n = độ tối (0 ngày → 1 đêm) · con lắc dây 0,4 m (ω₀ ≈ 5 rad/s), gió dưới mái yếu đi còn ~40%
-            filM.color.setRGB(0.29 + 0.71 * n, 0.28 + 0.6 * n, 0.27 + 0.23 * n); glassM.emissive.setRGB(0.95 * n, 0.58 * n, 0.26 * n); glassM.opacity = 0.3 + 0.3 * n;
-            halo.visible = n > 0.02; halo.material.opacity = 0.8 * n;
+            filM.color.setRGB(0.29 + 0.71 * n, 0.28 + 0.45 * n, 0.27 + 0.1 * n); glassM.emissive.setRGB(0.48 * n, 0.29 * n, 0.13 * n); glassM.opacity = 0.3 + 0.2 * n;   // G 15/10: sáng giảm 50%
+            halo.visible = n > 0.02; halo.material.opacity = 0.4 * n;
             if (!lampW.lengthSq()) lamp.getWorldPosition(lampW);
             windAt(lampW.x, lampW.y, lampW.z, 2.6, _lw); const ex = 0.012 * Math.abs(_lw.x) * _lw.x, ez = 0.012 * Math.abs(_lw.z) * _lw.z;
             for (let h = Math.min(dt, 0.05), k = Math.ceil(h / 0.0167), st = h / k, i = 0; i < k; i++) {

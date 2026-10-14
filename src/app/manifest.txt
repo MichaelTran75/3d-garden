@@ -63,7 +63,7 @@ nature/meadow.js                       # THẢM CỎ MỀM 45% đất: lá mản
 animals/beehive.js                     # TỔ ONG GIỎ RƠM treo cành cây con: vỏ rơm trong 75% + nét viền, 5 bánh sáp ô lục giác (nhộng · phấn · mật), que chống, ong bò trong tổ
 animals/insects.js                     # đom đóm, bướm, ong
 animals/storks.js                      # cò trắng (dựng theo số đo Stork.glb, MIT)
-animals/songbird.js                    # CHIM SẺ: con ở trại (thanh treo đèn → cỏ → cây táo → nóc xe → dây điện; ngủ cây táo) + hộp tổ treo cành cây táo, cặp làm tổ mớm chim non
+animals/songbird.js                    # CHIM SẺ: con ở trại (thanh treo đèn → cỏ → cây táo → nóc xe → dây điện; ngủ cây táo) + 2 hộp tổ (vách tây chuồng bò · treo cành cây táo), mỗi hộp 1 cặp mớm chim non
 ui/labels-controls.js                  # nhãn, điều khiển camera, toạ độ, zoom
 ui/xray-lifecycle.js                   # xem xuyên xe, tạm dừng/tiếp tục, dọn dẹp
 loop/close-up.js                       # CẬN CẢNH: bóng nắng ôm vùng nhìn, vật tròn đổi bản nhiều cạnh khi zoom gần · độ phân giải tự điều chỉnh

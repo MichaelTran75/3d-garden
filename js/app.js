@@ -4337,13 +4337,16 @@
             const x = -W / 2 + k * SW;
             for (const [z, H] of [[D / 2, Hf], [-D / 2, Hb]]) { add(cyl(0.085, 0.1, H - 0.14, postWood, true, false, null, 8), x, 0.14 + (H - 0.14) / 2, z); add(bx(0.26, 0.12, 0.26, concrete, false, false), x, 0.2, z); }
           }
-          add(bx(W + 0.4, 0.16, 0.14, wood[1], true, true, lineDark), 0, Hf - 0.08, D / 2);    // xà đầu trước
-          add(bx(W + 0.4, 0.16, 0.14, wood[1], true, true, lineDark), 0, Hb - 0.08, -D / 2);   // xà đầu sau
+          const EXT = 0.8, xW = -W / 2 - 0.35 - EXT - 0.06, xE = W / 2 + 0.2;   // mép tây xà = qua kèo mép mái 1 chút
+          add(bx(xE - xW, 0.16, 0.14, wood[1], true, true, lineDark), (xE + xW) / 2, Hf - 0.08, D / 2);    // xà đầu trước
+          add(bx(xE - xW, 0.16, 0.14, wood[1], true, true, lineDark), (xE + xW) / 2, Hb - 0.08, -D / 2);   // xà đầu sau
+          for (const [z, H] of [[D / 2, Hf], [-D / 2, Hb]]) {   // thanh chống góc: chân ở mặt tây cột góc (thấp hơn xà 0,95 m) → đầu đỡ dưới xà, cách cột 0,65 m
+            const ax = -W / 2 - 0.09, ay = H - 0.95, bx2 = -W / 2 - 0.09 - 0.65, by = H - 0.16, br = add(bx(Math.hypot(bx2 - ax, by - ay), 0.07, 0.06, wood[1], true, false), (ax + bx2) / 2, (ay + by) / 2, z);
+            br.rotation.z = Math.atan2(by - ay, bx2 - ax);
+          }
           const pitch = Math.atan((Hf - Hb) / D), rz = 0.1, ry = Hb + (Hf - Hb) * (rz + D / 2) / D;
-          const EXT = 0.8;   // G 14/10: mái kéo dài sang TÂY 0,8 m che hộp tổ chim sẻ ở góc tây–bắc (animals/songbird.js); kèo + thanh chống đỡ phần chìa
           for (let k = 0; k <= n; k += (n > 4 ? 2 : 1)) { const r = add(bx(0.09, 0.12, D + 0.8, wood[2], true, false), -W / 2 + k * SW, ry + 0.02, rz); r.rotation.x = -pitch; }
-          { const r = add(bx(0.09, 0.12, D + 0.8, wood[2], true, false), -W / 2 - 0.35 - EXT, ry + 0.02, rz); r.rotation.x = -pitch;
-            for (const z of [D / 2, -D / 2 + 0.5]) { const H = z > 0 ? Hf : Hb + 0.08, br = add(bx(Math.hypot(0.75 + EXT, 0.6), 0.07, 0.06, wood[1], true, false), -W / 2 - (0.75 + EXT) / 2, H - 0.4, z); br.rotation.z = -Math.atan2(0.6, 0.75 + EXT); } }   // thanh chống chéo: chân ở cột / vách tây, đầu đỡ kèo mép mái (phía sau lùi vào 0,5 m nhường chỗ hộp tổ)
+          { const r = add(bx(0.09, 0.12, D + 0.8, wood[2], true, false), -W / 2 - 0.35 - EXT, ry + 0.02, rz); r.rotation.x = -pitch; }
           const roof = add(bx(W + 0.9 + EXT, 0.035, D + 1.0, tin, true, true, lineDark), -EXT / 2, ry + 0.1, rz); roof.rotation.x = -pitch;
           const fascia = add(bx(W + 0.9 + EXT, 0.12, 0.04, wood[0], true, false), -EXT / 2, Hf + 0.06 + Math.tan(pitch) * 0.45, D / 2 + 0.47); fascia.rotation.x = -pitch;
           for (let y = 0.27, k = 0; y < Hb - 0.15; y += 0.25, k++) add(bx(W + 0.3, 0.22, 0.05, wood[k % 3], true, false), 0, y, -D / 2 - 0.13);
@@ -4391,8 +4394,8 @@
           lamp.traverse(o => { o.userData.noBatch = true; });
           const lsw = { x: 0, z: 0, vx: 0, vz: 0 }, _lw = new THREE.Vector3(), lampW = new THREE.Vector3();
           const lampTick = (dt, n) => {   // n = độ tối (0 ngày → 1 đêm) · con lắc dây 0,4 m (ω₀ ≈ 5 rad/s), gió dưới mái yếu đi còn ~40%
-            filM.color.setRGB(0.29 + 0.71 * n, 0.28 + 0.6 * n, 0.27 + 0.23 * n); glassM.emissive.setRGB(0.95 * n, 0.58 * n, 0.26 * n); glassM.opacity = 0.3 + 0.3 * n;
-            halo.visible = n > 0.02; halo.material.opacity = 0.8 * n;
+            filM.color.setRGB(0.29 + 0.71 * n, 0.28 + 0.45 * n, 0.27 + 0.1 * n); glassM.emissive.setRGB(0.48 * n, 0.29 * n, 0.13 * n); glassM.opacity = 0.3 + 0.2 * n;   // G 15/10: sáng giảm 50%
+            halo.visible = n > 0.02; halo.material.opacity = 0.4 * n;
             if (!lampW.lengthSq()) lamp.getWorldPosition(lampW);
             windAt(lampW.x, lampW.y, lampW.z, 2.6, _lw); const ex = 0.012 * Math.abs(_lw.x) * _lw.x, ez = 0.012 * Math.abs(_lw.z) * _lw.z;
             for (let h = Math.min(dt, 0.05), k = Math.ceil(h / 0.0167), st = h / k, i = 0; i < k; i++) {
@@ -12923,7 +12926,7 @@
           bird.land(sparrowAwake() ? W.home() : W.roost());
           return bird;
         })();
-        const nestBox = (() => {
+        function makeNestBox(hang) {
           const g = new THREE.Group(); g.name = 'Hộp tổ chim sẻ (Nest box)';
           const cv = document.createElement('canvas'); cv.width = cv.height = 128; const c = cv.getContext('2d');
           c.fillStyle = '#c8894b'; c.fillRect(0, 0, 128, 128);
@@ -12931,23 +12934,20 @@
           const tx = new THREE.CanvasTexture(cv); tx.colorSpace = THREE.SRGBColorSpace;
           const wood = new THREE.MeshLambertMaterial({ map: tx, transparent: true, opacity: 0.5, depthWrite: false, side: THREE.DoubleSide });
           const tin = new THREE.MeshLambertMaterial({ color: 0x9aa1a5, transparent: true, opacity: 0.5, depthWrite: false, side: THREE.DoubleSide });
-          const Wd = 0.26, Dp = 0.26, Hh = 0.32, th = 0.02, DROP = 0.62;   // DROP: tâm cành → đáy hộp
+          const Wd = 0.26, Dp = 0.26, Hh = 0.32, th = 0.02, DROP = 0.62;   // DROP: tâm cành → đáy hộp (hộp treo)
           const pnl = (w, h, d, x, y, z, m = wood) => { const o = bx(w, h, d, m, false, true, lineDark); o.position.set(x, y, z); g.add(o); return o; };
           pnl(Wd + 2 * th, th, Dp, 0, th / 2, 0);   // đáy
           pnl(th, Hh, Dp, Wd / 2 + th / 2, Hh / 2, 0);   // vách sau
           for (const s of [-1, 1]) pnl(Wd, Hh, th, 0, Hh / 2, s * (Dp / 2 - th / 2));   // 2 vách bên
-          {   // mặt trước có lỗ tròn Ø 7 cm ở 2/3 chiều cao
+          {   // mặt trước có lỗ tròn Ø 7 cm ở 2/3 chiều cao, đỉnh hồi nhọn
             const sh = new THREE.Shape(); sh.moveTo(-Dp / 2, 0); sh.lineTo(Dp / 2, 0); sh.lineTo(Dp / 2, Hh + 0.04); sh.lineTo(0, Hh + 0.09); sh.lineTo(-Dp / 2, Hh + 0.04); sh.closePath();
             const hole = new THREE.Path(); hole.absarc(0, Hh * 0.68, 0.036, 0, TAU, true); sh.holes.push(hole);
             const fg = new THREE.ExtrudeGeometry(sh, { depth: th, bevelEnabled: false, curveSegments: 16 }); fg.rotateY(-Math.PI / 2); fg.translate(-Wd / 2, 0, 0);
             const f = new THREE.Mesh(fg, wood); edge(f, fg, lineDark); g.add(f);
           }
-          for (const s of [-1, 1]) { const r = pnl(Wd + 0.1, 0.012, Dp / 2 + 0.07, 0, Hh + 0.07, s * (Dp / 4 + 0.02), tin); r.rotation.x = -s * 0.36; }   // mái tôn 2 mái
+          for (const s of [-1, 1]) { const r = pnl(Wd + 0.1, 0.012, Dp / 2 + 0.07, 0, Hh + 0.07, s * (Dp / 4 + 0.02), tin); r.rotation.x = s * 0.36; }   // mái tôn 2 mái chữ Λ (mép ngoài thấp, nóc giữa cao) — bản cũ lật dấu thành chữ V
           const peg = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.08, 6), new THREE.MeshLambertMaterial({ color: 0x7a5232 })); peg.rotation.z = Math.PI / 2; peg.position.set(-Wd / 2 - 0.04, Hh * 0.68 - 0.06, 0); g.add(peg);   // que đậu dưới lỗ
-          const steel = new THREE.MeshLambertMaterial({ color: 0x6d7175 });
-          const eye = new THREE.Mesh(new THREE.TorusGeometry(0.014, 0.003, 4, 10), steel); eye.position.y = Hh + 0.125; g.add(eye);
-          const wire = new THREE.Mesh(new THREE.CylinderGeometry(0.0025, 0.0025, DROP - 0.04 - (Hh + 0.135), 4), steel); wire.position.y = (DROP - 0.04 + Hh + 0.135) / 2; g.add(wire);
-          const chicks = [-1, 1].map(s => {
+          const chicks = [-1, 1].map(s => {   // chim non: 2 cục lông xám, mỏ vàng há ra đòi ăn khi bố mẹ vào tổ
             const c0 = new THREE.Group(); c0.position.set(0.065, th, s * 0.05); g.add(c0);
             const b0 = new THREE.Mesh(new THREE.SphereGeometry(0.038, 8, 6), new THREE.MeshLambertMaterial({ color: 0x8f877d })); b0.position.y = 0.035; c0.add(b0);
             const hd = new THREE.Group(); hd.position.set(-0.02, 0.07, 0); c0.add(hd);
@@ -12955,21 +12955,31 @@
             const bk = new THREE.Mesh(new THREE.ConeGeometry(0.014, 0.03, 6), new THREE.MeshLambertMaterial({ color: 0xf2c94a })); bk.rotation.z = Math.PI / 2; bk.position.x = -0.03; hd.add(bk);
             return { hd, bk };
           });
-          const tree = appleTrees[1] || appleTrees[0]; tree.updateMatrixWorld(true);
-          const piv = new THREE.Group(); piv.name = 'Móc treo hộp tổ'; tree.localToWorld(piv.position.set(-0.548, 5.038, 1.628)); scene.add(piv);
-          const bDir = tree.localToWorld(new THREE.Vector3(-0.64, 5.02, 1.77)).sub(tree.localToWorld(new THREE.Vector3(-0.52, 5.04, 1.59))).normalize();
-          const hook = new THREE.Mesh(new THREE.TorusGeometry(0.038, 0.0035, 4, 14, 4.4), steel); hook.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), bDir); hook.rotateZ(-0.6); piv.add(hook);
-          const YAW = 1.885; g.position.y = -DROP; g.rotation.y = YAW; piv.add(g);   // lỗ tổ quay về hướng G nhìn
+          const piv = new THREE.Group(); scene.add(piv); let YAW = 0;
+          if (hang) {   // điểm treo: cành ngang G khoanh — toạ độ cục bộ cây (−0,548; 5,038; 1,628), hướng cành theo đoạn (−0,52; 5,04; 1,59) → (−0,64; 5,02; 1,77)
+            const steel = new THREE.MeshLambertMaterial({ color: 0x6d7175 });
+            const eye = new THREE.Mesh(new THREE.TorusGeometry(0.014, 0.003, 4, 10), steel); eye.position.y = Hh + 0.135; g.add(eye);   // khoen nóc mái
+            const wire = new THREE.Mesh(new THREE.CylinderGeometry(0.0025, 0.0025, DROP - 0.04 - (Hh + 0.145), 4), steel); wire.position.y = (DROP - 0.04 + Hh + 0.145) / 2; g.add(wire);
+            const tree = appleTrees[1] || appleTrees[0]; tree.updateMatrixWorld(true); piv.name = 'Móc treo hộp tổ'; tree.localToWorld(piv.position.set(-0.548, 5.038, 1.628));
+            const bDir = tree.localToWorld(new THREE.Vector3(-0.64, 5.02, 1.77)).sub(tree.localToWorld(new THREE.Vector3(-0.52, 5.04, 1.59))).normalize();
+            const hook = new THREE.Mesh(new THREE.TorusGeometry(0.038, 0.0035, 4, 14, 4.4), steel); hook.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), bDir); hook.rotateZ(-0.6); piv.add(hook);
+            YAW = 1.885; g.position.y = -DROP;   // lỗ tổ quay về hướng G nhìn
+          } else {   // bắt vách tây chuồng bò: lưng hộp tựa thanh giằng vách (x = −W/2 − 0,13), lỗ quay sang tây, đáy cao 1,85 m, lùi 0,55 m khỏi góc sau
+            pnl(0.02, Hh + 0.26, 0.12, Wd / 2 + th + 0.012, Hh / 2 + 0.06, 0, new THREE.MeshLambertMaterial({ color: 0x6e5236 }));   // ván lót lưng vít vào giằng vách
+            piv.name = 'Hộp tổ vách chuồng bò'; piv.position.set(cowHut.x - cowHut.W / 2 - 0.13 - 0.035 - Wd / 2 - th, cowHut.y + 1.85, cowHut.z - cowHut.D / 2 + 0.55);
+          }
+          g.rotation.y = YAW; piv.add(g);
           piv.traverse(o => { if (o.isMesh || o.isLineSegments) o.userData.noBatch = true; });
           const sw = { x: 0, z: 0, vx: 0, vz: 0 }, _w = new THREE.Vector3(), base = piv.position.clone();
-          const local = (x, y, z) => new THREE.Vector3(x, y, z), fy = a => Math.atan2(Math.cos(YAW) * a, -Math.sin(YAW) * a);   // hướng chim nhìn theo trục x cục bộ hộp (±1)
+          const fy = a => Math.atan2(Math.cos(YAW) * a, -Math.sin(YAW) * a);   // hướng chim nhìn theo trục x cục bộ hộp (±1)
           const W = (lp, yaw, kind, o) => { piv.updateMatrixWorld(true); return { p: g.localToWorld(lp.clone()), local: lp, yaw, kind, ...o }; };
           return {
             g, piv, chicks, pos: base,
-            peg: () => W(local(-Wd / 2 - 0.055, Hh * 0.68 - 0.055, 0), fy(1), 'peg', { T: 0.6 + Math.random() * 0.6 }),
-            inside: (i, sleep) => W(local(-0.045, th, (i ? 1 : -1) * 0.06), fy(-1), 'nest', { feed: !sleep, sleep, T: 3 + Math.random() * 3 }),
-            kick(v) { const a = Math.random() * TAU; sw.vx += v * Math.cos(a); sw.vz += v * Math.sin(a); },
-            update(dt) {   // con lắc 2 trục: dây + hộp ≈ 0,8 m tới trọng tâm (ω₀ ≈ 3,5 rad/s), tắt dần ζ 0,08; gió đẩy theo |u|·u
+            peg: () => W(new THREE.Vector3(-Wd / 2 - 0.055, Hh * 0.68 - 0.055, 0), fy(1), 'peg', { T: 0.6 + Math.random() * 0.6 }),
+            inside: (i, sleep) => W(new THREE.Vector3(-0.045, th, (i ? 1 : -1) * 0.06), fy(-1), 'nest', { feed: !sleep, sleep, T: 3 + Math.random() * 3 }),
+            kick(v) { if (!hang) return; const a = Math.random() * TAU; sw.vx += v * Math.cos(a); sw.vz += v * Math.sin(a); },
+            update(dt) {   // hộp treo: con lắc 2 trục — dây + hộp ≈ 0,8 m tới trọng tâm (ω₀ ≈ 3,5 rad/s), tắt dần ζ 0,08; gió đẩy theo |u|·u
+              if (!hang) return;
               windAt(base.x, base.y, base.z, 4.5, _w);
               const w0 = 3.5, k = 0.03, ex = k * Math.abs(_w.x) * _w.x, ez = k * Math.abs(_w.z) * _w.z;
               for (let h = Math.min(dt, 0.05), n = Math.ceil(h / 0.0167), s = h / n, i = 0; i < n; i++) {
@@ -12979,44 +12989,48 @@
               piv.rotation.set(-sw.z, 0, sw.x);
             }
           };
-        })();
-        const nestPair = [0, 1].map(i => {
+        }
+        const nestBoxes = [makeNestBox(false), makeNestBox(true)];
+        const nestPairs = nestBoxes.map(box => [0, 1].map(i => {
           const bird = makeSparrow({
             tick(S) {
               const B = S.state; if (B.st === 'fly' || B.st === 'shuffle') return;
-              if (!sparrowAwake()) { if (!B.at || B.at.kind === 'ground' || B.at.kind === 'perchOut') S.flyTo(nestBox.peg()); else if (B.at.kind === 'peg') S.hopTo(nestBox.inside(i, true)); else if (B.at.kind === 'nest' && !B.at.sleep) S.land(nestBox.inside(i, true)); }
-              else if (B.st === 'sleep') { B.st = 'perch'; B.at = nestBox.inside(i, false); B.T = 2 + Math.random() * 6; B.k = 0; }
+              if (!sparrowAwake()) { if (!B.at || B.at.kind === 'ground' || B.at.kind === 'perchOut') S.flyTo(box.peg()); else if (B.at.kind === 'peg') S.hopTo(box.inside(i, true)); else if (B.at.kind === 'nest' && !B.at.sleep) S.land(box.inside(i, true)); }
+              else if (B.st === 'sleep') { B.st = 'perch'; B.at = box.inside(i, false); B.T = 2 + Math.random() * 6; B.k = 0; }
             },
-            landed(S) { if (S.state.at.kind === 'peg') nestBox.kick(0.12); },   // chim đáp que đậu: hộp lắc nhẹ
+            landed(S) { if (S.state.at.kind === 'peg') box.kick(0.12); },   // chim đáp que đậu: hộp treo lắc nhẹ
             next(S, flushed) {
               const B = S.state; if (!sparrowAwake()) return;
-              if (B.at.kind === 'ground') { if (!flushed || Math.random() < 0.5) B.carry = !flushed; S.flyTo(nestBox.peg()); }   // kiếm được mồi → ngậm về tổ
-              else if (B.at.kind === 'peg') S.hopTo(nestBox.inside(i, false));
-              else if (B.at.kind === 'nest') { B.carry = false; S.hopTo({ ...nestBox.peg(), kind: 'perchOut', T: 0.4 }); }
-              else {   // từ que đậu bay ra bãi bò kiếm mồi (quanh 1 con bò, tránh chuồng và nước; bãi bò cách cây táo ~25–50 m — trong tầm kiếm ăn của chim sẻ)
+              if (B.at.kind === 'ground') { if (!flushed || Math.random() < 0.5) B.carry = !flushed; S.flyTo(box.peg()); }   // kiếm được mồi → ngậm về tổ
+              else if (B.at.kind === 'peg') S.hopTo(box.inside(i, false));
+              else if (B.at.kind === 'nest') { B.carry = false; S.hopTo({ ...box.peg(), kind: 'perchOut', T: 0.4 }); }
+              else {   // từ que đậu bay ra bãi bò kiếm mồi (quanh 1 con bò, tránh chuồng và nước; cây táo cách bãi bò ~25–50 m — trong tầm kiếm ăn của chim sẻ)
                 for (let k = 0; k < 20; k++) {
                   const cw = cows[(Math.random() * cows.length) | 0], a = Math.random() * TAU, r = 1.2 + Math.random() * 2.5, x = cw.x + Math.cos(a) * r, z = cw.z + Math.sin(a) * r;
-                  if (isWater(Math.round(x2gi(x)), Math.round(z2gj(z))) || (cowHutRect && x > cowHutRect.x0 && x < cowHutRect.x1 && z > cowHutRect.z0 && z < cowHutRect.z1) || Math.hypot(x - nestBox.pos.x, z - nestBox.pos.z) > 70) continue;
+                  if (isWater(Math.round(x2gi(x)), Math.round(z2gj(z))) || (cowHutRect && x > cowHutRect.x0 && x < cowHutRect.x1 && z > cowHutRect.z0 && z < cowHutRect.z1) || Math.hypot(x - box.pos.x, z - box.pos.z) > 70) continue;
                   S.flyTo({ p: new THREE.Vector3(x, cowY(x, z), z), yaw: Math.random() * TAU, kind: 'ground', T: 6 + Math.random() * 10 }); return;
                 }
                 S.state.k = 0;
               }
             }
           });
-          if (sparrowAwake()) bird.land(i ? nestBox.peg() : nestBox.inside(i, false)); else bird.land(nestBox.inside(i, true));
+          if (sparrowAwake()) bird.land(i ? box.peg() : box.inside(i, false)); else bird.land(box.inside(i, true));
           return bird;
-        });
+        }));
         function updateSparrows(dt, t) {
-          nestBox.update(dt); nestBox.piv.updateMatrixWorld(true);
+          for (const box of nestBoxes) { box.update(dt); box.piv.updateMatrixWorld(true); }
           songbird.update(dt, t);
-          for (const b of nestPair) {
-            b.update(dt, t); const B = b.state;
-            if (B.at && B.at.local && (B.st === 'perch' || B.st === 'sleep')) nestBox.g.localToWorld(b.root.position.copy(B.at.local));   // đậu que / trong hộp: theo hộp đung đưa
-          }
-          const feeding = nestPair.some(b => b.state.at && b.state.at.kind === 'nest' && b.state.at.feed && b.state.st === 'perch');
-          nestBox.chicks.forEach((c, i) => {   // chim non: bố mẹ vào tổ thì ngóc đầu, há mỏ, lắc; bình thường thu lu lim dim
-            const k = feeding ? 1 : 0; c.hd.position.y = 0.07 + 0.03 * k + 0.008 * k * Math.sin(t * 14 + i * 2); c.hd.rotation.z = -0.5 * k + 0.12 * k * Math.sin(t * 11 + i);
-            c.bk.scale.set(1, 1 + 0.6 * k, 1 + 0.6 * k);
+          nestPairs.forEach((pair, n) => {
+            const box = nestBoxes[n];
+            for (const b of pair) {
+              b.update(dt, t); const B = b.state;
+              if (B.at && B.at.local && (B.st === 'perch' || B.st === 'sleep')) box.g.localToWorld(b.root.position.copy(B.at.local));   // đậu que / trong hộp: theo hộp đung đưa
+            }
+            const k = pair.some(b => b.state.at && b.state.at.kind === 'nest' && b.state.at.feed && b.state.st === 'perch') ? 1 : 0;
+            box.chicks.forEach((c, i) => {   // chim non: bố mẹ vào tổ thì ngóc đầu, há mỏ, lắc; bình thường thu lu lim dim
+              c.hd.position.y = 0.07 + 0.03 * k + 0.008 * k * Math.sin(t * 14 + i * 2 + n); c.hd.rotation.z = -0.5 * k + 0.12 * k * Math.sin(t * 11 + i + n);
+              c.bk.scale.set(1, 1 + 0.6 * k, 1 + 0.6 * k);
+            });
           });
         }
         const labelGroup = new THREE.Group(); scene.add(labelGroup);
@@ -13732,7 +13746,7 @@
             const lit = nightFactor > 0.05; lamp.beam.visible = lamp.pool.visible = lit;   // vệt sáng + chùm sáng chỉ khi trời tối
             if (lit) { lamp.beamMat.uniforms.uOpacity.value = 0.14 * nightFactor; lamp.pool.userData.mat.uniforms.uOpacity.value = 0.34 * nightFactor; }
           }
-          cowHut.light.intensity = 30 * nightFactor; cowHut.lampTick(dt, nightFactor);   // đèn sợi đốt trước chuồng bò: sáng theo đêm + đung đưa theo gió
+          cowHut.light.intensity = 15 * nightFactor; cowHut.lampTick(dt, nightFactor);   // đèn sợi đốt trước chuồng bò: sáng theo đêm + đung đưa theo gió
           if (wmast) {
             const w = liveWeather.state;
             for (const [obj, k, cap] of [[wmast.prop, 1.6, 18], [wmini.anem, 1.0, 12]]) {

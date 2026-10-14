@@ -69,7 +69,7 @@ không nhúng lưới hay ảnh tải từ ngoài. Riêng đàn cò dựng theo 
 (dáng thân, vị trí vây, đuôi, râu) và kiểu hoa văn của mẫu "Koi Fish" của Xfdfgd trên Sketchfab (CC-BY-4.0) — chỉ đo, da và vây vẽ lại bằng canvas.
 Chim sẻ (`animals/songbird.js`) theo tỉ lệ + màu của mẫu "Bird 5 - Animated Low Poly" (WildPoly3D, CC-BY-NC-4.0 — chỉ đo, không dùng lưới/ảnh/hoạt ảnh);
 xuồng gỗ (`world/rowboat.js`) theo số đo mẫu "Boat" (DJMaesen, CC-BY-4.0) — chỉ đo, ván gỗ vẽ lại bằng canvas.
-Hộp tổ chim treo dưới cành cây táo theo mẫu "Bird the nest Home Building" (adventurer, CC-BY-4.0) — chỉ đo; vách trong 50%, viền nét đậm.
+2 hộp tổ chim (bắt vách tây chuồng bò · treo dưới cành cây táo, mỗi hộp 1 cặp sẻ) theo mẫu "Bird the nest Home Building" (adventurer, CC-BY-4.0) — chỉ đo; vách trong 50%, viền nét đậm.
 Ong (`animals/insects.js`) theo tỉ lệ mẫu "Bee (Low Poly)" (EsiHere, CC-BY-4.0); tổ ong giỏ rơm (`animals/beehive.js`) theo số đo mẫu "Hive"
 (Matt LeMoine, CC-BY-4.0) — vỏ trong 75%, viền nét, bánh sáp ô lục giác bên trong; đom đóm theo mẫu "Metal FireFly Final" (PJ, CC-BY-4.0);
 gấu mèo theo hình khối + nhịp chạy của mẫu "Low-poly Racoon Run Animation" (avatrass, CC-BY-4.0); đèn sợi đốt trước chuồng bò theo mẫu

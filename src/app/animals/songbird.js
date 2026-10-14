@@ -4,8 +4,8 @@
         //  1–3 cú rồi NGẨNG ĐẦU canh chừng (chim sẻ ngẩng nhiều lần, mỗi lần ngắn); bay "vỗ – xếp cánh" (vài nhịp vỗ nhanh rồi gập cánh rơi
         //  theo quán tính ⇒ đường bay nhấp nhô); cất cánh nhún rồi bật, hạ cánh xoè đuôi, ngửa thân, duỗi chân. Ngủ: xù lông, ngoái đầu rúc mỏ.
         //  · Con ở trại: thanh treo đèn lồng → (thỉnh thoảng) xuống cỏ kiếm ăn → cây táo → nóc xe → dây điện 110 kV → về; 19:00–05:45 / mưa
-        //    ngủ trên chạc cây táo sát thân. · Cặp làm tổ ở HỘP TỔ TREO dưới cành cây táo (từ 15/10; dựng theo mẫu "Bird the nest Home Building",
-        //    adventurer, CC-BY-4.0 — chỉ đo; vách trong 50%, nét viền hiện rõ): ngày kiếm mồi quanh bãi bò, ngậm sâu bay về, đậu que trước lỗ, chui vào
+        //    ngủ trên chạc cây táo sát thân. · 2 cặp làm tổ, mỗi cặp 1 HỘP TỔ (vách tây chuồng bò · treo cành cây táo; dựng theo mẫu "Bird the nest
+        //    Home Building", adventurer, CC-BY-4.0 — chỉ đo; vách trong 50%, nét viền hiện rõ): ngày kiếm mồi quanh bãi bò, ngậm sâu bay về, đậu que trước lỗ, chui vào
         //    mớm cho 2 chim non (non ngóc đầu há mỏ), chui ra bay đi; tối 2 con chui vào hộp ngủ. Người / chó lại gần lúc đang dưới đất thì bay sớm.
         function makeSparrow(brain) {
           const SC = 0.18, up = new THREE.Vector3(0, 1, 0);
@@ -171,11 +171,12 @@
           bird.land(sparrowAwake() ? W.home() : W.roost());
           return bird;
         })();
-        // ---- HỘP TỔ TREO dưới cành ngang cây táo gần lều (G 15/10 khoanh ảnh — khớp 7 quả táo trong ảnh ⇒ cây appleTrees[1], nhìn hướng θ 72°, cành Ø 5 cm
-        //      cao 4,5 m). Dựng theo mẫu "Bird the nest Home Building" (adventurer, CC-BY-4.0 — chỉ đo): ván thông vân gỗ, mặt trước khoét lỗ tròn + que đậu,
-        //      mái tôn 2 mái; vách 50% trong suốt (thấy chim trong tổ), nét viền đen hiện rõ. Treo bằng dây thép từ khoen đỉnh mái lên móc vắt qua cành;
-        //      đung đưa như con lắc theo gió tại chỗ (+ cú hích khi chim đáp que đậu) ----
-        const nestBox = (() => {
+        // ---- 2 HỘP TỔ chim sẻ, mỗi hộp 1 cặp (G 15/10): ① bắt vào vách tây chuồng bò, dưới phần mái chìa (≈ toạ độ góc (50,7; 47,6)) · ② TREO dưới cành
+        //      ngang cây táo gần lều (cành G khoanh ảnh — khớp 7 quả táo ⇒ cây appleTrees[1], nhìn hướng θ 72°, cành Ø 5 cm cao 4,5 m).
+        //      Hộp dựng theo mẫu "Bird the nest Home Building" (adventurer, CC-BY-4.0 — chỉ đo): ván thông vân gỗ, mặt trước khoét lỗ tròn + que đậu,
+        //      mái tôn 2 mái chữ Λ; vách 50% trong suốt (thấy chim trong tổ), nét viền đen hiện rõ. Hộp treo: dây thép từ khoen nóc mái lên móc vắt
+        //      qua cành, đung đưa như con lắc theo gió (+ cú hích khi chim đáp que đậu). Hộp bắt vách: tấm ván lót sau lưng vít vào thanh giằng vách ----
+        function makeNestBox(hang) {
           const g = new THREE.Group(); g.name = 'Hộp tổ chim sẻ (Nest box)';
           const cv = document.createElement('canvas'); cv.width = cv.height = 128; const c = cv.getContext('2d');
           c.fillStyle = '#c8894b'; c.fillRect(0, 0, 128, 128);
@@ -183,25 +184,20 @@
           const tx = new THREE.CanvasTexture(cv); tx.colorSpace = THREE.SRGBColorSpace;
           const wood = new THREE.MeshLambertMaterial({ map: tx, transparent: true, opacity: 0.5, depthWrite: false, side: THREE.DoubleSide });
           const tin = new THREE.MeshLambertMaterial({ color: 0x9aa1a5, transparent: true, opacity: 0.5, depthWrite: false, side: THREE.DoubleSide });
-          const Wd = 0.26, Dp = 0.26, Hh = 0.32, th = 0.02, DROP = 0.62;   // DROP: tâm cành → đáy hộp
+          const Wd = 0.26, Dp = 0.26, Hh = 0.32, th = 0.02, DROP = 0.62;   // DROP: tâm cành → đáy hộp (hộp treo)
           const pnl = (w, h, d, x, y, z, m = wood) => { const o = bx(w, h, d, m, false, true, lineDark); o.position.set(x, y, z); g.add(o); return o; };
           pnl(Wd + 2 * th, th, Dp, 0, th / 2, 0);   // đáy
           pnl(th, Hh, Dp, Wd / 2 + th / 2, Hh / 2, 0);   // vách sau
           for (const s of [-1, 1]) pnl(Wd, Hh, th, 0, Hh / 2, s * (Dp / 2 - th / 2));   // 2 vách bên
-          {   // mặt trước có lỗ tròn Ø 7 cm ở 2/3 chiều cao
+          {   // mặt trước có lỗ tròn Ø 7 cm ở 2/3 chiều cao, đỉnh hồi nhọn
             const sh = new THREE.Shape(); sh.moveTo(-Dp / 2, 0); sh.lineTo(Dp / 2, 0); sh.lineTo(Dp / 2, Hh + 0.04); sh.lineTo(0, Hh + 0.09); sh.lineTo(-Dp / 2, Hh + 0.04); sh.closePath();
             const hole = new THREE.Path(); hole.absarc(0, Hh * 0.68, 0.036, 0, TAU, true); sh.holes.push(hole);
             const fg = new THREE.ExtrudeGeometry(sh, { depth: th, bevelEnabled: false, curveSegments: 16 }); fg.rotateY(-Math.PI / 2); fg.translate(-Wd / 2, 0, 0);
             const f = new THREE.Mesh(fg, wood); edge(f, fg, lineDark); g.add(f);
           }
-          for (const s of [-1, 1]) { const r = pnl(Wd + 0.1, 0.012, Dp / 2 + 0.07, 0, Hh + 0.07, s * (Dp / 4 + 0.02), tin); r.rotation.x = -s * 0.36; }   // mái tôn 2 mái
+          for (const s of [-1, 1]) { const r = pnl(Wd + 0.1, 0.012, Dp / 2 + 0.07, 0, Hh + 0.07, s * (Dp / 4 + 0.02), tin); r.rotation.x = s * 0.36; }   // mái tôn 2 mái chữ Λ (mép ngoài thấp, nóc giữa cao) — bản cũ lật dấu thành chữ V
           const peg = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.08, 6), new THREE.MeshLambertMaterial({ color: 0x7a5232 })); peg.rotation.z = Math.PI / 2; peg.position.set(-Wd / 2 - 0.04, Hh * 0.68 - 0.06, 0); g.add(peg);   // que đậu dưới lỗ
-          // khoen trên nóc mái + dây thép lên móc vắt qua cành (móc nằm trong mặt phẳng vuông góc cành)
-          const steel = new THREE.MeshLambertMaterial({ color: 0x6d7175 });
-          const eye = new THREE.Mesh(new THREE.TorusGeometry(0.014, 0.003, 4, 10), steel); eye.position.y = Hh + 0.125; g.add(eye);
-          const wire = new THREE.Mesh(new THREE.CylinderGeometry(0.0025, 0.0025, DROP - 0.04 - (Hh + 0.135), 4), steel); wire.position.y = (DROP - 0.04 + Hh + 0.135) / 2; g.add(wire);
-          // chim non: 2 cục lông xám, mỏ vàng há ra đòi ăn khi bố mẹ vào tổ
-          const chicks = [-1, 1].map(s => {
+          const chicks = [-1, 1].map(s => {   // chim non: 2 cục lông xám, mỏ vàng há ra đòi ăn khi bố mẹ vào tổ
             const c0 = new THREE.Group(); c0.position.set(0.065, th, s * 0.05); g.add(c0);
             const b0 = new THREE.Mesh(new THREE.SphereGeometry(0.038, 8, 6), new THREE.MeshLambertMaterial({ color: 0x8f877d })); b0.position.y = 0.035; c0.add(b0);
             const hd = new THREE.Group(); hd.position.set(-0.02, 0.07, 0); c0.add(hd);
@@ -209,22 +205,31 @@
             const bk = new THREE.Mesh(new THREE.ConeGeometry(0.014, 0.03, 6), new THREE.MeshLambertMaterial({ color: 0xf2c94a })); bk.rotation.z = Math.PI / 2; bk.position.x = -0.03; hd.add(bk);
             return { hd, bk };
           });
-          // điểm treo: cành ngang G khoanh — toạ độ cục bộ cây (−0,548; 5,038; 1,628), hướng cành theo đoạn (−0,52; 5,04; 1,59) → (−0,64; 5,02; 1,77)
-          const tree = appleTrees[1] || appleTrees[0]; tree.updateMatrixWorld(true);
-          const piv = new THREE.Group(); piv.name = 'Móc treo hộp tổ'; tree.localToWorld(piv.position.set(-0.548, 5.038, 1.628)); scene.add(piv);
-          const bDir = tree.localToWorld(new THREE.Vector3(-0.64, 5.02, 1.77)).sub(tree.localToWorld(new THREE.Vector3(-0.52, 5.04, 1.59))).normalize();
-          const hook = new THREE.Mesh(new THREE.TorusGeometry(0.038, 0.0035, 4, 14, 4.4), steel); hook.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), bDir); hook.rotateZ(-0.6); piv.add(hook);
-          const YAW = 1.885; g.position.y = -DROP; g.rotation.y = YAW; piv.add(g);   // lỗ tổ quay về hướng G nhìn
+          const piv = new THREE.Group(); scene.add(piv); let YAW = 0;
+          if (hang) {   // điểm treo: cành ngang G khoanh — toạ độ cục bộ cây (−0,548; 5,038; 1,628), hướng cành theo đoạn (−0,52; 5,04; 1,59) → (−0,64; 5,02; 1,77)
+            const steel = new THREE.MeshLambertMaterial({ color: 0x6d7175 });
+            const eye = new THREE.Mesh(new THREE.TorusGeometry(0.014, 0.003, 4, 10), steel); eye.position.y = Hh + 0.135; g.add(eye);   // khoen nóc mái
+            const wire = new THREE.Mesh(new THREE.CylinderGeometry(0.0025, 0.0025, DROP - 0.04 - (Hh + 0.145), 4), steel); wire.position.y = (DROP - 0.04 + Hh + 0.145) / 2; g.add(wire);
+            const tree = appleTrees[1] || appleTrees[0]; tree.updateMatrixWorld(true); piv.name = 'Móc treo hộp tổ'; tree.localToWorld(piv.position.set(-0.548, 5.038, 1.628));
+            const bDir = tree.localToWorld(new THREE.Vector3(-0.64, 5.02, 1.77)).sub(tree.localToWorld(new THREE.Vector3(-0.52, 5.04, 1.59))).normalize();
+            const hook = new THREE.Mesh(new THREE.TorusGeometry(0.038, 0.0035, 4, 14, 4.4), steel); hook.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), bDir); hook.rotateZ(-0.6); piv.add(hook);
+            YAW = 1.885; g.position.y = -DROP;   // lỗ tổ quay về hướng G nhìn
+          } else {   // bắt vách tây chuồng bò: lưng hộp tựa thanh giằng vách (x = −W/2 − 0,13), lỗ quay sang tây, đáy cao 1,85 m, lùi 0,55 m khỏi góc sau
+            pnl(0.02, Hh + 0.26, 0.12, Wd / 2 + th + 0.012, Hh / 2 + 0.06, 0, new THREE.MeshLambertMaterial({ color: 0x6e5236 }));   // ván lót lưng vít vào giằng vách
+            piv.name = 'Hộp tổ vách chuồng bò'; piv.position.set(cowHut.x - cowHut.W / 2 - 0.13 - 0.035 - Wd / 2 - th, cowHut.y + 1.85, cowHut.z - cowHut.D / 2 + 0.55);
+          }
+          g.rotation.y = YAW; piv.add(g);
           piv.traverse(o => { if (o.isMesh || o.isLineSegments) o.userData.noBatch = true; });
           const sw = { x: 0, z: 0, vx: 0, vz: 0 }, _w = new THREE.Vector3(), base = piv.position.clone();
-          const local = (x, y, z) => new THREE.Vector3(x, y, z), fy = a => Math.atan2(Math.cos(YAW) * a, -Math.sin(YAW) * a);   // hướng chim nhìn theo trục x cục bộ hộp (±1)
+          const fy = a => Math.atan2(Math.cos(YAW) * a, -Math.sin(YAW) * a);   // hướng chim nhìn theo trục x cục bộ hộp (±1)
           const W = (lp, yaw, kind, o) => { piv.updateMatrixWorld(true); return { p: g.localToWorld(lp.clone()), local: lp, yaw, kind, ...o }; };
           return {
             g, piv, chicks, pos: base,
-            peg: () => W(local(-Wd / 2 - 0.055, Hh * 0.68 - 0.055, 0), fy(1), 'peg', { T: 0.6 + Math.random() * 0.6 }),
-            inside: (i, sleep) => W(local(-0.045, th, (i ? 1 : -1) * 0.06), fy(-1), 'nest', { feed: !sleep, sleep, T: 3 + Math.random() * 3 }),
-            kick(v) { const a = Math.random() * TAU; sw.vx += v * Math.cos(a); sw.vz += v * Math.sin(a); },
-            update(dt) {   // con lắc 2 trục: dây + hộp ≈ 0,8 m tới trọng tâm (ω₀ ≈ 3,5 rad/s), tắt dần ζ 0,08; gió đẩy theo |u|·u
+            peg: () => W(new THREE.Vector3(-Wd / 2 - 0.055, Hh * 0.68 - 0.055, 0), fy(1), 'peg', { T: 0.6 + Math.random() * 0.6 }),
+            inside: (i, sleep) => W(new THREE.Vector3(-0.045, th, (i ? 1 : -1) * 0.06), fy(-1), 'nest', { feed: !sleep, sleep, T: 3 + Math.random() * 3 }),
+            kick(v) { if (!hang) return; const a = Math.random() * TAU; sw.vx += v * Math.cos(a); sw.vz += v * Math.sin(a); },
+            update(dt) {   // hộp treo: con lắc 2 trục — dây + hộp ≈ 0,8 m tới trọng tâm (ω₀ ≈ 3,5 rad/s), tắt dần ζ 0,08; gió đẩy theo |u|·u
+              if (!hang) return;
               windAt(base.x, base.y, base.z, 4.5, _w);
               const w0 = 3.5, k = 0.03, ex = k * Math.abs(_w.x) * _w.x, ez = k * Math.abs(_w.z) * _w.z;
               for (let h = Math.min(dt, 0.05), n = Math.ceil(h / 0.0167), s = h / n, i = 0; i < n; i++) {
@@ -234,44 +239,48 @@
               piv.rotation.set(-sw.z, 0, sw.x);
             }
           };
-        })();
-        // ---- cặp chim làm tổ: kiếm mồi quanh bãi bò ⇄ bay về hộp tổ trên cây táo mớm cho chim non; tối vào hộp ngủ ----
-        const nestPair = [0, 1].map(i => {
+        }
+        const nestBoxes = [makeNestBox(false), makeNestBox(true)];
+        // ---- mỗi hộp 1 cặp chim: kiếm mồi quanh bãi bò ⇄ bay về hộp mớm cho chim non; tối vào hộp ngủ ----
+        const nestPairs = nestBoxes.map(box => [0, 1].map(i => {
           const bird = makeSparrow({
             tick(S) {
               const B = S.state; if (B.st === 'fly' || B.st === 'shuffle') return;
-              if (!sparrowAwake()) { if (!B.at || B.at.kind === 'ground' || B.at.kind === 'perchOut') S.flyTo(nestBox.peg()); else if (B.at.kind === 'peg') S.hopTo(nestBox.inside(i, true)); else if (B.at.kind === 'nest' && !B.at.sleep) S.land(nestBox.inside(i, true)); }
-              else if (B.st === 'sleep') { B.st = 'perch'; B.at = nestBox.inside(i, false); B.T = 2 + Math.random() * 6; B.k = 0; }
+              if (!sparrowAwake()) { if (!B.at || B.at.kind === 'ground' || B.at.kind === 'perchOut') S.flyTo(box.peg()); else if (B.at.kind === 'peg') S.hopTo(box.inside(i, true)); else if (B.at.kind === 'nest' && !B.at.sleep) S.land(box.inside(i, true)); }
+              else if (B.st === 'sleep') { B.st = 'perch'; B.at = box.inside(i, false); B.T = 2 + Math.random() * 6; B.k = 0; }
             },
-            landed(S) { if (S.state.at.kind === 'peg') nestBox.kick(0.12); },   // chim đáp que đậu: hộp lắc nhẹ
+            landed(S) { if (S.state.at.kind === 'peg') box.kick(0.12); },   // chim đáp que đậu: hộp treo lắc nhẹ
             next(S, flushed) {
               const B = S.state; if (!sparrowAwake()) return;
-              if (B.at.kind === 'ground') { if (!flushed || Math.random() < 0.5) B.carry = !flushed; S.flyTo(nestBox.peg()); }   // kiếm được mồi → ngậm về tổ
-              else if (B.at.kind === 'peg') S.hopTo(nestBox.inside(i, false));
-              else if (B.at.kind === 'nest') { B.carry = false; S.hopTo({ ...nestBox.peg(), kind: 'perchOut', T: 0.4 }); }
-              else {   // từ que đậu bay ra bãi bò kiếm mồi (quanh 1 con bò, tránh chuồng và nước; bãi bò cách cây táo ~25–50 m — trong tầm kiếm ăn của chim sẻ)
+              if (B.at.kind === 'ground') { if (!flushed || Math.random() < 0.5) B.carry = !flushed; S.flyTo(box.peg()); }   // kiếm được mồi → ngậm về tổ
+              else if (B.at.kind === 'peg') S.hopTo(box.inside(i, false));
+              else if (B.at.kind === 'nest') { B.carry = false; S.hopTo({ ...box.peg(), kind: 'perchOut', T: 0.4 }); }
+              else {   // từ que đậu bay ra bãi bò kiếm mồi (quanh 1 con bò, tránh chuồng và nước; cây táo cách bãi bò ~25–50 m — trong tầm kiếm ăn của chim sẻ)
                 for (let k = 0; k < 20; k++) {
                   const cw = cows[(Math.random() * cows.length) | 0], a = Math.random() * TAU, r = 1.2 + Math.random() * 2.5, x = cw.x + Math.cos(a) * r, z = cw.z + Math.sin(a) * r;
-                  if (isWater(Math.round(x2gi(x)), Math.round(z2gj(z))) || (cowHutRect && x > cowHutRect.x0 && x < cowHutRect.x1 && z > cowHutRect.z0 && z < cowHutRect.z1) || Math.hypot(x - nestBox.pos.x, z - nestBox.pos.z) > 70) continue;
+                  if (isWater(Math.round(x2gi(x)), Math.round(z2gj(z))) || (cowHutRect && x > cowHutRect.x0 && x < cowHutRect.x1 && z > cowHutRect.z0 && z < cowHutRect.z1) || Math.hypot(x - box.pos.x, z - box.pos.z) > 70) continue;
                   S.flyTo({ p: new THREE.Vector3(x, cowY(x, z), z), yaw: Math.random() * TAU, kind: 'ground', T: 6 + Math.random() * 10 }); return;
                 }
                 S.state.k = 0;
               }
             }
           });
-          if (sparrowAwake()) bird.land(i ? nestBox.peg() : nestBox.inside(i, false)); else bird.land(nestBox.inside(i, true));
+          if (sparrowAwake()) bird.land(i ? box.peg() : box.inside(i, false)); else bird.land(box.inside(i, true));
           return bird;
-        });
+        }));
         function updateSparrows(dt, t) {
-          nestBox.update(dt); nestBox.piv.updateMatrixWorld(true);
+          for (const box of nestBoxes) { box.update(dt); box.piv.updateMatrixWorld(true); }
           songbird.update(dt, t);
-          for (const b of nestPair) {
-            b.update(dt, t); const B = b.state;
-            if (B.at && B.at.local && (B.st === 'perch' || B.st === 'sleep')) nestBox.g.localToWorld(b.root.position.copy(B.at.local));   // đậu que / trong hộp: theo hộp đung đưa
-          }
-          const feeding = nestPair.some(b => b.state.at && b.state.at.kind === 'nest' && b.state.at.feed && b.state.st === 'perch');
-          nestBox.chicks.forEach((c, i) => {   // chim non: bố mẹ vào tổ thì ngóc đầu, há mỏ, lắc; bình thường thu lu lim dim
-            const k = feeding ? 1 : 0; c.hd.position.y = 0.07 + 0.03 * k + 0.008 * k * Math.sin(t * 14 + i * 2); c.hd.rotation.z = -0.5 * k + 0.12 * k * Math.sin(t * 11 + i);
-            c.bk.scale.set(1, 1 + 0.6 * k, 1 + 0.6 * k);
+          nestPairs.forEach((pair, n) => {
+            const box = nestBoxes[n];
+            for (const b of pair) {
+              b.update(dt, t); const B = b.state;
+              if (B.at && B.at.local && (B.st === 'perch' || B.st === 'sleep')) box.g.localToWorld(b.root.position.copy(B.at.local));   // đậu que / trong hộp: theo hộp đung đưa
+            }
+            const k = pair.some(b => b.state.at && b.state.at.kind === 'nest' && b.state.at.feed && b.state.st === 'perch') ? 1 : 0;
+            box.chicks.forEach((c, i) => {   // chim non: bố mẹ vào tổ thì ngóc đầu, há mỏ, lắc; bình thường thu lu lim dim
+              c.hd.position.y = 0.07 + 0.03 * k + 0.008 * k * Math.sin(t * 14 + i * 2 + n); c.hd.rotation.z = -0.5 * k + 0.12 * k * Math.sin(t * 11 + i + n);
+              c.bk.scale.set(1, 1 + 0.6 * k, 1 + 0.6 * k);
+            });
           });
         }
