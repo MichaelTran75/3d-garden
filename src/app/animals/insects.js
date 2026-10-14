@@ -1,24 +1,48 @@
-        // ---- fireflies (3 gray bees with glowing tail box) ----
+        // ---- ĐOM ĐÓM (G 15/10: "study and improve đom đóm" — theo mẫu "Metal FireFly Final" của PJ/jpvamp, Sketchfab, CC-BY-4.0; chỉ đo + họ Lampyridae thật):
+        //      thân thon dẹt; khiên ngực che đầu (cam, đốm sẫm giữa); mắt hổ phách to (mắt "đá quý" của mẫu); râu dài 2 đốt; cánh cứng sẫm viền vàng nhạt có
+        //      2 gân đồng (gợi lồng cánh kim loại của mẫu) nâng chếch khi bay; cánh màng trong ~30% vỗ nhanh; 2 đốt bụng cuối là ĐÈN (ngà khi tắt → vàng
+        //      xanh rực khi chớp); 6 chân mảnh. Nháy kiểu Luciola: chớp ~0,5 s mỗi 2–2,6 s, giữa các lần chỉ le lói; lúc chớp bay vọt nhẹ lên (nét "J");
+        //      con gần nhau kéo nhịp về đồng bộ dần (ghép pha xung kiểu Mirollo–Strogatz) ----
         const fireflies = [];
         function fireflyTex() { const c = document.createElement('canvas'); c.width = c.height = 32; const x = c.getContext('2d'); const g = x.createRadialGradient(16, 16, 0, 16, 16, 16); g.addColorStop(0, 'rgba(228,255,150,1)'); g.addColorStop(0.4, 'rgba(186,240,96,0.55)'); g.addColorStop(1, 'rgba(186,240,96,0)'); x.fillStyle = g; x.fillRect(0, 0, 32, 32); return new THREE.CanvasTexture(c); }
         const ffMap = fireflyTex();
-        function createGlowingBee() {
-          const g = new THREE.Group(), grayMat = new THREE.MeshLambertMaterial({ color: 0x5a5a5a }), stripeMat = new THREE.MeshLambertMaterial({ color: 0x828282 }), faceMat = new THREE.MeshLambertMaterial({ color: 0x333333 }), whiteMat = new THREE.MeshLambertMaterial({ color: 0xE2D6C0, transparent: true, opacity: 0.75, side: THREE.DoubleSide }), glowMat = new THREE.MeshBasicMaterial({ color: 0xe4ff88 });
-          const body = bx(0.1, 0.08, 0.2, grayMat); body.castShadow = true; g.add(body);
-          const stripe = bx(0.105, 0.085, 0.08, stripeMat); stripe.position.z = 0.02; g.add(stripe);
-          const face = bx(0.09, 0.07, 0.02, faceMat); face.position.z = 0.11; g.add(face);
-          const glowTail = bx(0.08, 0.06, 0.08, glowMat); glowTail.position.set(0, -0.01, -0.12); g.add(glowTail);
+        function createFirefly() {
+          const g = new THREE.Group(), dark = new THREE.MeshLambertMaterial({ color: 0x1f1913, flatShading: true }), vc = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
+          const paint = (geo, f) => { const p = geo.attributes.position, c = []; for (let i = 0; i < p.count; i++) { const k = new THREE.Color(f(p.getX(i), p.getY(i), p.getZ(i))); c.push(k.r, k.g, k.b); } geo.setAttribute('color', new THREE.Float32BufferAttribute(c, 3)); return geo; };
+          const ab = new THREE.SphereGeometry(1, 10, 6); ab.scale(0.034, 0.02, 0.072); ab.translate(0, -0.004, -0.045); g.add(new THREE.Mesh(paint(ab, (x, y, z) => (Math.floor((z + 0.12) / 0.018) & 1) ? 0x3a2c1c : 0x2a2016), vc));   // bụng đốt
+          const lampM = new THREE.MeshBasicMaterial({ color: 0xd9d2a8 });
+          const lamp = new THREE.Mesh(new THREE.SphereGeometry(1, 10, 6), lampM); lamp.scale.set(0.031, 0.018, 0.034); lamp.position.set(0, -0.007, -0.098); g.add(lamp);   // 2 đốt đèn cuối bụng
+          const pr = new THREE.SphereGeometry(1, 10, 5, 0, TAU, 0, Math.PI / 2); pr.scale(0.04, 0.017, 0.036); pr.translate(0, 0.004, 0.058);
+          g.add(new THREE.Mesh(paint(pr, (x, y, z) => Math.hypot(x / 0.4, (z - 0.06) / 0.5) < 0.03 ? 0x2a1d14 : 0xe8823a), vc));   // khiên ngực cam, đốm sẫm giữa
+          const hd = new THREE.Mesh(new THREE.SphereGeometry(0.017, 7, 5), dark); hd.position.set(0, -0.004, 0.092); g.add(hd);
+          const eyeM = new THREE.MeshPhongMaterial({ color: 0xc8902c, shininess: 90, specular: 0x887755 });
+          for (const sx of [-1, 1]) {
+            const e = new THREE.Mesh(new THREE.SphereGeometry(0.011, 7, 5), eyeM); e.position.set(sx * 0.015, -0.002, 0.097); g.add(e);   // mắt hổ phách
+            rodBetween(g, new THREE.Vector3(sx * 0.007, 0.002, 0.108), new THREE.Vector3(sx * 0.026, 0.024, 0.15), 0.0028, dark, 4, false);
+            rodBetween(g, new THREE.Vector3(sx * 0.026, 0.024, 0.15), new THREE.Vector3(sx * 0.04, 0.03, 0.2), 0.0022, dark, 4, false);   // râu
+            for (const z of [0.06, 0.035, 0.01]) { const k = new THREE.Vector3(sx * 0.05, -0.022, z - 0.008); rodBetween(g, new THREE.Vector3(sx * 0.015, -0.012, z), k, 0.0032, dark, 3, false); rodBetween(g, k, new THREE.Vector3(sx * 0.06, -0.05, z - 0.03), 0.0024, dark, 3, false); }   // 6 chân
+          }
+          const elyG = new THREE.SphereGeometry(1, 8, 5, 0, TAU, 0, Math.PI / 2); elyG.scale(0.022, 0.011, 0.082); elyG.translate(0.02, 0, -0.072);   // cánh cứng: vỏ nửa elip, khớp ở gốc (z = 0)
+          paint(elyG, (x) => { const u = (x - 0.002) / 0.04; return u > 0.86 || u < 0.05 ? 0xd9c27a : Math.abs(u - 0.35) < 0.05 || Math.abs(u - 0.62) < 0.05 ? 0xb07a3a : 0x2a2218; });   // viền vàng nhạt + 2 gân đồng
+          const wingM = new THREE.MeshLambertMaterial({ color: 0xc8d0d6, transparent: true, opacity: 0.3, side: THREE.DoubleSide, depthWrite: false });
+          const blade = (len, w) => { const sh = new THREE.Shape(); sh.moveTo(0, 0); sh.bezierCurveTo(len * 0.3, w, len * 0.9, w * 0.8, len, 0); sh.bezierCurveTo(len * 0.85, -w * 0.45, len * 0.3, -w * 0.4, 0, 0); const gg = new THREE.ShapeGeometry(sh, 6); gg.rotateX(Math.PI / 2); return gg; };
+          const side = (sx) => { const s = new THREE.Group(); s.scale.x = sx; s.position.y = 0.014; g.add(s); return s; };
+          const els = [], wings = [];
+          for (const sx of [1, -1]) {
+            const S = side(sx), el = new THREE.Group(); el.position.set(0.004, 0, 0.03); S.add(el); el.add(new THREE.Mesh(elyG, vc)); els.push(el);   // nâng chếch khi bay
+            const w = new THREE.Group(); w.position.set(0.01, 0, 0.012); S.add(w); const m = new THREE.Mesh(blade(0.13, 0.04), wingM); m.rotation.y = 0.55; w.add(m); wings.push(w);
+          }
           const glowSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: ffMap, color: 0xe4ff88, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false }));
-          glowSprite.scale.set(0.5, 0.5, 1); glowSprite.position.set(0, -0.01, -0.16); g.add(glowSprite);
-          const wingL = bx(0.18, 0.01, 0.12, whiteMat); wingL.position.set(0.06, 0.04, 0); g.add(wingL);
-          const wingR = bx(0.18, 0.01, 0.12, whiteMat); wingR.position.set(-0.06, 0.04, 0); g.add(wingR);
-          wingL.userData.noBake = wingR.userData.noBake = true; bakeStatic(g);   // thân đom đóm gộp, cánh + sprite phát sáng giữ động
-          g.scale.setScalar(0.675 * NATURE_SCALE); return { g, wingL, wingR, glowSprite };
+          glowSprite.scale.set(0.5, 0.5, 1); glowSprite.position.set(0, -0.01, -0.105); g.add(glowSprite);
+          for (const o of [...els, ...wings, glowSprite, lamp]) o.userData.noBake = true;
+          bakeStatic(g);   // thân + khiên + chân + râu gộp; cánh cứng, cánh màng, đèn, quầng sáng giữ động
+          g.scale.setScalar(0.62 * NATURE_SCALE); return { g, wingL: wings[0], wingR: wings[1], elL: els[0], elR: els[1], lampM, glowSprite };
         }
-        for (let n = 0; n < 3; n++) {
-          const bee = createGlowingBee(); const i = (14 + n * 9) * S, j = (34 + n * 2) * S; const base = new THREE.Vector3(wx(i), surfaceY(i, j) + 2.0, wz(j));
-          bee.g.position.copy(base); scene.add(bee.g);
-          fireflies.push({ g: bee.g, wL: bee.wingL, wR: bee.wingR, sp: bee.glowSprite, base: base.clone(), target: base.clone(), timer: 2.0 + Math.random() * 3.0, ph: Math.random() * 6.28, r: 1.7 + Math.random() * 1.3, spd: 0.35 + Math.random() * 0.3, state: 'moving', currentSpd: 0 });
+        for (let n = 0; n < 9; n++) {   // 9 con rải 3 cụm trên bãi cỏ (trước chỉ 3)
+          const ff = createFirefly(), i = (12 + (n % 3) * 9 + Math.random() * 3) * S, j = (32 + ((n / 3) | 0) * 3 + Math.random() * 2) * S, base = new THREE.Vector3(wx(i), surfaceY(i, j) + 1.2 + Math.random() * 1.2, wz(j));
+          ff.g.position.copy(base); scene.add(ff.g);
+          fireflies.push({ g: ff.g, wL: ff.wingL, wR: ff.wingR, elL: ff.elL, elR: ff.elR, lampM: ff.lampM, sp: ff.glowSprite, base: base.clone(), target: base.clone(), timer: 2.0 + Math.random() * 3.0, ph: Math.random() * 6.28, r: 1.7 + Math.random() * 1.3, spd: 0.35 + Math.random() * 0.3, state: 'moving', currentSpd: 0,
+            per: 2.0 + Math.random() * 0.6, fp: Math.random(), fl: 9 });   // chu kỳ gần nhau (2,0–2,6 s) ⇒ ghép xung đủ kéo các con gần nhau về cùng nhịp
         }
 
         const flightRootNames = new Set([
@@ -116,27 +140,70 @@
         }
         refreshFlightNavigation();
 
-        // ---- bươm bướm ----
-        const butterflyColors = [0xff5577, 0xffb700, 0x33ccee];
-        function butterfly(col, isBlue) {   // bươm bướm kiểu MINECRAFT: thân hộp + đầu vuông + râu + cánh tấm dẹt có đốm
-          const g = new THREE.Group();
-          const bMat = new THREE.MeshLambertMaterial({ color: isBlue ? 0x6e5c54 : 0x2b2320 });
-          const wMat = new THREE.MeshLambertMaterial({ color: col, side: THREE.DoubleSide });
-          const sMat = new THREE.MeshLambertMaterial({ color: isBlue ? 0x2244bb : 0x1a1512 });
-          const body = bx(0.06, 0.06, 0.3, bMat); g.add(body);
-          const head = bx(0.08, 0.08, 0.08, bMat); head.position.z = 0.18; g.add(head);
-          const aMat = isBlue ? new THREE.MeshLambertMaterial({ color: 0x00a8e8 }) : sMat;
-          for (const sx of [-1, 1]) { const ant = bx(0.012, 0.012, 0.14, aMat); ant.position.set(sx * 0.03, 0.06, 0.26); ant.rotation.x = -0.5; g.add(ant); }
-          const mkWing = (side) => {
-            const w = new THREE.Group(); w.position.set(side * 0.03, 0.02, 0);
-            const fore = bx(0.3, 0.001, 0.22, wMat); fore.position.set(side * 0.16, 0, 0.06); w.add(fore);
-            const hind = bx(0.22, 0.001, 0.16, isBlue ? sMat : wMat); hind.position.set(side * 0.12, 0, -0.1); w.add(hind);
-            const spot = bx(0.08, 0.0012, 0.08, isBlue ? wMat : sMat); spot.position.set(side * 0.19, 0.0002, 0.06); w.add(spot);
-            g.add(w); return w;
+        // ---- BƯƠM BƯỚM (G 15/10 "study and improve butterfly" — không kèm mẫu: dựng theo hình thái thật + 5 loài phổ biến ở Tây Nguyên) ----
+        //  thân mảnh (ngực lông + bụng dài đốt), mắt kép to, râu dùi trống, vòi cuộn; cánh trước tam giác đỉnh nhọn, cánh sau tròn, hoa văn vẽ canvas
+        //  theo loài + gân cánh toả từ gốc: Bướm giáp đỏ (Cethosia biblis) · Bướm hổ (Danaus chrysippus) · Phượng xanh lam (Graphium sarpedon) ·
+        //  Bướm vàng (Eurema hecabe) · Bướm hổ xanh (Tirumala limniace). Bay: vỗ biên độ lớn (trên gần chạm nhau ~+75°, dưới ~−23°), cánh sau trễ pha
+        //  cánh trước; loài hổ / phượng có pha LƯỢN cánh phẳng giữa các tràng vỗ; thân nhấp nhô theo từng nhịp (vỗ xuống nâng thân).
+        const BF_SP = [   // [tên, nền cánh trước, nền cánh sau, màu thân, nhịp vỗ Hz, lượn (s) | null]
+          ['lacewing', '#d9452c', '#e0562e', 0x3a2418, 7, [0.4, 1.0]], ['tiger', '#ee8a1d', '#f29a2e', 0x2b2018, 6, [0.5, 1.3]], ['bluebottle', '#1d2226', '#1d2226', 0x1a1d20, 8, [0.3, 0.8]],
+          ['yellow', '#f2d82a', '#f4de3a', 0x5a4a1a, 11, null], ['bluetiger', '#2a2622', '#2a2622', 0x221e1a, 5.5, [0.6, 1.6]], ['bluebottle', '#1d2226', '#1d2226', 0x1a1d20, 8, [0.3, 0.8]]];
+        const BF_FORE = [[0.01, 0.025], [0.12, 0.06], [0.24, 0.075], [0.31, 0.07], [0.3, 0.02], [0.25, -0.05], [0.18, -0.085], [0.06, -0.06], [0.01, -0.02]];
+        const BF_HIND = [[0.01, -0.01], [0.1, -0.035], [0.19, -0.07], [0.21, -0.13], [0.17, -0.19], [0.1, -0.225], [0.04, -0.19], [0.01, -0.09]];
+        function bflyTex(sp) {   // 256²: toạ độ cánh (x 0…0,32 · z −0,24…0,08) ↔ ảnh; vẽ nền → hoa văn theo loài → gân → (gương 2 bên dùng chung)
+          const c = document.createElement('canvas'); c.width = c.height = 256; const x = c.getContext('2d'), P = (u, z) => [u / 0.32 * 256, (0.25 - z / 0.32) * 256];
+          const path = (pts) => { x.beginPath(); pts.forEach(([u, z], i) => { const [X, Y] = P(u, z); i ? x.lineTo(X, Y) : x.moveTo(X, Y); }); x.closePath(); };
+          const dot = (u, z, r, col) => { const [X, Y] = P(u, z); x.fillStyle = col; x.beginPath(); x.arc(X, Y, r, 0, TAU); x.fill(); };
+          const [name, fc, hc] = sp;
+          for (const [pts, col] of [[BF_FORE, fc], [BF_HIND, hc]]) {
+            x.save(); path(pts); x.clip(); x.fillStyle = col; x.fillRect(0, 0, 256, 256);
+            const fore = pts === BF_FORE;
+            if (name === 'tiger' || name === 'lacewing') {   // mép đen chấm trắng; đỉnh cánh trước đen + dải trắng chéo
+              x.lineWidth = 16; x.strokeStyle = '#1a1512'; path(pts); x.stroke();
+              for (let k = 0; k < 9; k++) { const q = pts[1 + (k % (pts.length - 2))]; dot(q[0] * 0.94, q[1] * 0.94, 2.2, '#f4f0e6'); }
+              if (fore) { x.fillStyle = '#1a1512'; path([[0.19, 0.08], [0.33, 0.08], [0.33, -0.03], [0.22, 0.0]]); x.fill(); for (const [u, z] of [[0.21, 0.035], [0.24, 0.045], [0.27, 0.045], [0.25, 0.015]]) dot(u, z, 4.5, '#f6f2ea'); }
+              if (!fore && name === 'tiger') for (const [u, z] of [[0.1, -0.09], [0.13, -0.12], [0.08, -0.13]]) dot(u, z, 3, '#1a1512');
+              if (name === 'lacewing') { x.strokeStyle = '#f4efe2'; x.lineWidth = 2; x.beginPath(); for (let k = 0; k <= 12; k++) { const [X, Y] = P((fore ? 0.2 : 0.15) + 0.012 * (k & 1), fore ? 0.06 - k * 0.011 : -0.05 - k * 0.013); k ? x.lineTo(X, Y) : x.moveTo(X, Y); } x.stroke(); }
+            } else if (name === 'yellow') {   // vàng chanh, mép ngoài cánh trước đen hình "mặt chó"
+              if (fore) { x.fillStyle = '#211b12'; path([[0.2, 0.09], [0.34, 0.09], [0.34, -0.1], [0.21, -0.08], [0.25, -0.03], [0.24, 0.03]]); x.fill(); }
+              else { x.lineWidth = 5; x.strokeStyle = '#211b12'; path(pts); x.stroke(); }
+            } else if (name === 'bluebottle') {   // nền đen nâu + dải xanh lam ngọc chạy từ đỉnh cánh trước xuống mép trong cánh sau
+              x.fillStyle = '#41c2d4'; for (let k = 0; k < 8; k++) { const t = k / 7, u = fore ? 0.24 - t * 0.17 : 0.09 - t * 0.05, z = fore ? 0.03 - t * 0.07 : -0.05 - t * 0.13; const [X, Y] = P(u, z); x.beginPath(); x.ellipse(X, Y, 11 - 3 * t, 7, -0.6, 0, TAU); x.fill(); }
+              if (!fore) for (const [u, z] of [[0.15, -0.17], [0.12, -0.2]]) dot(u, z, 2.5, '#d8342a');
+            } else {   // hổ xanh: vệt xanh nhạt toả giữa các gân + chấm mép
+              x.fillStyle = '#bfe2f2'; for (let k = 0; k < 7; k++) { const a = (fore ? 0.55 : -0.2) - k * 0.24, L = fore ? 0.2 : 0.14; const [X0, Y0] = P(0.03 + Math.cos(a) * 0.03, Math.sin(a) * 0.03 + (fore ? 0 : -0.05)), [X1, Y1] = P(0.03 + Math.cos(a) * L, Math.sin(a) * L + (fore ? 0 : -0.05)); x.strokeStyle = '#bfe2f2'; x.lineWidth = 7; x.lineCap = 'round'; x.beginPath(); x.moveTo(X0, Y0); x.lineTo(X1, Y1); x.stroke(); }
+              for (let k = 0; k < 8; k++) { const q = pts[1 + (k % (pts.length - 2))]; dot(q[0] * 0.9, q[1] * 0.9, 2.5, '#d6ecf6'); }
+            }
+            x.strokeStyle = 'rgba(20,14,10,0.55)'; x.lineWidth = 1.2;   // gân cánh toả từ gốc
+            for (let k = 0; k < 9; k++) { const q = pts[1 + Math.floor(k / 9 * (pts.length - 2))], [X0, Y0] = P(0.015, fore ? 0.01 : -0.03), [X1, Y1] = P(q[0], q[1]); x.beginPath(); x.moveTo(X0, Y0); x.quadraticCurveTo((X0 + X1) / 2, (Y0 + Y1) / 2 - 6, X1, Y1); x.stroke(); }
+            x.restore();
+          }
+          const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.repeat.set(1 / 0.32, 1 / 0.32); t.offset.set(0, 0.75); return t;
+        }
+        function butterfly(sp) {
+          const g = new THREE.Group(), body = new THREE.MeshLambertMaterial({ color: sp[3], flatShading: true });
+          const th = new THREE.Mesh(new THREE.SphereGeometry(1, 7, 5), body); th.scale.set(0.028, 0.026, 0.05); th.position.z = 0.03; g.add(th);   // ngực lông
+          const ab = new THREE.Mesh(new THREE.SphereGeometry(1, 7, 5), body); ab.scale.set(0.02, 0.019, 0.1); ab.position.set(0, -0.004, -0.085); g.add(ab);   // bụng dài
+          const hd = new THREE.Mesh(new THREE.SphereGeometry(0.022, 7, 5), body); hd.position.z = 0.09; g.add(hd);
+          const eyeM = new THREE.MeshPhongMaterial({ color: 0x1a1612, shininess: 60 });
+          for (const sx of [-1, 1]) {
+            const e = new THREE.Mesh(new THREE.SphereGeometry(0.013, 6, 5), eyeM); e.position.set(sx * 0.016, 0.004, 0.095); g.add(e);
+            rodBetween(g, new THREE.Vector3(sx * 0.008, 0.016, 0.1), new THREE.Vector3(sx * 0.045, 0.07, 0.23), 0.003, body, 3, false);   // râu
+            const club = new THREE.Mesh(new THREE.SphereGeometry(0.008, 6, 4), body); club.scale.z = 1.8; club.position.set(sx * 0.046, 0.071, 0.235); g.add(club);   // dùi trống
+          }
+          const prob = new THREE.Mesh(new THREE.TorusGeometry(0.012, 0.0025, 4, 8, 4.7), body); prob.position.set(0, -0.02, 0.105); prob.rotation.y = Math.PI / 2; g.add(prob);   // vòi cuộn
+          const tex = bflyTex(sp), wingM = new THREE.MeshLambertMaterial({ map: tex, side: THREE.DoubleSide, transparent: true, alphaTest: 0.5 });
+          const shapeGeo = (pts) => { const sh = new THREE.Shape(); pts.forEach(([u, z], i) => i ? sh.lineTo(u, z) : sh.moveTo(u, z)); const gg = new THREE.ShapeGeometry(sh); gg.rotateX(Math.PI / 2); return gg; };
+          const foreG = shapeGeo(BF_FORE), hindG = shapeGeo(BF_HIND);
+          const mkWing = (side) => {   // nhóm vai (gốc cánh trên lưng ngực); cánh trái = gương cánh phải (scale.x)
+            const w = new THREE.Group(); w.position.set(side * 0.012, 0.022, 0.03); g.add(w);
+            const inner = new THREE.Group(); inner.scale.x = side; w.add(inner);
+            inner.add(new THREE.Mesh(foreG, wingM)); const hind = new THREE.Mesh(hindG, wingM); inner.add(hind);
+            w.userData.hind = hind; return w;
           };
           const wingL = mkWing(1), wingR = mkWing(-1);
-          wingL.userData.noBake = wingR.userData.noBake = true; bakeStatic(g);   // thân+đầu+râu gộp, 2 cánh giữ động để vẫy
-          g.scale.setScalar((isBlue ? 0.81 : 0.765) * NATURE_SCALE); return { g, wingL, wingR };
+          wingL.userData.noBake = wingR.userData.noBake = true; bakeStatic(g);   // thân + râu gộp, 2 cánh giữ động
+          g.scale.setScalar(0.78 * NATURE_SCALE); return { g, wingL, wingR };
         }
         function pickBflyTarget(from = null, out = new THREE.Vector3()) {
           for (let attempt = 0; attempt < 80; attempt++) {
@@ -155,10 +222,20 @@
           pickBflyTarget(bf.pos, bf.target);
         }
         for (let n = 0; n < 6; n++) {
-          const isBlue = n >= 4;
-          const bt = butterfly(isBlue ? 0x1ab2ff : butterflyColors[n % butterflyColors.length], isBlue);
+          const sp = BF_SP[n], bt = butterfly(sp);
           const startP = pickBflyTarget(); bt.g.position.copy(startP); scene.add(bt.g);
-          butterflies.push({ g: bt.g, wL: bt.wingL, wR: bt.wingR, pos: startP.clone(), target: pickBflyTarget(startP), spd: (1.6 + Math.random() * 0.9) * 0.9, ph: Math.random() * 6.28 });
+          butterflies.push({ g: bt.g, wL: bt.wingL, wR: bt.wingR, pos: startP.clone(), target: pickBflyTarget(startP), spd: (1.6 + Math.random() * 0.9) * 0.9, ph: Math.random() * 6.28,
+            hz: sp[4], glide: sp[5], fph: Math.random() * TAU, glideT: 0, nextGlide: TAU * (2 + Math.random() * 4), ang: 0.4 });
+        }
+        function bflyFlap(bf, dt, k = 1) {   // vỗ – lượn; trả về độ nhấp nhô thân (vỗ xuống nâng thân) · k: hệ số nhịp (vội tránh mưa vỗ nhanh hơn)
+          if (bf.glideT > 0) { bf.glideT -= dt; bf.ang += (0.22 - bf.ang) * Math.min(1, dt * 9); }   // lượn: cánh phẳng hơi nâng
+          else {
+            bf.fph += dt * bf.hz * k * TAU; bf.ang = 0.46 + 0.86 * Math.cos(bf.fph);
+            if (bf.glide && bf.fph > bf.nextGlide && Math.cos(bf.fph) < 0.2) { bf.glideT = bf.glide[0] + Math.random() * (bf.glide[1] - bf.glide[0]); bf.nextGlide = bf.fph + TAU * (4 + Math.random() * 5); }
+          }
+          const lag = bf.glideT > 0 ? 0 : 0.46 + 0.86 * Math.cos(bf.fph - 0.45) - bf.ang;   // cánh sau trễ pha cánh trước
+          bf.wL.rotation.z = bf.ang; bf.wR.rotation.z = -bf.ang; bf.wL.userData.hind.rotation.z = bf.wR.userData.hind.rotation.z = lag;
+          return bf.glideT > 0 ? 0 : 0.045 * Math.sin(bf.fph);
         }
         // ---- trú mưa của bướm: mỗi con 1 chỗ đậu riêng trên mặt cành chính cây cổ thụ (dưới tán; chừa cành sông cho cò) ----
         {
@@ -181,7 +258,7 @@
           if (bf.mode === 'nav') return false;
           if (bf.mode === 'perched') {   // khép cánh dựng đứng, thỉnh thoảng hé cánh rũ nước
             bf.g.position.copy(bf.perch).add(treeWindAt(oldTreeWind, bf.perch, _bfSway)); bf.g.rotation.y = bf.perchYaw;   // đậu trên cành: đung đưa theo cành
-            const fold = 1.38 - Math.pow(Math.max(0, Math.sin(t * 0.5 + bf.ph)), 12) * 0.9; bf.wL.rotation.z = fold; bf.wR.rotation.z = -fold;
+            const fold = 1.38 - Math.pow(Math.max(0, Math.sin(t * 0.5 + bf.ph)), 12) * 0.9; bf.wL.rotation.z = fold; bf.wR.rotation.z = -fold; bf.wL.userData.hind.rotation.z = bf.wR.userData.hind.rotation.z = 0;
             return true;
           }
           const goal = bf.mode === 'toPerch' ? bf.perch : flightNav.visualPosition(bf.pos, insectOffset.set(0, 0, 0), bf.back);   // tạnh: bay về đúng điểm dẫn đường cũ
@@ -191,20 +268,45 @@
           const wob = Math.min(1, dd * 0.8);   // lượn nhẹ khi còn xa, sát chỗ đậu thì vào thẳng
           bf.g.position.set(bf.vis.x + Math.cos(t * 2 + bf.ph) * 0.12 * wob, bf.vis.y + Math.sin(t * 3.5 + bf.ph) * 0.18 * wob, bf.vis.z);
           let turn = Math.atan2(dx, dz) - bf.g.rotation.y; turn = Math.atan2(Math.sin(turn), Math.cos(turn)); bf.g.rotation.y += turn * Math.min(1, dt * 5);
-          const flap = Math.sin(t * 9.5 + bf.ph) * 0.72; bf.wL.rotation.z = flap; bf.wR.rotation.z = -flap;   // vỗ nhanh hơn khi vội tránh mưa
+          bflyFlap(bf, dt, 1.3);   // vỗ nhanh hơn khi vội tránh mưa
           return true;
         }
 
-        // ---- Ong bay tới hoa, hút mật và mang về tổ ----
-        function createMinecraftBee() {
-          const g = new THREE.Group(), yellowMat = new THREE.MeshLambertMaterial({ color: 0xffd13b }), darkMat = new THREE.MeshLambertMaterial({ color: 0x2b1e17 }), whiteMat = new THREE.MeshLambertMaterial({ color: 0xE2D6C0, transparent: true, opacity: 0.75, side: THREE.DoubleSide });
-          const body = bx(0.1, 0.08, 0.3, yellowMat); body.castShadow = true; g.add(body);
-          const stripe = bx(0.105, 0.085, 0.12, darkMat); stripe.position.z = -0.06; g.add(stripe);
-          const face = bx(0.09, 0.07, 0.02, darkMat); face.position.z = 0.15; g.add(face);
-          const wingL = bx(0.18, 0.01, 0.12, whiteMat); wingL.position.set(0.06, 0.04, 0); g.add(wingL);
-          const wingR = bx(0.18, 0.01, 0.12, whiteMat); wingR.position.set(-0.06, 0.04, 0); g.add(wingR);
-          wingL.userData.noBake = wingR.userData.noBake = true; bakeStatic(g);   // thân+sọc+mặt gộp, 2 cánh giữ động
-          g.scale.setScalar(0.75 * NATURE_SCALE); return { g, wingL, wingR };
+        // ---- ONG bay tới hoa, hút mật, mang về tổ (G 15/10: "study bee glb and improve · make bee smaller 50%") — dựng theo tỉ lệ mẫu "Bee (Low Poly)"
+        //      (EsiHere, Sketchfab, CC-BY-4.0; chỉ đo): đầu ~20% · ngực ~27% · bụng ~50% chiều dài; bụng thon nhọn có kim, 4 khoang vàng cam xen đen;
+        //      mắt kép đen bóng 2 bên đầu, râu gập khuỷu, 6 chân đen 2 đốt buông sau bụng khi bay; 2 cặp cánh trong (trước to, sau nhỏ). Cỡ = 50% ong cũ ----
+        function createBee() {
+          const g = new THREE.Group(), dark = new THREE.MeshLambertMaterial({ color: 0x231b14, flatShading: true });
+          const vc = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }), C = (h) => new THREE.Color(h);
+          const paint = (geo, f) => { const p = geo.attributes.position, c = []; for (let i = 0; i < p.count; i++) { const k = C(f(p.getX(i), p.getY(i), p.getZ(i))); c.push(k.r, k.g, k.b); } geo.setAttribute('color', new THREE.Float32BufferAttribute(c, 3)); return geo; };
+          // bụng: ellipsoid kéo dài, thon nhọn về đuôi; khoang theo z (vàng cam / đen), chóp đen
+          const ab = new THREE.SphereGeometry(1, 10, 8), ap = ab.attributes.position;
+          for (let i = 0; i < ap.count; i++) { const z = ap.getZ(i), k = z < 0 ? 1 - 0.55 * Math.pow(-z, 1.6) : 1; ap.setXYZ(i, ap.getX(i) * 0.058 * k, ap.getY(i) * 0.054 * k, z * 0.078 - 0.08); }
+          ab.computeVertexNormals(); g.add(new THREE.Mesh(paint(ab, (x, y, z) => z < -0.142 ? 0x231b14 : (Math.floor((z + 0.158) / 0.0195) & 1) ? 0x231b14 : 0xf2b21e), vc));
+          const sting = new THREE.Mesh(new THREE.ConeGeometry(0.008, 0.03, 5), dark); sting.rotation.x = -Math.PI / 2; sting.position.z = -0.168; g.add(sting);
+          const thx = new THREE.SphereGeometry(0.043, 9, 7); thx.translate(0, 0.004, 0.03); g.add(new THREE.Mesh(paint(thx, (x, y, z) => y > 0.03 && Math.abs(z - 0.03) < 0.018 ? 0x231b14 : 0xe0a02a), vc));   // ngực lông vàng, vạch đen trên lưng
+          const hd = new THREE.SphereGeometry(0.033, 8, 6); hd.scale(1, 0.95, 0.85); hd.translate(0, 0.002, 0.098); g.add(new THREE.Mesh(paint(hd, (x, y, z) => y < -0.005 && z > 0.11 ? 0xf2b21e : 0x2a2018), vc));   // đầu sẫm, mặt dưới vàng
+          const eyeM = new THREE.MeshPhongMaterial({ color: 0x0c0a08, shininess: 90, specular: 0x666666 });
+          for (const sx of [-1, 1]) {
+            const e = new THREE.Mesh(new THREE.SphereGeometry(0.02, 7, 5), eyeM); e.scale.set(0.5, 1, 0.8); e.position.set(sx * 0.026, 0.006, 0.104); g.add(e);   // mắt kép
+            rodBetween(g, new THREE.Vector3(sx * 0.01, 0.022, 0.122), new THREE.Vector3(sx * 0.02, 0.058, 0.142), 0.0035, dark, 4, false);   // râu: đốt gốc dựng
+            rodBetween(g, new THREE.Vector3(sx * 0.02, 0.058, 0.142), new THREE.Vector3(sx * 0.032, 0.062, 0.19), 0.003, dark, 4, false);   // gập khuỷu chĩa trước
+            for (const [z, dz] of [[0.05, -0.02], [0.03, -0.04], [0.008, -0.07]]) {   // 6 chân: đùi chĩa ra ngoài–xuống, ống chân buông ra sau
+              const k = new THREE.Vector3(sx * 0.062, -0.05, z + dz * 0.4);
+              rodBetween(g, new THREE.Vector3(sx * 0.022, -0.028, z), k, 0.005, dark, 4, false); rodBetween(g, k, new THREE.Vector3(sx * 0.055, -0.1, z + dz), 0.0035, dark, 4, false);
+            }
+          }
+          const wingM = new THREE.MeshLambertMaterial({ color: 0xe6ecef, transparent: true, opacity: 0.42, side: THREE.DoubleSide, depthWrite: false });
+          const blade = (len, w) => { const sh = new THREE.Shape(); sh.moveTo(0, 0); sh.bezierCurveTo(len * 0.3, w, len * 0.9, w * 0.9, len, 0.1 * w); sh.bezierCurveTo(len * 0.9, -w * 0.5, len * 0.3, -w * 0.5, 0, 0); const gg = new THREE.ShapeGeometry(sh, 6); gg.rotateX(Math.PI / 2); return gg; };
+          const mkWing = (sx) => {   // nhóm vai ở gốc cánh (lưng ngực); cánh trước dài 0,16 xuôi chéo ra sau, cánh sau 0,1 ngay sau
+            const w = new THREE.Group(); w.position.set(sx * 0.018, 0.04, 0.04); w.scale.x = sx; g.add(w);
+            const f = new THREE.Mesh(blade(0.16, 0.05), wingM); f.rotation.y = 0.5; w.add(f);
+            const h = new THREE.Mesh(blade(0.1, 0.035), wingM); h.position.z = -0.03; h.rotation.y = 0.85; w.add(h);
+            return w;
+          };
+          const wingL = mkWing(1), wingR = mkWing(-1);
+          wingL.userData.noBake = wingR.userData.noBake = true; bakeStatic(g);   // thân + chân + râu gộp; 2 cặp cánh giữ động
+          g.scale.setScalar(0.75 * NATURE_SCALE * 0.5); return { g, wingL, wingR };
         }
         // Ong chọn hoa có lối tiếp cận an toàn; ưu tiên hoa gần để không bay vòng cả khu vườn.
         function pickBeeFlowerTarget(from = null, out = new THREE.Vector3()) {
@@ -230,16 +332,7 @@
           out.nectarFlower = best || fallback;
           return out.copy(out.nectarFlower || from);
         }
-        const hiveWorldPos = new THREE.Vector3(-25.5, 9.2, 19.713);
-        {
-          const smallSubTreeGroup = scene.getObjectByName('Cây con (Small Sub-Tree)');
-          if (smallSubTreeGroup && smallSubTreeGroup.userData.hiveGroup) {
-            smallSubTreeGroup.updateMatrixWorld(true);
-            const hive = smallSubTreeGroup.userData.hiveGroup;
-            hive.localToWorld(hiveWorldPos.set(0, -0.19, 0));
-            hiveWorldPos.y -= flightNav.clearance + 0.08;
-          }
-        }
+        const hiveWorldPos = beehive.mouth.clone(); hiveWorldPos.y -= flightNav.clearance + 0.08;   // ong đi / về ở miệng đáy giỏ rơm (animals/beehive.js)
         let hiveHoneyPct = 0;
         let hiveSprite, hiveCanvas, hiveTex;
 
@@ -272,7 +365,7 @@
           const c = document.createElement('canvas'); c.width = 64; c.height = 32;
           const tex = new THREE.CanvasTexture(c);
           const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
-          spr.scale.set(0.9, 0.45, 1); spr.position.set(0, 0.36, 0);
+          spr.scale.set(1.8, 0.9, 1); spr.position.set(0, 0.72, 0);   // ong thu 50% ⇒ nhãn nhân đôi để giữ cỡ chữ cũ
           return { c, tex, spr };
         }
         function setBeePct(b, pctOverride) {
@@ -309,7 +402,7 @@
           agent.g.position.set(p.x, p.y, p.z);
         }
         for (let n = 0; n < 8; n++) {
-          const bee = createMinecraftBee();
+          const bee = createBee();
           // Ong bắt đầu tại tổ hoặc hoa
           const startP = Math.random() < 0.3 ? hiveWorldPos.clone() : pickBeeFlowerTarget();
           bee.g.position.copy(startP); scene.add(bee.g);

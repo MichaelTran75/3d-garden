@@ -60,6 +60,7 @@ nature/grass-scatter.js                # rải cỏ, hoa, thảm cỏ
 nature/lotus.js                        # ĐẦM SEN: lá khiên nổi & vươn, hoa 3 vòng cánh nở/khép theo giờ, búp, gương sen, giọt sương
 nature/wind-field.js                   # BẢN ĐỒ GIÓ NS 2D: vật cản (nhà, xe, đập, tán rừng) + độ phơi gió địa hình → luồng phụ giải · lá rừng rụng theo cơn giật
 nature/meadow.js                       # THẢM CỎ MỀM 45% đất: lá mảnh dày, gốc = màu đất, pháp tuyến chĩa lên, sóng gió, hoa dại, LOD + cắt khung nhìn
+animals/beehive.js                     # TỔ ONG GIỎ RƠM treo cành cây con: vỏ rơm trong 75% + nét viền, 5 bánh sáp ô lục giác (nhộng · phấn · mật), que chống, ong bò trong tổ
 animals/insects.js                     # đom đóm, bướm, ong
 animals/storks.js                      # cò trắng (dựng theo số đo Stork.glb, MIT)
 animals/songbird.js                    # CHIM SẺ: con ở trại (thanh treo đèn → cỏ → cây táo → nóc xe → dây điện; ngủ cây táo) + hộp tổ treo cành cây táo, cặp làm tổ mớm chim non

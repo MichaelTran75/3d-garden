@@ -61,7 +61,7 @@
         }
 
         // ---- CHUỒNG BÒ tại ghim (54, 7, 49): khung cột gỗ, mái tôn một mái dốc ra sau, mặt trước mở hướng nam (+Z) để nhìn thấy bò bên trong;
-        //      mỗi con một ô (vách ngăn 2 thanh), máng cỏ dọc vách sau, rơm lót nền, máng nước + cây rơm + chĩa cỏ bên hông, đèn bóng tròn ban đêm.
+        //      mỗi con một ô (vách ngăn 2 thanh), máng cỏ dọc vách sau, rơm lót nền, máng nước + cây rơm + chĩa cỏ bên hông, đèn sợi đốt treo trước chuồng.
         //      Bò về chuồng lúc chiều tối (17:54 → 06:12) hoặc khi đang mưa; sáng / tạnh mưa thì lùi ra khỏi ô rồi về bãi cỏ ----
         const cowHut = (() => {
           const n = Math.max(4, cows.length), SW = 1.5, W = n * SW, D = 3.9, Hf = 2.95, Hb = 2.3;
@@ -136,17 +136,45 @@
           const handle = cyl(0.022, 0.022, 1.55, wood[0], true, false, null, 6); handle.position.y = 0.78; fork.add(handle);
           for (const o of [-0.07, 0, 0.07]) { const tine = cyl(0.008, 0.012, 0.32, iron, true, false, null, 5); tine.position.set(0, 1.68, o); fork.add(tine); }
           const forkBar = bx(0.02, 0.03, 0.16, iron, true, false); forkBar.position.y = 1.53; fork.add(forkBar);
-          // đèn bóng tròn treo dưới xà trước: tắt ngày, sáng ấm đêm (nhìn rõ bò nằm trong chuồng)
-          add(cyl(0.006, 0.006, 0.36, iron, false, false, null, 4), 0, Hf - 0.34, D / 2 - 0.05);
-          add(new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.09, 12, 1, true), new THREE.MeshLambertMaterial({ color: 0x55585c, side: THREE.DoubleSide })), 0, Hf - 0.55, D / 2 - 0.05);   // chao đèn
-          const bulbMat = new THREE.MeshBasicMaterial({ color: 0x77736a });
-          const bulb = add(new THREE.Mesh(new THREE.SphereGeometry(0.055, 10, 8), bulbMat), 0, Hf - 0.62, D / 2 - 0.05); bulb.userData.noBake = true;
-          const light = new THREE.PointLight(0xffd59a, 0, 9, 2); light.position.set(0, Hf - 0.7, D / 2 - 0.2); g.add(light);
+          // ---- ĐÈN SỢI ĐỐT treo trước chuồng (G 15/10 khoanh ảnh: giữa cột giữa và cột thứ 4, dưới xà trước; thay đèn chao cũ) — dựng theo số đo mẫu
+          //      "Incandescent Light Bulb" (AleixoAlonso, CC-BY-4.0 — chỉ đo): bóng quả lê A19 (cao ≈ 1,65 × rộng, cổ ≈ 0,46 × bụng), đui xoáy E27 ren kim loại,
+          //      trụ thuỷ tinh, 2 dây đỡ + sợi tóc vắt ngang; treo bằng dây điện + đui bakelite. Đêm: sợi tóc rực cam, vỏ bóng ửng sáng, quầng sáng ấm +
+          //      đèn điểm ~2.700 K; dây đung đưa nhẹ theo gió (con lắc) ----
+          const CORD = 0.3, LS = 1.1;   // bóng to hơn thật ~10% cho dễ thấy
+          const lamp = new THREE.Group(); lamp.name = 'Đèn sợi đốt chuồng bò'; lamp.userData.noBake = true; lamp.position.set(0.75, Hf - 0.16, D / 2); g.add(lamp);
+          const bake = new THREE.MeshLambertMaterial({ color: 0x2b2420 }), metal = new THREE.MeshLambertMaterial({ color: 0xc8b98e });
+          lamp.add(cyl(0.028, 0.028, 0.025, bake, true, false, null, 10));   // đế treo bắt dưới xà
+          const cord = cyl(0.0045, 0.0045, CORD, bake, true, false, null, 5); cord.position.y = -CORD / 2; lamp.add(cord);
+          const bulbG = new THREE.Group(); bulbG.position.y = -CORD - 0.046 * LS; bulbG.rotation.x = Math.PI; bulbG.scale.setScalar(LS); lamp.add(bulbG);   // dựng đứng (đui dưới) rồi lật: đui trên, bầu kính chúc xuống
+          const sock = cyl(0.024, 0.026, 0.056, bake, true, false, null, 12); sock.position.y = -0.016; bulbG.add(sock);
+          { const p = []; for (let k = 0; k <= 12; k++) p.push(new THREE.Vector2(k % 2 ? 0.0186 : 0.0208, 0.012 + k * 0.0018)); bulbG.add(new THREE.Mesh(new THREE.LatheGeometry(p, 12), metal)); }   // ren E27
+          const glassM = new THREE.MeshLambertMaterial({ color: 0xf2efe6, transparent: true, opacity: 0.3, depthWrite: false, side: THREE.DoubleSide });
+          const glass = new THREE.Mesh(new THREE.LatheGeometry([[0.021, 0.031], [0.022, 0.045], [0.026, 0.058], [0.034, 0.072], [0.042, 0.088], [0.046, 0.104], [0.046, 0.118], [0.042, 0.132], [0.032, 0.145], [0.018, 0.151], [0, 0.153]].map(([r, y]) => new THREE.Vector2(r, y)), 16), glassM); glass.renderOrder = 2; bulbG.add(glass);
+          const stemM = new THREE.MeshLambertMaterial({ color: 0xe9e6dc, transparent: true, opacity: 0.55, depthWrite: false }), wireM = new THREE.MeshLambertMaterial({ color: 0x55504a });
+          const stem = cyl(0.004, 0.008, 0.05, stemM, false, false, null, 8); stem.position.y = 0.056; bulbG.add(stem);
+          for (const sx of [-1, 1]) rodBetween(bulbG, new THREE.Vector3(sx * 0.004, 0.075, 0), new THREE.Vector3(sx * 0.016, 0.101, 0), 0.0009, wireM, 3, false);   // 2 dây đỡ
+          const filM = new THREE.MeshBasicMaterial({ color: 0x4a4744 });
+          bulbG.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.QuadraticBezierCurve3(new THREE.Vector3(-0.016, 0.101, 0), new THREE.Vector3(0, 0.096, 0), new THREE.Vector3(0.016, 0.101, 0)), 8, 0.0016, 4), filM));   // sợi tóc
+          const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'), gr = x.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,214,150,1)'); gr.addColorStop(0.25, 'rgba(255,170,90,0.45)'); gr.addColorStop(1, 'rgba(255,150,70,0)'); x.fillStyle = gr; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })(), color: 0xffc27a, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
+          halo.position.y = 0.1; halo.scale.setScalar(0.8 / LS); halo.visible = false; bulbG.add(halo);
+          const light = new THREE.PointLight(0xffc58a, 0, 9, 2); light.position.y = 0.1; bulbG.add(light);
+          lamp.traverse(o => { o.userData.noBatch = true; });
+          const lsw = { x: 0, z: 0, vx: 0, vz: 0 }, _lw = new THREE.Vector3(), lampW = new THREE.Vector3();
+          const lampTick = (dt, n) => {   // n = độ tối (0 ngày → 1 đêm) · con lắc dây 0,4 m (ω₀ ≈ 5 rad/s), gió dưới mái yếu đi còn ~40%
+            filM.color.setRGB(0.29 + 0.71 * n, 0.28 + 0.6 * n, 0.27 + 0.23 * n); glassM.emissive.setRGB(0.95 * n, 0.58 * n, 0.26 * n); glassM.opacity = 0.3 + 0.3 * n;
+            halo.visible = n > 0.02; halo.material.opacity = 0.8 * n;
+            if (!lampW.lengthSq()) lamp.getWorldPosition(lampW);
+            windAt(lampW.x, lampW.y, lampW.z, 2.6, _lw); const ex = 0.012 * Math.abs(_lw.x) * _lw.x, ez = 0.012 * Math.abs(_lw.z) * _lw.z;
+            for (let h = Math.min(dt, 0.05), k = Math.ceil(h / 0.0167), st = h / k, i = 0; i < k; i++) {
+              lsw.vx += (-25 * (lsw.x - ex) - 0.8 * lsw.vx) * st; lsw.x += lsw.vx * st; lsw.vz += (-25 * (lsw.z - ez) - 0.8 * lsw.vz) * st; lsw.z += lsw.vz * st;
+            }
+            lamp.rotation.set(-lsw.z, 0, lsw.x);
+          };
           bakeStatic(g); scene.add(g);
           const stalls = [];
           for (let k = 0; k < n; k++) { const sx = hx - W / 2 + (k + 0.5) * SW; stalls.push({ x: sx, z: hz + 0.2, ex: sx, ez: hz + D / 2 + 1.3 }); }
           cowHutRect = { x0: hx - W / 2 - 1.7, x1: hx + W / 2 + 1.45, z0: hz - D / 2 - 0.35, z1: hz + D / 2 + 0.25 };
-          return { g, x: hx, z: hz, y: y0, W, D, Hf, Hb, stalls, light, bulbMat, door: { x: hx, z: hz + D / 2 + 2.2 } };
+          return { g, x: hx, z: hz, y: y0, W, D, Hf, Hb, stalls, light, lampTick, door: { x: hx, z: hz + D / 2 + 2.2 } };
         })();
         cows.forEach((c, k) => { c.stall = k; c.mode = 'free'; c.leg = ''; c.sub = 'stand'; });
         const cowHutWanted = () => { const h = liveWeather.localHour; return liveWeather.state.raining || h >= 17.9 || h < 6.2; };   // chiều tối hoặc mưa → về chuồng

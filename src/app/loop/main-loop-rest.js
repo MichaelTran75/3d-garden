@@ -68,16 +68,15 @@
             for (const bf of butterflies) {
               if (bflyShelter(bf, dt, t, rainNow)) continue;   // mưa: đậu cành cây cổ thụ
               if (animateInsectFlight(bf, dt) === 'arrived') nextButterflyTarget(bf);
-              const bobY = Math.sin(t * 3.5 + bf.ph) * 0.18, bobX = Math.cos(t * 2.0 + bf.ph) * 0.12;
+              const beat = bflyFlap(bf, dt), bobY = Math.sin(t * 3.5 + bf.ph) * 0.18 + beat, bobX = Math.cos(t * 2.0 + bf.ph) * 0.12;   // vỗ – lượn theo loài, thân nhấp nhô theo nhịp
               setInsectVisualPosition(bf, bobX, bobY);
-              const flap = Math.sin(t * 7.7 + bf.ph) * 0.68; bf.wL.rotation.z = flap; bf.wR.rotation.z = -flap;
             }
             for (const b of bees) {
               if (rainNow) {   // mưa: bỏ dở hoa đang hút, bay thẳng về tổ rồi chui vào trong
                 if (b.state === 'sheltered') continue;
                 if (b.state !== 'returning' && b.state !== 'depositing') { cancelBeeNectar(b); b.hoverTmr = 0; b.state = 'returning'; b.target.copy(hiveWorldPos); }
               } else if (b.state === 'sheltered') { b.g.visible = true; b.state = 'foraging'; pickBeeFlowerTarget(b.pos, b.target); b.flowerRetryTmr = 0; setBeePct(b); }   // tạnh: chui ra đi kiếm mật tiếp
-              b.wL.rotation.z = Math.sin(t * 32 + b.ph) * 0.35; b.wR.rotation.z = -b.wL.rotation.z;
+              b.wL.rotation.z = 0.25 + Math.sin(t * 95 + b.ph) * 0.55; b.wR.rotation.z = -b.wL.rotation.z;   // cánh ong ~200 Hz: ở 60 hình/giây chỉ còn rung loang (vỗ nhanh, biên độ rộng)
               if (b.hoverTmr > 0) {
                 b.hoverTmr -= dt; setInsectVisualPosition(b, Math.sin(t * 5) * 0.04, Math.cos(t * 4) * 0.04);
                 if (b.state === 'depositing') {
@@ -115,11 +114,19 @@
             // Disappearing at night interrupts feeding without spending a flower's nectar.
             for (const b of bees) cancelBeeNectar(b);
           }
+          beehive.update(dt, t);   // ong thợ bò trên bánh sáp trong tổ giỏ rơm
           // ---- đom đóm hoạt cảnh ----
           for (const ff of fireflies) {
-            ff.wL.rotation.z = Math.sin(t * 28 + ff.ph) * 0.32;
-            ff.wR.rotation.z = -ff.wL.rotation.z;
-            ff.sp.material.opacity = 0.55 + Math.sin(t * 3.5 + ff.ph) * 0.35;
+            ff.wL.rotation.z = ff.wR.rotation.z = 0.35 + Math.sin(t * 60 + ff.ph) * 0.6;   // cánh màng vỗ (2 bên đối xứng gương: cùng góc)
+            ff.elL.rotation.set(0, -0.3, 0.55 + 0.04 * Math.sin(t * 30 + ff.ph)); ff.elR.rotation.copy(ff.elL.rotation);   // cánh cứng nâng chếch, toả 2 bên
+            ff.fp += dt / ff.per; ff.fl += dt;
+            if (ff.fp >= 1) {   // tới nhịp ⇒ chớp; con trong bán kính 5 bị kéo pha lên (ghép xung) ⇒ dần chớp cùng nhịp
+              ff.fp -= 1; ff.fl = 0;
+              for (const o of fireflies) if (o !== ff && o.fl > 0.6 && o.g.position.distanceToSquared(ff.g.position) < 25) o.fp = Math.min(0.999, o.fp * 1.07 + 0.015);
+            }
+            const I = ff.fl < 0.08 ? ff.fl / 0.08 : ff.fl < 0.23 ? 1 : Math.max(0, 1 - (ff.fl - 0.23) / 0.3), L = 0.06 + 0.94 * I;   // sáng: lên 0,08 s · giữ 0,15 s · tắt dần 0,3 s
+            ff.lampM.color.setRGB(0.85 + 0.05 * L, 0.82 + 0.18 * L, 0.66 - 0.3 * L); ff.sp.material.opacity = 0.12 + 0.88 * I; ff.sp.scale.setScalar(0.22 + 0.4 * I);
+            ff.g.position.y += 0.35 * I * dt;   // nét "J": vọt lên khi chớp
             ff.timer -= dt;
 
             if (ff.state === 'paused') {

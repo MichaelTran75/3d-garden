@@ -23,8 +23,8 @@
             return out.set((hx - 0.01 * s) * n + (-0.01 * s) * st + 0.06 * s * si, 0, hz * (n + st + 1.2 * si));
           }
           const rig = quadRig(O, { legs: U.legs, gaits: GAITS, home: homeLocal, ground: (x, z) => cowY(x, z), size: 0.2, settleT: 0.18, settleLift: 0.03 });
-          const tail = makeSoftTail(U.tailHost, { base: new THREE.Vector3(0, 0, 0), dir: new THREE.Vector3(-1, -0.28, 0).normalize(), n: 6, len: 0.05 * s, w: 0.1 * s, mat: U.ringB, stiff: [0.3, 0.1] });
-          tail.segs.forEach((m, i) => { m.material = i % 2 ? U.ringB : U.ringA; });   // đuôi khoanh đen–xám, ngọn đen
+          const tail = makeSoftTail(U.tailHost, { base: new THREE.Vector3(0, 0, 0), dir: new THREE.Vector3(-1, -0.2, 0).normalize(), n: 7, len: 0.046 * s, w: 0.12 * s, mat: U.ringB, stiff: [0.3, 0.1] });
+          tail.segs.forEach((m, i) => { m.material = i % 2 || i === tail.segs.length - 1 ? U.ringA : U.ringB; });   // đuôi rậm 7 khoanh đen–xám, ngọn đen (theo mẫu)
           // ---- trạng thái ----
           const B = { st: 'den', t: 0, k: 0, v: 0, want: 0, gait: 'walk', tgt: new THREE.Vector3(), has: false, mode: 'walk', look: null, headP: null, dig: 0, apple: null, n: 0, ate: '' };
           const active = () => { const hh = liveWeather.localHour; return !liveWeather.state.raining && ((hh >= 16.5 && hh < 22.5) || (hh >= 4.5 && hh < 7)); };
@@ -139,6 +139,7 @@
               const bob = sp > 0.06 && B.gait !== 'gallop' ? 0.007 * s * Math.cos(4 * Math.PI * psi) : 0;   // nảy 2 lần/chu kỳ khi đi / kiệu (con lắc ngược)
               damp(P.pitch, pitchT + P.tp.x, 8, dt); damp(P.h, hT + bob, 8, dt);
               U.torso.position.y = P.h.x; U.torso.rotation.z = P.pitch.x;
+              const flex = B.gait === 'gallop' && sp > 0.1 ? 0.11 * Math.sin(2 * Math.PI * psi + 0.6) : 0; U.fore.rotation.z += (-flex - U.fore.rotation.z) * Math.min(1, dt * 14); U.aft.rotation.z = -U.fore.rotation.z;   // phi nhảy: lưng cong khi gom chân, duỗi khi vươn
               damp(P.roll, sp > 0.05 && B.gait === 'walk' ? 0.07 * Math.sin(2 * Math.PI * psi) : 0, 12, dt);   // lắc ngang khi đi tà tà (2 chân cùng bên gần cùng nhịp)
               let yr = O.rotation.y - P.yaw0; yr = Math.atan2(Math.sin(yr), Math.cos(yr)); P.yaw0 = O.rotation.y; P.turn += (yr / Math.max(dt, 1e-3) - P.turn) * Math.min(1, dt * 6);
               damp(P.bank, Math.max(-0.16, Math.min(0.16, -P.turn * sp * 0.06)), 8, dt); U.torso.rotation.x = P.roll.x + P.bank.x;   // nghiêng vào khúc cua khi chạy (như chó)

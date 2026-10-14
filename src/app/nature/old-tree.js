@@ -359,24 +359,8 @@
           const perTip = Math.max(20, Math.round(810 / sTips.length));   // tổng ~810 điểm lá = gấp 3 lần trước (3 cụm × 90 = 270)
           for (const tp of sTips) cloudPts(rnd, tp.x, tp.y + 0.05, tp.z, 0.55, perTip, sLeafPts);
           tuftInstanced(g, rnd, sLeafPts, new THREE.CylinderGeometry(0.05, 0.05, 0.0018, 6), leafCols, 0.85);
-          // ---- Tổ ong (Beehive) hình cầu lục giác treo ở cành cây con (Small Sub-Tree) ----
-          const hiveGroup = new THREE.Group();
-          hiveGroup.position.set(-3.4425, 2.6108, 0.3995); // dời tổ ong → world (-25.5, 8.9, 19.713), cây giữ nguyên
-          hiveGroup.scale.setScalar(3.0); // Tổ ong to gấp 3 lần
-
-          const nestMat = new THREE.MeshLambertMaterial({ color: 0xe5a93b }), darkNestMat = new THREE.MeshLambertMaterial({ color: 0x4e3115 }), entryMat = new THREE.MeshLambertMaterial({ color: 0x221c15 });
-          for (let i = 0; i < 7; i++) {
-            const y = 0.09 - i * 0.037, r1 = Math.sin((i + 1) / 8 * Math.PI) * 0.14, r2 = Math.sin(i / 8 * Math.PI) * 0.14;
-            const m = new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, 0.038, 6), nestMat); m.position.y = y; m.castShadow = true; hiveGroup.add(m);
-          }
-          for (let a = 0; a < 6; a += 2) {
-            const ang = a * 1.047, d = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.005, 6), entryMat);
-            d.position.set(Math.cos(ang) * 0.14, 0, Math.sin(ang) * 0.14); d.rotation.set(1.57, 0, ang); hiveGroup.add(d);
-          }
-          const entrance = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.005, 6), entryMat); entrance.position.y = -0.146; hiveGroup.add(entrance);
-          const rope = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.2, 5), darkNestMat); rope.position.y = 0.2; hiveGroup.add(rope);
-          g.userData.hiveGroup = hiveGroup;
-          g.add(hiveGroup);
+          // ---- điểm treo TỔ ONG trên cành cây con (tổ ong giỏ rơm dựng ở animals/beehive.js, treo thẳng đứng từ điểm này) ----
+          const hiveAnchor = new THREE.Object3D(); hiveAnchor.position.set(-3.4425, 3.5108, 0.3995); g.add(hiveAnchor); g.userData.hiveAnchor = hiveAnchor;
 
           bakeStatic(g);
         })();
