@@ -91,7 +91,7 @@
           _nv.copy(_wp).negate(); _nv.y = Math.max(_nv.y, 0.26); _nv.normalize();
           _tv.copy(_mp); _tv.y = Math.max(_tv.y, 0.26); _tv.normalize();
           viaUp(_nv, _tv, smooth01(-0.02, 0.12, _mp.y), _sunV); _nv.copy(_sunV); viaUp(_nv, _wp, smooth01(-0.08, 0.03, elev), _sunV);
-          sun.position.copy(_sunV).multiplyScalar(150);
+          sun.position.copy(_sunV).multiplyScalar(150).add(sun.target.position);   // hướng nắng = position − target (đích theo vùng nhìn: loop/close-up.js)
           sun.intensity = 0.36 + dayF * 0.74;
           sun.color.copy(_liC.copy(dayLi).lerp(nightLi, 1 - dayF).lerp(duskLi, dusk * 0.75));
           hemi.intensity = 0.46 + dayF * 0.46; amb.intensity = 0.26 + dayF * 0.12;

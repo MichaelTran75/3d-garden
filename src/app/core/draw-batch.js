@@ -128,8 +128,9 @@
         function batchCtlState(c) {   // trạng thái 1 mảnh gốc: 0 trong lô · 1 tạm tự vẽ · 2 tách hẳn
           if (c.state === 2) return 2;
           const o = c.o;
-          if (o.geometry !== c.geo || c.geo.attributes.position.version !== c.ver) return batchEject(c);
           let own = o.material !== c.mref;
+          if (o.geometry !== c.geo) { if (!o.userData.lodHi) return batchEject(c); own = true; }   // đang dùng bản nhiều cạnh cận cảnh (loop/close-up.js): tạm tự vẽ, lùi xa trả về lô
+          else if (c.geo.attributes.position.version !== c.ver) return batchEject(c);
           for (let i = 0; i < c.mats.length; i++) {
             const m = c.mats[i], s = c.snap[i];
             if (m.version !== s.v || m.color.r !== s.r || m.color.g !== s.g || m.color.b !== s.b || m.opacity !== s.op) return batchEject(c);

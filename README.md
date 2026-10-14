@@ -6,6 +6,8 @@ Trang: https://michaeltran75.github.io/3d-garden/ (nhúng Wix bằng iframe).
 
 ## Sửa ở đâu
 
+**Đọc `src/ARCHITECTURE.md` trước** — khái niệm chung: một khung hình chạy gì, vật lý bước cố định, IK tay, gộp lượt vẽ, cận cảnh, độ phân giải tự điều chỉnh, cách thử và các bẫy đã dính.
+
 Mã nguồn nằm trong `src/` — đây là nơi duy nhất cần sửa (ngay trên web GitHub cũng được):
 
 | Thư mục / tệp | Nội dung |
@@ -15,6 +17,8 @@ Mã nguồn nằm trong `src/` — đây là nơi duy nhất cần sửa (ngay t
 | `src/js/weather.js` | thời tiết Open-Meteo + đồng hồ Pleiku |
 | `src/js/flight-nav.js` | dẫn đường bay cho ong, bướm |
 | `src/app/manifest.txt` | **thứ tự** ghép các mảnh mã cảnh chính (kèm mô tả từng tệp) |
+| `src/app/core/fixed-step.js` | **vật lý bước cố định 120 Hz** dùng chung (`fixedSteps` + alpha nội suy): câu cá, đuôi chó, tai thỏ chạy như nhau ở mọi tốc độ khung hình |
+| `src/app/loop/close-up.js` | **cận cảnh**: bóng nắng ôm vùng đang nhìn (zoom gần bóng sắc nét), vật tròn đổi bản nhiều cạnh khi zoom gần · **độ phân giải tự điều chỉnh** theo thời gian khung |
 | `src/app/core/` | khởi động, bầu trời, mặt trời/mặt trăng theo vị trí thật ở Pleiku (đường chấm = đường đi thật trong ngày của từng thiên thể), mặt nước, địa hình; **gộp lượt vẽ** (`draw-batch.js`); **trời đêm** (`night-sky.js` + `star-catalog.js`: 2.887 sao thật của Yale Bright Star Catalog quay theo giờ sao địa phương, sao mờ sinh thêm dày về Ngân Hà, Ngân Hà theo toạ độ thiên hà, chạng vạng, trăng làm mờ sao, mây che theo độ phủ mây thật, sao băng + lịch các trận mưa sao băng IMO; lớp nền vẽ trước cảnh, chiếu nổi quanh chân trời theo hướng camera) |
 | `src/app/world/` | thủy điện, tua-bin, pin mặt trời, nhà, đường, tháp nước, trạm biến áp 110 kV sơ đồ cầu H (`substation-bess.js`), cột khí tượng, đèn đường |
 | `src/app/nature/` | gió, cây, rừng, cỏ hoa, lá rơi, mây, **mưa trên GPU** (`clouds-rain.js`), **chất lỏng** (`fluids.js`: nước nông + sợi khói bếp lửa, chạy ở luồng phụ), **đầm sen** (`lotus.js`: hiệu ứng lá sen — mưa đọng thành hạt tròn, lăn về lòng lá, gộp lại; lá trĩu rồi nghiêng đổ nước xuống hồ), **thảm cỏ** (`meadow.js`: phủ 45% đất, lá cong mọc từ màu đất, 3 mức chi tiết theo zoom, ngọn ửng vàng khi nắng thấp) |

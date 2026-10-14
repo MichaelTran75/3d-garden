@@ -13,12 +13,15 @@
           const ax = jump ? 0 : (vx - E.vx) / h, ay = jump ? 0 : (vy - E.vy) / h, az = jump ? 0 : (vz - E.vz) / h;
           E.px = p.x; E.py = p.y; E.pz = p.z; E.vx = vx; E.vy = vy; E.vz = vz;
           const fwd = Math.max(-40, Math.min(40, ax * Math.cos(b.ang) + az * Math.sin(b.ang))), up = Math.max(-60, Math.min(60, ay));
-          for (let i = 0; i < 2; i++) {
-            const om = TAU * (i ? 2.4 : 2.0), rest = 0.1 + Math.sin(t * 4 + b.ph + i * 2.1) * 0.06;   // hơi ngả sau + khẽ ngoe nguẩy
-            const acc = -om * om * (E.th[i] - rest) - 2 * 0.25 * om * E.w[i] + 0.15 * (fwd * Math.cos(E.th[i]) + up * Math.sin(E.th[i])) / 0.26;
-            E.w[i] += acc * h; E.th[i] = Math.max(-0.6, Math.min(0.9, E.th[i] + E.w[i] * h));
-            b.ears[i].rotation.z = E.th[i];
-          }
+          const tp = E.tp || (E.tp = [E.th[0], E.th[1]]);
+          const al = fixedSteps(E, dt, PHYS_H, (hh) => {   // con lắc tai: bước cố định 120 Hz (gia tốc thân giữ nguyên trong khung), vẽ nội suy
+            for (let i = 0; i < 2; i++) {
+              const om = TAU * (i ? 2.4 : 2.0), rest = 0.1 + Math.sin(t * 4 + b.ph + i * 2.1) * 0.06;   // hơi ngả sau + khẽ ngoe nguẩy
+              const acc = -om * om * (E.th[i] - rest) - 2 * 0.25 * om * E.w[i] + 0.15 * (fwd * Math.cos(E.th[i]) + up * Math.sin(E.th[i])) / 0.26;
+              tp[i] = E.th[i]; E.w[i] += acc * hh; E.th[i] = Math.max(-0.6, Math.min(0.9, E.th[i] + E.w[i] * hh));
+            }
+          });
+          for (let i = 0; i < 2; i++) b.ears[i].rotation.z = tp[i] + (E.th[i] - tp[i]) * al;
         }
         function bunnyRain(b, dt, t, rain) {   // true = thỏ đang đi trú / ngồi trú (tự lo dáng)
           if (rain && !b.shelter) {

@@ -175,7 +175,7 @@
               // giờ vàng: mặt trời còn trên chân trời nhưng thấp (≈1–10°) → nắng xiên xuyên qua ngọn lá, ửng vàng; tắt khi lặn
               const sm = (a, b, x) => { const k = Math.max(0, Math.min(1, (x - a) / (b - a))); return k * k * (3 - 2 * k); };
               //   nhìn NGƯỢC nắng (mặt trời ở phía trước camera) thì lá sáng xuyên rõ nhất, xuôi nắng còn ~1/3
-              camera.getWorldDirection(_cd); _cd.y = 0; _sd.copy(sun.position); _sd.y = 0;
+              camera.getWorldDirection(_cd); _cd.y = 0; _sd.copy(sun.position).sub(sun.target.position); _sd.y = 0;
               const back = _cd.lengthSq() > 1e-6 && _sd.lengthSq() > 1e-6 ? Math.max(0, _cd.normalize().dot(_sd.normalize())) : 0;
               const low = sm(-0.01, 0.045, sunElevSin) * (1 - sm(0.12, 0.3, sunElevSin)) * (0.35 + 0.65 * back);
               U.uGlow.value.setRGB(0.26 * low, 0.15 * low, 0.032 * low);

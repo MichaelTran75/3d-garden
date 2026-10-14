@@ -2,6 +2,7 @@
 # Các tệp dùng chung một phạm vi biến (không import/export) nên KHÔNG được đổi thứ tự tuỳ tiện.
 
 core/boot.js                           # nạp three.js, renderer, scene, camera, ánh sáng, bầu trời nền
+core/fixed-step.js                     # VẬT LÝ BƯỚC CỐ ĐỊNH 120 Hz dùng chung (fixedSteps: bình tích luỹ + alpha nội suy)
 core/sky-sun-moon.js                   # mặt trời, mặt trăng, pha trăng, quỹ đạo theo giờ thật Pleiku
 core/star-catalog.js                   # danh mục 2.887 sao sáng (Yale BSC5, đóng gói base64)
 core/night-sky.js                      # TRỜI ĐÊM: sao thật theo giờ sao, Ngân Hà, chạng vạng, mây thật, sao băng + mưa sao băng (lớp nền vẽ trước cảnh)
@@ -61,6 +62,7 @@ animals/insects.js                     # đom đóm, bướm, ong
 animals/storks.js                      # cò trắng (dựng theo số đo Stork.glb, MIT)
 ui/labels-controls.js                  # nhãn, điều khiển camera, toạ độ, zoom
 ui/xray-lifecycle.js                   # xem xuyên xe, tạm dừng/tiếp tục, dọn dẹp
+loop/close-up.js                       # CẬN CẢNH: bóng nắng ôm vùng nhìn, vật tròn đổi bản nhiều cạnh khi zoom gần · độ phân giải tự điều chỉnh
 core/draw-batch.js                     # GỘP LƯỢT VẼ: mảnh hình giữ làm "xương", vẽ chung 1 lưới da (thú, kỹ sư, xe, cảnh tĩnh)
 loop/main-loop.js                      # vòng lặp khung hình (phần đầu)
 engineer/loop-update.js                # mỗi khung hình: kỹ sư ngủ/thức, chọn việc, điều khiển (nằm trong loop())

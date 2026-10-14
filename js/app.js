@@ -93,6 +93,13 @@
         const sc = sun.shadow.camera; sc.left = -116; sc.right = 116; sc.top = 116; sc.bottom = -116; sc.near = 1; sc.far = 440;
         sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.04; scene.add(sun);
 
+        const PHYS_HZ = 120, PHYS_H = 1 / PHYS_HZ;
+        function fixedSteps(S, dt, h, step) {   // S: { acc } riêng của từng hệ · step(h, i) gọi cho mỗi bước · trả alpha 0..1 để nội suy khi vẽ
+          S.acc = Math.min((S.acc || 0) + (dt > 0 ? dt : 0), 0.1);
+          let i = 0;
+          while (S.acc >= h) { S.acc -= h; step(h, i++); }
+          return S.acc / h;
+        }
         const sky = new THREE.Group(); sky.rotation.set(0, -0.8, 0.2); scene.add(sky);
         const ORB = 150, PATH_N = 96;
         function dashPath(color, opacity) {   // nét đứt 1px, đỉnh điền lúc chạy (fillPath)
@@ -177,7 +184,7 @@
           _nv.copy(_wp).negate(); _nv.y = Math.max(_nv.y, 0.26); _nv.normalize();
           _tv.copy(_mp); _tv.y = Math.max(_tv.y, 0.26); _tv.normalize();
           viaUp(_nv, _tv, smooth01(-0.02, 0.12, _mp.y), _sunV); _nv.copy(_sunV); viaUp(_nv, _wp, smooth01(-0.08, 0.03, elev), _sunV);
-          sun.position.copy(_sunV).multiplyScalar(150);
+          sun.position.copy(_sunV).multiplyScalar(150).add(sun.target.position);   // hướng nắng = position − target (đích theo vùng nhìn: loop/close-up.js)
           sun.intensity = 0.36 + dayF * 0.74;
           sun.color.copy(_liC.copy(dayLi).lerp(nightLi, 1 - dayF).lerp(duskLi, dusk * 0.75));
           hemi.intensity = 0.46 + dayF * 0.46; amb.intensity = 0.26 + dayF * 0.12;
@@ -7278,7 +7285,7 @@
           return { host, o, segs, P, Q, R, init: false, last: new THREE.Vector3() };
         }
         function updateSoftTail(T, dt, wag, curl) {
-          const o = T.o, h = Math.min(dt, 0.05) / 4, M = T.host.matrixWorld; T.host.updateMatrixWorld(true);
+          const o = T.o, M = T.host.matrixWorld; T.host.updateMatrixWorld(true);
           const S = new THREE.Vector3().setFromMatrixScale(M).x, segW = o.len * S;
           for (let i = 0; i <= o.n; i++) {   // dáng nghỉ (thế giới): hướng nghỉ quay theo lệnh vẫy (quanh trục đứng) + cuộn dần về một bên khi ngủ
             _stE.set(0, wag + curl * 0.45 * i, -curl * 0.35 * i * 0.5); _stD.copy(o.dir).applyEuler(_stE);
@@ -7288,7 +7295,7 @@
           if (!T.init || T.R[0].distanceTo(T.last) > 0.8) { for (let i = 0; i <= o.n; i++) { T.P[i].copy(T.R[i]); T.Q[i].copy(T.R[i]); } T.init = true; }
           T.last.copy(T.R[0]);
           windAt(T.R[0].x, T.R[0].y, T.R[0].z, 0.4, _stW);
-          for (let sub = 0; sub < 4; sub++) {
+          const al = fixedSteps(T, dt, 1 / 240, (h) => {   // bước cố định 240 Hz (core/fixed-step.js) = đúng nhịp cũ ở 60 hình/giây × 4 bước con, giờ như nhau ở mọi tốc độ khung
             for (let i = 1; i <= o.n; i++) {   // Verlet: quán tính (tắt dần nhẹ) + trọng lực + kéo theo gió
               const p = T.P[i], q = T.Q[i];
               _stA.copy(p).sub(q).multiplyScalar(0.985); q.copy(p);
@@ -7303,9 +7310,9 @@
               _stA.copy(T.P[i]).sub(T.P[i - 1]); const L = _stA.length() || 1e-6, c = (L - segW) / L;
               if (i === 1) T.P[i].addScaledVector(_stA, -c); else { T.P[i].addScaledVector(_stA, -c * 0.5); T.P[i - 1].addScaledVector(_stA, c * 0.5); }
             }
-          }
-          for (let i = 0; i < o.n; i++) {   // vẽ: mỗi đoạn là hộp nối 2 hạt (về hệ cục bộ của thân)
-            const m = T.segs[i]; T.host.worldToLocal(_stA.copy(T.P[i])); T.host.worldToLocal(_stB.copy(T.P[i + 1]));
+          });
+          for (let i = 0; i < o.n; i++) {   // vẽ: hạt nội suy bước trước (Q) → bước mới (P); mỗi đoạn là hộp nối 2 hạt (về hệ cục bộ của thân)
+            const m = T.segs[i]; T.host.worldToLocal(i ? _stA.copy(T.Q[i]).lerp(T.P[i], al) : _stA.copy(T.P[0])); T.host.worldToLocal(_stB.copy(T.Q[i + 1]).lerp(T.P[i + 1], al));
             m.position.copy(_stA).add(_stB).multiplyScalar(0.5); _stD.copy(_stB).sub(_stA).normalize(); m.quaternion.setFromUnitVectors(_stX, _stD);
           }
         }
@@ -7673,12 +7680,15 @@
           const ax = jump ? 0 : (vx - E.vx) / h, ay = jump ? 0 : (vy - E.vy) / h, az = jump ? 0 : (vz - E.vz) / h;
           E.px = p.x; E.py = p.y; E.pz = p.z; E.vx = vx; E.vy = vy; E.vz = vz;
           const fwd = Math.max(-40, Math.min(40, ax * Math.cos(b.ang) + az * Math.sin(b.ang))), up = Math.max(-60, Math.min(60, ay));
-          for (let i = 0; i < 2; i++) {
-            const om = TAU * (i ? 2.4 : 2.0), rest = 0.1 + Math.sin(t * 4 + b.ph + i * 2.1) * 0.06;   // hơi ngả sau + khẽ ngoe nguẩy
-            const acc = -om * om * (E.th[i] - rest) - 2 * 0.25 * om * E.w[i] + 0.15 * (fwd * Math.cos(E.th[i]) + up * Math.sin(E.th[i])) / 0.26;
-            E.w[i] += acc * h; E.th[i] = Math.max(-0.6, Math.min(0.9, E.th[i] + E.w[i] * h));
-            b.ears[i].rotation.z = E.th[i];
-          }
+          const tp = E.tp || (E.tp = [E.th[0], E.th[1]]);
+          const al = fixedSteps(E, dt, PHYS_H, (hh) => {   // con lắc tai: bước cố định 120 Hz (gia tốc thân giữ nguyên trong khung), vẽ nội suy
+            for (let i = 0; i < 2; i++) {
+              const om = TAU * (i ? 2.4 : 2.0), rest = 0.1 + Math.sin(t * 4 + b.ph + i * 2.1) * 0.06;   // hơi ngả sau + khẽ ngoe nguẩy
+              const acc = -om * om * (E.th[i] - rest) - 2 * 0.25 * om * E.w[i] + 0.15 * (fwd * Math.cos(E.th[i]) + up * Math.sin(E.th[i])) / 0.26;
+              tp[i] = E.th[i]; E.w[i] += acc * hh; E.th[i] = Math.max(-0.6, Math.min(0.9, E.th[i] + E.w[i] * hh));
+            }
+          });
+          for (let i = 0; i < 2; i++) b.ears[i].rotation.z = tp[i] + (E.th[i] - tp[i]) * al;
         }
         function bunnyRain(b, dt, t, rain) {   // true = thỏ đang đi trú / ngồi trú (tự lo dáng)
           if (rain && !b.shelter) {
@@ -9452,11 +9462,12 @@
           free: { p: -0.15, pv: 0, r: -0.05, rv: 0 }, head: { p: 0.3, pv: 0, y: 0, yv: 0 }, B0: new THREE.Vector3(), biteDur: 0, takeDir: new THREE.Vector3(), lean: 0.07
         };
         const angFloat = { F: new THREE.Vector3(), Fp: new THREE.Vector3(), B: new THREE.Vector3(), Bp: new THREE.Vector3(), S: FISH_DROP, mode: 'hang', bKin: false, up: new THREE.Vector3(0, 1, 0) };
-        const angFish = { M: new THREE.Vector3(), V: new THREE.Vector3(), mode: 'run', modeT: 0, dur: 1, stam: 1, ang: 0, T: 0, ext: 0, slip: false, head: 0 };
+        const angFish = { M: new THREE.Vector3(), Mp: new THREE.Vector3(), V: new THREE.Vector3(), mode: 'run', modeT: 0, dur: 1, stam: 1, ang: 0, T: 0, ext: 0, slip: false, head: 0 };
         let anglingSeed = (0x4a6d35a1 ^ (bobberBase.x * 997 | 0) ^ (bobberBase.z * 499 | 0)) >>> 0;
         function anglingRandom() { anglingSeed = (Math.imul(1664525, anglingSeed) + 1013904223) >>> 0; return anglingSeed / 4294967296; }
         const _anglerFishStart = new THREE.Vector3(), _anglerMouth = new THREE.Vector3(), _anglerMouthOffset = new THREE.Vector3();
         const _fishReturnStart = new THREE.Vector3(), _fishReturnDir = new THREE.Vector3();
+        const _aTipR = new THREE.Vector3(), _dF = new THREE.Vector3(), _dB = new THREE.Vector3(), _dM = new THREE.Vector3();   // vị trí VẼ (nội suy) của ngọn, phao, mồi, miệng cá
         const _aTip = new THREE.Vector3(), _aV = new THREE.Vector3(), _aV2 = new THREE.Vector3(), _aV3 = new THREE.Vector3(), _aQ = new THREE.Quaternion(), _aQ2 = new THREE.Quaternion(), _aS = new THREE.Vector3(), _aM = new THREE.Matrix4();
         let returningFishingFish = null, fishReturnTime = 0;
         function lakeSurfaceY(x, z) { return lakeY + waveAt(x, z); }   // mặt hồ câu = mực tĩnh + sóng của mô phỏng nước nông (cùng số liệu shader)
@@ -9536,7 +9547,7 @@
           releaseFishingFish();
           Object.assign(angling, { active: false, stage: 'rig', time: 0, hooked: false, stopReq: false, rebait: false, take: false, T: 0, crankRate: 0 });
           fishingBait.visible = false; bobber.rotation.set(0, 0, 0);
-          const fx = engObj.rod && engObj.rod.userData.flex; if (fx) { fx.th.fill(0); fx.vel.fill(0); fx.n = 0; for (const s of fx.segs) s.g.rotation.set(0, 0, 0); }
+          const fx = engObj.rod && engObj.rod.userData.flex; if (fx) { fx.th.fill(0); fx.vel.fill(0); if (fx.thp) fx.thp.fill(0); fx.n = 0; for (const s of fx.segs) s.g.rotation.set(0, 0, 0); }
           engObj.rodGrp.rotation.y = 0;
         }
         function fishingStatusText() {
@@ -9572,21 +9583,27 @@
           }
           return 0.07;
         }
-        function rodFlexStep(rod, dt) {
+        const _rfE = new THREE.Euler();
+        function rodFlexAcc(rod, dt) {
           const X = rod.userData.flex; if (!X) return;
-          const S = X.segs, n = S.length, root = rod;
-          root.updateWorldMatrix(true, false); root.matrixWorld.decompose(_aV3, _aQ, _aS);
-          const qInv = _aQ2.copy(_aQ).invert();
+          const S = X.segs, n = S.length;
+          rod.updateWorldMatrix(true, false); rod.matrixWorld.decompose(_aV3, _aQ, _aS);
+          (X.qInv || (X.qInv = new THREE.Quaternion())).copy(_aQ).invert();
           let s0 = 0;
           for (let k = 0; k < n; k++) {
             const mid = S[0].g.position.y + s0 + S[k].len / 2; s0 += S[k].len;
-            const pm = X.pm[k]; pm[2].copy(pm[1]); pm[1].copy(pm[0]); pm[0].set(0, mid, 0).applyMatrix4(root.matrixWorld);
-            if (X.n >= 2) { _aV.copy(pm[0]).sub(pm[1]).sub(pm[1]).add(pm[2]).divideScalar(dt * dt); X.acc[k].lerp(_aV.clampLength(0, 400), 1 - Math.exp(-dt * 30)); }
+            const pm = X.pm[k]; pm[2].copy(pm[1]); pm[1].copy(pm[0]); pm[0].set(0, mid, 0).applyMatrix4(rod.matrixWorld);
+            if (X.n >= 2 && dt > 0) { _aV.copy(pm[0]).sub(pm[1]).sub(pm[1]).add(pm[2]).divideScalar(dt * dt); X.acc[k].lerp(_aV.clampLength(0, 400), 1 - Math.exp(-dt * 30)); }
           }
           X.n++;
+        }
+        function rodFlexStep(rod, dt) {
+          const X = rod.userData.flex; if (!X || !X.qInv) return;
+          const S = X.segs, n = S.length, qInv = X.qInv, thp = X.thp || (X.thp = X.th.slice());
+          for (let i = 0; i < X.th.length; i++) thp[i] = X.th[i];
           const nodes = X.nodes || (X.nodes = Array.from({ length: n + 1 }, () => new THREE.Vector3())), qs = X.qs || (X.qs = Array.from({ length: n + 1 }, () => new THREE.Quaternion()));
           nodes[0].set(0, S[0].g.position.y, 0); qs[0].identity();
-          for (let k = 0; k < n; k++) { _aQ.setFromEuler(S[k].g.rotation); qs[k + 1].copy(qs[k]).multiply(_aQ); nodes[k + 1].set(0, S[k].len, 0).applyQuaternion(qs[k + 1]).add(nodes[k]); }
+          for (let k = 0; k < n; k++) { _aQ.setFromEuler(_rfE.set(X.th[2 * k], 0, X.th[2 * k + 1])); qs[k + 1].copy(qs[k]).multiply(_aQ); nodes[k + 1].set(0, S[k].len, 0).applyQuaternion(qs[k + 1]).add(nodes[k]); }
           const Ft = _aV.copy(X.F).applyQuaternion(qInv);
           const Mo = X.Mo || (X.Mo = new THREE.Vector3()), Fs = X.Fs || (X.Fs = new THREE.Vector3());
           Mo.crossVectors(nodes[n], Ft); Fs.copy(Ft);
@@ -9601,8 +9618,13 @@
             const w0 = 2 * Math.PI * 2.6, z0 = 0.14;
             X.vel[2 * k] += (w0 * w0 * (tx - X.th[2 * k]) - 2 * z0 * w0 * X.vel[2 * k]) * dt; X.th[2 * k] += X.vel[2 * k] * dt;
             X.vel[2 * k + 1] += (w0 * w0 * (tz - X.th[2 * k + 1]) - 2 * z0 * w0 * X.vel[2 * k + 1]) * dt; X.th[2 * k + 1] += X.vel[2 * k + 1] * dt;
-            S[k].g.rotation.set(X.th[2 * k], 0, X.th[2 * k + 1]);
           }
+          for (let k = 0; k < n; k++) S[k].g.rotation.set(X.th[2 * k], 0, X.th[2 * k + 1]);   // dáng vật lý (để đọc ngọn cho phao trong bước này)
+        }
+        function rodFlexPose(rod, al) {   // dáng VẼ: nội suy giữa bước trước và bước mới
+          const X = rod.userData.flex; if (!X) return;
+          const th = X.th, tp = X.thp || th;
+          for (let k = 0; k < X.segs.length; k++) X.segs[k].g.rotation.set(tp[2 * k] + (th[2 * k] - tp[2 * k]) * al, 0, tp[2 * k + 1] + (th[2 * k + 1] - tp[2 * k + 1]) * al);
         }
         function anglerAim(e, i, target, out) {   // góc gập + góc dang của cánh tay cứng để găng chỉ vào điểm đích (thế giới)
           const d = e.g.worldToLocal(_aV.copy(target)).sub(_aV2.set(i ? 0.34 : -0.34, 1.86, 0)).normalize();
@@ -9613,7 +9635,7 @@
           const A = angling, P = angFloat, rod = e.rod, U = rod.userData, g = e.g, X = U.flex;
           if (!(dt > 0)) return;   // phao (vận tốc = Δx/dt) và lực dây (÷dt²) chia cho dt: dt = 0 ⇒ NaN
           if (!Number.isFinite(A.T + P.F.x + P.B.x + X.th[0] + X.acc[0].x + A.head.p + A.head.pv + A.free.p + A.free.pv)) {   // NaN đã lọt vào thì trạng thái tích phân giữ NaN mãi (mất đầu, mất cần) ⇒ đặt lại cần, phao, đầu, khởi động lại buổi câu
-            X.th.fill(0); X.vel.fill(0); X.n = 0; for (const a of X.acc) a.set(0, 0, 0); for (const s of X.segs) s.g.rotation.set(0, 0, 0);
+            X.th.fill(0); X.vel.fill(0); if (X.thp) X.thp.fill(0); X.n = 0; A.ph = null; for (const a of X.acc) a.set(0, 0, 0); for (const s of X.segs) s.g.rotation.set(0, 0, 0);
             Object.assign(A, { active: false, T: 0 }); A.Tdir.set(0, -1, 0); Object.assign(A.head, { pv: 0, yv: 0 }); Object.assign(A.free, { pv: 0, r: -0.05, rv: 0 });
             e.head.rotation.set(0.3, 0, 0); e.arms[0].rotation.x = -0.15;
           }
@@ -9696,7 +9718,7 @@
               if (!A.struck && k >= 0.1) {
                 A.struck = true;
                 if (A.hooked) {   // mắc câu: cá giật lại, lao đi lần đầu
-                  angFish.M.copy(P.B); angFish.V.set(A.takeDir.x * 0.8, -0.2, A.takeDir.z * 0.8); angFish.stam = A.fish.keeper ? 0.45 : 1; angFish.ext = 0; angFish.slip = false; angFish.head = A.heading;
+                  angFish.M.copy(P.B); angFish.Mp.copy(P.B); angFish.V.set(A.takeDir.x * 0.8, -0.2, A.takeDir.z * 0.8); angFish.stam = A.fish.keeper ? 0.45 : 1; angFish.ext = 0; angFish.slip = false; angFish.head = A.heading;
                   fishMode('run'); P.S = Math.max(P.F.distanceTo(_aTip) - 0.05, 0.5); splashFx.spawn(P.F.x, P.F.z, 0.7);
                 } else { releaseFishingFish(true); A.T = 2.2; }   // hụt: cá nhả mồi, phao bật lên
               }
@@ -9785,16 +9807,12 @@
           e.rodGrp.rotation.y = A.tau;
           engArmSolve(e, 1, dt);   // giải khuỷu tay cầm cần NGAY: ngọn, khoen, tay quay đọc dưới đây đúng chỗ cần được vẽ (không thì dây lệch khỏi cần)
           A.crankRate += (crank - A.crankRate) * (1 - Math.exp(-dt * 10)); A.crankAng -= A.crankRate * Math.PI * 2 * dt; U.crank.rotation.x = A.crankAng;
-          U.flex.F.copy(A.Tdir).multiplyScalar(A.T);
-          rodFlexStep(rod, dt);
-          g.updateWorldMatrix(true, true); U.tip.getWorldPosition(_aTip);
-          if (A.stage === 'fight' && A.fish) { fishFightStep(dt, t); P.B.copy(angFish.M); P.bKin = true; }
-          else if (A.stage === 'land' && A.fish) { P.B.copy(angFish.M); P.bKin = true; }
-          const Fbefore = _aV3.copy(P.F); let tipPull = 0;
-          floatStep(dt, (pull) => { tipPull += pull; });
-          if (A.stage === 'fight') A.T = angFish.T;
-          else if (A.stage === 'strike') A.T *= 0.85;
-          else A.T += (Math.min(6, FLOAT_M * tipPull / (dt * dt)) + (P.mode === 'water' ? 0.05 : 0) - A.T) * (1 - Math.exp(-dt * 12));
+          g.updateWorldMatrix(true, true); rodFlexAcc(rod, dt); A.tNow = t;
+          if (A.stage === 'land' && A.fish) { P.B.copy(angFish.M); P.bKin = true; }
+          const al = fixedSteps(A.ph || (A.ph = {}), dt, PHYS_H, anglingPhysStep);
+          rodFlexPose(rod, al); rod.updateMatrixWorld(true); U.tip.getWorldPosition(_aTipR);
+          _dF.lerpVectors(P.Fp, P.F, al);
+          if (A.stage === 'fight' && A.fish) _dB.lerpVectors(angFish.Mp, angFish.M, al); else if (P.bKin) _dB.copy(P.B); else _dB.lerpVectors(P.Bp, P.B, al);
           const f = A.fish;
           if (f) {
             if (A.stage === 'approach') {
@@ -9807,17 +9825,17 @@
               const F = angFish, sp = Math.hypot(F.V.x, F.V.z);
               if (sp > 0.15) F.head += Math.atan2(Math.sin(Math.atan2(F.V.z, F.V.x) - F.head), Math.cos(Math.atan2(F.V.z, F.V.x) - F.head)) * Math.min(1, dt * 5);
               const depth = lakeSurfaceY(F.M.x, F.M.z) - F.M.y, tired = F.mode === 'tired' || A.stage === 'release';
-              placeFishingFish(f, F.M, F.head, tired ? 0.35 : Math.max(-0.4, Math.min(0.4, F.V.y * 0.6)), t * (F.mode === 'run' ? 2 : 1.3), F.mode === 'shake' ? 0.45 : tired ? 0.15 + 0.1 * Math.sin(t * 9) : 0.25);
+              placeFishingFish(f, A.stage === 'fight' ? _dM.lerpVectors(F.Mp, F.M, al) : F.M, F.head, tired ? 0.35 : Math.max(-0.4, Math.min(0.4, F.V.y * 0.6)), t * (F.mode === 'run' ? 2 : 1.3), F.mode === 'shake' ? 0.45 : tired ? 0.15 + 0.1 * Math.sin(t * 9) : 0.25);
               if (depth < 0.1 && (F.mode === 'shake' || F.mode === 'tired') && anglingRandom() < dt * (F.mode === 'shake' ? 3 : 0.8)) splashFx.spawn(F.M.x, F.M.z, F.mode === 'shake' ? 0.6 : 0.3);   // quẫy trên mặt nước
             }
           }
-          bobber.position.copy(P.F);
-          _aV.subVectors(P.F, P.B); const lk = _aV.length();
+          bobber.position.copy(_dF);
+          _aV.subVectors(_dF, _dB); const lk = _aV.length();
           const upW = lk > FISH_HOOK * 0.85 ? 1 : lk / (FISH_HOOK * 0.85);
           if (lk > 1e-4) _aV.multiplyScalar(1 / lk); else _aV.set(0, 1, 0);
           _aV.lerp(_aV2.set(0, 1, 0), (1 - upW) * (P.mode === 'water' ? 0 : 1)).normalize();   // phao nằm khi mồi chưa kéo căng (vừa rơi), dựng theo dây phao–lưỡi khi căng
           P.up.lerp(_aV, 1 - Math.exp(-dt * 8)).normalize(); bobber.quaternion.setFromUnitVectors(_aV2.set(0, 1, 0), P.up);
-          fishingBait.position.copy(P.B); fishingBait.quaternion.copy(bobber.quaternion); fishingBait.visible = !(A.fish && (A.stage === 'fight' || A.stage === 'release' || A.stage === 'land'));
+          fishingBait.position.copy(_dB); fishingBait.quaternion.copy(bobber.quaternion); fishingBait.visible = !(A.fish && (A.stage === 'fight' || A.stage === 'release' || A.stage === 'land'));
           drawFishLine(rod);
           const fr = A.free;
           let fp = -0.15, frr = -0.05;
@@ -9913,23 +9931,34 @@
           F.stam = Math.max(0.12, F.stam - dt * ((F.mode === 'run' ? 0.06 : F.mode === 'shake' ? 0.045 : 0.022) + 0.0035 * T));
           A.Tdir.set(-dx / D, -dy / D, -dz / D);
         }
+        let _pull = 0; const _onPull = (p) => { _pull += p; };
+        function anglingPhysStep(h) {   // 1 bước vật lý 1/120 s của câu cá (gọi từ fixedSteps trong updateFishingBite)
+          const A = angling, P = angFloat, rod = engObj.rod, U = rod.userData;
+          U.flex.F.copy(A.Tdir).multiplyScalar(A.T);   // lực dây kỳ trước → cần uốn
+          rodFlexStep(rod, h); rod.updateMatrixWorld(true); U.tip.getWorldPosition(_aTip);   // ngọn VẬT LÝ của bước này
+          if (A.stage === 'fight' && A.fish) { angFish.Mp.copy(angFish.M); fishFightStep(h, A.tNow); P.B.copy(angFish.M); P.bKin = true; }
+          _pull = 0; floatStep(h, _onPull);
+          if (A.stage === 'fight') A.T = angFish.T;
+          else if (A.stage === 'strike') A.T *= Math.pow(0.85, h * 60);
+          else A.T += (Math.min(6, FLOAT_M * _pull / (h * h)) + (P.mode === 'water' ? 0.05 : 0) - A.T) * (1 - Math.exp(-h * 12));
+        }
         function drawFishLine(rod) {   // dây: mép lô dây → 6 khoen → ngọn (theo cần đang cong) → võng tới phao (dây chùng) → lưỡi
           const U = rod.userData, P = angFloat, A = angling, pos = fishLinePos;
           let j = 0;
           U.spool.getWorldPosition(_aV); pos[j++] = _aV.x; pos[j++] = _aV.y; pos[j++] = _aV.z;
           for (const gd of U.guides) { gd.getWorldPosition(_aV); pos[j++] = _aV.x; pos[j++] = _aV.y; pos[j++] = _aV.z; }
-          pos[j++] = _aTip.x; pos[j++] = _aTip.y; pos[j++] = _aTip.z;
-          const D = P.F.distanceTo(_aTip), slack = Math.max(0, P.S - D);
+          pos[j++] = _aTipR.x; pos[j++] = _aTipR.y; pos[j++] = _aTipR.z;
+          const D = _dF.distanceTo(_aTipR), slack = Math.max(0, P.S - D);
           const sag = Math.min(D * 0.45, Math.sqrt(3 * D * slack / 8));   // võng parabol theo phần dây thừa
-          _aV.subVectors(P.F, _aTip); const len = _aV.length() || 1; _aV.multiplyScalar(1 / len);
+          _aV.subVectors(_dF, _aTipR); const len = _aV.length() || 1; _aV.multiplyScalar(1 / len);
           _aV2.set(0, -1, 0).addScaledVector(_aV, _aV.y); const nl = _aV2.length(); if (nl > 1e-4) _aV2.multiplyScalar(1 / nl);   // phương trọng lực vuông góc dây
           for (let i = 0; i < 16; i++) {
             const u = i / 15, s = 4 * u * (1 - u) * sag;
-            pos[j++] = _aTip.x + (P.F.x - _aTip.x) * u + _aV2.x * s; pos[j++] = _aTip.y + (P.F.y - _aTip.y) * u + _aV2.y * s; pos[j++] = _aTip.z + (P.F.z - _aTip.z) * u + _aV2.z * s;
+            pos[j++] = _aTipR.x + (_dF.x - _aTipR.x) * u + _aV2.x * s; pos[j++] = _aTipR.y + (_dF.y - _aTipR.y) * u + _aV2.y * s; pos[j++] = _aTipR.z + (_dF.z - _aTipR.z) * u + _aV2.z * s;
           }
-          pos[j++] = P.F.x; pos[j++] = P.F.y; pos[j++] = P.F.z; pos[j++] = P.B.x; pos[j++] = P.B.y; pos[j++] = P.B.z;
+          pos[j++] = _dF.x; pos[j++] = _dF.y; pos[j++] = _dF.z; pos[j++] = _dB.x; pos[j++] = _dB.y; pos[j++] = _dB.z;
           fishLineGeo.attributes.position.needsUpdate = true;
-          if (A.stage !== 'fight') A.Tdir.set(pos[27] - _aTip.x, pos[28] - _aTip.y, pos[29] - _aTip.z).normalize();   // hướng lực ở ngọn = tiếp tuyến dây
+          if (A.stage !== 'fight') A.Tdir.set(pos[27] - _aTipR.x, pos[28] - _aTipR.y, pos[29] - _aTipR.z).normalize();   // hướng lực ở ngọn = tiếp tuyến dây
         }
         function updateReturningFishingFish(f, dt, t) {   // cá được thả: ngoi lên lấy thăng bằng, quẫy đuôi lặn ra xa bờ rồi trả về bầy
           fishReturnTime += dt;
@@ -10477,7 +10506,7 @@
               put(1, dogObj.position, 0.42, !dogRain.st || dogRain.st === 'toDoor' || dogRain.st === 'toFire');
               put(2, raccoonObj.position, 0.38, raccoonObj.visible);
               const sm = (a, b, x) => { const k = Math.max(0, Math.min(1, (x - a) / (b - a))); return k * k * (3 - 2 * k); };
-              camera.getWorldDirection(_cd); _cd.y = 0; _sd.copy(sun.position); _sd.y = 0;
+              camera.getWorldDirection(_cd); _cd.y = 0; _sd.copy(sun.position).sub(sun.target.position); _sd.y = 0;
               const back = _cd.lengthSq() > 1e-6 && _sd.lengthSq() > 1e-6 ? Math.max(0, _cd.normalize().dot(_sd.normalize())) : 0;
               const low = sm(-0.01, 0.045, sunElevSin) * (1 - sm(0.12, 0.3, sunElevSin)) * (0.35 + 0.65 * back);
               U.uGlow.value.setRGB(0.26 * low, 0.15 * low, 0.032 * low);
@@ -12148,7 +12177,7 @@
         });
         if (pickCloseBtn) listen(pickCloseBtn, 'click', clearPickHighlight);
         let skyOn = true;
-        function setSkyDefault() { scene.background.copy(dayBg); if (scene.fog) scene.fog.color.copy(dayBg); sun.position.set(72, 112, 52); sun.intensity = 0.98; sun.color.copy(dayLi); hemi.intensity = 0.82; amb.intensity = 0.28; sky.visible = false; sunGlow.visible = false; nightFactor = 0; skyDusk = 0; }
+        function setSkyDefault() { scene.background.copy(dayBg); if (scene.fog) scene.fog.color.copy(dayBg); sun.position.set(72, 112, 52).add(sun.target.position); sun.intensity = 0.98; sun.color.copy(dayLi); hemi.intensity = 0.82; amb.intensity = 0.28; sky.visible = false; sunGlow.visible = false; nightFactor = 0; skyDusk = 0; }
         const bS = document.getElementById('btnSky');
         if (bS) listen(bS, 'click', () => { skyOn = !skyOn; if (skyOn) { sky.visible = true; } else setSkyDefault(); bS.innerHTML = '<i class="ti ti-' + (skyOn ? 'sun-moon' : 'sun') + '"></i>' + (skyOn ? 'Trời' : 'Cố định'); });
         function resize() { const w = W(), h = Hv(); renderer.setSize(w, h); const a = w / h, d = 90; camera.left = -d * a; camera.right = d * a; camera.top = d; camera.bottom = -d; camera.updateProjectionMatrix(); }
@@ -12180,6 +12209,79 @@
         window.__disposeGarden = destroyGarden;
         let started = false;
         window.__info = () => renderer.info.render;   // đầu dò hiệu năng: __info().calls = draw call/frame · .triangles
+        scene.add(sun.target);   // đích nắng di chuyển theo vùng nhìn → phải nằm trong cảnh để ma trận được cập nhật
+        const _cuX = new THREE.Vector3(), _cuY = new THREE.Vector3(), _cuZ = new THREE.Vector3(), _cuC = new THREE.Vector3(), _cuUp = new THREE.Vector3(0, 1, 0);
+        let cuR = 116;
+        function fitSunShadow() {
+          const hx = (camera.right - camera.left) / 2 / camera.zoom, hy = (camera.top - camera.bottom) / 2 / camera.zoom;
+          camera.getWorldDirection(_cuX); const se = Math.max(0.12, -_cuX.y);   // vùng đất trong khung nhìn dài thêm 1/sin(góc chúc) theo hướng nhìn
+          const want = Math.min(116, Math.max(8, 1.15 * Math.hypot(hx, hy / se) + 3));   // + lề cho bóng của vật cao đứng ngoài khung
+          const R = 116 / Math.pow(1.25, Math.floor(Math.log(116 / want) / Math.log(1.25)));
+          _cuZ.copy(sun.position).sub(sun.target.position).normalize();
+          _cuX.crossVectors(_cuUp, _cuZ); if (_cuX.lengthSq() < 1e-8) _cuX.set(1, 0, 0); _cuX.normalize(); _cuY.crossVectors(_cuZ, _cuX);   // trục máy chụp bóng (như lookAt)
+          const tx = 2 * R / sun.shadow.mapSize.x, cx = target.dot(_cuX), cy = target.dot(_cuY);
+          _cuC.copy(target).addScaledVector(_cuX, Math.round(cx / tx) * tx - cx).addScaledVector(_cuY, Math.round(cy / tx) * tx - cy);
+          sun.target.position.copy(_cuC); sun.position.copy(_cuC).addScaledVector(_cuZ, 150);
+          if (R !== cuR) {
+            cuR = R; const sc = sun.shadow.camera, k = Math.max(0.1, R / 116); sc.left = sc.bottom = -R; sc.right = sc.top = R; sc.updateProjectionMatrix();
+            sun.shadow.bias = -0.0004 * k; sun.shadow.normalBias = 0.04 * k;
+          }
+        }
+        const closeLod = [];
+        function lodBuild(g, k) {   // dựng lại hình gốc với số cạnh ×k (k = 1: bản y hệt để kiểm tra hình còn nguyên như lúc tạo)
+          const P = g.parameters, s = n => k === 1 ? n : Math.min(48, Math.max(24, n * k));
+          if (!P) return null;
+          switch (g.type) {
+            case 'CylinderGeometry': return new THREE.CylinderGeometry(P.radiusTop, P.radiusBottom, P.height, s(P.radialSegments), P.heightSegments, P.openEnded, P.thetaStart, P.thetaLength);
+            case 'ConeGeometry': return new THREE.ConeGeometry(P.radius, P.height, s(P.radialSegments), P.heightSegments, P.openEnded, P.thetaStart, P.thetaLength);
+            case 'SphereGeometry': return new THREE.SphereGeometry(P.radius, s(P.widthSegments), k === 1 ? P.heightSegments : Math.max(16, P.heightSegments * 2), P.phiStart, P.phiLength, P.thetaStart, P.thetaLength);
+            case 'TorusGeometry': return new THREE.TorusGeometry(P.radius, P.tube, k === 1 ? P.radialSegments : Math.max(12, P.radialSegments * 2), s(P.tubularSegments), P.arc);
+            case 'LatheGeometry': return new THREE.LatheGeometry(P.points, s(P.segments), P.phiStart, P.phiLength);
+            case 'CapsuleGeometry': return new THREE.CapsuleGeometry(P.radius, P.length, k === 1 ? P.capSegments : P.capSegments * 2, s(P.radialSegments));
+          }
+          return null;
+        }
+        function registerCloseLod(root) {
+          if (!root) return;
+          root.traverse(o => {
+            if (!o.isMesh || o.isInstancedMesh || o.isSkinnedMesh || o.userData.lodHi !== undefined) return;
+            const m = o.material, g = o.geometry; if (!m || Array.isArray(m) || m.flatShading || m.wireframe || !g || g.morphAttributes.position) return;
+            const ref = lodBuild(g, 1); if (!ref) return;
+            const a = g.attributes.position, b = ref.attributes.position; let same = a.count === b.count && !!g.index === !!ref.index;
+            for (let i = 0; same && i < a.array.length; i++) if (Math.abs(a.array[i] - b.array[i]) > 1e-5) same = false;
+            ref.dispose(); if (!same) return;   // hình đã bị xoay/dời/sửa đỉnh sau khi tạo → không dựng lại được đúng
+            g.computeBoundingSphere(); closeLod.push({ o, lo: g, hi: null, r: g.boundingSphere.radius, on: false }); o.userData.lodHi = false;
+          });
+        }
+        registerCloseLod(engObj && engObj.g); registerCloseLod(caravanObj);
+        for (const o of scene.children) if (o.name && ['Ghế câu cá', 'Ghế cắm trại', 'Bếp lửa trại', 'Bàn trà', 'Giá treo nồi', 'Ấm reo', 'Cần câu để dưới đất', 'Xô nhỏ', 'Đống củi', 'Khúc gỗ đứng'].some(p => o.name.startsWith(p))) registerCloseLod(o);
+        let lodPpu = -1;
+        function updateCloseLod() {
+          const ppu = renderer.domElement.height * camera.zoom / (camera.top - camera.bottom);   // điểm ảnh / đv thế giới
+          if (Math.abs(ppu - lodPpu) < 1e-3 * ppu) return; lodPpu = ppu;
+          for (const L of closeLod) {
+            const px = L.r * L.o.matrixWorld.getMaxScaleOnAxis() * ppu, on = L.on ? px > 9 : px > 13;
+            if (on === L.on) continue;
+            L.on = on; if (on && !L.hi) L.hi = lodBuild(L.lo, 3);
+            L.o.geometry = on ? L.hi : L.lo; L.o.userData.lodHi = on;
+          }
+        }
+        const DRES = { max: renderer.getPixelRatio(), min: Math.max(0.6, renderer.getPixelRatio() * 0.5), last: 0, ema: 0, slow: 0, fast: 0, hold: 2, test: null };
+        function adaptResolution(ts) {   // ts: mốc thời gian rAF (khung do __dbg.frames() gọi thẳng thì không có → bỏ qua)
+          const D = DRES, ms = D.last ? ts - D.last : 0; D.last = ts;
+          if (window.__resLock || !(ms > 0) || ms > 250) return;   // khung đầu / vừa quay lại tab
+          D.ema = D.ema ? D.ema + (ms - D.ema) * 0.08 : ms;
+          const s = ms / 1000; if (D.hold > 0) { D.hold -= s; return; }
+          const pr = renderer.getPixelRatio();
+          if (D.test) {   // vừa hạ: phải nhanh lên ≥ 8% mới giữ
+            if ((D.test.t -= s) > 0) return;
+            if (D.ema > D.test.ema * 0.92) { renderer.setPixelRatio(D.test.pr); D.hold = 60; D.ema = 0; }
+            D.test = null; return;
+          }
+          D.slow = D.ema > 22 ? D.slow + s : 0; D.fast = D.ema < 17.8 ? D.fast + s : 0;
+          if (D.slow > 1.5 && pr > D.min + 1e-3) { D.test = { pr, ema: D.ema, t: 1.5 }; renderer.setPixelRatio(Math.max(D.min, pr * 0.85)); D.slow = 0; }
+          else if (D.fast > 4 && pr < D.max - 1e-3) { renderer.setPixelRatio(Math.min(D.max, pr * 1.1)); D.fast = 0; D.hold = 1; }
+        }
         const HIDE_LAYER = 31, drawBatches = [];
         const _defBeforeCompile = THREE.Material.prototype.onBeforeCompile, _defBeforeRender = THREE.Object3D.prototype.onBeforeRender;
         const BATCH_MAT_PROPS = ['type', 'side', 'flatShading', 'fog', 'toneMapped', 'depthTest', 'depthWrite', 'alphaTest', 'transparent', 'opacity', 'shininess', 'roughness', 'metalness',
@@ -12300,8 +12402,9 @@
         function batchCtlState(c) {   // trạng thái 1 mảnh gốc: 0 trong lô · 1 tạm tự vẽ · 2 tách hẳn
           if (c.state === 2) return 2;
           const o = c.o;
-          if (o.geometry !== c.geo || c.geo.attributes.position.version !== c.ver) return batchEject(c);
           let own = o.material !== c.mref;
+          if (o.geometry !== c.geo) { if (!o.userData.lodHi) return batchEject(c); own = true; }   // đang dùng bản nhiều cạnh cận cảnh (loop/close-up.js): tạm tự vẽ, lùi xa trả về lô
+          else if (c.geo.attributes.position.version !== c.ver) return batchEject(c);
           for (let i = 0; i < c.mats.length; i++) {
             const m = c.mats[i], s = c.snap[i];
             if (m.version !== s.v || m.color.r !== s.r || m.color.g !== s.g || m.color.b !== s.b || m.opacity !== s.op) return batchEject(c);
@@ -12386,8 +12489,9 @@
           batchDraws('Cảnh tĩnh', scene.children.filter(o => !o.userData.batchRoot && !o.userData.noBatch && !o.isSkinnedMesh));
         }
         const SHADER_TIME_LOOP = 1140 * Math.PI;              // ≈ 3581 s: ω = 3,0 · 2,2 · 7,5 (nước) và 3,5 (cỏ cây) đều quay số nguyên vòng
-        function loop() {
+        function loop(ts) {
           if (disposed || suspended) { frameId = 0; return; }
+          if (ts !== undefined) adaptResolution(ts);   // độ phân giải tự điều chỉnh (loop/close-up.js)
           frameId = requestAnimationFrame(loop); const dt = Math.min(clock.getDelta(), 0.05) || 1 / 60;   // khung đầu: Clock.getDelta() trả 0 (mô phỏng chia cho dt sẽ ra NaN)
           const insectsAwake = liveWeather.wildlifeAwake;
           if (insectsAwake) flightNav.update();
@@ -13090,7 +13194,7 @@
           }
           updateAnimalVisibility(); updateDrawBatches();
           fluids.update(dt, t, rainK);   // gửi bước mô phỏng nước + khói cho luồng phụ (kèm các cú chạm nước trong khung này), nhận kết quả bước trước
-          if (skyOn) updateSky(); nightSky.update(dt, t, skyOn); renderer.render(scene, camera); mastLabel?.updateScreen(); updateZoomPct();
+          if (skyOn) updateSky(); nightSky.update(dt, t, skyOn); fitSunShadow(); updateCloseLod(); renderer.render(scene, camera); mastLabel?.updateScreen(); updateZoomPct();
           if (!started) { started = true; const l = document.getElementById('loading'); if (l) l.style.display = 'none'; }
         }
         const startLoop = () => { if (!disposed && !suspended && !frameId) loop(); };

@@ -37,11 +37,12 @@
         // phao (F) + mồi/lưỡi (B): hạt Verlet; S = dây đang ra giữa ngọn và phao; mode: 'hang' (treo dưới ngọn) · 'fly' (đang bay, dây ra tự do) · 'water'
         const angFloat = { F: new THREE.Vector3(), Fp: new THREE.Vector3(), B: new THREE.Vector3(), Bp: new THREE.Vector3(), S: FISH_DROP, mode: 'hang', bKin: false, up: new THREE.Vector3(0, 1, 0) };
         // cá đang mắc câu: miệng M (= lưỡi), vận tốc, kiểu bơi (chạy · lắc đầu · bị kéo · đuối), sức bền, lực dây
-        const angFish = { M: new THREE.Vector3(), V: new THREE.Vector3(), mode: 'run', modeT: 0, dur: 1, stam: 1, ang: 0, T: 0, ext: 0, slip: false, head: 0 };
+        const angFish = { M: new THREE.Vector3(), Mp: new THREE.Vector3(), V: new THREE.Vector3(), mode: 'run', modeT: 0, dur: 1, stam: 1, ang: 0, T: 0, ext: 0, slip: false, head: 0 };
         let anglingSeed = (0x4a6d35a1 ^ (bobberBase.x * 997 | 0) ^ (bobberBase.z * 499 | 0)) >>> 0;
         function anglingRandom() { anglingSeed = (Math.imul(1664525, anglingSeed) + 1013904223) >>> 0; return anglingSeed / 4294967296; }
         const _anglerFishStart = new THREE.Vector3(), _anglerMouth = new THREE.Vector3(), _anglerMouthOffset = new THREE.Vector3();
         const _fishReturnStart = new THREE.Vector3(), _fishReturnDir = new THREE.Vector3();
+        const _aTipR = new THREE.Vector3(), _dF = new THREE.Vector3(), _dB = new THREE.Vector3(), _dM = new THREE.Vector3();   // vị trí VẼ (nội suy) của ngọn, phao, mồi, miệng cá
         const _aTip = new THREE.Vector3(), _aV = new THREE.Vector3(), _aV2 = new THREE.Vector3(), _aV3 = new THREE.Vector3(), _aQ = new THREE.Quaternion(), _aQ2 = new THREE.Quaternion(), _aS = new THREE.Vector3(), _aM = new THREE.Matrix4();
         let returningFishingFish = null, fishReturnTime = 0;
         function lakeSurfaceY(x, z) { return lakeY + waveAt(x, z); }   // mặt hồ câu = mực tĩnh + sóng của mô phỏng nước nông (cùng số liệu shader)
@@ -123,7 +124,7 @@
           releaseFishingFish();
           Object.assign(angling, { active: false, stage: 'rig', time: 0, hooked: false, stopReq: false, rebait: false, take: false, T: 0, crankRate: 0 });
           fishingBait.visible = false; bobber.rotation.set(0, 0, 0);
-          const fx = engObj.rod && engObj.rod.userData.flex; if (fx) { fx.th.fill(0); fx.vel.fill(0); fx.n = 0; for (const s of fx.segs) s.g.rotation.set(0, 0, 0); }
+          const fx = engObj.rod && engObj.rod.userData.flex; if (fx) { fx.th.fill(0); fx.vel.fill(0); if (fx.thp) fx.thp.fill(0); fx.n = 0; for (const s of fx.segs) s.g.rotation.set(0, 0, 0); }
           engObj.rodGrp.rotation.y = 0;
         }
         function fishingStatusText() {
@@ -161,23 +162,31 @@
         }
         // ---- CẦN UỐN: elastica tựa tĩnh (κ = M/EI) cho từng đoạn + đáp ứng động bậc 2 (~2,6 Hz, tắt dần) ----
         //      tải: lực dây ở ngọn + trọng lượng đoạn cần + lực quán tính của chính thân cần khi tay vụt (gia tốc từng đoạn nếu cần cứng)
-        function rodFlexStep(rod, dt) {
+        //      Chia 3 phần cho vật lý bước cố định: rodFlexAcc (mỗi KHUNG: tay chỉ đổi dáng mỗi khung nên quán tính gốc cần tính theo dt khung) ·
+        //      rodFlexStep (mỗi BƯỚC 120 Hz, hình dạng đọc từ X.th — không từ góc đang vẽ) · rodFlexPose (vẽ: nội suy góc bước trước → bước mới)
+        const _rfE = new THREE.Euler();
+        function rodFlexAcc(rod, dt) {
           const X = rod.userData.flex; if (!X) return;
-          const S = X.segs, n = S.length, root = rod;
-          root.updateWorldMatrix(true, false); root.matrixWorld.decompose(_aV3, _aQ, _aS);
-          const qInv = _aQ2.copy(_aQ).invert();
+          const S = X.segs, n = S.length;
+          rod.updateWorldMatrix(true, false); rod.matrixWorld.decompose(_aV3, _aQ, _aS);
+          (X.qInv || (X.qInv = new THREE.Quaternion())).copy(_aQ).invert();
           // gia tốc từng đoạn khi cần cứng (sai phân bậc 2 vị trí giữa đoạn) → lực quán tính −m·a; lọc nhẹ chống nhiễu
           let s0 = 0;
           for (let k = 0; k < n; k++) {
             const mid = S[0].g.position.y + s0 + S[k].len / 2; s0 += S[k].len;
-            const pm = X.pm[k]; pm[2].copy(pm[1]); pm[1].copy(pm[0]); pm[0].set(0, mid, 0).applyMatrix4(root.matrixWorld);
-            if (X.n >= 2) { _aV.copy(pm[0]).sub(pm[1]).sub(pm[1]).add(pm[2]).divideScalar(dt * dt); X.acc[k].lerp(_aV.clampLength(0, 400), 1 - Math.exp(-dt * 30)); }
+            const pm = X.pm[k]; pm[2].copy(pm[1]); pm[1].copy(pm[0]); pm[0].set(0, mid, 0).applyMatrix4(rod.matrixWorld);
+            if (X.n >= 2 && dt > 0) { _aV.copy(pm[0]).sub(pm[1]).sub(pm[1]).add(pm[2]).divideScalar(dt * dt); X.acc[k].lerp(_aV.clampLength(0, 400), 1 - Math.exp(-dt * 30)); }
           }
           X.n++;
+        }
+        function rodFlexStep(rod, dt) {
+          const X = rod.userData.flex; if (!X || !X.qInv) return;
+          const S = X.segs, n = S.length, qInv = X.qInv, thp = X.thp || (X.thp = X.th.slice());
+          for (let i = 0; i < X.th.length; i++) thp[i] = X.th[i];
           // hình dạng hiện tại → nút đầu mỗi đoạn trong khung gốc cần (đv cục bộ)
           const nodes = X.nodes || (X.nodes = Array.from({ length: n + 1 }, () => new THREE.Vector3())), qs = X.qs || (X.qs = Array.from({ length: n + 1 }, () => new THREE.Quaternion()));
           nodes[0].set(0, S[0].g.position.y, 0); qs[0].identity();
-          for (let k = 0; k < n; k++) { _aQ.setFromEuler(S[k].g.rotation); qs[k + 1].copy(qs[k]).multiply(_aQ); nodes[k + 1].set(0, S[k].len, 0).applyQuaternion(qs[k + 1]).add(nodes[k]); }
+          for (let k = 0; k < n; k++) { _aQ.setFromEuler(_rfE.set(X.th[2 * k], 0, X.th[2 * k + 1])); qs[k + 1].copy(qs[k]).multiply(_aQ); nodes[k + 1].set(0, S[k].len, 0).applyQuaternion(qs[k + 1]).add(nodes[k]); }
           // tải trong khung gốc (N): lực dây tại ngọn; trọng lượng + quán tính tại giữa từng đoạn
           const Ft = _aV.copy(X.F).applyQuaternion(qInv);
           const Mo = X.Mo || (X.Mo = new THREE.Vector3()), Fs = X.Fs || (X.Fs = new THREE.Vector3());
@@ -191,12 +200,17 @@
             const Mk = _aS.copy(Mo).sub(_aV3.crossVectors(nodes[k], Fs)).applyQuaternion(_aQ.copy(qs[k]).invert());
             const c = S[k].len / S[k].ei;   // độ cứng đã hiệu chỉnh theo đv cục bộ của cần (cánh tay đòn cục bộ × lực N)
             const tx = Math.max(-0.9, Math.min(0.9, Mk.x * c)), tz = Math.max(-0.9, Math.min(0.9, Mk.z * c));
-            // đáp ứng động bậc 2 về hình dạng tựa tĩnh (Euler bán ẩn, ổn định với dt ≤ 0,05)
+            // đáp ứng động bậc 2 về hình dạng tựa tĩnh (Euler bán ẩn; bước 1/120 s nên luôn ổn định)
             const w0 = 2 * Math.PI * 2.6, z0 = 0.14;
             X.vel[2 * k] += (w0 * w0 * (tx - X.th[2 * k]) - 2 * z0 * w0 * X.vel[2 * k]) * dt; X.th[2 * k] += X.vel[2 * k] * dt;
             X.vel[2 * k + 1] += (w0 * w0 * (tz - X.th[2 * k + 1]) - 2 * z0 * w0 * X.vel[2 * k + 1]) * dt; X.th[2 * k + 1] += X.vel[2 * k + 1] * dt;
-            S[k].g.rotation.set(X.th[2 * k], 0, X.th[2 * k + 1]);
           }
+          for (let k = 0; k < n; k++) S[k].g.rotation.set(X.th[2 * k], 0, X.th[2 * k + 1]);   // dáng vật lý (để đọc ngọn cho phao trong bước này)
+        }
+        function rodFlexPose(rod, al) {   // dáng VẼ: nội suy giữa bước trước và bước mới
+          const X = rod.userData.flex; if (!X) return;
+          const th = X.th, tp = X.thp || th;
+          for (let k = 0; k < X.segs.length; k++) X.segs[k].g.rotation.set(tp[2 * k] + (th[2 * k] - tp[2 * k]) * al, 0, tp[2 * k + 1] + (th[2 * k + 1] - tp[2 * k + 1]) * al);
         }
         // ---- tay & đầu người câu (chạy SAU lớp tư thế, ghi đè phần hiển thị rồi ghi ngược vào lớp tư thế cho liền mạch khi thôi câu) ----
         function anglerAim(e, i, target, out) {   // góc gập + góc dang của cánh tay cứng để găng chỉ vào điểm đích (thế giới)
@@ -208,7 +222,7 @@
           const A = angling, P = angFloat, rod = e.rod, U = rod.userData, g = e.g, X = U.flex;
           if (!(dt > 0)) return;   // phao (vận tốc = Δx/dt) và lực dây (÷dt²) chia cho dt: dt = 0 ⇒ NaN
           if (!Number.isFinite(A.T + P.F.x + P.B.x + X.th[0] + X.acc[0].x + A.head.p + A.head.pv + A.free.p + A.free.pv)) {   // NaN đã lọt vào thì trạng thái tích phân giữ NaN mãi (mất đầu, mất cần) ⇒ đặt lại cần, phao, đầu, khởi động lại buổi câu
-            X.th.fill(0); X.vel.fill(0); X.n = 0; for (const a of X.acc) a.set(0, 0, 0); for (const s of X.segs) s.g.rotation.set(0, 0, 0);
+            X.th.fill(0); X.vel.fill(0); if (X.thp) X.thp.fill(0); X.n = 0; A.ph = null; for (const a of X.acc) a.set(0, 0, 0); for (const s of X.segs) s.g.rotation.set(0, 0, 0);
             Object.assign(A, { active: false, T: 0 }); A.Tdir.set(0, -1, 0); Object.assign(A.head, { pv: 0, yv: 0 }); Object.assign(A.free, { pv: 0, r: -0.05, rv: 0 });
             e.head.rotation.set(0.3, 0, 0); e.arms[0].rotation.x = -0.15;
           }
@@ -292,7 +306,7 @@
               if (!A.struck && k >= 0.1) {
                 A.struck = true;
                 if (A.hooked) {   // mắc câu: cá giật lại, lao đi lần đầu
-                  angFish.M.copy(P.B); angFish.V.set(A.takeDir.x * 0.8, -0.2, A.takeDir.z * 0.8); angFish.stam = A.fish.keeper ? 0.45 : 1; angFish.ext = 0; angFish.slip = false; angFish.head = A.heading;
+                  angFish.M.copy(P.B); angFish.Mp.copy(P.B); angFish.V.set(A.takeDir.x * 0.8, -0.2, A.takeDir.z * 0.8); angFish.stam = A.fish.keeper ? 0.45 : 1; angFish.ext = 0; angFish.slip = false; angFish.head = A.heading;
                   fishMode('run'); P.S = Math.max(P.F.distanceTo(_aTip) - 0.05, 0.5); splashFx.spawn(P.F.x, P.F.z, 0.7);
                 } else { releaseFishingFish(true); A.T = 2.2; }   // hụt: cá nhả mồi, phao bật lên
               }
@@ -382,20 +396,14 @@
           e.rodGrp.rotation.y = A.tau;
           engArmSolve(e, 1, dt);   // giải khuỷu tay cầm cần NGAY: ngọn, khoen, tay quay đọc dưới đây đúng chỗ cần được vẽ (không thì dây lệch khỏi cần)
           A.crankRate += (crank - A.crankRate) * (1 - Math.exp(-dt * 10)); A.crankAng -= A.crankRate * Math.PI * 2 * dt; U.crank.rotation.x = A.crankAng;
-          // ===== 3) cần uốn theo lực dây kỳ trước + quán tính khi vụt =====
-          U.flex.F.copy(A.Tdir).multiplyScalar(A.T);
-          rodFlexStep(rod, dt);
-          g.updateWorldMatrix(true, true); U.tip.getWorldPosition(_aTip);
-          // ===== 4) cá mắc câu =====
-          if (A.stage === 'fight' && A.fish) { fishFightStep(dt, t); P.B.copy(angFish.M); P.bKin = true; }
-          else if (A.stage === 'land' && A.fish) { P.B.copy(angFish.M); P.bKin = true; }
-          // ===== 5) phao + mồi (Verlet + ràng buộc dây) =====
-          const Fbefore = _aV3.copy(P.F); let tipPull = 0;
-          floatStep(dt, (pull) => { tipPull += pull; });
-          // lực dây ở ngọn cho khung hình sau: cá (khi dìu) · lực giữ phao (khi treo/kéo) · rất nhỏ khi phao nổi
-          if (A.stage === 'fight') A.T = angFish.T;
-          else if (A.stage === 'strike') A.T *= 0.85;
-          else A.T += (Math.min(6, FLOAT_M * tipPull / (dt * dt)) + (P.mode === 'water' ? 0.05 : 0) - A.T) * (1 - Math.exp(-dt * 12));
+          // ===== 3–5) VẬT LÝ bước cố định 120 Hz (core/fixed-step.js): cần uốn → ngọn → cá mắc câu → phao + mồi → lực dây (anglingPhysStep) =====
+          //      tay/cần đổi dáng mỗi khung (ở trên); quán tính gốc cần tính theo khung; dáng VẼ = nội suy bước trước → bước mới (alpha)
+          g.updateWorldMatrix(true, true); rodFlexAcc(rod, dt); A.tNow = t;
+          if (A.stage === 'land' && A.fish) { P.B.copy(angFish.M); P.bKin = true; }
+          const al = fixedSteps(A.ph || (A.ph = {}), dt, PHYS_H, anglingPhysStep);
+          rodFlexPose(rod, al); rod.updateMatrixWorld(true); U.tip.getWorldPosition(_aTipR);
+          _dF.lerpVectors(P.Fp, P.F, al);
+          if (A.stage === 'fight' && A.fish) _dB.lerpVectors(angFish.Mp, angFish.M, al); else if (P.bKin) _dB.copy(P.B); else _dB.lerpVectors(P.Bp, P.B, al);
           // ===== 6) cá đang tới / đang rỉa / mắc câu: đặt mô hình koi theo miệng =====
           const f = A.fish;
           if (f) {
@@ -409,18 +417,18 @@
               const F = angFish, sp = Math.hypot(F.V.x, F.V.z);
               if (sp > 0.15) F.head += Math.atan2(Math.sin(Math.atan2(F.V.z, F.V.x) - F.head), Math.cos(Math.atan2(F.V.z, F.V.x) - F.head)) * Math.min(1, dt * 5);
               const depth = lakeSurfaceY(F.M.x, F.M.z) - F.M.y, tired = F.mode === 'tired' || A.stage === 'release';
-              placeFishingFish(f, F.M, F.head, tired ? 0.35 : Math.max(-0.4, Math.min(0.4, F.V.y * 0.6)), t * (F.mode === 'run' ? 2 : 1.3), F.mode === 'shake' ? 0.45 : tired ? 0.15 + 0.1 * Math.sin(t * 9) : 0.25);
+              placeFishingFish(f, A.stage === 'fight' ? _dM.lerpVectors(F.Mp, F.M, al) : F.M, F.head, tired ? 0.35 : Math.max(-0.4, Math.min(0.4, F.V.y * 0.6)), t * (F.mode === 'run' ? 2 : 1.3), F.mode === 'shake' ? 0.45 : tired ? 0.15 + 0.1 * Math.sin(t * 9) : 0.25);
               if (depth < 0.1 && (F.mode === 'shake' || F.mode === 'tired') && anglingRandom() < dt * (F.mode === 'shake' ? 3 : 0.8)) splashFx.spawn(F.M.x, F.M.z, F.mode === 'shake' ? 0.6 : 0.3);   // quẫy trên mặt nước
             }
           }
           // ===== 7) hiển thị phao, mồi, dây =====
-          bobber.position.copy(P.F);
-          _aV.subVectors(P.F, P.B); const lk = _aV.length();
+          bobber.position.copy(_dF);
+          _aV.subVectors(_dF, _dB); const lk = _aV.length();
           const upW = lk > FISH_HOOK * 0.85 ? 1 : lk / (FISH_HOOK * 0.85);
           if (lk > 1e-4) _aV.multiplyScalar(1 / lk); else _aV.set(0, 1, 0);
           _aV.lerp(_aV2.set(0, 1, 0), (1 - upW) * (P.mode === 'water' ? 0 : 1)).normalize();   // phao nằm khi mồi chưa kéo căng (vừa rơi), dựng theo dây phao–lưỡi khi căng
           P.up.lerp(_aV, 1 - Math.exp(-dt * 8)).normalize(); bobber.quaternion.setFromUnitVectors(_aV2.set(0, 1, 0), P.up);
-          fishingBait.position.copy(P.B); fishingBait.quaternion.copy(bobber.quaternion); fishingBait.visible = !(A.fish && (A.stage === 'fight' || A.stage === 'release' || A.stage === 'land'));
+          fishingBait.position.copy(_dB); fishingBait.quaternion.copy(bobber.quaternion); fishingBait.visible = !(A.fish && (A.stage === 'fight' || A.stage === 'release' || A.stage === 'land'));
           drawFishLine(rod);
           // ===== 8) tay kia (quay máy · nắm chuôi khi quăng · bắt mồi · nghỉ trên đùi) & ánh mắt =====
           const fr = A.free;
@@ -524,23 +532,35 @@
           F.stam = Math.max(0.12, F.stam - dt * ((F.mode === 'run' ? 0.06 : F.mode === 'shake' ? 0.045 : 0.022) + 0.0035 * T));
           A.Tdir.set(-dx / D, -dy / D, -dz / D);
         }
+        let _pull = 0; const _onPull = (p) => { _pull += p; };
+        function anglingPhysStep(h) {   // 1 bước vật lý 1/120 s của câu cá (gọi từ fixedSteps trong updateFishingBite)
+          const A = angling, P = angFloat, rod = engObj.rod, U = rod.userData;
+          U.flex.F.copy(A.Tdir).multiplyScalar(A.T);   // lực dây kỳ trước → cần uốn
+          rodFlexStep(rod, h); rod.updateMatrixWorld(true); U.tip.getWorldPosition(_aTip);   // ngọn VẬT LÝ của bước này
+          if (A.stage === 'fight' && A.fish) { angFish.Mp.copy(angFish.M); fishFightStep(h, A.tNow); P.B.copy(angFish.M); P.bKin = true; }
+          _pull = 0; floatStep(h, _onPull);
+          // lực dây ở ngọn cho bước sau: cá (khi dìu) · lực giữ phao (khi treo/kéo) · rất nhỏ khi phao nổi
+          if (A.stage === 'fight') A.T = angFish.T;
+          else if (A.stage === 'strike') A.T *= Math.pow(0.85, h * 60);
+          else A.T += (Math.min(6, FLOAT_M * _pull / (h * h)) + (P.mode === 'water' ? 0.05 : 0) - A.T) * (1 - Math.exp(-h * 12));
+        }
         function drawFishLine(rod) {   // dây: mép lô dây → 6 khoen → ngọn (theo cần đang cong) → võng tới phao (dây chùng) → lưỡi
           const U = rod.userData, P = angFloat, A = angling, pos = fishLinePos;
           let j = 0;
           U.spool.getWorldPosition(_aV); pos[j++] = _aV.x; pos[j++] = _aV.y; pos[j++] = _aV.z;
           for (const gd of U.guides) { gd.getWorldPosition(_aV); pos[j++] = _aV.x; pos[j++] = _aV.y; pos[j++] = _aV.z; }
-          pos[j++] = _aTip.x; pos[j++] = _aTip.y; pos[j++] = _aTip.z;
-          const D = P.F.distanceTo(_aTip), slack = Math.max(0, P.S - D);
+          pos[j++] = _aTipR.x; pos[j++] = _aTipR.y; pos[j++] = _aTipR.z;
+          const D = _dF.distanceTo(_aTipR), slack = Math.max(0, P.S - D);
           const sag = Math.min(D * 0.45, Math.sqrt(3 * D * slack / 8));   // võng parabol theo phần dây thừa
-          _aV.subVectors(P.F, _aTip); const len = _aV.length() || 1; _aV.multiplyScalar(1 / len);
+          _aV.subVectors(_dF, _aTipR); const len = _aV.length() || 1; _aV.multiplyScalar(1 / len);
           _aV2.set(0, -1, 0).addScaledVector(_aV, _aV.y); const nl = _aV2.length(); if (nl > 1e-4) _aV2.multiplyScalar(1 / nl);   // phương trọng lực vuông góc dây
           for (let i = 0; i < 16; i++) {
             const u = i / 15, s = 4 * u * (1 - u) * sag;
-            pos[j++] = _aTip.x + (P.F.x - _aTip.x) * u + _aV2.x * s; pos[j++] = _aTip.y + (P.F.y - _aTip.y) * u + _aV2.y * s; pos[j++] = _aTip.z + (P.F.z - _aTip.z) * u + _aV2.z * s;
+            pos[j++] = _aTipR.x + (_dF.x - _aTipR.x) * u + _aV2.x * s; pos[j++] = _aTipR.y + (_dF.y - _aTipR.y) * u + _aV2.y * s; pos[j++] = _aTipR.z + (_dF.z - _aTipR.z) * u + _aV2.z * s;
           }
-          pos[j++] = P.F.x; pos[j++] = P.F.y; pos[j++] = P.F.z; pos[j++] = P.B.x; pos[j++] = P.B.y; pos[j++] = P.B.z;
+          pos[j++] = _dF.x; pos[j++] = _dF.y; pos[j++] = _dF.z; pos[j++] = _dB.x; pos[j++] = _dB.y; pos[j++] = _dB.z;
           fishLineGeo.attributes.position.needsUpdate = true;
-          if (A.stage !== 'fight') A.Tdir.set(pos[27] - _aTip.x, pos[28] - _aTip.y, pos[29] - _aTip.z).normalize();   // hướng lực ở ngọn = tiếp tuyến dây
+          if (A.stage !== 'fight') A.Tdir.set(pos[27] - _aTipR.x, pos[28] - _aTipR.y, pos[29] - _aTipR.z).normalize();   // hướng lực ở ngọn = tiếp tuyến dây
         }
         function updateReturningFishingFish(f, dt, t) {   // cá được thả: ngoi lên lấy thăng bằng, quẫy đuôi lặn ra xa bờ rồi trả về bầy
           fishReturnTime += dt;

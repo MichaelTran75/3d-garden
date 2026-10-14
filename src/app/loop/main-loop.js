@@ -1,6 +1,7 @@
         const SHADER_TIME_LOOP = 1140 * Math.PI;              // ≈ 3581 s: ω = 3,0 · 2,2 · 7,5 (nước) và 3,5 (cỏ cây) đều quay số nguyên vòng
-        function loop() {
+        function loop(ts) {
           if (disposed || suspended) { frameId = 0; return; }
+          if (ts !== undefined) adaptResolution(ts);   // độ phân giải tự điều chỉnh (loop/close-up.js)
           frameId = requestAnimationFrame(loop); const dt = Math.min(clock.getDelta(), 0.05) || 1 / 60;   // khung đầu: Clock.getDelta() trả 0 (mô phỏng chia cho dt sẽ ra NaN)
           const insectsAwake = liveWeather.wildlifeAwake;
           if (insectsAwake) flightNav.update();

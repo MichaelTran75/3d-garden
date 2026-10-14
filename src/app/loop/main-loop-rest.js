@@ -196,7 +196,7 @@
           }
           updateAnimalVisibility(); updateDrawBatches();
           fluids.update(dt, t, rainK);   // gửi bước mô phỏng nước + khói cho luồng phụ (kèm các cú chạm nước trong khung này), nhận kết quả bước trước
-          if (skyOn) updateSky(); nightSky.update(dt, t, skyOn); renderer.render(scene, camera); mastLabel?.updateScreen(); updateZoomPct();
+          if (skyOn) updateSky(); nightSky.update(dt, t, skyOn); fitSunShadow(); updateCloseLod(); renderer.render(scene, camera); mastLabel?.updateScreen(); updateZoomPct();
           if (!started) { started = true; const l = document.getElementById('loading'); if (l) l.style.display = 'none'; }
         }
         // biên dịch shader SONG SONG (KHR_parallel_shader_compile) trước khung đầu → luồng chính không khựng lúc mở trang; trình duyệt không hỗ trợ thì như cũ
