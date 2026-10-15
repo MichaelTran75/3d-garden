@@ -5675,7 +5675,7 @@
           if (RW[i] > 1e-3) {   // có đích với tay: IK CHÍNH XÁC (hệ eo) — khuỷu theo vectơ cực chĩa xuống–ra ngoài, cánh tay trên xoay đúng mặt phẳng vai–khuỷu–tay
             const cg = Math.cos(A.rotation.z), u = _ikP.set(Math.sin(A.rotation.z), -cg * Math.cos(th), -cg * Math.sin(th));   // hướng vai→tay đã hoà (thứ tự XYZ)
             const a = (L1 * L1 - L2 * L2 + D * D) / (2 * D), hh = Math.sqrt(Math.max(0, L1 * L1 - a * a));
-            const pole = _ikA.set(i ? 0.6 : -0.6, -1, -0.15); pole.addScaledVector(u, -pole.dot(u)).normalize();
+            const pole = e.elbowPole && e.elbowPole[i] ? _ikA.copy(e.elbowPole[i]) : _ikA.set(i ? 0.6 : -0.6, -1, -0.15); pole.addScaledVector(u, -pole.dot(u)).normalize();   // e.elbowPole: pha tự chọn hướng khuỷu (ăn: khép sát thân)
             const E = _ikB.copy(u).multiplyScalar(a).addScaledVector(pole, hh);                       // khuỷu (so với vai)
             const yA = _ikW.copy(E).negate().normalize(), f = _ikC.copy(u).multiplyScalar(D).sub(E).normalize();   // trục +y cánh tay trên · hướng cẳng tay
             const zA = f.addScaledVector(yA, -f.dot(yA)).normalize(), xA = _ikA.crossVectors(yA, zA);   // cẳng tay gập về +z cục bộ
@@ -5691,7 +5691,7 @@
           engArmSolve(e, 0, dt); engArmSolve(e, 1, dt);
           const W = e.handW || (e.handW = [new THREE.Vector3(), new THREE.Vector3()]); e.wrists[0].getWorldPosition(W[0]); e.wrists[1].getWorldPosition(W[1]);
           if (e.elbowFlexT) e.elbowFlexT[0] = e.elbowFlexT[1] = 0;
-          e.reachT = null; e.handQ = null; e.armDone.fill(0);
+          e.reachT = null; e.handQ = null; e.elbowPole = null; e.armDone.fill(0);
         }
         function engSitLean(e, k) { e.lean = Math.max(e.lean, 1.15 * k * (1 - k)); }   // ngồi xuống / đứng dậy: dồn trọng tâm, cúi người về trước giữa chừng
         function engStep(e, tgt, dt, t, avoidPt, avoidR, field) {
@@ -8748,26 +8748,12 @@
             if (D) D.food = Math.max(0, V.f0 * (1 - k));
             if (!keep || k >= 1) { V.st = 'unscoot'; V.k = 0; }
             else {
-              e.seatCtl = true; e.seatLean = 0.12; engSeatHold(e, C, s, dt, t);
-              const rt = e.armRollT || (e.armRollT = [0, 0]);
-              if (meal === 'udon') {   // đũa gắp sợi lên miệng, húp sột soạt; ~22 s nâng bát hai tay húp nước dùng
-                H.chop = true; const ct = (t + V.ph) % 22, sip = ct > 18 ? Math.sin(Math.PI * (ct - 18) / 4) : 0;
-                if (sip > 0.05) { H.sip = true; H.chop = false; e.arms[0].rotation.x = e.arms[1].rotation.x = -0.75 - sip * 0.85; rt[0] = 0.3 * sip; rt[1] = -0.3 * sip; e.head.rotation.x = 0.1 - sip * 0.25; }
-                else {
-                  const bt = (t + V.ph) % 3.8, dip = bt < 1.2, lift = bt >= 1.2 && bt < 1.9, slurp = bt >= 1.9 && bt < 2.9;
-                  const toMouth = dip ? 0 : lift ? (bt - 1.2) / 0.7 : slurp ? 1 : Math.max(0, 1 - (bt - 2.9) / 0.9);
-                  e.arms[0].rotation.x = -0.85 - toMouth * 0.75 + (dip ? Math.sin(bt * 8) * 0.05 : 0); e.arms[1].rotation.x = -0.6;
-                  e.head.rotation.x = (dip ? 0.32 : 0.12) + (slurp ? Math.sin(t * 14) * 0.03 : 0);
-                }
-              } else {   // ngũ cốc: xúc thìa (tay phải) · ~19 s nhấp cà phê (tay trái) · nhai gật gù
-                H.spoon = H.cup = true;
-                const sc = (t + V.ph) % 19, sip = sc > 15 ? Math.sin(Math.PI * (sc - 15) / 4) : 0;
-                const bt = (t + V.ph) % 3.6, scoop = bt < 1.2, lift = bt >= 1.2 && bt < 1.8, chew = bt >= 1.8;
-                const toMouth = sip > 0 ? 0 : scoop ? 0 : lift ? (bt - 1.2) / 0.6 : Math.max(0, 1 - (bt - 1.8) / 0.9);
-                e.arms[0].rotation.x = -0.8 - toMouth * 0.8 + (scoop && !sip ? Math.sin(bt * 9) * 0.05 : 0);
-                e.arms[1].rotation.x = -0.45 - sip * 1.1;
-                e.head.rotation.x = (scoop && !sip ? 0.3 : 0.08) - sip * 0.22 + (chew ? Math.abs(Math.sin(t * 9)) * 0.04 : 0);
-              }
+              e.seatCtl = true;
+              if (meal === 'udon') {   // ~22 s nâng bát hai tay húp nước dùng (giữ dáng cũ), còn lại gắp đũa bằng IK
+                const ct = (t + V.ph * 1.7) % 22, sip = ct < 3.3 ? Math.sin(Math.PI * ct / 3.3) : 0, rt = e.armRollT || (e.armRollT = [0, 0]);
+                if (sip > 0.05) { H.sip = true; H.chop = false; e.seatLean = 0.12; engSeatHold(e, C, s, dt, t); e.arms[0].rotation.x = e.arms[1].rotation.x = -0.75 - sip * 0.85; rt[0] = 0.3 * sip; rt[1] = -0.3 * sip; e.head.rotation.x = 0.1 - sip * 0.25; }
+                else { H.sip = false; engEatAtTable(e, t, V.ph, 'udon'); engSeatHold(e, C, s, dt, t); }
+              } else { engEatAtTable(e, t, V.ph, 'cereal'); engSeatHold(e, C, s, dt, t); }   // ngũ cốc: thìa + cốc cà phê, IK tay theo điểm thật (engineer/meal-read.js)
             }
           }
           else if (V.st === 'rise') { e.seatCtl = true; if (engRiseStep(e, C, s, dt, t)) { e.seat = null; V.st = 'out'; } }
@@ -9492,7 +9478,7 @@
 
         const SPOON_TIP = new THREE.Vector3(0, -0.03, 0.28), PAN_IN = new THREE.Vector3(0, 0.03, 0);
         function engEatRice(e, dt, t) {
-          const H = e.hold, D = e.dish, P = e.props; H.spoon = true; e.armsBusy = true; if (D) D.at = 'hand';
+          const H = e.hold, D = e.dish, P = e.props; H.spoon = true; e.armsBusy = true; e.elbowPole = EAT_POLE; if (D) D.at = 'hand';
           const c = (t + (e.readPh || 0)) % 6.2, up = minJerk(segK(c, 1.4, 2.3)) * (1 - minJerk(segK(c, 2.8, 3.4))), chew = c > 2.6;   // 1 miếng ~6 s
           const ax = engAxesW(e), right = _mrD.copy(ax.r), fwd = _mrF.copy(ax.f);
           const pan = engBodyW(e, 0.06, 1.42, 0.42, new THREE.Vector3()), hx = _mrA.copy(right).multiplyScalar(-0.85).addScaledVector(fwd, -0.5).normalize();
@@ -9506,6 +9492,60 @@
           engHandFor(e, 0, aimQ(new THREE.Quaternion(), dIn.lerp(dMo, up).normalize(), _mrUp), SPOON_TIP, tip);
           e.seatLean = 0.06 + 0.12 * up; e.seatSwing = 0;   // đổ người đón thìa
           e.head.rotation.x = 0.04 + 0.34 * (1 - up) + (chew ? Math.abs(Math.sin(t * 9)) * 0.04 : 0);   // xúc: cúi nhìn chảo · vào miệng: cổ thẳng · nhai gật gù
+        }
+
+        const CUP_BASE = new THREE.Vector3(0, -0.135, 0.08), CUP_LIP = new THREE.Vector3(0, -0.025, 0.142), CHOP_TIP = new THREE.Vector3(0, -0.06, 0.35);
+        const _eA = new THREE.Vector3(), _eB = new THREE.Vector3(), _eC = new THREE.Vector3(), _eD = new THREE.Vector3(), _eQ = new THREE.Quaternion(), _eQ2 = new THREE.Quaternion();
+        const hash01 = (n, k) => { const x = Math.sin(n * 12.9898 + k * 78.233) * 43758.5453; return x - Math.floor(x); };
+        const EAT_POLE = [new THREE.Vector3(-0.22, -1, 0.08), new THREE.Vector3(0.28, -1, 0.02)];   // khuỷu khép sát thân khi ăn (vai dạng ≤ 30° — PLoS ONE 2021), mặc định IK chĩa ra ngoài 0,6
+        function arcTo(a, b, k, up, fwd, hUp, hFwd, out) { const s = Math.sin(Math.PI * k); return out.lerpVectors(a, b, k).addScaledVector(up, hUp * s).addScaledVector(fwd, hFwd * s); }   // cung vồng (lên + ra trước) giữa 2 điểm
+        function engEatAtTable(e, t, ph, meal) {
+          const H = e.hold, P = e.props, sc = e.g.scale.y, food = e.dish ? e.dish.food : 1; e.armsBusy = true; e.elbowPole = EAT_POLE;
+          const ax = engAxesW(e), right = _mrD.copy(ax.r), fwd = _mrF.copy(ax.f), UP = _mrUp;
+          const bowl = meal === 'udon' ? VTUDON : VCEREAL; bowl.updateWorldMatrix(true, false);
+          const mouth = engMouthW(e, new THREE.Vector3()), shoulderR = engBodyW(e, -0.34, 1.86, 0, new THREE.Vector3());
+          const sp = (t + ph * 1.7) % (meal === 'udon' ? 22 : 21), sipU = minJerk(segK(sp, 0, 0.9)) * (1 - minJerk(segK(sp, 2.4, 3.3))), sipping = sipU > 0.02;
+          const bowlC = bowl.getWorldPosition(new THREE.Vector3()), dirF = _eD.copy(fwd).setY(0).normalize();
+          if (meal !== 'udon') {
+            H.spoon = H.cup = true;
+            const restCup = bowlC.clone().addScaledVector(right, -0.2 * sc).addScaledVector(dirF, 0.02 * sc), tilt = 0.25 + 0.55 * minJerk(segK(sp, 1.0, 2.3));
+            const qUp = aimQ(_eQ, dirF, UP), qSip = aimQ(new THREE.Quaternion(), dirF, _eA.copy(UP).multiplyScalar(Math.cos(tilt)).addScaledVector(dirF, -Math.sin(tilt)));
+            const lip = mouth.clone().addScaledVector(fwd, 0.015 * sc), qL = new THREE.Quaternion().slerpQuaternions(qUp, qSip, sipU);
+            const restLip = restCup.addScaledVector(UP, (CUP_LIP.y - CUP_BASE.y) * sc).addScaledVector(dirF, (CUP_LIP.z - CUP_BASE.z) * sc);   // vành cốc khi đáy cốc tựa mặt bàn
+            engHandFor(e, 1, qL, CUP_LIP, arcTo(restLip, lip, sipU, UP, fwd, 0.04 * sc, 0.03 * sc, _eB));   // 1 đường liền: vành cốc từ chỗ nghỉ → môi
+          } else { H.chop = true; const rim = bowl.localToWorld(new THREE.Vector3(0.1, 0.05, -0.012)); engHandSet(e, 1, rim, aimQ(_eQ, _eA.subVectors(bowlC, rim).setY(0).normalize(), UP)); }   // udon: tay trái giữ vành bát bên trái cho vững (ăn mì đũa)
+          const T = meal === 'udon' ? 4.4 : 5.6, n = Math.floor((t + ph) / T), c = sipping ? 9 : (t + ph) % T;
+          const surf = meal === 'udon' ? 0.05 : 0.022 + 0.021 * food;
+          const dip = bowl.localToWorld(new THREE.Vector3((hash01(n, 1) - 0.5) * 0.06, surf - 0.006, (hash01(n, 2) - 0.35) * 0.05)), near = bowl.localToWorld(new THREE.Vector3(0, surf + 0.01, -0.045));
+          const rest = bowl.localToWorld(new THREE.Vector3(-0.035, meal === 'udon' ? 0.11 : 0.085, -0.055)), front = mouth.clone().addScaledVector(fwd, 0.035 * sc), inside = mouth.clone().addScaledVector(fwd, 0.004 * sc);
+          const out = mouth.clone().addScaledVector(fwd, 0.055 * sc).addScaledVector(UP, -0.02 * sc);
+          let tip, u, pitch = 0;
+          if (meal !== 'udon') {
+            if (c < 0.6) { const k = minJerk(c / 0.6); tip = arcTo(rest, dip, k, UP, fwd, 0.03 * sc, 0, _eB); u = 0; pitch = -0.3 * k; }
+            else if (c < 1.2) { const k = (c - 0.6) / 0.6; tip = _eB.lerpVectors(dip, near, k).addScaledVector(UP, 0.012 * sc * k); u = 0; pitch = -0.3 + 0.45 * k; }   // xúc: kéo về mép gần, lòng thìa ngửa dần
+            else if (c < 1.9) { const k = minJerk((c - 1.2) / 0.7); tip = arcTo(near, front, k, UP, fwd, 0.08 * sc, 0.07 * sc, _eB); u = k; pitch = 0.15 * (1 - k); }
+            else if (c < 2.25) { tip = _eB.lerpVectors(front, inside, minJerk((c - 1.9) / 0.35)); u = 1; }
+            else if (c < 2.6) { const k = minJerk((c - 2.25) / 0.35); tip = _eB.lerpVectors(inside, out, k); u = 1; pitch = -0.25 * k; }   // rút ra: thìa chúc xuống
+            else if (c < 3.4) { const k = minJerk((c - 2.6) / 0.8); tip = arcTo(out, rest, k, UP, fwd, 0.03 * sc, 0.03 * sc, _eB); u = 1 - k; pitch = -0.25 * (1 - k); }
+            else { tip = _eB.copy(rest).addScaledVector(right, 0.006 * sc * Math.sin(t * 1.3)); u = 0; }   // nhai: thìa nghỉ trên bát
+          } else {   // đũa: chấm gắp 2 lần → kéo sợi lên → tới miệng → húp → về
+            if (c < 0.5) { tip = arcTo(rest, dip, minJerk(c / 0.5), UP, fwd, 0.04 * sc, 0, _eB); u = 0; }
+            else if (c < 1.2) { const k = (c - 0.5) / 0.7; tip = _eB.copy(dip).addScaledVector(UP, (0.015 + 0.015 * Math.cos(k * TAU * 2)) * sc); u = 0; }
+            else if (c < 1.6) { const k = minJerk((c - 1.2) / 0.4); tip = _eB.copy(dip).addScaledVector(UP, (0.015 + 0.13 * k) * sc); u = 0.2 * k; }   // kéo sợi lên cao
+            else if (c < 2.2) { const a = _eA.copy(dip).addScaledVector(UP, 0.145 * sc); tip = arcTo(a, inside, minJerk((c - 1.6) / 0.6), UP, fwd, 0.03 * sc, 0.05 * sc, _eB); u = 0.2 + 0.8 * minJerk((c - 1.6) / 0.6); }
+            else if (c < 3.1) { tip = _eB.copy(inside).addScaledVector(UP, -0.006 * sc * Math.abs(Math.sin(t * 16))); u = 1; }   // húp sột soạt
+            else if (c < 3.8) { const k = minJerk((c - 3.1) / 0.7); tip = arcTo(out, rest, k, UP, fwd, 0.03 * sc, 0, _eB); u = 1 - k; }
+            else { tip = _eB.copy(rest); u = 0; }
+          }
+          if (sipping) { tip = _eB.copy(rest); u = 0; pitch = 0; }
+          const dIn = _eA.subVectors(dip, shoulderR).add(_eC.set(0, -0.3 * sc, 0)).normalize(), dMo = _eC.copy(fwd).multiplyScalar(-0.9).addScaledVector(right, -0.35).addScaledVector(UP, 0.12).normalize();
+          const dir = dIn.lerp(dMo, u).normalize(); dir.y += pitch; dir.normalize();
+          engHandFor(e, 0, aimQ(_eQ2, dir, UP), meal === 'udon' ? CHOP_TIP : SPOON_TIP, tip);
+          const chew = !sipping && c > (meal === 'udon' ? 3.8 : 2.4), slurp = meal === 'udon' && c >= 2.2 && c < 3.1 && !sipping;
+          const glance = chew ? Math.max(0, Math.sin(Math.PI * segK((t + ph * 2.3) % 13, 0, 3.5))) : 0;   // thỉnh thoảng liếc ra cửa sổ khi nhai
+          e.seatLean = 0.08 + 0.12 * u + (u === 0 && !chew ? 0.04 : 0);   // xúc: đổ nhẹ nhìn bát · đưa lên: đổ tới đón thìa
+          e.head.rotation.x = 0.36 * (1 - u) + 0.06 * u - 0.14 * sipU + (chew ? 0.025 * Math.sin(t * 8.8) : 0) + (slurp ? 0.03 * Math.sin(t * 15) : 0);
+          e.head.rotation.y = 0.4 * glance;
         }
 
         const BOOK_Q = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 0.6, -0.8), new THREE.Vector3(0, -0.8, -0.6)));   // mặt sách ngửa về phía mắt

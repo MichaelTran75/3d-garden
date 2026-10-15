@@ -73,7 +73,7 @@
         // ---------- ĂN CƠM CHIÊN: tay trái giữ cán chảo trước bụng (mặt chảo ngang), tay phải xúc thìa → đưa lên → vào miệng → nhai ----------
         const SPOON_TIP = new THREE.Vector3(0, -0.03, 0.28), PAN_IN = new THREE.Vector3(0, 0.03, 0);
         function engEatRice(e, dt, t) {
-          const H = e.hold, D = e.dish, P = e.props; H.spoon = true; e.armsBusy = true; if (D) D.at = 'hand';
+          const H = e.hold, D = e.dish, P = e.props; H.spoon = true; e.armsBusy = true; e.elbowPole = EAT_POLE; if (D) D.at = 'hand';
           const c = (t + (e.readPh || 0)) % 6.2, up = minJerk(segK(c, 1.4, 2.3)) * (1 - minJerk(segK(c, 2.8, 3.4))), chew = c > 2.6;   // 1 miếng ~6 s
           const ax = engAxesW(e), right = _mrD.copy(ax.r), fwd = _mrF.copy(ax.f);
           // chảo: trước bụng lệch trái, cán quay về tay trái
@@ -89,6 +89,71 @@
           engHandFor(e, 0, aimQ(new THREE.Quaternion(), dIn.lerp(dMo, up).normalize(), _mrUp), SPOON_TIP, tip);
           e.seatLean = 0.06 + 0.12 * up; e.seatSwing = 0;   // đổ người đón thìa
           e.head.rotation.x = 0.04 + 0.34 * (1 - up) + (chew ? Math.abs(Math.sin(t * 9)) * 0.04 : 0);   // xúc: cúi nhìn chảo · vào miệng: cổ thẳng · nhai gật gù
+        }
+
+        // ---------- ĂN Ở BÀN VUÔNG TRONG XE (G 15/10 "research and improve eating movements more fine grain and correctly flexible") ----------
+        //  Theo động học ăn bằng thìa khi ngồi (PLoS ONE 2021, đã dùng cho cơm chiên): mỗi miếng ngũ cốc ~5,6 s chia pha nhỏ — VỚI vào bát 0,6 s →
+        //  XÚC 0,6 s (chấm thìa xuống sữa chỗ khác nhau mỗi miếng, kéo về mép gần, lòng thìa từ chúc → ngang) → ĐƯA LÊN 0,7 s theo cung vồng ra trước,
+        //  thìa giữ ngang, khuỷu gập dần (IK) → VÀO MIỆNG 0,35 s (thân đổ tới đón, cổ thẳng nhất) → RÚT RA 0,35 s (thìa chúc, hạ nhẹ) → VỀ trên bát
+        //  0,8 s → NHAI ~2 s (gật rất nhẹ ~1,4 Hz — nhịp nhai 1–2 Hz), thỉnh thoảng liếc ra cửa sổ. Lúc xúc cổ cúi nhìn bát nhiều nhất.
+        //  Tay trái cầm cốc cà phê tựa đáy trên mặt bàn cạnh bát; ~21 s nhấc lên (0,9 s), nhấp 1,5 s (cốc nghiêng dần, ngửa đầu), đặt xuống — lúc ấy thìa nghỉ.
+        //  Udon: đũa gắp (chấm xuống 2 lần) → kéo sợi lên cao → đưa tới miệng → húp sột soạt (đầu gật nhanh) → về; ~22 s hai tay bưng bát húp nước dùng.
+        const CUP_BASE = new THREE.Vector3(0, -0.135, 0.08), CUP_LIP = new THREE.Vector3(0, -0.025, 0.142), CHOP_TIP = new THREE.Vector3(0, -0.06, 0.35);
+        const _eA = new THREE.Vector3(), _eB = new THREE.Vector3(), _eC = new THREE.Vector3(), _eD = new THREE.Vector3(), _eQ = new THREE.Quaternion(), _eQ2 = new THREE.Quaternion();
+        const hash01 = (n, k) => { const x = Math.sin(n * 12.9898 + k * 78.233) * 43758.5453; return x - Math.floor(x); };
+        const EAT_POLE = [new THREE.Vector3(-0.22, -1, 0.08), new THREE.Vector3(0.28, -1, 0.02)];   // khuỷu khép sát thân khi ăn (vai dạng ≤ 30° — PLoS ONE 2021), mặc định IK chĩa ra ngoài 0,6
+        function arcTo(a, b, k, up, fwd, hUp, hFwd, out) { const s = Math.sin(Math.PI * k); return out.lerpVectors(a, b, k).addScaledVector(up, hUp * s).addScaledVector(fwd, hFwd * s); }   // cung vồng (lên + ra trước) giữa 2 điểm
+        function engEatAtTable(e, t, ph, meal) {
+          const H = e.hold, P = e.props, sc = e.g.scale.y, food = e.dish ? e.dish.food : 1; e.armsBusy = true; e.elbowPole = EAT_POLE;
+          const ax = engAxesW(e), right = _mrD.copy(ax.r), fwd = _mrF.copy(ax.f), UP = _mrUp;
+          const bowl = meal === 'udon' ? VTUDON : VCEREAL; bowl.updateWorldMatrix(true, false);
+          const mouth = engMouthW(e, new THREE.Vector3()), shoulderR = engBodyW(e, -0.34, 1.86, 0, new THREE.Vector3());
+          // --- tay trái: cốc cà phê (sáng) — tựa bàn / nhấc lên nhấp; trưa: bưng bát húp (2 tay) ---
+          const sp = (t + ph * 1.7) % (meal === 'udon' ? 22 : 21), sipU = minJerk(segK(sp, 0, 0.9)) * (1 - minJerk(segK(sp, 2.4, 3.3))), sipping = sipU > 0.02;
+          const bowlC = bowl.getWorldPosition(new THREE.Vector3()), dirF = _eD.copy(fwd).setY(0).normalize();
+          if (meal !== 'udon') {
+            H.spoon = H.cup = true;
+            const restCup = bowlC.clone().addScaledVector(right, -0.2 * sc).addScaledVector(dirF, 0.02 * sc), tilt = 0.25 + 0.55 * minJerk(segK(sp, 1.0, 2.3));
+            const qUp = aimQ(_eQ, dirF, UP), qSip = aimQ(new THREE.Quaternion(), dirF, _eA.copy(UP).multiplyScalar(Math.cos(tilt)).addScaledVector(dirF, -Math.sin(tilt)));
+            const lip = mouth.clone().addScaledVector(fwd, 0.015 * sc), qL = new THREE.Quaternion().slerpQuaternions(qUp, qSip, sipU);
+            const restLip = restCup.addScaledVector(UP, (CUP_LIP.y - CUP_BASE.y) * sc).addScaledVector(dirF, (CUP_LIP.z - CUP_BASE.z) * sc);   // vành cốc khi đáy cốc tựa mặt bàn
+            engHandFor(e, 1, qL, CUP_LIP, arcTo(restLip, lip, sipU, UP, fwd, 0.04 * sc, 0.03 * sc, _eB));   // 1 đường liền: vành cốc từ chỗ nghỉ → môi
+          } else { H.chop = true; const rim = bowl.localToWorld(new THREE.Vector3(0.1, 0.05, -0.012)); engHandSet(e, 1, rim, aimQ(_eQ, _eA.subVectors(bowlC, rim).setY(0).normalize(), UP)); }   // udon: tay trái giữ vành bát bên trái cho vững (ăn mì đũa)
+          // --- tay phải: 1 miếng ---
+          const T = meal === 'udon' ? 4.4 : 5.6, n = Math.floor((t + ph) / T), c = sipping ? 9 : (t + ph) % T;
+          const surf = meal === 'udon' ? 0.05 : 0.022 + 0.021 * food;
+          const dip = bowl.localToWorld(new THREE.Vector3((hash01(n, 1) - 0.5) * 0.06, surf - 0.006, (hash01(n, 2) - 0.35) * 0.05)), near = bowl.localToWorld(new THREE.Vector3(0, surf + 0.01, -0.045));
+          const rest = bowl.localToWorld(new THREE.Vector3(-0.035, meal === 'udon' ? 0.11 : 0.085, -0.055)), front = mouth.clone().addScaledVector(fwd, 0.035 * sc), inside = mouth.clone().addScaledVector(fwd, 0.004 * sc);
+          const out = mouth.clone().addScaledVector(fwd, 0.055 * sc).addScaledVector(UP, -0.02 * sc);
+          let tip, u, pitch = 0;
+          if (meal !== 'udon') {
+            if (c < 0.6) { const k = minJerk(c / 0.6); tip = arcTo(rest, dip, k, UP, fwd, 0.03 * sc, 0, _eB); u = 0; pitch = -0.3 * k; }
+            else if (c < 1.2) { const k = (c - 0.6) / 0.6; tip = _eB.lerpVectors(dip, near, k).addScaledVector(UP, 0.012 * sc * k); u = 0; pitch = -0.3 + 0.45 * k; }   // xúc: kéo về mép gần, lòng thìa ngửa dần
+            else if (c < 1.9) { const k = minJerk((c - 1.2) / 0.7); tip = arcTo(near, front, k, UP, fwd, 0.08 * sc, 0.07 * sc, _eB); u = k; pitch = 0.15 * (1 - k); }
+            else if (c < 2.25) { tip = _eB.lerpVectors(front, inside, minJerk((c - 1.9) / 0.35)); u = 1; }
+            else if (c < 2.6) { const k = minJerk((c - 2.25) / 0.35); tip = _eB.lerpVectors(inside, out, k); u = 1; pitch = -0.25 * k; }   // rút ra: thìa chúc xuống
+            else if (c < 3.4) { const k = minJerk((c - 2.6) / 0.8); tip = arcTo(out, rest, k, UP, fwd, 0.03 * sc, 0.03 * sc, _eB); u = 1 - k; pitch = -0.25 * (1 - k); }
+            else { tip = _eB.copy(rest).addScaledVector(right, 0.006 * sc * Math.sin(t * 1.3)); u = 0; }   // nhai: thìa nghỉ trên bát
+          } else {   // đũa: chấm gắp 2 lần → kéo sợi lên → tới miệng → húp → về
+            if (c < 0.5) { tip = arcTo(rest, dip, minJerk(c / 0.5), UP, fwd, 0.04 * sc, 0, _eB); u = 0; }
+            else if (c < 1.2) { const k = (c - 0.5) / 0.7; tip = _eB.copy(dip).addScaledVector(UP, (0.015 + 0.015 * Math.cos(k * TAU * 2)) * sc); u = 0; }
+            else if (c < 1.6) { const k = minJerk((c - 1.2) / 0.4); tip = _eB.copy(dip).addScaledVector(UP, (0.015 + 0.13 * k) * sc); u = 0.2 * k; }   // kéo sợi lên cao
+            else if (c < 2.2) { const a = _eA.copy(dip).addScaledVector(UP, 0.145 * sc); tip = arcTo(a, inside, minJerk((c - 1.6) / 0.6), UP, fwd, 0.03 * sc, 0.05 * sc, _eB); u = 0.2 + 0.8 * minJerk((c - 1.6) / 0.6); }
+            else if (c < 3.1) { tip = _eB.copy(inside).addScaledVector(UP, -0.006 * sc * Math.abs(Math.sin(t * 16))); u = 1; }   // húp sột soạt
+            else if (c < 3.8) { const k = minJerk((c - 3.1) / 0.7); tip = arcTo(out, rest, k, UP, fwd, 0.03 * sc, 0, _eB); u = 1 - k; }
+            else { tip = _eB.copy(rest); u = 0; }
+          }
+          if (sipping) { tip = _eB.copy(rest); u = 0; pitch = 0; }
+          // hướng dụng cụ: ở bát chĩa từ vai xuống bát · ở miệng chĩa ngược về mặt từ phía phải; chúc / ngửa lòng thìa quanh trục ngang
+          const dIn = _eA.subVectors(dip, shoulderR).add(_eC.set(0, -0.3 * sc, 0)).normalize(), dMo = _eC.copy(fwd).multiplyScalar(-0.9).addScaledVector(right, -0.35).addScaledVector(UP, 0.12).normalize();
+          const dir = dIn.lerp(dMo, u).normalize(); dir.y += pitch; dir.normalize();
+          engHandFor(e, 0, aimQ(_eQ2, dir, UP), meal === 'udon' ? CHOP_TIP : SPOON_TIP, tip);
+          // --- thân, đầu ---
+          const chew = !sipping && c > (meal === 'udon' ? 3.8 : 2.4), slurp = meal === 'udon' && c >= 2.2 && c < 3.1 && !sipping;
+          const glance = chew ? Math.max(0, Math.sin(Math.PI * segK((t + ph * 2.3) % 13, 0, 3.5))) : 0;   // thỉnh thoảng liếc ra cửa sổ khi nhai
+          e.seatLean = 0.08 + 0.12 * u + (u === 0 && !chew ? 0.04 : 0);   // xúc: đổ nhẹ nhìn bát · đưa lên: đổ tới đón thìa
+          e.head.rotation.x = 0.36 * (1 - u) + 0.06 * u - 0.14 * sipU + (chew ? 0.025 * Math.sin(t * 8.8) : 0) + (slurp ? 0.03 * Math.sin(t * 15) : 0);
+          e.head.rotation.y = 0.4 * glance;
         }
 
         // ---------- ĐỌC SÁCH: sách to gấp đôi trước ngực, 2 tay giữ 2 mép; ~40 s lật 1 trang bằng tay phải; ~20 s tay trái bốc khoai ----------

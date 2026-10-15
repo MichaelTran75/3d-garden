@@ -143,6 +143,11 @@ lò xo) ⇒ lên bậc voxel 0,6 đv thì chân trước lên trước, thân ng
   Quanh tổ: 6 ong `createBee()` thu 0,27 (`FLY` trong `animals/beehive.js`, gọi được dù insects.js nằm sau vì khai báo hàm được kéo lên đầu phạm vi):
   orbit (vòng cung nửa dưới giỏ, phần lớn quay đầu nhìn tổ) → land (vỏ giỏ, `surf(a, y)` = điểm + pháp tuyến) → perch (bò / quạt cánh) → takeoff;
   `beeWeatherOK()` dùng chung với ong kiếm mồi — trở trời thì đáp sát miệng giỏ rồi ẩn (`in`).
+- Ăn ở bàn vuông trong xe (`engEatAtTable(e, t, ph, meal)`, `engineer/meal-read.js`): mọi đầu dụng cụ đặt bằng IK theo điểm thật — thìa
+  (`SPOON_TIP`) / đũa (`CHOP_TIP`) chấm vào bát (`VCEREAL`/`VTUDON`, chỗ chấm đổi mỗi miếng) rồi tới `engMouthW`; vành cốc (`CUP_LIP`) từ chỗ nghỉ
+  trên bàn lên môi theo 1 cung liền (cốc nghiêng dần). Pha mỗi miếng ngũ cốc: với 0,6 · xúc 0,6 · đưa lên 0,7 · vào miệng 0,35 · rút 0,35 ·
+  về 0,8 · nhai ~2 s; udon: gắp chấm 2 lần · kéo sợi · tới miệng · húp · về; tay trái giữ vành bát. `e.elbowPole` (vectơ cực khuỷu, hệ eo,
+  xoá mỗi khung trong `engArmPost`): ăn dùng `EAT_POLE` ⇒ khuỷu khép, đo được vai dạng ≤ 18° (nghiên cứu ≤ 30°); mặc định IK dang ra 0,6.
 - Laptop bàn học: `laptopDash(t)` vẽ bảng vận hành chạy (~6 hình/giây, chỉ khi nắp mở) — số MW theo nắng / mây / gió thật.
 - Gấu mèo: thân 2 nửa `U.fore`/`U.aft` gập quanh giữa lưng khi phi nhảy (hông chân vẫn gắn `torso` ⇒ IK không đổi).
 - Đo được (trượt TB của bàn chân trụ, đv/khung ở 30 hình/giây): bò 0,0003–0,0007 · hươu 0,0003 · cò 0,0013 · gấu mèo ~0,003 (ngoặt gắt) ·

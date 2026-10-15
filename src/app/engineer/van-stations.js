@@ -105,26 +105,12 @@
             if (D) D.food = Math.max(0, V.f0 * (1 - k));
             if (!keep || k >= 1) { V.st = 'unscoot'; V.k = 0; }
             else {
-              e.seatCtl = true; e.seatLean = 0.12; engSeatHold(e, C, s, dt, t);
-              const rt = e.armRollT || (e.armRollT = [0, 0]);
-              if (meal === 'udon') {   // đũa gắp sợi lên miệng, húp sột soạt; ~22 s nâng bát hai tay húp nước dùng
-                H.chop = true; const ct = (t + V.ph) % 22, sip = ct > 18 ? Math.sin(Math.PI * (ct - 18) / 4) : 0;
-                if (sip > 0.05) { H.sip = true; H.chop = false; e.arms[0].rotation.x = e.arms[1].rotation.x = -0.75 - sip * 0.85; rt[0] = 0.3 * sip; rt[1] = -0.3 * sip; e.head.rotation.x = 0.1 - sip * 0.25; }
-                else {
-                  const bt = (t + V.ph) % 3.8, dip = bt < 1.2, lift = bt >= 1.2 && bt < 1.9, slurp = bt >= 1.9 && bt < 2.9;
-                  const toMouth = dip ? 0 : lift ? (bt - 1.2) / 0.7 : slurp ? 1 : Math.max(0, 1 - (bt - 2.9) / 0.9);
-                  e.arms[0].rotation.x = -0.85 - toMouth * 0.75 + (dip ? Math.sin(bt * 8) * 0.05 : 0); e.arms[1].rotation.x = -0.6;
-                  e.head.rotation.x = (dip ? 0.32 : 0.12) + (slurp ? Math.sin(t * 14) * 0.03 : 0);
-                }
-              } else {   // ngũ cốc: xúc thìa (tay phải) · ~19 s nhấp cà phê (tay trái) · nhai gật gù
-                H.spoon = H.cup = true;
-                const sc = (t + V.ph) % 19, sip = sc > 15 ? Math.sin(Math.PI * (sc - 15) / 4) : 0;
-                const bt = (t + V.ph) % 3.6, scoop = bt < 1.2, lift = bt >= 1.2 && bt < 1.8, chew = bt >= 1.8;
-                const toMouth = sip > 0 ? 0 : scoop ? 0 : lift ? (bt - 1.2) / 0.6 : Math.max(0, 1 - (bt - 1.8) / 0.9);
-                e.arms[0].rotation.x = -0.8 - toMouth * 0.8 + (scoop && !sip ? Math.sin(bt * 9) * 0.05 : 0);
-                e.arms[1].rotation.x = -0.45 - sip * 1.1;
-                e.head.rotation.x = (scoop && !sip ? 0.3 : 0.08) - sip * 0.22 + (chew ? Math.abs(Math.sin(t * 9)) * 0.04 : 0);
-              }
+              e.seatCtl = true;
+              if (meal === 'udon') {   // ~22 s nâng bát hai tay húp nước dùng (giữ dáng cũ), còn lại gắp đũa bằng IK
+                const ct = (t + V.ph * 1.7) % 22, sip = ct < 3.3 ? Math.sin(Math.PI * ct / 3.3) : 0, rt = e.armRollT || (e.armRollT = [0, 0]);
+                if (sip > 0.05) { H.sip = true; H.chop = false; e.seatLean = 0.12; engSeatHold(e, C, s, dt, t); e.arms[0].rotation.x = e.arms[1].rotation.x = -0.75 - sip * 0.85; rt[0] = 0.3 * sip; rt[1] = -0.3 * sip; e.head.rotation.x = 0.1 - sip * 0.25; }
+                else { H.sip = false; engEatAtTable(e, t, V.ph, 'udon'); engSeatHold(e, C, s, dt, t); }
+              } else { engEatAtTable(e, t, V.ph, 'cereal'); engSeatHold(e, C, s, dt, t); }   // ngũ cốc: thìa + cốc cà phê, IK tay theo điểm thật (engineer/meal-read.js)
             }
           }
           else if (V.st === 'rise') { e.seatCtl = true; if (engRiseStep(e, C, s, dt, t)) { e.seat = null; V.st = 'out'; } }

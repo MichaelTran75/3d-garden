@@ -216,7 +216,7 @@
           if (RW[i] > 1e-3) {   // có đích với tay: IK CHÍNH XÁC (hệ eo) — khuỷu theo vectơ cực chĩa xuống–ra ngoài, cánh tay trên xoay đúng mặt phẳng vai–khuỷu–tay
             const cg = Math.cos(A.rotation.z), u = _ikP.set(Math.sin(A.rotation.z), -cg * Math.cos(th), -cg * Math.sin(th));   // hướng vai→tay đã hoà (thứ tự XYZ)
             const a = (L1 * L1 - L2 * L2 + D * D) / (2 * D), hh = Math.sqrt(Math.max(0, L1 * L1 - a * a));
-            const pole = _ikA.set(i ? 0.6 : -0.6, -1, -0.15); pole.addScaledVector(u, -pole.dot(u)).normalize();
+            const pole = e.elbowPole && e.elbowPole[i] ? _ikA.copy(e.elbowPole[i]) : _ikA.set(i ? 0.6 : -0.6, -1, -0.15); pole.addScaledVector(u, -pole.dot(u)).normalize();   // e.elbowPole: pha tự chọn hướng khuỷu (ăn: khép sát thân)
             const E = _ikB.copy(u).multiplyScalar(a).addScaledVector(pole, hh);                       // khuỷu (so với vai)
             const yA = _ikW.copy(E).negate().normalize(), f = _ikC.copy(u).multiplyScalar(D).sub(E).normalize();   // trục +y cánh tay trên · hướng cẳng tay
             const zA = f.addScaledVector(yA, -f.dot(yA)).normalize(), xA = _ikA.crossVectors(yA, zA);   // cẳng tay gập về +z cục bộ
@@ -234,7 +234,7 @@
           engArmSolve(e, 0, dt); engArmSolve(e, 1, dt);
           const W = e.handW || (e.handW = [new THREE.Vector3(), new THREE.Vector3()]); e.wrists[0].getWorldPosition(W[0]); e.wrists[1].getWorldPosition(W[1]);
           if (e.elbowFlexT) e.elbowFlexT[0] = e.elbowFlexT[1] = 0;
-          e.reachT = null; e.handQ = null; e.armDone.fill(0);
+          e.reachT = null; e.handQ = null; e.elbowPole = null; e.armDone.fill(0);
         }
         function engSitLean(e, k) { e.lean = Math.max(e.lean, 1.15 * k * (1 - k)); }   // ngồi xuống / đứng dậy: dồn trọng tâm, cúi người về trước giữa chừng
         function engStep(e, tgt, dt, t, avoidPt, avoidR, field) {
