@@ -163,6 +163,9 @@ lò xo) ⇒ lên bậc voxel 0,6 đv thì chân trước lên trước, thân ng
   pha vỗ lên). **Bẫy đã dính**: lật gương bằng `scale.x = −s` ngay trên nhóm vai ⇒ 2 cánh cắm xuyên thân, bắt chéo chữ X, khi đậu chĩa qua đầu.
   2 hộp tổ `makeNestBox(hang)` → `nestBoxes` [vách tây chuồng bò, treo cành táo (`piv` ở tâm cành, con lắc 2 trục theo `windAt`)], mỗi hộp 1 cặp
   (`nestPairs`); chim đậu que / trong hộp được ghim lại theo hộp mỗi khung (`at.local`). Mái hộp chữ Λ: tấm mái phía +z quay `rotation.x = +0,36`.
+  Đàn 5 chim sẻ nhỏ (`flock`, G 15/10): `makeSparrow(brain, size)` dùng chung, 1 bộ điều khiển đàn — `depart(kind, play)` xếp lộ trình từng con
+  (vòng lượn chung kiểu `'air'` → chỗ đáp riêng: bãi cỏ / hàng trên dây điện / tán cây ngủ), cất cánh lệch 0–0,55 s; điểm `'air'` không đáp:
+  `flyTo` nối tiếp tiếp tuyến (`c1` theo hướng `A − c2` cũ), tắt xoè đuôi / duỗi chân. 1 con hoảng (`next(S, scared)`) ⇒ cả đàn bay. Đo: đàn tản ≤ 2,5 m.
 - Chuồng bò, phần mái chìa tây (`EXT` 0,8): xà đầu trước/sau VƯƠN tới kèo mép mái + thanh chống góc từ cột góc lên dưới xà (tam giác cứng);
   bản trước 2 thanh chống lơ lửng, đâm ra ngoài mép mái.
 - Côn trùng (`animals/insects.js`): ong (`createBee`, cánh 2 cặp; nhóm cánh tự lật gương `scale.x` ⇒ vòng lặp đặt `wR = −wL`), đom đóm

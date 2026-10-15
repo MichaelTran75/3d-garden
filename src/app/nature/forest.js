@@ -23,16 +23,16 @@
             tt++; const i = 3 + (Math.random() * (GX - 6) | 0), j = 3 + (Math.random() * (GZ - 6) | 0);
             if (!freeTree(i, j)) continue;
             const tx = wx(i), ty = surfaceY(i, j), tz = wz(j);
-            addTreeInst(1.575 + Math.random() * 1.05, tx, ty, tz, Math.random() * 6.28);   // to thêm 75% (0.9→1.575)
-            treeCoords.push({ x: tx, y: ty, z: tz }); tn++;
+            const ts = 1.575 + Math.random() * 1.05; addTreeInst(ts, tx, ty, tz, Math.random() * 6.28);   // to thêm 75% (0.9→1.575)
+            treeCoords.push({ x: tx, y: ty, z: tz, s: ts }); tn++;
           }
           let bn = 0, bt = 0;
           while (bn < 3 && bt < 4000) {
             bt++; const i = 3 + (Math.random() * (GX - 6) | 0), j = 3 + (Math.random() * (GZ - 6) | 0);
             if (!freeTree(i, j)) continue;
             const tx = wx(i), ty = surfaceY(i, j), tz = wz(j);
-            addTreeInst(3.5 + Math.random() * 1.4, tx, ty, tz, Math.random() * 6.28);   // to thêm 75% (2.0→3.5)
-            treeCoords.push({ x: tx, y: ty, z: tz }); bn++;
+            const ts = 3.5 + Math.random() * 1.4; addTreeInst(ts, tx, ty, tz, Math.random() * 6.28);   // to thêm 75% (2.0→3.5)
+            treeCoords.push({ x: tx, y: ty, z: tz, s: ts }); bn++;
           }
         }
         // ---- 2 cây táo (ĐỆ QUY) cạnh caravan ----

@@ -7,8 +7,8 @@
         //    ngủ trên chạc cây táo sát thân. · 2 cặp làm tổ, mỗi cặp 1 HỘP TỔ (vách tây chuồng bò · treo cành cây táo; dựng theo mẫu "Bird the nest
         //    Home Building", adventurer, CC-BY-4.0 — chỉ đo; vách trong 50%, nét viền hiện rõ): ngày kiếm mồi quanh bãi bò, ngậm sâu bay về, đậu que trước lỗ, chui vào
         //    mớm cho 2 chim non (non ngóc đầu há mỏ), chui ra bay đi; tối 2 con chui vào hộp ngủ. Người / chó lại gần lúc đang dưới đất thì bay sớm.
-        function makeSparrow(brain) {
-          const SC = 0.18, up = new THREE.Vector3(0, 1, 0);
+        function makeSparrow(brain, size = 1) {
+          const SC = 0.18 * size, up = new THREE.Vector3(0, 1, 0);
           const vc = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }), lam = c => new THREE.MeshLambertMaterial({ color: c, flatShading: true });
           const BROWN = new THREE.Color(0xa8754f), CREAM = new THREE.Color(0xf1e6cc), DARK = 0x4a3328;
           const paint = (geo, f) => { const p = geo.attributes.position, c = []; for (let i = 0; i < p.count; i++) { const k = f(p.getX(i), p.getY(i), p.getZ(i)); c.push(k.r, k.g, k.b); } geo.setAttribute('color', new THREE.Float32BufferAttribute(c, 3)); return geo; };
@@ -58,10 +58,12 @@
             root, state: B,
             land(w) { B.at = w; root.position.copy(w.p); B.yaw = w.yaw; B.st = w.kind === 'ground' ? 'forage' : w.sleep ? 'sleep' : 'perch'; B.k = 0; B.T = w.T ?? 8; B.scan = 0.4; },
             flyTo(w) {
-              B.st = 'fly'; B.k = 0; B.to = w; B.A.copy(root.position); B.Bp.copy(w.p);
+              const air0 = B.at && B.at.kind === 'air';   // đang bay qua điểm trên không (đàn lượn): nối tiếp hướng bay, không cất cánh lại
+              B.fromAir = air0; B.st = 'fly'; B.k = 0; B.to = w; B.A.copy(root.position); B.Bp.copy(w.p);
               const d = B.A.distanceTo(B.Bp), dir = tmp.subVectors(B.Bp, B.A).setY(0).normalize();
               B.dur = Math.max(0.9, d / 4.2 + 0.4);
-              B.c1.copy(B.A).addScaledVector(up, 0.3 + 0.1 * d).addScaledVector(dir, 0.25 * d); B.c2.copy(B.Bp).addScaledVector(up, 0.25 + 0.08 * d).addScaledVector(dir, -0.22 * d);
+              if (air0) B.c1.copy(B.A).addScaledVector(_q.subVectors(B.A, B.c2).normalize(), 0.33 * d); else B.c1.copy(B.A).addScaledVector(up, 0.3 + 0.1 * d).addScaledVector(dir, 0.25 * d);
+              B.c2.copy(B.Bp).addScaledVector(up, (w.kind === 'air' ? 0.05 : 0.25) + 0.08 * d).addScaledVector(dir, -0.22 * d);
             },
             hopTo(w, dur = 0.35) { B.st = 'shuffle'; B.k = 0; B.to = w; B.A.copy(root.position); B.dur = dur; B.yaw = Math.atan2(w.p.x - B.A.x, w.p.z - B.A.z); },   // nhảy ngắn (que đậu ↔ trong hộp tổ)
             update(dt, t) {
@@ -71,15 +73,15 @@
               if (B.st === 'fly') {
                 const u = Math.min(1, B.k / B.dur), s = u * u * (3 - 2 * u), v = (x, o) => { const q = 1 - x; return o.copy(B.A).multiplyScalar(q * q * q).addScaledVector(B.c1, 3 * q * q * x).addScaledVector(B.c2, 3 * q * x * x).addScaledVector(B.Bp, x * x * x); };
                 v(s, _p); v(Math.min(1, s + 0.02), _q);
-                const ph = (B.k % 0.55) / 0.55, bounding = u > 0.18 && u < 0.78, flapping = !bounding || ph < 0.55;   // vỗ – xếp cánh: 0,3 s vỗ rồi 0,25 s gập cánh
+                const ph = ((B.k + (S.ph || 0)) % 0.55) / 0.55, bounding = u > 0.18 && u < 0.78, flapping = !bounding || ph < 0.55, air1 = B.to.kind === 'air';   // vỗ – xếp cánh: 0,3 s vỗ rồi 0,25 s gập cánh
                 if (bounding) _p.y += 0.05 * Math.sin(ph * TAU - 0.6) * Math.min(1, (u - 0.18) / 0.1) * Math.min(1, (0.78 - u) / 0.1);
                 root.position.copy(_p);
                 const dx = _q.x - _p.x, dz = _q.z - _p.z, dh = Math.hypot(dx, dz);
                 if (dh > 1e-4) B.yaw = Math.atan2(dx, dz);
-                const flare = Math.max(0, (u - 0.8) / 0.2);
-                pitchT = Math.max(-0.5, Math.min(0.5, -Math.atan2(_q.y - _p.y, Math.max(1e-3, dh)) * 0.6)) - 0.75 * flare - 0.3 * Math.max(0, 1 - u / 0.12);
+                const flare = air1 ? 0 : Math.max(0, (u - 0.8) / 0.2);
+                pitchT = Math.max(-0.5, Math.min(0.5, -Math.atan2(_q.y - _p.y, Math.max(1e-3, dh)) * 0.6)) - 0.75 * flare - (B.fromAir ? 0 : 0.3 * Math.max(0, 1 - u / 0.12));
                 wingT = flapping ? 1 : 0.15; flap = flapping ? (u < 0.15 ? 16 : u > 0.8 ? 9 : 13) : 0;
-                legsOut = u < 0.12 ? 1 - u / 0.12 : u > 0.82 ? 1 : 0; tailST = Math.max(flare, u < 0.12 ? 0.6 : 0);
+                legsOut = u < 0.12 && !B.fromAir ? 1 - u / 0.12 : u > 0.82 && !air1 ? 1 : 0; tailST = Math.max(flare, u < 0.12 && !B.fromAir ? 0.6 : 0);
                 if (u >= 1) { S.land(B.to); P.crouch.x = 0.6; brain.landed?.(S); }
               } else if (B.st === 'shuffle') {
                 const u = Math.min(1, B.k / B.dur); root.position.lerpVectors(B.A, B.to.p, u); root.position.y += Math.sin(Math.PI * u) * 0.04; crouchT = 0.2;
@@ -268,9 +270,59 @@
           if (sparrowAwake()) bird.land(i ? box.peg() : box.inside(i, false)); else bird.land(box.inside(i, true));
           return bird;
         }));
+        // ---- ĐÀN 5 CHIM SẺ NHỎ (G 15/10 "add 4-5 more small bird, cho chúng đi chơi và bay theo nhóm"): chim sẻ ngoài mùa làm tổ sống bầy, kiếm ăn dưới
+        //      đất theo nhóm, con nào cũng thay nhau ngẩng canh chừng; 1 con hoảng (người / chó lại gần) là cả đàn vụt bay. Cả đàn 1 bộ điều khiển: cất cánh
+        //      lệch nhau 0–0,55 s (con đầu bay, đàn bám theo), cùng 1 đường bay (mỗi con lệch ±0,35 m, lệch pha vỗ cánh; đàn tản ~2–3 m); ~1/2 số lần "đi chơi": lượn 1 vòng
+        //      trên không (5–7 điểm quanh tâm, cao 3–6 m, nối tiếp tiếp tuyến) rồi mới đáp. Ngày: bãi cỏ (nhảy – mổ 20–40 s) ⇄ dây điện (đậu thành hàng
+        //      cách ~0,22 m, 12–25 s); tối / mưa: ngủ trong tán cây rừng gần trại ----
+        const flock = (() => {
+          const F = { T: 3, night: null, stage: 0 }, rnd = Math.random, _v = new THREE.Vector3();
+          const birds = [0, 1, 2, 3, 4].map(() => { const b = makeSparrow({ tick(S) { if (sparrowAwake() && S.state.st === 'sleep') { S.state.st = 'perch'; S.state.k = 0; } }, next(S, scared) { if (scared) F.T = Math.min(F.T, 0); },
+            landed(S) { if (S.state.at.kind === 'air' && S.route.length) S.flyTo(S.route.shift()); } }, 0.8 + 0.12 * rnd()); b.ph = rnd(); b.route = []; b.go = null; return b; });
+          const okGround = (x, z) => { const i = Math.round(x2gi(x)), j = Math.round(z2gj(z)); return i > 3 && j > 3 && i < GX - 3 && j < GZ - 3 && !isWater(i, j) && !obstacleCoords.some(o => Math.hypot(x - o.x, z - o.z) < o.r + 0.5)
+            && !(cowHutRect && x > cowHutRect.x0 - 1 && x < cowHutRect.x1 + 1 && z > cowHutRect.z0 - 1 && z < cowHutRect.z1 + 1) && !(engObj && Math.hypot(x - engObj.g.position.x, z - engObj.g.position.z) < 6); };
+          const roostTree = treeCoords.reduce((a, t) => Math.hypot(t.x - pf.x, t.z - pf.z) < Math.hypot(a.x - pf.x, a.z - pf.z) ? t : a, treeCoords[0]);
+          const spots = (kind) => {   // 5 chỗ đáp cho cả đàn
+            if (kind === 'ground') {
+              const c = birds[0].root.position;
+              for (let k = 0; k < 40; k++) { const a = rnd() * TAU, r = 8 + rnd() * 30, x = c.x + Math.cos(a) * r, z = c.z + Math.sin(a) * r; if (!okGround(x, z)) continue;
+                return birds.map((b, i) => { const aa = i * 1.26 + rnd() * 0.6, rr = 0.25 + 0.6 * rnd(), px = x + Math.cos(aa) * rr, pz = z + Math.sin(aa) * rr; return { p: new THREE.Vector3(px, cowY(px, pz), pz), yaw: rnd() * TAU, kind: 'ground', T: 1e9 }; }); }
+              return spots('wire');
+            }
+            if (kind === 'wire') {   // dây pha giữa nhịp cột 1 → cổng néo trạm (như con chim ở trại), cả đàn đậu thành hàng
+              const a = gridPoles[0], b = subTie.e, m = a.clone().lerp(b, 0.5); m.y -= 0.3; const L = a.distanceTo(b), t0 = 0.3 + 0.4 * rnd();
+              return birds.map((_, i) => { const t = t0 + (i - 2) * (0.2 + 0.04 * rnd()) / L; return { p: a.clone().multiplyScalar((1 - t) * (1 - t)).addScaledVector(m, 2 * t * (1 - t)).addScaledVector(b, t * t), yaw: Math.atan2(b.x - a.x, b.z - a.z) + Math.PI / 2 + (rnd() < 0.3 ? Math.PI : 0), kind: 'wire', T: 1e9 }; });
+            }
+            const T = roostTree, ts = T.s || 2, H = ts * NATURE_SCALE * 3.7;   // ngủ trong tán, sát thân
+            return birds.map((_, i) => { const a = i * 1.26 + rnd(), r = 0.25 + 0.5 * rnd() * ts * NATURE_SCALE; return { p: new THREE.Vector3(T.x + Math.cos(a) * r, T.y + (0.62 + 0.2 * rnd()) * H, T.z + Math.sin(a) * r), yaw: rnd() * TAU, kind: 'roost', sleep: true }; });
+          };
+          function depart(kind, play) {   // xếp lộ trình từng con: (vòng lượn chung) → chỗ đáp riêng; lệch giờ cất cánh
+            const S = spots(kind), loop = [];
+            if (play) { const c = _v.copy(birds[0].root.position).lerp(S[2].p, 0.5), R = 5 + rnd() * 4, h = Math.max(c.y, S[2].p.y) + 3 + rnd() * 3, a0 = rnd() * TAU, n = 5 + ((rnd() * 3) | 0);
+              for (let k = 0; k < n; k++) { const a = a0 + k / n * TAU * 1.1; loop.push([c.x + Math.cos(a) * R, h + Math.sin(k * 1.7) * 0.8, c.z + Math.sin(a) * R]); } }
+            birds.forEach((b, i) => {
+              const o = [(rnd() - 0.5) * 0.7, (rnd() - 0.5) * 0.6, (rnd() - 0.5) * 0.7];
+              b.route = loop.map(q => ({ p: new THREE.Vector3(q[0] + o[0], q[1] + o[1], q[2] + o[2]), yaw: 0, kind: 'air' })).concat([S[i]]);
+              b.go = i ? 0.05 + 0.1 * i + 0.1 * rnd() : 0;
+            });
+          }
+          // mở trang: ngày thì đang kiếm ăn ở 1 bãi cỏ, đêm thì đã ngủ trong cây
+          { const S = spots(sparrowAwake() ? 'ground' : 'roost'); birds.forEach((b, i) => b.land(S[i])); F.night = !sparrowAwake(); }
+          return { birds, update(dt, t) {
+            const awake = sparrowAwake(), busy = birds.some(b => b.go !== null || b.state.st === 'fly');
+            if (!busy) {
+              F.T -= dt;
+              if (!awake && !F.night) { F.night = true; depart('roost', false); }
+              else if (awake && (F.night || F.T <= 0)) {   // dậy / tới lúc đổi chỗ / bị hoảng: cả đàn đi
+                F.night = false; const g = F.stage++ % 2 === 0; depart(g ? 'wire' : 'ground', rnd() < 0.5); F.T = g ? 12 + rnd() * 13 : 20 + rnd() * 20;
+              }
+            }
+            for (const b of birds) { if (b.go !== null && (b.go -= dt) <= 0) { b.go = null; b.flyTo(b.route.shift()); } b.update(dt, t); }
+          } };
+        })();
         function updateSparrows(dt, t) {
           for (const box of nestBoxes) { box.update(dt); box.piv.updateMatrixWorld(true); }
-          songbird.update(dt, t);
+          songbird.update(dt, t); flock.update(dt, t);
           nestPairs.forEach((pair, n) => {
             const box = nestBoxes[n];
             for (const b of pair) {
