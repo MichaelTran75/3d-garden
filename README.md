@@ -76,3 +76,5 @@ gấu mèo theo hình khối + nhịp chạy của mẫu "Low-poly Racoon Run An
 "Incandescent Light Bulb" (AleixoAlonso, CC-BY-4.0) — tất cả chỉ đo, dựng lại bằng code. Bướm theo hình thái + hoa văn 5 loài thật ở Tây Nguyên.
 Lò sưởi chiminea (`camp/chiminea.js`, mưa thì lửa chuyển từ lửa trại sang lò) dựng theo ảnh mẫu lò thép kiểu hộp; chiều cao tổng đo theo mẫu
 "Rustic chimenea" (archiesmitham, CC-BY-NC-SA-4.0) — chỉ đo, không dùng lưới/ảnh.
+Cành cây rừng kiểu tự nhiên (`natTree` trong `nature/flowers-trees.js`: thân chính tới ngọn, cành bên rải dọc thân theo góc vàng, uốn cong vươn lên,
+đầu cành chẻ nhánh) học dáng cành mẫu "Low Poly Tree Scene Free" (Nicholas-3D, CC-BY-4.0) — chỉ đo, dựng lại bằng code.

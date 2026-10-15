@@ -91,6 +91,11 @@ cận cảnh, hiệu năng, cách thử và các bẫy đã dính. Chi tiết t�
   giữ đỉnh 0,4 s) vượt `o.shake0` + lực gió `tw.F`; rừng + cây táo dùng chung đàn lá `forestLeafCtl` (60 lá): mỗi khung thử 4 điểm tán
   trong vùng đang nhìn, bứt lá khi (lực gió)² × (gió tại chỗ / gió nền tại chỗ − 1,25)^1,5 lớn ⇒ cơn giật lướt qua rừng làm lá rụng thành đợt.
   Đo được (lá/phút): gió 8 km/h — cổ thụ 9, anh đào 10, rừng 11; 20 km/h — 23, 35, 68; 35 km/h — 28, 39, 76.
+- **Cây rừng: cành tự nhiên** (`natTree`, `recTree(g, { natural: true, … })`, G 15/10 học GLB "Low Poly Tree Scene Free"): thân chính tới ngọn, gốc trơn
+  ~1/5, 10–13 cành bên rải dọc thân theo góc vàng 137,5°, dưới xoè ~70° (`angTaper`) rồi uốn cong lên (`bend`, hướng sáng), dưới dài – trên ngắn;
+  mỗi cành bên 3–4 cành con, cành con chẻ đôi ở đầu; mỗi cành = 1 ống cong liền thuôn dần (`taperTube`, khung vận chuyển song song) — không khớp cầu.
+  ~1.500–1.900 đỉnh / mẫu (cũ ~1.900), ~16 điểm tán. Cây táo, anh đào, cành khúc gỗ vẫn dùng `recTree` cũ (hộp tổ treo đúng 1 cành đã đo, táo,
+  hoa dọc cành phụ thuộc vị trí cành).
 - **Thảm cỏ** (`nature/meadow.js`): cỏ mềm = 45% ô đất theo ngưỡng điểm nhiễu, KHÔNG mọc trên nền san phẳng (`padH`). **Thảm cỏ ngắn**
   (`LAWNS`, G 15/10: bãi khúc gỗ chết + 2 gốc cây, nằm trên nền san phẳng): ô trong elip mép loang luôn có cỏ, kể cả trên nền san
   phẳng; lá 9–15 cm, mảnh hơn 40%, 3 bản/ô; đánh dấu bằng độ tươi +2 trong `aCell.z` (shader: `lawn = step(1.5, aCell.z)`, gốc lá tối

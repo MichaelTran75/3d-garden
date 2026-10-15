@@ -2220,7 +2220,55 @@
 
         function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let z = Math.imul(a ^ a >>> 15, 1 | a); z = (z + Math.imul(z ^ z >>> 7, 61 | z)) ^ z; return ((z ^ z >>> 14) >>> 0) / 4294967296; }; }
         const _rtUp = new THREE.Vector3(0, 1, 0), _rtA = new THREE.Vector3(), _rtB = new THREE.Vector3(), _rtAx = new THREE.Vector3();
-        function recTree(g, o) {   // o: seed·s·barkMat·trunkLen·trunkR·maxDepth·nMin/nMax·lenK·radK·spread·upBias·recursiveLeaves
+        const _ntN = new THREE.Vector3(), _ntB = new THREE.Vector3(), _ntT = new THREE.Vector3(), _ntX = new THREE.Vector3();
+        function taperTube(pts, rad, seg) {   // ống cong qua pts, bán kính rad[i], khép ngọn bằng 1 đỉnh; pháp tuyến hướng ra ngoài
+          const n = pts.length, P = [], I = [];
+          _ntT.subVectors(pts[1], pts[0]).normalize(); _ntN.set(1, 0, 0); if (Math.abs(_ntT.x) > 0.9) _ntN.set(0, 0, 1);
+          for (let i = 0; i < n; i++) {
+            _ntT.subVectors(pts[Math.min(n - 1, i + 1)], pts[Math.max(0, i - 1)]).normalize();
+            _ntN.addScaledVector(_ntT, -_ntN.dot(_ntT)).normalize(); _ntB.crossVectors(_ntT, _ntN);
+            for (let k = 0; k < seg; k++) { const an = k / seg * 6.2832, c = Math.cos(an) * rad[i], s = Math.sin(an) * rad[i]; P.push(pts[i].x + _ntN.x * c + _ntB.x * s, pts[i].y + _ntN.y * c + _ntB.y * s, pts[i].z + _ntN.z * c + _ntB.z * s); }
+          }
+          for (let i = 0; i < n - 1; i++) for (let k = 0; k < seg; k++) { const a = i * seg + k, b = i * seg + (k + 1) % seg; I.push(a, b, a + seg, b, b + seg, a + seg); }
+          const e = pts[n - 1]; P.push(e.x + _ntT.x * rad[n - 1], e.y + _ntT.y * rad[n - 1], e.z + _ntT.z * rad[n - 1]);
+          for (let k = 0; k < seg; k++) I.push((n - 1) * seg + k, (n - 1) * seg + (k + 1) % seg, n * seg);
+          const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); geo.setIndex(I); geo.computeVertexNormals(); return geo;
+        }
+        function natTree(g, o) {   // o: seed·barkMat·height·trunkR·bole·nLat0[min,max]·ang0·angTaper (cành dưới xoè ngang hơn)·latLen·bend·nLat1[min,max]·ang1·subLen·maxDepth·tipK·childK·gnarl·leafP
+          const rnd = mulberry32(o.seed), tips = [], seg = o.seg || 6, R = (m) => m[0] + ((rnd() * (m[1] - m[0] + 1)) | 0);
+          const branch = (a, dir, len, r0, depth) => {
+            const NS = depth ? 4 : 6, pts = [a.clone()], rad = [r0], d = dir.clone().normalize(), p = a.clone(), gn = o.gnarl * (depth ? 1 : 0.35), bend = depth ? o.bend / depth : 0.04;
+            for (let s = 1; s <= NS; s++) {
+              d.lerp(_rtUp, bend / NS).normalize();                                                        // hướng sáng: cành cong dần lên
+              d.x += (rnd() - 0.5) * gn; d.z += (rnd() - 0.5) * gn; d.y += (rnd() - 0.5) * gn * 0.4; d.normalize();   // gấp khúc nhẹ
+              p.addScaledVector(d, len / NS); pts.push(p.clone()); rad.push(r0 * (1 - (1 - o.tipK) * s / NS));
+            }
+            const m = new THREE.Mesh(taperTube(pts, rad, seg), o.barkMat); m.castShadow = true; m.receiveShadow = true; g.add(m);
+            const end = pts[NS];
+            if (depth === 0 || depth === 1 || rnd() < (o.leafP ?? 0.35)) tips.push(end.clone());           // điểm tán lá: ngọn thân, đầu cành cấp 1, ~1/3 đầu cành cấp 2
+            if (depth >= o.maxDepth || r0 * o.tipK < 0.004) return;
+            const at = (t, outP, outT) => { const f = t * NS, i = Math.min(NS - 1, f | 0), u = f - i; outP.lerpVectors(pts[i], pts[i + 1], u); outT.subVectors(pts[i + 1], pts[i]).normalize(); return rad[i] + (rad[i + 1] - rad[i]) * u; };
+            const P = new THREE.Vector3(), T = new THREE.Vector3();
+            if (depth >= 2) {   // cành con: chẻ 2 nhánh nhọn ở đầu
+              for (const sgn of [-1, 1]) { at(0.92, P, T); _ntX.set(1, 0, 0); if (Math.abs(T.x) > 0.9) _ntX.set(0, 0, 1); _ntX.crossVectors(T, _ntX).normalize();
+                branch(P, T.clone().applyAxisAngle(_ntX, sgn * (0.42 + 0.2 * rnd())), len * (0.32 + 0.12 * rnd()), rad[NS - 1] * 0.8, depth + 1); }
+              return;
+            }
+            const n = R(depth ? o.nLat1 : o.nLat0), t0 = depth ? 0.3 : o.bole, az0 = rnd() * 6.2832;
+            for (let k = 0; k < n; k++) {
+              const t = t0 + (k + 0.25 + 0.5 * rnd()) / n * (0.94 - t0), r = at(t, P, T), tn = (t - t0) / (0.94 - t0);
+              _ntN.set(1, 0, 0); if (Math.abs(T.x) > 0.9) _ntN.set(0, 0, 1); _ntN.crossVectors(T, _ntN).normalize(); _ntB.crossVectors(T, _ntN);
+              const az = az0 + k * 2.39996 + (rnd() - 0.5) * 0.5;                                                       // góc vàng quanh cành mẹ
+              _ntX.copy(_ntN).multiplyScalar(Math.cos(az)).addScaledVector(_ntB, Math.sin(az));
+              const ang = (depth ? o.ang1 : o.ang0 * (1 + (o.angTaper || 0) * (0.5 - tn))) * (0.85 + 0.3 * rnd()), cl = len * (depth ? o.subLen : o.latLen) * (1 - (depth ? 0.45 : 0.62) * tn) * (0.8 + 0.4 * rnd());   // dưới dài – trên ngắn
+              branch(P, T.clone().applyAxisAngle(_ntX, ang), cl, Math.min(r * o.childK, r0 * 0.6), depth + 1);
+            }
+          };
+          branch(new THREE.Vector3(0, 0, 0), _rtUp, o.height, o.trunkR, 0);
+          return { tips, rnd, flowerPts: [] };
+        }
+        function recTree(g, o) {   // o: seed·s·barkMat·trunkLen·trunkR·maxDepth·nMin/nMax·lenK·radK·spread·upBias·recursiveLeaves  (o.natural → natTree)
+          if (o.natural) return natTree(g, o);
           const rnd = mulberry32(o.seed), tips = [];
           const flowerPts = [];
           const limb = (a, b, r1, r2) => { const d = b.clone().sub(a), L = d.length(); const m = new THREE.Mesh(new THREE.CylinderGeometry(r2, r1, L, 7), o.barkMat); m.position.copy(a).addScaledVector(d, 0.5); m.quaternion.setFromUnitVectors(_rtUp, d.normalize()); m.castShadow = true; m.receiveShadow = true; g.add(m); };
@@ -2578,22 +2626,8 @@
         forestWindShader(forestBark);   // cành cây rừng nghiêng theo gió cùng khối tán
         for (let v = 0; v < 12; v++) {
           const tmp = new THREE.Group();
-          const { tips } = recTree(tmp, {
-            seed: 20260708 + v * 9173,
-            s: 1,
-            barkMat: forestBark,
-            trunkLen: 1.7,
-            trunkR: 0.165, // Gốc to thêm 10% (0.15 * 1.1 = 0.165)
-            maxDepth: 3,
-            nMin: 2,
-            nMax: 3,
-            firstSplitN: 2, // 2 nhánh đầu tiên tách ra
-            lenK: 0.72,
-            radK: 0.6,
-            spread: 0.62,
-            upBias: 0.26,
-            limbMaxDepth: 0
-          });
+          const { tips } = recTree(tmp, { natural: true, seed: 20260708 + v * 9173, barkMat: forestBark, height: 4.2, trunkR: 0.165, bole: 0.18 + 0.08 * (v % 3) / 2,
+            nLat0: [10, 13], ang0: 0.95, angTaper: 0.5, latLen: 0.55, bend: 0.55, nLat1: [3, 4], ang1: 0.6, subLen: 0.5, maxDepth: 3, tipK: 0.15, childK: 0.6, gnarl: 0.26, leafP: 0.12 });   // ~16 khối tán / cây (cũ 8–18)
           tmp.updateMatrixWorld(true);
           const geos = []; tmp.traverse(o => { if (o.isMesh && o.geometry) { const g2 = o.geometry.clone(); g2.applyMatrix4(o.matrixWorld); geos.push(g2); } });
           const merged = mergeGeometries ? mergeGeometries(geos, false) : geos[0];

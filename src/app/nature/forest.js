@@ -3,22 +3,10 @@
         forestWindShader(forestBark);   // cành cây rừng nghiêng theo gió cùng khối tán
         for (let v = 0; v < 12; v++) {
           const tmp = new THREE.Group();
-          const { tips } = recTree(tmp, {
-            seed: 20260708 + v * 9173,
-            s: 1,
-            barkMat: forestBark,
-            trunkLen: 1.7,
-            trunkR: 0.165, // Gốc to thêm 10% (0.15 * 1.1 = 0.165)
-            maxDepth: 3,
-            nMin: 2,
-            nMax: 3,
-            firstSplitN: 2, // 2 nhánh đầu tiên tách ra
-            lenK: 0.72,
-            radK: 0.6,
-            spread: 0.62,
-            upBias: 0.26,
-            limbMaxDepth: 0
-          });
+          // cành tự nhiên (G 15/10, học mẫu GLB): thân chính tới ngọn cao ~4,2 · gốc trơn 18–26% · 10–13 cành bên: dưới xoè ~70° gần ngang rồi uốn cong lên,
+          // trên xoè ~40° · mỗi cành bên 3–4 cành con xoè ~34° · cành con chẻ đôi ở đầu · gấp khúc rõ; gốc to 0,165 như cũ
+          const { tips } = recTree(tmp, { natural: true, seed: 20260708 + v * 9173, barkMat: forestBark, height: 4.2, trunkR: 0.165, bole: 0.18 + 0.08 * (v % 3) / 2,
+            nLat0: [10, 13], ang0: 0.95, angTaper: 0.5, latLen: 0.55, bend: 0.55, nLat1: [3, 4], ang1: 0.6, subLen: 0.5, maxDepth: 3, tipK: 0.15, childK: 0.6, gnarl: 0.26, leafP: 0.12 });   // ~16 khối tán / cây (cũ 8–18)
           tmp.updateMatrixWorld(true);
           const geos = []; tmp.traverse(o => { if (o.isMesh && o.geometry) { const g2 = o.geometry.clone(); g2.applyMatrix4(o.matrixWorld); geos.push(g2); } });
           const merged = mergeGeometries ? mergeGeometries(geos, false) : geos[0];
