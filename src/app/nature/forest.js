@@ -125,7 +125,16 @@
         const appleTrees = [ft1, ft2];   // kỹ sư hái táo (engineer/apple-pick.js)
         for (const T of appleTrees) obstacleCoords.push({ x: T.position.x, y: T.position.y, z: T.position.z, r: 0.35, h: 3 });   // thân cây: người & chó đi vòng
 
+        function deadLogOut(x, z, m) {   // (x, z) nằm dưới thân khúc gỗ chết (cách trục < bán kính + m) → điểm dời ra mép gần nhất; ở ngoài → null
+          const L = deadLog; if (!L) return null;
+          const ux = L.bx - L.ax, uz = L.bz - L.az, ll = ux * ux + uz * uz, k = Math.max(0, Math.min(1, ((x - L.ax) * ux + (z - L.az) * uz) / ll));
+          const cx = L.ax + ux * k, cz = L.az + uz * k, r = L.ra + (L.rb - L.ra) * k + m; let dx = x - cx, dz = z - cz, d = Math.hypot(dx, dz);
+          if (d >= r) return null;
+          if (d < 1e-4) { dx = -uz; dz = ux; d = Math.sqrt(ll); }
+          return [cx + dx / d * r, cz + dz / d * r];
+        }
         // ---- Khúc gỗ chết (Dead Log) + Gốc cây bị cưa (Sawed Stump) ----
+        let deadLog = null;   // trục thân gỗ chết trên mặt đất (đầu a to r 0,70 · đầu b nhỏ r 0,56) — cỏ / hoa không mọc xuyên (nature/grass-scatter.js)
         (function environmentalDetails() {
           const logBarkMat = new THREE.MeshLambertMaterial({ color: 0x2d251d, flatShading: true, side: THREE.DoubleSide });
           const stumpBarkMat = new THREE.MeshLambertMaterial({ color: 0x6e5744 });
@@ -135,6 +144,8 @@
           const logGroup = new THREE.Group();
           logGroup.position.set(X0 + 101.0, 7.0 + 0.50, Z0 + 104.5); // Hạ thấp hơn một chút theo yêu cầu
           logGroup.rotation.set(0.08, -Math.atan2(101.0 - 108.0, 102.0 - 100.0), Math.PI / 2); // Nằm ngang hơi xiên góc
+          logGroup.updateMatrixWorld(true);
+          { const a = new THREE.Vector3(0, -3.8, 0).applyMatrix4(logGroup.matrixWorld), b = new THREE.Vector3(0, 3.8, 0).applyMatrix4(logGroup.matrixWorld); deadLog = { ax: a.x, az: a.z, bx: b.x, bz: b.z, ra: 0.70, rb: 0.56 }; }
 
           // Vỏ ngoài của khúc gỗ lớn x2 (openEnded = true)
           const logMain = new THREE.Mesh(new THREE.CylinderGeometry(0.56, 0.70, 7.6, 8, 1, true), logBarkMat);

@@ -2695,6 +2695,15 @@
         const appleTrees = [ft1, ft2];   // kỹ sư hái táo (engineer/apple-pick.js)
         for (const T of appleTrees) obstacleCoords.push({ x: T.position.x, y: T.position.y, z: T.position.z, r: 0.35, h: 3 });   // thân cây: người & chó đi vòng
 
+        function deadLogOut(x, z, m) {   // (x, z) nằm dưới thân khúc gỗ chết (cách trục < bán kính + m) → điểm dời ra mép gần nhất; ở ngoài → null
+          const L = deadLog; if (!L) return null;
+          const ux = L.bx - L.ax, uz = L.bz - L.az, ll = ux * ux + uz * uz, k = Math.max(0, Math.min(1, ((x - L.ax) * ux + (z - L.az) * uz) / ll));
+          const cx = L.ax + ux * k, cz = L.az + uz * k, r = L.ra + (L.rb - L.ra) * k + m; let dx = x - cx, dz = z - cz, d = Math.hypot(dx, dz);
+          if (d >= r) return null;
+          if (d < 1e-4) { dx = -uz; dz = ux; d = Math.sqrt(ll); }
+          return [cx + dx / d * r, cz + dz / d * r];
+        }
+        let deadLog = null;   // trục thân gỗ chết trên mặt đất (đầu a to r 0,70 · đầu b nhỏ r 0,56) — cỏ / hoa không mọc xuyên (nature/grass-scatter.js)
         (function environmentalDetails() {
           const logBarkMat = new THREE.MeshLambertMaterial({ color: 0x2d251d, flatShading: true, side: THREE.DoubleSide });
           const stumpBarkMat = new THREE.MeshLambertMaterial({ color: 0x6e5744 });
@@ -2703,6 +2712,8 @@
           const logGroup = new THREE.Group();
           logGroup.position.set(X0 + 101.0, 7.0 + 0.50, Z0 + 104.5); // Hạ thấp hơn một chút theo yêu cầu
           logGroup.rotation.set(0.08, -Math.atan2(101.0 - 108.0, 102.0 - 100.0), Math.PI / 2); // Nằm ngang hơi xiên góc
+          logGroup.updateMatrixWorld(true);
+          { const a = new THREE.Vector3(0, -3.8, 0).applyMatrix4(logGroup.matrixWorld), b = new THREE.Vector3(0, 3.8, 0).applyMatrix4(logGroup.matrixWorld); deadLog = { ax: a.x, az: a.z, bx: b.x, bz: b.z, ra: 0.70, rb: 0.56 }; }
 
           const logMain = new THREE.Mesh(new THREE.CylinderGeometry(0.56, 0.70, 7.6, 8, 1, true), logBarkMat);
           logMain.castShadow = true; logMain.receiveShadow = true; logGroup.add(logMain);
@@ -10735,6 +10746,7 @@
           const i = 3 + (Math.random() * (GX - 6) | 0), j = 3 + (Math.random() * (GZ - 6) | 0);
           if (!freeTree(i, j)) continue;
           const px = wx(i), py = surfaceY(i, j), pz = wz(j), rot = Math.random() * 6.28;
+          if (deadLogOut(px, pz, 0.2)) continue;   // không mọc xuyên khúc gỗ chết
           addFlower(px, py, pz, rot);
           n++;
         }
@@ -10743,15 +10755,15 @@
           const ci = c[0] * S, cj = c[1] * S;
           for (let n = 0; n < 8; n++) {
             const ang = Math.random() * 6.283, rad = 1.6 + Math.random() * 8.5, i = Math.round(ci + Math.cos(ang) * rad), j = Math.round(cj + Math.sin(ang) * rad);
-            if (i < 2 || j < 2 || i >= GX - 2 || j >= GZ - 2 || !freeTree(i, j)) continue;
+            if (i < 2 || j < 2 || i >= GX - 2 || j >= GZ - 2 || !freeTree(i, j) || deadLogOut(wx(i), wz(j), 0.2)) continue;
             addFlower(wx(i), surfaceY(i, j), wz(j), Math.random() * 6.283);
           }
         }
 
         function scatterPatch(cx, cz, grass, flowers, spread, flat) {
           const yy = (x, z) => flat != null ? flat : cowY(Math.round(x2gi(x)), Math.round(z2gj(z)));
-          for (let n = 0; n < grass; n++) { const px = cx + (Math.random() - 0.5) * spread, pz = cz + (Math.random() - 0.5) * spread; addGrassTuft(px, yy(px, pz), pz, Math.random() * 6.283, 0.85 + Math.random() * 0.8); }
-          for (let n = 0; n < flowers; n++) { const px = cx + (Math.random() - 0.5) * spread, pz = cz + (Math.random() - 0.5) * spread; addFlower(px, yy(px, pz), pz, Math.random() * 6.283); }
+          for (let n = 0; n < grass; n++) { const px = cx + (Math.random() - 0.5) * spread, pz = cz + (Math.random() - 0.5) * spread; if (deadLogOut(px, pz, 0.2)) continue; addGrassTuft(px, yy(px, pz), pz, Math.random() * 6.283, 0.85 + Math.random() * 0.8); }
+          for (let n = 0; n < flowers; n++) { const px = cx + (Math.random() - 0.5) * spread, pz = cz + (Math.random() - 0.5) * spread; if (deadLogOut(px, pz, 0.2)) continue; addFlower(px, yy(px, pz), pz, Math.random() * 6.283); }
         }
         scatterPatch(X0 + 100, Z0 + 113, 6, 3, 1.5, 7.2);   // quanh khúc gỗ chết
         scatterPatch(X0 + 116, Z0 + 54, 0, 5, 3, null);     // ven đường, chỉ hoa
@@ -10762,8 +10774,10 @@
 
         for (let dx = -1.2; dx <= 1.2; dx += 0.4) {
           for (let dz = -1.2; dz <= 1.2; dz += 0.4) {
-            const px = X0 + 102 + dx + (Math.random() - 0.5) * 0.25;
-            const pz = Z0 + 105 + dz + (Math.random() - 0.5) * 0.25;
+            let px = X0 + 102 + dx + (Math.random() - 0.5) * 0.25;
+            let pz = Z0 + 105 + dz + (Math.random() - 0.5) * 0.25;
+            const out = deadLogOut(px, pz, 0.18 + Math.random() * 0.3);
+            if (out) { if (Math.random() < 0.5) continue; px = out[0]; pz = out[1]; }
             const ni = Math.round(x2gi(px));
             const nj = Math.round(z2gj(pz));
             const py = surfaceY(ni, nj);
