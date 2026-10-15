@@ -22,8 +22,8 @@
           const shellGeo = new THREE.LatheGeometry(prof, 20);
           const shell = new THREE.Mesh(shellGeo, new THREE.MeshLambertMaterial({ map: straw, transparent: true, opacity: 0.25, depthWrite: false, side: THREE.DoubleSide }));
           shell.renderOrder = 3; g.add(shell);
-          // NÉT VIỀN 100% (G 15/10): vẽ SAU mọi lớp trong suốt (renderOrder 10, không ghi độ sâu) ⇒ không bị vỏ rơm / bánh sáp 50% che mờ; vẫn bị vật đặc (thân, cành) che
-          const art = lineDark.clone(); art.transparent = true; art.depthWrite = false;
+          // NÉT VIỀN (G 15/10): vẽ SAU mọi lớp trong suốt (renderOrder 10, không ghi độ sâu) ⇒ không bị vỏ rơm / bánh sáp che mờ thêm; nét tự trong 50% (G chỉnh sau); vẫn bị vật đặc (thân, cành) che
+          const art = lineDark.clone(); art.transparent = true; art.depthWrite = false; art.opacity = 0.5;
           const artLines = (geo, m = art) => { const l = new THREE.LineSegments(geo, m); l.renderOrder = 10; g.add(l); return l; };
           artLines(new THREE.EdgesGeometry(shellGeo, 35));
           // ---- dây treo: từ cành xuống núm chỏm + khoen ----
@@ -35,7 +35,7 @@
           for (const [y, ax] of [[0.38, 'x'], [0.6, 'z']]) { const L = 2 * env(y) * H + 0.08, s = cyl(0.012, 0.012, L, stickM, true, false, null, 6); s.position.y = y * H; if (ax === 'x') s.rotation.z = Math.PI / 2; else s.rotation.x = Math.PI / 2; g.add(s); }
           // ---- 5 bánh sáp: mặt phẳng song song trục x, cách nhau 0,12·H; biên = vách trong (lùi 2,5 cm) ∩ mép dưới cong lưỡi ----
           const rIn = y => Math.max(0, env(y) - 0.035), CR = 0.026, cells = [], combs = [], combEdges = [];
-          const midM = new THREE.MeshLambertMaterial({ color: 0x8a5a1e, side: THREE.DoubleSide, transparent: true, opacity: 0.5, depthWrite: false });   // G 15/10: cấu trúc trong tổ trong 50%
+          const midM = new THREE.MeshLambertMaterial({ color: 0x8a5a1e, side: THREE.DoubleSide, transparent: true, opacity: 0.75, depthWrite: false });   // G 15/10: cấu trúc trong tổ trong 50% → rõ hơn 50% (đục 75%)
           for (let k = 0; k < 5; k++) {
             const zc = (k - 2) * 0.12, bot = x => 0.17 + (Math.abs(k - 2) * 0.05) + 0.42 * x * x;   // mép dưới: giữa thấp, 2 bên cao; bánh ngoài ngắn hơn
             const half = y => { const r = rIn(y); return r > Math.abs(zc) ? Math.sqrt(r * r - zc * zc) - 0.012 : 0; };
@@ -67,7 +67,7 @@
             for (const [x, y, z, sd] of cells) if (sd > 0) for (let k = 0; k < 6; k++) { const a0 = k * Math.PI / 3, a1 = a0 + Math.PI / 3, zz = z + sd * 0.013 * H; hp.push(x + r * Math.cos(a0), y + r * Math.sin(a0), zz, x + r * Math.cos(a1), y + r * Math.sin(a1), zz); }
             const hg = new THREE.BufferGeometry(); hg.setAttribute('position', new THREE.Float32BufferAttribute(hp, 3)); const wax = art.clone(); wax.color.setHex(0x4d2f0c); artLines(hg, wax); }   // vách ô nâu sáp đậm: rõ mà vẫn ấm (xanh đen của nét viền chung làm 5 bánh chồng nhau xám, rối)
           const cellGeo = new THREE.CylinderGeometry(CR * 0.86 * H, CR * 0.86 * H, 0.026 * H, 6, 1, false); cellGeo.rotateX(Math.PI / 2); cellGeo.rotateZ(Math.PI / 6);   // lăng trụ lục giác dọc trục z (mặt đầu = nắp ô)
-          const cellM = new THREE.MeshPhongMaterial({ shininess: 40, specular: 0x5a4a30, transparent: true, opacity: 0.5, depthWrite: false });
+          const cellM = new THREE.MeshPhongMaterial({ shininess: 40, specular: 0x5a4a30, transparent: true, opacity: 0.75, depthWrite: false });
           const cellIM = new THREE.InstancedMesh(cellGeo, cellM, cells.length), _m = new THREE.Matrix4(), _c = new THREE.Color();
           cells.forEach(([x, y, z, sd, c], i) => { _m.makeTranslation(x, y, z); cellIM.setMatrixAt(i, _m); cellIM.setColorAt(i, _c.setHex(c)); });
           cellIM.instanceMatrix.needsUpdate = true; cellIM.instanceColor.needsUpdate = true; g.add(cellIM);
