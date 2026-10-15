@@ -115,7 +115,7 @@
           const scallions = [];
           for (let k = 0; k < 26; k++) { const s = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.01, 6), lam(k % 4 ? 0x5fb04a : 0xdfeec4)); s.rotation.z = Math.PI / 2; s.position.set(2.6 + Math.sin(k * 1.7) * 0.05, TOP + 0.027, -0.02 + Math.cos(k * 2.3) * 0.06); s.visible = false; P.add(s); scallions.push(s); }
           // bát udon múc ra mặt đá cạnh bếp · dòng nước vòi chậu
-          const counterBowl = udonBowl(); counterBowl.position.set(2.6, TOP, 0.17); counterBowl.visible = false; P.add(counterBowl);
+          const counterBowl = udonBowl(); counterBowl.position.set(2.6, TOP, 0.17); counterBowl.scale.setScalar(1.2); counterBowl.visible = false; P.add(counterBowl);   // tô udon to thêm 20% (G 15/10)
           const tapWater = new THREE.Mesh(new THREE.CylinderGeometry(0.007, 0.01, 0.2, 6), new THREE.MeshLambertMaterial({ color: 0xbfe2ff, transparent: true, opacity: 0.7, depthWrite: false }));
           tapWater.position.set(2.775, 1.94, -0.68); tapWater.visible = false; P.add(tapWater);
           return { flames, knobs, hoodLamp, pot, potWater, potNoodles, potSteam, pegPan, stovePan, pegKnife, scallions, counterBowl, tapWater, burners: BURN, steam: 0, TOP };

@@ -139,7 +139,7 @@
           const spatula = new THREE.Group(); spatula.position.set(0, -0.72, 0.05); spatula.visible = false; arms[0].add(spatula);
           const spHandle = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.022, 0.26), kitchenWood); spHandle.position.z = 0.1; spatula.add(spHandle);
           const spBlade = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.008, 0.09), kitchenSteel); spBlade.position.set(0, -0.02, 0.26); spBlade.rotation.x = 0.35; spatula.add(spBlade);
-          const handBowl = udonBowl(); handBowl.scale.setScalar(1 / ENGINEER_BASE_SCALE); handBowl.position.set(0, -0.74, 0.09); handBowl.rotation.x = 0.9; handBowl.visible = false; arms[1].add(handBowl);
+          const handBowl = udonBowl(); handBowl.scale.setScalar(1.2 / ENGINEER_BASE_SCALE); handBowl.position.set(0, -0.74, 0.09); handBowl.rotation.x = 0.9; handBowl.visible = false; arms[1].add(handBowl);
           const handPan = fryPan(); handPan.scale.setScalar(1 / ENGINEER_BASE_SCALE); handPan.position.set(0, -0.8, 0.11); handPan.rotation.set(0.9, Math.PI / 2, 0); handPan.visible = false; arms[1].add(handPan);
           // đồ cầm tay ở trên đã đặt theo khung VAI kiểu tay thẳng cũ (tâm bàn tay y −0,66) → chuyển sang khung CỔ TAY (gốc = tâm bàn tay)
           for (let i = 0; i < 2; i++) for (const c of [...arms[i].children]) if (!armCore[i].has(c)) { arms[i].remove(c); c.position.y += 0.66; wrists[i].add(c); }

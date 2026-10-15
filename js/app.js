@@ -5284,7 +5284,7 @@
           const bail = new THREE.Mesh(new THREE.TubeGeometry(bailPath, 32, 0.035, 5, false), wire); bail.castShadow = true; g.add(bail);   // quai buông xuôi một bên như mẫu
           return g;
         }
-        let narutoTex = null;
+        let narutoTex = null, steamGeo = null;
         function udonBowl() {
           const g = new THREE.Group(); g.name = 'Bát udon';
           const ceramic = new THREE.MeshLambertMaterial({ color: 0xf2efe8, side: THREE.DoubleSide });
@@ -5292,6 +5292,8 @@
           shell.castShadow = true; g.add(shell);
           const rim = new THREE.Mesh(new THREE.TorusGeometry(0.0855, 0.0035, 4, 24), new THREE.MeshLambertMaterial({ color: 0x2f4f7c })); rim.rotation.x = Math.PI / 2; rim.position.y = 0.067; g.add(rim);   // viền men xanh
           const food = new THREE.Group(); food.name = 'Udon trong bát'; food.position.y = 0.058; g.add(food); g.userData.food = food;
+          steamGeo = steamGeo || new THREE.IcosahedronGeometry(0.026, 1);   // hơi nóng (G 15/10): 4 cụm nhỏ, cập nhật ở engineer/cooking.js (udonSteam)
+          g.userData.steam = [0, 1, 2, 3].map(i => { const m = new THREE.Mesh(steamGeo, new THREE.MeshBasicMaterial({ color: 0xf4f6f8, transparent: true, opacity: 0, depthWrite: false })); m.visible = false; m.userData.noBatch = true; m.raycast = () => {}; m.renderOrder = 3; g.add(m); return { m, ph: i / 4 }; });
           const broth = new THREE.Mesh(new THREE.CircleGeometry(0.077, 20), new THREE.MeshLambertMaterial({ color: 0xc89a5c })); broth.rotation.x = -Math.PI / 2; food.add(broth);
           const noodleM = new THREE.MeshLambertMaterial({ color: 0xf4ecd4 });
           for (let k = 0; k < 9; k++) {   // sợi udon to, cuộn lỏng nằm nổi trên nước dùng
@@ -5447,7 +5449,7 @@
           const spatula = new THREE.Group(); spatula.position.set(0, -0.72, 0.05); spatula.visible = false; arms[0].add(spatula);
           const spHandle = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.022, 0.26), kitchenWood); spHandle.position.z = 0.1; spatula.add(spHandle);
           const spBlade = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.008, 0.09), kitchenSteel); spBlade.position.set(0, -0.02, 0.26); spBlade.rotation.x = 0.35; spatula.add(spBlade);
-          const handBowl = udonBowl(); handBowl.scale.setScalar(1 / ENGINEER_BASE_SCALE); handBowl.position.set(0, -0.74, 0.09); handBowl.rotation.x = 0.9; handBowl.visible = false; arms[1].add(handBowl);
+          const handBowl = udonBowl(); handBowl.scale.setScalar(1.2 / ENGINEER_BASE_SCALE); handBowl.position.set(0, -0.74, 0.09); handBowl.rotation.x = 0.9; handBowl.visible = false; arms[1].add(handBowl);
           const handPan = fryPan(); handPan.scale.setScalar(1 / ENGINEER_BASE_SCALE); handPan.position.set(0, -0.8, 0.11); handPan.rotation.set(0.9, Math.PI / 2, 0); handPan.visible = false; arms[1].add(handPan);
           for (let i = 0; i < 2; i++) for (const c of [...arms[i].children]) if (!armCore[i].has(c)) { arms[i].remove(c); c.position.y += 0.66; wrists[i].add(c); }
           const spine = new THREE.Group(); spine.position.y = 1.255; spine.name = 'Eo'; g.add(spine);
@@ -6740,7 +6742,7 @@
           box(pegKnife, 0.022, 0.075, 0.024, 0, -0.04, 0, M.wood); box(pegKnife, 0.006, 0.15, 0.036, 0, -0.15, 0.004, M.blade);
           const scallions = [];
           for (let k = 0; k < 26; k++) { const s = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.01, 6), lam(k % 4 ? 0x5fb04a : 0xdfeec4)); s.rotation.z = Math.PI / 2; s.position.set(2.6 + Math.sin(k * 1.7) * 0.05, TOP + 0.027, -0.02 + Math.cos(k * 2.3) * 0.06); s.visible = false; P.add(s); scallions.push(s); }
-          const counterBowl = udonBowl(); counterBowl.position.set(2.6, TOP, 0.17); counterBowl.visible = false; P.add(counterBowl);
+          const counterBowl = udonBowl(); counterBowl.position.set(2.6, TOP, 0.17); counterBowl.scale.setScalar(1.2); counterBowl.visible = false; P.add(counterBowl);   // tô udon to thêm 20% (G 15/10)
           const tapWater = new THREE.Mesh(new THREE.CylinderGeometry(0.007, 0.01, 0.2, 6), new THREE.MeshLambertMaterial({ color: 0xbfe2ff, transparent: true, opacity: 0.7, depthWrite: false }));
           tapWater.position.set(2.775, 1.94, -0.68); tapWater.visible = false; P.add(tapWater);
           return { flames, knobs, hoodLamp, pot, potWater, potNoodles, potSteam, pegPan, stovePan, pegKnife, scallions, counterBowl, tapWater, burners: BURN, steam: 0, TOP };
@@ -7037,7 +7039,7 @@
             const flakeM = new THREE.MeshLambertMaterial({ color: 0xd9a64a });
             for (let k = 0; k < 14; k++) { const a = k * 2.4, r = 0.012 + (k % 5) * 0.011, f = new THREE.Mesh(new THREE.BoxGeometry(0.016, 0.005, 0.013), flakeM); f.position.set(Math.cos(a) * r, 0.046, Math.sin(a) * r); f.rotation.set(0.3 * Math.sin(k), a, 0.25 * Math.cos(k * 1.7)); food.add(f); }
           }
-          const tableUdon = udonBowl(); tableUdon.position.set(-0.04, 0, -0.16); tableUdon.visible = false; breakfast.add(tableUdon);   // bữa trưa: bát udon đúng chỗ bát ngũ cốc
+          const tableUdon = udonBowl(); tableUdon.position.set(-0.04, 0, -0.16); tableUdon.scale.setScalar(1.2); tableUdon.visible = false; breakfast.add(tableUdon);   // bữa trưa: bát udon đúng chỗ bát ngũ cốc
           const stool = new THREE.Group(); stool.name = 'Ghế đẩu bàn ăn'; stool.userData.noBake = true; stool.position.set(0, 0, 0); g.add(stool);
           { const sx0 = -0.65, sz0 = -0.04;
             const top = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.162, 0.05, 18), woodMat); top.position.set(sx0, yIn + 0.455, sz0); top.castShadow = true; stool.add(top);
@@ -8958,10 +8960,21 @@
             }
           } };
         })();
-        let ventRun = 0;
+        let ventRun = 0; const _usA = new THREE.Vector3(), _usS = new THREE.Vector3();
+        function udonSteam(t, bowl, heat) {   // hơi nóng tô udon: 4 cụm nhỏ bốc THẲNG LÊN (trục đứng thế giới, kể cả lúc bát nghiêng trên tay), uốn lượn, nở to, nhạt dần; nguội dần khi ăn
+          const S = bowl && bowl.userData.steam; if (!S) return; const on = bowl.visible && heat > 0.03;
+          if (on) { bowl.updateWorldMatrix(true, false); bowl.getWorldScale(_usS); }
+          for (const p of S) {
+            p.m.visible = on; if (!on) continue;
+            const k = (t * 0.38 + p.ph) % 1, s = _usS.y; bowl.localToWorld(_usA.set(0, 0.058, 0));
+            _usA.x += Math.sin(t * 1.3 + p.ph * 6) * 0.018 * s * (0.4 + k); _usA.z += Math.cos(t * 1.1 + p.ph * 5) * 0.018 * s * (0.4 + k); _usA.y += (0.015 + k * 0.26) * s;
+            p.m.position.copy(bowl.worldToLocal(_usA)); p.m.scale.setScalar(0.55 + k * 1.7); p.m.material.opacity = 0.2 * heat * Math.sin(Math.PI * k);
+          }
+        }
         function kitchenTick(dt, t) {   // lửa ga nhảy nhẹ · hơi nước bốc từ nồi · quạt hút + khói ống khói
           VKIT.flames.forEach((f, i) => { if (!f.visible) return; const k = 1 + Math.sin(t * 23 + i * 1.7) * 0.05 + Math.sin(t * 37 + i) * 0.04; f.scale.set(k, 1 + Math.sin(t * 29 + i * 2.3) * 0.35, k); });
-          const st = VKIT.steam;
+          const st = VKIT.steam, ud = engObj && engObj.dish && engObj.dish.kind === 'udon' ? 0.35 + 0.65 * engObj.dish.food : 1;   // tô càng vơi (ăn lâu) càng nguội, ít hơi
+          for (const b of [VKIT.counterBowl, VTUDON, engObj && engObj.props.handBowl]) udonSteam(t, b, ud);
           for (const p of VKIT.potSteam) {
             p.m.visible = st > 0.02; if (!p.m.visible) continue;
             const k = (t * 0.45 + p.ph) % 1;

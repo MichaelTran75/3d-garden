@@ -229,7 +229,7 @@
             const flakeM = new THREE.MeshLambertMaterial({ color: 0xd9a64a });
             for (let k = 0; k < 14; k++) { const a = k * 2.4, r = 0.012 + (k % 5) * 0.011, f = new THREE.Mesh(new THREE.BoxGeometry(0.016, 0.005, 0.013), flakeM); f.position.set(Math.cos(a) * r, 0.046, Math.sin(a) * r); f.rotation.set(0.3 * Math.sin(k), a, 0.25 * Math.cos(k * 1.7)); food.add(f); }
           }
-          const tableUdon = udonBowl(); tableUdon.position.set(-0.04, 0, -0.16); tableUdon.visible = false; breakfast.add(tableUdon);   // bữa trưa: bát udon đúng chỗ bát ngũ cốc
+          const tableUdon = udonBowl(); tableUdon.position.set(-0.04, 0, -0.16); tableUdon.scale.setScalar(1.2); tableUdon.visible = false; breakfast.add(tableUdon);   // bữa trưa: bát udon đúng chỗ bát ngũ cốc
           // ghế đẩu tròn (mặt gỗ cao 0,48 m như ghế bàn học): bình thường kéo lùi chừa khe đứng giữa ghế và mép bàn, ngồi xong nhích vào
           const stool = new THREE.Group(); stool.name = 'Ghế đẩu bàn ăn'; stool.userData.noBake = true; stool.position.set(0, 0, 0); g.add(stool);
           { const sx0 = -0.65, sz0 = -0.04;

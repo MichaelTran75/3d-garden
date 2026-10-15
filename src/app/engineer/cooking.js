@@ -86,10 +86,21 @@
             }
           } };
         })();
-        let ventRun = 0;
+        let ventRun = 0; const _usA = new THREE.Vector3(), _usS = new THREE.Vector3();
+        function udonSteam(t, bowl, heat) {   // hơi nóng tô udon: 4 cụm nhỏ bốc THẲNG LÊN (trục đứng thế giới, kể cả lúc bát nghiêng trên tay), uốn lượn, nở to, nhạt dần; nguội dần khi ăn
+          const S = bowl && bowl.userData.steam; if (!S) return; const on = bowl.visible && heat > 0.03;
+          if (on) { bowl.updateWorldMatrix(true, false); bowl.getWorldScale(_usS); }
+          for (const p of S) {
+            p.m.visible = on; if (!on) continue;
+            const k = (t * 0.38 + p.ph) % 1, s = _usS.y; bowl.localToWorld(_usA.set(0, 0.058, 0));
+            _usA.x += Math.sin(t * 1.3 + p.ph * 6) * 0.018 * s * (0.4 + k); _usA.z += Math.cos(t * 1.1 + p.ph * 5) * 0.018 * s * (0.4 + k); _usA.y += (0.015 + k * 0.26) * s;
+            p.m.position.copy(bowl.worldToLocal(_usA)); p.m.scale.setScalar(0.55 + k * 1.7); p.m.material.opacity = 0.2 * heat * Math.sin(Math.PI * k);
+          }
+        }
         function kitchenTick(dt, t) {   // lửa ga nhảy nhẹ · hơi nước bốc từ nồi · quạt hút + khói ống khói
           VKIT.flames.forEach((f, i) => { if (!f.visible) return; const k = 1 + Math.sin(t * 23 + i * 1.7) * 0.05 + Math.sin(t * 37 + i) * 0.04; f.scale.set(k, 1 + Math.sin(t * 29 + i * 2.3) * 0.35, k); });
-          const st = VKIT.steam;
+          const st = VKIT.steam, ud = engObj && engObj.dish && engObj.dish.kind === 'udon' ? 0.35 + 0.65 * engObj.dish.food : 1;   // tô càng vơi (ăn lâu) càng nguội, ít hơi
+          for (const b of [VKIT.counterBowl, VTUDON, engObj && engObj.props.handBowl]) udonSteam(t, b, ud);
           for (const p of VKIT.potSteam) {
             p.m.visible = st > 0.02; if (!p.m.visible) continue;
             const k = (t * 0.45 + p.ph) % 1;
