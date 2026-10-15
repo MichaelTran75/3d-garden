@@ -41,7 +41,7 @@
         }
         function engHandCoke(e) {   // lon coke cầm tay trái: tâm lon ở lòng bàn tay chữ C
           const holder = new THREE.Group(); holder.name = 'Lon coke cầm tay'; holder.position.set(0, -0.69, 0.05); holder.rotation.x = 0.95; holder.visible = false;
-          const k = 1.05 / ENGINEER_BASE_SCALE, can = sodaCan(); can.scale.setScalar(k); can.position.y = -0.058 * k; holder.add(can);
+          const k = 1.155 / ENGINEER_BASE_SCALE, can = sodaCan(); can.scale.setScalar(k); can.position.y = -0.058 * k; holder.add(can);
           e.arms[1].add(holder); e.props.coke = holder; return holder;
         }
         function engDishShow(e) {   // mỗi món chỉ hiện đúng một chỗ (bàn, mặt đá, bếp, bàn trà, trên tay)

@@ -174,10 +174,10 @@
           studyLight.castShadow = false; lamp.add(studyLight);
           studyDeskLighting.light = studyLight; studyDeskLighting.bulb = bulbMat;
           // Lon nước ngọt ở góc trái phía trước mặt bàn, giữa nhãn quay về phía cửa hông.
-          const coke = sodaCan(); coke.scale.setScalar(1.05); coke.position.set(dX - .37 * DESK_K, yIn + dH + .001, dZ + .09 * DESK_K); coke.rotation.y = -.6; coke.name = 'Lon coke trên bàn học'; study.add(coke);   // lon to thêm 5%, gốc ở tâm đáy nên vẫn đứng sát mặt bàn
+          const coke = sodaCan(); coke.scale.setScalar(1.155); coke.position.set(dX - .37 * DESK_K, yIn + dH + .001, dZ + .09 * DESK_K); coke.rotation.y = -.6; coke.name = 'Lon coke trên bàn học'; study.add(coke);   // lon to thêm 5% rồi thêm 10% (G 15/10), gốc ở tâm đáy nên vẫn đứng sát mặt bàn
           // Laptop giữa bàn, trước ghế: thân nhôm xám, bàn phím + touchpad; nắp gắn bản lề mép sau (đóng phẳng khi rảnh, mở ~106° khi làm việc)
           {
-            const lap = new THREE.Group(); lap.name = 'Laptop'; lap.position.set(dX - .01, yIn + dH + .001, dZ + .05 * DESK_K); study.add(lap);
+            const lap = new THREE.Group(); lap.name = 'Laptop'; lap.position.set(dX - .01, yIn + dH + .001, dZ + .05 * DESK_K); lap.scale.setScalar(1.2); study.add(lap);   // G 15/10: to thêm 20% (gốc ở đáy giữa ⇒ vẫn nằm trên mặt bàn, cách sổ 4 cm)
             const alu = new THREE.MeshLambertMaterial({ color: 0x3d4046 });
             const kc = document.createElement('canvas'); kc.width = 128; kc.height = 48; const kx = kc.getContext('2d');
             kx.fillStyle = '#1e2024'; kx.fillRect(0, 0, 128, 48); kx.fillStyle = '#3a3e45';
@@ -189,21 +189,14 @@
             const pad = new THREE.Mesh(new THREE.PlaneGeometry(.095, .06), new THREE.MeshLambertMaterial({ color: 0x55595f })); pad.rotation.x = -Math.PI / 2; pad.position.set(0, .0166, .068); lap.add(pad);
             const hinge = new THREE.Group(); hinge.position.set(0, .016, -.115); lap.add(hinge);
             const lid = bx(.33, .01, .22, alu, true, true, lineDark); lid.position.set(0, .005, .11); hinge.add(lid);
-            const sc = document.createElement('canvas'); sc.width = 256; sc.height = 160; const sx2 = sc.getContext('2d');   // màn hình: bảng vận hành 3 nguồn điện
-            sx2.fillStyle = '#0f1a26'; sx2.fillRect(0, 0, 256, 160); sx2.fillStyle = '#1d3347'; sx2.fillRect(0, 0, 256, 20);
-            sx2.font = 'bold 12px Arial, sans-serif'; sx2.fillStyle = '#ffd34a'; sx2.fillText('GHC · Vận hành', 8, 14);
-            [['#5ec27a', 'Thủy điện'], ['#f0a040', 'Mặt trời'], ['#65b3ff', 'Gió']].forEach(([col, name], i) => {
-              const y0 = 32 + i * 42; sx2.fillStyle = '#c7d3df'; sx2.font = '10px Arial, sans-serif'; sx2.fillText(name, 8, y0 + 8);
-              sx2.strokeStyle = col; sx2.lineWidth = 2; sx2.beginPath();
-              for (let k = 0; k <= 40; k++) { const xx = 70 + k * 4.4, yy = y0 + 22 - (Math.sin(k * 0.35 + i * 1.7) * 0.5 + 0.5) * 18 - (i === 1 ? Math.sin(k / 40 * Math.PI) * 6 : 0); k ? sx2.lineTo(xx, yy) : sx2.moveTo(xx, yy); }
-              sx2.stroke();
-            });
+            const sc = document.createElement('canvas'); sc.width = 256; sc.height = 160; const sx2 = sc.getContext('2d');   // màn hình: bảng vận hành chạy / trình phát nhạc (vẽ mỗi khung ở engineer/routine-fx.js)
+            sx2.fillStyle = '#0f1a26'; sx2.fillRect(0, 0, 256, 160);
             const scrTex = new THREE.CanvasTexture(sc); scrTex.colorSpace = THREE.SRGBColorSpace;
             const screenMat = new THREE.MeshBasicMaterial({ map: scrTex, color: 0x101214 });
             const scr = new THREE.Mesh(new THREE.PlaneGeometry(.29, .18), screenMat); scr.rotation.x = Math.PI / 2; scr.position.set(0, -.0006, .112); hinge.add(scr);   // mặt trong nắp: quay xuống khi đóng, quay về người dùng khi mở
             const glow = new THREE.PointLight(0x9fc8ff, 0, 1.4 * CAMP_SCALE, 2); glow.position.set(0, .14, .02); lap.add(glow);
             lap.traverse(o => { o.userData.noBake = true; });
-            Object.assign(studyLaptop, { hinge, screen: screenMat, light: glow, group: lap, canvas: sc, ctx: sx2, tex: scrTex, dash: sx2.getImageData(0, 0, sc.width, sc.height), mode: 'dash', drawnAt: -1 });
+            Object.assign(studyLaptop, { hinge, screen: screenMat, light: glow, group: lap, canvas: sc, ctx: sx2, tex: scrTex, mode: 'dash', drawnAt: -1 });
           }
           study.userData.layout = {
             desk: { center: [dX, dZ], size: [1.08 * DESK_K, .5 * DESK_K], height: dH },

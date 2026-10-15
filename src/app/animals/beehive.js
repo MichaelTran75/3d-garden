@@ -31,7 +31,7 @@
           for (const [y, ax] of [[0.38, 'x'], [0.6, 'z']]) { const L = 2 * env(y) * H + 0.08, s = cyl(0.012, 0.012, L, stickM, true, false, null, 6); s.position.y = y * H; if (ax === 'x') s.rotation.z = Math.PI / 2; else s.rotation.x = Math.PI / 2; g.add(s); }
           // ---- 5 bánh sáp: mặt phẳng song song trục x, cách nhau 0,12·H; biên = vách trong (lùi 2,5 cm) ∩ mép dưới cong lưỡi ----
           const rIn = y => Math.max(0, env(y) - 0.035), CR = 0.026, cells = [], combs = [], combEdges = [];
-          const midM = new THREE.MeshLambertMaterial({ color: 0x8a5a1e, side: THREE.DoubleSide });
+          const midM = new THREE.MeshLambertMaterial({ color: 0x8a5a1e, side: THREE.DoubleSide, transparent: true, opacity: 0.5, depthWrite: false });   // G 15/10: cấu trúc trong tổ trong 50%
           for (let k = 0; k < 5; k++) {
             const zc = (k - 2) * 0.12, bot = x => 0.17 + (Math.abs(k - 2) * 0.05) + 0.42 * x * x;   // mép dưới: giữa thấp, 2 bên cao; bánh ngoài ngắn hơn
             const half = y => { const r = rIn(y); return r > Math.abs(zc) ? Math.sqrt(r * r - zc * zc) - 0.012 : 0; };
@@ -60,7 +60,7 @@
           }
           g.add(new THREE.LineSegments(mergeGeometries(combEdges), lineDark));
           const cellGeo = new THREE.CylinderGeometry(CR * 0.86 * H, CR * 0.86 * H, 0.026 * H, 6, 1, false); cellGeo.rotateX(Math.PI / 2); cellGeo.rotateZ(Math.PI / 6);   // lăng trụ lục giác dọc trục z (mặt đầu = nắp ô)
-          const cellM = new THREE.MeshPhongMaterial({ shininess: 40, specular: 0x5a4a30 });
+          const cellM = new THREE.MeshPhongMaterial({ shininess: 40, specular: 0x5a4a30, transparent: true, opacity: 0.5, depthWrite: false });
           const cellIM = new THREE.InstancedMesh(cellGeo, cellM, cells.length), _m = new THREE.Matrix4(), _c = new THREE.Color();
           cells.forEach(([x, y, z, sd, c], i) => { _m.makeTranslation(x, y, z); cellIM.setMatrixAt(i, _m); cellIM.setColorAt(i, _c.setHex(c)); });
           cellIM.instanceMatrix.needsUpdate = true; cellIM.instanceColor.needsUpdate = true; g.add(cellIM);
@@ -71,23 +71,32 @@
             const th = new THREE.SphereGeometry(0.5, 7, 5); th.scale(0.011, 0.01, 0.011); add(th, () => 0x8a6a30);
             const hd = new THREE.SphereGeometry(0.5, 7, 5); hd.scale(0.009, 0.008, 0.008); hd.translate(0, 0, 0.01); add(hd, () => 0x1e1812);
             for (const s of [-1, 1]) { const w = new THREE.PlaneGeometry(0.008, 0.016); w.rotateX(-Math.PI / 2); w.rotateY(s * 0.35); w.translate(s * 0.005, 0.006, -0.008); add(w, () => 0xd8dde0); }
-            const m = mergeGeometries(parts); m.scale(H * 1.5, H * 1.5, H * 1.5); return m;
+            const m = mergeGeometries(parts); m.scale(H * 1.8, H * 1.8, H * 1.8); return m;   // ong trong tổ to thêm 20% (G 15/10)
           })();
           const NB = 26, beeIM = new THREE.InstancedMesh(beeGeo, new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }), NB);
           const crawl = [];
           for (let i = 0; i < NB; i++) {
-            if (i < 22) { const k = i % 5, C = combs[k]; let x = 0, y = 0.5; for (let t = 0; t < 30; t++) { x = (Math.random() - 0.5) * 0.6; y = 0.2 + Math.random() * 0.7; if (C.inside(x, y)) break; } crawl.push({ k, sd: Math.random() < 0.5 ? -1 : 1, x, y, a: Math.random() * TAU, v: 0.02 + Math.random() * 0.03, turn: 0 }); }
+            if (i < 22) { const k = i % 5, C = combs[k]; let x = 0, y = 0.5; for (let t = 0; t < 30; t++) { x = (Math.random() - 0.5) * 0.6; y = 0.2 + Math.random() * 0.7; if (C.inside(x, y)) break; } crawl.push({ k, sd: Math.random() < 0.5 ? -1 : 1, x, y, a: Math.random() * TAU, v: 0.02 + Math.random() * 0.03, turn: 0, dance: k === 2 && i < 13 ? { o: i * 0.7, cx: (i - 7) * 0.07, cy: 0.52 } : null }); }   // 3 con trên bánh giữa nhảy lắc đuôi
             else { const a = (i - 22) / 4 * TAU + 0.4; crawl.push({ guard: true, a, x: Math.cos(a) * (env(0) - 0.01), z: Math.sin(a) * (env(0) - 0.01) }); }
           }
           g.add(beeIM);
           const _x = new THREE.Vector3(), _y = new THREE.Vector3(), _z = new THREE.Vector3();
           g.traverse(o => { o.userData.noBatch = true; });
           const mouth = new THREE.Vector3(g.position.x, g.position.y, g.position.z);
+          let danceA = 0, danceAt = -9;   // góc nhảy: hướng đồng hoa trừ hướng mặt trời (ong báo đường: "lên" trên mặt bánh = phía mặt trời)
           return {
-            g, mouth, cells: cells.length,
+            g, mouth, cells: cells.length, rimR: (env(0) - 0.02) * H,
             update(dt, t) {
               dt = Math.min(dt, 0.05);
+              if (t - danceAt > 5 && safeFlowerCoords) { danceAt = t; let fx = 0, fz = 0; for (const f of safeFlowerCoords) { fx += f.x - g.position.x; fz += f.z - g.position.z; } danceA = Math.atan2(fx, fz) - Math.atan2(sun.position.x - sun.target.position.x, sun.position.z - sun.target.position.z); }
               crawl.forEach((b, i) => {
+                if (b.dance) {   // NHẢY LẮC ĐUÔI (von Frisch): chạy thẳng lắc bụng ~13 Hz theo góc báo đường, vòng nửa tròn về điểm đầu, lần lượt trái / phải
+                  const D = b.dance, T = 1.9, q = (t + D.o) % (2 * T), side = q < T ? 1 : -1, u = (q % T) / T, dx = Math.sin(danceA), dy = Math.cos(danceA), R = 0.0375, C = combs[b.k];
+                  let x, y, hx, hy;
+                  if (u < 0.4) { const s = u / 0.4, w = 0.5 * Math.sin(t * 82); x = D.cx + dx * (s - 0.5) * 2 * R; y = D.cy + dy * (s - 0.5) * 2 * R; hx = dx * Math.cos(w) - dy * Math.sin(w); hy = dx * Math.sin(w) + dy * Math.cos(w); }
+                  else { const f = (u - 0.4) / 0.6 * Math.PI, nx = dy * side, ny = -dx * side; x = D.cx + R * (dx * Math.cos(f) + nx * Math.sin(f)); y = D.cy + R * (dy * Math.cos(f) + ny * Math.sin(f)); hx = -dx * Math.sin(f) + nx * Math.cos(f); hy = -dy * Math.sin(f) + ny * Math.cos(f); }
+                  beeIM.setMatrixAt(i, _m.makeBasis(_x.set(-b.sd * hy, b.sd * hx, 0), _y.set(0, 0, b.sd), _z.set(hx, hy, 0)).setPosition(x * H, y * H, (C.zc + b.sd * 0.03) * H)); return;
+                }
                 if (b.guard) {   // gác miệng giỏ, đầu hướng ra ngoài, thân rung khi quạt cánh
                   const c = Math.cos(b.a), s = Math.sin(b.a); beeIM.setMatrixAt(i, _m.makeBasis(_x.set(s, 0, -c), _y.set(0, 1, 0), _z.set(c, 0, s)).setPosition(b.x * H, 0.012 + 0.002 * Math.sin(t * 40 + i), b.z * H)); return;
                 }

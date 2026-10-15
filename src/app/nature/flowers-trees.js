@@ -8,10 +8,10 @@
           corn: new THREE.Color(0x5670e0)
         };
         function addFlower(px, py, pz, rotY) {
-          if (!roadContains(px, pz, .35)) flowerCoords.push(new THREE.Vector3(px, py + 0.5, pz));
           const scl = (0.9 + Math.random() * 0.6) * 0.7; vegGroup(px, py, pz, rotY, scl);
           const kind = (Math.random() * 6) | 0, cube = vegPools.fcube;
           const tall = kind === 3;                                                                       // allium: thân cao đặc trưng
+          if (!roadContains(px, pz, .35)) { const f = new THREE.Vector3(px, py + 0.5, pz); f.top = py + scl * ((tall ? 1.02 : 0.8) + [-0.02, 0.17, 0.045, 0.17, -0.06, 0.1][kind]); flowerCoords.push(f); }   // top: chỗ ong đáp (lòng chén poppy/tulip · đỉnh búp · nhuỵ cúc)
           vegPush(vegPools.stem, _vp.set(0, tall ? 0.45 : 0.35, 0), _vqI, _vs.set(1, tall ? 1.3 : 1, 1));
           const hy = tall ? 1.02 : 0.8;                                                                  // độ cao đầu hoa
           if (kind === 0 || kind === 4) {                                                                // poppy / tulip: 4 cánh dựng quanh thành chén

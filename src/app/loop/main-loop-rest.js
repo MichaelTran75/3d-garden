@@ -71,45 +71,8 @@
               const beat = bflyFlap(bf, dt), bobY = Math.sin(t * 3.5 + bf.ph) * 0.18 + beat, bobX = Math.cos(t * 2.0 + bf.ph) * 0.12;   // vỗ – lượn theo loài, thân nhấp nhô theo nhịp
               setInsectVisualPosition(bf, bobX, bobY);
             }
-            for (const b of bees) {
-              if (rainNow) {   // mưa: bỏ dở hoa đang hút, bay thẳng về tổ rồi chui vào trong
-                if (b.state === 'sheltered') continue;
-                if (b.state !== 'returning' && b.state !== 'depositing') { cancelBeeNectar(b); b.hoverTmr = 0; b.state = 'returning'; b.target.copy(hiveWorldPos); }
-              } else if (b.state === 'sheltered') { b.g.visible = true; b.state = 'foraging'; pickBeeFlowerTarget(b.pos, b.target); b.flowerRetryTmr = 0; setBeePct(b); }   // tạnh: chui ra đi kiếm mật tiếp
-              b.wL.rotation.z = 0.25 + Math.sin(t * 95 + b.ph) * 0.55; b.wR.rotation.z = -b.wL.rotation.z;   // cánh ong ~200 Hz: ở 60 hình/giây chỉ còn rung loang (vỗ nhanh, biên độ rộng)
-              if (b.hoverTmr > 0) {
-                b.hoverTmr -= dt; setInsectVisualPosition(b, Math.sin(t * 5) * 0.04, Math.cos(t * 4) * 0.04);
-                if (b.state === 'depositing') {
-                  setBeePct(b, (b.hoverTmr / 2.5) * 100);
-                } else {
-                  setBeePct(b, b.flowersVisited * 10 + (1 - b.hoverTmr / 3.6) * 10);
-                }
-                if (b.hoverTmr <= 0) {
-                  if (b.state === 'depositing') {
-                    b.flowersVisited = 0;
-                    b.state = 'foraging';
-                    hiveHoneyPct = Math.min(100, hiveHoneyPct + 1); // mỗi lượt ong về tăng 1% mật tổ
-                    updateHiveLoadingBar();
-                  }
-                  else { if (finishBeeNectar(b)) b.flowersVisited++; b.state = b.flowersVisited >= 10 ? 'returning' : 'foraging'; }
-                  if (b.state === 'returning') b.target.copy(hiveWorldPos);
-                  else pickBeeFlowerTarget(b.pos, b.target);
-                  setBeePct(b);
-                }
-              } else {
-                if (b.state === 'foraging' && !b.target.nectarFlower) {
-                  // If every flower is resting, hover and retry once per second instead of scanning each frame.
-                  b.flowerRetryTmr -= dt;
-                  if (b.flowerRetryTmr <= 0) { pickBeeFlowerTarget(b.pos, b.target); b.flowerRetryTmr = 1; }
-                } else if (animateInsectFlight(b, dt) === 'arrived') {
-                  if (b.state === 'returning' && rainNow) { b.state = 'sheltered'; b.g.visible = false; }   // vào tổ trú mưa
-                  else if (b.state === 'returning') { b.hoverTmr = 2.5; b.state = 'depositing'; }
-                  else if (reserveBeeNectar(b)) b.hoverTmr = 3.6;
-                  else { pickBeeFlowerTarget(b.pos, b.target); b.flowerRetryTmr = 1; }
-                }
-                setInsectVisualPosition(b, 0, Math.sin(t * 6 + b.ph) * 0.08);
-              }
-            }
+            const bh = liveWeather.localHour, ws = liveWeather.state, beeOK = !rainNow && bh >= 6.33 && bh < 18 && (ws.windSpeed ?? 0) < 30 && (ws.temperature ?? 25) >= 13;   // ong ra tổ khi khô, ban ngày, gió < 30 km/h, ≥ 13 °C
+            for (const b of bees) beeTick(b, dt, t, beeOK);   // bay · đáp chạm hoa / vành tổ · hút mật · bò vào / ra tổ (animals/insects.js)
           } else {
             // Disappearing at night interrupts feeding without spending a flower's nectar.
             for (const b of bees) cancelBeeNectar(b);

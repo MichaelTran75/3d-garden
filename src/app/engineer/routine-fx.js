@@ -125,10 +125,35 @@
           g.position.set(best[0], 0.45, best[1]); g.rotation.y = Math.atan2(chair.x - best[0], chair.z - best[1]);   // mặt nhãn quay về phía ghế
           return g;
         })();
-        function laptopScreenTick(t, music) {   // màn hình laptop: bảng vận hành (nghiên cứu) · trình phát nhạc có đĩa quay, sóng nhạc, thanh tiến độ (buổi tối)
-          const L = studyLaptop; if (!L.ctx) return;
-          if (!music) { if (L.mode !== 'dash') { L.ctx.putImageData(L.dash, 0, 0); L.tex.needsUpdate = true; L.mode = 'dash'; } return; }
-          if (L.mode === 'music' && Math.abs(t - L.drawnAt) < 0.12) return;
+        // ---- bảng vận hành CHẠY (G 15/10 "add animation vào laptop screen"): 3 đường công suất cuộn theo thời gian, số MW theo cảnh thật
+        //      (thủy điện ~28,2 · mặt trời 51,58 MWp × độ cao nắng × mây/mưa · gió 80 MW theo đường cong công suất: cắt vào 3 m/s, định mức 12 m/s,
+        //      tốc độ gió thật Pleiku), chấm "TRỰC TIẾP" nhấp nháy, đồng hồ, dòng ghi chú nghiên cứu đang gõ + con trỏ. Vẽ ~6 hình/giây, chỉ khi nắp mở ----
+        const LAP_NOTE = ['Đối chiếu sản lượng thủy điện với mực hồ…', 'Tấm pin: −0,4%/°C khi nóng; kiểm nhiệt độ tấm', 'Tuabin: cắt vào 3 m/s, định mức 12 m/s', 'Pin lưu trữ san tải giờ cao điểm 17–20 h', 'Mai kiểm tra cánh tuabin #2'];
+        const lapHist = [[], [], []];
+        function laptopDash(t) {
+          const L = studyLaptop, x = L.ctx, w = liveWeather.state, v = (w.windSpeed || 0) / 3.6, cl = w.data?.current?.cloud_cover ?? 30;
+          const P = [28.2 + 0.25 * Math.sin(t / 7) + 0.08 * Math.sin(t * 1.7), 51.58 * Math.min(1, Math.max(0, sunElevSin) * 1.25) * (1 - 0.006 * cl) * (w.raining ? 0.3 : 1), 80 * Math.max(0, Math.min(1, (v ** 3 - 27) / 1701))];
+          if (!L.histAt || t - L.histAt > 0.5) { L.histAt = t; P.forEach((p, i) => { const h = lapHist[i]; h.push(p * (1 + (Math.random() - 0.5) * 0.03)); if (h.length > 41) h.shift(); }); }
+          x.fillStyle = '#0f1a26'; x.fillRect(0, 0, 256, 160); x.fillStyle = '#1d3347'; x.fillRect(0, 0, 256, 20);
+          x.textAlign = 'left'; x.font = 'bold 12px Arial, sans-serif'; x.fillStyle = '#ffd34a'; x.fillText('GHC · Vận hành', 8, 14);
+          const hh = liveWeather.localHour; x.font = '10px Arial, sans-serif'; x.fillStyle = '#c7d3df'; x.fillText(String(Math.floor(hh)).padStart(2, '0') + ':' + String(Math.floor(hh * 60 % 60)).padStart(2, '0') + ':' + String(Math.floor(hh * 3600 % 60)).padStart(2, '0'), 196, 14);
+          if (t % 1.2 < 0.7) { x.fillStyle = '#ff5a5a'; x.beginPath(); x.arc(118, 10, 3.5, 0, TAU); x.fill(); x.fillStyle = '#ffb0b0'; x.fillText('TRỰC TIẾP', 125, 14); }
+          [['#5ec27a', 'Thủy điện', 30], ['#f0a040', 'Mặt trời', 55], ['#65b3ff', 'Gió', 80]].forEach(([col, name, max], i) => {
+            const y0 = 28 + i * 38, h = lapHist[i]; x.fillStyle = '#c7d3df'; x.font = '10px Arial, sans-serif'; x.fillText(name, 8, y0 + 9);
+            x.fillStyle = col; x.font = 'bold 11px Arial, sans-serif'; x.fillText(P[i].toFixed(1).replace('.', ',') + ' MW', 8, y0 + 23);
+            x.strokeStyle = 'rgba(199,211,223,0.15)'; x.lineWidth = 1; x.strokeRect(70, y0, 178, 28);
+            x.strokeStyle = col; x.lineWidth = 2; x.beginPath(); h.forEach((p, k) => { const xx = 70 + (k + 41 - h.length) * 4.45, yy = y0 + 27 - Math.min(1, p / max) * 26; k ? x.lineTo(xx, yy) : x.moveTo(xx, yy); }); x.stroke();
+            if (h.length) { x.fillStyle = col; x.beginPath(); x.arc(70 + 40 * 4.45, y0 + 27 - Math.min(1, h[h.length - 1] / max) * 26, 2.5, 0, TAU); x.fill(); }
+          });
+          const note = LAP_NOTE[Math.floor(t / 9) % LAP_NOTE.length], typed = note.slice(0, Math.floor((t % 9) * 14));
+          x.fillStyle = '#16283a'; x.fillRect(0, 142, 256, 18); x.fillStyle = '#9fe0b0'; x.font = '10px Arial, sans-serif'; x.fillText('> ' + typed, 6, 155);
+          if (t % 0.8 < 0.45) { x.fillStyle = '#9fe0b0'; x.fillRect(10 + x.measureText('> ' + typed).width - 4, 146, 5, 11); }   // con trỏ nhấp nháy
+          L.tex.needsUpdate = true;
+        }
+        function laptopScreenTick(t, music) {   // màn hình laptop: bảng vận hành chạy (nghiên cứu) · trình phát nhạc có đĩa quay, sóng nhạc, thanh tiến độ (buổi tối)
+          const L = studyLaptop; if (!L.ctx || L.open < 0.5) return;
+          if (Math.abs(t - L.drawnAt) < (music ? 0.12 : 0.16)) return;
+          if (!music) { L.mode = 'dash'; L.drawnAt = t; laptopDash(t); return; }
           L.mode = 'music'; L.drawnAt = t;
           const x = L.ctx, W = 256, H = 160, mm = s => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
           const bg = x.createLinearGradient(0, 0, W, H); bg.addColorStop(0, '#1b1530'); bg.addColorStop(1, '#2c2048'); x.fillStyle = bg; x.fillRect(0, 0, W, H);

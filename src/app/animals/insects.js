@@ -305,8 +305,9 @@
             return w;
           };
           const wingL = mkWing(1), wingR = mkWing(-1);
-          wingL.userData.noBake = wingR.userData.noBake = true; bakeStatic(g);   // thân + chân + râu gộp; 2 cặp cánh giữ động
-          g.scale.setScalar(0.75 * NATURE_SCALE * 0.75); return { g, wingL, wingR };
+          const polM = new THREE.MeshLambertMaterial({ color: 0xf0a020 }), pollen = [-1, 1].map(sx => { const m = new THREE.Mesh(new THREE.SphereGeometry(0.016, 6, 4), polM); m.position.set(sx * 0.058, -0.077, -0.04); m.visible = false; m.userData.noBake = true; g.add(m); return m; });   // giỏ phấn (corbicula) ở ống chân sau
+          wingL.userData.noBake = wingR.userData.noBake = true; bakeStatic(g);   // thân + chân + râu gộp; 2 cặp cánh + giỏ phấn giữ động
+          g.rotation.order = 'YXZ'; g.scale.setScalar(0.75 * NATURE_SCALE * 0.75); return { g, wingL, wingR, pollen };
         }
         // Ong chọn hoa có lối tiếp cận an toàn; ưu tiên hoa gần để không bay vòng cả khu vườn.
         function pickBeeFlowerTarget(from = null, out = new THREE.Vector3()) {
@@ -333,6 +334,7 @@
           return out.copy(out.nectarFlower || from);
         }
         const hiveWorldPos = beehive.mouth.clone(); hiveWorldPos.y -= flightNav.clearance + 0.08;   // ong đi / về ở miệng đáy giỏ rơm (animals/beehive.js)
+        for (let k = 0; k < 40 && !flightNav.pointClear(hiveWorldPos); k++) hiveWorldPos.y -= 0.05;   // điểm dẫn đường phải là ô trống (tán cây cổ thụ chặn sát tổ ⇒ trước đây ong kẹt, không về được tổ); đoạn cuối lên vành miệng giỏ do pha "đáp" lo
         let hiveHoneyPct = 0;
         let hiveSprite, hiveCanvas, hiveTex;
 
@@ -401,6 +403,67 @@
           const p = flightNav.visualPosition(agent.pos, insectOffset.set(x, y, 0), insectVisual);
           agent.g.position.set(p.x, p.y, p.z);
         }
+        // ---- HÀNH VI ONG THỢ (G 15/10 "research bee behaviour and physic, react to environment and weather", Apis mellifera / cerana):
+        //  · chỉ ra khỏi tổ khi khô ráo, ban ngày (6:20–18:00), gió < 30 km/h, ≥ 13 °C (ong mật ngừng kiếm ăn khi mưa, gió mạnh, lạnh); trở trời /
+        //    chiều tối thì bỏ dở hoa bay về tổ; trong tổ chờ tới khi thời tiết lại thuận.
+        //  · ĐÁP = CHẠM: sát bề mặt thì giảm tốc theo khoảng cách còn lại (ong giữ tốc độ giãn ảnh không đổi khi hạ cánh — Srinivasan & cs. 2000,
+        //    Baird & cs. 2013) ⇒ khoảng cách giảm theo hàm mũ, chạm nhẹ; ngóc đầu + thõng chân lúc sắp chạm. Đậu hoa: xếp cánh dọc lưng, bò vòng
+        //    quanh nhuỵ, chúc đầu hút mật; giỏ phấn chân sau to dần theo số hoa. Về tổ: đáp lên vành miệng giỏ, xếp cánh, BÒ vào trong (ẩn), xả mật,
+        //    nghỉ rồi bò ra, cất cánh. Khi bay, gió tại chỗ đẩy ong dạt theo chiều gió.
+        const _bw = new THREE.Vector3(), _bp = new THREE.Vector3(), _bx = new THREE.Vector3(), _by = new THREE.Vector3(), _bz = new THREE.Vector3(), _bm = new THREE.Matrix4();
+        const beeFlap = (b, t) => { b.wL.rotation.set(0, 0, 0.25 + Math.sin(t * 95 + b.ph) * 0.55); b.wR.rotation.set(0, 0, -b.wL.rotation.z); };   // cánh ~200 Hz: ở 60 hình/giây chỉ còn rung loang
+        const beeFold = b => { b.wL.rotation.set(0, 0.9, -0.08); b.wR.rotation.set(0, -0.9, 0.08); };   // xếp cánh xuôi dọc lưng
+        const beeTouch = (b, to, mode) => { b.ph2 = 'land'; b.mode2 = mode; b.to = to; b.k2 = 0; };
+        function beeTick(b, dt, t, ok) {
+          const g = b.g, P = b.ph2 || 'fly', pk = Math.min(1, b.flowersVisited / 10);
+          for (const m of b.pollen) { m.visible = pk > 0 && g.visible; m.scale.setScalar(0.5 + 0.8 * pk); }
+          if (P === 'fly') {
+            if (!ok && b.state !== 'returning') { cancelBeeNectar(b); b.hoverTmr = 0; b.state = 'returning'; b.target.copy(hiveWorldPos); setBeePct(b); }   // trở trời / chiều tối: về tổ
+            beeFlap(b, t);
+            if (b.state === 'foraging' && !b.target.nectarFlower) { if ((b.flowerRetryTmr -= dt) <= 0) { pickBeeFlowerTarget(b.pos, b.target); b.flowerRetryTmr = 1; } }   // hoa đều đang nghỉ: lượn chờ, 1 s thử lại
+            else if (animateInsectFlight(b, dt) === 'arrived') {
+              if (b.state === 'returning') { const a = Math.random() * TAU, R = beehive.rimR; b.rimA = a; beeTouch(b, beehive.mouth.clone().add(_bp.set(Math.cos(a) * R, 0.004, Math.sin(a) * R)), 'hive'); }
+              else if (reserveBeeNectar(b)) { const F = b.nectarFlower; beeTouch(b, new THREE.Vector3(F.x, (F.top ?? F.y) + 0.012, F.z), 'flower'); }
+              else { pickBeeFlowerTarget(b.pos, b.target); b.flowerRetryTmr = 1; }
+            }
+            if (b.ph2 === 'land') return;
+            windAt(b.pos.x, b.pos.y, b.pos.z, 1, _bw); b.drift = (b.drift || new THREE.Vector3()).lerp(_bw.multiplyScalar(0.05).clampLength(0, 0.3), Math.min(1, dt * 2));
+            setInsectVisualPosition(b, 0, Math.sin(t * 6 + b.ph) * 0.08); g.position.add(b.drift); g.rotation.x += (-0.12 - g.rotation.x) * Math.min(1, dt * 6);
+            return;
+          }
+          if (P === 'land') {   // tiếp cận chạm: khoảng cách còn lại giảm theo hàm mũ (τ 0,16 s) ⇒ càng sát càng chậm
+            beeFlap(b, t); const L = g.position.distanceTo(b.to); g.position.lerp(b.to, 1 - Math.exp(-dt / 0.16)); g.rotation.x += (-0.5 - g.rotation.x) * Math.min(1, dt * 8);
+            if (L < 0.006 || (b.k2 += dt) > 1.6) { g.position.copy(b.to); b.k2 = 0; b.ph2 = b.mode2 === 'flower' ? 'feed' : 'crawlIn'; b.hoverTmr = 3.6; }
+            return;
+          }
+          if (P === 'feed') {   // đậu hoa: xếp cánh, bò vòng quanh nhuỵ, chúc đầu hút mật
+            beeFold(b); b.hoverTmr -= dt; b.k2 += dt; const a = b.k2 * 0.9 + b.ph;
+            g.position.set(b.to.x + Math.cos(a) * 0.025, b.to.y, b.to.z + Math.sin(a) * 0.025); g.rotation.set(0.35 + 0.08 * Math.sin(t * 7), Math.atan2(-Math.sin(a), Math.cos(a)), 0);
+            setBeePct(b, b.flowersVisited * 10 + (1 - b.hoverTmr / 3.6) * 10);
+            if (b.hoverTmr <= 0) {
+              if (finishBeeNectar(b)) b.flowersVisited++;
+              b.state = b.flowersVisited >= 10 || !ok ? 'returning' : 'foraging'; if (b.state === 'returning') b.target.copy(hiveWorldPos); else pickBeeFlowerTarget(b.pos, b.target);
+              setBeePct(b); b.ph2 = 'takeoff'; b.k2 = 0;
+            }
+            return;
+          }
+          if (P === 'takeoff') {   // cất cánh: vỗ cánh, bốc lên về điểm dẫn đường rồi bay tiếp
+            beeFlap(b, t); const goal = flightNav.visualPosition(b.pos, insectOffset.set(0, 0, 0), _bp); g.position.lerp(goal, 1 - Math.exp(-dt / 0.14));
+            if (g.position.distanceTo(goal) < 0.02 || (b.k2 += dt) > 1.2) b.ph2 = 'fly';
+            return;
+          }
+          if (P === 'crawlIn' || P === 'crawlOut') {   // bò qua vành miệng giỏ lên vách trong (lưng quay vào tâm, đầu hướng lên khi vào / xuống khi ra)
+            beeFold(b); b.k2 += dt; const u = Math.min(1, b.k2 / 1.1), s = P === 'crawlIn' ? u : 1 - u, a = b.rimA, R = beehive.rimR - 0.012 - 0.05 * s, m = beehive.mouth;
+            g.position.set(m.x + Math.cos(a) * R, m.y + 0.004 + 0.13 * s, m.z + Math.sin(a) * R);
+            _by.set(-Math.cos(a), 0, -Math.sin(a)); _bz.set(0, P === 'crawlIn' ? 1 : -1, 0); g.quaternion.setFromRotationMatrix(_bm.makeBasis(_bx.crossVectors(_by, _bz), _by, _bz));
+            if (u < 1) return;
+            if (P === 'crawlOut') { b.ph2 = 'takeoff'; b.k2 = 0; return; }
+            g.visible = false; b.ph2 = 'inside'; b.k2 = 0; b.inT = 2.5 + Math.random() * 3;
+            if (b.flowersVisited > 0) { hiveHoneyPct = Math.min(100, hiveHoneyPct + 1); updateHiveLoadingBar(); }   // xả mật: mỗi lượt về +1% mật tổ
+            b.flowersVisited = 0; setBeePct(b); return;
+          }
+          if (P === 'inside' && ok && (b.k2 += dt) > b.inT) { g.visible = true; b.ph2 = 'crawlOut'; b.k2 = 0; b.state = 'foraging'; pickBeeFlowerTarget(b.pos, b.target); b.flowerRetryTmr = 0; }   // thời tiết thuận: bò ra đi kiếm mật
+        }
         for (let n = 0; n < 8; n++) {
           const bee = createBee();
           // Ong bắt đầu tại tổ hoặc hoa
@@ -410,6 +473,7 @@
             g: bee.g,
             wL: bee.wingL,
             wR: bee.wingR,
+            pollen: bee.pollen,
             pos: startP.clone(),
             target: pickBeeFlowerTarget(startP),
             spd: 1.2 + Math.random() * 0.6,
