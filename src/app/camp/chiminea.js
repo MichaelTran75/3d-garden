@@ -1,14 +1,16 @@
         // ===== LÒ SƯỞI CHIMINEA (G 15/10: "learn glb data, then create new one follow reference image at x 67 z 99, khi trời mưa thì chuyển sang dùng cái này") =====
         //  GLB "Rustic chimenea" (archiesmitham, CC-BY-NC-SA-4.0) chỉ để ĐO: 1 lưới quét 3D (8k đỉnh, 1 texture unlit) — bầu đất cao 1,23 m, bụng 0,6 m,
-        //  cổ 0,15 m, nón 0,16 m. Dựng theo ẢNH MẪU (lò thép kiểu hộp), giữ chiều cao tổng ~1,3 m như GLB + quai: 4 chân thép dẹt xoè · bát hứng tro ·
-        //  buồng đốt hộp 0,52 × 0,42 × 0,5 m, viền đồng + đinh tán · cửa trước mở rộng, cửa lưới bản lề phải mở ra · mái chóp thấp · ống khói
-        //  Ø 0,22 m cổ loe · nón che mưa trên 3 trụ + quai xách. Thép rèn đen vân búa (canvas lốm đốm). Mặt cửa quay về nam (góc nhìn mặc định,
-        //  không bị đống củi phía đông bắc che). Lòng lò = hộp lót mặt trong (BackSide) màu muội, ửng đỏ theo lửa.
-        //  MƯA: lửa trại tắt (campRain, camp/chairs-lantern-fire.js) ⇒ lửa chuyển sang lò (nón che mưa); tạnh mưa, lửa trại nhen lại thì lò tàn dần.
+        //  cổ 0,15 m, nón 0,16 m. Dựng theo ẢNH MẪU (lò thép kiểu hộp): 4 chân thép dẹt xoè · bát hứng tro · buồng đốt hộp 0,52 × 0,42 × 0,5 m,
+        //  viền đồng + đinh tán · cửa trước mở rộng, cửa lưới bản lề phải mở ra · mái chóp thấp · ống khói Ø 0,22 m cổ loe, dài 0,66 m (G: ×2 bản
+        //  đầu) · nón che mưa trên 3 trụ + quai xách. Thép rèn đen vân búa (canvas lốm đốm). Cửa lò (lửa) quay về GHẾ CẮM TRẠI (G 15/10).
+        //  Lòng lò = hộp lót mặt trong (BackSide) màu muội, ửng đỏ theo lửa.
+        //  KHÓI = sợi khói Navier–Stokes như lửa trại (nature/fluids.js, nguồn thứ 2): đáy miền = miệng ống, NÓN là ô đặc trong lưới ⇒ khói dội
+        //  vào mặt dưới nón, toả ra theo khe giữa miệng ống và nón, vòng qua mép nón rồi mới bốc lên (không xuyên qua nón).
+        //  CHỈ CHÁY KHI MƯA (G 15/10): mưa thì lửa trại tắt (campRain, camp/chairs-lantern-fire.js), lửa chuyển sang lò; tạnh mưa lò tàn dần.
         const chiminea = (() => {
           const W = 0.52, D = 0.5, H = 0.42, YB = 0.3, TK = 0.014, OW = 0.36, OH = 0.28, RB = 0.063;   // buồng đốt rộng (x) · sâu (z) · cao · đáy cách đất · dày thép · ô cửa · đố dưới
           const g = new THREE.Group(); g.name = 'Lò sưởi chiminea (Chiminea)';
-          const X = X0 + 67, Z = Z0 + 99; g.position.set(X, cowY(X, Z), Z); g.rotation.y = 0.3; g.scale.setScalar(CAMP_SCALE);
+          const X = X0 + 67, Z = Z0 + 99; g.position.set(X, cowY(X, Z), Z); g.rotation.y = Math.atan2(campChairPos.x - X, campChairPos.z - Z); g.scale.setScalar(CAMP_SCALE);   // mặt cửa (+z cục bộ) nhìn về ghế cắm trại
           // ---- thép rèn đen vân búa (lốm đốm sáng tối + chút gỉ đồng) ----
           const hc = document.createElement('canvas'); hc.width = hc.height = 128; const hx = hc.getContext('2d'), hr = mulberry32(6799);
           hx.fillStyle = '#2b2a28'; hx.fillRect(0, 0, 128, 128);
@@ -44,8 +46,8 @@
           const rg = new THREE.CylinderGeometry(0.16, W / 2 * Math.SQRT2, 0.075, 4, 1); rg.rotateY(Math.PI / 4); rg.scale(1, 1, D / W);   // chóp 4 mặt khớp đúng miệng hộp W × D
           add(new THREE.Mesh(rg, ironFlat), 0, YB + H + 0.0375, 0);
           add(new THREE.Mesh(new THREE.CylinderGeometry(0.128, 0.15, 0.06, 24), iron), 0, roofTop + 0.03, 0);
-          const pipeTop = roofTop + 0.06 + 0.33;
-          add(new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.112, 0.33, 24, 1, true), ironDS), 0, roofTop + 0.06 + 0.165, 0);
+          const PIPE = 0.66, pipeTop = roofTop + 0.06 + PIPE;
+          add(new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.112, PIPE, 24, 1, true), ironDS), 0, roofTop + 0.06 + PIPE / 2, 0);
           const ring = add(new THREE.Mesh(new THREE.TorusGeometry(0.112, 0.008, 6, 24), bronze), 0, pipeTop - 0.006, 0); ring.rotation.x = Math.PI / 2;
           for (let k = 0; k < 3; k++) { const a = k / 3 * 6.283; add(new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.036, 5), iron), Math.cos(a) * 0.1, pipeTop + 0.018, Math.sin(a) * 0.1); }
           add(new THREE.Mesh(new THREE.ConeGeometry(0.19, 0.05, 24, 1, true), ironDS), 0, pipeTop + 0.036 + 0.025, 0);
@@ -81,18 +83,22 @@
           });
           const light = new THREE.PointLight(0xff7a2a, 0, 6, 2); light.position.set(0, YB + 0.2, D / 2 + 0.1); g.add(light);
           scene.add(bakeStatic(g));
-          obstacleCoords.push({ x: X, y: g.position.y, z: Z, r: 0.45, h: 1.3 });   // người, chó, côn trùng đi vòng
-          const smoke = makeChimneySmoke(out => g.localToWorld(out.set(0, pipeTop + 0.02, 0)), 'Khói ống khói lò chiminea', 30);
+          obstacleCoords.push({ x: X, y: g.position.y, z: Z, r: 0.45, h: 1.6 });   // người, chó, côn trùng đi vòng
+          // khói: miền 1,15 × 3,5 m ô 3,2 cm (khe dưới nón ~1 ô), miệng ống r 0,1 · nón r 0,17 cao 3,2 → 6,4 cm trên miệng ống (đv thế giới, đã nhân CAMP_SCALE)
+          const SC = CAMP_SCALE, smoke = fluids.addSmoke({ NR: 36, NZ: 110, H: 0.032, NP: 600, NS: 0, NT: 14, buoy: 4, kNu: 0.03, nu0: 0.002, tauT: 6, iters: 30, dens: 0.8,
+            inlet: { r: 0.11 * SC }, lid: { r: 0.19 * SC, z0: 0.036 * SC, z1: 0.086 * SC } }, { name: 'Khói ống khói lò chiminea (sợi khói Navier–Stokes)', opacity: 0.6 });
+          smoke.on = false;
           let L = 0, init = false;
           return { g, update(dt, t) {
-            // mưa (hoặc lửa trại còn tắt sau mưa) ⇒ lò cháy: ít nhất 55%, tối thì theo lịch lửa trại; bén lửa ~40 s, tàn ~2,5 phút
-            const want = rainK > 0.05 || campRain.flameK < 0.5 ? Math.max(0.55, campfireLevel(liveWeather.localHour)) : 0;
+            // chỉ khi mưa ⇒ lò cháy: ít nhất 55%, tối thì theo lịch lửa trại; bén lửa ~40 s, tàn ~2,5 phút
+            const want = rainK > 0.05 ? Math.max(0.55, campfireLevel(liveWeather.localHour)) : 0;
             if (!init && liveWeather.state.data) { init = true; L = want; }   // mở trang giữa cơn mưa: lò đang cháy sẵn
             L += (want - L) * (1 - Math.exp(-dt / (want > L ? 40 : 150)));
             const on = L > 0.02, fl = 0.85 + 0.15 * Math.sin(t * 9.3) + 0.08 * Math.sin(t * 17.1), e = THREE.MathUtils.smoothstep(L, 0, 0.5) * (0.88 + 0.12 * Math.sin(t * 2.3));
             flames.forEach((m, k) => { m.visible = on; if (!on) return; const s = 0.85 + 0.4 * L; m.scale.set(s, L * (1.05 + 0.35 * Math.sin(t * (7 + k) + k * 1.7)), s); m.material.opacity = 0.7 + 0.25 * Math.sin(t * 12 + k); });
             light.intensity = 2.4 * L * fl;
             emberMat.color.setRGB(0.12 + 0.85 * e, 0.08 + 0.3 * e, 0.05 + 0.04 * e); logMat.emissiveIntensity = 1.4 * e; soot.emissiveIntensity = 0.7 * L * fl;
-            smoke.update(dt, t, 5 * Math.min(1, L * 1.6), 0.55);   // khói củi xám nhạt, liền thành luồng
+            smoke.on = L > 0.02;   // khói ống khói theo cỡ lửa: nhiệt, lượng khói, sức hút ống (khí phụt lên khỏi miệng ống)
+            if (smoke.on) { g.localToWorld(smoke.base.set(0, pipeTop, 0)); smoke.heat = 0.5 + 0.7 * L; smoke.smoke = 0.5 + 1.5 * L; smoke.rate = 0.15 + 0.7 * L; smoke.draft = 0.6 + 0.9 * L; plumeLight(smoke, PLUME_COL.smoke, PLUME_COL.steam, _plumeGlow.setRGB(0, 0, 0)); }
           } };
         })();

@@ -53,41 +53,16 @@
           K.pegPan.visible = !(D && D.kind === 'pan');
           if (campPanRig) { campPanRig.pan.visible = at === 'camp'; if (campPanRig.pan.visible) setFood(campPanRig.food, f, 0); }
         }
-        // ---- KHÓI ỐNG BẾP: máy hút mùi hút hơi nước + khói dầu lên ống gió, thoát ở chụp ống khói trên mái. Mỗi cụm khói là một hạt có quán tính:
-        //      lực nổi do nóng (nguội dần ~1,4 s), cản không khí, bị gió thật tại chỗ kéo ngang (windAt — cả bản đồ gió NS), xoáy nhẹ; nở to theo √tuổi,
-        //      nhạt dần. Lửa tắt thì quạt hút chạy thêm ~25 s cho hết mùi. (Bộ khói Navier–Stokes ở luồng phụ chỉ có 1 nguồn — dành cho lửa trại.)
-        //      Dùng chung cho ống khói lò chiminea (camp/chiminea.js): topFn(out) trả miệng ống khói thế giới. ----
-        function makeChimneySmoke(topFn, name, N = 22) {
-          const geo = new THREE.IcosahedronGeometry(0.1, 1), parts = [], top = new THREE.Vector3(), _w = new THREE.Vector3();
-          for (let i = 0; i < N; i++) {
-            const m = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: 0xeef0f2, transparent: true, opacity: 0, depthWrite: false }));
-            m.visible = false; m.userData.noBatch = true; m.raycast = () => {}; m.renderOrder = 3; m.name = name; scene.add(m);
-            parts.push({ m, p: new THREE.Vector3(), v: new THREE.Vector3(), age: 0, life: 1, T: 0, on: false, s0: 0, a0: 0, ph: Math.random() * 6 });
-          }
-          let acc = 0;
-          return { update(dt, t, rate, grey) {   // rate: cụm khói / giây · grey: 0 hơi nước trắng → 1 khói dầu xám
-            topFn(top); acc = Math.min(2, acc + rate * dt);
-            const gy = cowY(top.x, top.z);
-            for (const P of parts) {
-              if (!P.on) {
-                if (acc < 1) continue;
-                acc -= 1; P.on = true; P.age = 0; P.life = 2.8 + Math.random() * 1.8; P.T = 1; P.s0 = 0.42 + Math.random() * 0.2; P.a0 = 0.46 + 0.22 * grey;
-                P.p.copy(top); P.p.x += (Math.random() - 0.5) * 0.03; P.p.z += (Math.random() - 0.5) * 0.03; P.v.set((Math.random() - 0.5) * 0.15, 0.5 + Math.random() * 0.25, (Math.random() - 0.5) * 0.15);
-                const c = 0.94 - 0.3 * grey; P.m.material.color.setRGB(c, c + 0.005, c + 0.012);
-              }
-              P.age += dt; if (P.age >= P.life) { P.on = false; P.m.visible = false; continue; }
-              P.T *= Math.exp(-dt / 1.4);
-              windAt(P.p.x, P.p.y, P.p.z, Math.max(0.5, P.p.y - gy), _w);
-              const k = 1 - Math.exp(-dt * 1.5);   // bị gió kéo ngang dần
-              P.v.x += (_w.x - P.v.x) * k; P.v.z += (_w.z - P.v.z) * k;
-              P.v.y += (1.3 * P.T - 0.9 * P.v.y + 0.2 * Math.sin(t * 2.1 + P.ph)) * dt;   // nổi do nóng − cản; xoáy nhẹ
-              P.p.addScaledVector(P.v, dt); P.p.x += Math.sin(t * 1.7 + P.ph * 3) * 0.04 * dt; P.p.z += Math.cos(t * 1.3 + P.ph * 2) * 0.04 * dt;
-              P.m.position.copy(P.p); P.m.scale.setScalar(P.s0 * (0.45 + 1.5 * Math.sqrt(P.age)));
-              P.m.material.opacity = P.a0 * Math.min(1, P.age / 0.35) * Math.pow(1 - P.age / P.life, 1.5); P.m.visible = true;
-            }
-          } };
-        }
-        const ventSmoke = makeChimneySmoke(out => caravanObj.localToWorld(out.copy(caravanObj.userData.chimneyTop)), 'Khói ống bếp');
+        // ---- KHÓI ỐNG BẾP: máy hút mùi đẩy hơi nước + khói dầu lên ống gió, thoát ở chụp ống khói trên mái = SỢI KHÓI Navier–Stokes như lửa trại
+        //      (G 15/10 "khói kitchen qua ống cũng giống từ camp fire"; nature/fluids.js, nguồn thứ 3): đáy miền = miệng ống Ø9 cm, chụp nón che mưa là
+        //      ô đặc ⇒ khói phụt lên dội vào nón, toả ra theo khe 3 cm, vòng qua mép nón rồi mới bốc (gió thật kéo ngả). Quạt hút = sức đẩy (draft).
+        //      Hơi nước trắng khi luộc/nấu, khói dầu xám khi chiên; tắt lửa quạt chạy thêm ~25 s cho hết mùi. ----
+        const ventTop = new THREE.Vector3(), ventSmoke = (() => {
+          const vs = caravanObj.getWorldScale(new THREE.Vector3()).y;   // ống: r 4,5 cm · khe 3 cm · nón r 9,5 cm cao 7 cm (toạ độ xe × tỉ lệ xe)
+          const S = fluids.addSmoke({ NR: 40, NZ: 120, H: 0.02 * vs, NP: 400, NS: 0, NT: 14, buoy: 4, kNu: 0.03, nu0: 0.002, tauT: 5, iters: 30, dens: 1.3,
+            inlet: { r: 0.045 * vs }, lid: { r: 0.095 * vs, z0: 0.03 * vs, z1: 0.1 * vs } }, { name: 'Khói ống bếp (sợi khói Navier–Stokes)', opacity: 0.75 });
+          S.on = false; return S;
+        })();
         let ventRun = 0; const _usA = new THREE.Vector3(), _usS = new THREE.Vector3();
         function udonSteam(t, bowl, heat) {   // hơi nóng tô udon: 4 cụm nhỏ bốc THẲNG LÊN (trục đứng thế giới, kể cả lúc bát nghiêng trên tay), uốn lượn, nở to, nhạt dần; nguội dần khi ăn
           const S = bowl && bowl.userData.steam; if (!S) return; const on = bowl.visible && heat > 0.03;
@@ -112,7 +87,10 @@
           ventRun = lit ? 25 : Math.max(0, ventRun - dt);
           VKIT.hoodLamp.material.color.setHex(ventRun > 0 ? 0xfff1c9 : 0x8a8578);
           const heat = lit ? Math.max(0.35, st, fry ? 1 : 0) : 0.12 * ventRun / 25;   // còn hơi trong ống sau khi tắt lửa
-          ventSmoke.update(dt, t, 5.5 * heat, fry ? 0.6 : 0.1);
+          const VS = ventSmoke; VS.on = heat > 0.01;   // khói ống bếp theo độ nóng: nhiệt, lượng khói, sức đẩy quạt hút; màu hơi trắng → khói dầu xám khi chiên
+          if (VS.on) { caravanObj.localToWorld(VS.base.copy(caravanObj.userData.chimneyTop)); VS.base.y -= 0.02 * caravanObj.getWorldScale(ventTop).y;
+            VS.heat = 0.8 + 0.5 * heat; VS.smoke = 1 + 0.5 * heat; VS.rate = 0.25 + 0.6 * heat;   // khí thải qua quạt hút còn nóng, đặc hơi + khói dầu VS.draft = 0.9 + 1.1 * Math.min(1, heat * 2);
+            plumeLight(VS, _plumeSmokeC.copy(PLUME_COL.steam).lerp(PLUME_COL.smoke, fry ? 0.6 : 0.1), PLUME_COL.steam, _plumeGlow.setRGB(0, 0, 0)); }
         }
         function engSay(label, text) {   // nảy ý ngay khi có sự việc (múc xong udon…): dùng chung đám mây suy nghĩ
           const now = Date.now(), ctx = engContext(now);

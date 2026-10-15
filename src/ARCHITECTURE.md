@@ -99,10 +99,15 @@ cận cảnh, hiệu năng, cách thử và các bẫy đã dính. Chi tiết t�
 - **Mưa dập lửa trại → lò chiminea** (G 15/10): `campRain` (`camp/chairs-lantern-fire.js`): `heat` lụi theo `rainK` (τ 60 s / cường độ), ngọn lửa
   `flameK` = smoothstep(heat 0,45→0,9), than `emberK` (0,03→0,55), hơi dập `quench`, khói gỗ ướt `smolder` (phai τ 20 phút); tạnh + `sceneWet` < 0,6
   thì nhen lại (τ 4 phút). main-loop nhân `fireScale` với `flameK`, vật liệu than / vết nứt với `emberK`; hơi + khói âm ỉ nhân cỡ đống lửa theo
-  giờ (ngày chỉ còn than 5% thì ít — bản đầu cho hơi dập ban ngày trùm cả khung hình). Lò `camp/chiminea.js` (hover 67, 99) cháy khi
-  `rainK > 0,05 || campRain.flameK < 0,5` (≥ 55%, tối theo lịch lửa trại; bén τ 40 s, tàn τ 150 s) ⇒ lửa "chuyển" sang lò rồi về lại lửa trại.
-  Khói ống khói lò + ống bếp xe dùng chung `makeChimneySmoke(topFn, name, N)` (`engineer/cooking.js`). Đèn lò luôn bật (cường độ 0 khi tắt) để
-  số đèn không đổi ⇒ không biên dịch lại shader. Thử khói Worker: `simC` (MessageChannel, không bị bóp khi pane ẩn), `__ev('rainTarget = () => 0.8')`.
+  giờ (ngày chỉ còn than 5% thì ít — bản đầu cho hơi dập ban ngày trùm cả khung hình). Lò `camp/chiminea.js` (hover 67, 99, cửa quay về ghế
+  cắm trại, ống khói 0,66 m) CHỈ cháy khi mưa (`rainK > 0,05`; ≥ 55%, tối theo lịch lửa trại; bén τ 40 s, tàn τ 150 s). Đèn lò luôn bật (cường độ 0
+  khi tắt) để số đèn không đổi ⇒ không biên dịch lại shader.
+- **Khói sợi Navier–Stokes NHIỀU NGUỒN** (`nature/fluids.js`): `fluids.addSmoke(cfg, look)` trả nguồn có `id` (0 lửa trại · 1 ống khói lò chiminea ·
+  2 ống bếp xe); luồng phụ giữ `SMS[id]`, mỗi bước chỉ tính nguồn đang `on` (tắt = không tốn CPU). **Ống khói có nón** (`cfg.inlet` r miệng ống +
+  `cfg.lid` {r, z0, z1}): đáy miền = miệng ống (khí phụt lên theo `draft`), nón = ô ĐẶC trong lưới (chiếu áp suất bỏ ô đặc + Neumann quanh nón,
+  `lidZero` xoá vận tốc qua mặt nón) ⇒ khói dội vào mặt dưới nón, toả ra theo khe, vòng qua mép rồi mới bốc; hạt không bao giờ vào nón. Đo
+  (Node, `lidtest.js` trích `fluidKernel`): khe dưới nón u tới 1,95 m/s, trong nón 0, hạt ngay trên nón đều ở r ≥ bán kính nón; ~2,3 ms/bước.
+  Thử khói Worker: `simC` (MessageChannel, không bị bóp khi pane ẩn), `__ev('rainTarget = () => 0.8')`.
 - Gỡ lỗi: `fluids.windCfg()` (lưới vật cản, độ phơi), `windMap` (dữ liệu half-float, đọc bằng `halfF`), `oldTreeWind.shake`.
   Luồng phụ trả kết quả bất đồng bộ ⇒ trang thử phải chờ (`simA`, `await`) thì bản đồ mới về; `sim2` chạy đồng bộ thì bản đồ đứng yên.
   Thử bộ giải không vật cản (drag = 0, expo = 1) phải ra gió đều đúng bằng gió tự do.
@@ -205,6 +210,9 @@ lò xo) ⇒ lên bậc voxel 0,6 đv thì chân trước lên trước, thân ng
 ## 11. Bẫy đã dính
 
 - dt = 0 ở khung đầu → chia cho dt → NaN lan vĩnh viễn (mất đầu, mất thân cần).
+- Khói NS lưới ô nhỏ (ống khói 3,2 cm, ống bếp 1,8 cm): khuếch tán HIỆN chỉ ổn định khi dt·ν/H² ≤ ~0,2 — ν rối chạm trần 0,045 thì trường
+  khói nổ (±60) sau ~100 bước. Nguồn có `inlet` kẹp `nuMax = 0,18·H²·30`; lửa trại (ô 8 cm) giữ trần cũ. Ống nhỏ: khói vào miền phải là NỒNG ĐỘ
+  của khí thải (max), cộng dồn theo dt thì gần như không thấy khói.
 - Rải cỏ / hoa theo toạ độ tay không biết có vật nằm đè ⇒ cụm lưới 7×7 quanh (X0 + 102, Z0 + 105) mọc xuyên khúc gỗ chết (G 15/10). Mọi chỗ rải
   trong `nature/grass-scatter.js` giờ qua `deadLogOut(x, z, lề)` (trục thân gỗ `deadLog` tính từ chính ma trận nhóm khúc gỗ, `nature/forest.js`):
   điểm dưới thân gỗ → dời ra sát chân gỗ hoặc bỏ. Thêm cụm rải mới gần vật nằm trên đất thì làm tương tự.
