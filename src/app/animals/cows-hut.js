@@ -13,11 +13,15 @@
           P(body, 1.7, 0.95, 0.85, cowWhite, 0, 1.4, 0);               // thân
           P(body, 0.5, 0.5, 0.87, cowDark, 0.45, 1.55, 0, false);       // đốm đen
           P(body, 0.42, 0.44, 0.88, cowDark, -0.5, 1.3, 0, false);      // đốm đen
-          // ---- ĐẦU ----
-          const hg = new THREE.Group(); hg.position.set(1.05, 1.35, 0); hg.rotation.z = -0.55; body.add(hg);
+          // ---- CỔ + ĐẦU: khớp cổ N trong ngực (dưới–trước thân), đầu ở đầu cổ. Đứng: đầu đúng chỗ cũ; cúi gặm / uống: cổ xoay xuống tới 68°,
+          //      quét trái–phải quanh N — mõm chạm cỏ / mặt nước thật (cowPose), không còn lơ lửng ~0,6 m như khi chỉ gật đầu ----
+          const neck = new THREE.Group(); neck.position.set(0.656, 0.976, 0); neck.rotation.order = 'YZX'; body.add(neck);
+          P(neck, 0.64, 0.44, 0.4, cowWhite, 0.159, 0.152, 0).rotation.z = 0.76;   // khối cổ dọc trục N → gáy (0,54 m + 0,1 lẹm vào ngực)
+          const hg = new THREE.Group(); hg.position.set(0.394, 0.374, 0); hg.rotation.z = -0.55; neck.add(hg);
           P(hg, 0.6, 0.6, 0.6, cowWhite, 0.25, 0, 0);               // đầu
-          P(hg, 0.42, 0.4, 0.46, cowPink, 0.62, -0.05, 0);          // mõm
-          for (const e of [-1, 1]) P(hg, 0.16, 0.12, 0.34, cowDark, 0.05, 0.28, e * 0.34, false);   // tai
+          const muzzle = P(hg, 0.42, 0.3, 0.46, cowPink, 0.62, 0, 0);          // mõm (hàm trên)
+          const jaw = new THREE.Group(); jaw.position.set(0.41, -0.15, 0); hg.add(jaw); P(jaw, 0.38, 0.1, 0.4, cowPink, 0.19, -0.05, 0, false);   // hàm dưới: bản lề sau, nhai = há–ngậm + nghiến ngang
+          const ears = [-1, 1].map(e => { const ep = new THREE.Group(); ep.position.set(0.05, 0.28, e * 0.2); hg.add(ep); P(ep, 0.16, 0.12, 0.3, cowDark, 0, 0, e * 0.15, false); return ep; });   // tai (giật đuổi ruồi)
           for (const e of [-1, 1]) { const eye = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 8), cowDark); eye.position.set(0.44, 0.15, e * 0.22); hg.add(eye); }  // mắt
           for (const e of [-1, 1]) { const horn = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.22, 8), cowHorn); horn.position.set(0.16, 0.42, e * 0.18); horn.rotation.x = -e * 0.4; hg.add(horn); }   // sừng
           // ---- CHÂN: khớp vai/hông (trong thân, trên mặt bụng 0,25) → gối (0,75) → cổ chân (0,38) → đáy móng (0,15; IK nhắm cổ chân, móng phẳng ngay dưới) ----
@@ -40,7 +44,7 @@
           const tuft = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), cowDark); tuft.scale.set(1.3, 0.85, 0.85); tuft.position.x = 0.11; tail.segs[4].add(tuft);
           // ---- BẦU VÚ ----
           P(body, 0.34, 0.26, 0.46, cowPink, -0.18, 0.95, 0, false);
-          g.scale.setScalar((k || 1.053) * NATURE_SCALE); g.userData = { torso, body, head: hg, legs, tail }; return g;
+          g.scale.setScalar((k || 1.053) * NATURE_SCALE); g.userData = { torso, body, neck, head: hg, muzzle, legs, tail, jaw, ears }; return g;
         }
         const cowCells = [[16, 5], [27, 6], [45, 5], [21, 8], [41, 6]];
         const x2gi = x => x / BLOCK + cx - 0.5, z2gj = z => z / BLOCK + cz - 0.5;
@@ -125,14 +129,16 @@
             for (const y of [0.62, 1.12]) add(bx(0.06, 0.08, 2.25, wood[0], true, false), x, y, -D / 2 + 1.75);
             add(cyl(0.06, 0.07, 1.2, postWood, true, false, null, 7), x, 0.74, -D / 2 + 2.85);
           }
-          // máng cỏ dọc vách sau, cỏ khô mỗi ô cao thấp khác nhau
+          // máng cỏ dọc vách sau, cỏ khô mỗi ô vun cao thấp khác nhau, nhô quá tấm chắn (bò ăn trên đống cỏ, không phải chọc mõm qua ván)
           add(bx(W - 0.1, 0.5, 0.06, wood[1], true, true, lineDark), 0, 0.39, -D / 2 + 0.62);
           add(bx(W - 0.1, 0.06, 0.5, wood[2], true, false), 0, 0.3, -D / 2 + 0.37);
-          for (let k = 0; k < n; k++) add(bx(SW - 0.22, 0.14 + Math.random() * 0.08, 0.42, hay, false, false), -W / 2 + (k + 0.5) * SW, 0.42, -D / 2 + 0.37);
-          // máng nước bê tông bên đông
+          const hayTop = [];
+          for (let k = 0; k < n; k++) { const hh = 0.3 + Math.random() * 0.08; add(bx(SW - 0.22, hh, 0.42, hay, false, false), -W / 2 + (k + 0.5) * SW, 0.33 + hh / 2, -D / 2 + 0.37); hayTop.push(0.33 + hh); }
+          // máng nước bê tông bên đông: lòng rỗng (đáy + 4 thành dày 7 cm), mặt nước thấp hơn miệng 8 cm — bò dúi mõm xuống uống
           const trX = W / 2 + 0.95;
-          add(bx(0.7, 0.5, 1.6, concrete, true, true, lineDark), trX, 0.25, 0.75);
-          const wtr = add(new THREE.Mesh(new THREE.PlaneGeometry(0.56, 1.46), water), trX, 0.44, 0.75); wtr.rotation.x = -Math.PI / 2; wtr.userData.noBake = true;
+          add(bx(0.7, 0.08, 1.6, concrete, true, true, lineDark), trX, 0.04, 0.75);
+          for (const s of [-1, 1]) { add(bx(0.07, 0.5, 1.6, concrete, true, true, lineDark), trX + s * 0.315, 0.25, 0.75); add(bx(0.56, 0.5, 0.07, concrete, true, true, lineDark), trX, 0.25, 0.75 + s * 0.765); }
+          const wtr = add(new THREE.Mesh(new THREE.PlaneGeometry(0.56, 1.46), water), trX, 0.42, 0.75); wtr.rotation.x = -Math.PI / 2; wtr.userData.noBake = true;
           // cây rơm vuông bên tây: 2 kiện dưới, 1 kiện trên lệch, buộc dây
           const bale = (x, y, z, ry) => { const b = add(bx(1.0, 0.45, 0.5, hay, true, true, lineDark), x, y, z); b.rotation.y = ry; for (const o of [-0.25, 0.25]) { const t = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.47, 0.52), rope); t.position.x = o; b.add(t); } };
           const blX = -W / 2 - 1.05;
@@ -178,7 +184,7 @@
           };
           bakeStatic(g); scene.add(g);
           const stalls = [];
-          for (let k = 0; k < n; k++) { const sx = hx - W / 2 + (k + 0.5) * SW; stalls.push({ x: sx, z: hz + 0.2, ex: sx, ez: hz + D / 2 + 1.3 }); }
+          for (let k = 0; k < n; k++) { const sx = hx - W / 2 + (k + 0.5) * SW; stalls.push({ x: sx, z: hz + 0.2, ex: sx, ez: hz + D / 2 + 1.3, hay: hayTop[k] }); }
           cowHutRect = { x0: hx - W / 2 - 1.7, x1: hx + W / 2 + 1.45, z0: hz - D / 2 - 0.35, z1: hz + D / 2 + 0.25 };
           return { g, x: hx, z: hz, y: y0, W, D, Hf, Hb, stalls, light, lampTick, door: { x: hx, z: hz + D / 2 + 2.2 } };
         })();
@@ -234,36 +240,102 @@
           const lie = c.mode === 'home' && c.leg === 'in' && c.sub === 'rest';
           c.restY = lie ? Math.min(1, c.restY + dt * 0.38) : Math.max(0, c.restY - dt * 0.5);
           if (!gait) c.vk = 0;
+          c.chew = 0;
           if (gait) { c.hz = -0.18; c.hx = 0; }
-          else if (lie) { c.hz = -0.24 + Math.sin(t * 0.7 + c.ph) * 0.05; c.hx = Math.sin(t * 0.45 + c.ph) * 0.04; }
-          else if (c.sub === 'eat' && c.leg === 'in') { c.hz = -0.62 + Math.sin(t * 2.5 + c.ph) * 0.14; c.hx = 0; }   // dúi đầu vào máng cỏ
-          else { c.hz = -0.2 + Math.sin(t * 0.9 + c.ph) * 0.06; c.hx = Math.sin(t * 0.5 + c.ph) * 0.12; }
+          else if (lie) { c.hz = -0.24 + Math.sin(t * 0.7 + c.ph) * 0.05; c.hx = Math.sin(t * 0.45 + c.ph) * 0.04; c.chew = (t + c.ph * 9) % 55 < 52.5 ? 1 : 0; }   // nằm nhai lại
+          else if (c.sub === 'eat' && c.leg === 'in') { c.hz = -0.42 + Math.sin(t * 2.5 + c.ph) * 0.1; c.hx = 0.1 * Math.sin(t * 0.7 + c.ph); c.chew = 0.7; c.reachY = cowHut.y + st.hay + 0.01; }   // dúi mõm vào máng cỏ khô
+          else { c.hz = -0.2 + Math.sin(t * 0.9 + c.ph) * 0.06; c.hx = Math.sin(t * 0.5 + c.ph) * 0.12; c.chew = 0.5; }
           return true;
         }
-        // ---- bãi cỏ: gặm (vài giây nhích 1–2 bước chậm tới búi cỏ kế bên) · đi dạo · nằm nhai lại ----
+        // ---- HÀNH VI BÒ NGOÀI BÃI (G 15/10 "research and improve the cow behaviour movements") ----
+        //  Nghiên cứu: gặm ~8 h/ngày, dồn vào bình minh, chiều muộn, chạng vạng; nóng thì gặm ít, nằm / đứng dưới bóng cây (UMN Extension);
+        //  nhịp cắn ~48–54 lần/phút (Hay & Forage); nhai lại 15–20 đợt/ngày, mỗi đợt 20–30 phút, phần lớn khi NẰM; ~60 lần nhai / viên mồi
+        //  ~55 s rồi nuốt – ợ viên mới (SmartCow; Mendel Univ.); ĐỒNG BỘ BẦY: ~70% đàn cùng tư thế 93% thời gian, đồng bộ nhất sáng / chiều,
+        //  bò bắt chước con ĐỨNG GẦN hơn là cả đàn (Stoye 2012). ⇒ chọn việc theo giờ + theo con gần nhất; gặm: đầu quét trái–phải trong "ô ăn",
+        //  giật cắn ~0,85 lần/s, nhích 1–2 bước sang búi kế, thỉnh thoảng ngẩng canh chừng; nhai lại: hàm há–ngậm + nghiến ngang ~1,1 lần/s,
+        //  ~55 s nuốt – ợ viên mới (cổ vươn nhẹ); trước khi nằm cúi đánh hơi, quét đầu; bầy giữ gần nhau, cách nhau ≥ 1,8 m; người / chó tới
+        //  gần < 3,5 m thì đứng dậy, quay đi; khát (~45 phút) thì theo lối về chuồng ra máng nước uống rồi về bãi; trưa nóng ≥ 28 °C tìm bóng cây gần nằm.
+        const cowGrazeDrive = h => h < 9.5 ? 0.85 : h < 11 ? 0.5 : h < 14.5 ? 0.1 : h < 16 ? 0.45 : 0.85;   // mức muốn gặm theo giờ (sáng / chiều cao, trưa thấp)
+        const _cwT = new THREE.Vector3(), _cwM = new THREE.Vector3();
+        function cowNear(c) { let best = null, bd = 1e9; for (const o of cows) { if (o === c || o.mode !== 'free') continue; const d = Math.hypot(o.x - c.x, o.z - c.z); if (d < bd) { bd = d; best = o; } } return [best, bd]; }
+        function cowThreat(c) {   // người / chó tới gần (vùng bỏ chạy ~3,5 m)
+          const e = engObj && !engObj.inVan && engObj.g.parent === scene ? engObj.g.position : null;
+          if (e && Math.hypot(e.x - c.x, e.z - c.z) < 3.5) return e;
+          if (!dogRain.st && Math.hypot(dogObj.position.x - c.x, dogObj.position.z - c.z) < 3.5) return dogObj.position;
+          return null;
+        }
+        function cowShadeSpot(c) {   // bóng cây gần nhất (≤ 15 m), phía khuất nắng của thân cây
+          let best = null, bd = 15; const sx = sun.position.x - sun.target.position.x, sz = sun.position.z - sun.target.position.z, sl = Math.hypot(sx, sz) || 1;
+          for (const tc of treeCoords) { const d = Math.hypot(tc.x - c.x, tc.z - c.z); if (d < bd) { const x = tc.x - sx / sl * 1.6, z = tc.z - sz / sl * 1.6; if (cowOK(x, z)) { bd = d; best = { x, z }; } } }
+          return best;
+        }
+        function cowChoose(c) {
+          const h = liveWeather.localHour, G = cowGrazeDrive(h), hot = (liveWeather.state.temperature ?? 24) >= 28 && sunElevSin > 0.55;
+          if ((c.thirst || 0) > 1) return 'drink';
+          const w = { graze: G, rest: (1 - G) * 0.7, stand: (1 - G) * 0.3, walk: 0.12 }, [nb, nd] = cowNear(c);
+          if (nb && nd < 7) { if (nb.state === 'rest' || nb.state === 'shade') w.rest += 0.4 * (1.3 - G); else if (nb.state === 'graze') w.graze += 0.4 * (G + 0.3); }   // bắt chước con gần — mạnh hay yếu theo nhịp giờ (nhịp giờ vẫn thắng về lâu)
+          if (hot) { w.rest += 0.4; w.graze *= 0.5; }
+          let r = Math.random() * (w.graze + w.rest + w.stand + w.walk), pick = 'walk';
+          for (const k of ['graze', 'rest', 'stand', 'walk']) { if ((r -= w[k]) <= 0) { pick = k; break; } }
+          if (pick === 'rest' && hot) { const sp = cowShadeSpot(c); if (sp) { c.goal = sp; return 'shade'; } }
+          return pick;
+        }
         function cowFreeTick(c, dt, t) {
+          c.thirst = (c.thirst ?? Math.random() * 0.7) + dt / 2700;   // khát lại sau ~45 phút
+          const thr = cowThreat(c);
+          if (thr && c.state !== 'flee') { c.state = 'flee'; c.tmr = 4 + Math.random() * 2; c.angT = Math.atan2(c.z - thr.z, c.x - thr.x); }
           c.tmr -= dt;
-          if (c.tmr <= 0) {
-            if (c.state === 'graze') { c.state = Math.random() < 0.5 ? 'walk' : 'rest'; c.tmr = c.state === 'walk' ? 2 + Math.random() * 3.5 : 18 + Math.random() * 22; if (c.state === 'walk') c.angT = c.ang + (Math.random() - 0.5) * 1.7; }
-            else if (c.state === 'walk') { c.state = Math.random() < 0.6 ? 'graze' : 'rest'; c.tmr = c.state === 'graze' ? 6 + Math.random() * 10 : 18 + Math.random() * 20; }
-            else { c.state = 'graze'; c.tmr = 5 + Math.random() * 10; }
+          if (c.tmr <= 0 && !(c.state === 'drink' || c.state === 'shade') || (c.state === 'shade' && c.tmr <= 0 && c.sub2 === 'do')) {
+            c.state = cowChoose(c); c.sub2 = 'go'; c.lieIn = 3;
+            c.tmr = { graze: 40 + Math.random() * 80, rest: 60 + Math.random() * 120, stand: 25 + Math.random() * 35, walk: 4 + Math.random() * 6, drink: 999, shade: 999 }[c.state];
+            if (c.state === 'walk') {   // đi tiếp tới chỗ khác — lạc xa bầy (> 9 m) thì đi về phía tâm bầy
+              let mx = 0, mz = 0, n = 0; for (const o of cows) if (o.mode === 'free') { mx += o.x; mz += o.z; n++; }
+              c.angT = n > 1 && Math.hypot(mx / n - c.x, mz / n - c.z) > 9 ? Math.atan2(mz / n - c.z, mx / n - c.x) + (Math.random() - 0.5) * 0.6 : c.ang + (Math.random() - 0.5) * 1.7;
+            }
           }
-          if (c.state === 'rest') {   // nằm: đầu lim dim, thở khẽ
-            c.restY = Math.min(1, c.restY + dt * 0.38); c.vk = 0;
-            c.hz = -0.24 + Math.sin(t * 0.7 + c.ph) * 0.05; c.hx = Math.sin(t * 0.45 + c.ph) * 0.04;
-          } else if (c.state === 'graze') {
-            c.restY = Math.max(0, c.restY - dt * 0.5);
-            c.hz = -0.62 + Math.sin(t * 2.5 + c.ph) * 0.14; c.hx = 0;
-            if (c.restY <= 0 && (c.gstep = (c.gstep ?? 2 + Math.random() * 5) - dt) <= 0) { c.gwalk = 1.4 + Math.random() * 1.6; c.gstep = 5 + Math.random() * 8; c.angT = c.ang + (Math.random() - 0.5) * 0.8; }
-            if (c.gwalk > 0) { c.gwalk -= dt; cowWander(c, dt, 0.22); } else c.vk = 0;
-          } else {
-            c.restY = Math.max(0, c.restY - dt * 0.5);
-            if (c.restY <= 0) cowWander(c, dt, c.spd); else c.vk = 0;
-            c.hz = -0.18; c.hx = 0;
+          c.chew = 0;
+          const up = () => { c.restY = Math.max(0, c.restY - dt * 0.5); return c.restY <= 0; };   // đang nằm thì đứng dậy xong mới đi
+          const rum = (lying) => {   // nhai lại: ~55 s mỗi viên, 2,5 s cuối ngừng nhai, cổ vươn nhẹ (nuốt – ợ viên mới)
+            const b = (t + c.ph * 9) % 55, swallow = b > 52.5; c.chew = swallow ? 0 : 1;
+            c.hz = (lying ? -0.24 : -0.16) + (swallow ? 0.14 * Math.sin(Math.PI * (b - 52.5) / 2.5) : 0) + Math.sin(t * 0.7 + c.ph) * 0.03; c.hx = Math.sin(t * 0.45 + c.ph) * 0.05;
+          };
+          switch (c.state) {
+            case 'rest': {   // cúi đánh hơi, quét đầu vài giây → quỳ, nằm (cowPose) → nhai lại
+              if ((c.lieIn -= dt) > 0) { up(); c.vk = 0; c.hz = -0.15; c.reach = 0.08; c.hx = 0.3 * Math.sin(t * 1.4 + c.ph); break; }
+              c.restY = Math.min(1, c.restY + dt * 0.38); c.vk = 0; rum(true); break;
+            }
+            case 'stand': up(); c.vk = 0; rum(false); break;   // đứng nhai lại, đổi chân
+            case 'graze': {   // ô ăn: đầu quét trái–phải, giật cắn ~0,85 lần/s; nhích 1–2 bước sang búi kế; ~30–50 s ngẩng canh chừng + nhai
+              if (!up()) { c.vk = 0; break; }
+              c.look = (c.look ?? 30 + Math.random() * 20) - dt;
+              if (c.look < 0) { c.hz = -0.12; c.hx = 0.25 * Math.sin(t * 0.8 + c.ph); c.chew = 1; c.vk = 0; if (c.look < -(3 + Math.random() * 2)) c.look = 30 + Math.random() * 20; break; }
+              const bp = (t * 0.85 + c.ph) % 1; c.hz = -0.1; c.reach = 0.02; c.bite = bp < 0.25 ? Math.sin(Math.PI * bp / 0.25) : 0; c.hx = 0.22 * Math.sin(t * 0.9 + c.ph); c.chew = bp > 0.3 ? 0.5 : 0;
+              if ((c.gstep = (c.gstep ?? 2 + Math.random() * 5) - dt) <= 0) { c.gwalk = 1.4 + Math.random() * 1.6; c.gstep = 5 + Math.random() * 8; c.angT = c.ang + (Math.random() - 0.5) * 0.8; }
+              if (c.gwalk > 0) { c.gwalk -= dt; cowWander(c, dt, 0.22); } else c.vk = 0;
+              break;
+            }
+            case 'flee': if (up()) cowWander(c, dt, c.spd * 1.3); else c.vk = 0; c.hz = -0.1; c.hx = 0; break;
+            case 'drink': case 'shade': {   // đi tới máng nước (đứng phía đông máng, mặt quay vào) / bóng cây
+              const tgt = c.state === 'drink' ? _cwT.set(cowHut.x + cowHut.W / 2 + 0.95 + 1.45 * c.g.scale.y, 0, cowHut.z + 0.75) : c.goal;
+              if (c.sub2 === 'go') {
+                c.hz = -0.18; c.hx = 0;
+                const far = c.state === 'drink' && Math.hypot(tgt.x - c.x, tgt.z - c.z) > 7;   // xa máng: theo trường về cửa chuồng (vòng qua sông, vách) rồi mới đi thẳng
+                if (up() && cowSteer(c, tgt.x, tgt.z, dt, far ? hutField : null)) { c.sub2 = 'do'; c.tmr = c.state === 'drink' ? 20 + Math.random() * 15 : 120 + Math.random() * 120; c.lieIn = 3; }
+                else if (c.tmr < 999 - 240) { c.state = 'stand'; c.tmr = 5; c.thirst = Math.min(c.thirst, 0.6); }   // 4 phút chưa tới (kẹt) → thôi, lát nữa khát lại
+              }
+              else if (c.state === 'drink') {
+                c.vk = 0; let da = Math.PI - c.ang; da = Math.atan2(Math.sin(da), Math.cos(da)); c.ang += da * Math.min(1, dt * 2);
+                c.hz = -0.32 + 0.04 * Math.sin(t * 3.2); c.hx = 0; c.chew = 0.3; c.reachY = cowHut.y + 0.39;   // mõm ngập ~3 cm, hút từng ngụm
+                if (c.tmr <= 0) { c.thirst = 0; c.state = 'stand'; c.mode = 'leave'; c.leg = 'pasture'; }   // uống xong: theo trường dòng chảy về bãi gặm quen (cowHome)
+              } else { if ((c.lieIn -= dt) > 0) { c.vk = 0; c.hz = -0.15; c.reach = 0.08; c.hx = 0.3 * Math.sin(t * 1.4 + c.ph); } else { c.restY = Math.min(1, c.restY + dt * 0.38); c.vk = 0; rum(true); } }
+              break;
+            }
+            default: if (up()) cowWander(c, dt, c.spd); else c.vk = 0; c.hz = -0.18; c.hx = 0;
           }
         }
-        function cowWander(c, dt, sp) {   // đi theo hướng c.angT (quay dần ≤ 1,2 rad/s); vướng (nước, chuồng, mép bãi) thì quay sang hướng khác
+        function cowWander(c, dt, sp) {   // đi theo hướng c.angT (quay dần ≤ 1,2 rad/s); vướng (nước, chuồng, mép bãi) thì quay sang hướng khác; né con khác (cách ≥ 1,8 m)
           if (c.angT === undefined) c.angT = c.ang;
+          for (const o of cows) { if (o === c) continue; const dx = o.x - c.x, dz = o.z - c.z, d = Math.hypot(dx, dz); if (d < 1.8 && dx * Math.cos(c.ang) + dz * Math.sin(c.ang) > 0) { c.angT = c.ang + (dx * Math.sin(c.ang) - dz * Math.cos(c.ang) > 0 ? 0.6 : -0.6); break; } }
           let da = c.angT - c.ang; da = Math.atan2(Math.sin(da), Math.cos(da));
           const mt = 1.2 * dt; c.ang += Math.max(-mt, Math.min(mt, da));
           c.vk = Math.min(1, (c.vk || 0) + dt / 0.9);
@@ -279,7 +351,7 @@
           g.position.x = c.x; g.position.z = c.z; g.rotation.y = -c.ang;
           if (!c.ps) {   // lần đầu: đặt 4 chân tại chỗ
             g.position.y = cowY(c.x, c.z); g.updateMatrixWorld(true); rig.plant(cowY);
-            c.ps = { y: { x: g.position.y, v: 0 }, p: { x: 0, v: 0 }, hz: { x: c.hz ?? -0.2, v: 0 }, hx: { x: 0, v: 0 }, v: 0, px: c.x, pz: c.z, r0: c.restY, up: false, swat: 2 + Math.random() * 6, side: 1, lieSide: Math.random() < 0.5 ? -1 : 1 };
+            c.ps = { y: { x: g.position.y, v: 0 }, p: { x: 0, v: 0 }, hz: { x: c.hz ?? -0.2, v: 0 }, hx: { x: 0, v: 0 }, nk: 0, v: 0, px: c.x, pz: c.z, r0: c.restY, up: false, swat: 2 + Math.random() * 6, side: 1, lieSide: Math.random() < 0.5 ? -1 : 1 };
           }
           const P = c.ps;
           let dist = Math.hypot(c.x - P.px, c.z - P.pz); if (dist > 2) dist = 0;
@@ -307,10 +379,24 @@
           U.body.position.z = 0.022 * lat; U.body.rotation.x = 0.035 * lat + 0.1 * fH * P.lieSide;
           // đầu: dáng đích của hành vi (lò xo) + gật 2 lần/chu kỳ (thấp nhất ngay sau khi mỗi chân trước chạm đất) + bù chúc/ngóc của thân
           cowDamp(P.hz, c.hz ?? -0.2, 5, dt); cowDamp(P.hx, c.hx ?? 0, 5, dt);
-          U.head.rotation.z = P.hz.x - 0.07 * walkA * Math.cos(4 * Math.PI * (psi - 0.28)) - 0.6 * pitch + 1.1 * Math.max(0, fF - fH); U.head.rotation.x = P.hx.x;   // đang quỳ (trước thấp, sau cao): ngóc đầu giữ thăng bằng
+          // cổ: có đích mõm thì hạ dần tới khi mõm vừa chạm (c.reach = cao trên mặt đất ngay dưới mõm · c.reachY = cao độ tuyệt đối: mặt nước máng,
+          // cỏ khô trong máng) — tự khớp cỡ con, dốc đất; không có đích thì ngóc lên. Quét trái–phải (hx) = xoay cổ quanh khớp N, đầu chỉ nghiêng nhẹ
+          const mz = _cwM.set(0.21, -0.15, 0).applyMatrix4(U.muzzle.matrixWorld), tgtY = c.reachY ?? (c.reach != null ? cowY(mz.x, mz.z) + c.reach : null);
+          P.nk = tgtY === null ? Math.max(0, P.nk - dt * 1.6) : Math.max(0, Math.min(1, P.nk + Math.max(-1.2, Math.min(1.2, (mz.y - tgtY) * 4)) * dt));
+          c.reach = c.reachY = null;
+          U.neck.rotation.z = -1.19 * P.nk; U.neck.rotation.y = 0.9 * P.hx.x;
+          U.head.rotation.z = P.hz.x - 0.07 * walkA * Math.cos(4 * Math.PI * (psi - 0.28)) - 0.6 * pitch + 1.1 * Math.max(0, fF - fH) + 0.09 * (c.bite || 0); U.head.rotation.x = 0.35 * P.hx.x;   // đang quỳ (trước thấp, sau cao): ngóc đầu giữ thăng bằng
+          c.bite = 0;   // giật cắn (dứt cỏ) đi thẳng, không qua lò xo — hành vi đặt lại mỗi khung
+          // hàm: nhai = há–ngậm ~1,1 lần/s + nghiến ngang (nhai lại / nhai cỏ) — lò xo biên độ cho khỏi giật khi đổi việc
+          P.cw = (P.cw || 0) + ((c.chew || 0) - (P.cw || 0)) * Math.min(1, dt * 3); const ch = 2 * Math.PI * 1.1 * t + c.ph;
+          U.jaw.rotation.z = -P.cw * 0.13 * (0.5 - 0.5 * Math.cos(ch)); U.jaw.position.z = P.cw * 0.022 * Math.sin(ch);
+          // ruồi: trưa nóng ruồi nhiều ⇒ vẫy đuôi, giật tai dày hơn
+          const fly = Math.max(0, Math.min(1, ((liveWeather.state.temperature ?? 24) - 18) / 12)) * Math.max(0, sunElevSin);
+          if ((P.ear = (P.ear ?? 3) - dt) <= 0) { P.ear = 2 + Math.random() * (6 - 4 * fly); P.ei = Math.random() < 0.5 ? 0 : 1; P.et = 0; }
+          P.et = (P.et ?? 1) + dt; U.ears.forEach((ep, i) => { ep.rotation.x = i === P.ei && P.et < 0.3 ? (i ? 1 : -1) * 0.7 * Math.sin(Math.PI * P.et / 0.3) : 0; });
           // đuôi: chuỗi hạt mềm tự đung theo thân; vài giây phẩy ruồi một lần, đổi bên
           if ((P.swat -= dt) <= 0) {
-            P.swat = (r > 0.5 ? 6 : 2.5) + Math.random() * 6; P.side = -P.side;
+            P.swat = ((r > 0.5 ? 6 : 2.5) + Math.random() * 6) * (1 - 0.55 * fly); P.side = -P.side;
             const m = 1.3 + Math.random() * 0.9; c.tail.kick = (c.tail.kv || (c.tail.kv = new THREE.Vector3())).set(-Math.sin(c.ang) * P.side * m, 0.35 * m, Math.cos(c.ang) * P.side * m);
           }
           updateSoftTail(c.tail, dt, 0, 0);
