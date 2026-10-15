@@ -12,6 +12,13 @@
         function engBodyW(e, x, y, z, out) { e.spine.updateWorldMatrix(true, false); return e.spine.localToWorld(out.set(x, y - 1.255, z)); }   // toạ độ kỹ sư, theo eo
         const _axR = new THREE.Vector3(), _axF = new THREE.Vector3(), _axM = new THREE.Matrix4(), _aqX = new THREE.Vector3(), _aqY = new THREE.Vector3(), _aqZ = new THREE.Vector3(), _aqM = new THREE.Matrix4();
         function engAxesW(e) { e.spine.updateWorldMatrix(true, false); _axM.extractRotation(e.spine.matrixWorld); return { r: _axR.set(-1, 0, 0).applyMatrix4(_axM), f: _axF.set(0, 0, 1).applyMatrix4(_axM) }; }   // phải · trước (thế giới)
+        const _wuA = new THREE.Vector3(), _wuB = new THREE.Vector3();
+        function engWristUp(e, i, dir) {   // "trục +y" cho khung cổ tay giữ CỔ TAY THẲNG: hướng tay → khuỷu (cẳng tay của lần giải IK trước), không phải trời —
+          //                                 ép +y lên trời khi khuỷu ở dưới tay (đưa thìa lên miệng) làm bàn tay lật gập ngược ~170° (G 15/10 khoanh ảnh)
+          const f = e.foreW && e.foreW[i]; if (!f || f.lengthSq() < 0.5) return _mrUp;
+          _wuA.copy(f).negate(); if (_wuB.crossVectors(_wuA, dir).lengthSq() < 0.04) _wuA.lerp(_mrUp, 0.5).normalize();   // thìa gần song song cẳng tay: kéo về trời cho khỏi lật
+          return _wuA;
+        }
         function aimQ(out, dir, up) {   // trục +z → dir, trục +y gần up nhất
           const z = _aqZ.copy(dir).normalize(), x = _aqX.crossVectors(up, z); if (x.lengthSq() < 1e-8) x.set(1, 0, 0); x.normalize();
           return out.setFromRotationMatrix(_aqM.makeBasis(x, _aqY.crossVectors(z, x), z));
@@ -81,12 +88,15 @@
           const qPan = _mrQ.setFromRotationMatrix(_mrM.makeBasis(hx, _mrUp, _mrB.crossVectors(hx, _mrUp))), qL = new THREE.Quaternion().copy(qPan).multiply(_mrQ2.copy(P.handPan.quaternion).invert());
           engHandFor(e, 1, qL, P.handPan.position, pan);
           // thìa: trong lòng chảo (khoắng tròn khi xúc) ↔ chạm môi; đi theo cung vồng ra trước cho khỏi quệt chảo
-          const sc = e.g.scale.y; P.handPan.updateWorldMatrix(true, false);
-          const inPan = P.handPan.localToWorld(_mrC.copy(PAN_IN)).addScaledVector(right, Math.cos(c * 4) * 0.02 * sc).addScaledVector(fwd, Math.sin(c * 4) * 0.02 * sc);   // lòng chảo thật đang cầm (khung trước)
+          const sc = e.g.scale.y;
+          // lòng chảo = đích chảo trong khung này (chảo ngang tại `pan`). Bản cũ đọc P.handPan.localToWorld lúc tay trái còn ở góc ước lượng trước IK
+          // (tay duỗi giơ ra trước) ⇒ "lòng chảo" nằm ngang miệng, thìa không bao giờ xuống chảo, tay phải kẹt trên mặt (G 15/10)
+          const inPan = _mrC.copy(PAN_IN).multiplyScalar(sc / ENGINEER_BASE_SCALE).applyQuaternion(qPan).add(pan).addScaledVector(right, Math.cos(c * 4) * 0.02 * sc).addScaledVector(fwd, Math.sin(c * 4) * 0.02 * sc);
           const mouth = engMouthW(e, new THREE.Vector3()).addScaledVector(fwd, 0.02 * sc), tip = new THREE.Vector3().lerpVectors(inPan, mouth, up).addScaledVector(fwd, 0.12 * sc * Math.sin(Math.PI * up));
           tip.y += 0.06 * sc * Math.sin(Math.PI * up);
           const dIn = _mrA.subVectors(inPan, engBodyW(e, -0.34, 1.86, 0, _mrB)).add(_mrB.set(0, -0.35, 0)).normalize(), dMo = _mrB.copy(fwd).multiplyScalar(-0.9).addScaledVector(right, -0.35).add(_mrE.set(0, 0.15, 0)).normalize();
-          engHandFor(e, 0, aimQ(new THREE.Quaternion(), dIn.lerp(dMo, up).normalize(), _mrUp), SPOON_TIP, tip);
+          const dS = dIn.lerp(dMo, minJerk(Math.min(1, up * 1.6))).normalize();   // thìa quay về phía miệng sớm hơn quãng đưa lên (giữ lòng thìa ngang, không chúc theo chảo)
+          engHandFor(e, 0, aimQ(new THREE.Quaternion(), dS, engWristUp(e, 0, dS)), SPOON_TIP, tip);
           e.seatLean = 0.06 + 0.12 * up; e.seatSwing = 0;   // đổ người đón thìa
           e.head.rotation.x = 0.04 + 0.34 * (1 - up) + (chew ? Math.abs(Math.sin(t * 9)) * 0.04 : 0);   // xúc: cúi nhìn chảo · vào miệng: cổ thẳng · nhai gật gù
         }
@@ -147,7 +157,7 @@
           // hướng dụng cụ: ở bát chĩa từ vai xuống bát · ở miệng chĩa ngược về mặt từ phía phải; chúc / ngửa lòng thìa quanh trục ngang
           const dIn = _eA.subVectors(dip, shoulderR).add(_eC.set(0, -0.3 * sc, 0)).normalize(), dMo = _eC.copy(fwd).multiplyScalar(-0.9).addScaledVector(right, -0.35).addScaledVector(UP, 0.12).normalize();
           const dir = dIn.lerp(dMo, u).normalize(); dir.y += pitch; dir.normalize();
-          engHandFor(e, 0, aimQ(_eQ2, dir, UP), meal === 'udon' ? CHOP_TIP : SPOON_TIP, tip);
+          engHandFor(e, 0, aimQ(_eQ2, dir, engWristUp(e, 0, dir)), meal === 'udon' ? CHOP_TIP : SPOON_TIP, tip);   // cổ tay thẳng theo cẳng tay
           // --- thân, đầu ---
           const chew = !sipping && c > (meal === 'udon' ? 3.8 : 2.4), slurp = meal === 'udon' && c >= 2.2 && c < 3.1 && !sipping;
           const glance = chew ? Math.max(0, Math.sin(Math.PI * segK((t + ph * 2.3) % 13, 0, 3.5))) : 0;   // thỉnh thoảng liếc ra cửa sổ khi nhai
