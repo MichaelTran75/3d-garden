@@ -7888,7 +7888,7 @@
         const chiminea = (() => {
           const W = 0.52, D = 0.5, H = 0.42, YB = 0.3, TK = 0.014, OW = 0.36, OH = 0.28, RB = 0.063;   // buồng đốt rộng (x) · sâu (z) · cao · đáy cách đất · dày thép · ô cửa · đố dưới
           const g = new THREE.Group(); g.name = 'Lò sưởi chiminea (Chiminea)';
-          const X = X0 + 67, Z = Z0 + 99; g.position.set(X, cowY(X, Z), Z); g.rotation.y = Math.atan2(campChairPos.x - X, campChairPos.z - Z); g.scale.setScalar(CAMP_SCALE);   // mặt cửa (+z cục bộ) nhìn về ghế cắm trại
+          const X = X0 + 67, Z = Z0 + 100; g.position.set(X, cowY(X, Z), Z); g.rotation.y = Math.atan2(campChairPos.x - X, campChairPos.z - Z); g.scale.setScalar(CAMP_SCALE);   // mặt cửa (+z cục bộ) nhìn về ghế cắm trại · G 15/10: dời (67, 99) → (67, 100)
           const hc = document.createElement('canvas'); hc.width = hc.height = 128; const hx = hc.getContext('2d'), hr = mulberry32(6799);
           hx.fillStyle = '#2b2a28'; hx.fillRect(0, 0, 128, 128);
           for (let n = 0; n < 420; n++) {
@@ -7920,7 +7920,7 @@
           const rg = new THREE.CylinderGeometry(0.16, W / 2 * Math.SQRT2, 0.075, 4, 1); rg.rotateY(Math.PI / 4); rg.scale(1, 1, D / W);   // chóp 4 mặt khớp đúng miệng hộp W × D
           add(new THREE.Mesh(rg, ironFlat), 0, YB + H + 0.0375, 0);
           add(new THREE.Mesh(new THREE.CylinderGeometry(0.128, 0.15, 0.06, 24), iron), 0, roofTop + 0.03, 0);
-          const PIPE = 0.66, pipeTop = roofTop + 0.06 + PIPE;
+          const PIPE = 1.32, pipeTop = roofTop + 0.06 + PIPE;
           add(new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.112, PIPE, 24, 1, true), ironDS), 0, roofTop + 0.06 + PIPE / 2, 0);
           const ring = add(new THREE.Mesh(new THREE.TorusGeometry(0.112, 0.008, 6, 24), bronze), 0, pipeTop - 0.006, 0); ring.rotation.x = Math.PI / 2;
           for (let k = 0; k < 3; k++) { const a = k / 3 * 6.283; add(new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.036, 5), iron), Math.cos(a) * 0.1, pipeTop + 0.018, Math.sin(a) * 0.1); }
@@ -7954,7 +7954,7 @@
           });
           const light = new THREE.PointLight(0xff7a2a, 0, 6, 2); light.position.set(0, YB + 0.2, D / 2 + 0.1); g.add(light);
           scene.add(bakeStatic(g));
-          obstacleCoords.push({ x: X, y: g.position.y, z: Z, r: 0.45, h: 1.6 });   // người, chó, côn trùng đi vòng
+          obstacleCoords.push({ x: X, y: g.position.y, z: Z, r: 0.45, h: 2.3 });   // người, chó, côn trùng đi vòng
           const SC = CAMP_SCALE, smoke = fluids.addSmoke({ NR: 36, NZ: 110, H: 0.032, NP: 600, NS: 0, NT: 14, buoy: 4, kNu: 0.03, nu0: 0.002, tauT: 6, iters: 30, dens: 0.8,
             inlet: { r: 0.11 * SC }, lid: { r: 0.19 * SC, z0: 0.036 * SC, z1: 0.086 * SC } }, { name: 'Khói ống khói lò chiminea (sợi khói Navier–Stokes)', opacity: 0.6 });
           smoke.on = false;
