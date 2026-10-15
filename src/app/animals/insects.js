@@ -145,9 +145,9 @@
         //  theo loài + gân cánh toả từ gốc: Bướm giáp đỏ (Cethosia biblis) · Bướm hổ (Danaus chrysippus) · Phượng xanh lam (Graphium sarpedon) ·
         //  Bướm vàng (Eurema hecabe) · Bướm hổ xanh (Tirumala limniace). Bay: vỗ biên độ lớn (trên gần chạm nhau ~+75°, dưới ~−23°), cánh sau trễ pha
         //  cánh trước; loài hổ / phượng có pha LƯỢN cánh phẳng giữa các tràng vỗ; thân nhấp nhô theo từng nhịp (vỗ xuống nâng thân).
-        const BF_SP = [   // [tên, nền cánh trước, nền cánh sau, màu thân, nhịp vỗ Hz, lượn (s) | null]
-          ['lacewing', '#d9452c', '#e0562e', 0x3a2418, 7, [0.4, 1.0]], ['tiger', '#ee8a1d', '#f29a2e', 0x2b2018, 6, [0.5, 1.3]], ['bluebottle', '#1d2226', '#1d2226', 0x1a1d20, 8, [0.3, 0.8]],
-          ['yellow', '#f2d82a', '#f4de3a', 0x5a4a1a, 11, null], ['bluetiger', '#2a2622', '#2a2622', 0x221e1a, 5.5, [0.6, 1.6]], ['bluebottle', '#1d2226', '#1d2226', 0x1a1d20, 8, [0.3, 0.8]]];
+        const BF_SP = [   // [tên, nền cánh trước, nền cánh sau, màu thân, nhịp vỗ Hz (G 15/10: chậm 50% — trước 7 · 6 · 8 · 11 · 5,5 · 8), lượn (s) | null]
+          ['lacewing', '#d9452c', '#e0562e', 0x3a2418, 3.5, [0.4, 1.0]], ['tiger', '#ee8a1d', '#f29a2e', 0x2b2018, 3, [0.5, 1.3]], ['bluebottle', '#1d2226', '#1d2226', 0x1a1d20, 4, [0.3, 0.8]],
+          ['yellow', '#f2d82a', '#f4de3a', 0x5a4a1a, 5.5, null], ['bluetiger', '#2a2622', '#2a2622', 0x221e1a, 2.75, [0.6, 1.6]], ['bluebottle', '#1d2226', '#1d2226', 0x1a1d20, 4, [0.3, 0.8]]];
         const BF_FORE = [[0.01, 0.025], [0.12, 0.06], [0.24, 0.075], [0.31, 0.07], [0.3, 0.02], [0.25, -0.05], [0.18, -0.085], [0.06, -0.06], [0.01, -0.02]];
         const BF_HIND = [[0.01, -0.01], [0.1, -0.035], [0.19, -0.07], [0.21, -0.13], [0.17, -0.19], [0.1, -0.225], [0.04, -0.19], [0.01, -0.09]];
         function bflyTex(sp) {   // 256²: toạ độ cánh (x 0…0,32 · z −0,24…0,08) ↔ ảnh; vẽ nền → hoa văn theo loài → gân → (gương 2 bên dùng chung)
