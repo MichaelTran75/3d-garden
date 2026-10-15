@@ -3614,7 +3614,7 @@
           };
         })();
         const PLUME_COL = { smoke: new THREE.Color(0.42, 0.40, 0.38), steam: new THREE.Color(0.92, 0.93, 0.95), glow: new THREE.Color(1.0, 0.42, 0.1) };
-        const _plumeGlow = new THREE.Color(), _plumeQ = new THREE.Quaternion(), _smokeTop = new THREE.Vector3(), _smokeJet = new THREE.Vector3();
+        const _plumeGlow = new THREE.Color(), _plumeSmokeC = new THREE.Color(), _plumeQ = new THREE.Quaternion(), _smokeTop = new THREE.Vector3(), _smokeJet = new THREE.Vector3();
         function plumeLight(P, smoke, steam, glow) {   // màu khói/hơi theo ánh sáng cảnh lúc này (đêm tối hẳn, chỉ sáng nơi lửa hắt lên)
           const lit = Math.min(1.05, hemi.intensity * 0.5 + amb.intensity * 0.55 + sun.intensity * 0.42), U = P.mat.uniforms;
           U.uSmoke.value.copy(smoke).multiplyScalar(lit); U.uSteam.value.copy(steam).multiplyScalar(lit); U.uGlow.value.copy(glow);
@@ -7647,6 +7647,16 @@
         }
         const campObj = campfire(); campObj.g.scale.multiplyScalar(CAMP_SCALE); // Grilled fish, stones, logs and flame children inherit this once.
         { const p = worldCell(FIRE_CELL[0], FIRE_CELL[1]); campObj.g.position.copy(p); campObj.g.name = 'Bếp lửa trại (Campfire)'; scene.add(campObj.g); }
+        const campRain = { heat: 1, quench: 0, flameK: 1, emberK: 1, smolder: 1, init: false }, _wetCoal = new THREE.Color(0.07, 0.065, 0.06);
+        function campRainTick(dt) {
+          const R = campRain, sm = THREE.MathUtils.smoothstep;
+          if (!R.init && liveWeather.state.data) { R.init = true; if (liveWeather.state.raining) R.heat = 0.04; }
+          if (rainK > 0.05) R.heat -= R.heat * rainK / 60 * dt;
+          else if (sceneWet < 0.6) R.heat += (1 - R.heat) / 240 * dt;
+          R.flameK = sm(R.heat, 0.45, 0.9); R.emberK = sm(R.heat, 0.03, 0.55); R.quench = rainK * sm(R.heat, 0.02, 0.35);
+          R.smolder = Math.max(R.heat, R.smolder * Math.exp(-dt / 1200));   // gỗ ướt âm ỉ: khói còn ~20 phút sau khi tắt
+          return R;
+        }
 
         const pf = worldCell(FIRE_CELL[0], FIRE_CELL[1]);
         function kettleTexture(prof) {   // tô theo tham số biên dạng (v = chỉ số điểm tiện), nhiễu tuần hoàn theo u để không lộ đường nối
@@ -7815,6 +7825,89 @@
         { const wc = woodCamp(); wc.name = 'Đống củi (Woodpile)'; wc.position.set(X0 + 68, woodCampY, Z0 + 100); wc.rotation.y = 0.5; scene.add(wc); }
         const campSmoke = fluids.addSmoke({ NR: 30, NZ: 90, H: 0.08, NP: 900, NS: 140, NT: 14, buoy: 4, kNu: 0.03, nu0: 0.002, tauT: 6, iters: 36, dens: 0.8 },
           { name: 'Khói bếp lửa (sợi khói Navier–Stokes)', opacity: 0.6 });
+        const chiminea = (() => {
+          const W = 0.52, D = 0.5, H = 0.42, YB = 0.3, TK = 0.014, OW = 0.36, OH = 0.28, RB = 0.063;   // buồng đốt rộng (x) · sâu (z) · cao · đáy cách đất · dày thép · ô cửa · đố dưới
+          const g = new THREE.Group(); g.name = 'Lò sưởi chiminea (Chiminea)';
+          const X = X0 + 67, Z = Z0 + 99; g.position.set(X, cowY(X, Z), Z); g.rotation.y = 0.3; g.scale.setScalar(CAMP_SCALE);
+          const hc = document.createElement('canvas'); hc.width = hc.height = 128; const hx = hc.getContext('2d'), hr = mulberry32(6799);
+          hx.fillStyle = '#2b2a28'; hx.fillRect(0, 0, 128, 128);
+          for (let n = 0; n < 420; n++) {
+            const l = hr(); hx.fillStyle = l < 0.45 ? `rgba(14,13,12,${0.35 + 0.4 * hr()})` : l < 0.9 ? `rgba(80,78,74,${0.25 + 0.35 * hr()})` : `rgba(122,88,50,${0.3 + 0.3 * hr()})`;
+            hx.beginPath(); hx.arc(hr() * 128, hr() * 128, 1 + hr() * 3.2, 0, 6.283); hx.fill();
+          }
+          const hTex = new THREE.CanvasTexture(hc); hTex.colorSpace = THREE.SRGBColorSpace; hTex.wrapS = hTex.wrapT = THREE.RepeatWrapping;
+          const iron = new THREE.MeshLambertMaterial({ map: hTex }), ironDS = new THREE.MeshLambertMaterial({ map: hTex, side: THREE.DoubleSide }), ironFlat = new THREE.MeshLambertMaterial({ map: hTex, flatShading: true });
+          const bronze = new THREE.MeshLambertMaterial({ color: 0x86643a }), soot = new THREE.MeshLambertMaterial({ color: 0x141210, side: THREE.BackSide, emissive: 0x6a1e05, emissiveIntensity: 0 });
+          const add = (o, x, y, z, par = g) => { o.position.set(x, y, z); o.castShadow = o.receiveShadow = true; par.add(o); return o; };
+          const B = (w, h, d, m, x, y, z, par) => add(new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m), x, y, z, par);
+          const yc = YB + H / 2, zf = D / 2 - TK / 2;
+          B(W, H, TK, iron, 0, yc, -zf); for (const s of [-1, 1]) B(TK, H, D, iron, s * (W / 2 - TK / 2), yc, 0);
+          B(W, TK, D, iron, 0, YB + TK / 2, 0); B(W, TK, D, iron, 0, YB + H - TK / 2, 0);
+          for (const s of [-1, 1]) B((W - OW) / 2, H, TK, iron, s * (OW / 2 + (W - OW) / 4), yc, zf);
+          const RT = H - OH - RB; B(OW, RT, TK, iron, 0, YB + H - RT / 2, zf); B(OW, RB, TK, iron, 0, YB + RB / 2, zf);
+          add(new THREE.Mesh(new THREE.BoxGeometry(W - 2.4 * TK, H - 2.4 * TK, D - 2.4 * TK), soot), 0, yc, 0);   // lòng lò (mặt trong): nhìn qua ô cửa thấy vách muội
+          for (const sx of [-1, 1]) for (const sz of [-1, 1]) B(0.028, H + 0.012, 0.028, bronze, sx * W / 2, yc, sz * D / 2);
+          const rivet = new THREE.SphereGeometry(0.0075, 6, 4), RV = (x, y, z) => add(new THREE.Mesh(rivet, bronze), x, y, z);
+          for (const y of [YB + 0.014, YB + H - 0.014]) {
+            for (const s of [-1, 1]) { B(W + 0.02, 0.026, 0.02, bronze, 0, y, s * D / 2); B(0.02, 0.026, D + 0.02, bronze, s * W / 2, y, 0); }
+            for (let k = 1; k < 8; k++) { const u = -W / 2 + k * W / 8; RV(u, y, D / 2 + 0.011); RV(u, y, -D / 2 - 0.011); }
+            for (let k = 1; k < 8; k++) { const u = -D / 2 + k * D / 8; RV(W / 2 + 0.011, y, u); RV(-W / 2 - 0.011, y, u); }
+          }
+          const oy = YB + RB + OH / 2, fz = D / 2 + 0.006;
+          for (const s of [-1, 1]) { B(OW + 0.04, 0.02, 0.012, bronze, 0, oy + s * (OH / 2 + 0.01), fz); B(0.02, OH + 0.04, 0.012, bronze, s * (OW / 2 + 0.01), oy, fz); }
+          for (let k = 0; k <= 5; k++) for (const s of [-1, 1]) RV(s * (OW / 2 + 0.01), YB + RB - 0.01 + k * (OH + 0.02) / 5, fz + 0.007);
+          const roofTop = YB + H + 0.075;
+          const rg = new THREE.CylinderGeometry(0.16, W / 2 * Math.SQRT2, 0.075, 4, 1); rg.rotateY(Math.PI / 4); rg.scale(1, 1, D / W);   // chóp 4 mặt khớp đúng miệng hộp W × D
+          add(new THREE.Mesh(rg, ironFlat), 0, YB + H + 0.0375, 0);
+          add(new THREE.Mesh(new THREE.CylinderGeometry(0.128, 0.15, 0.06, 24), iron), 0, roofTop + 0.03, 0);
+          const pipeTop = roofTop + 0.06 + 0.33;
+          add(new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.112, 0.33, 24, 1, true), ironDS), 0, roofTop + 0.06 + 0.165, 0);
+          const ring = add(new THREE.Mesh(new THREE.TorusGeometry(0.112, 0.008, 6, 24), bronze), 0, pipeTop - 0.006, 0); ring.rotation.x = Math.PI / 2;
+          for (let k = 0; k < 3; k++) { const a = k / 3 * 6.283; add(new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.036, 5), iron), Math.cos(a) * 0.1, pipeTop + 0.018, Math.sin(a) * 0.1); }
+          add(new THREE.Mesh(new THREE.ConeGeometry(0.19, 0.05, 24, 1, true), ironDS), 0, pipeTop + 0.036 + 0.025, 0);
+          add(new THREE.Mesh(new THREE.TorusGeometry(0.055, 0.008, 6, 14, Math.PI), iron), 0, pipeTop + 0.07, 0);   // quai: 2 chân cắm vào mặt nón
+          const _up = new THREE.Vector3(0, 1, 0), _d = new THREE.Vector3();
+          for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+            const ax = sx * (W / 2 - 0.05), az = sz * (D / 2 - 0.05), fx = sx * 0.34, fzz = sz * 0.33;
+            _d.set(fx - ax, -YB, fzz - az); const L = _d.length();
+            const leg = add(new THREE.Mesh(new THREE.BoxGeometry(0.036, L, 0.01), iron), (ax + fx) / 2, YB / 2, (az + fzz) / 2); leg.quaternion.setFromUnitVectors(_up, _d.multiplyScalar(-1 / L));
+            B(0.06, 0.012, 0.05, iron, fx, 0.006, fzz);
+          }
+          add(new THREE.Mesh(new THREE.LatheGeometry([[0, 0], [0.08, 0], [0.115, 0.04], [0.13, 0.08]].map(([r, y]) => new THREE.Vector2(r, y)), 20), ironDS), 0, YB - 0.08, 0);
+          const mc = document.createElement('canvas'); mc.width = mc.height = 64; const mx = mc.getContext('2d'); mx.strokeStyle = '#1b1a18'; mx.lineWidth = 2;
+          for (let k = 0; k <= 64; k += 8) { mx.beginPath(); mx.moveTo(k, 0); mx.lineTo(k, 64); mx.moveTo(0, k); mx.lineTo(64, k); mx.stroke(); }
+          const mTex = new THREE.CanvasTexture(mc); mTex.wrapS = mTex.wrapT = THREE.RepeatWrapping; mTex.repeat.set(OW / 0.08, OH / 0.08);
+          const meshMat = new THREE.MeshLambertMaterial({ map: mTex, transparent: false, alphaTest: 0.4, side: THREE.DoubleSide });
+          const door = new THREE.Group(); door.position.set(OW / 2 + 0.012, oy, D / 2 + 0.012); door.rotation.y = 1.95; g.add(door);
+          add(new THREE.Mesh(new THREE.PlaneGeometry(OW - 0.01, OH - 0.01), meshMat), -OW / 2, 0, 0, door);
+          for (const s of [-1, 1]) { B(OW, 0.014, 0.01, bronze, -OW / 2, s * OH / 2, 0, door); B(0.014, OH, 0.01, bronze, -OW / 2 + s * OW / 2, 0, 0, door); }
+          add(new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.05, 6), bronze), -OW + 0.004, 0, 0.022, door).rotation.x = Math.PI / 2;
+          const fire = new THREE.Group(); fire.userData.noBake = true; g.add(fire);
+          const logMat = new THREE.MeshLambertMaterial({ color: 0x3a2a1e, emissive: 0xff5a2a, emissiveIntensity: 0 });
+          for (let k = 0; k < 3; k++) { const lg = add(new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.03, 0.27, 8), logMat), (k - 1) * 0.07, YB + 0.045 + (k % 2) * 0.035, 0.02, fire); lg.rotation.set(Math.PI / 2, 0, (k - 1) * 0.55); }
+          const emberMat = new THREE.MeshBasicMaterial({ color: 0x1e1410 }), emberGeo = new THREE.IcosahedronGeometry(0.022, 0);
+          for (let k = 0; k < 9; k++) { const a = k * 2.4, r = 0.04 + (k % 3) * 0.05; add(new THREE.Mesh(emberGeo, emberMat), Math.cos(a) * r, YB + TK + 0.01, Math.sin(a) * r * 0.8, fire).scale.set(1, 0.5, 1); }
+          const flameGeo = new THREE.LatheGeometry([[0, 0], [0.04, 0.03], [0.045, 0.07], [0.03, 0.12], [0.012, 0.17], [0, 0.2]].map(([r, y]) => new THREE.Vector2(r, y)), 8);
+          const flames = [0xff5a14, 0xffa024, 0xffd24a, 0xff7a1c, 0xffb43a, 0xff6418].map((c, k) => {
+            const m = new THREE.Mesh(flameGeo, new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.85, depthWrite: false }));
+            m.position.set((k - 2.5) * 0.045, YB + 0.05, 0.0 + (k % 3) * 0.035); m.renderOrder = 9; m.visible = false; fire.add(m); return m;
+          });
+          const light = new THREE.PointLight(0xff7a2a, 0, 6, 2); light.position.set(0, YB + 0.2, D / 2 + 0.1); g.add(light);
+          scene.add(bakeStatic(g));
+          obstacleCoords.push({ x: X, y: g.position.y, z: Z, r: 0.45, h: 1.3 });   // người, chó, côn trùng đi vòng
+          const smoke = makeChimneySmoke(out => g.localToWorld(out.set(0, pipeTop + 0.02, 0)), 'Khói ống khói lò chiminea', 30);
+          let L = 0, init = false;
+          return { g, update(dt, t) {
+            const want = rainK > 0.05 || campRain.flameK < 0.5 ? Math.max(0.55, campfireLevel(liveWeather.localHour)) : 0;
+            if (!init && liveWeather.state.data) { init = true; L = want; }   // mở trang giữa cơn mưa: lò đang cháy sẵn
+            L += (want - L) * (1 - Math.exp(-dt / (want > L ? 40 : 150)));
+            const on = L > 0.02, fl = 0.85 + 0.15 * Math.sin(t * 9.3) + 0.08 * Math.sin(t * 17.1), e = THREE.MathUtils.smoothstep(L, 0, 0.5) * (0.88 + 0.12 * Math.sin(t * 2.3));
+            flames.forEach((m, k) => { m.visible = on; if (!on) return; const s = 0.85 + 0.4 * L; m.scale.set(s, L * (1.05 + 0.35 * Math.sin(t * (7 + k) + k * 1.7)), s); m.material.opacity = 0.7 + 0.25 * Math.sin(t * 12 + k); });
+            light.intensity = 2.4 * L * fl;
+            emberMat.color.setRGB(0.12 + 0.85 * e, 0.08 + 0.3 * e, 0.05 + 0.04 * e); logMat.emissiveIntensity = 1.4 * e; soot.emissiveIntensity = 0.7 * L * fl;
+            smoke.update(dt, t, 5 * Math.min(1, L * 1.6), 0.55);   // khói củi xám nhạt, liền thành luồng
+          } };
+        })();
         function dogModel(s) {
           const g = new THREE.Group();
           const fur = new THREE.MeshLambertMaterial({ color: 0xc19a6b }), furL = new THREE.MeshLambertMaterial({ color: 0xe0c49a }), dark = new THREE.MeshLambertMaterial({ color: 0x4a3621 }), black = new THREE.MeshLambertMaterial({ color: 0x111111 });
@@ -9047,16 +9140,16 @@
           K.pegPan.visible = !(D && D.kind === 'pan');
           if (campPanRig) { campPanRig.pan.visible = at === 'camp'; if (campPanRig.pan.visible) setFood(campPanRig.food, f, 0); }
         }
-        const ventSmoke = (() => {
-          const N = 22, geo = new THREE.IcosahedronGeometry(0.1, 1), parts = [], top = new THREE.Vector3(), _w = new THREE.Vector3();
+        function makeChimneySmoke(topFn, name, N = 22) {
+          const geo = new THREE.IcosahedronGeometry(0.1, 1), parts = [], top = new THREE.Vector3(), _w = new THREE.Vector3();
           for (let i = 0; i < N; i++) {
             const m = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: 0xeef0f2, transparent: true, opacity: 0, depthWrite: false }));
-            m.visible = false; m.userData.noBatch = true; m.raycast = () => {}; m.renderOrder = 3; m.name = 'Khói ống bếp'; scene.add(m);
+            m.visible = false; m.userData.noBatch = true; m.raycast = () => {}; m.renderOrder = 3; m.name = name; scene.add(m);
             parts.push({ m, p: new THREE.Vector3(), v: new THREE.Vector3(), age: 0, life: 1, T: 0, on: false, s0: 0, a0: 0, ph: Math.random() * 6 });
           }
           let acc = 0;
           return { update(dt, t, rate, grey) {   // rate: cụm khói / giây · grey: 0 hơi nước trắng → 1 khói dầu xám
-            caravanObj.localToWorld(top.copy(caravanObj.userData.chimneyTop)); acc = Math.min(2, acc + rate * dt);
+            topFn(top); acc = Math.min(2, acc + rate * dt);
             const gy = cowY(top.x, top.z);
             for (const P of parts) {
               if (!P.on) {
@@ -9076,7 +9169,8 @@
               P.m.material.opacity = P.a0 * Math.min(1, P.age / 0.35) * Math.pow(1 - P.age / P.life, 1.5); P.m.visible = true;
             }
           } };
-        })();
+        }
+        const ventSmoke = makeChimneySmoke(out => caravanObj.localToWorld(out.copy(caravanObj.userData.chimneyTop)), 'Khói ống bếp');
         let ventRun = 0; const _usA = new THREE.Vector3(), _usS = new THREE.Vector3();
         function udonSteam(t, bowl, heat) {   // hơi nóng tô udon: 4 cụm nhỏ bốc THẲNG LÊN (trục đứng thế giới, kể cả lúc bát nghiêng trên tay), uốn lượn, nở to, nhạt dần; nguội dần khi ăn
           const S = bowl && bowl.userData.steam; if (!S) return; const on = bowl.visible && heat > 0.03;
@@ -14086,7 +14180,8 @@
             p.m.scale.setScalar(0.6 + k * 2.2); p.m.material.opacity = 0.32 * Math.sin(k * Math.PI);
           }
           if (campObj) {
-            const fireScale = campfireLevel(liveWeather.localHour);   // 100% lúc 19:00 → 5% lúc 07:00, ban ngày 5%
+            const CR = campRainTick(dt);   // mưa dập lửa: ngọn lửa tắt trước, than tàn sau, còn khói (camp/chairs-lantern-fire.js)
+            const fireScale = campfireLevel(liveWeather.localHour) * CR.flameK;   // 100% lúc 19:00 → 5% lúc 07:00, ban ngày 5%
             const fireSize = fireScale * CAMP_FLAME;   // cỡ ngọn lửa thật (G thấy lửa trại cháy dữ quá ⇒ thu còn 50%)
             const steamAmt = Math.min(1, Math.max(0, (fireScale - 0.2) / 0.55));   // lửa lớn → ấm sôi phụt hơi qua còi; lửa ngày 5% → không có hơi
             const kGrp = kettleSteam.length ? kettleSteam[0].m.parent : null; if (kGrp) kGrp.localToWorld(_plS.set(0, 0, 0));
@@ -14097,16 +14192,17 @@
               p.m.position.set(p.dir.x * jet + _steamW.x, 0.02 + _steamW.y, p.dir.z * jet + _steamW.z);
               p.m.scale.setScalar(0.5 + k * 2.8); p.m.material.opacity = steamAmt * 0.4 * Math.sin(k * Math.PI);
             }
-            for (const fl of campObj.flames) { fl.m.scale.y = fireSize * Math.max(0.6, 0.92 + 0.24 * Math.sin(t * 7 + fl.ph) + 0.12 * Math.sin(t * 13 + fl.ph * 1.6)); fl.m.scale.x = fl.m.scale.z = fireSize * (0.82 + 0.2 * Math.sin(t * 7 + fl.ph * 1.3)); fl.m.material.opacity = 0.72 + 0.26 * Math.sin(t * 12 + fl.ph); }
+            for (const fl of campObj.flames) { fl.m.visible = fireSize > 0.002; fl.m.scale.y = fireSize * Math.max(0.6, 0.92 + 0.24 * Math.sin(t * 7 + fl.ph) + 0.12 * Math.sin(t * 13 + fl.ph * 1.6)); fl.m.scale.x = fl.m.scale.z = fireSize * (0.82 + 0.2 * Math.sin(t * 7 + fl.ph * 1.3)); fl.m.material.opacity = 0.72 + 0.26 * Math.sin(t * 12 + fl.ph); }
             if (campSmoke) {   // khói + hơi = sợi khói: lửa cấp nhiệt & khói theo cỡ lửa, ấm reo phụt hơi theo hướng vòi
               for (const sm of campObj.smoke) sm.m.visible = false;
               const S = campSmoke, B = S.base; campObj.g.localToWorld(B.set(0, 0, 0)); campObj.g.localToWorld(_smokeTop.set(0, 0.75, 0));
-              S.zF = Math.max(0.3, _smokeTop.y - B.y); S.heat = 0.45 + 1.05 * fireSize; S.smoke = 0.5 + 2.5 * fireSize; S.rate = 0.12 + 0.88 * fireSize; S.steam = steamAmt;
+              S.zF = Math.max(0.3, _smokeTop.y - B.y); const lv = 0.3 + 0.7 * campfireLevel(liveWeather.localHour), q = CR.quench * lv, smk = CR.smolder * (1 - CR.flameK) * lv;   // hơi dập lửa + khói gỗ ướt âm ỉ theo cỡ đống lửa (ngày chỉ còn than 5% ⇒ ít)
+              S.heat = 0.45 + 1.05 * fireSize + 0.3 * q + 0.2 * smk; S.smoke = 0.5 + 2.5 * fireSize + 1.3 * q + 0.9 * smk; S.rate = 0.12 + 0.88 * fireSize + 0.4 * q + 0.25 * smk; S.steam = steamAmt;   // mưa rơi vào than nóng: hơi trắng dày
               if (kGrp) {
                 kGrp.localToWorld(_smokeTop.set(0, 0, 0)).sub(B); _smokeJet.copy(kettleSteam[0].dir).applyQuaternion(kGrp.getWorldQuaternion(_plumeQ)).multiplyScalar(0.9);
                 S.spout[0] = _smokeTop.x; S.spout[1] = _smokeTop.y; S.spout[2] = _smokeTop.z; S.spout[3] = _smokeJet.x; S.spout[4] = _smokeJet.y + 0.3; S.spout[5] = _smokeJet.z;
               }
-              plumeLight(S, PLUME_COL.smoke, PLUME_COL.steam, _plumeGlow.copy(PLUME_COL.glow).multiplyScalar(0.25 + 0.75 * fireScale));
+              plumeLight(S, _plumeSmokeC.copy(PLUME_COL.smoke).lerp(PLUME_COL.steam, 0.55 * q), PLUME_COL.steam, _plumeGlow.copy(PLUME_COL.glow).multiplyScalar((0.25 + 0.75 * fireScale) * CR.emberK));
             } else campObj.g.localToWorld(_plS.set(0, 0.9, 0));
             if (!campSmoke) for (const sm of campObj.smoke) {
               const life = 6, a = ((t / life + sm.ph) % 1) * life, pr = a / life;
@@ -14123,15 +14219,16 @@
               }
             }
             const flicker = 0.55 + 0.28 * Math.sin(t * 12) + 0.14 * Math.sin(t * 23.7);
-            campObj.light.intensity = 6.0 * flicker * fireScale * (0.2 + 0.8 * CAMP_FLAME);   // lửa nhỏ đi một nửa ⇒ sáng còn ~60%
+            campObj.light.intensity = 6.0 * flicker * (fireScale + 0.03 * CR.emberK * (1 - CR.flameK)) * (0.2 + 0.8 * CAMP_FLAME);   // lửa nhỏ đi một nửa ⇒ sáng còn ~60%
             campObj.light.distance = 6.0 + 11.0 * fireSize;
-            campObj.logMat.emissiveIntensity = (0.35 + 1.45 * fireScale) * (0.85 + 0.25 * Math.sin(t * 3.1));   // vết nứt than đỏ, thở theo lửa; ban ngày vẫn âm ỉ
+            campObj.logMat.emissiveIntensity = (0.35 + 1.45 * fireScale) * (0.85 + 0.25 * Math.sin(t * 3.1)) * CR.emberK;   // vết nứt than đỏ, thở theo lửa; ban ngày vẫn âm ỉ
             campObj.cutMat.emissiveIntensity = 0.6 * fireScale;
-            campObj.emberMat.color.setRGB(0.15 + 0.76 * fireScale, 0.1 + 0.25 * fireScale, 0.06 + 0.03 * fireScale);
-            const glowLv = (0.45 + 0.55 * fireScale) * (0.88 + 0.12 * Math.sin(t * 1.7) + 0.05 * Math.sin(t * 4.3));   // than tâm: dư âm vẫn hồng khi lửa 5%
-            campObj.glowMat.opacity = glowLv; campObj.hotMat.color.setRGB(1, 0.22 + 0.2 * glowLv, 0.04).multiplyScalar(0.55 + 0.45 * glowLv);
-            campObj.dimMat.emissiveIntensity = 0.5 + 0.6 * glowLv;
+            campObj.emberMat.color.setRGB(0.15 + 0.76 * fireScale, 0.1 + 0.25 * fireScale, 0.06 + 0.03 * fireScale).lerp(_wetCoal, 1 - CR.emberK);   // ướt nguội: than đen
+            const glowLv = (0.45 + 0.55 * fireScale) * (0.88 + 0.12 * Math.sin(t * 1.7) + 0.05 * Math.sin(t * 4.3)) * CR.emberK;   // than tâm: dư âm vẫn hồng khi lửa 5%
+            campObj.glowMat.opacity = glowLv; campObj.hotMat.color.setRGB(1, 0.22 + 0.2 * glowLv, 0.04).multiplyScalar(0.55 + 0.45 * glowLv).lerp(_wetCoal, 1 - CR.emberK);
+            campObj.dimMat.emissiveIntensity = (0.5 + 0.6 * glowLv) * CR.emberK;
           }
+          chiminea.update(dt, t);   // mưa: lửa chuyển sang lò chiminea (camp/chiminea.js)
           if (lanternObj) { lanternObj.light.intensity = 0.5 + nightFactor * 2.6 + (0.2 + nightFactor * 0.4) * Math.sin(t * 8.5) + 0.12 * Math.sin(t * 18.3); lanternObj.light.distance = 8 + nightFactor * 7; lanternObj.lan.rotation.z = Math.sin(t * 1.1) * 0.04; }
           if (awLight && awLan) { awLight.intensity = 0.5 + nightFactor * 2.6 + (0.2 + nightFactor * 0.4) * Math.sin(t * 8.5 + 1.2) + 0.12 * Math.sin(t * 18.3); awLight.distance = 8 + nightFactor * 7; awLan.rotation.z = Math.sin(t * 1.1 + 1.2) * 0.04; }
           updateStudyLamp();

@@ -145,7 +145,8 @@
             p.m.scale.setScalar(0.6 + k * 2.2); p.m.material.opacity = 0.32 * Math.sin(k * Math.PI);
           }
           if (campObj) {
-            const fireScale = campfireLevel(liveWeather.localHour);   // 100% lúc 19:00 → 5% lúc 07:00, ban ngày 5%
+            const CR = campRainTick(dt);   // mưa dập lửa: ngọn lửa tắt trước, than tàn sau, còn khói (camp/chairs-lantern-fire.js)
+            const fireScale = campfireLevel(liveWeather.localHour) * CR.flameK;   // 100% lúc 19:00 → 5% lúc 07:00, ban ngày 5%
             const fireSize = fireScale * CAMP_FLAME;   // cỡ ngọn lửa thật (G thấy lửa trại cháy dữ quá ⇒ thu còn 50%)
             const steamAmt = Math.min(1, Math.max(0, (fireScale - 0.2) / 0.55));   // lửa lớn → ấm sôi phụt hơi qua còi; lửa ngày 5% → không có hơi
             const kGrp = kettleSteam.length ? kettleSteam[0].m.parent : null; if (kGrp) kGrp.localToWorld(_plS.set(0, 0, 0));
@@ -156,16 +157,17 @@
               p.m.position.set(p.dir.x * jet + _steamW.x, 0.02 + _steamW.y, p.dir.z * jet + _steamW.z);
               p.m.scale.setScalar(0.5 + k * 2.8); p.m.material.opacity = steamAmt * 0.4 * Math.sin(k * Math.PI);
             }
-            for (const fl of campObj.flames) { fl.m.scale.y = fireSize * Math.max(0.6, 0.92 + 0.24 * Math.sin(t * 7 + fl.ph) + 0.12 * Math.sin(t * 13 + fl.ph * 1.6)); fl.m.scale.x = fl.m.scale.z = fireSize * (0.82 + 0.2 * Math.sin(t * 7 + fl.ph * 1.3)); fl.m.material.opacity = 0.72 + 0.26 * Math.sin(t * 12 + fl.ph); }
+            for (const fl of campObj.flames) { fl.m.visible = fireSize > 0.002; fl.m.scale.y = fireSize * Math.max(0.6, 0.92 + 0.24 * Math.sin(t * 7 + fl.ph) + 0.12 * Math.sin(t * 13 + fl.ph * 1.6)); fl.m.scale.x = fl.m.scale.z = fireSize * (0.82 + 0.2 * Math.sin(t * 7 + fl.ph * 1.3)); fl.m.material.opacity = 0.72 + 0.26 * Math.sin(t * 12 + fl.ph); }
             if (campSmoke) {   // khói + hơi = sợi khói: lửa cấp nhiệt & khói theo cỡ lửa, ấm reo phụt hơi theo hướng vòi
               for (const sm of campObj.smoke) sm.m.visible = false;
               const S = campSmoke, B = S.base; campObj.g.localToWorld(B.set(0, 0, 0)); campObj.g.localToWorld(_smokeTop.set(0, 0.75, 0));
-              S.zF = Math.max(0.3, _smokeTop.y - B.y); S.heat = 0.45 + 1.05 * fireSize; S.smoke = 0.5 + 2.5 * fireSize; S.rate = 0.12 + 0.88 * fireSize; S.steam = steamAmt;
+              S.zF = Math.max(0.3, _smokeTop.y - B.y); const lv = 0.3 + 0.7 * campfireLevel(liveWeather.localHour), q = CR.quench * lv, smk = CR.smolder * (1 - CR.flameK) * lv;   // hơi dập lửa + khói gỗ ướt âm ỉ theo cỡ đống lửa (ngày chỉ còn than 5% ⇒ ít)
+              S.heat = 0.45 + 1.05 * fireSize + 0.3 * q + 0.2 * smk; S.smoke = 0.5 + 2.5 * fireSize + 1.3 * q + 0.9 * smk; S.rate = 0.12 + 0.88 * fireSize + 0.4 * q + 0.25 * smk; S.steam = steamAmt;   // mưa rơi vào than nóng: hơi trắng dày
               if (kGrp) {
                 kGrp.localToWorld(_smokeTop.set(0, 0, 0)).sub(B); _smokeJet.copy(kettleSteam[0].dir).applyQuaternion(kGrp.getWorldQuaternion(_plumeQ)).multiplyScalar(0.9);
                 S.spout[0] = _smokeTop.x; S.spout[1] = _smokeTop.y; S.spout[2] = _smokeTop.z; S.spout[3] = _smokeJet.x; S.spout[4] = _smokeJet.y + 0.3; S.spout[5] = _smokeJet.z;
               }
-              plumeLight(S, PLUME_COL.smoke, PLUME_COL.steam, _plumeGlow.copy(PLUME_COL.glow).multiplyScalar(0.25 + 0.75 * fireScale));
+              plumeLight(S, _plumeSmokeC.copy(PLUME_COL.smoke).lerp(PLUME_COL.steam, 0.55 * q), PLUME_COL.steam, _plumeGlow.copy(PLUME_COL.glow).multiplyScalar((0.25 + 0.75 * fireScale) * CR.emberK));
             } else campObj.g.localToWorld(_plS.set(0, 0.9, 0));
             // khói bếp lửa kiểu cũ (dự phòng): luồng nổi Briggs (xem plumeOffset) — cụm khói nở theo độ cao bốc, loãng dần; trời ổn định thì dẹt ra như quạt
             if (!campSmoke) for (const sm of campObj.smoke) {
@@ -183,15 +185,16 @@
               }
             }
             const flicker = 0.55 + 0.28 * Math.sin(t * 12) + 0.14 * Math.sin(t * 23.7);
-            campObj.light.intensity = 6.0 * flicker * fireScale * (0.2 + 0.8 * CAMP_FLAME);   // lửa nhỏ đi một nửa ⇒ sáng còn ~60%
+            campObj.light.intensity = 6.0 * flicker * (fireScale + 0.03 * CR.emberK * (1 - CR.flameK)) * (0.2 + 0.8 * CAMP_FLAME);   // lửa nhỏ đi một nửa ⇒ sáng còn ~60%
             campObj.light.distance = 6.0 + 11.0 * fireSize;
-            campObj.logMat.emissiveIntensity = (0.35 + 1.45 * fireScale) * (0.85 + 0.25 * Math.sin(t * 3.1));   // vết nứt than đỏ, thở theo lửa; ban ngày vẫn âm ỉ
+            campObj.logMat.emissiveIntensity = (0.35 + 1.45 * fireScale) * (0.85 + 0.25 * Math.sin(t * 3.1)) * CR.emberK;   // vết nứt than đỏ, thở theo lửa; ban ngày vẫn âm ỉ
             campObj.cutMat.emissiveIntensity = 0.6 * fireScale;
-            campObj.emberMat.color.setRGB(0.15 + 0.76 * fireScale, 0.1 + 0.25 * fireScale, 0.06 + 0.03 * fireScale);
-            const glowLv = (0.45 + 0.55 * fireScale) * (0.88 + 0.12 * Math.sin(t * 1.7) + 0.05 * Math.sin(t * 4.3));   // than tâm: dư âm vẫn hồng khi lửa 5%
-            campObj.glowMat.opacity = glowLv; campObj.hotMat.color.setRGB(1, 0.22 + 0.2 * glowLv, 0.04).multiplyScalar(0.55 + 0.45 * glowLv);
-            campObj.dimMat.emissiveIntensity = 0.5 + 0.6 * glowLv;
+            campObj.emberMat.color.setRGB(0.15 + 0.76 * fireScale, 0.1 + 0.25 * fireScale, 0.06 + 0.03 * fireScale).lerp(_wetCoal, 1 - CR.emberK);   // ướt nguội: than đen
+            const glowLv = (0.45 + 0.55 * fireScale) * (0.88 + 0.12 * Math.sin(t * 1.7) + 0.05 * Math.sin(t * 4.3)) * CR.emberK;   // than tâm: dư âm vẫn hồng khi lửa 5%
+            campObj.glowMat.opacity = glowLv; campObj.hotMat.color.setRGB(1, 0.22 + 0.2 * glowLv, 0.04).multiplyScalar(0.55 + 0.45 * glowLv).lerp(_wetCoal, 1 - CR.emberK);
+            campObj.dimMat.emissiveIntensity = (0.5 + 0.6 * glowLv) * CR.emberK;
           }
+          chiminea.update(dt, t);   // mưa: lửa chuyển sang lò chiminea (camp/chiminea.js)
           if (lanternObj) { lanternObj.light.intensity = 0.5 + nightFactor * 2.6 + (0.2 + nightFactor * 0.4) * Math.sin(t * 8.5) + 0.12 * Math.sin(t * 18.3); lanternObj.light.distance = 8 + nightFactor * 7; lanternObj.lan.rotation.z = Math.sin(t * 1.1) * 0.04; }
           if (awLight && awLan) { awLight.intensity = 0.5 + nightFactor * 2.6 + (0.2 + nightFactor * 0.4) * Math.sin(t * 8.5 + 1.2) + 0.12 * Math.sin(t * 18.3); awLight.distance = 8 + nightFactor * 7; awLan.rotation.z = Math.sin(t * 1.1 + 1.2) * 0.04; }
           updateStudyLamp();

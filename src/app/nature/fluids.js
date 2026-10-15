@@ -533,7 +533,7 @@
           };
         })();
         const PLUME_COL = { smoke: new THREE.Color(0.42, 0.40, 0.38), steam: new THREE.Color(0.92, 0.93, 0.95), glow: new THREE.Color(1.0, 0.42, 0.1) };
-        const _plumeGlow = new THREE.Color(), _plumeQ = new THREE.Quaternion(), _smokeTop = new THREE.Vector3(), _smokeJet = new THREE.Vector3();
+        const _plumeGlow = new THREE.Color(), _plumeSmokeC = new THREE.Color(), _plumeQ = new THREE.Quaternion(), _smokeTop = new THREE.Vector3(), _smokeJet = new THREE.Vector3();
         function plumeLight(P, smoke, steam, glow) {   // màu khói/hơi theo ánh sáng cảnh lúc này (đêm tối hẳn, chỉ sáng nơi lửa hắt lên)
           const lit = Math.min(1.05, hemi.intensity * 0.5 + amb.intensity * 0.55 + sun.intensity * 0.42), U = P.mat.uniforms;
           U.uSmoke.value.copy(smoke).multiplyScalar(lit); U.uSteam.value.copy(steam).multiplyScalar(lit); U.uGlow.value.copy(glow);

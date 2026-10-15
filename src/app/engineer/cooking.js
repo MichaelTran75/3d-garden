@@ -55,17 +55,18 @@
         }
         // ---- KHÓI ỐNG BẾP: máy hút mùi hút hơi nước + khói dầu lên ống gió, thoát ở chụp ống khói trên mái. Mỗi cụm khói là một hạt có quán tính:
         //      lực nổi do nóng (nguội dần ~1,4 s), cản không khí, bị gió thật tại chỗ kéo ngang (windAt — cả bản đồ gió NS), xoáy nhẹ; nở to theo √tuổi,
-        //      nhạt dần. Lửa tắt thì quạt hút chạy thêm ~25 s cho hết mùi. (Bộ khói Navier–Stokes ở luồng phụ chỉ có 1 nguồn — dành cho lửa trại.) ----
-        const ventSmoke = (() => {
-          const N = 22, geo = new THREE.IcosahedronGeometry(0.1, 1), parts = [], top = new THREE.Vector3(), _w = new THREE.Vector3();
+        //      nhạt dần. Lửa tắt thì quạt hút chạy thêm ~25 s cho hết mùi. (Bộ khói Navier–Stokes ở luồng phụ chỉ có 1 nguồn — dành cho lửa trại.)
+        //      Dùng chung cho ống khói lò chiminea (camp/chiminea.js): topFn(out) trả miệng ống khói thế giới. ----
+        function makeChimneySmoke(topFn, name, N = 22) {
+          const geo = new THREE.IcosahedronGeometry(0.1, 1), parts = [], top = new THREE.Vector3(), _w = new THREE.Vector3();
           for (let i = 0; i < N; i++) {
             const m = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: 0xeef0f2, transparent: true, opacity: 0, depthWrite: false }));
-            m.visible = false; m.userData.noBatch = true; m.raycast = () => {}; m.renderOrder = 3; m.name = 'Khói ống bếp'; scene.add(m);
+            m.visible = false; m.userData.noBatch = true; m.raycast = () => {}; m.renderOrder = 3; m.name = name; scene.add(m);
             parts.push({ m, p: new THREE.Vector3(), v: new THREE.Vector3(), age: 0, life: 1, T: 0, on: false, s0: 0, a0: 0, ph: Math.random() * 6 });
           }
           let acc = 0;
           return { update(dt, t, rate, grey) {   // rate: cụm khói / giây · grey: 0 hơi nước trắng → 1 khói dầu xám
-            caravanObj.localToWorld(top.copy(caravanObj.userData.chimneyTop)); acc = Math.min(2, acc + rate * dt);
+            topFn(top); acc = Math.min(2, acc + rate * dt);
             const gy = cowY(top.x, top.z);
             for (const P of parts) {
               if (!P.on) {
@@ -85,7 +86,8 @@
               P.m.material.opacity = P.a0 * Math.min(1, P.age / 0.35) * Math.pow(1 - P.age / P.life, 1.5); P.m.visible = true;
             }
           } };
-        })();
+        }
+        const ventSmoke = makeChimneySmoke(out => caravanObj.localToWorld(out.copy(caravanObj.userData.chimneyTop)), 'Khói ống bếp');
         let ventRun = 0; const _usA = new THREE.Vector3(), _usS = new THREE.Vector3();
         function udonSteam(t, bowl, heat) {   // hơi nóng tô udon: 4 cụm nhỏ bốc THẲNG LÊN (trục đứng thế giới, kể cả lúc bát nghiêng trên tay), uốn lượn, nở to, nhạt dần; nguội dần khi ăn
           const S = bowl && bowl.userData.steam; if (!S) return; const on = bowl.visible && heat > 0.03;

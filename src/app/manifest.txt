@@ -41,6 +41,7 @@ van/shell-walls.js                     # vỏ thân xe có ô cửa, cửa sổ
 van/caravan.js                         # xe caravan: giường, bàn học, bàn ăn, phòng tắm, mái, bạt
 van/sleep-fx.js                        # Zzz + bảng đếm ngược giấc ngủ
 camp/chairs-lantern-fire.js            # ghế câu, đèn lồng, lửa trại, ấm, bàn trà, ghế cắm trại
+camp/chiminea.js                       # LÒ SƯỞI CHIMINEA (thép hộp, ống khói nón che mưa): mưa thì lửa chuyển từ lửa trại sang lò
 animals/dog-raccoon.js                 # chó (đuôi mềm), gấu mèo
 engineer/seats.js                      # ngồi xuống / đứng dậy / rời ghế theo sinh cơ học
 animals/rain-shelter.js                # thỏ trú mưa, tai thỏ, chó vào xe

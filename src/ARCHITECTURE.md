@@ -96,6 +96,13 @@ cận cảnh, hiệu năng, cách thử và các bẫy đã dính. Chi tiết t�
   phẳng; lá 9–15 cm, mảnh hơn 40%, 3 bản/ô; đánh dấu bằng độ tươi +2 trong `aCell.z` (shader: `lawn = step(1.5, aCell.z)`, gốc lá tối
   hơn, ngọn sáng hơn); nền dưới nhuộm xanh đậm (`_lawnTint`) loang ra mép — chỉ lá ngắn cùng màu nền thì zoom thường không thấy gì.
   Ô cỏ mềm sẵn có trong vùng giữ lá cao; RNG riêng (`lrnd`) + ngưỡng chọn ô giữ nguyên ⇒ cỏ chỗ khác y như cũ. Lõi rỗng khúc gỗ bỏ trống.
+- **Mưa dập lửa trại → lò chiminea** (G 15/10): `campRain` (`camp/chairs-lantern-fire.js`): `heat` lụi theo `rainK` (τ 60 s / cường độ), ngọn lửa
+  `flameK` = smoothstep(heat 0,45→0,9), than `emberK` (0,03→0,55), hơi dập `quench`, khói gỗ ướt `smolder` (phai τ 20 phút); tạnh + `sceneWet` < 0,6
+  thì nhen lại (τ 4 phút). main-loop nhân `fireScale` với `flameK`, vật liệu than / vết nứt với `emberK`; hơi + khói âm ỉ nhân cỡ đống lửa theo
+  giờ (ngày chỉ còn than 5% thì ít — bản đầu cho hơi dập ban ngày trùm cả khung hình). Lò `camp/chiminea.js` (hover 67, 99) cháy khi
+  `rainK > 0,05 || campRain.flameK < 0,5` (≥ 55%, tối theo lịch lửa trại; bén τ 40 s, tàn τ 150 s) ⇒ lửa "chuyển" sang lò rồi về lại lửa trại.
+  Khói ống khói lò + ống bếp xe dùng chung `makeChimneySmoke(topFn, name, N)` (`engineer/cooking.js`). Đèn lò luôn bật (cường độ 0 khi tắt) để
+  số đèn không đổi ⇒ không biên dịch lại shader. Thử khói Worker: `simC` (MessageChannel, không bị bóp khi pane ẩn), `__ev('rainTarget = () => 0.8')`.
 - Gỡ lỗi: `fluids.windCfg()` (lưới vật cản, độ phơi), `windMap` (dữ liệu half-float, đọc bằng `halfF`), `oldTreeWind.shake`.
   Luồng phụ trả kết quả bất đồng bộ ⇒ trang thử phải chờ (`simA`, `await`) thì bản đồ mới về; `sim2` chạy đồng bộ thì bản đồ đứng yên.
   Thử bộ giải không vật cản (drag = 0, expo = 1) phải ra gió đều đúng bằng gió tự do.

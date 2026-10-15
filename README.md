@@ -74,3 +74,5 @@ Ong (`animals/insects.js`) theo tỉ lệ mẫu "Bee (Low Poly)" (EsiHere, CC-BY
 (Matt LeMoine, CC-BY-4.0) — vỏ trong 75%, viền nét, bánh sáp ô lục giác bên trong; đom đóm theo mẫu "Metal FireFly Final" (PJ, CC-BY-4.0);
 gấu mèo theo hình khối + nhịp chạy của mẫu "Low-poly Racoon Run Animation" (avatrass, CC-BY-4.0); đèn sợi đốt trước chuồng bò theo mẫu
 "Incandescent Light Bulb" (AleixoAlonso, CC-BY-4.0) — tất cả chỉ đo, dựng lại bằng code. Bướm theo hình thái + hoa văn 5 loài thật ở Tây Nguyên.
+Lò sưởi chiminea (`camp/chiminea.js`, mưa thì lửa chuyển từ lửa trại sang lò) dựng theo ảnh mẫu lò thép kiểu hộp; chiều cao tổng đo theo mẫu
+"Rustic chimenea" (archiesmitham, CC-BY-NC-SA-4.0) — chỉ đo, không dùng lưới/ảnh.

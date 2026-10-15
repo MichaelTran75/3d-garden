@@ -214,6 +214,20 @@
         }
         const campObj = campfire(); campObj.g.scale.multiplyScalar(CAMP_SCALE); // Grilled fish, stones, logs and flame children inherit this once.
         { const p = worldCell(FIRE_CELL[0], FIRE_CELL[1]); campObj.g.position.copy(p); campObj.g.name = 'Bếp lửa trại (Campfire)'; scene.add(campObj.g); }
+        // ---- MƯA DẬP LỬA (G 15/10 "trời mưa thì ko còn lửa chỉ còn khói"): campRain.heat = độ sống của bếp (1 cháy theo lịch giờ · 0 tắt nguội).
+        //      Mưa: lụi theo hàm mũ, τ = 60 s / cường độ mưa (mưa to ~1 phút, mưa phùn ~3,5 phút) — ngọn lửa tắt trước (heat 0,9 → 0,45), than hồng
+        //      tàn sau (0,55 → 0,03). Nước rơi vào than còn nóng bốc hơi trắng dày (quench) ⇒ lúc đang dập khói nhiều hơn lúc cháy; tắt rồi gỗ ướt
+        //      vẫn âm ỉ bốc khói (smolder, phai τ 20 phút), sau đó còn sợi khói mỏng. Tạnh: đất ráo bớt (sceneWet < 0,6) thì bếp nhen lại dần (τ 4 phút). Mở trang giữa cơn mưa: bếp đã tắt sẵn ----
+        const campRain = { heat: 1, quench: 0, flameK: 1, emberK: 1, smolder: 1, init: false }, _wetCoal = new THREE.Color(0.07, 0.065, 0.06);
+        function campRainTick(dt) {
+          const R = campRain, sm = THREE.MathUtils.smoothstep;
+          if (!R.init && liveWeather.state.data) { R.init = true; if (liveWeather.state.raining) R.heat = 0.04; }
+          if (rainK > 0.05) R.heat -= R.heat * rainK / 60 * dt;
+          else if (sceneWet < 0.6) R.heat += (1 - R.heat) / 240 * dt;
+          R.flameK = sm(R.heat, 0.45, 0.9); R.emberK = sm(R.heat, 0.03, 0.55); R.quench = rainK * sm(R.heat, 0.02, 0.35);
+          R.smolder = Math.max(R.heat, R.smolder * Math.exp(-dt / 1200));   // gỗ ướt âm ỉ: khói còn ~20 phút sau khi tắt
+          return R;
+        }
 
         // ---- bàn dã ngoại thấp + ghế bệt + đống củi & cọc gỗ quanh bếp lửa ----
         const pf = worldCell(FIRE_CELL[0], FIRE_CELL[1]);
