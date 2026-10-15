@@ -254,7 +254,8 @@
         //  bò bắt chước con ĐỨNG GẦN hơn là cả đàn (Stoye 2012). ⇒ chọn việc theo giờ + theo con gần nhất; gặm: đầu quét trái–phải trong "ô ăn",
         //  giật cắn ~0,85 lần/s, nhích 1–2 bước sang búi kế, thỉnh thoảng ngẩng canh chừng; nhai lại: hàm há–ngậm + nghiến ngang ~1,1 lần/s,
         //  ~55 s nuốt – ợ viên mới (cổ vươn nhẹ); trước khi nằm cúi đánh hơi, quét đầu; bầy giữ gần nhau, cách nhau ≥ 1,8 m; người / chó tới
-        //  gần < 3,5 m thì đứng dậy, quay đi; khát (~45 phút) thì theo lối về chuồng ra máng nước uống rồi về bãi; trưa nóng ≥ 28 °C tìm bóng cây gần nằm.
+        //  gần < 3,5 m thì đứng dậy, quay đi; ra máng 2–5 lần/ngày, mỗi lần 1–4 phút (OSU Extension) ⇒ cữ uống ~4 giờ, theo lối về chuồng ra máng,
+        //  uống từng đợt, giữa chừng ngẩng lên, xong về bãi; trưa nóng ≥ 28 °C tìm bóng cây gần nằm.
         const cowGrazeDrive = h => h < 9.5 ? 0.85 : h < 11 ? 0.5 : h < 14.5 ? 0.1 : h < 16 ? 0.45 : 0.85;   // mức muốn gặm theo giờ (sáng / chiều cao, trưa thấp)
         const _cwT = new THREE.Vector3(), _cwM = new THREE.Vector3();
         function cowNear(c) { let best = null, bd = 1e9; for (const o of cows) { if (o === c || o.mode !== 'free') continue; const d = Math.hypot(o.x - c.x, o.z - c.z); if (d < bd) { bd = d; best = o; } } return [best, bd]; }
@@ -269,6 +270,32 @@
           for (const tc of treeCoords) { const d = Math.hypot(tc.x - c.x, tc.z - c.z); if (d < bd) { const x = tc.x - sx / sl * 1.6, z = tc.z - sz / sl * 1.6; if (cowOK(x, z)) { bd = d; best = { x, z }; } } }
           return best;
         }
+        // ---- NGƯỜI XEM ZOOM CẬN (G 15/10): cữ uống thật thưa ⇒ hiếm khi trùng lúc có người xem. Zoom cận 1 con (camera.zoom ≥ 7, con đó gần giữa
+        //      khung ≥ 1,2 s, đang đứng hẳn / nằm hẳn): nó ngẩng lên quay đầu nhìn người xem 2,5–4 s (bò quen người quay mặt nhìn người tới gần —
+        //      Highland Cattle USA), rồi nếu sắp tới cữ uống (khát ≥ 0,35, máng ≤ 35 m) thì đi uống luôn = dồn cữ sắp tới lên sớm, số lần uống trong
+        //      ngày vẫn như thật. Zoom cận máng nước ≥ 1,5 s (không con nào đang uống): con gần máng nhất trong số con sắp tới cữ (≤ 35 m) ra uống. Mỗi lần nhìn chỉ 1 phản
+        //      ứng; rời khung ≥ 8 s mới tính lại.
+        const _cwV = new THREE.Vector3(), cowSeen = { tr: 0, trOff: 99, trDone: false };
+        const cowTroughDist = c => Math.hypot(cowHut.x + cowHut.W / 2 + 2.3 - c.x, cowHut.z + 0.75 - c.z);
+        function cowGoDrink(c) { c.state = 'drink'; c.sub2 = 'go'; c.tmr = 999; c.lieIn = 3; c.watch = 0; }
+        function cowWatch(dt) {
+          const close = camera.zoom >= 7; let best = null, bd = 0.6;
+          if (close) for (const c of cows) { if (c.mode !== 'free') continue; const v = _cwV.copy(c.g.position).project(camera), d = Math.max(Math.abs(v.x), Math.abs(v.y)); if (d < bd) { bd = d; best = c; } }
+          for (const c of cows) {
+            if (c !== best) { c.seen = 0; if ((c.unseen = (c.unseen || 0) + dt) > 8) c.seenDone = false; continue; }
+            c.seen = (c.seen || 0) + dt; c.unseen = 0;
+            if (c.seen > 1.2 && !c.seenDone && ['graze', 'rest', 'stand', 'walk'].includes(c.state) && (c.restY < 0.02 || c.restY > 0.98)) { c.seenDone = true; c.watch = 2.5 + Math.random() * 1.5; }
+          }
+          const v = _cwV.set(cowHut.x + cowHut.W / 2 + 0.95, cowHut.y + 0.4, cowHut.z + 0.75).project(camera), S = cowSeen;
+          if (close && Math.abs(v.x) < 0.5 && Math.abs(v.y) < 0.5) {
+            S.trOff = 0;
+            if ((S.tr += dt) > 1.5 && !S.trDone) {
+              S.trDone = true; let pick = null;
+              if (!cows.some(c => c.mode === 'free' && c.state === 'drink')) for (const c of cows) if (c.mode === 'free' && c.state !== 'flee' && c.thirst >= 0.35 && cowTroughDist(c) < 35 && (!pick || cowTroughDist(c) < cowTroughDist(pick))) pick = c;
+              if (pick) cowGoDrink(pick);
+            }
+          } else { S.tr = 0; if ((S.trOff += dt) > 8) S.trDone = false; }
+        }
         function cowChoose(c) {
           const h = liveWeather.localHour, G = cowGrazeDrive(h), hot = (liveWeather.state.temperature ?? 24) >= 28 && sunElevSin > 0.55;
           if ((c.thirst || 0) > 1) return 'drink';
@@ -281,7 +308,7 @@
           return pick;
         }
         function cowFreeTick(c, dt, t) {
-          c.thirst = (c.thirst ?? Math.random() * 0.7) + dt / 2700;   // khát lại sau ~45 phút
+          c.thirst = (c.thirst ?? Math.random() * 0.9) + dt / 14400;   // cữ uống ~4 giờ thả bãi ⇒ 2–3 lần/ngày (OSU: 2–5 lần)
           const thr = cowThreat(c);
           if (thr && c.state !== 'flee') { c.state = 'flee'; c.tmr = 4 + Math.random() * 2; c.angT = Math.atan2(c.z - thr.z, c.x - thr.x); }
           c.tmr -= dt;
@@ -299,6 +326,15 @@
             const b = (t + c.ph * 9) % 55, swallow = b > 52.5; c.chew = swallow ? 0 : 1;
             c.hz = (lying ? -0.24 : -0.16) + (swallow ? 0.14 * Math.sin(Math.PI * (b - 52.5) / 2.5) : 0) + Math.sin(t * 0.7 + c.ph) * 0.03; c.hx = Math.sin(t * 0.45 + c.ph) * 0.05;
           };
+          if (c.watch > 0 && c.state !== 'flee') {   // có người zoom cận: ngẩng đầu quay mặt về phía người xem (đứng thì xoay dần cả thân cho cổ với tới), vẫn nhai
+            c.watch -= dt; c.vk = 0;
+            camera.getWorldDirection(_cwV); let d = Math.atan2(-_cwV.z, -_cwV.x) - c.ang; d = Math.atan2(Math.sin(d), Math.cos(d));
+            if (c.restY < 0.05 && Math.abs(d) > 0.9) c.ang += Math.sign(d) * Math.min(Math.abs(d) - 0.9, 0.7 * dt);
+            if (c.restY > 0.5) rum(true); else c.chew = 0.5;
+            c.hz = c.restY > 0.5 ? -0.12 : -0.04; c.hx = Math.max(-1, Math.min(1, -d / 0.9));
+            if (c.watch <= 0 && c.thirst >= 0.35 && cowTroughDist(c) < 35) cowGoDrink(c);
+            return;
+          }
           switch (c.state) {
             case 'rest': {   // cúi đánh hơi, quét đầu vài giây → quỳ, nằm (cowPose) → nhai lại
               if ((c.lieIn -= dt) > 0) { up(); c.vk = 0; c.hz = -0.15; c.reach = 0.08; c.hx = 0.3 * Math.sin(t * 1.4 + c.ph); break; }
@@ -320,12 +356,14 @@
               if (c.sub2 === 'go') {
                 c.hz = -0.18; c.hx = 0;
                 const far = c.state === 'drink' && Math.hypot(tgt.x - c.x, tgt.z - c.z) > 7;   // xa máng: theo trường về cửa chuồng (vòng qua sông, vách) rồi mới đi thẳng
-                if (up() && cowSteer(c, tgt.x, tgt.z, dt, far ? hutField : null)) { c.sub2 = 'do'; c.tmr = c.state === 'drink' ? 20 + Math.random() * 15 : 120 + Math.random() * 120; c.lieIn = 3; }
+                if (up() && cowSteer(c, tgt.x, tgt.z, dt, far ? hutField : null)) { c.sub2 = 'do'; c.tmr = c.state === 'drink' ? 60 + Math.random() * 90 : 120 + Math.random() * 120; c.lieIn = 3; }
                 else if (c.tmr < 999 - 240) { c.state = 'stand'; c.tmr = 5; c.thirst = Math.min(c.thirst, 0.6); }   // 4 phút chưa tới (kẹt) → thôi, lát nữa khát lại
               }
-              else if (c.state === 'drink') {
+              else if (c.state === 'drink') {   // uống từng đợt hút 15–25 s, giữa các đợt ngẩng lên nhìn quanh ~2,5 s; cả lần 1–2,5 phút
                 c.vk = 0; let da = Math.PI - c.ang; da = Math.atan2(Math.sin(da), Math.cos(da)); c.ang += da * Math.min(1, dt * 2);
-                c.hz = -0.32 + 0.04 * Math.sin(t * 3.2); c.hx = 0; c.chew = 0.3; c.reachY = cowHut.y + 0.39;   // mõm ngập ~3 cm, hút từng ngụm
+                c.sip = (c.sip ?? 15 + Math.random() * 10) - dt;
+                if (c.sip < 0) { c.hz = -0.1; c.hx = 0.3 * Math.sin(t * 0.9 + c.ph); if (c.sip < -2.5) c.sip = 15 + Math.random() * 10; }
+                else { c.hz = -0.32 + 0.04 * Math.sin(t * 3.2); c.hx = 0; c.chew = 0.3; c.reachY = cowHut.y + 0.39; }   // mõm ngập ~3 cm, hút từng ngụm
                 if (c.tmr <= 0) { c.thirst = 0; c.state = 'stand'; c.mode = 'leave'; c.leg = 'pasture'; }   // uống xong: theo trường dòng chảy về bãi gặm quen (cowHome)
               } else { if ((c.lieIn -= dt) > 0) { c.vk = 0; c.hz = -0.15; c.reach = 0.08; c.hx = 0.3 * Math.sin(t * 1.4 + c.ph); } else { c.restY = Math.min(1, c.restY + dt * 0.38); c.vk = 0; rum(true); } }
               break;
