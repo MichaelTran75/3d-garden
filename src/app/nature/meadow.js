@@ -20,20 +20,27 @@
           while (qh < qt) { const c = q[qh++], d = wd[c] + 1; if (d > 40) continue; const ci = c % GX, cj = (c / GX) | 0;
             for (const n of [ci > 0 ? c - 1 : -1, ci < GX - 1 ? c + 1 : -1, cj > 0 ? c - GX : -1, cj < GZ - 1 ? c + GX : -1]) if (n >= 0 && wd[n] > d) { wd[n] = d; q[qt++] = n; } }
           const door = vanPt(0.33, 0, 2.6), camps = [[pf.x, pf.z, 3.2], [door.x, door.z, 1.8]];
-          let land = 0; const cand = [];
+          // ---- THẢM CỎ NGẮN (G 15/10 "thảm cỏ ngắn vào khu vực này": bãi quanh khúc gỗ chết + 2 gốc cây): ô trong vùng luôn có cỏ, lá thấp 9–15 cm
+          //      (cỏ mềm 15–39 cm), mảnh hơn 40%, dày gấp 3 (3 bản/ô, hạt giống khác), gốc lá tối hơn nền chút ⇒ thấy vân thảm cả khi zoom vừa; mép loang theo nhiễu cho khỏi thành hình elip. Không tính vào 45% của thảm cỏ
+          //      mềm (ngưỡng chọn ô giữ nguyên, ô cỏ mềm sẵn có giữ nguyên); RNG riêng ⇒ cỏ chỗ khác y như cũ. Lõi khúc gỗ rỗng bỏ trống (nhìn qua miệng gỗ thấy cỏ) ----
+          const LAWNS = [{ x: X0 + 103.3, z: Z0 + 109.4, rx: 8.5, rz: 10.5 }], lrnd = mulberry32(7171);
+          const lawnAt = (i, j, x, z) => { let L = 0; for (const W of LAWNS) { const u = (x - W.x) / W.rx, v = (z - W.z) / W.rz; L = Math.max(L, 1 - u * u - v * v + 0.35 * (vnoise(i * 0.2 + 3, j * 0.2 + 11) - 0.5)); } return L > 0 && !deadLogOut(x, z, -0.15) ? L : 0; };
+          let land = 0; const cand = [], lawnPad = [];
           for (let j = 4; j < GZ - 4; j++) for (let i = 4; i < GX - 4; i++) {
             if (isWater(i, j)) continue; land++;
-            if (padH(i, j) !== null) continue;
-            const x = wx(i), z = wz(j), moist = Math.exp(-wd[i + j * GX] / 9);
+            const x = wx(i), z = wz(j), onPad = padH(i, j) !== null, Lw = lawnAt(i, j, x, z);
+            if (onPad && !Lw) continue;   // nền san phẳng: cỏ mềm không mọc, riêng vùng thảm ngắn thì có (bãi khúc gỗ nằm trên nền san phẳng)
+            const moist = Math.exp(-wd[i + j * GX] / 9);
             if (roadContains(x, z, 0.3) || obstacleCoords.some(o => Math.hypot(x - o.x, z - o.z) < o.r * 0.85)) continue;   // không mọc trên đường nhựa, chân thân cây / xe / bếp / đồ đạc
+            if (onPad) { lawnPad.push([0, i, j, moist, Lw]); continue; }
             let sc = 0.62 * vnoise(i * 0.045, j * 0.045) + 0.38 * vnoise(i * 0.14 + 17, j * 0.14 + 5) + 0.28 * moist;
             for (const [cx, cz, r] of camps) { const d = Math.hypot(x - cx, z - cz); if (d < r) sc -= 0.8 * (1 - d / r); }
             { const d = Math.hypot(x - pf.x, z - pf.z); if (d > 3.2 && d < 16) sc += 0.32 * Math.min(1, (d - 3.2) / 2) * Math.min(1, (16 - d) / 4); }   // vườn quanh trại: cỏ dày bao quanh (ngoài vòng đất nện)
-            cand.push([sc, i, j, moist]);
+            cand.push([sc, i, j, moist, Lw]);
           }
           const want = Math.round(0.45 * land), sorted = cand.map(c => c[0]).sort((a, b) => a - b);
           const thr = cand.length > want ? sorted[cand.length - want] : -1e9, top = sorted[sorted.length - 1] || 1;
-          const cells = cand.filter(c => c[0] >= thr);
+          const cells = cand.filter(c => c[0] >= thr), lawn = [...lawnPad, ...cand.filter(c => c[4] > 0 && c[0] < thr)];   // ô cỏ mềm sẵn có trong vùng vẫn giữ lá cao (bụi cỏ giữa thảm)
           // ---- màu đất thật dưới từng ô (màu bậc địa hình × sắc độ ô × màu trung bình texture cỏ) + tô loang mảng cỏ lên mặt đất (thấy được cả khi nhìn xa) ----
           const texMean = new THREE.Color(0xd9d6c8);   // (Color(hex) đã tự đổi sRGB → tuyến tính; đổi thêm lần nữa làm gốc lá tối gấp 2,3)
           const tops = new Map(), _m = new THREE.Matrix4(), _p = new THREE.Vector3(), _c = new THREE.Color();
@@ -42,25 +49,32 @@
             for (let k = 0; k < im.count; k++) { im.getMatrixAt(k, _m); _p.setFromMatrixPosition(_m); tops.set(Math.round(x2gi(_p.x)) + Math.round(z2gj(_p.z)) * GX, [im, k]); }
           }
           const lushOf = (i, j, moist) => Math.max(0, Math.min(1, 0.3 + 0.7 * moist + 0.6 * (vnoise(i * 0.09 + 41, j * 0.09 + 7) - 0.5)));
-          const dirty = new Set();
-          for (const [sc, i, j, moist] of cells) {
+          const dirty = new Set(), _cL = new THREE.Color(), _lawnTint = new THREE.Color(0.8, 1.0, 0.62);
+          for (const [sc, i, j, moist, L] of [...cells, ...lawn]) {
             const t = tops.get(i + j * GX); if (!t) continue;
-            const lush = lushOf(i, j, moist), dens = Math.min(1, (sc - thr) / Math.max(1e-3, top - thr));
-            t[0].getColorAt(t[1], _c); _c.multiplyScalar(1.015 + 0.05 * dens).lerp(_c.clone().offsetHSL(0.012 * (lush - 0.5), 0.04, 0), 0.6); t[0].setColorAt(t[1], _c); dirty.add(t[0]);   // mặt đất dưới mảng cỏ: tươi hơn chút
+            const lush = L ? 0.75 : lushOf(i, j, moist), dens = L ? 0.6 : Math.min(1, (sc - thr) / Math.max(1e-3, top - thr));
+            t[0].getColorAt(t[1], _c); _c.multiplyScalar(1.015 + 0.05 * dens).lerp(_c.clone().offsetHSL(0.012 * (lush - 0.5), 0.04, 0), 0.6);   // mặt đất dưới mảng cỏ: tươi hơn chút
+            if (L) { const e = Math.min(1, L / 0.3); _c.lerp(_cL.copy(_c).multiply(_lawnTint), 0.85 * e); }   // thảm ngắn: nền xanh đậm như cỏ mượt, loang dần ra mép
+            t[0].setColorAt(t[1], _c); dirty.add(t[0]);
           }
           for (const im of dirty) im.instanceColor.needsUpdate = true;
           // ---- dữ liệu từng ô (xếp theo mảng 24 × 24 ô để cắt khung nhìn) ----
           const chunks = new Map();
-          for (const c of cells) { const key = ((c[1] / CH) | 0) + ',' + ((c[2] / CH) | 0); if (!chunks.has(key)) chunks.set(key, []); chunks.get(key).push(c); }
-          const nC = cells.length, R = new Float32Array(nC * 3), C4 = new Float32Array(nC * 4), BC = new Float32Array(nC * 3), parts = [];
+          for (const c of [...cells, ...lawn, ...lawn, ...lawn]) { const key = ((c[1] / CH) | 0) + ',' + ((c[2] / CH) | 0); if (!chunks.has(key)) chunks.set(key, []); chunks.get(key).push(c); }   // thảm ngắn: 3 bản/ô
+          const nC = cells.length + 3 * lawn.length, R = new Float32Array(nC * 3), C4 = new Float32Array(nC * 4), BC = new Float32Array(nC * 3), parts = [];
           let n = 0;
           for (const list of chunks.values()) {
             const box = new THREE.Box3(); const start = n;
-            for (const [sc, i, j, moist] of list) {
-              const x = wx(i), z = wz(j), y = surfaceY(i, j), dens = Math.min(1, (sc - thr) / Math.max(1e-3, top - thr)), edge = Math.min(1, (sc - thr) / 0.09);
-              const lush = lushOf(i, j, moist), h = (0.15 + 0.17 * Math.pow(dens, 0.7) + 0.07 * moist) * (0.88 + 0.24 * rnd()) * (0.4 + 0.6 * edge);
+            for (const [sc, i, j, moist, L] of list) {
+              const x = wx(i), z = wz(j), y = surfaceY(i, j);
               R[n * 3] = x; R[n * 3 + 1] = y; R[n * 3 + 2] = z;
-              C4[n * 4] = h; C4[n * 4 + 1] = rnd(); C4[n * 4 + 2] = lush; C4[n * 4 + 3] = rnd() < 0.06 ? 1 + ((rnd() * 4) | 0) : 0;   // chiều cao · hạt giống · độ tươi · hoa dại (0 = không, 1–4 = màu)
+              if (L && sc < thr) {   // thảm ngắn (ô cỏ mềm sẵn có trong vùng: sc ≥ thr, giữ lá cao): lá 9–15 cm (thấp dần ra mép), độ tươi mã hoá +2 (shader nhận ra để vẽ lá mảnh), hoa li ti trắng / vàng ~2,5%
+                C4[n * 4] = (0.09 + 0.06 * lrnd()) * (0.45 + 0.55 * Math.min(1, L / 0.25)); C4[n * 4 + 1] = lrnd(); C4[n * 4 + 2] = 2.75 + 0.12 * (lrnd() - 0.5); C4[n * 4 + 3] = lrnd() < 0.025 ? 1 + ((lrnd() * 2) | 0) : 0;
+              } else {
+                const dens = Math.min(1, (sc - thr) / Math.max(1e-3, top - thr)), edge = Math.min(1, (sc - thr) / 0.09);
+                const lush = lushOf(i, j, moist), h = (0.15 + 0.17 * Math.pow(dens, 0.7) + 0.07 * moist) * (0.88 + 0.24 * rnd()) * (0.4 + 0.6 * edge);
+                C4[n * 4] = h; C4[n * 4 + 1] = rnd(); C4[n * 4 + 2] = lush; C4[n * 4 + 3] = rnd() < 0.06 ? 1 + ((rnd() * 4) | 0) : 0;   // chiều cao · hạt giống · độ tươi · hoa dại (0 = không, 1–4 = màu)
+              }
               const t = tops.get(i + j * GX); if (t) { t[0].getColorAt(t[1], _c); _c.multiply(texMean); } else _c.setRGB(0.3, 0.42, 0.18);
               BC[n * 3] = _c.r; BC[n * 3 + 1] = _c.g; BC[n * 3 + 2] = _c.b;
               box.expandByPoint(_p.set(x - 0.4, y, z - 0.4)); box.expandByPoint(_p.set(x + 0.4, y + 0.6, z + 0.4));
@@ -99,11 +113,11 @@
             shader.vertexShader = WIND_GLSL_COMMON + '\n' + GRASS_GLSL + `
               attribute vec4 aBlade; attribute float aIdx; attribute vec3 aRoot; attribute vec4 aCell; attribute vec3 aBase;
               uniform float uFade, uDensity, uMTime; uniform vec3 uCamRight; uniform vec4 uPush[3];
-              varying float vT, vLush, vBend, vFlower, vShade; varying vec3 vBase;
+              varying float vT, vLush, vBend, vFlower, vShade, vLawn; varying vec3 vBase;
               ` + shader.vertexShader
               .replace('#include <beginnormal_vertex>', 'vec3 objectNormal = vec3( 0.0, 1.0, 0.0 );   // pháp tuyến mặt đất')
               .replace('#include <begin_vertex>', `
-                float t = position.y, sd = aBlade.x, seed = aCell.y;
+                float t = position.y, sd = aBlade.x, seed = aCell.y, lawn = step(1.5, aCell.z);   // độ tươi > 1,5 = ô thảm cỏ ngắn
                 float flower = (aIdx < 0.001 && aCell.w > 0.5) ? aCell.w : 0.0;
                 float h = aCell.x * aBlade.z * uFade * step(aIdx, uDensity - 1e-4) * (flower > 0.0 ? 1.18 : 1.0);
                 float ra = seed * 6.2832, cr = cos(ra), sr = sin(ra);   // xoay cả ô ⇒ ô cạnh nhau không lặp mẫu
@@ -111,7 +125,7 @@
                 vec3 root = aRoot + vec3(off.x, 0.0, off.y);
                 vec2 fwd = vec2(cos(aBlade.y + ra), sin(aBlade.y + ra)), s0 = vec2(-fwd.y, fwd.x), sc = normalize(uCamRight.xz + 1e-5);
                 vec2 sv = normalize(mix(s0 * (dot(s0, sc) >= 0.0 ? 1.0 : -1.0), sc, 0.55));   // bề ngang lá: nửa theo lá, nửa vuông góc hướng nhìn
-                float w = 0.016 * (1.0 - 0.86 * t) * sd * (0.8 + 0.4 * fract(seed * 7.13)) * (flower > 0.0 && t > 0.8 ? 3.2 : 1.0);
+                float w = 0.016 * (1.0 - 0.86 * t) * sd * (0.8 + 0.4 * fract(seed * 7.13)) * (flower > 0.0 && t > 0.8 ? 3.2 : 1.0) * (1.0 - 0.4 * lawn);
                 float bend = aBlade.w * t * t * h;
                 vec3 p = root + vec3(fwd.x * bend + sv.x * w, t * h * (1.0 - 0.22 * aBlade.w * t), fwd.y * bend + sv.y * w);
                 vec3 wd = grassWind(root, t, h);
@@ -121,12 +135,12 @@
                   if (f > 0.0) { vec2 dir = dl > 1e-4 ? d / dl : fwd; wd.xz += dir * f * h * t * 0.95; wd.y -= f * h * t * t * 0.6; }
                 }
                 p += wd;
-                vT = t; vBase = aBase; vLush = aCell.z; vFlower = flower; vShade = 0.94 + 0.12 * fract(sin(aIdx * 91.7 + seed * 47.3) * 437.5);   // mỗi lá sáng tối lệch nhẹ vBend = clamp(length(wd.xz) / max(h, 0.05), 0.0, 1.0);
+                vT = t; vBase = aBase; vLush = aCell.z - 2.0 * lawn; vLawn = lawn; vFlower = flower; vShade = 0.94 + 0.12 * fract(sin(aIdx * 91.7 + seed * 47.3) * 437.5);   // mỗi lá sáng tối lệch nhẹ vBend = clamp(length(wd.xz) / max(h, 0.05), 0.0, 1.0);
                 vec3 transformed = p;`);
-            shader.fragmentShader = `uniform vec3 uGlow; varying float vT, vLush, vBend, vFlower, vShade; varying vec3 vBase;\n` + shader.fragmentShader
+            shader.fragmentShader = `uniform vec3 uGlow; varying float vT, vLush, vBend, vFlower, vShade, vLawn; varying vec3 vBase;\n` + shader.fragmentShader
               .replace('#include <color_fragment>', `
-                vec3 gBase = vBase * 0.97;                                                        // gốc: đúng màu đất (che khuất rất nhẹ) ⇒ cỏ mọc ra từ nền
-                vec3 gTip = mix(vBase * vec3(1.26, 1.2, 0.84), vBase * vec3(1.2, 1.3, 1.04) + vec3(0.01, 0.02, 0.0), vLush);   // ngọn SÁNG hơn nền: khô ngả vàng-xanh ấm ↔ tươi xanh mướt
+                vec3 gBase = vBase * (0.97 - 0.13 * vLawn);                                                        // gốc: đúng màu đất (che khuất rất nhẹ) ⇒ cỏ mọc ra từ nền
+                vec3 gTip = mix(vBase * vec3(1.26, 1.2, 0.84), vBase * vec3(1.2, 1.3, 1.04) + vec3(0.01, 0.02, 0.0), vLush) * (1.0 + 0.12 * vLawn);   // ngọn SÁNG hơn nền: khô ngả vàng-xanh ấm ↔ tươi xanh mướt
                 vec3 gCol = mix(gBase, gTip, smoothstep(0.0, 1.0, vT)) * vShade;
                 gCol *= 1.0 + 0.16 * vBend * vT;                                                 // ngọn sóng gió bắt sáng
                 if (vFlower > 0.5 && vT > 0.82) gCol = vFlower < 1.5 ? vec3(0.86, 0.85, 0.8) : vFlower < 2.5 ? vec3(0.9, 0.72, 0.16) : vFlower < 3.5 ? vec3(0.88, 0.45, 0.55) : vec3(0.62, 0.48, 0.85);
