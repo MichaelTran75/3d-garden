@@ -134,7 +134,7 @@ lò xo) ⇒ lên bậc voxel 0,6 đv thì chân trước lên trước, thân ng
   `hiveAnchor` (Object3D trên cành cây con, `nature/old-tree.js`). Đèn chuồng bò: `cowHut.lampTick(dt, đêm)` (vật liệu + con lắc dây).
 - Ong (`beeTick`, `animals/insects.js`): pha `b.ph2` = fly → land (khoảng cách tới điểm chạm giảm theo hàm mũ τ 0,16 s — ong giữ tốc độ giãn ảnh
   không đổi khi hạ cánh) → feed (đậu `flower.top`, xếp cánh, bò vòng, giỏ phấn `b.pollen` to dần) → takeoff; về tổ: land vành miệng giỏ → crawlIn
-  (ẩn) → inside → crawlOut. Chỉ ra tổ khi khô, 6:20–18:00, gió < 30 km/h, ≥ 13 °C; gió tại chỗ đẩy dạt khi bay. **Bẫy đã dính**: `hiveWorldPos`
+  (ẩn) → inside → crawlOut. Chỉ ra tổ khi khô, 6:20–18:00, gió < 24 km/h, ≥ 12 °C (ngưỡng UMaine Extension); gió tại chỗ đẩy dạt khi bay. **Bẫy đã dính**: `hiveWorldPos`
   phải là ô bay trống (`flightNav.pointClear`) — điểm sát tán cây cổ thụ bị chặn ⇒ ong kẹt cả ngày không về được tổ.
   Trong tổ: 3 con nhảy lắc đuôi (góc chạy = hướng đồng hoa − hướng mặt trời, "lên" trên bánh = phía mặt trời).
 - Laptop bàn học: `laptopDash(t)` vẽ bảng vận hành chạy (~6 hình/giây, chỉ khi nắp mở) — số MW theo nắng / mây / gió thật.

@@ -404,8 +404,8 @@
           agent.g.position.set(p.x, p.y, p.z);
         }
         // ---- HÀNH VI ONG THỢ (G 15/10 "research bee behaviour and physic, react to environment and weather", Apis mellifera / cerana):
-        //  · chỉ ra khỏi tổ khi khô ráo, ban ngày (6:20–18:00), gió < 30 km/h, ≥ 13 °C (ong mật ngừng kiếm ăn khi mưa, gió mạnh, lạnh); trở trời /
-        //    chiều tối thì bỏ dở hoa bay về tổ; trong tổ chờ tới khi thời tiết lại thuận.
+        //  · chỉ ra khỏi tổ khi khô ráo, ban ngày (6:20–18:00), gió < 24 km/h (15 mph), ≥ 12 °C (54 °F) — ngưỡng bay của ong mật theo UMaine Extension;
+        //    mưa / gió mạnh / lạnh / chiều tối thì bỏ dở hoa bay về tổ; trong tổ chờ tới khi thời tiết lại thuận.
         //  · ĐÁP = CHẠM: sát bề mặt thì giảm tốc theo khoảng cách còn lại (ong giữ tốc độ giãn ảnh không đổi khi hạ cánh — Srinivasan & cs. 2000,
         //    Baird & cs. 2013) ⇒ khoảng cách giảm theo hàm mũ, chạm nhẹ; ngóc đầu + thõng chân lúc sắp chạm. Đậu hoa: xếp cánh dọc lưng, bò vòng
         //    quanh nhuỵ, chúc đầu hút mật; giỏ phấn chân sau to dần theo số hoa. Về tổ: đáp lên vành miệng giỏ, xếp cánh, BÒ vào trong (ẩn), xả mật,
