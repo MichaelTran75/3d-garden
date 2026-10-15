@@ -7882,6 +7882,18 @@
         { const ch = campChair(campFabricYellow, campFrameWood); ch.position.copy(campChairPos); ch.rotation.y = campChairFaceY; ch.name = 'Ghế cắm trại (Camp Chair)'; scene.add(ch); }   // ghế dã ngoại dạng gấp tương tự ghế câu cá
         { const tb = campTable(); tb.position.set(X0 + 65, cowY(X0 + 65, Z0 + 99.85), Z0 + 99.85);   // toạ độ hover (65, _, 100), lùi 15 cm khỏi tay ghế cắm trại cho khỏi chạm; xa cột chống bạt ~1,4 m
            tb.rotation.y = Math.PI * 0.15; tb.name = 'Bàn trà (Camp Table)'; scene.add(tb); }
+        let campTeaCup = null;
+        { const ch = scene.getObjectByName('Ghế cắm trại (Camp Chair)'), c = new THREE.Group(), wM = new THREE.MeshLambertMaterial({ color: 0xece8de, side: THREE.DoubleSide }), H = 0.09;
+          const add = (m, y) => { m.position.y = y; c.add(m); return m; };
+          add(new THREE.Mesh(new THREE.CylinderGeometry(0.052, 0.042, H, 14, 1, true), wM), H / 2);
+          add(new THREE.Mesh(new THREE.CircleGeometry(0.042, 14), wM), 0.004).rotation.x = -Math.PI / 2;
+          add(new THREE.Mesh(new THREE.CircleGeometry(0.049, 14), new THREE.MeshLambertMaterial({ color: 0x6b4423 })), H * 0.82).rotation.x = -Math.PI / 2;
+          const hd = add(new THREE.Mesh(new THREE.TorusGeometry(0.034, 0.0065, 5, 12, Math.PI), wM), H * 0.55); hd.position.x = 0.047; hd.rotation.z = -Math.PI / 2;
+          const sg = campCupSteam[0].m.parent; c.add(sg); sg.position.set(0, H + 0.01, 0);
+          c.traverse(o => { o.userData.noBatch = o.userData.noBake = true; if (o.isMesh) o.castShadow = true; });
+          ch.add(c); c.position.set(0.472, 0.932, 0.2); c.rotation.y = 1.68; c.scale.set(1 / ch.scale.x, 1 / ch.scale.y, 1 / ch.scale.z);
+          c.userData.home = { parent: ch, p: c.position.clone(), s: c.scale.clone() }; campTeaCup = c;
+        }
         { const wc = woodCamp(); wc.name = 'Đống củi (Woodpile)'; wc.position.set(X0 + 68, woodCampY, Z0 + 100); wc.rotation.y = 0.5; scene.add(wc); }
         const campSmoke = fluids.addSmoke({ NR: 30, NZ: 90, H: 0.08, NP: 900, NS: 140, NT: 14, buoy: 4, kNu: 0.03, nu0: 0.002, tauT: 6, iters: 36, dens: 0.8 },
           { name: 'Khói bếp lửa (sợi khói Navier–Stokes)', opacity: 0.6 });
@@ -9818,6 +9830,90 @@
           e.seatLean = 0.08 + 0.12 * u + (u === 0 && !chew ? 0.04 : 0);   // xúc: đổ nhẹ nhìn bát · đưa lên: đổ tới đón thìa
           e.head.rotation.x = 0.36 * (1 - u) + 0.06 * u - 0.14 * sipU + (chew ? 0.025 * Math.sin(t * 8.8) : 0) + (slurp ? 0.03 * Math.sin(t * 15) : 0);
           e.head.rotation.y = 0.4 * glance;
+        }
+
+        const TEA = [['reach', 1.2], ['grab', 0.3], ['up', 1.15], ['blow', 1], ['sip', 1.7], ['down', 1], ['hold', 4.5], ['up2', 1], ['sip2', 1.7], ['down2', 1], ['hold2', 3], ['back', 1.8], ['let', 0.3], ['ret', 1], ['rest', 10]];
+        const TEA_T = TEA.reduce((a, p) => a + p[1], 0), TEA_H = 0.09, TEA_RT = 0.052, TEA_BODY = new THREE.Vector3(0, 0.045, 0);
+        const TEA_GO = new THREE.Vector3(0.087, 0.0495, 0), TEA_HUG = 0.115;
+        const TEA_GQ = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0.34, 0, -0.94), new THREE.Vector3(-0.94, 0, -0.34)));
+        const TEA_GQi = TEA_GQ.clone().invert(), TEA_MOUTH = new THREE.Vector3(0, -0.34, 0.94);
+        const _tA = new THREE.Vector3(), _tB = new THREE.Vector3(), _tN = new THREE.Vector3(), _tM = new THREE.Matrix4(), _tQ = new THREE.Quaternion();
+        function teaFrame(x, d, out) {
+          const X = _tA.copy(x).normalize(), Y = _tB.copy(d).addScaledVector(X, -d.dot(X)); if (Y.lengthSq() < 1e-6) Y.set(0, 0, 1).addScaledVector(X, -X.z);
+          Y.normalize(); return out.setFromRotationMatrix(_tM.makeBasis(X, Y, _tN.crossVectors(X, Y)));
+        }
+        function teaElbow(e, i, P, Q, A, drop, dt) {
+          const d = _tN.set(0, 1, 0).applyQuaternion(Q).multiplyScalar(Math.cos(drop)).addScaledVector(A, -Math.sin(drop)), u = _tB.copy(P).sub(e.arms[i].getWorldPosition(_tA)).normalize();
+          d.addScaledVector(u, -d.dot(u)); if (d.lengthSq() < 1e-6) return; e.spine.updateWorldMatrix(true, false); d.transformDirection(_tM.copy(e.spine.matrixWorld).invert());
+          const P0 = e.teaPole || (e.teaPole = [new THREE.Vector3(-0.6, -1, -0.15).normalize(), new THREE.Vector3(0.6, -1, -0.15).normalize()]);
+          P0[i].lerp(d, 1 - Math.exp(-dt * 10)).normalize(); e.elbowPole = P0;
+        }
+        const teaWrist = (Qw, local, W) => local.clone().sub(TEA_GO).applyQuaternion(TEA_GQi).applyQuaternion(Qw).negate().add(W);
+        function teaGrab(e) { const C = campTeaCup, w = e.wrists[1], s = w.getWorldScale(_tA).x; e.teaQ0 = C.getWorldQuaternion(e.teaQ0 || new THREE.Quaternion()).multiply(TEA_GQ); e.teaG0 = C.localToWorld(TEA_GO.clone()); w.add(C); C.quaternion.copy(TEA_GQi); C.position.copy(TEA_GO).applyQuaternion(TEA_GQi).multiplyScalar(-1 / s); C.scale.setScalar(1 / s); }
+        function teaRelease(e, Qc) {
+          const C = campTeaCup, Hm = C && C.userData.home; if (e) e.teaT = e.teaPole = undefined; if (!C || C.parent === Hm.parent) return;
+          C.updateWorldMatrix(true, false); const d = Qc ? _tA.set(1, 0, 0).applyQuaternion(Qc) : _tA.set(1, 0, 0).transformDirection(C.matrixWorld);
+          Hm.parent.updateWorldMatrix(true, false); d.transformDirection(_tM.copy(Hm.parent.matrixWorld).invert());
+          Hm.parent.add(C); C.position.copy(Hm.p); C.rotation.set(0, Math.atan2(-d.z, d.x), 0); C.scale.copy(Hm.s);
+        }
+        function engTea(e, dt, t) {
+          const C = campTeaCup; if (!C) return true;
+          e.teaT = (e.teaT ?? TEA_T - 3) + dt;
+          let c = e.teaT % TEA_T, ph = 'rest', k = 1; for (const [n, d] of TEA) { if (c < d) { ph = n; k = c / d; break; } c -= d; }
+          const s = minJerk(k), sm = (a, b, x) => minJerk((x - a) / (b - a)), ax = engAxesW(e), fwd = _mrF.copy(ax.f), UP = _mrUp, Hm = C.userData.home;
+          let held = C.parent !== Hm.parent;
+          if (ph === 'grab' && k > 0.5 && !held) { teaGrab(e); held = true; }
+          e.armsBusy = true; Hm.parent.updateWorldMatrix(true, false);
+          const V = (x, y, z) => engBodyW(e, x, y, z, new THREE.Vector3()), to = (a, b) => b.clone().sub(a);
+          const ringB = Hm.parent.localToWorld(Hm.p.clone()).addScaledVector(UP, TEA_BODY.y), lapL = V(0.17, 1.32, 0.3), lapR = V(-0.17, 1.32, 0.3), elbL = V(0.3, 1.4, 0), elbR = V(-0.3, 1.4, 0);
+          const chestB = V(-0.02, 1.62, 0.36), mouth = engMouthW(e, new THREE.Vector3()), face = fwd.clone().negate();
+          const lips = mouth.clone().addScaledVector(fwd, 0.006).addScaledVector(UP, -0.012), blowB = mouth.clone().addScaledVector(fwd, 0.09).addScaledVector(UP, -0.075), preB = mouth.clone().addScaledVector(fwd, 0.07).addScaledVector(UP, -0.07);
+          const arc = (a, b, u, h, f = 0) => a.clone().lerp(b, u).addScaledVector(UP, h * Math.sin(Math.PI * u)).addScaledVector(fwd, f * Math.sin(Math.PI * u));
+          const qL = (A, B) => teaFrame(A, to(B, elbL), new THREE.Quaternion());
+          if (((ph === 'let' && k > 0.5) || ph === 'ret' || ph === 'rest' || ph === 'reach') && held) { teaRelease(null, qL(UP, ringB).multiply(TEA_GQi)); held = false; }
+          C.updateWorldMatrix(true, false);
+          const qLap = (i) => { const d = to(i ? lapL : lapR, i ? elbL : elbR).normalize(); return aimQ(new THREE.Quaternion(), UP.clone().negate().addScaledVector(d, d.y).normalize(), d); };
+          const gripW = () => C.localToWorld(TEA_GO.clone()), gripQ = () => C.getWorldQuaternion(new THREE.Quaternion()).multiply(TEA_GQ);
+          const atB = (A, B, Qw) => { Qw = Qw || qL(A, B); return [teaWrist(Qw, TEA_BODY, B), Qw, A, B]; };
+          const sip = (Bfree, th, g) => {
+            const A = UP.clone().multiplyScalar(Math.cos(th * g)).addScaledVector(face, Math.sin(th * g)), Qw = qL(A, Bfree);
+            const Qc = _tQ.copy(Qw).multiply(TEA_GQi), n = face.clone().addScaledVector(A, -face.dot(A)).normalize().applyQuaternion(Qc.clone().invert());
+            const rim = new THREE.Vector3(0, TEA_H, 0).addScaledVector(n, TEA_RT), Bc = lips.clone().sub(rim.sub(TEA_BODY).applyQuaternion(Qc));
+            return atB(A, Bfree.clone().lerp(Bc, g), Qw);
+          };
+          let Pw, Qw, A = UP, B = null, wR = 0, hx = 0.05, gaze = 1, lean = -0.03;
+          if (ph === 'reach' || ph === 'grab') {
+            const g0 = gripW(), pre = g0.clone().addScaledVector(_tB.set(1, 0, 0).transformDirection(C.matrixWorld), 0.06).addScaledVector(UP, 0.04);
+            Pw = ph === 'grab' ? (held ? e.teaG0 : g0) : k < 0.7 ? arc(lapL, pre, minJerk(k / 0.7), 0.05) : pre.lerp(g0, sm(0.7, 1, k));
+            Qw = ph === 'grab' ? (held ? e.teaQ0 : gripQ()) : qLap(1).slerp(gripQ(), sm(0, 0.8, k)); hx = 0.32; gaze = 0;
+          }
+          else if (ph === 'up') { const Bt = arc(ringB, blowB, s, 0.02, 0.14);
+             [Pw, Qw, A, B] = atB(UP, Bt, (e.teaQ0 || qL(UP, Bt)).clone().slerp(qL(UP, Bt), sm(0, 0.6, k))); hx = 0.32 - 0.2 * s; gaze = 0; }
+          else if (ph === 'blow') { [Pw, Qw, A, B] = atB(UP, blowB); hx = 0.14; gaze = 0; lean = 0.02; }
+          else if (ph === 'sip' || ph === 'sip2') {
+            const g = sm(0, 0.25, k) * (1 - sm(0.8, 1, k)), th = (ph === 'sip' ? 0.45 : 0.5) * (0.35 + 0.65 * sm(0.15, 0.5, k) * (1 - sm(0.62, 0.85, k)));
+            [Pw, Qw, A, B] = sip(ph === 'sip' ? blowB : preB, th, g); hx = 0.1 - 0.24 * g * th / 0.5; gaze = 0; lean = 0.03 * g;
+          }
+          else if (ph === 'down' || ph === 'down2') { [Pw, Qw, A, B] = atB(UP, arc(ph === 'down' ? blowB : preB, chestB, s, 0.02)); wR = sm(0.25, 1, k); hx = 0.12; gaze = sm(0.4, 1, k); }
+          else if (ph === 'hold' || ph === 'hold2') { [Pw, Qw, A, B] = atB(UP, chestB.clone().addScaledVector(UP, 0.004 * Math.sin(t * 1.6))); wR = 1; hx = 0.03; lean = -0.01; }
+          else if (ph === 'up2') { [Pw, Qw, A, B] = atB(UP, arc(chestB, preB, s, 0.03)); wR = 1 - sm(0, 0.5, k); hx = 0.1; gaze = 1 - sm(0, 0.5, k); }
+          else if (ph === 'back') { [Pw, Qw, A, B] = atB(UP, arc(chestB, ringB, s, 0.05, 0.06)); wR = 1 - sm(0, 0.35, k); hx = 0.12 + 0.2 * s; gaze = 1 - s; }
+          else if (ph === 'let') { if (held) { Qw = qL(UP, ringB); Pw = teaWrist(Qw, TEA_BODY, ringB); } else { Pw = gripW(); Qw = gripQ(); } hx = 0.32; gaze = 0; }
+          else if (ph === 'ret') { const g0 = gripW(), post = g0.clone().addScaledVector(_tB.set(1, 0, 0).transformDirection(C.matrixWorld), 0.05).addScaledVector(UP, 0.05);
+            Pw = k < 0.3 ? g0.lerp(post, sm(0, 0.3, k)) : arc(post, lapL, sm(0.3, 1, k), 0.03); Qw = gripQ().slerp(qLap(1), sm(0.1, 1, k)); hx = 0.32 * (1 - s); gaze = s; }
+          else { Pw = lapL; Qw = qLap(1); }
+          const dropL = !held || ph === 'grab' || ph === 'let' ? 0 : 0.7 * (ph === 'up' ? sm(0, 0.5, k) : ph === 'back' ? 1 - sm(0.3, 0.9, k) : 1);
+          engHandSet(e, 1, Pw, Qw); teaElbow(e, 1, Pw, Qw, A, dropL, dt);
+          let PR = lapR, QR = qLap(0);
+          if (B && wR > 1e-3) {
+            const Qh = teaFrame(A.clone().negate(), to(B, elbR), new THREE.Quaternion()), m = TEA_MOUTH.clone().applyQuaternion(Qh);
+            PR = lapR.clone().lerp(B.clone().addScaledVector(m, -TEA_HUG), wR); QR = QR.slerp(Qh, wR);
+          }
+          engHandSet(e, 0, PR, QR); teaElbow(e, 0, PR, QR, A, 0.55 * wR, dt);
+          const kf = 1 - Math.exp(-dt * 5), T = e.teaPose || (e.teaPose = { hx: 0.05, hy: 0, lean: -0.03 });
+          T.hx += (hx - T.hx) * kf; T.hy += (gaze * 0.3 * Math.sin(t * 0.13) - T.hy) * kf; T.lean += (lean - T.lean) * kf;
+          e.seatLean = T.lean; e.seatSwing = 0.04; e.head.rotation.x = T.hx; e.head.rotation.y = T.hy;
+          return ph === 'rest' && !held;
         }
 
         const BOOK_Q = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 0.6, -0.8), new THREE.Vector3(0, -0.8, -0.6)));   // mặt sách ngửa về phía mắt
@@ -14333,6 +14429,7 @@
           }
           if (engObj) {
             const e = engObj;
+            if (e.teaT !== undefined && e.phase !== 'tea') teaRelease(e);
             engPoseBegin(e);   // trả tư thế đích frame trước
             updateEngineerWeatherThought();
             const hh = liveWeather.localHour; // One Pleiku clock for sky, animals and the engineer.
@@ -14443,12 +14540,9 @@
               else if (e.phase === 'toGrill' || e.phase === 'grab' || e.phase === 'toPlant' || e.phase === 'plant') engGrillPhase(e, dt, t);   // lấy que cá nướng · xiên & cắm cá mới
               else if (e.phase === 'tea') {                // nhấp trà thư giãn, ngả lưng nhẹ; hết giờ: nghỉ trưa thì chợp mắt luôn trên ghế, dạo trại thì đứng dậy đi tiếp
                 if (engUseSeat(e, CAMP_SEAT, dt, t)) {
-                  e.timer -= dt; e.seatLean = -0.03; e.seatSwing = 0.06; H.cup = true;
-                  const sipT = t % 7.5, sipK = sipT < 1.3 ? Math.sin((sipT / 1.3) * Math.PI) : 0;   // nhấp trà định kỳ ~7.5s/lần
-                  e.arms[0].rotation.x = -0.22 + Math.sin(t * 0.7) * 0.05;
-                  e.arms[1].rotation.x = -0.25 - sipK * 0.95;                              // tay đưa tách trà lên miệng
-                  e.head.rotation.x = 0.06 - sipK * 0.16;
-                  if (e.timer <= 0) {
+                  e.timer -= dt; e.arms[0].rotation.x = e.arms[1].rotation.x = -0.6;
+                  const teaIdle = engTea(e, dt, t);
+                  if (e.timer <= 0 && teaIdle) {
                     if (e.act === 'rest') e.phase = 'nap';
                     else if (e.act === 'outdoor') { e.phase = 'wander'; e.timer = 90; e.wanderTgt = null; e.wanderTmr = 0; }
                     else e.timer = 600;

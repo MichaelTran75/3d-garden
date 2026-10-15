@@ -190,6 +190,13 @@ lò xo) ⇒ lên bậc voxel 0,6 đv thì chân trước lên trước, thân ng
   trên bàn lên môi theo 1 cung liền (cốc nghiêng dần). Pha mỗi miếng ngũ cốc: với 0,6 · xúc 0,6 · đưa lên 0,7 · vào miệng 0,35 · rút 0,35 ·
   về 0,8 · nhai ~2 s; udon: gắp chấm 2 lần · kéo sợi · tới miệng · húp · về; tay trái giữ vành bát. `e.elbowPole` (vectơ cực khuỷu, hệ eo,
   xoá mỗi khung trong `engArmPost`): ăn dùng `EAT_POLE` ⇒ khuỷu khép, đo được vai dạng ≤ 18° (nghiên cứu ≤ 30°); mặc định IK dang ra 0,6.
+- Uống trà ở ghế cắm trại (`engTea(e, dt, t)`, `engineer/meal-read.js`; cốc `campTeaCup` ở `camp/chairs-lantern-fire.js`): cốc men trắng nằm
+  trong vòng khay cốc tay vịn trái (bàn trà cách vai ~1 m, ngoài tầm với 0,57 m; ca đen trên bàn là ca nấu). Chu kỳ ~30,7 s theo bài thử uống nước
+  (Alt Murphy 2006: với 1,2 · đưa lên 1,15 · uống 1,7 · đưa về 1,8 · thả 1,0 s): với → luồn tay vào quai → nâng (vòng ra trước) → thổi 1 s → nhấp
+  (vành chạm môi dưới, cốc xoay quanh điểm chạm tới 26–29°, ngửa đầu nhẹ) → hạ trước ngực, tay phải áp hông cốc (2 tay ôm) → nhấp lần 2 → đặt lại
+  → tay về đùi 10 s. Cầm: cốc thành con cổ tay với khung nắm cố định `TEA_GQ` (vòng chữ C quanh thanh đứng của quai); vị trí cổ tay giải ngược
+  từ điểm cốc cần tới (`teaWrist`). Đặt xuống: cốc đứng thẳng, giữ hướng quai ⇒ lần với sau khớp đúng. Hết giờ chờ cốc về vòng mới đứng dậy;
+  rời pha giữa chừng (tối) thì `teaRelease` trả cốc về vòng. Đo: cốc không nhảy (0 mm lúc cầm/đặt), IK lệch 0 mm, cổ tay trái 26–51°, phải 4–8° khi ôm.
 - Laptop bàn học: `laptopDash(t)` vẽ bảng vận hành chạy (~6 hình/giây, chỉ khi nắp mở) — số MW theo nắng / mây / gió thật.
 - Gấu mèo: thân 2 nửa `U.fore`/`U.aft` gập quanh giữa lưng khi phi nhảy (hông chân vẫn gắn `torso` ⇒ IK không đổi).
 - Đo được (trượt TB của bàn chân trụ, đv/khung ở 30 hình/giây): bò 0,0003–0,0007 · hươu 0,0003 · cò 0,0013 · gấu mèo ~0,003 (ngoặt gắt) ·
@@ -231,6 +238,13 @@ lò xo) ⇒ lên bậc voxel 0,6 đv thì chân trước lên trước, thân ng
   Đúng: tính từ ĐÍCH của tay kia trong cùng khung (chảo ngang tại `pan`, hướng `qPan`).
 - Khung cổ tay đặt bằng `aimQ(dir, up)`: +y cổ tay = hướng tay → KHUỶU. Lấy `up` = trời khi khuỷu ở dưới tay (đưa thìa lên miệng) ⇒ bàn tay lật
   gập ngược 120–172°. Dùng `engWristUp(e, i, dir)` (ngược `e.foreW[i]` = hướng cẳng tay của lần giải IK trước): cổ tay còn 10–50°.
+- Đọc ma trận thế giới của đồ ĐANG GẮN vào cổ tay giữa khung (trước `engArmPost`) = đọc tư thế vừa bị `engPoseBegin` trả về ⇒ đích tay lệch
+  0,55 m rồi kẹt luôn (đích = chính vị trí sai). Cốc trà (G 15/10): chỉ đọc cốc khi nó còn nằm trong vòng tay vịn; lúc cầm dùng đích lưu khi nắm
+  (`e.teaG0`/`e.teaQ0`) hoặc tư thế dự định (hướng quai khi đặt xuống tính từ `qL`, không từ ma trận cốc).
+- Vòng tay chữ C dựng đứng quanh quai đòi cẳng tay ⊥ trục cốc; cực khuỷu mặc định (chĩa xuống) làm khuỷu tụt dưới bàn tay ⇒ cổ tay gập 137°;
+  ép cổ tay thẳng tuyệt đối thì khuỷu giơ ngang đầu lúc uống. `teaElbow` chọn điểm khuỷu trên vòng IK sát hướng +y cổ tay chúc ~40° theo trục cốc
+  (khuỷu buông thấp, cổ tay gập vừa phải), cực trượt mượt để khuỷu không giật khi đổi pha.
+- IK tay kẹp khoảng vai–tay ≥ 0,3 đv (~25 cm): đường thẳng tay vịn → môi lướt cách vai 16 cm ⇒ tay đứng lại rồi giật bắt kịp. Cho đường phình ra trước.
 - Vật bị mang đi xa nhưng vẫn nằm trong lô gộp → biến mất khi lô bị loại theo khung nhìn.
 - Dời đích nắng mà vẫn coi `sun.position` là hướng → sai hướng bóng/ánh vàng ngọn cỏ.
 - Bản đồ gió giải theo tốc độ thật rồi chia cho gió tự do lúc đó → khi gió đổi tốc độ, luồng khí trong lưới chưa kịp theo (vài chục giây) ⇒ tỉ số sai (> 1 khắp nơi). Giải theo đơn vị chuẩn hoá.

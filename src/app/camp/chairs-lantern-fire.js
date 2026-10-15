@@ -410,6 +410,25 @@
         { const ch = campChair(campFabricYellow, campFrameWood); ch.position.copy(campChairPos); ch.rotation.y = campChairFaceY; ch.name = 'Ghế cắm trại (Camp Chair)'; scene.add(ch); }   // ghế dã ngoại dạng gấp tương tự ghế câu cá
         { const tb = campTable(); tb.position.set(X0 + 65, cowY(X0 + 65, Z0 + 99.85), Z0 + 99.85);   // toạ độ hover (65, _, 100), lùi 15 cm khỏi tay ghế cắm trại cho khỏi chạm; xa cột chống bạt ~1,4 m
            tb.rotation.y = Math.PI * 0.15; tb.name = 'Bàn trà (Camp Table)'; scene.add(tb); }
+        // ---- CỐC TRÀ của kỹ sư (G 15/10): cốc men trắng có nước trà, đặt trong VÒNG KHAY CỐC trên tay vịn trái ghế cắm trại — bàn trà thấp 0,45 m, cách ghế
+        //      ~1 m (gần nhất 0,92 m tới vai, tay với 0,57 m) nên ngồi không với tới; ca đen trên bàn là ca nấu nước. Khói trà bốc từ cốc. Uống: engTea
+        //      (engineer/meal-read.js) nhấc cốc khỏi vòng, uống xong đặt lại đúng chỗ ----
+        let campTeaCup = null;
+        { const ch = scene.getObjectByName('Ghế cắm trại (Camp Chair)'), c = new THREE.Group(), wM = new THREE.MeshLambertMaterial({ color: 0xece8de, side: THREE.DoubleSide }), H = 0.09;
+          const add = (m, y) => { m.position.y = y; c.add(m); return m; };
+          add(new THREE.Mesh(new THREE.CylinderGeometry(0.052, 0.042, H, 14, 1, true), wM), H / 2);
+          add(new THREE.Mesh(new THREE.CircleGeometry(0.042, 14), wM), 0.004).rotation.x = -Math.PI / 2;
+          // nước trà
+          add(new THREE.Mesh(new THREE.CircleGeometry(0.049, 14), new THREE.MeshLambertMaterial({ color: 0x6b4423 })), H * 0.82).rotation.x = -Math.PI / 2;
+          // quai to (cốc men cắm trại): thanh đứng ở 8,1 cm cho tay chữ C luồn vào
+          const hd = add(new THREE.Mesh(new THREE.TorusGeometry(0.034, 0.0065, 5, 12, Math.PI), wM), H * 0.55); hd.position.x = 0.047; hd.rotation.z = -Math.PI / 2;
+          // khói trà: chuyển từ ca nấu trên bàn sang cốc
+          const sg = campCupSteam[0].m.parent; c.add(sg); sg.position.set(0, H + 0.01, 0);
+          c.traverse(o => { o.userData.noBatch = o.userData.noBake = true; if (o.isMesh) o.castShadow = true; });
+          // đáy cốc gác trên vòng tay vịn, quai chĩa ra sau (đúng hướng tay trái đặt cốc xuống — đo 15/10); cỡ thật
+          ch.add(c); c.position.set(0.472, 0.932, 0.2); c.rotation.y = 1.68; c.scale.set(1 / ch.scale.x, 1 / ch.scale.y, 1 / ch.scale.z);
+          c.userData.home = { parent: ch, p: c.position.clone(), s: c.scale.clone() }; campTeaCup = c;
+        }
         { const wc = woodCamp(); wc.name = 'Đống củi (Woodpile)'; wc.position.set(X0 + 68, woodCampY, Z0 + 100); wc.rotation.y = 0.5; scene.add(wc); }
         // ---- khói bếp lửa + hơi ấm reo = SỢI KHÓI theo trường Navier–Stokes đối xứng trục (nature/fluids.js, kỹ thuật luồng khói động cơ ở sân bay):
         //      lưới 30 × 90 ô 8 cm (bán kính 2,4 · cao 7,2 đv) · 900 hạt (140 hạt hơi) × vệt 14 điểm; nổi vì nóng, cuộn rối, gió thật làm ngả chùm khói ----

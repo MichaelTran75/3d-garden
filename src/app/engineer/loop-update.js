@@ -1,5 +1,7 @@
           if (engObj) {
             const e = engObj;
+            // rời pha trà giữa chừng (tối, đổi việc): cốc về vòng tay vịn
+            if (e.teaT !== undefined && e.phase !== 'tea') teaRelease(e);
             engPoseBegin(e);   // trả tư thế đích frame trước
             updateEngineerWeatherThought();
             const hh = liveWeather.localHour; // One Pleiku clock for sky, animals and the engineer.
@@ -113,12 +115,10 @@
               else if (e.phase === 'toGrill' || e.phase === 'grab' || e.phase === 'toPlant' || e.phase === 'plant') engGrillPhase(e, dt, t);   // lấy que cá nướng · xiên & cắm cá mới
               else if (e.phase === 'tea') {                // nhấp trà thư giãn, ngả lưng nhẹ; hết giờ: nghỉ trưa thì chợp mắt luôn trên ghế, dạo trại thì đứng dậy đi tiếp
                 if (engUseSeat(e, CAMP_SEAT, dt, t)) {
-                  e.timer -= dt; e.seatLean = -0.03; e.seatSwing = 0.06; H.cup = true;
-                  const sipT = t % 7.5, sipK = sipT < 1.3 ? Math.sin((sipT / 1.3) * Math.PI) : 0;   // nhấp trà định kỳ ~7.5s/lần
-                  e.arms[0].rotation.x = -0.22 + Math.sin(t * 0.7) * 0.05;
-                  e.arms[1].rotation.x = -0.25 - sipK * 0.95;                              // tay đưa tách trà lên miệng
-                  e.head.rotation.x = 0.06 - sipK * 0.16;
-                  if (e.timer <= 0) {
+                  e.timer -= dt; e.arms[0].rotation.x = e.arms[1].rotation.x = -0.6;
+                  // với cốc trong vòng tay vịn → thổi → nhấp → 2 tay ôm cốc → nhấp → đặt lại (engineer/meal-read.js); hết giờ: chờ đặt cốc xuống rồi mới đứng dậy
+                  const teaIdle = engTea(e, dt, t);
+                  if (e.timer <= 0 && teaIdle) {
                     if (e.act === 'rest') e.phase = 'nap';
                     else if (e.act === 'outdoor') { e.phase = 'wander'; e.timer = 90; e.wanderTgt = null; e.wanderTmr = 0; }
                     else e.timer = 600;

@@ -166,6 +166,124 @@
           e.head.rotation.y = 0.4 * glance;
         }
 
+        // ---------- UỐNG TRÀ NHẸ NHÀNG ở ghế cắm trại (G 15/10 "do research about animation, motion khi engineer nhẹ nhàng uống trà") ----------
+        //  Bài thử "uống nước từ cốc" (Alt Murphy & cs. 2006, J NeuroEng Rehabil 3:18 — 20 người khoẻ): VỚI tới cốc 1,21 s → ĐƯA LÊN 1,15 s → UỐNG 1,71 s →
+        //  ĐƯA VỀ 1,77 s → THẢ TAY 1,00 s (tổng ~6,8 s); vận tốc hình chuông (min-jerk), tay giảm tốc dài trước khi chạm cốc; người lớn tuổi với chậm hơn
+        //  (Nakatake & cs., PeerJ 2023). Trà nóng: dừng trước môi THỔI ~1 s; nhấp: vành cốc ghé môi dưới rồi cốc xoay quanh điểm chạm môi, nghiêng ~25–30°,
+        //  ngửa đầu nhẹ; giữa 2 ngụm hạ cốc trước ngực, tay phải đỡ đáy cho ấm, ngắm cảnh; 2 ngụm thì đặt lại vòng khay cốc tay vịn trái, tay về đùi ~10 s.
+        //  Tay LEGO chữ C (lỗ Ø ~5,6 cm) nhỏ hơn thân cốc (Ø ~9,5 cm) ⇒ NẮM QUAI: thanh đứng của quai xuyên lỗ chữ C, miệng chữ C quay vào thân cốc.
+        //  Cốc có 3 tư thế: trong vòng tay vịn (con ghế) · trong tay (con cổ tay, khung nắm TEA_GQ cố định) — vị trí cổ tay giải ngược từ điểm cốc cần tới
+        //  (thân cốc / vành chạm môi); xoay quanh trục cốc theo cẳng tay để cổ tay thẳng; đặt xuống: cốc đứng thẳng, giữ nguyên hướng quai ⇒ không nhảy hình.
+        const TEA = [['reach', 1.2], ['grab', 0.3], ['up', 1.15], ['blow', 1], ['sip', 1.7], ['down', 1], ['hold', 4.5], ['up2', 1], ['sip2', 1.7], ['down2', 1], ['hold2', 3], ['back', 1.8], ['let', 0.3], ['ret', 1], ['rest', 10]];
+        // cốc: cao · bán kính miệng · tâm thân (khung cốc, m)
+        const TEA_T = TEA.reduce((a, p) => a + p[1], 0), TEA_H = 0.09, TEA_RT = 0.052, TEA_BODY = new THREE.Vector3(0, 0.045, 0);
+        // tâm nắm tay chữ C: ngay ngoài thanh đứng của quai · tay phải áp hông cốc: tâm chữ C cách trục cốc (đầu ngón chạm thành)
+        const TEA_GO = new THREE.Vector3(0.087, 0.0495, 0), TEA_HUG = 0.115;
+        // khung cổ tay trong khung cốc: +x = trục cốc, miệng chữ C (0, −0,34, 0,94) → tâm cốc
+        const TEA_GQ = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0.34, 0, -0.94), new THREE.Vector3(-0.94, 0, -0.34)));
+        const TEA_GQi = TEA_GQ.clone().invert(), TEA_MOUTH = new THREE.Vector3(0, -0.34, 0.94);
+        const _tA = new THREE.Vector3(), _tB = new THREE.Vector3(), _tN = new THREE.Vector3(), _tM = new THREE.Matrix4(), _tQ = new THREE.Quaternion();
+        // khung cổ tay: +x = trục vòng chữ C, +y = hướng tay → khuỷu d (chiếu ⊥ x) ⇒ cổ tay thẳng
+        function teaFrame(x, d, out) {
+          const X = _tA.copy(x).normalize(), Y = _tB.copy(d).addScaledVector(X, -d.dot(X)); if (Y.lengthSq() < 1e-6) Y.set(0, 0, 1).addScaledVector(X, -X.z);
+          Y.normalize(); return out.setFromRotationMatrix(_tM.makeBasis(X, Y, _tN.crossVectors(X, Y)));
+        }
+        // cực khuỷu: khuỷu = điểm trên vòng IK cho cẳng tay (tay → khuỷu) sát hướng d nhất. d = trục +y cổ tay (cổ tay thẳng)
+        function teaElbow(e, i, P, Q, A, drop, dt) {
+          //   chúc xuống `drop` theo trục cốc: vòng chữ C dựng đứng quanh quai đòi cẳng tay nằm ngang ⇒ khuỷu giơ ngang đầu lúc uống; cho cổ tay gập ~40° để khuỷu
+          //   buông thấp trước ngực như người thật (cực mặc định chĩa xuống thì khuỷu tụt dưới bàn tay, cổ tay gập 137° — đo 15/10). Cực trượt mượt, không giật khuỷu.
+          const d = _tN.set(0, 1, 0).applyQuaternion(Q).multiplyScalar(Math.cos(drop)).addScaledVector(A, -Math.sin(drop)), u = _tB.copy(P).sub(e.arms[i].getWorldPosition(_tA)).normalize();
+          d.addScaledVector(u, -d.dot(u)); if (d.lengthSq() < 1e-6) return; e.spine.updateWorldMatrix(true, false); d.transformDirection(_tM.copy(e.spine.matrixWorld).invert());
+          const P0 = e.teaPole || (e.teaPole = [new THREE.Vector3(-0.6, -1, -0.15).normalize(), new THREE.Vector3(0.6, -1, -0.15).normalize()]);
+          P0[i].lerp(d, 1 - Math.exp(-dt * 10)).normalize(); e.elbowPole = P0;
+        }
+        // cổ tay ở đâu để điểm `local` của cốc nằm ở W
+        const teaWrist = (Qw, local, W) => local.clone().sub(TEA_GO).applyQuaternion(TEA_GQi).applyQuaternion(Qw).negate().add(W);
+        function teaGrab(e) { const C = campTeaCup, w = e.wrists[1], s = w.getWorldScale(_tA).x; e.teaQ0 = C.getWorldQuaternion(e.teaQ0 || new THREE.Quaternion()).multiply(TEA_GQ); e.teaG0 = C.localToWorld(TEA_GO.clone()); w.add(C); C.quaternion.copy(TEA_GQi); C.position.copy(TEA_GO).applyQuaternion(TEA_GQi).multiplyScalar(-1 / s); C.scale.setScalar(1 / s); }
+        // về vòng tay vịn: đứng thẳng, giữ hướng quai (Qc: hướng cốc dự định — giữa khung, cổ tay chưa giải IK)
+        function teaRelease(e, Qc) {
+          const C = campTeaCup, Hm = C && C.userData.home; if (e) e.teaT = e.teaPole = undefined; if (!C || C.parent === Hm.parent) return;
+          C.updateWorldMatrix(true, false); const d = Qc ? _tA.set(1, 0, 0).applyQuaternion(Qc) : _tA.set(1, 0, 0).transformDirection(C.matrixWorld);
+          Hm.parent.updateWorldMatrix(true, false); d.transformDirection(_tM.copy(Hm.parent.matrixWorld).invert());
+          Hm.parent.add(C); C.position.copy(Hm.p); C.rotation.set(0, Math.atan2(-d.z, d.x), 0); C.scale.copy(Hm.s);
+        }
+        // trả true khi tay đang nghỉ, cốc trong vòng (được đứng dậy)
+        function engTea(e, dt, t) {
+          const C = campTeaCup; if (!C) return true;
+          // vào pha: nghỉ 3 s rồi mới với cốc
+          e.teaT = (e.teaT ?? TEA_T - 3) + dt;
+          let c = e.teaT % TEA_T, ph = 'rest', k = 1; for (const [n, d] of TEA) { if (c < d) { ph = n; k = c / d; break; } c -= d; }
+          const s = minJerk(k), sm = (a, b, x) => minJerk((x - a) / (b - a)), ax = engAxesW(e), fwd = _mrF.copy(ax.f), UP = _mrUp, Hm = C.userData.home;
+          let held = C.parent !== Hm.parent;
+          if (ph === 'grab' && k > 0.5 && !held) { teaGrab(e); held = true; }
+          e.armsBusy = true; Hm.parent.updateWorldMatrix(true, false);
+          const V = (x, y, z) => engBodyW(e, x, y, z, new THREE.Vector3()), to = (a, b) => b.clone().sub(a);
+          const ringB = Hm.parent.localToWorld(Hm.p.clone()).addScaledVector(UP, TEA_BODY.y), lapL = V(0.17, 1.32, 0.3), lapR = V(-0.17, 1.32, 0.3), elbL = V(0.3, 1.4, 0), elbR = V(-0.3, 1.4, 0);
+          const chestB = V(-0.02, 1.62, 0.36), mouth = engMouthW(e, new THREE.Vector3()), face = fwd.clone().negate();
+          const lips = mouth.clone().addScaledVector(fwd, 0.006).addScaledVector(UP, -0.012), blowB = mouth.clone().addScaledVector(fwd, 0.09).addScaledVector(UP, -0.075), preB = mouth.clone().addScaledVector(fwd, 0.07).addScaledVector(UP, -0.07);
+          // f: phình ra trước (né vai)
+          const arc = (a, b, u, h, f = 0) => a.clone().lerp(b, u).addScaledVector(UP, h * Math.sin(Math.PI * u)).addScaledVector(fwd, f * Math.sin(Math.PI * u));
+          // tay trái nắm quai cốc trục A, tâm B: cẳng tay chĩa về khuỷu nghỉ bên sườn
+          const qL = (A, B) => teaFrame(A, to(B, elbL), new THREE.Quaternion());
+          if (((ph === 'let' && k > 0.5) || ph === 'ret' || ph === 'rest' || ph === 'reach') && held) { teaRelease(null, qL(UP, ringB).multiply(TEA_GQi)); held = false; }
+          // (cốc trong tay: ma trận cổ tay giữa khung chưa đúng ⇒ chỉ đọc cốc khi nằm trong vòng)
+          C.updateWorldMatrix(true, false);
+          // nắm tay úp trên đùi
+          const qLap = (i) => { const d = to(i ? lapL : lapR, i ? elbL : elbR).normalize(); return aimQ(new THREE.Quaternion(), UP.clone().negate().addScaledVector(d, d.y).normalize(), d); };
+          // cốc trong vòng: chỗ nắm quai
+          const gripW = () => C.localToWorld(TEA_GO.clone()), gripQ = () => C.getWorldQuaternion(new THREE.Quaternion()).multiply(TEA_GQ);
+          // tâm thân cốc ở B, trục A
+          const atB = (A, B, Qw) => { Qw = Qw || qL(A, B); return [teaWrist(Qw, TEA_BODY, B), Qw, A, B]; };
+          // nhấp: trục nghiêng th về phía mặt; g = mức ghé môi (0 → tư thế tự do Bfree, 1 → vành chạm môi dưới)
+          const sip = (Bfree, th, g) => {
+            // hướng quai giữ nguyên suốt ngụm
+            const A = UP.clone().multiplyScalar(Math.cos(th * g)).addScaledVector(face, Math.sin(th * g)), Qw = qL(A, Bfree);
+            const Qc = _tQ.copy(Qw).multiply(TEA_GQi), n = face.clone().addScaledVector(A, -face.dot(A)).normalize().applyQuaternion(Qc.clone().invert());
+            const rim = new THREE.Vector3(0, TEA_H, 0).addScaledVector(n, TEA_RT), Bc = lips.clone().sub(rim.sub(TEA_BODY).applyQuaternion(Qc));
+            return atB(A, Bfree.clone().lerp(Bc, g), Qw);
+          };
+          let Pw, Qw, A = UP, B = null, wR = 0, hx = 0.05, gaze = 1, lean = -0.03;
+          // với: lướt tới cạnh ngoài quai, chậm lại, luồn tay vào quai
+          if (ph === 'reach' || ph === 'grab') {
+            const g0 = gripW(), pre = g0.clone().addScaledVector(_tB.set(1, 0, 0).transformDirection(C.matrixWorld), 0.06).addScaledVector(UP, 0.04);
+            Pw = ph === 'grab' ? (held ? e.teaG0 : g0) : k < 0.7 ? arc(lapL, pre, minJerk(k / 0.7), 0.05) : pre.lerp(g0, sm(0.7, 1, k));
+            Qw = ph === 'grab' ? (held ? e.teaQ0 : gripQ()) : qLap(1).slerp(gripQ(), sm(0, 0.8, k)); hx = 0.32; gaze = 0;
+          }
+          // nâng cốc vòng ra trước: đường thẳng tay vịn → môi lướt sát vai, quá tầm gập IK (cổ tay cách vai < 25 cm)
+          else if (ph === 'up') { const Bt = arc(ringB, blowB, s, 0.02, 0.14);
+             [Pw, Qw, A, B] = atB(UP, Bt, (e.teaQ0 || qL(UP, Bt)).clone().slerp(qL(UP, Bt), sm(0, 0.6, k))); hx = 0.32 - 0.2 * s; gaze = 0; }
+          // thổi nguội: cúi nhìn mặt trà, ghé lại gần
+          else if (ph === 'blow') { [Pw, Qw, A, B] = atB(UP, blowB); hx = 0.14; gaze = 0; lean = 0.02; }
+          // ghé môi (0–25%) → nghiêng dần quanh điểm chạm (tới ~26–29°) → dựng lại, rời môi (80–100%)
+          else if (ph === 'sip' || ph === 'sip2') {
+            const g = sm(0, 0.25, k) * (1 - sm(0.8, 1, k)), th = (ph === 'sip' ? 0.45 : 0.5) * (0.35 + 0.65 * sm(0.15, 0.5, k) * (1 - sm(0.62, 0.85, k)));
+            [Pw, Qw, A, B] = sip(ph === 'sip' ? blowB : preB, th, g); hx = 0.1 - 0.24 * g * th / 0.5; gaze = 0; lean = 0.03 * g;
+          }
+          else if (ph === 'down' || ph === 'down2') { [Pw, Qw, A, B] = atB(UP, arc(ph === 'down' ? blowB : preB, chestB, s, 0.02)); wR = sm(0.25, 1, k); hx = 0.12; gaze = sm(0.4, 1, k); }
+          // 2 tay ôm cốc trước ngực, ngắm cảnh, thở
+          else if (ph === 'hold' || ph === 'hold2') { [Pw, Qw, A, B] = atB(UP, chestB.clone().addScaledVector(UP, 0.004 * Math.sin(t * 1.6))); wR = 1; hx = 0.03; lean = -0.01; }
+          else if (ph === 'up2') { [Pw, Qw, A, B] = atB(UP, arc(chestB, preB, s, 0.03)); wR = 1 - sm(0, 0.5, k); hx = 0.1; gaze = 1 - sm(0, 0.5, k); }
+          // đặt cốc: hạ thẳng xuống vòng
+          else if (ph === 'back') { [Pw, Qw, A, B] = atB(UP, arc(chestB, ringB, s, 0.05, 0.06)); wR = 1 - sm(0, 0.35, k); hx = 0.12 + 0.2 * s; gaze = 1 - s; }
+          else if (ph === 'let') { if (held) { Qw = qL(UP, ringB); Pw = teaWrist(Qw, TEA_BODY, ringB); } else { Pw = gripW(); Qw = gripQ(); } hx = 0.32; gaze = 0; }
+          else if (ph === 'ret') { const g0 = gripW(), post = g0.clone().addScaledVector(_tB.set(1, 0, 0).transformDirection(C.matrixWorld), 0.05).addScaledVector(UP, 0.05);
+            Pw = k < 0.3 ? g0.lerp(post, sm(0, 0.3, k)) : arc(post, lapL, sm(0.3, 1, k), 0.03); Qw = gripQ().slerp(qLap(1), sm(0.1, 1, k)); hx = 0.32 * (1 - s); gaze = s; }
+          else { Pw = lapL; Qw = qLap(1); }
+          const dropL = !held || ph === 'grab' || ph === 'let' ? 0 : 0.7 * (ph === 'up' ? sm(0, 0.5, k) : ph === 'back' ? 1 - sm(0.3, 0.9, k) : 1);
+          engHandSet(e, 1, Pw, Qw); teaElbow(e, 1, Pw, Qw, A, dropL, dt);
+          // tay phải: nắm úp trên đùi ⇄ áp hông phải cốc (2 tay ôm cốc cho ấm): vòng chữ C dựng đứng, miệng ôm thành cốc
+          let PR = lapR, QR = qLap(0);
+          if (B && wR > 1e-3) {
+            const Qh = teaFrame(A.clone().negate(), to(B, elbR), new THREE.Quaternion()), m = TEA_MOUTH.clone().applyQuaternion(Qh);
+            PR = lapR.clone().lerp(B.clone().addScaledVector(m, -TEA_HUG), wR); QR = QR.slerp(Qh, wR);
+          }
+          engHandSet(e, 0, PR, QR); teaElbow(e, 0, PR, QR, A, 0.55 * wR, dt);
+          const kf = 1 - Math.exp(-dt * 5), T = e.teaPose || (e.teaPose = { hx: 0.05, hy: 0, lean: -0.03 });
+          T.hx += (hx - T.hx) * kf; T.hy += (gaze * 0.3 * Math.sin(t * 0.13) - T.hy) * kf; T.lean += (lean - T.lean) * kf;
+          e.seatLean = T.lean; e.seatSwing = 0.04; e.head.rotation.x = T.hx; e.head.rotation.y = T.hy;
+          return ph === 'rest' && !held;
+        }
+
         // ---------- ĐỌC SÁCH: sách to gấp đôi trước ngực, 2 tay giữ 2 mép; ~40 s lật 1 trang bằng tay phải; ~20 s tay trái bốc khoai ----------
         const BOOK_Q = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 0.6, -0.8), new THREE.Vector3(0, -0.8, -0.6)));   // mặt sách ngửa về phía mắt
         const CHIP_AT = new THREE.Vector3(0, -0.01, 0.11);
