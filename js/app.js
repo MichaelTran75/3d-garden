@@ -11932,7 +11932,7 @@
           if (P === 'inside' && ok && (b.k2 += dt) > b.inT) { g.visible = true; b.ph2 = 'crawlOut'; b.k2 = 0; b.state = 'foraging'; pickBeeFlowerTarget(b.pos, b.target); b.flowerRetryTmr = 0; }   // thời tiết thuận: bò ra đi kiếm mật
         }
         for (let n = 0; n < 8; n++) {
-          const bee = createBee();
+          const bee = createBee(); bee.g.scale.multiplyScalar(0.85);   // G 15/10: ong đi hút mật nhỏ đi 15% (ong bay quanh tổ, ong trong tổ giữ cỡ)
           const startP = Math.random() < 0.3 ? hiveWorldPos.clone() : pickBeeFlowerTarget();
           bee.g.position.copy(startP); scene.add(bee.g);
           const bb = {
@@ -11949,6 +11949,7 @@
             flowersVisited: 0, // mỗi lượt hút mật ở hoa tăng 10%; đủ 100% về tổ
             lbl: beeLabel(), lastPct: -1
           };
+          bb.lbl.spr.scale.multiplyScalar(1 / 0.85); bb.lbl.spr.position.y /= 0.85;   // nhãn % giữ nguyên cỡ chữ + độ cao trên đầu ong
           bb.g.add(bb.lbl.spr); setBeePct(bb); bees.push(bb);
         }
 
