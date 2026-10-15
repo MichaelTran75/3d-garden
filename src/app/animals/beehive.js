@@ -5,6 +5,7 @@
         //  · Bên trong (như giỏ thật): 5 bánh sáp song song treo từ chỏm, mép dưới cong lưỡi; ô lục giác 2 mặt mỗi bánh — giữa bánh là vùng NHỘNG
         //    (nắp nâu vàng + ô ấu trùng trắng), vòng PHẤN HOA (cam/vàng/đỏ) bao quanh, MẬT ở vòm trên và 2 bánh ngoài (nắp sáp trắng ngà + mật hở óng);
         //    2 que chống bắt chéo xuyên vách; ong thợ bò trên mặt bánh, vài con gác miệng giỏ quạt cánh. Ong đi / về ở miệng đáy ----
+        const beeWeatherOK = () => { const h = liveWeather.localHour, w = liveWeather.state; return !w.raining && h >= 6.33 && h < 18 && (w.windSpeed ?? 0) < 24 && (w.temperature ?? 25) >= 12; };   // ong mật ra khỏi tổ: khô ráo, ban ngày, gió < 24 km/h (15 mph), ≥ 12 °C (UMaine Extension)
         const beehive = (() => {
           const H = 1.0, NC = 13, ROPE = 0.22;
           const st = scene.getObjectByName('Cây con (Small Sub-Tree)'), A = new THREE.Vector3(-25.5, 9.9, 19.713);
@@ -80,21 +81,58 @@
             for (const s of [-1, 1]) { const w = new THREE.PlaneGeometry(0.008, 0.016); w.rotateX(-Math.PI / 2); w.rotateY(s * 0.35); w.translate(s * 0.005, 0.006, -0.008); add(w, () => 0xd8dde0); }
             const m = mergeGeometries(parts); m.scale(H * 1.8, H * 1.8, H * 1.8); return m;   // ong trong tổ to thêm 20% (G 15/10)
           })();
-          const NB = 26, beeIM = new THREE.InstancedMesh(beeGeo, new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }), NB);
+          const NB = 22, beeIM = new THREE.InstancedMesh(beeGeo, new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }), NB);
           const crawl = [];
           for (let i = 0; i < NB; i++) {
-            if (i < 22) { const k = i % 5, C = combs[k]; let x = 0, y = 0.5; for (let t = 0; t < 30; t++) { x = (Math.random() - 0.5) * 0.6; y = 0.2 + Math.random() * 0.7; if (C.inside(x, y)) break; } crawl.push({ k, sd: Math.random() < 0.5 ? -1 : 1, x, y, a: Math.random() * TAU, v: 0.02 + Math.random() * 0.03, turn: 0, dance: k === 2 && i < 13 ? { o: i * 0.7, cx: (i - 7) * 0.07, cy: 0.52 } : null }); }   // 3 con trên bánh giữa nhảy lắc đuôi
-            else { const a = (i - 22) / 4 * TAU + 0.4; crawl.push({ guard: true, a, x: Math.cos(a) * (env(0) - 0.01), z: Math.sin(a) * (env(0) - 0.01) }); }
+            { const k = i % 5, C = combs[k]; let x = 0, y = 0.5; for (let t = 0; t < 30; t++) { x = (Math.random() - 0.5) * 0.6; y = 0.2 + Math.random() * 0.7; if (C.inside(x, y)) break; } crawl.push({ k, sd: Math.random() < 0.5 ? -1 : 1, x, y, a: Math.random() * TAU, v: 0.02 + Math.random() * 0.03, turn: 0, dance: k === 2 && i < 13 ? { o: i * 0.7, cx: (i - 7) * 0.07, cy: 0.52 } : null }); }   // 3 con trên bánh giữa nhảy lắc đuôi
           }
           g.add(beeIM);
-          const _x = new THREE.Vector3(), _y = new THREE.Vector3(), _z = new THREE.Vector3();
+          const _x = new THREE.Vector3(), _y = new THREE.Vector3(), _z = new THREE.Vector3(), _p = new THREE.Vector3();
+          // ---- ONG BAY QUANH TỔ (G 15/10: "cho những con ong nhỏ này bay quanh tổ, đậu vào tổ rồi lại bay quanh" — thay 4 con gác đứng yên ở miệng giỏ):
+          //      bay định hướng của ong non / ong gác — lượn vòng cung quanh nửa dưới giỏ, phần lớn thời gian quay đầu nhìn tổ (ghi nhớ vị trí tổ);
+          //      đáp lên vỏ giỏ (giảm tốc theo khoảng cách như ong kiếm mồi), xếp cánh rồi bò vài bước, hoặc đứng quạt cánh thông gió; cất cánh lượn tiếp.
+          //      Mưa / tối / gió mạnh / lạnh: đáp sát miệng giỏ rồi chui vào; trời lại thuận thì bò ra bay tiếp ----
+          const surf = (a, y, out, n) => { const r = (env(y) + 0.013) * H, dr = (env(Math.min(1, y + 0.01)) - env(Math.max(0, y - 0.01))) / 0.02; if (n) n.set(Math.cos(a), -dr, Math.sin(a)).normalize(); return out.set(Math.cos(a) * r, y * H, Math.sin(a) * r); };   // điểm + pháp tuyến ngoài trên vỏ giỏ
+          const flap = (f, t) => { f.wingL.rotation.set(0, 0, 0.25 + Math.sin(t * 95 + f.ph) * 0.55); f.wingR.rotation.set(0, 0, -f.wingL.rotation.z); };
+          const fold = f => { f.wingL.rotation.set(0, 0.9, -0.08); f.wingR.rotation.set(0, -0.9, 0.08); };
+          const FLY = Array.from({ length: 6 }, (_, i) => {
+            const b = createBee(); b.g.scale.setScalar(0.27); g.add(b.g);   // cỡ như ong trong tổ
+            return { ...b, st: 'orbit', ang: i / 6 * TAU, w: (i % 2 ? -1 : 1) * (0.45 + Math.random() * 0.45), r0: 0.52 + Math.random() * 0.3, ph: Math.random() * TAU, T: 2 + Math.random() * 7, look: i % 3 !== 2, to: new THREE.Vector3(), n: new THREE.Vector3(), a: 0, y: 0, k: 0, fan: false };
+          });
           g.traverse(o => { o.userData.noBatch = true; });
           const mouth = new THREE.Vector3(g.position.x, g.position.y, g.position.z);
           let danceA = 0, danceAt = -9;   // góc nhảy: hướng đồng hoa trừ hướng mặt trời (ong báo đường: "lên" trên mặt bánh = phía mặt trời)
           return {
             g, mouth, cells: cells.length, rimR: (env(0) - 0.02) * H,
             update(dt, t) {
-              dt = Math.min(dt, 0.05);
+              dt = Math.min(dt, 0.05); const ok = beeWeatherOK();
+              for (const f of FLY) {
+                const G = f.g;
+                if (f.st === 'in') { if (ok && (f.k -= dt) <= 0) { f.a = Math.random() * TAU; surf(f.a, 0.03, G.position, f.n); f.to.copy(G.position).addScaledVector(f.n, 0.25); G.visible = true; f.st = 'takeoff'; f.k = 0; } continue; }
+                if (f.st === 'orbit') {   // lượn vòng cung; con "định hướng" quay đầu nhìn tổ, con khác bay xuôi đường
+                  flap(f, t); f.ang += f.w * dt;
+                  const r = (f.r0 + 0.12 * Math.sin(t * 1.3 + f.ph * 2)) * H; _p.set(Math.cos(f.ang) * r, (0.32 + 0.22 * Math.sin(t * 0.9 + f.ph)) * H, Math.sin(f.ang) * r);
+                  G.position.lerp(_p, 1 - Math.exp(-dt / 0.25));
+                  const s = Math.sign(f.w); G.rotation.set(-0.15, f.look ? Math.atan2(-G.position.x, -G.position.z) : Math.atan2(-Math.sin(f.ang) * s, Math.cos(f.ang) * s), 0.15 * Math.sin(t * 2 + f.ph));
+                  if ((f.T -= dt) <= 0 || !ok) { f.a = f.ang + (Math.random() - 0.5) * 0.6; f.y = ok ? 0.08 + Math.random() * 0.62 : 0.03; surf(f.a, f.y, f.to, f.n); f.st = 'land'; f.k = 0; }   // chọn chỗ đáp trên vỏ (trở trời: sát miệng giỏ)
+                  continue;
+                }
+                if (f.st === 'land') {   // giảm tốc theo khoảng cách còn lại (τ 0,3 s), đầu hướng về chỗ đáp
+                  flap(f, t); const L = G.position.distanceTo(f.to); if (L > 0.01) G.rotation.set(-0.45, Math.atan2(f.to.x - G.position.x, f.to.z - G.position.z), 0);
+                  G.position.lerp(f.to, 1 - Math.exp(-dt / 0.3));
+                  if (L < 0.004 || (f.k += dt) > 3) { G.position.copy(f.to); f.fan = Math.random() < 0.35; if (ok) { f.st = 'perch'; f.k = 3 + Math.random() * 5; } else { f.st = 'in'; f.k = 3 + Math.random() * 6; G.visible = false; } }
+                  continue;
+                }
+                if (f.st === 'perch') {   // đậu vỏ giỏ: bò vài bước hoặc đứng quạt cánh; lưng theo pháp tuyến vỏ, đầu hướng lên dốc
+                  if (f.fan) flap(f, t); else { fold(f); f.a += 0.25 * Math.sin(t * 0.8 + f.ph) * dt / Math.max(0.2, env(f.y)); f.y = Math.min(0.75, Math.max(0.05, f.y + 0.04 * Math.cos(t * 0.6 + f.ph) * dt)); }
+                  surf(f.a, f.y, G.position, f.n); _z.set(0, 1, 0).addScaledVector(f.n, -f.n.y).normalize();
+                  G.quaternion.setFromRotationMatrix(_m.makeBasis(_x.crossVectors(f.n, _z), f.n, _z));
+                  if ((f.k -= dt) <= 0 || !ok) { f.st = 'takeoff'; f.k = 0; f.to.copy(G.position).addScaledVector(f.n, 0.25); }
+                  continue;
+                }
+                flap(f, t); G.position.lerp(f.to, 1 - Math.exp(-dt / 0.25)); G.rotation.set(-0.3, Math.atan2(f.n.x, f.n.z), 0);   // cất cánh: bật ra theo pháp tuyến rồi vào vòng lượn
+                if ((f.k += dt) > 0.8) { f.st = 'orbit'; f.T = 4 + Math.random() * 8; f.ang = Math.atan2(G.position.z, G.position.x); }
+              }
               if (t - danceAt > 5 && safeFlowerCoords) { danceAt = t; let fx = 0, fz = 0; for (const f of safeFlowerCoords) { fx += f.x - g.position.x; fz += f.z - g.position.z; } danceA = Math.atan2(fx, fz) - Math.atan2(sun.position.x - sun.target.position.x, sun.position.z - sun.target.position.z); }
               crawl.forEach((b, i) => {
                 if (b.dance) {   // NHẢY LẮC ĐUÔI (von Frisch): chạy thẳng lắc bụng ~13 Hz theo góc báo đường, vòng nửa tròn về điểm đầu, lần lượt trái / phải
@@ -103,9 +141,6 @@
                   if (u < 0.4) { const s = u / 0.4, w = 0.5 * Math.sin(t * 82); x = D.cx + dx * (s - 0.5) * 2 * R; y = D.cy + dy * (s - 0.5) * 2 * R; hx = dx * Math.cos(w) - dy * Math.sin(w); hy = dx * Math.sin(w) + dy * Math.cos(w); }
                   else { const f = (u - 0.4) / 0.6 * Math.PI, nx = dy * side, ny = -dx * side; x = D.cx + R * (dx * Math.cos(f) + nx * Math.sin(f)); y = D.cy + R * (dy * Math.cos(f) + ny * Math.sin(f)); hx = -dx * Math.sin(f) + nx * Math.cos(f); hy = -dy * Math.sin(f) + ny * Math.cos(f); }
                   beeIM.setMatrixAt(i, _m.makeBasis(_x.set(-b.sd * hy, b.sd * hx, 0), _y.set(0, 0, b.sd), _z.set(hx, hy, 0)).setPosition(x * H, y * H, (C.zc + b.sd * 0.03) * H)); return;
-                }
-                if (b.guard) {   // gác miệng giỏ, đầu hướng ra ngoài, thân rung khi quạt cánh
-                  const c = Math.cos(b.a), s = Math.sin(b.a); beeIM.setMatrixAt(i, _m.makeBasis(_x.set(s, 0, -c), _y.set(0, 1, 0), _z.set(c, 0, s)).setPosition(b.x * H, 0.012 + 0.002 * Math.sin(t * 40 + i), b.z * H)); return;
                 }
                 const C = combs[b.k]; if ((b.turn -= dt) <= 0) { b.turn = 0.5 + Math.random() * 1.5; b.da = (Math.random() - 0.5) * 2.4; }
                 b.a += b.da * dt; const nx = b.x + Math.cos(b.a) * b.v * dt, ny = b.y + Math.sin(b.a) * b.v * dt;

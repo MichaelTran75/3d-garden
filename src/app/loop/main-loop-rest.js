@@ -71,7 +71,7 @@
               const beat = bflyFlap(bf, dt), bobY = Math.sin(t * 3.5 + bf.ph) * 0.18 + beat, bobX = Math.cos(t * 2.0 + bf.ph) * 0.12;   // vỗ – lượn theo loài, thân nhấp nhô theo nhịp
               setInsectVisualPosition(bf, bobX, bobY);
             }
-            const bh = liveWeather.localHour, ws = liveWeather.state, beeOK = !rainNow && bh >= 6.33 && bh < 18 && (ws.windSpeed ?? 0) < 24 && (ws.temperature ?? 25) >= 12;   // ong ra tổ khi khô, ban ngày, gió < 24 km/h (15 mph), ≥ 12 °C (UMaine Extension)
+            const beeOK = beeWeatherOK();   // ong ra tổ khi khô, ban ngày, gió < 24 km/h, ≥ 12 °C (animals/beehive.js)
             for (const b of bees) beeTick(b, dt, t, beeOK);   // bay · đáp chạm hoa / vành tổ · hút mật · bò vào / ra tổ (animals/insects.js)
           } else {
             // Disappearing at night interrupts feeding without spending a flower's nectar.

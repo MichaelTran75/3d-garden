@@ -140,6 +140,9 @@ lò xo) ⇒ lên bậc voxel 0,6 đv thì chân trước lên trước, thân ng
   (ẩn) → inside → crawlOut. Chỉ ra tổ khi khô, 6:20–18:00, gió < 24 km/h, ≥ 12 °C (ngưỡng UMaine Extension); gió tại chỗ đẩy dạt khi bay. **Bẫy đã dính**: `hiveWorldPos`
   phải là ô bay trống (`flightNav.pointClear`) — điểm sát tán cây cổ thụ bị chặn ⇒ ong kẹt cả ngày không về được tổ.
   Trong tổ: 3 con nhảy lắc đuôi (góc chạy = hướng đồng hoa − hướng mặt trời, "lên" trên bánh = phía mặt trời).
+  Quanh tổ: 6 ong `createBee()` thu 0,27 (`FLY` trong `animals/beehive.js`, gọi được dù insects.js nằm sau vì khai báo hàm được kéo lên đầu phạm vi):
+  orbit (vòng cung nửa dưới giỏ, phần lớn quay đầu nhìn tổ) → land (vỏ giỏ, `surf(a, y)` = điểm + pháp tuyến) → perch (bò / quạt cánh) → takeoff;
+  `beeWeatherOK()` dùng chung với ong kiếm mồi — trở trời thì đáp sát miệng giỏ rồi ẩn (`in`).
 - Laptop bàn học: `laptopDash(t)` vẽ bảng vận hành chạy (~6 hình/giây, chỉ khi nắp mở) — số MW theo nắng / mây / gió thật.
 - Gấu mèo: thân 2 nửa `U.fore`/`U.aft` gập quanh giữa lưng khi phi nhảy (hông chân vẫn gắn `torso` ⇒ IK không đổi).
 - Đo được (trượt TB của bàn chân trụ, đv/khung ở 30 hình/giây): bò 0,0003–0,0007 · hươu 0,0003 · cò 0,0013 · gấu mèo ~0,003 (ngoặt gắt) ·
