@@ -431,9 +431,9 @@
             setInsectVisualPosition(b, 0, Math.sin(t * 6 + b.ph) * 0.08); g.position.add(b.drift); g.rotation.x += (-0.12 - g.rotation.x) * Math.min(1, dt * 6);
             return;
           }
-          if (P === 'land') {   // tiếp cận chạm: khoảng cách còn lại giảm theo hàm mũ (τ 0,16 s) ⇒ càng sát càng chậm
-            beeFlap(b, t); const L = g.position.distanceTo(b.to); g.position.lerp(b.to, 1 - Math.exp(-dt / 0.16)); g.rotation.x += (-0.5 - g.rotation.x) * Math.min(1, dt * 8);
-            if (L < 0.006 || (b.k2 += dt) > 1.6) { g.position.copy(b.to); b.k2 = 0; b.ph2 = b.mode2 === 'flower' ? 'feed' : 'crawlIn'; b.hoverTmr = 3.6; }
+          if (P === 'land') {   // tiếp cận chạm: khoảng cách còn lại giảm theo hàm mũ (τ 0,32 s — ong bay chậm 50%) ⇒ càng sát càng chậm
+            beeFlap(b, t); const L = g.position.distanceTo(b.to); g.position.lerp(b.to, 1 - Math.exp(-dt / 0.32)); g.rotation.x += (-0.5 - g.rotation.x) * Math.min(1, dt * 8);
+            if (L < 0.006 || (b.k2 += dt) > 3.2) { g.position.copy(b.to); b.k2 = 0; b.ph2 = b.mode2 === 'flower' ? 'feed' : 'crawlIn'; b.hoverTmr = 3.6; }
             return;
           }
           if (P === 'feed') {   // đậu hoa: xếp cánh, bò vòng quanh nhuỵ, chúc đầu hút mật
@@ -448,8 +448,8 @@
             return;
           }
           if (P === 'takeoff') {   // cất cánh: vỗ cánh, bốc lên về điểm dẫn đường rồi bay tiếp
-            beeFlap(b, t); const goal = flightNav.visualPosition(b.pos, insectOffset.set(0, 0, 0), _bp); g.position.lerp(goal, 1 - Math.exp(-dt / 0.14));
-            if (g.position.distanceTo(goal) < 0.02 || (b.k2 += dt) > 1.2) b.ph2 = 'fly';
+            beeFlap(b, t); const goal = flightNav.visualPosition(b.pos, insectOffset.set(0, 0, 0), _bp); g.position.lerp(goal, 1 - Math.exp(-dt / 0.28));
+            if (g.position.distanceTo(goal) < 0.02 || (b.k2 += dt) > 2.4) b.ph2 = 'fly';
             return;
           }
           if (P === 'crawlIn' || P === 'crawlOut') {   // bò qua vành miệng giỏ lên vách trong (lưng quay vào tâm, đầu hướng lên khi vào / xuống khi ra)
@@ -476,7 +476,7 @@
             pollen: bee.pollen,
             pos: startP.clone(),
             target: pickBeeFlowerTarget(startP),
-            spd: 1.2 + Math.random() * 0.6,
+            spd: 0.6 + Math.random() * 0.3,   // G 15/10: bay chậm lại 50%
             ph: Math.random() * 6.28,
             hoverTmr: 0, nectarFlower: null, flowerRetryTmr: 0,
             state: 'foraging', // 'foraging', 'returning', 'depositing'

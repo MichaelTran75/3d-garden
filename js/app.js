@@ -11197,7 +11197,10 @@
             const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(4, NC); return t; })();
           const shellGeo = new THREE.LatheGeometry(prof, 20);
           const shell = new THREE.Mesh(shellGeo, new THREE.MeshLambertMaterial({ map: straw, transparent: true, opacity: 0.25, depthWrite: false, side: THREE.DoubleSide }));
-          shell.renderOrder = 3; g.add(shell); g.add(new THREE.LineSegments(new THREE.EdgesGeometry(shellGeo, 35), lineDark));
+          shell.renderOrder = 3; g.add(shell);
+          const art = lineDark.clone(); art.transparent = true; art.depthWrite = false;
+          const artLines = (geo, m = art) => { const l = new THREE.LineSegments(geo, m); l.renderOrder = 10; g.add(l); return l; };
+          artLines(new THREE.EdgesGeometry(shellGeo, 35));
           const ropeM = new THREE.MeshLambertMaterial({ color: 0x6b5232 });
           const rope = cyl(0.011, 0.011, ROPE + 0.02, ropeM, true, false, null, 5); rope.position.y = H + ROPE / 2; g.add(rope);
           const knot = new THREE.Mesh(new THREE.TorusGeometry(0.03, 0.01, 5, 10), ropeM); knot.position.y = H + 0.015; knot.rotation.y = 0.7; g.add(knot);
@@ -11230,7 +11233,10 @@
               for (const sd of [-1, 1]) cells.push([x * H, y * H, (zc + sd * 0.014) * H, sd, c]);
             }
           }
-          g.add(new THREE.LineSegments(mergeGeometries(combEdges), lineDark));
+          artLines(mergeGeometries(combEdges));
+          { const hp = [], r = CR * 0.86 * H;   // viền lục giác từng ô (đúng góc lăng trụ ô: đỉnh ở 0°, 60°, …) ở nắp ô MỘT mặt mỗi bánh (bánh trong 50% ⇒ vẫn thấy từ 2 phía; vẽ cả 2 mặt thì 2 lưới lệch nhau thành rối)
+            for (const [x, y, z, sd] of cells) if (sd > 0) for (let k = 0; k < 6; k++) { const a0 = k * Math.PI / 3, a1 = a0 + Math.PI / 3, zz = z + sd * 0.013 * H; hp.push(x + r * Math.cos(a0), y + r * Math.sin(a0), zz, x + r * Math.cos(a1), y + r * Math.sin(a1), zz); }
+            const hg = new THREE.BufferGeometry(); hg.setAttribute('position', new THREE.Float32BufferAttribute(hp, 3)); const wax = art.clone(); wax.color.setHex(0x4d2f0c); artLines(hg, wax); }   // vách ô nâu sáp đậm: rõ mà vẫn ấm (xanh đen của nét viền chung làm 5 bánh chồng nhau xám, rối)
           const cellGeo = new THREE.CylinderGeometry(CR * 0.86 * H, CR * 0.86 * H, 0.026 * H, 6, 1, false); cellGeo.rotateX(Math.PI / 2); cellGeo.rotateZ(Math.PI / 6);   // lăng trụ lục giác dọc trục z (mặt đầu = nắp ô)
           const cellM = new THREE.MeshPhongMaterial({ shininess: 40, specular: 0x5a4a30, transparent: true, opacity: 0.5, depthWrite: false });
           const cellIM = new THREE.InstancedMesh(cellGeo, cellM, cells.length), _m = new THREE.Matrix4(), _c = new THREE.Color();
@@ -11688,9 +11694,9 @@
             setInsectVisualPosition(b, 0, Math.sin(t * 6 + b.ph) * 0.08); g.position.add(b.drift); g.rotation.x += (-0.12 - g.rotation.x) * Math.min(1, dt * 6);
             return;
           }
-          if (P === 'land') {   // tiếp cận chạm: khoảng cách còn lại giảm theo hàm mũ (τ 0,16 s) ⇒ càng sát càng chậm
-            beeFlap(b, t); const L = g.position.distanceTo(b.to); g.position.lerp(b.to, 1 - Math.exp(-dt / 0.16)); g.rotation.x += (-0.5 - g.rotation.x) * Math.min(1, dt * 8);
-            if (L < 0.006 || (b.k2 += dt) > 1.6) { g.position.copy(b.to); b.k2 = 0; b.ph2 = b.mode2 === 'flower' ? 'feed' : 'crawlIn'; b.hoverTmr = 3.6; }
+          if (P === 'land') {   // tiếp cận chạm: khoảng cách còn lại giảm theo hàm mũ (τ 0,32 s — ong bay chậm 50%) ⇒ càng sát càng chậm
+            beeFlap(b, t); const L = g.position.distanceTo(b.to); g.position.lerp(b.to, 1 - Math.exp(-dt / 0.32)); g.rotation.x += (-0.5 - g.rotation.x) * Math.min(1, dt * 8);
+            if (L < 0.006 || (b.k2 += dt) > 3.2) { g.position.copy(b.to); b.k2 = 0; b.ph2 = b.mode2 === 'flower' ? 'feed' : 'crawlIn'; b.hoverTmr = 3.6; }
             return;
           }
           if (P === 'feed') {   // đậu hoa: xếp cánh, bò vòng quanh nhuỵ, chúc đầu hút mật
@@ -11705,8 +11711,8 @@
             return;
           }
           if (P === 'takeoff') {   // cất cánh: vỗ cánh, bốc lên về điểm dẫn đường rồi bay tiếp
-            beeFlap(b, t); const goal = flightNav.visualPosition(b.pos, insectOffset.set(0, 0, 0), _bp); g.position.lerp(goal, 1 - Math.exp(-dt / 0.14));
-            if (g.position.distanceTo(goal) < 0.02 || (b.k2 += dt) > 1.2) b.ph2 = 'fly';
+            beeFlap(b, t); const goal = flightNav.visualPosition(b.pos, insectOffset.set(0, 0, 0), _bp); g.position.lerp(goal, 1 - Math.exp(-dt / 0.28));
+            if (g.position.distanceTo(goal) < 0.02 || (b.k2 += dt) > 2.4) b.ph2 = 'fly';
             return;
           }
           if (P === 'crawlIn' || P === 'crawlOut') {   // bò qua vành miệng giỏ lên vách trong (lưng quay vào tâm, đầu hướng lên khi vào / xuống khi ra)
@@ -11732,7 +11738,7 @@
             pollen: bee.pollen,
             pos: startP.clone(),
             target: pickBeeFlowerTarget(startP),
-            spd: 1.2 + Math.random() * 0.6,
+            spd: 0.6 + Math.random() * 0.3,   // G 15/10: bay chậm lại 50%
             ph: Math.random() * 6.28,
             hoverTmr: 0, nectarFlower: null, flowerRetryTmr: 0,
             state: 'foraging', // 'foraging', 'returning', 'depositing'

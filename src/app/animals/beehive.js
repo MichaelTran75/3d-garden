@@ -21,7 +21,11 @@
             const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(4, NC); return t; })();
           const shellGeo = new THREE.LatheGeometry(prof, 20);
           const shell = new THREE.Mesh(shellGeo, new THREE.MeshLambertMaterial({ map: straw, transparent: true, opacity: 0.25, depthWrite: false, side: THREE.DoubleSide }));
-          shell.renderOrder = 3; g.add(shell); g.add(new THREE.LineSegments(new THREE.EdgesGeometry(shellGeo, 35), lineDark));
+          shell.renderOrder = 3; g.add(shell);
+          // NÉT VIỀN 100% (G 15/10): vẽ SAU mọi lớp trong suốt (renderOrder 10, không ghi độ sâu) ⇒ không bị vỏ rơm / bánh sáp 50% che mờ; vẫn bị vật đặc (thân, cành) che
+          const art = lineDark.clone(); art.transparent = true; art.depthWrite = false;
+          const artLines = (geo, m = art) => { const l = new THREE.LineSegments(geo, m); l.renderOrder = 10; g.add(l); return l; };
+          artLines(new THREE.EdgesGeometry(shellGeo, 35));
           // ---- dây treo: từ cành xuống núm chỏm + khoen ----
           const ropeM = new THREE.MeshLambertMaterial({ color: 0x6b5232 });
           const rope = cyl(0.011, 0.011, ROPE + 0.02, ropeM, true, false, null, 5); rope.position.y = H + ROPE / 2; g.add(rope);
@@ -58,7 +62,10 @@
               for (const sd of [-1, 1]) cells.push([x * H, y * H, (zc + sd * 0.014) * H, sd, c]);
             }
           }
-          g.add(new THREE.LineSegments(mergeGeometries(combEdges), lineDark));
+          artLines(mergeGeometries(combEdges));
+          { const hp = [], r = CR * 0.86 * H;   // viền lục giác từng ô (đúng góc lăng trụ ô: đỉnh ở 0°, 60°, …) ở nắp ô MỘT mặt mỗi bánh (bánh trong 50% ⇒ vẫn thấy từ 2 phía; vẽ cả 2 mặt thì 2 lưới lệch nhau thành rối)
+            for (const [x, y, z, sd] of cells) if (sd > 0) for (let k = 0; k < 6; k++) { const a0 = k * Math.PI / 3, a1 = a0 + Math.PI / 3, zz = z + sd * 0.013 * H; hp.push(x + r * Math.cos(a0), y + r * Math.sin(a0), zz, x + r * Math.cos(a1), y + r * Math.sin(a1), zz); }
+            const hg = new THREE.BufferGeometry(); hg.setAttribute('position', new THREE.Float32BufferAttribute(hp, 3)); const wax = art.clone(); wax.color.setHex(0x4d2f0c); artLines(hg, wax); }   // vách ô nâu sáp đậm: rõ mà vẫn ấm (xanh đen của nét viền chung làm 5 bánh chồng nhau xám, rối)
           const cellGeo = new THREE.CylinderGeometry(CR * 0.86 * H, CR * 0.86 * H, 0.026 * H, 6, 1, false); cellGeo.rotateX(Math.PI / 2); cellGeo.rotateZ(Math.PI / 6);   // lăng trụ lục giác dọc trục z (mặt đầu = nắp ô)
           const cellM = new THREE.MeshPhongMaterial({ shininess: 40, specular: 0x5a4a30, transparent: true, opacity: 0.5, depthWrite: false });
           const cellIM = new THREE.InstancedMesh(cellGeo, cellM, cells.length), _m = new THREE.Matrix4(), _c = new THREE.Color();
