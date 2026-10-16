@@ -45,7 +45,7 @@
           P(g, 0.12, 0.15, 0.1, metalMat, 0.22, 1.17, 0.16, false);                              // túi đồ nghề
           const hips = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.16, 0.27), pantsM); hips.position.y = 1.18; hips.castShadow = true; edge(hips, hips.geometry, lineDark); g.add(hips);   // khối hông
           // ---- ĐẦU trụ bo cạnh (r 0,2 · cao 0,34) + núm, mặt in canvas (giữa mặt ở +z) ----
-          const headG = new THREE.Group(); headG.position.y = 2.06; g.add(headG);
+          const headG = new THREE.Group(); headG.position.y = 2.06; headG.rotation.order = 'YXZ'; g.add(headG);   // YXZ: quay đầu rồi mới cúi/ngửa (quay xa mà cúi không bị nghiêng lệch)
           const face = canvasTex(512, 128, x => {
             x.fillStyle = '#' + new THREE.Color(LEGO_YELLOW).getHexString(); x.fillRect(0, 0, 512, 128);
             x.fillStyle = '#1b1b1b'; for (const ex of [228, 284]) { x.beginPath(); x.ellipse(ex, 60, 7, 9, 0, 0, Math.PI * 2); x.fill(); }
@@ -123,7 +123,8 @@
           leafM.rotation.x = -Math.PI / 2; leafM.position.set(0.075, 0.023, 0); bookLeaf.add(leafM);
           // miếng khoai tây chiên kẹp giữa các ngón (tay trái, phía bàn trà) lúc bốc từ gói lên miệng
           const chip = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.008, 10), new THREE.MeshLambertMaterial({ color: 0xe8c25a }));
-          chip.scale.z = 0.75; chip.position.set(0, -0.67, 0.11); chip.rotation.x = 0.4;   // kẹp ở đầu ngón, trước nắm tay chip.visible = false; arms[1].add(chip);
+          // kẹp ở đầu ngón, trước nắm tay (trước 16/10 dòng gắn miếng khoai bị nuốt vào chú thích cuối dòng ⇒ bốc khoai mà tay không)
+          chip.scale.z = 0.75; chip.position.set(0, -0.67, 0.11); chip.rotation.x = 0.4; chip.visible = false; arms[1].add(chip);
           // khăn tắm vắt qua gáy, 2 đầu buông trước ngực (sau khi tắm)
           const towel = new THREE.Group(); towel.name = 'Khăn vắt cổ'; towel.visible = false; g.add(towel);
           const towelMat = new THREE.MeshLambertMaterial({ color: 0xd98c6a });

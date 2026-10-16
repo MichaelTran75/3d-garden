@@ -64,8 +64,9 @@
               const fishing = e.phase === 'fish' && !leavingSeat && !e.inVan;
               if (!fishing) resetFishingBite();
               e.rodGrp.visible = fishing; groundRod.visible = !fishing; fishLine.visible = fishing; bobber.visible = fishing;   // không câu → cần nằm dưới đất cạnh ghế
-              engPetting = false;
+              engPetting = false; e.teaIdle = false;
               if (leavingSeat) { /* engSeatGuard: đứng dậy + rời ghế, đã đặt vị trí + dáng */ }
+              else if (engReactHold(e, dt, t)) { /* phản ứng: đứng lại khi mưa bắt đầu · ngồi xổm xoa đầu chó (engineer/reactions.js) */ }
               else if (e.inVan) engVan(e, dt, t, act);          // trong xe: bàn học, bàn ăn, phòng tắm, giường…
               else if (e.phase === 'van') engEnterVan(e, dt, t);   // việc trong xe: đi tới cửa hông, bước lên
               else if (e.phase === 'toShelter') {          // mưa: về ghế cắm trại dưới mái hiên (vào thẳng từ phía trước ghế)
@@ -117,7 +118,7 @@
                 if (engUseSeat(e, CAMP_SEAT, dt, t)) {
                   e.timer -= dt; e.arms[0].rotation.x = e.arms[1].rotation.x = -0.6;
                   // với cốc trong vòng tay vịn → thổi → nhấp → 2 tay ôm cốc → nhấp → đặt lại (engineer/meal-read.js); hết giờ: chờ đặt cốc xuống rồi mới đứng dậy
-                  const teaIdle = engTea(e, dt, t);
+                  const teaIdle = e.teaIdle = engTea(e, dt, t);
                   if (e.timer <= 0 && teaIdle) {
                     if (e.act === 'rest') e.phase = 'nap';
                     else if (e.act === 'outdoor') { e.phase = 'wander'; e.timer = 90; e.wanderTgt = null; e.wanderTmr = 0; }
@@ -226,11 +227,14 @@
               drawEngineerLabel(t);
             }
             showerFx.update(dt);
+            engReactPre(e, dt, t);  // phản ứng với cảnh: mưa, sét, gió, chó, lá rơi, khói — nghiêng người, tốc độ (engineer/reactions.js)
             engPoseEnd(e, dt, t);   // hiển thị tư thế đã làm mượt
             engFootIK(e, dt);       // IK: bàn chân bám đúng mặt đất voxel, hông hạ theo chân thấp
+            engReactPost(e, dt, t); // phản ứng: quay đầu nhìn, nhịp cử chỉ (trước engSeatPost — nơi áp góc quay đầu)
             engSeatPost(e, dt);     // dang tay tới tay vịn · đầu quay dẫn hướng · đám mây suy nghĩ đứng thẳng trên hông
             if (e.fishBiteK !== undefined) { if (e.phase === 'fish') updateFishingBite(e, dt, t, e.fishBiteK); e.fishBiteK = undefined; }
             splashFx.update(dt);   // giật cần + dây câu tính SAU khi tư thế đã mượt → đầu dây luôn khớp ngọn cần
+            engReactArms(e, dt, t); // phản ứng: đích tay cử chỉ — sau khi đầu đã quay / cúi xong khung này
             engArmPost(e, dt);      // khuỷu tay + cổ tay (IK 2 đoạn giữ đúng chỗ bàn tay) · eo vặn theo nhịp bước
             applePick.tick(e, dt);  // sào, quả trong rổ / tay / giỏ theo bàn tay đã đặt xong · quả trên cây đung đưa
           }

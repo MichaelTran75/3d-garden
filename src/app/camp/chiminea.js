@@ -89,7 +89,7 @@
             inlet: { r: 0.11 * SC }, lid: { r: 0.19 * SC, z0: 0.036 * SC, z1: 0.086 * SC } }, { name: 'Khói ống khói lò chiminea (sợi khói Navier–Stokes)', opacity: 0.6 });
           smoke.on = false;
           let L = 0, init = false;
-          return { g, update(dt, t) {
+          return { g, smoke, lit: () => L, update(dt, t) {
             // chỉ khi mưa ⇒ lò cháy: ít nhất 55%, tối thì theo lịch lửa trại; bén lửa ~40 s, tàn ~2,5 phút
             const want = rainK > 0.05 ? Math.max(0.55, campfireLevel(liveWeather.localHour)) : 0;
             if (!init && liveWeather.state.data) { init = true; L = want; }   // mở trang giữa cơn mưa: lò đang cháy sẵn

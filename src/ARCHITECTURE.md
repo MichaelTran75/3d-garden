@@ -233,9 +233,32 @@ lò xo) ⇒ lên bậc voxel 0,6 đv thì chân trước lên trước, thân ng
   sâu (chó "trong" xe caravan = đang vào xe trú, đúng kịch bản). Bán kính trong `obstacleCoords` là bán kính NÊN TRÁNH (đã nới) — đừng dùng chặn cứng
   cho chó/gấu mèo (chúng cố ý tới sát cửa xe, khúc gỗ).
 - Chó chạy vòng 'zoom' (`animals/dog-brain.js`, 16/10): trước đây vòng R 2,4 m quanh `pf` (lửa trại) luồn qua khe 0,9 m giữa lò chiminea và
-  đống củi ⇒ trông như xoay tại chỗ. Giờ `zoomCenter()` tìm 1 lần bãi trống quanh chỗ nằm `restP` (vòng dò 3,5–12 m, 24 hướng): tâm và 48 điểm
-  trên vòng R 2,2 ± 0,6 m phải `envFree`, ngoài đường (lề 0,3–0,5 m), chênh cao < 0,5 m; không có thì quay về `pf`. Hết giờ chỉ đếm khi đã ở trên vòng
-  (`dc ≤ ZR + 0,8`). Đo: tâm bãi cỏ cách lửa 7,6 m, ~2 vòng, khoảng hở tới bán kính nên tránh: trên vòng ≥ 0,31 m, đoạn chạy ra ≥ 0,10 m.
+  đống củi ⇒ trông như xoay tại chỗ. `zoomCenter()` (tìm 1 lần, dò 3,5–14 m quanh `restP`, 36 hướng): dải chạy R 2,2 ± 0,6 m phải `envFree`, ngoài
+  đường, chênh ≤ 0,7 m (quanh trại là đất bậc thang — đòi ≤ 0,5 m thì không còn chỗ nào); TRONG vòng không có vật cản nào; tâm cách gốc táo ≥ 4 m,
+  ngoài tán anh đào; chấm điểm = khoảng cách + 0,12·số điểm qua bậc + 3 nếu ghế cắm trại không nhìn thấy (lệch hướng ghế > 1,3 rad) + 1,2/m nếu
+  gần gốc táo < 5,4 m. **Bẫy đã dính**: bản đầu chỉ dò các vòng tròn ⇒ tâm cách gốc táo 0,98 m, chó chạy vòng quanh gốc cây. Đo: tâm ≈ (74,3; 92,5)
+  (bãi cỏ giữa cây táo và anh đào, trước–trái ghế), cách gốc táo 4,2 m. Hết giờ chỉ đếm khi đã ở trên vòng (`dc ≤ ZR + 0,8`).
+- **Kỹ sư phản ứng với cảnh** (`engineer/reactions.js`, G 16/10): lớp phủ lên việc đang làm, không đổi lịch. 4 lời gọi trong loop-update:
+  `engReactHold` (đứng lại thay việc: mưa bắt đầu, ngồi xổm xoa đầu chó) · `engReactPre` (trước `engPoseEnd`: sự kiện, gió, tốc độ `e.spd`,
+  nghiêng người) · `engReactPost` (sau IK chân, TRƯỚC `engSeatPost`: nhìn = `e.headYawT` + độ cúi cộng vào đầu đã làm mượt, nhịp cử chỉ) ·
+  `engReactArms` (SAU `engSeatPost`, trước `engArmPost`: đích tay IK). **Bẫy đã dính**: tính đích tay "úp mũ" trước khi đầu quay/cúi xong khung đó
+  ⇒ tay lơ lửng cách mũ ~0,17 (đứng xem trạm ngửa nhìn đỉnh cột). Đầu xoay thứ tự `YXZ` (model.js) — quay rồi mới cúi, quay xa mà cúi không bị
+  nghiêng lệch. Cử chỉ hoà với đích tay của việc đang làm (`rxHand`): uống trà chỉ được dùng tay lúc tay nghỉ trên đùi và phải xong trước khi
+  chu kỳ trà với cốc (`rxTeaLeft`), không thì tay giật về cốc. Đo IK cả 8 cử chỉ ngồi ≤ 1,2 cm; giữ mũ khi đứng lệch ≤ 3 mm.
+  · Mưa: `rxRaining()` = cờ lịch (`liveWeather.state.raining`); bắt đầu mưa khi đang đứng/đi ngoài mái (`rxDry`: hình chữ nhật mái bạt, hệ toạ độ
+  xe, tìm theo hình hộp 0,04 × 2,4) ⇒ đứng 2,7 s ngẩng nhìn trời, ngửa tay → đi vội ×1,55 (khom, cúi đầu, tay phải úp mũ, tay trái ôm bảng áp ngực).
+  · Gió tại đầu (m/s thật): nghiêng đón gió > 2,2 m/s · giữ mũ khi giật ≥ 4,3 m/s và ≥ 1,2× nền 8 s (+0,3) hoặc ≥ 6,5 · ngược gió chậm tới −20%.
+  Đo 16/10 (gió 10 m 17 km/h, giật 32): ở cột khí tượng trung bình 2,2 m/s, giật tối đa 4,6; ghế cắm trại (xe che) ~1 m/s.
+  · Lá rơi: dùng chung hạt lá rơi (`cherryCtl`, `forestLeafCtl`, `oldTreeLeafCtl`); trạng thái hạt mới **6 = đang ở trên người** (`water-leaves.js`
+  gọi `q.hold(p, q)` lấy vị trí/hướng — trả false thì rơi tiếp); `q.rxNo` = 4 s không bắt / không đậu lại (lá vừa phủi rơi xuống lại bị bắt).
+  Đậu trên mũ phải xét MỖI KHUNG (xét 0,15 s/lần thì lá rơi lọt qua khe). Quanh trại không có tán rừng trong 9 m; cánh hoa anh đào (gió đông)
+  bay qua cột khí tượng ~4,7 cánh/phút trong 4 m, ghế câu ~2/phút, ghế cắm trại ~0 ⇒ bắt được cánh hoa hiếm, nhìn theo thì thường.
+  · Khói: đo trên sợi khói NS thật (`rxSmokeAt`: toạ độ điểm sợi khói tính TỪ GỐC NGUỒN `S.mesh.position`). Khói nóng bốc nhanh: chỉ xuống ngang
+  mặt trong ~1,2 m cuối gió của lửa trại (gió 9–20 km/h) ⇒ chỉ khi đứng sát lửa (lấy/cắm que cá) mới ho, ngoảnh đi; ngồi ghế không bao giờ dính.
+  · Chó chủ dừng: `dogBrain.state.patAt` (chỗ ngồi: thử các hướng, chỉ loại nước / đất chênh / vật nhỏ thật — kỹ sư xem trạm đứng ngay tâm vùng tránh
+  2 m của cột khí tượng nên lọc theo `envFree` thì luôn hỏng) → chó tới ngồi, `patReady` → ngồi xổm (như hái táo) xoa đầu, `engPetting` ⇒ chó vẫy tít.
+  · Thử: scratchpad `reacttest.js` (`wxLock` khoá thời tiết bằng getter, `rxTrace`, `rxGallery` ép 1 cử chỉ + đo IK, `rxPetal`/`rxHatPetal`).
+  · Đi kèm: `chiminea` trả `smoke` + `lit()`; miếng khoai lúc đọc sách trước đây không gắn vào tay (dòng `arms[1].add(chip)` bị nuốt vào chú thích).
 - Khói ống bếp xe (`engineer/cooking.js`, 16/10 "giống khói lửa trại, −70%"): dens 0,8 + độ đục 0,6 như lửa trại (trước 1,3 × 0,75), màu xám khói
   (ngả trắng hơi khi luộc), số hạt thả × 0,3, bốc nhờ hơi nóng (draft 0 — dòng gán draft cũ bị nuốt vào chú thích). Bướm bay × 0,7 (`spd`).
   Bẫy thử khói NS: Worker giải tối đa 0,1 s mỗi lượt và cộng dồn dt khi bận ⇒ vòng mô phỏng chạy nhanh (simC) làm khói gần như đứng yên; phải chờ

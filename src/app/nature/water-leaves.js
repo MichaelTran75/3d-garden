@@ -114,6 +114,10 @@
               q.yaw = Math.random() * TAU; q.tilt = (Math.random() - 0.5) * 0.3; q.fish = 0;
             }
             let sc = o.scale;
+            if (q.st === 6) {   // đang ở trên người kỹ sư (trong tay / trên mũ — engineer/reactions.js): q.hold đặt vị trí + hướng; trả false ⇒ rơi tiếp
+              if (q.hold && q.hold(q.p, _lfQ)) { L.im.setMatrixAt(k, _lfM.compose(_lfP.copy(q.p), _lfQ, _lfS.setScalar(sc))); continue; }
+              q.hold = null; q.st = 1;
+            }
             if (q.st === 1) {   // đang rơi
               q.age += h;
               const gy = cowY(q.p.x, q.p.z);

@@ -47,7 +47,7 @@
           for (const L of U.legs) { L.L1 = L1; L.L2 = L2; }
           const rig = quadRig(dogObj, { legs: U.legs, gaits: GAITS, home: (L, out) => homeLocal(L, out), ground: (x, z) => ground(x, z) });
           // ---- vận động: lái về đích (né vật cản · lửa · ghế · người · mép nước), tăng/giảm tốc, giới hạn tốc độ quay ----
-          const B = { st: 'lie', t: 60, k: 0, mode: 'lie', want: 0, tgt: new THREE.Vector3(), n: 0, doze: 0, look: null, wagAmp: 0.08, wagF: 1.5, sniff: 0, shake: 0 };
+          const B = { st: 'lie', t: 60, k: 0, mode: 'lie', want: 0, tgt: new THREE.Vector3(), n: 0, doze: 0, look: null, wagAmp: 0.08, wagF: 1.5, sniff: 0, shake: 0, patAt: null, patReady: false };
           function steer(tx, tz, speed, dt, field, stopR = 0.08) {
             const p = dogObj.position, dx = tx - p.x, dz = tz - p.z, dd = Math.hypot(dx, dz);
             if (dd < stopR) { B.want = 0; return true; }
@@ -105,15 +105,24 @@
           const randPt = (r0, r1) => { for (let k = 0; k < 14; k++) { const a = Math.random() * 6.2832, r = r0 + Math.random() * (r1 - r0), x = restP.x + Math.cos(a) * r, z = restP.z + Math.sin(a) * r; if (isWater(Math.round(x2gi(x)), Math.round(z2gj(z)))) continue; if (obstacleCoords.some(o => Math.hypot(x - o.x, z - o.z) < o.r + 0.4) || ENG_PROPS.some(o => Math.hypot(x - o.x, z - o.z) < o.r + 0.3)) continue; if (Math.abs(cowY(x, z) - cowY(restP.x, restP.z)) > 0.7) continue; return _a.set(x, 0, z).clone(); } return restP.clone(); };
           function setSt(st, t) { B.st = st; B.k = 0; B.t = t || 0; }
           // CHỖ CHẠY VÒNG (zoomies) — G 16/10: vòng cũ quanh bếp lửa luồn qua khe 0,9 m giữa lò chiminea và đống củi, trông như chó xoay mãi một chỗ.
-          // Giờ: bãi cỏ trống gần chỗ nằm nhất mà cả vòng (bán kính ZR, lề ±0,6 m) đều trống trên lưới môi trường (envFree: không vật cản, không nước),
-          // không trên đường, đất phẳng (chênh ≤ 0,5 m). Tìm 1 lần; không có thì quanh bếp lửa như cũ.
+          // Giờ: bãi cỏ trống quanh chỗ nằm (dò 3,5–14 m): dải chạy (bán kính ZR ± 0,6 m) trống trên lưới môi trường (envFree: không vật cản, không nước),
+          // ngoài đường, đất chênh ≤ 0,7 m (quanh trại là đất bậc thang: cho qua 1 bậc voxel); TRONG vòng không có vật gì (bản đầu chỉ dò các vòng ⇒ tâm
+          // cách gốc táo 0,98 m, chó chạy quanh gốc cây); cách gốc táo ≥ ZR + 1,8, ngoài tán anh đào. Chọn chỗ ít bậc, gần, ngồi ghế cắm trại nhìn
+          // thấy (lệch hướng ghế ≤ 1,3 rad), xa tán táo (< 5,4 m thì bị trừ điểm). Tìm 1 lần; không có thì quanh bếp lửa như cũ.
           const ZR = 2.2; let zoomC = null;
           function zoomCenter() {
             if (zoomC) return zoomC;
-            for (let ring = 3.5; ring <= 12 && !zoomC; ring += 1) for (let k = 0; k < 24 && !zoomC; k++) {
-              const a = k / 24 * TAU, cx = restP.x + Math.cos(a) * ring, cz = restP.z + Math.sin(a) * ring, y0 = cowY(cx, cz); let ok = envFree(cx, cz) && !roadContains(cx, cz, 0.5);
-              for (let q = 0; q < 16 && ok; q++) { const b = q / 16 * TAU; for (const rr of [ZR - 0.6, ZR, ZR + 0.6]) { const x = cx + Math.cos(b) * rr, z = cz + Math.sin(b) * rr; if (!envFree(x, z) || roadContains(x, z, 0.3) || Math.abs(cowY(x, z) - y0) > 0.5) { ok = false; break; } } }
-              if (ok) zoomC = new THREE.Vector3(cx, y0, cz);
+            const cw = cherryWind && cherryWind.active ? cherryWind : null, obs = [...obstacleCoords, ...ENG_PROPS]; let best = Infinity;
+            for (let ring = 3.5; ring <= 14; ring += 0.5) for (let k = 0; k < 36; k++) {
+              const a = k / 36 * TAU, cx = restP.x + Math.cos(a) * ring, cz = restP.z + Math.sin(a) * ring, y0 = cowY(cx, cz);
+              const ap = appleTrees.reduce((m, T) => Math.min(m, Math.hypot(cx - T.position.x, cz - T.position.z)), 99);
+              if (ap < ZR + 1.8 || (cw && Math.hypot(cx - cw.crown.x, cz - cw.crown.z) < ZR + cw.R) || obs.some(o => Math.hypot(cx - o.x, cz - o.z) < o.r + ZR - 0.6)) continue;
+              let steps = 0, ok = true;
+              for (let q = 0; q < 24 && ok; q++) { const b = q / 24 * TAU; for (const rr of [ZR - 0.6, ZR, ZR + 0.6]) { const x = cx + Math.cos(b) * rr, z = cz + Math.sin(b) * rr, dy = Math.abs(cowY(x, z) - y0); if (!envFree(x, z) || roadContains(x, z, 0.3) || dy > 0.7) { ok = false; break; } if (dy > 0.3) steps++; } }
+              if (!ok) continue;
+              let rel = Math.atan2(cx - CAMP_SEAT.pos.x, cz - CAMP_SEAT.pos.z) - CAMP_SEAT.yaw; rel = Math.atan2(Math.sin(rel), Math.cos(rel));
+              const cost = ring + 0.12 * steps + (Math.abs(rel) < 1.3 ? 0 : 3) + Math.max(0, 5.4 - ap) * 1.2;
+              if (cost < best) { best = cost; zoomC = new THREE.Vector3(cx, y0, cz); }
             }
             return zoomC || (zoomC = pf.clone());
           }
@@ -206,8 +215,15 @@
                 break;
               }
               case 'follow': {   // đi theo chủ: giữ ~1,6 m phía sau–bên; xa thì chạy nước kiệu / phi; chủ đứng yên thì ngồi nhìn
-                if (!E || B.t <= 0) { setSt('return'); break; }
+                if (!E || B.t <= 0) { B.patAt = null; setSt('return'); break; }
                 const ep = E.g.position, ey = E.g.rotation.y, fx = Math.sin(ey), fz = Math.cos(ey), d = Math.hypot(ep.x - p.x, ep.z - p.z);
+                if (B.patAt) {   // chủ gọi lại xoa đầu (engineer/reactions.js): tới trước mặt chủ, ngồi ngẩng nhìn, đuôi vẫy tít
+                  B.t = Math.max(B.t, 3); B.look = _hp.copy(ep).setY(ep.y + 1.2); B.wagAmp = engPetting ? 0.75 : 0.55; B.wagF = engPetting ? 3.4 : 2.8;
+                  B.patReady = steer(B.patAt.x, B.patAt.z, 0.9, dt, null, 0.12);
+                  if (B.patReady) { B.want = 0; B.mode = 'sit'; let dy = yawOf(ep.x - p.x, ep.z - p.z) - dogObj.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); dogObj.rotation.y += dy * Math.min(1, dt * 4); }
+                  else B.mode = 'stand';
+                  break;
+                }
                 const tx = ep.x - fx * 1.3 + fz * 0.55, tz = ep.z - fz * 1.3 - fx * 0.55;
                 B.look = _hp.copy(ep).setY(ep.y + 1.2); B.wagAmp = 0.45; B.wagF = 2.6;
                 if (E.walking || d > 2.2) { B.mode = 'stand'; steer(tx, tz, d > 4.5 ? 2.6 : d > 2.4 ? 1.6 : Math.max(0.5, E.vel || 0.7), dt, null, 0.25); }

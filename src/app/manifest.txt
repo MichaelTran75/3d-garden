@@ -65,6 +65,7 @@ animals/beehive.js                     # TỔ ONG GIỎ RƠM treo cành cây con
 animals/insects.js                     # đom đóm, bướm, ong
 animals/storks.js                      # cò trắng (dựng theo số đo Stork.glb, MIT)
 animals/songbird.js                    # CHIM SẺ: con ở trại (thanh treo đèn → cỏ → cây táo → nóc xe → dây điện; ngủ cây táo) + 2 hộp tổ (vách tây chuồng bò · treo cành cây táo), mỗi hộp 1 cặp mớm chim non
+engineer/reactions.js                  # KỸ SƯ PHẢN ỨNG: nhìn theo chó / lá / sét, giữ mũ khi gió giật, hứng mưa rồi đi vội vào hiên, bắt lá, phủi lá, xua khói, hơ tay, xoa đầu chó
 ui/labels-controls.js                  # nhãn, điều khiển camera, toạ độ, zoom
 ui/xray-lifecycle.js                   # xem xuyên xe, tạm dừng/tiếp tục, dọn dẹp
 loop/close-up.js                       # CẬN CẢNH: bóng nắng ôm vùng nhìn, vật tròn đổi bản nhiều cạnh khi zoom gần · độ phân giải tự điều chỉnh

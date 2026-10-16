@@ -3043,6 +3043,10 @@
               q.yaw = Math.random() * TAU; q.tilt = (Math.random() - 0.5) * 0.3; q.fish = 0;
             }
             let sc = o.scale;
+            if (q.st === 6) {
+              if (q.hold && q.hold(q.p, _lfQ)) { L.im.setMatrixAt(k, _lfM.compose(_lfP.copy(q.p), _lfQ, _lfS.setScalar(sc))); continue; }
+              q.hold = null; q.st = 1;
+            }
             if (q.st === 1) {
               q.age += h;
               const gy = cowY(q.p.x, q.p.z);
@@ -5581,7 +5585,7 @@
           P(g, 0.07, 0.04, 0.02, metalMat, 0, 1.255, 0.16, false);
           P(g, 0.12, 0.15, 0.1, metalMat, 0.22, 1.17, 0.16, false);
           const hips = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.16, 0.27), pantsM); hips.position.y = 1.18; hips.castShadow = true; edge(hips, hips.geometry, lineDark); g.add(hips);
-          const headG = new THREE.Group(); headG.position.y = 2.06; g.add(headG);
+          const headG = new THREE.Group(); headG.position.y = 2.06; headG.rotation.order = 'YXZ'; g.add(headG);
           const face = canvasTex(512, 128, x => {
             x.fillStyle = '#' + new THREE.Color(LEGO_YELLOW).getHexString(); x.fillRect(0, 0, 512, 128);
             x.fillStyle = '#1b1b1b'; for (const ex of [228, 284]) { x.beginPath(); x.ellipse(ex, 60, 7, 9, 0, 0, Math.PI * 2); x.fill(); }
@@ -5650,7 +5654,7 @@
           const leafM = new THREE.Mesh(new THREE.PlaneGeometry(0.15, 0.22), new THREE.MeshLambertMaterial({ color: 0xfbf8ee, side: THREE.DoubleSide }));
           leafM.rotation.x = -Math.PI / 2; leafM.position.set(0.075, 0.023, 0); bookLeaf.add(leafM);
           const chip = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.008, 10), new THREE.MeshLambertMaterial({ color: 0xe8c25a }));
-          chip.scale.z = 0.75; chip.position.set(0, -0.67, 0.11); chip.rotation.x = 0.4;
+          chip.scale.z = 0.75; chip.position.set(0, -0.67, 0.11); chip.rotation.x = 0.4; chip.visible = false; arms[1].add(chip);
           const towel = new THREE.Group(); towel.name = 'Khăn vắt cổ'; towel.visible = false; g.add(towel);
           const towelMat = new THREE.MeshLambertMaterial({ color: 0xd98c6a });
           P(towel, 0.42, 0.05, 0.14, towelMat, 0, 1.9, -0.08, false);
@@ -8016,7 +8020,7 @@
             inlet: { r: 0.11 * SC }, lid: { r: 0.19 * SC, z0: 0.036 * SC, z1: 0.086 * SC } }, { name: 'Khói ống khói lò chiminea (sợi khói Navier–Stokes)', opacity: 0.6 });
           smoke.on = false;
           let L = 0, init = false;
-          return { g, update(dt, t) {
+          return { g, smoke, lit: () => L, update(dt, t) {
             const want = rainK > 0.05 ? Math.max(0.55, campfireLevel(liveWeather.localHour)) : 0;
             if (!init && liveWeather.state.data) { init = true; L = want; }
             L += (want - L) * (1 - Math.exp(-dt / (want > L ? 40 : 150)));
@@ -8628,7 +8632,7 @@
           }
           for (const L of U.legs) { L.L1 = L1; L.L2 = L2; }
           const rig = quadRig(dogObj, { legs: U.legs, gaits: GAITS, home: (L, out) => homeLocal(L, out), ground: (x, z) => ground(x, z) });
-          const B = { st: 'lie', t: 60, k: 0, mode: 'lie', want: 0, tgt: new THREE.Vector3(), n: 0, doze: 0, look: null, wagAmp: 0.08, wagF: 1.5, sniff: 0, shake: 0 };
+          const B = { st: 'lie', t: 60, k: 0, mode: 'lie', want: 0, tgt: new THREE.Vector3(), n: 0, doze: 0, look: null, wagAmp: 0.08, wagF: 1.5, sniff: 0, shake: 0, patAt: null, patReady: false };
           function steer(tx, tz, speed, dt, field, stopR = 0.08) {
             const p = dogObj.position, dx = tx - p.x, dz = tz - p.z, dd = Math.hypot(dx, dz);
             if (dd < stopR) { B.want = 0; return true; }
@@ -8682,10 +8686,17 @@
           const ZR = 2.2; let zoomC = null;
           function zoomCenter() {
             if (zoomC) return zoomC;
-            for (let ring = 3.5; ring <= 12 && !zoomC; ring += 1) for (let k = 0; k < 24 && !zoomC; k++) {
-              const a = k / 24 * TAU, cx = restP.x + Math.cos(a) * ring, cz = restP.z + Math.sin(a) * ring, y0 = cowY(cx, cz); let ok = envFree(cx, cz) && !roadContains(cx, cz, 0.5);
-              for (let q = 0; q < 16 && ok; q++) { const b = q / 16 * TAU; for (const rr of [ZR - 0.6, ZR, ZR + 0.6]) { const x = cx + Math.cos(b) * rr, z = cz + Math.sin(b) * rr; if (!envFree(x, z) || roadContains(x, z, 0.3) || Math.abs(cowY(x, z) - y0) > 0.5) { ok = false; break; } } }
-              if (ok) zoomC = new THREE.Vector3(cx, y0, cz);
+            const cw = cherryWind && cherryWind.active ? cherryWind : null, obs = [...obstacleCoords, ...ENG_PROPS]; let best = Infinity;
+            for (let ring = 3.5; ring <= 14; ring += 0.5) for (let k = 0; k < 36; k++) {
+              const a = k / 36 * TAU, cx = restP.x + Math.cos(a) * ring, cz = restP.z + Math.sin(a) * ring, y0 = cowY(cx, cz);
+              const ap = appleTrees.reduce((m, T) => Math.min(m, Math.hypot(cx - T.position.x, cz - T.position.z)), 99);
+              if (ap < ZR + 1.8 || (cw && Math.hypot(cx - cw.crown.x, cz - cw.crown.z) < ZR + cw.R) || obs.some(o => Math.hypot(cx - o.x, cz - o.z) < o.r + ZR - 0.6)) continue;
+              let steps = 0, ok = true;
+              for (let q = 0; q < 24 && ok; q++) { const b = q / 24 * TAU; for (const rr of [ZR - 0.6, ZR, ZR + 0.6]) { const x = cx + Math.cos(b) * rr, z = cz + Math.sin(b) * rr, dy = Math.abs(cowY(x, z) - y0); if (!envFree(x, z) || roadContains(x, z, 0.3) || dy > 0.7) { ok = false; break; } if (dy > 0.3) steps++; } }
+              if (!ok) continue;
+              let rel = Math.atan2(cx - CAMP_SEAT.pos.x, cz - CAMP_SEAT.pos.z) - CAMP_SEAT.yaw; rel = Math.atan2(Math.sin(rel), Math.cos(rel));
+              const cost = ring + 0.12 * steps + (Math.abs(rel) < 1.3 ? 0 : 3) + Math.max(0, 5.4 - ap) * 1.2;
+              if (cost < best) { best = cost; zoomC = new THREE.Vector3(cx, y0, cz); }
             }
             return zoomC || (zoomC = pf.clone());
           }
@@ -8777,8 +8788,15 @@
                 break;
               }
               case 'follow': {
-                if (!E || B.t <= 0) { setSt('return'); break; }
+                if (!E || B.t <= 0) { B.patAt = null; setSt('return'); break; }
                 const ep = E.g.position, ey = E.g.rotation.y, fx = Math.sin(ey), fz = Math.cos(ey), d = Math.hypot(ep.x - p.x, ep.z - p.z);
+                if (B.patAt) {
+                  B.t = Math.max(B.t, 3); B.look = _hp.copy(ep).setY(ep.y + 1.2); B.wagAmp = engPetting ? 0.75 : 0.55; B.wagF = engPetting ? 3.4 : 2.8;
+                  B.patReady = steer(B.patAt.x, B.patAt.z, 0.9, dt, null, 0.12);
+                  if (B.patReady) { B.want = 0; B.mode = 'sit'; let dy = yawOf(ep.x - p.x, ep.z - p.z) - dogObj.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); dogObj.rotation.y += dy * Math.min(1, dt * 4); }
+                  else B.mode = 'stand';
+                  break;
+                }
                 const tx = ep.x - fx * 1.3 + fz * 0.55, tz = ep.z - fz * 1.3 - fx * 0.55;
                 B.look = _hp.copy(ep).setY(ep.y + 1.2); B.wagAmp = 0.45; B.wagF = 2.6;
                 if (E.walking || d > 2.2) { B.mode = 'stand'; steer(tx, tz, d > 4.5 ? 2.6 : d > 2.4 ? 1.6 : Math.max(0.5, E.vel || 0.7), dt, null, 0.25); }
@@ -13757,6 +13775,430 @@
             });
           });
         }
+        const RX_NO = [false, false], RX_YES = [true, true], RX_R = [true, false];
+        const RX_BUSY = new Set(['pet', 'apple', 'drink', 'grab', 'plant', 'toPlant', 'toGrill', 'eatFish', 'tossFish', 'fish', 'eat', 'read', 'nap']);
+        const RX_STOP = new Set(['wander', 'check', 'toMast', 'toChair', 'toShelter', 'toFish', 'toDog']);
+        const RX_GP = { wipe: 1, rub: 1, warm: 1, palm: 2, clap: 2, laugh: 2, wave: 3, cough: 3, catch: 3, look: 3, drop: 3, brush: 3, helmet: 4, pat: 4, shield: 5, cover: 6 };
+        const RX_TXT = {
+          rain: ['Mưa rồi! Vào hiên thôi.', 'Ơ, mưa rồi kìa.', 'Mưa nặng hạt dần, chạy vào mái hiên đã.'],
+          rainSeat: ['Mưa rồi, may mà đang ngồi dưới hiên.', 'Mưa xuống rồi, nghe lộp độp trên mái bạt.'],
+          rainFish: ['Mưa rồi, thu cần vào hiên thôi.'],
+          dry: ['Tạnh mưa rồi.', 'Hết mưa rồi, trời sáng dần lên.'],
+          bolt: ['Sét gần quá!', 'Chớp loé cả mặt hồ.'],
+          gust: ['Gió giật mạnh quá, giữ mũ cái đã.', 'Suýt nữa bay cả mũ.'],
+          petal: ['Bắt được một cánh hoa anh đào.', 'Cánh hoa bay tận đến đây.'],
+          leaf: ['Bắt được một chiếc lá.', 'Lá rơi đúng vào tay.'],
+          miss: ['Hụt mất rồi.'],
+          hat: ['Lá rơi trúng mũ.'],
+          zoom: ['Chạy vòng hăng thế, lát lại thở dốc cho xem.', 'Nó lại lên cơn chạy vòng rồi.'],
+          pat: ['Ngoan, ngồi đây nào.', 'Đi theo mình cả buổi rồi à?'],
+          shake: ['Ướt hết rồi, giũ xa xa ra chứ!'],
+          smoke: ['Khói bay hết vào mặt.', 'Gió đổi chiều, khói cay mắt quá.'],
+          warm: ['Hơ tay bên lửa cho ấm.'],
+          cold: ['Lạnh tay quá, xoa cho ấm.'],
+          hot: ['Nóng quá, mồ hôi nhễ nhại.']
+        };
+        const RX_CLIP = new THREE.Vector3(0, 0.08, 0.16);
+        const RX_LEAF_Q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
+        const RX_SMOKE0 = 0.6;
+        const _rxA = new THREE.Vector3(), _rxB = new THREE.Vector3(), _rxC = new THREE.Vector3(), _rxD = new THREE.Vector3(), _rxE = new THREE.Vector3(), _rxL = new THREE.Vector3();
+        const _rxQ = new THREE.Quaternion(), _rxQ2 = new THREE.Quaternion(), _rxQ3 = new THREE.Quaternion(), _rxUp = new THREE.Vector3(0, 1, 0), _rxDn = new THREE.Vector3(0, -1, 0);
+        const RX = { t: 0, rain: null, hold: null, gest: null, look: null, lookP: new THREE.Vector3(), gp: new THREE.Vector3(), gw: 0, po: 0, pAdd: 0, sp: { x: 0, y: 0 },
+          wv: new THREE.Vector3(), wm: 0, calm: 0, leaf: null, leafT: 0, bolt: -1, boltP: new THREE.Vector3(), flinch: 0, smkT: 0, smkN: 0,
+          zoomSeen: false, zc: 0, dc: 0, still: 0, idle: 0, teaW: false, nx: {}, say: {}, pole: [new THREE.Vector3(), new THREE.Vector3()], poles: [null, null], patSpot: new THREE.Vector3() };
+        const RX_AW = (() => {
+          let a = null; caravanObj.traverse(o => { const p = o.isMesh && o.geometry.parameters; if (p && p.height === 0.04 && p.depth === 2.4) a = o; });
+          if (!a) return null; const w = a.geometry.parameters.width / 2;
+          return { x0: a.position.x - w + 0.1, x1: a.position.x + w - 0.1, z0: a.position.z - 1.2, z1: a.position.z + 1.05 };
+        })();
+        const rxDry = p => { if (!RX_AW) return false; const l = caravanObj.worldToLocal(_rxL.copy(p)); return l.x > RX_AW.x0 && l.x < RX_AW.x1 && l.z > RX_AW.z0 && l.z < RX_AW.z1; };
+        const rxRaining = () => !!(liveWeather.state.fresh && liveWeather.state.raining);
+        const rxOutside = e => !e.inVan && e.phase !== 'van' && e.g.parent === scene;
+        const rxSS = (x, a, b) => THREE.MathUtils.smoothstep(x, a, b);
+        const rxTeaLeft = e => e.phase === 'tea' ? (e.teaIdle ? TEA_T - (e.teaT % TEA_T) : 0) : Infinity;
+        function rxHands(e, clipOk) {
+          if (!rxOutside(e)) return RX_NO;
+          const s = e.seat && e.seat.st, P = e.phase, H = e.hold || {};
+          if (s && s !== 'go' && s !== 'leave' && s !== 'stood') return s === 'seated' && (P === 'shelter' || (P === 'tea' && e.teaIdle)) ? RX_YES : RX_NO;
+          if (e.armsBusy || e.noFootIK && !(RX.hold && RX.hold.k === 'pat') || RX_BUSY.has(P) || grill.st === 'held' || grill.st === 'carried') return RX_NO;
+          if (H.spoon || H.bottle || H.book || H.chop || H.knife || H.spatula || H.coke || H.cup || (e.dish && e.dish.at === 'hand')) return RX_NO;
+          return !clipOk && e.clip && e.clip.visible ? RX_R : RX_YES;
+        }
+        function rxGazeFree(e) {
+          if (!rxOutside(e)) return 0;
+          const s = e.seat && e.seat.st, P = e.phase;
+          if (s === 'sit' || s === 'rise' || s === 'back' || s === 'turn') return 0.3;
+          if (P === 'tea') return e.teaIdle ? 1 : 0.35;
+          if (P === 'read') return 0.5;
+          if (P === 'fish') return angling.stage === 'wait' || angling.stage === 'approach' ? 0.8 : 0.15;
+          if (P === 'eat' || P === 'eatFish' || P === 'tossFish') return 0.35;
+          if (P === 'nap') return 0;
+          if (P === 'pet' || P === 'apple' || P === 'grab' || P === 'plant' || P === 'toPlant' || P === 'toGrill') return 0.25;
+          return 1;
+        }
+        function rxSay(kind, lines, label, urgent) {
+          const now = Date.now(); if (now < (RX.say[kind] || 0) || (!urgent && (now < thoughtUntil || now < (RX.say._ || 0)))) return;
+          const ctx = engContext(now);
+          checkBubbleSprite.userData.thought = { header: ctx.wxIcon + ' ' + clockText(ctx.h) + ' · ' + label, message: lines[(Math.random() * lines.length) | 0], kind: 'react', revision: ++thoughtRevision };
+          thoughtUntil = now + 7000; idleThoughtAt = Math.max(idleThoughtAt, now + 45000); RX.say[kind] = now + 240000; RX.say._ = now + 25000;
+        }
+        function rxGest(k, dur, o) { if (RX.gest && RX_GP[RX.gest.k] >= RX_GP[k]) return false; RX.gest = Object.assign({ k, t: 0, dur }, o); return true; }
+        function rxGestEnd(G) { if (G && G.dur > G.t + 0.35) G.dur = G.t + 0.35; }
+        function rxLook(k, prio, dur, p) { if (RX.look && RX.t < RX.look.until && RX.look.prio > prio) return; RX.look = { k, prio, until: RX.t + dur }; if (p) RX.lookP.copy(p); }
+        function rxLookAway(e, src, prio, dur) {
+          e.head.getWorldPosition(_rxA); const yaw = e.g.rotation.y, fx = Math.sin(yaw), fz = Math.cos(yaw);
+          let ax = _rxA.x - src.x, az = _rxA.z - src.z; const l = Math.hypot(ax, az) || 1; ax /= l; az /= l;
+          const side = (-az * fx + ax * fz) >= 0 ? 1 : -1;
+          rxLook('away', prio, dur, _rxB.set(_rxA.x + (ax * 0.6 - az * side) * 2.5, _rxA.y - 0.25, _rxA.z + (az * 0.6 + ax * side) * 2.5));
+        }
+        function rxSky(e, out) { const yaw = e.g.rotation.y; e.head.getWorldPosition(out); return out.set(out.x + Math.sin(yaw) * 2.5, out.y + 4.5, out.z + Math.cos(yaw) * 2.5); }
+        const rxQ = (e, i, dir, out) => aimQ(out, dir, engWristUp(e, i, dir));
+        function rxHand(e, i, p, q, w) {
+          if (w < 1e-3) return;
+          const R = e.reachT, Q = e.handQ;
+          if (R && R[i]) { _rxE.copy(R[i]).lerp(p, w); _rxQ3.copy(Q && Q[i] ? Q[i] : q).slerp(q, w); engHandSet(e, i, _rxE, _rxQ3); }
+          else if (w > 0.4) engHandSet(e, i, p, q);
+        }
+        function rxHandAt(e, i, q, local, worldP, w) { rxHand(e, i, _rxD.copy(local).multiplyScalar(e.g.scale.y).applyQuaternion(q).negate().add(worldP), q, w); }
+        function rxPole(e, i, x, y, z) {
+          const EP = e.elbowPole, P = RX.poles; P[0] = EP ? EP[0] : null; P[1] = EP ? EP[1] : null; P[i] = RX.pole[i].set(x, y, z); e.elbowPole = P;
+        }
+        function rxFire(e) {
+          const g = e.g.position;
+          if (chiminea.lit() > 0.2 && chiminea.g.position.distanceTo(g) < 3.8) return _rxC.copy(chiminea.g.position).setY(chiminea.g.position.y + 0.5);
+          if (campfireLevel(liveWeather.localHour) * campRain.flameK > 0.25 && Math.hypot(pf.x - g.x, pf.z - g.z) < 4) return _rxC.set(pf.x, pf.y + 0.4, pf.z);
+          return null;
+        }
+        function rxSmokeAt(S, p, r) {
+          if (!S || !S.on) return 0; const B = S.mesh.position, P = S.geo.attributes.position.array, D = S.geo.attributes.aD.array, px = p.x - B.x, py = p.y - B.y, pz = p.z - B.z, r2 = r * r;
+          let s = 0; for (let v = 0, n = P.length / 3; v < n; v += 2) { const dx = P[v * 3] - px, dy = P[v * 3 + 1] - py, dz = P[v * 3 + 2] - pz, d2 = dx * dx + dy * dy + dz * dz; if (d2 < r2) s += D[v * 4] * (1 - Math.sqrt(d2) / r); }
+          return s / 255;
+        }
+        function rxHoldHand(p, q) {
+          const L = RX.leaf; if (!L || L.q.hold !== rxHoldHand) return false;
+          const w = engObj.wrists[0]; w.updateWorldMatrix(true, false); w.localToWorld(p.set(0, 0, 0.035)); w.getWorldQuaternion(q).multiply(RX_LEAF_Q); return true;
+        }
+        function rxHoldHat(p, q) {
+          const L = RX.leaf; if (!L || L.q.hold !== rxHoldHat) return false;
+          const h = engObj.head; h.updateWorldMatrix(true, false); h.localToWorld(p.copy(L.lp)); h.getWorldQuaternion(q).multiply(L.lq); return true;
+        }
+        function rxLeafLet(vx, vy, vz) { const L = RX.leaf; if (!L) return; const q = L.q; if (q.st === 6) { q.st = 1; q.hold = null; q.v.set(vx, vy, vz); q.rxNo = RX.t + 4; } RX.leaf = null; }
+        function rxReset(e) {
+          if (RX.leaf) { const q = RX.leaf.q; if (q.st === 6) rxLeafLet(0, 0, 0); RX.leaf = null; }
+          if (RX.hold) rxHoldEnd(); RX.gest = null; RX.look = null; RX.gw = 0; RX.po = 0; RX.flinch = 0;
+          e.spd = 1.1;
+        }
+        function rxHoldEnd() { RX.hold = null; const B = dogBrain.state; B.patAt = null; B.patReady = false; }
+        function rxRainEvent(e, start) {
+          const s = e.seat && e.seat.st, seated = !!s && s !== 'go' && s !== 'leave' && s !== 'stood';
+          if (start) {
+            if (!seated && !rxDry(e.g.position) && RX_STOP.has(e.phase) && !RX.hold) RX.hold = { k: 'rain', t: 0, dur: 2.7 };
+            rxLook('sky', 3, 2.6);
+            rxSay('rain', !seated ? RX_TXT.rain : e.seat.C === CAMP_SEAT ? RX_TXT.rainSeat : RX_TXT.rainFish, 'Trời đổ mưa', true);
+          } else {
+            rxLook('sky', 3, 2.2);
+            if (seated && rxHands(e)[0] && rxTeaLeft(e) > 2.7) rxGest('palm', 2.2);
+            rxSay('dry', RX_TXT.dry, 'Tạnh mưa', true);
+          }
+        }
+        function engReactHold(e, dt, t) {
+          const H = RX.hold; if (!H) return false;
+          const s = e.seat && e.seat.st;
+          if (!rxOutside(e) || (s && s !== 'go' && s !== 'leave' && s !== 'stood')) { rxHoldEnd(); return false; }
+          H.t += dt; const g = e.g, gp = g.position;
+          engStandStill(e); e.vel = 0; gp.y = cowY(gp.x, gp.z) - ENG_FEET;
+          if (H.k === 'rain') {
+            if (H.t > 0.35 && H.t < 0.5 && rxHands(e)[0]) rxGest('palm', 2.1);
+            if (H.t >= H.dur) rxHoldEnd();
+          } else if (H.k === 'pat') {
+            const B = dogBrain.state, dp = dogObj.position;
+            if (B.st !== 'follow' || dogRain.st || H.t > 10) { rxHoldEnd(); return true; }
+            if (!H.on) {
+              if (B.patReady || (H.t > 4 && Math.hypot(dp.x - gp.x, dp.z - gp.z) < 1)) { H.on = true; H.t0 = H.t; rxSay('pat', RX_TXT.pat, 'Chơi với chó', false); }
+              else if (H.t > 6.5) { rxHoldEnd(); return true; }
+            }
+            const yt = Math.atan2(dp.x - gp.x, dp.z - gp.z); g.rotation.y += Math.atan2(Math.sin(yt - g.rotation.y), Math.cos(yt - g.rotation.y)) * Math.min(1, dt * 3);
+            if (H.on) {
+              const u = H.t - H.t0, k = 0.85 * rxSS(u, 0, 0.7) * (1 - rxSS(u, 3.0, 3.7));
+              e.noFootIK = true; gp.y -= 0.24 * CAMP_SCALE * ENGINEER_SIZE * k;
+              e.legs[0].rotation.x = e.legs[1].rotation.x = -1.05 * k; e.knees[0].rotation.x = e.knees[1].rotation.x = 1.75 * k; e.lean = 0.12 * k;
+              H.k2 = k; engPetting = u > 0.7 && u < 3.0;
+              if (u > 0.55 && u < 0.7) rxGest('pat', 2.6);
+              if (u > 3.8) rxHoldEnd();
+            }
+          }
+          return true;
+        }
+        function engReactPre(e, dt, t) {
+          RX.t = t; if (RX.bolt < 0) RX.bolt = storm.until;
+          const out = rxOutside(e), rain = rxRaining();
+          if (RX.rain === null) { if (liveWeather.state.fresh) RX.rain = rain; }
+          else if (rain !== RX.rain) { RX.rain = rain; if (out) rxRainEvent(e, rain); }
+          if (storm.until > RX.bolt + 1e-3) {
+            RX.bolt = storm.until;
+            if (out && lightning.visible) {
+              const a = lightning.geometry.attributes.position.array; RX.boltP.set(a[18], a[19], a[20]);
+              RX.flinch = 0.75; rxLook('bolt', 6, 1.8, RX.boltP);
+              if (RX.boltP.distanceTo(e.g.position) < 90) rxSay('bolt', RX_TXT.bolt, 'Sấm chớp', false);
+            }
+          }
+          if (!out) { if (RX.gest || RX.hold || RX.leaf || e.spd !== 1.1) rxReset(e); return; }
+          const g = e.g, s = e.seat && e.seat.st, onFoot = !e.seatCtl && (!s || s === 'go' || s === 'leave' || s === 'stood'), seated = s === 'seated';
+          const yaw = g.rotation.y, fx = Math.sin(yaw), fz = Math.cos(yaw);
+          e.head.getWorldPosition(_rxA);
+          windAt(_rxA.x, _rxA.y, _rxA.z, Math.max(0.3, _rxA.y - cowY(_rxA.x, _rxA.z)), _rxB); _rxB.y = 0; _rxB.multiplyScalar(sceneWind.ms / Math.max(0.25, sceneWind.U));
+          RX.wv.lerp(_rxB, 1 - Math.exp(-dt * 4)); const ws = RX.wv.length(); RX.wm += (ws - RX.wm) * (1 - Math.exp(-dt / 8));
+          const head = -(RX.wv.x * fx + RX.wv.z * fz);
+          const dash = (rain || rainK > 0.2) && onFoot && e.walking && !RX.hold && !rxDry(g.position);
+          e.spd = 1.1 * (dash ? 1.55 : 1) * (1 - Math.min(0.2, Math.max(0, head - 2.5) * 0.03));
+          if (dash) { e.lean = Math.max(e.lean, 0.09); e.head.rotation.x += 0.14; if (rxHands(e, true)[0]) rxGest('cover', Infinity); }
+          else if (RX.gest && RX.gest.k === 'cover') rxGestEnd(RX.gest);
+          if (onFoot && ws > 2.2) {
+            const k = Math.min(0.06, (ws - 2.2) * 0.012) / ws;
+            e.lean += head * k; e.bank += (RX.wv.x * Math.cos(yaw) - RX.wv.z * Math.sin(yaw)) * k;
+          }
+          const G = RX.gest;
+          if (G && G.k === 'helmet') { RX.calm = ws < 3.4 ? RX.calm + dt : 0; if (G.t > 1.4 && RX.calm > 0.8) { rxGestEnd(G); RX.nx.helmet = t + 3; } }
+          else if (onFoot && !dash && ((ws >= 4.3 && ws >= 1.2 * RX.wm + 0.3) || ws >= 6.5) && t >= (RX.nx.helmet || 0) && rxHands(e)[0] && rxGest('helmet', Infinity)) { RX.calm = 0; if (Math.random() < 0.4) rxSay('gust', RX_TXT.gust, 'Gió giật', false); }
+          if (onFoot && !e.walking && ws >= 3.8 && head > 0.6 * ws) { const sd = (RX.wv.x * Math.cos(yaw) - RX.wv.z * Math.sin(yaw)) >= 0 ? 1 : -1, a = yaw + sd * 1.0; e.head.getWorldPosition(_rxA); rxLook('wind', 2.2, 0.3, _rxB.set(_rxA.x + Math.sin(a) * 3, _rxA.y - 0.2, _rxA.z + Math.cos(a) * 3)); }
+          if (RX.flinch > 0) {
+            RX.flinch = Math.max(0, RX.flinch - dt); const f = Math.sin(Math.PI * (1 - RX.flinch / 0.75));
+            e.lean -= 0.07 * f; const ft = e.elbowFlexT || (e.elbowFlexT = [0, 0]); ft[0] = Math.max(ft[0], 0.12 * f); ft[1] = Math.max(ft[1], 0.12 * f);
+          }
+          RX.still = onFoot && !e.walking && !RX.hold ? RX.still + dt : 0;
+          rxDog(e, dt, t, onFoot, seated);
+          rxLeafScan(e, t, onFoot);
+          rxSmoke(e, t);
+          rxIdle(e, t, onFoot, seated);
+          const C = RX.gest;
+          if (C && C.k === 'shield') e.lean -= 0.08 * rxSS(C.t, 0, 0.25);
+        }
+        function rxDog(e, dt, t, onFoot, seated) {
+          if (!dogObj || dogRain.st) { RX.zoomSeen = false; return; }
+          const B = dogBrain.state, dp = dogObj.position, gp = e.g.position, d = Math.hypot(dp.x - gp.x, dp.z - gp.z);
+          if (B.shake > 0.3 && d < 1.8 && !(RX.gest && RX.gest.k === 'shield')) {
+            if (rxHands(e, true)[0] && rxTeaLeft(e) > 1.5 && rxGest('shield', 0.45 + B.shake / 1.2)) rxSay('shake', RX_TXT.shake, 'Chơi với chó', false);
+            rxLookAway(e, dp, 4, 0.5 + B.shake / 1.2);
+          }
+          if (B.st === 'zoom') {
+            if (!RX.zoomSeen && B.k > 2.5 && d < 18 && rxGazeFree(e) > 0.7) {
+              RX.zoomSeen = true; const hf = rxHands(e), clap = hf[0] && hf[1] && rxTeaLeft(e) > 2.3; rxGest(clap ? 'clap' : 'laugh', clap ? 1.7 : 1.3); rxSay('zoom', RX_TXT.zoom, 'Chơi với chó', false);
+            }
+          } else RX.zoomSeen = false;
+          if (B.st === 'follow' && !RX.hold && onFoot && RX.still > 1.5 && (e.phase === 'check' || e.phase === 'wander') && d < 3.5 && t >= (RX.nx.pat || 0) && rxHands(e)[0] && !RX.gest) {
+            const yaw = e.g.rotation.y, gy = cowY(gp.x, gp.z), sp = RX.patSpot; let ok = false;
+            for (const a of [-0.6, -1.2, 0, -1.8, 0.6]) {
+              sp.set(gp.x + Math.sin(yaw + a) * 0.62, 0, gp.z + Math.cos(yaw + a) * 0.62);
+              if (isWater(Math.round(x2gi(sp.x)), Math.round(z2gj(sp.z))) || Math.abs(cowY(sp.x, sp.z) - gy) > 0.3) continue;
+              if (ENG_PROPS.some(o => Math.hypot(sp.x - o.x, sp.z - o.z) < o.r + 0.25) || obstacleCoords.some(o => o.r < 1.2 && Math.hypot(sp.x - o.x, sp.z - o.z) < o.r + 0.2)) continue;
+              ok = true; break;
+            }
+            RX.nx.pat = t + (ok ? 75 : 5);
+            if (ok) { B.patAt = sp; B.patReady = false; RX.hold = { k: 'pat', t: 0, dur: 10 }; }
+          }
+        }
+        function rxLeafScan(e, t, onFoot) {
+          const cur = RX.leaf; if (cur && cur.st !== 'track') return;
+          e.head.updateWorldMatrix(true, false); e.head.getWorldPosition(_rxA); const top = e.head.localToWorld(_rxC.set(0, 0.345, 0)), S = e.g.scale.y, pick = t >= RX.leafT;
+          if (pick) RX.leafT = t + 0.15;
+          const yaw = e.g.rotation.y, fx = Math.sin(yaw), fz = Math.cos(yaw);
+          let best = null, bL = null, bd = 1e9;
+          for (const L of [cherryCtl, forestLeafCtl, oldTreeLeafCtl]) if (L && L.o.group?.visible !== false) for (const q of L.parts) {
+            if (q.st !== 1 || q.hold) continue;
+            const dx = q.p.x - _rxA.x, dy = q.p.y - _rxA.y, dz = q.p.z - _rxA.z, dh = Math.hypot(dx, dz);
+            if (dh < 0.6 && !(q.rxNo > t) && Math.hypot(q.p.x - top.x, q.p.z - top.z) < 0.2 * S && q.p.y - top.y > -0.1 && q.p.y - top.y < 0.06 && q.v.y < 0.2) {
+              const lp = e.head.worldToLocal(_rxD.copy(q.p)).sub(_rxE.set(0, 0.1, 0)); lp.y = Math.max(lp.y, 0.12); lp.setLength(0.25).add(_rxE);
+              q.st = 6; q.hold = rxHoldHat; RX.leaf = { q, L, st: 'hat', t: 0, lp: lp.clone(), lq: new THREE.Quaternion().setFromAxisAngle(_rxUp, Math.random() * TAU) };
+              rxSay('hat', RX_TXT.hat, 'Lá rơi', false); return;
+            }
+            if (!pick || dh > 3.2 || dy < -1.4 || dy > 2.8) continue;
+            const fr = (dx * fx + dz * fz) / Math.max(dh, 1e-3); if (fr < -0.35 && dh > 0.6) continue;
+            const sc = dh + Math.abs(dy) * 0.4 - fr * 0.5; if (sc < bd) { bd = sc; best = q; bL = L; }
+          }
+          if (pick) RX.leaf = best ? (cur && cur.q === best ? cur : { q: best, L: bL, st: 'track', t: 0 }) : null;
+        }
+        function rxSmoke(e, t) {
+          if (t < RX.smkT) return; RX.smkT = t + 0.3;
+          e.head.updateWorldMatrix(true, false); const f = e.head.localToWorld(_rxA.set(0, -0.02, 0.22));
+          let s = 0, src = null;
+          for (const S of [campSmoke, chiminea.smoke]) { if (!S || !S.on || S.mesh.position.distanceTo(f) > 5) continue; const v = rxSmokeAt(S, f, 0.4); if (v > s) { s = v; src = S.mesh.position; } }
+          RX.smkN = s > RX_SMOKE0 ? RX.smkN + 1 : 0; RX.smk = s;
+          if (RX.smkN >= 2 && t >= (RX.nx.smoke || 0)) {
+            RX.nx.smoke = t + 9; rxGest(rxHands(e)[0] && rxTeaLeft(e) > 3 ? 'wave' : 'cough', 2.6); rxLookAway(e, src, 3.5, 2.6); rxSay('smoke', RX_TXT.smoke, 'Khói lửa trại', false);
+          }
+        }
+        function rxIdle(e, t, onFoot, seated) {
+          if (!e.teaIdle) RX.teaW = false;
+          if (RX.gest || RX.hold) return;
+          const P = e.phase, temp = liveWeather.state.temperature, hf = rxHands(e);
+          if (P === 'shelter' && seated && hf[0] && hf[1]) {
+            if (t < RX.idle) return; RX.idle = t + 9 + Math.random() * 10;
+            const F = rxFire(e), r = Math.random(), cold = Number.isFinite(temp) && temp <= 21;
+            if (F && (cold || Number.isFinite(temp) && temp <= 24) && r < 0.35) { rxGest('warm', 6, { F: F.clone() }); if (cold) rxSay('warm', RX_TXT.warm, 'Trú mưa dưới hiên', false); }
+            else if (cold && r < 0.55) rxGest('rub', 3);
+            else if (rxRaining() && r < 0.8) rxGest('palm', 2.4);
+            else rxLook('rainOut', 1.6, 4.5, _rxB.set(e.g.position.x + Math.sin(e.g.rotation.y + (Math.random() - 0.5) * 1.6) * 6, e.g.position.y + 2.6, e.g.position.z + Math.cos(e.g.rotation.y + (Math.random() - 0.5) * 1.6) * 6));
+          } else if (P === 'tea' && seated && e.teaIdle && hf[0]) {
+            if (RX.teaW) return; RX.teaW = true;
+            const left = TEA_T - (e.teaT % TEA_T), F = rxFire(e), cold = Number.isFinite(temp) && temp <= 22;
+            if (F && cold && left > 7 && Math.random() < 0.4) rxGest('warm', 6, { F: F.clone() });
+            else if (Number.isFinite(temp) && temp <= 18 && left > 4 && Math.random() < 0.3) rxGest('rub', 3);
+          } else if (onFoot && hf[0] && t >= (RX.nx.idle || 0)) {
+            if (Number.isFinite(temp) && temp >= 30 && sunElevSin > 0.35 && Math.random() < 0.5) { rxGest('wipe', 1.4); rxSay('hot', RX_TXT.hot, 'Trời nóng', false); }
+            else if (Number.isFinite(temp) && temp <= 17 && !e.walking && RX.still > 2 && hf[1]) { rxGest('rub', 3); rxSay('cold', RX_TXT.cold, 'Trời lạnh', false); }
+            RX.nx.idle = t + 50 + Math.random() * 60;
+          }
+        }
+        function engReactPost(e, dt, t) {
+          if (!rxOutside(e)) return;
+          RX.pAdd = 0; RX.sp.x = RX.sp.y = 0;
+          rxLeafTick(e, dt, t);
+          rxGestStep(e, dt, t);
+          rxGazeTick(e, dt, t);
+          if (RX.sp.x || RX.sp.y) { const st = e.spineT; e.spineT = { x: (st ? st.x : 0) + RX.sp.x, y: (st ? st.y : 0) + RX.sp.y }; }
+        }
+        function rxLeafTick(e, dt, t) {
+          const L = RX.leaf; if (!L) return; const q = L.q, S = e.g.scale.y; L.t += dt;
+          if (L.st === 'track') {
+            if (q.st !== 1) { RX.leaf = null; return; }
+            if ((e.vel || 0) < 0.45 && !RX.gest && t >= (RX.nx.catch || 0) && !(q.rxNo > t) && rxHands(e)[0] && rxTeaLeft(e) > 4) {
+              e.arms[0].getWorldPosition(_rxA); const ax = engAxesW(e), d = _rxA.distanceTo(q.p);
+              if (d < 0.65 * S && (q.p.x - _rxA.x) * ax.f.x + (q.p.z - _rxA.z) * ax.f.z > 0.05 && q.p.y > _rxA.y - 0.45 && rxGest('catch', 1.4)) { L.st = 'catch'; RX.nx.catch = t + 4; }
+            }
+          } else if (L.st === 'catch') {
+            const G = RX.gest;
+            if (q.st !== 1 || !G || G.k !== 'catch') { L.st = 'track'; return; }
+            e.arms[0].getWorldPosition(_rxA);
+            if (e.handW && e.handW[0].distanceTo(q.p) < 0.075) { q.st = 6; q.hold = rxHoldHand; L.st = 'held'; RX.gest = null; rxGest('look', 1.8); rxSay('catch', L.L === cherryCtl ? RX_TXT.petal : RX_TXT.leaf, 'Lá rơi', false); }
+            else if (G.t > 1.2 || _rxA.distanceTo(q.p) > 0.72 * S) { L.st = 'track'; rxGestEnd(G); if (Math.random() < 0.3) rxSay('miss', RX_TXT.miss, 'Lá rơi', false); }
+          } else if (L.st === 'held') {
+            const G = RX.gest;
+            if (!G || (G.k !== 'look' && G.k !== 'drop')) rxLeafLet(0, 0.1, 0);
+          } else if (L.st === 'hat') {
+            if (L.t > 0.7 && !RX.gest && rxHands(e)[0] && rxTeaLeft(e) > 1.6) { rxGest('brush', 1.15); L.st = 'brush'; }
+            else if (L.t > 9) rxLeafLet(RX.wv.x * 0.3, 0.3, RX.wv.z * 0.3);
+          } else if (L.st === 'brush') {
+            const G = RX.gest; if (!G || G.k !== 'brush') rxLeafLet(0, 0.2, 0);
+          }
+        }
+        function rxGestStep(e, dt, t) {
+          const G = RX.gest; if (!G) return;
+          G.t += dt;
+          if (G.t >= G.dur) { RX.gest = null; if (G.k === 'look' && RX.leaf && RX.leaf.st === 'held' && rxGest('drop', 0.9)) RX.gest.w = 1; return; }
+          const w = G.w = rxSS(G.t, 0, 0.3) * (1 - rxSS(G.t, G.dur - 0.35, G.dur)), hf = rxHands(e, G.k === 'shield' || G.k === 'cover'), u = G.t;
+          const need = G.k === 'clap' || G.k === 'rub' || G.k === 'warm' || G.k === 'shield' ? 2 : G.k === 'laugh' || G.k === 'cough' ? 0 : 1;
+          if ((need >= 1 && !hf[0]) || (need === 2 && !hf[1])) { if (G.k === 'cover' || G.k === 'helmet') { rxGestEnd(G); G.w = 0; } else RX.gest = null; return; }
+          if (G.k === 'brush') RX.pAdd += 0.25 * w;
+          else if (G.k === 'wave' || G.k === 'cough') RX.pAdd += 0.07 * Math.pow(Math.max(0, Math.sin(u * TAU * 1.3)), 6) * w;
+          else if (G.k === 'clap' || G.k === 'laugh') { const b = Math.abs(Math.sin(u * 10)); RX.pAdd += (-0.05 + 0.05 * b) * w; RX.sp.x -= 0.03 * b * w; }
+          else if (G.k === 'shield') RX.pAdd += 0.1 * w;
+          else if (G.k === 'wipe') RX.pAdd -= 0.06 * w;
+          else if (G.k === 'pat') RX.sp.x += 0.5 * w * (RX.hold && RX.hold.k2 !== undefined ? RX.hold.k2 / 0.85 : 1);
+          else if (G.k === 'warm') {
+            const ch = engBodyW(e, 0, 1.52, 0.1, _rxA), a = Math.atan2(G.F.x - ch.x, G.F.z - ch.z) - e.g.rotation.y;
+            RX.sp.y += Math.max(-0.4, Math.min(0.4, 0.6 * Math.atan2(Math.sin(a), Math.cos(a)))) * w;
+          }
+        }
+        function engReactArms(e, dt, t) {
+          const G = RX.gest; if (!G || !G.w || !rxOutside(e)) return;
+          const w = G.w, u = G.t, ax = engAxesW(e);
+          switch (G.k) {
+            case 'helmet': case 'cover': {
+              e.head.updateWorldMatrix(true, false); const p = e.head.localToWorld(_rxA.set(-0.2, 0.34, 0.12)), c = e.head.localToWorld(_rxB.set(0, 0.1, 0));
+              rxHand(e, 0, p, rxQ(e, 0, c.sub(p).normalize(), _rxQ), w); rxPole(e, 0, -1, -0.1, 0.5);
+              if (G.k === 'cover' && e.clip && e.clip.visible) { engBodyW(e, 0.03, 1.58, 0.19, _rxC); rxHandAt(e, 1, rxQ(e, 1, _rxB.copy(ax.f).negate(), _rxQ2), RX_CLIP, _rxC, w); }
+              break;
+            }
+            case 'palm': {
+              const p = engBodyW(e, -0.36, 1.6 + 0.008 * Math.sin(t * 13), 0.5, _rxA); rxHand(e, 0, p, rxQ(e, 0, _rxUp, _rxQ), w); break;
+            }
+            case 'catch': {
+              const q = RX.leaf && RX.leaf.q; if (!q) { RX.gest = null; break; }
+              rxHand(e, 0, _rxA.copy(q.v).multiplyScalar(0.12).add(q.p), rxQ(e, 0, _rxUp, _rxQ), w); break;
+            }
+            case 'look': {
+              const p = engBodyW(e, -0.1, 1.9, 0.4, _rxA); rxHand(e, 0, p, rxQ(e, 0, _rxUp, _rxQ), Math.max(w, 0.999)); break;
+            }
+            case 'drop': {
+              const k = rxSS(u, 0, 0.5), p = engBodyW(e, -0.1 - 0.1 * k, 1.9 - 0.18 * k, 0.4 + 0.12 * k, _rxA); rxHand(e, 0, p, rxQ(e, 0, _rxUp, _rxQ), u < 0.6 ? 1 : w);
+              if (u > 0.25 && RX.leaf && RX.leaf.st === 'held') rxLeafLet(ax.f.x * 0.35 + RX.wv.x * 0.08, 0.3, ax.f.z * 0.35 + RX.wv.z * 0.08);
+              break;
+            }
+            case 'brush': {
+              const L = RX.leaf; e.head.updateWorldMatrix(true, false);
+              const P0 = _rxA.set(-0.24, 0.44, 0.18), P1 = _rxB.copy(L && L.lp ? L.lp : _rxB.set(0, 0.35, 0)).add(_rxC.set(0, 0.075, 0)), P2 = _rxC.set(-0.34, 0.36, 0.34);
+              const hl = u < 0.45 ? P0.lerp(P1, rxSS(u, 0, 0.45)) : P1.lerp(P2, rxSS(u, 0.45, 0.8)), p = e.head.localToWorld(_rxD.copy(hl));
+              rxHand(e, 0, p, rxQ(e, 0, _rxDn, _rxQ), w); rxPole(e, 0, -1, -0.1, 0.5);
+              if (u > 0.45 && L && L.st === 'brush' && L.q.hold === rxHoldHat) L.q.hold = rxHoldHand;
+              if (u > 0.75 && L && L.st === 'brush') { const v = e.head.localToWorld(_rxE.set(-0.34, 0.36, 0.34)).sub(e.head.localToWorld(_rxB.set(0, 0.36, 0))).normalize(); rxLeafLet(v.x * 1.1, 0.35, v.z * 1.1); }
+              break;
+            }
+            case 'wave': {
+              const s = Math.sin(u * TAU * 2.6), p = engBodyW(e, -0.12 + 0.13 * s, 1.98, 0.38, _rxA);
+              rxHand(e, 0, p, rxQ(e, 0, _rxB.copy(ax.f).addScaledVector(ax.r, -0.5 * s).normalize(), _rxQ), w); break;
+            }
+            case 'warm': {
+              const F = G.F, ch = engBodyW(e, 0, 1.52, 0.1, _rxA), sf = Math.atan2(ax.f.x, ax.f.z), ra = Math.atan2(F.x - ch.x, F.z - ch.z) - sf;
+              const a = Math.max(-0.45, Math.min(0.45, Math.atan2(Math.sin(ra), Math.cos(ra)))), sa = Math.sin(a), ca = Math.cos(a), rub = 0.015 * Math.sin(t * 7.5);
+              for (let i = 0; i < 2; i++) {
+                const sd = (i ? 1 : -1) * 0.12 + (i ? rub : -rub), p = engBodyW(e, sa * 0.34 + ca * sd, 1.52, 0.1 + ca * 0.34 - sa * sd, i ? _rxC : _rxD);
+                rxHand(e, i, p, rxQ(e, i, _rxB.set(Math.sin(sf + a), 0, Math.cos(sf + a)), i ? _rxQ2 : _rxQ), w);
+              }
+              break;
+            }
+            case 'rub': {
+              const s = 0.03 * Math.sin(u * TAU * 3);
+              rxHand(e, 0, engBodyW(e, -0.045, 1.5 + s, 0.3, _rxA), rxQ(e, 0, _rxB.copy(ax.r).negate(), _rxQ), w);
+              rxHand(e, 1, engBodyW(e, 0.045, 1.5 - s, 0.3, _rxC), rxQ(e, 1, _rxD.copy(ax.r), _rxQ2), w);
+              break;
+            }
+            case 'clap': {
+              const sep = 0.03 + 0.15 * (0.5 + 0.5 * Math.cos(Math.max(0, u - 0.2) * TAU * 2.2));
+              rxHand(e, 0, engBodyW(e, -sep / 2, 1.62, 0.36, _rxA), rxQ(e, 0, _rxB.copy(ax.r).negate(), _rxQ), w);
+              rxHand(e, 1, engBodyW(e, sep / 2, 1.62, 0.36, _rxC), rxQ(e, 1, _rxD.copy(ax.r), _rxQ2), w);
+              break;
+            }
+            case 'shield': {
+              for (let i = 0; i < 2; i++) { const sd = i ? 1 : -1; rxHand(e, i, engBodyW(e, sd * 0.13, 2.0, 0.33, i ? _rxC : _rxA), rxQ(e, i, _rxB.copy(ax.f).addScaledVector(_rxUp, 0.2).addScaledVector(ax.r, -0.3 * sd).normalize(), i ? _rxQ2 : _rxQ), w); }
+              break;
+            }
+            case 'wipe': {
+              const p = engBodyW(e, -0.2 + 0.32 * rxSS(u, 0.25, 0.95), 2.15, 0.31, _rxA); rxHand(e, 0, p, rxQ(e, 0, ax.f, _rxQ), w); break;
+            }
+            case 'pat': {
+              const hd = dogObj.userData.head.getWorldPosition(_rxA); hd.y += 0.08 + 0.035 * Math.max(0, Math.sin(u * TAU * 1.7));
+              rxHand(e, 0, hd, rxQ(e, 0, _rxDn, _rxQ), w); break;
+            }
+          }
+        }
+        function rxGazeTick(e, dt, t) {
+          const free = rxGazeFree(e), P = RX.gp, G = RX.gest, L = RX.look; let bp = 0;
+          const cand = (p, prio) => { if (prio > bp) { bp = prio; P.copy(p); } };
+          if (L && t < L.until) cand(L.k === 'sky' ? rxSky(e, _rxA) : RX.lookP, L.prio);
+          if (G && (G.k === 'look' || G.k === 'catch' || G.k === 'drop' || (G.k === 'palm' && G.t > 0.5 && G.t < 1.5))) cand(e.wrists[0].getWorldPosition(_rxA), 3.2);
+          if ((G && G.k === 'pat') || (RX.hold && RX.hold.k === 'pat')) cand(dogObj.userData.head.getWorldPosition(_rxA), 4);
+          if (RX.leaf && (RX.leaf.st === 'track' || RX.leaf.st === 'catch')) cand(RX.leaf.q.p, 3);
+          if (dogObj && !dogRain.st) {
+            const B = dogBrain.state, dp = dogObj.position, d = Math.hypot(dp.x - e.g.position.x, dp.z - e.g.position.z);
+            if (B.st === 'zoom' && d < 18) { RX.zc += dt; if (RX.zc % 7.5 < 5) cand(dogObj.userData.head.getWorldPosition(_rxA), 2.6); } else RX.zc = 0;
+            if (d < 2.6 && B.st !== 'lie') { RX.dc += dt; if (RX.dc % 8 < 1.6) cand(dogObj.userData.head.getWorldPosition(_rxA), 1.5); } else RX.dc = 0;
+          }
+          const wT = bp > 0 ? (free >= 0.8 || bp >= 3 ? free : bp >= 2 ? free * 0.6 : 0) * (e.walking && bp < 4 ? 0.75 : 1) : 0;
+          RX.gw += (wT - RX.gw) * (1 - Math.exp(-dt * 5));
+          let pT = RX.pAdd + (RX.flinch > 0 ? 0.22 * Math.sin(Math.PI * (1 - RX.flinch / 0.75)) : 0);
+          if (RX.gw > 0.01) {
+            e.head.updateWorldMatrix(true, false); e.head.getWorldPosition(_rxA); e.spine.getWorldQuaternion(_rxQ3).invert();
+            const d = _rxB.subVectors(P, _rxA).applyQuaternion(_rxQ3);
+            let yaw = Math.atan2(d.x, d.z); const pitch = Math.max(-0.7, Math.min(0.55, Math.atan2(-d.y, Math.hypot(d.x, d.z))));
+            if (Math.abs(yaw) < 2.4 || bp >= 5) {
+              const tw = !e.walking && Math.abs(yaw) > 0.9 ? Math.sign(yaw) * Math.min(0.35, (Math.abs(yaw) - 0.9) * 0.6) : 0, lim = e.walking ? 0.75 : 1.25;
+              yaw = Math.max(-lim, Math.min(lim, yaw - tw));
+              e.headYawT = (e.headYawT || 0) + (yaw - (e.headYawT || 0)) * RX.gw; RX.sp.y += tw * RX.gw;
+              pT += (pitch - e.head.rotation.x) * RX.gw;
+            }
+          }
+          RX.po += (pT - RX.po) * (1 - Math.exp(-dt * 7)); e.head.rotation.x += RX.po;
+        }
         const labelGroup = new THREE.Group(); scene.add(labelGroup);
         function rr(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
         const annotationLabelScale = 0.65;
@@ -14627,8 +15069,9 @@
               const fishing = e.phase === 'fish' && !leavingSeat && !e.inVan;
               if (!fishing) resetFishingBite();
               e.rodGrp.visible = fishing; groundRod.visible = !fishing; fishLine.visible = fishing; bobber.visible = fishing;
-              engPetting = false;
+              engPetting = false; e.teaIdle = false;
               if (leavingSeat) { /* engSeatGuard: đứng dậy + rời ghế, đã đặt vị trí + dáng */ }
+              else if (engReactHold(e, dt, t)) { /* phản ứng: đứng lại khi mưa bắt đầu · ngồi xổm xoa đầu chó (engineer/reactions.js) */ }
               else if (e.inVan) engVan(e, dt, t, act);
               else if (e.phase === 'van') engEnterVan(e, dt, t);
               else if (e.phase === 'toShelter') {
@@ -14679,7 +15122,7 @@
               else if (e.phase === 'tea') {
                 if (engUseSeat(e, CAMP_SEAT, dt, t)) {
                   e.timer -= dt; e.arms[0].rotation.x = e.arms[1].rotation.x = -0.6;
-                  const teaIdle = engTea(e, dt, t);
+                  const teaIdle = e.teaIdle = engTea(e, dt, t);
                   if (e.timer <= 0 && teaIdle) {
                     if (e.act === 'rest') e.phase = 'nap';
                     else if (e.act === 'outdoor') { e.phase = 'wander'; e.timer = 90; e.wanderTgt = null; e.wanderTmr = 0; }
@@ -14787,11 +15230,14 @@
               drawEngineerLabel(t);
             }
             showerFx.update(dt);
+            engReactPre(e, dt, t);
             engPoseEnd(e, dt, t);
             engFootIK(e, dt);
+            engReactPost(e, dt, t);
             engSeatPost(e, dt);
             if (e.fishBiteK !== undefined) { if (e.phase === 'fish') updateFishingBite(e, dt, t, e.fishBiteK); e.fishBiteK = undefined; }
             splashFx.update(dt);
+            engReactArms(e, dt, t);
             engArmPost(e, dt);
             applePick.tick(e, dt);
           }
