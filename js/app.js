@@ -4325,6 +4325,21 @@
 
         const cows = [];
         const COW_H0 = 0.975, COW_SPAN = 1.22, COW_PIV = 0.25;   // độ cao mặt bụng khi đứng · khoảng cách hông trước–sau · khớp vai/hông nằm trong thân, cao hơn mặt bụng
+        const cowHoof = new THREE.MeshLambertMaterial({ color: 0x35312c });
+        const COW_HOOF_GEO = (() => {
+          const claw = (zc) => {
+            const g = new THREE.BoxGeometry(1, 1, 1), p = g.attributes.position, sz = Math.sign(zc);
+            for (let v = 0; v < p.count; v++) {
+              const sx = Math.sign(p.getX(v)), sy = Math.sign(p.getY(v)), out = Math.sign(p.getZ(v)) === sz, top = sy > 0, toe = sx > 0;
+              const x = top ? (toe ? 0.055 : -0.065) : (toe ? 0.115 : -0.075), y = top ? -0.065 : -0.15;
+              const z = zc + (out ? sz * 0.039 : -sz * 0.033) - (out && toe ? sz * (top ? 0.01 : 0.022) : 0);
+              p.setXYZ(v, x, y, z);
+            }
+            g.computeVertexNormals(); return g;
+          };
+          const dew = (zc) => new THREE.BoxGeometry(0.04, 0.035, 0.035).translate(-0.095, -0.035, zc);   // móng huyền
+          return mergeGeometries([claw(0.045), claw(-0.045), dew(0.045), dew(-0.045)], false);
+        })();
         function cow(k) {
           const g = new THREE.Group();
           const P = (par, w, h, d, mat, x, y, z, o) => { const m = bx(w, h, d, mat, true, o !== false); m.position.set(x, y, z); par.add(m); return m; };
@@ -4352,8 +4367,8 @@
             P(knee, 0.2, 0.16, 0.2, cowWhite, 0, -0.07, 0, false);    // gối
             P(knee, 0.17, 0.26, 0.17, cowWhite, 0, -0.24, 0);        // ống chân
             const paw = new THREE.Group(); paw.position.y = -0.38; knee.add(paw);
-            P(paw, 0.17, 0.1, 0.18, cowDark, 0, 0, 0, false);    // khuỷu đen
-            for (const hz of [-1, 1]) P(paw, 0.09, 0.14, 0.13, cowDark, 0, -0.08, hz * 0.045, false); // móng chẻ
+            P(paw, 0.18, 0.085, 0.18, cowWhite, 0, -0.02, 0, false);
+            { const h = new THREE.Mesh(COW_HOOF_GEO, cowHoof); h.castShadow = h.receiveShadow = true; paw.add(h); }
             legs.push({ hip, knee, paw, front: lp[0] > 0, side: Math.sign(lp[1]), L1: 0.5 + COW_PIV, L2: 0.38, ankleH: 0.15, bend: lp[0] > 0 ? 1 : -1, x0: lp[0] });
           }
           const tail = makeSoftTail(body, { base: new THREE.Vector3(-0.86, 1.72, 0), dir: new THREE.Vector3(-0.14, -1, 0).normalize(), n: 5, len: 0.15, w: 0.085, mat: cowWhite, stiff: [0.1, 0.025] });

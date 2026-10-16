@@ -130,6 +130,8 @@ lò xo) ⇒ lên bậc voxel 0,6 đv thì chân trước lên trước, thân ng
 - Bò (`cowPose`): đi 4 phách trình tự bên, chạm đất 65%, sải ~1,15 thân/chu kỳ; khớp vai/hông nằm TRONG thân (cao hơn mặt bụng 0,25) cho cung
   chân đủ dài; nảy theo con lắc ngược (vai / hông cao nhất giữa pha trụ), thân lắc về 2 chân cùng bên đang trụ, đầu gật 2 lần/chu kỳ; nằm = QUỲ chân
   trước trước, đứng dậy = NHỔM MÔNG trước (nghiên cứu tập tính bò); đuôi = chuỗi hạt XPBD (`makeSoftTail`, có `T.kick` để phẩy ruồi).
+  Móng (`COW_HOOF_GEO`, 16/10): 2 móng chẻ thấp mặt trước vát ~55°, rộng bằng ống chân, + 2 móng huyền, 1 lưới dùng chung; cổ chân trắng. Đừng
+  phủ khối đen lên cổ chân (trước đây cục đen cao 0,24 rộng hơn chân ⇒ như đi guốc). Đế vẫn ở −0,15 (`ankleH`).
   Hươu (`stagTick`) cùng khung như bò. Gấu mèo: sải ngắn hợp chân ngắn, đi khom, quay ≤ 150°/s.
 - Hành vi bò ngoài bãi (`cowFreeTick`, `animals/cows-hut.js`, 15/10): máy trạng thái graze / rest / stand / walk / drink / shade / flee. `cowChoose`
   cân theo giờ (`cowGrazeDrive`: sáng & chiều 0,85, trưa 0,1) + bắt chước con gần nhất < 7 m (mức kéo nhân theo nhịp giờ — không thì trưa vẫn
