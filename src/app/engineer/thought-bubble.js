@@ -57,7 +57,7 @@
         function drawEngineerLabel(t = 0, now = Date.now()) {
           const fishing = engObj.phase === 'fish', thought = engObj.phase === 'check' ? (checkBubbleSprite.userData.weatherThought || checkBubbleSprite.userData.thought) : checkBubbleSprite.userData.thought;
           const showThought = !!thought && (now < thoughtUntil || engObj.phase === 'check');
-          checkBubbleSprite.visible = fishing || showThought;
+          checkBubbleSprite.visible = (fishing || showThought) && engObj.phase !== 'drone';   // bay drone: bong bóng màn hình camera thay chỗ (engineer/drone.js)
           checkBubbleSprite.position.y = 2.9 + Math.sin(t * 3.5) * 0.06;
           if (!checkBubbleSprite.visible) return;
           const seconds = fishing ? Math.max(0, Math.ceil(engObj.timer)) : -1;

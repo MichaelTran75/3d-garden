@@ -276,6 +276,22 @@ lò xo) ⇒ lên bậc voxel 0,6 đv thì chân trước lên trước, thân ng
   `engSleepPost` (sau engArmPost) phủ chăn: lưới 27 × 17 trên nệm, cao = mặt trên các khối thân / đùi / cẳng / giày (chân khối vuông: bán kính phủ
   0,19 vì góc khối), làm mềm 2 lượt, mép trước rủ xuống. Chăn gấp cuối giường (`interior.duvet`) không gộp tĩnh để ẩn / hiện được. **Bẫy**: gốc
   kỹ sư thứ tự Euler 'YXZ' (yaw 0 ⇒ Rx·Rz đúng); nằm nghiêng trục thân phải cao hơn nệm nửa bề ngang thân, bản cũ lún 20 cm vào nệm.
+- Chất liệu công trình + vỏ cây (`core/surface-style.js`, G 17/10 học 2 GLB "Inakaya" + "Forest House"): `surfaceStyle(mat, kind)` nối thêm vào
+  `onBeforeCompile` (kind: concrete · stucco · boards · woodAO · bark) — shader thủ tục theo toạ độ thế giới: loang tông lớn, mạch cốp pha + ố + vệt
+  chảy + rêu chân (bê tông), lốm đốm + vệt nước mưa (vữa), mạch ván + tông từng tấm + thớ (ván), CHÂN TƯỜNG TỐI + ÁM NÂU theo độ cao trên mặt đất
+  (ẢNH ĐỘ CAO ĐỊA HÌNH GX × GZ float dựng 1 lần từ cowY ⇒ 1 vật liệu dùng chung nhiều nhà vẫn đúng chân từng nhà), bump theo đạo hàm màn hình.
+  Vỏ cây đọc thuộc tính `aBk` = (quanh thân 0–1, dọc thân m): `taperTube` (cây rừng) giờ nhân đôi cột đường may + pháp tuyến theo bán kính,
+  `bkAttr(geo, L)` cho trụ / cầu của recTree + khúc gỗ — rãnh nứt dọc = đường đồng mức của nhiễu kéo dài theo thân (2 lớp), nứt ngang chia mảng, địa y,
+  rêu gốc. **Bẫy**: shader gió THAY `#include <project_vertex>` ⇒ chèn vị trí ở `fog_vertex`, lấy ngược từ mvPosition; `windShader` GHI ĐÈ
+  onBeforeCompile (không nối) ⇒ gọi surfaceStyle SAU windShader; khoá chương trình nối khoá cũ (`|sf` + kind). Vật liệu có shader riêng không gộp lượt vẽ.
+- Drone đồ chơi (`engineer/drone.js`, G 17/10, GLB "Drone" chỉ đo dáng): việc `drone` 15:20 (once; mưa ⇒ trú hiên, gió > 9 m/s ⇒ nghỉ; xong sớm ⇒
+  `rest` tới 16:00). Máy trạng thái `D.st`: toTable → grab → carry → place (ngồi xổm, mở càng) → back (lùi 2,8 m) → ready (bật máy, chờ vệ tinh) →
+  arm (CSC) → flying (bám 11 điểm: cất 1,2 m · đầm sen · cánh đồng pin camera chúc thẳng · đập phía hạ lưu · vòng tua-bin #3 ở 26 m, R 24 m, dưới tầm
+  quét cánh · chuồng bò · về · 1,2 m) → land → fetch → pick (gập càng) → home → park. Bay: vận tốc mong muốn → gia tốc ≤ 3 m/s² → nghiêng thân theo
+  gia tốc + vào gió, yaw ≤ 1,2 rad/s, gimbal bù nghiêng; cần Mode 2 (trái: yaw + ga, phải: ngang + tới) suy từ lệnh. Ảnh camera: `rt` 288 × 186 vẽ
+  trong `droneToy.render()` NGAY TRƯỚC lượt vẽ chính (main-loop-rest), 1/3 khung (cảm ứng 1/5), bỏ khi bong bóng < 50 px; tắt shadowMap.autoUpdate
+  trong lượt đó (dùng lại bóng khung chính), ẩn bong bóng + drone + TAY CẦM (màn điện thoại đọc chính `rt` ⇒ vòng lặp khung). Bong bóng: màn = 2 ×
+  màn laptop thế giới (MBP.SW × tỉ lệ laptop), mây canvas + 3 chấm, quay theo camera; bong bóng thời tiết cũ ẩn khi bay. Đo: +4 ms/khung khi vẽ 1/2 khung.
 - Chó (G 17/10 "remove its motion đứng 1 chỗ xoay vòng"): bỏ xoay 1–2 vòng trước khi nằm (`'circle'` giờ chỉ xoay ngắn ≤ 2 s quay mặt về bếp lửa).
   Xoay thật sự là do KẸT: bảng DP chung ô 0,6 m dẫn qua khe 12 cm giữa lò chiminea và đống củi (đích nằm sát vòng tránh bếp lửa ⇒ vùng luôn-mở
   quanh đích nới tới 2,2 m) và `ffDir` ở ô cấm chỉ sang ô rẻ nhất 5×5 xuyên qua đống củi. Sửa: `dogNavBuild` (lớp va chạm xong) dựng lưới cấm từ

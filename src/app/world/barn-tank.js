@@ -44,8 +44,8 @@
         (function waterTank() {
           const g = new THREE.Group(); g.position.set(X0 + 192, 7, Z0 + 80); g.scale.setScalar(ARCHITECTURE_SCALE); g.name = 'Bồn nước nông thôn (Rural Water Tank)'; scene.add(g);
           const R = 2.6, bodyH = 3.2, baseTop = 0.8;
-          const tankMat = new THREE.MeshLambertMaterial({ color: 0xE2D6C0 });   // kem
-          const stoneMat = new THREE.MeshLambertMaterial({ color: 0x9a8f7e });
+          const tankMat = surfaceStyle(new THREE.MeshLambertMaterial({ color: 0xE2D6C0 }), 'stucco');   // kem
+          const stoneMat = surfaceStyle(new THREE.MeshLambertMaterial({ color: 0x9a8f7e }), 'concrete');
           const stone = new THREE.Mesh(new THREE.CylinderGeometry(R + 0.9, R + 1.15, baseTop, 22), stoneMat); stone.position.y = baseTop / 2; stone.castShadow = true; stone.receiveShadow = true; g.add(stone);   // bệ đá
           const bodyGeo = new THREE.CylinderGeometry(R, R, bodyH, 30); const body = new THREE.Mesh(bodyGeo, tankMat); body.position.y = baseTop + bodyH / 2; body.castShadow = true; body.receiveShadow = true; g.add(body); edge(body, bodyGeo);   // thân bồn
           const nRib = 9; for (let r = 0; r < nRib; r++) { const ry = baseTop + (bodyH / nRib) * (r + 0.5); const rib = new THREE.Mesh(new THREE.TorusGeometry(R + 0.04, 0.075, 6, 30), tankMat); rib.rotation.x = Math.PI / 2; rib.position.y = ry; rib.castShadow = true; g.add(rib); }   // gân lượn sóng

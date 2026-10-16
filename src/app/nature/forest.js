@@ -1,6 +1,6 @@
         // ---- MẪU NHÁNH ĐỆ QUY DÙNG CHUNG cho rừng: 12 biến thể ngẫu nhiên để tăng tính đa dạng ----
         const forestBark = new THREE.MeshLambertMaterial({ color: 0xcbb488, transparent: true, opacity: 0.5 });   // gỗ tan sáng — CÂY RỪNG luôn trong suốt 50%
-        forestWindShader(forestBark);   // cành cây rừng nghiêng theo gió cùng khối tán
+        forestWindShader(forestBark); surfaceStyle(forestBark, 'bark');   // cành cây rừng nghiêng theo gió cùng khối tán · vân vỏ cây (core/surface-style.js)
         for (let v = 0; v < 12; v++) {
           const tmp = new THREE.Group();
           // cành tự nhiên (G 15/10, học mẫu GLB): thân chính tới ngọn cao ~4,2 · gốc trơn 18–26% · 10–13 cành bên: dưới xoè ~70° gần ngang rồi uốn cong lên,
@@ -38,7 +38,7 @@
         // ---- 2 cây táo (ĐỆ QUY) cạnh caravan ----
         function fruitTree(s, seed) {
           const g = new THREE.Group();
-          const barkMat = new THREE.MeshLambertMaterial({ color: 0x6b4f3a, transparent: true, opacity: 0.90 });   // thân cây rõ hơn 20% (0.75 * 1.2 = 0.90)
+          const barkMat = surfaceStyle(new THREE.MeshLambertMaterial({ color: 0x6b4f3a, transparent: true, opacity: 0.90 }), 'bark');   // thân cây rõ hơn 20% (0.75 * 1.2 = 0.90) · vân vỏ cây
           const { tips, rnd, segs } = recTree(g, { seed, s, barkMat, trunkLen: 1.7 * s, trunkR: 0.125 * s, maxDepth: 4, nMin: 2, nMax: 3, lenK: 0.74, radK: 0.6, spread: 0.72, upBias: 0.22, firstSplitN: 4 });
           const pts = []; for (const tp of tips) cloudPts(rnd, tp.x, tp.y + 0.08 * s, tp.z, 0.62 * s, 40, pts);
           cloudPts(rnd, 0, 2.7 * s, 0, 1.05 * s, 130, pts);   // chùm trung tâm cho tán dày ruột
@@ -124,7 +124,7 @@
         // ---- Khúc gỗ chết (Dead Log) + Gốc cây bị cưa (Sawed Stump) ----
         let deadLog = null;   // trục thân gỗ chết trên mặt đất (đầu a to r 0,70 · đầu b nhỏ r 0,56) — cỏ / hoa không mọc xuyên (nature/grass-scatter.js)
         (function environmentalDetails() {
-          const logBarkMat = new THREE.MeshLambertMaterial({ color: 0x2d251d, flatShading: true, side: THREE.DoubleSide });
+          const logBarkMat = surfaceStyle(new THREE.MeshLambertMaterial({ color: 0x2d251d, flatShading: true, side: THREE.DoubleSide }), 'bark');
           const stumpBarkMat = new THREE.MeshLambertMaterial({ color: 0x6e5744 });
           const innerWoodMat = new THREE.MeshLambertMaterial({ color: 0xd7b889, flatShading: true, side: THREE.DoubleSide });
 
@@ -136,7 +136,7 @@
           { const a = new THREE.Vector3(0, -3.8, 0).applyMatrix4(logGroup.matrixWorld), b = new THREE.Vector3(0, 3.8, 0).applyMatrix4(logGroup.matrixWorld); deadLog = { ax: a.x, az: a.z, bx: b.x, bz: b.z, ra: 0.70, rb: 0.56 }; }
 
           // Vỏ ngoài của khúc gỗ lớn x2 (openEnded = true)
-          const logMain = new THREE.Mesh(new THREE.CylinderGeometry(0.56, 0.70, 7.6, 8, 1, true), logBarkMat);
+          const logMain = new THREE.Mesh(bkAttr(new THREE.CylinderGeometry(0.56, 0.70, 7.6, 8, 1, true), 7.6), logBarkMat);
           logMain.castShadow = true; logMain.receiveShadow = true; logGroup.add(logMain);
 
           // Lớp lõi rỗng bên trong x2 (openEnded = true)
@@ -331,7 +331,7 @@
           }
           // anh đào: thân mảnh, tán nhẹ → tần số riêng ~0,55 Hz, nghiêng nhiều hơn cây cổ thụ; hoa rung mạnh hơn lá
           const tw = makeTreeWind({ freq: 0.55, zeta: 0.1, lean: 0.3, branchAmp: 0.06 });
-          windShader(cherryBark, tw, 0);
+          windShader(cherryBark, tw, 0); surfaceStyle(cherryBark, 'bark');   // vân vỏ cây SAU shader gió (surfaceStyle nối tiếp onBeforeCompile; windShader thì ghi đè)
           tuftInstanced(g, rnd, blossomPts, new THREE.BoxGeometry(0.17 * s, 0.17 * s, 0.17 * s), cherryPinks, 0.75, 1, tw, 0.035);
           tuftInstanced(g, rnd, leafPts, leafHexGeo(0.09 * s), [0x86a364, 0x78935b, 0x6e8754, 0x61784a], 0.90, 1, tw, 0.03);
           const _q = new THREE.Quaternion(), _p = new THREE.Vector3(), _sc = new THREE.Vector3(1, 1, 1), _mm = new THREE.Matrix4(), _col = new THREE.Color();

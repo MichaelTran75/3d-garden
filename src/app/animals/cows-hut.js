@@ -125,7 +125,8 @@
           };
           const grain = tex(128, 32, grainDraw);
           const wood = [0x8a6a45, 0x7d5f3d, 0x94744e].map(c => new THREE.MeshLambertMaterial({ color: c, map: grain }));
-          const postWood = new THREE.MeshLambertMaterial({ color: 0x6e5236, map: grain }), concrete = new THREE.MeshLambertMaterial({ color: 0x9a948a });
+          const postWood = new THREE.MeshLambertMaterial({ color: 0x6e5236, map: grain }), concrete = surfaceStyle(new THREE.MeshLambertMaterial({ color: 0x9a948a }), 'concrete');
+          for (const m of [...wood, postWood]) surfaceStyle(m, 'woodAO');   // chân ván / cột tối dần, ám bẩn (core/surface-style.js)
           const straw = new THREE.MeshLambertMaterial({ map: tex(128, 128, strawDraw, W / 1.3, D / 1.3) }), hay = new THREE.MeshLambertMaterial({ color: 0xd9dfa0, map: tex(128, 128, strawDraw) });
           const tin = new THREE.MeshLambertMaterial({ map: tex(128, 64, (x, w, h) => {   // tôn sóng mạ kẽm, gỉ loang theo dốc
             for (let px = 0; px < w; px++) { const v = Math.round(146 + 34 * Math.cos(px / w * Math.PI * 2 * 8)); x.fillStyle = `rgb(${v},${v - 1},${v - 6})`; x.fillRect(px, 0, 1, h); }

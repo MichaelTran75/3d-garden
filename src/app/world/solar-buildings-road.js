@@ -30,6 +30,7 @@
           solar: new THREE.MeshLambertMaterial({ color: 0x263d49, map: cellRep }),
           interior: new THREE.MeshLambertMaterial({ color: 0x77756a })
         };
+        surfaceStyle(campusMaterials.wall, 'stucco'); surfaceStyle(campusMaterials.timber, 'boards');   // core/surface-style.js
         const campusBoxGeometry = new THREE.BoxGeometry(1, 1, 1);
         function building(w, h, d, solar, unit = 0, yaw = 0) {
           const g = new THREE.Group(), M = campusMaterials, floorY = .44, topY = h + floorY, wallT = .24;

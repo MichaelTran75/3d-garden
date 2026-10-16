@@ -381,7 +381,7 @@
           if (now < idleThoughtAt || now < thoughtUntil) return;
           const e = engObj; let act, label;
           if (e.phase === 'check') return;   // đang đứng xem trạm: tin thời tiết đã hiện
-          if (e.act === 'toilet' || e.act === 'sleep' || e.phase === 'nap') { idleThoughtAt = now + 20000; return; }   // đang ở buồng WC / đang ngủ: không nảy ý
+          if (e.act === 'toilet' || e.act === 'sleep' || e.phase === 'nap' || e.phase === 'drone') { idleThoughtAt = now + 20000; return; }   // đang ở buồng WC / đang ngủ / bay drone (bong bóng màn hình camera): không nảy ý
           const ctx = engContext(now);
           ctx.event = angling.event && now - angling.eventAt < 6000 ? angling.event : null;
           const atStation = !!e.inVan && !!e.van && !!e.van.station;

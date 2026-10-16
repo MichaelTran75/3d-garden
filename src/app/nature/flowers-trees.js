@@ -81,17 +81,26 @@
         //      chuyển song song) hơi gấp khúc — không còn khớp cầu che chỗ nối. Cành con ≤ ~60% bán kính cành mẹ tại chỗ mọc. ----
         const _ntN = new THREE.Vector3(), _ntB = new THREE.Vector3(), _ntT = new THREE.Vector3(), _ntX = new THREE.Vector3();
         function taperTube(pts, rad, seg) {   // ống cong qua pts, bán kính rad[i], khép ngọn bằng 1 đỉnh; pháp tuyến hướng ra ngoài
-          const n = pts.length, P = [], I = [];
+          // aBk = (quanh thân 0–1, dọc thân m) cho vân vỏ cây (core/surface-style.js) ⇒ cột đường may nhân đôi, pháp tuyến tính theo bán kính (không lộ đường may)
+          const n = pts.length, P = [], N = [], B = [], I = [], S1 = seg + 1; let len = 0;
           _ntT.subVectors(pts[1], pts[0]).normalize(); _ntN.set(1, 0, 0); if (Math.abs(_ntT.x) > 0.9) _ntN.set(0, 0, 1);
           for (let i = 0; i < n; i++) {
+            if (i) len += pts[i].distanceTo(pts[i - 1]);
             _ntT.subVectors(pts[Math.min(n - 1, i + 1)], pts[Math.max(0, i - 1)]).normalize();
             _ntN.addScaledVector(_ntT, -_ntN.dot(_ntT)).normalize(); _ntB.crossVectors(_ntT, _ntN);
-            for (let k = 0; k < seg; k++) { const an = k / seg * 6.2832, c = Math.cos(an) * rad[i], s = Math.sin(an) * rad[i]; P.push(pts[i].x + _ntN.x * c + _ntB.x * s, pts[i].y + _ntN.y * c + _ntB.y * s, pts[i].z + _ntN.z * c + _ntB.z * s); }
+            for (let k = 0; k <= seg; k++) { const an = k / seg * 6.2832, c = Math.cos(an), s = Math.sin(an), nx = _ntN.x * c + _ntB.x * s, ny = _ntN.y * c + _ntB.y * s, nz = _ntN.z * c + _ntB.z * s;
+              P.push(pts[i].x + nx * rad[i], pts[i].y + ny * rad[i], pts[i].z + nz * rad[i]); N.push(nx, ny, nz); B.push(k / seg, len); }
           }
-          for (let i = 0; i < n - 1; i++) for (let k = 0; k < seg; k++) { const a = i * seg + k, b = i * seg + (k + 1) % seg; I.push(a, b, a + seg, b, b + seg, a + seg); }
-          const e = pts[n - 1]; P.push(e.x + _ntT.x * rad[n - 1], e.y + _ntT.y * rad[n - 1], e.z + _ntT.z * rad[n - 1]);
-          for (let k = 0; k < seg; k++) I.push((n - 1) * seg + k, (n - 1) * seg + (k + 1) % seg, n * seg);
-          const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); geo.setIndex(I); geo.computeVertexNormals(); return geo;
+          for (let i = 0; i < n - 1; i++) for (let k = 0; k < seg; k++) { const a = i * S1 + k, b = a + 1; I.push(a, b, a + S1, b, b + S1, a + S1); }
+          const e = pts[n - 1]; P.push(e.x + _ntT.x * rad[n - 1], e.y + _ntT.y * rad[n - 1], e.z + _ntT.z * rad[n - 1]); N.push(_ntT.x, _ntT.y, _ntT.z); B.push(0.5, len + rad[n - 1]);
+          for (let k = 0; k < seg; k++) I.push((n - 1) * S1 + k, (n - 1) * S1 + k + 1, n * S1);
+          const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); geo.setAttribute('normal', new THREE.Float32BufferAttribute(N, 3));
+          geo.setAttribute('aBk', new THREE.Float32BufferAttribute(B, 2)); geo.setIndex(I); return geo;
+        }
+        function bkAttr(geo, L) {   // ống / cầu có uv: aBk = (u quanh thân, v × chiều dài m + lệch ngẫu nhiên) — vân vỏ cây
+          const uv = geo.attributes.uv, B = new Float32Array(uv.count * 2), o = (L * 73.1) % 7;
+          for (let i = 0; i < uv.count; i++) { B[i * 2] = uv.getX(i); B[i * 2 + 1] = uv.getY(i) * L + o; }
+          geo.setAttribute('aBk', new THREE.BufferAttribute(B, 2)); return geo;
         }
         function natTree(g, o) {   // o: seed·barkMat·height·trunkR·bole·nLat0[min,max]·ang0·angTaper (cành dưới xoè ngang hơn)·latLen·bend·nLat1[min,max]·ang1·subLen·maxDepth·tipK·childK·gnarl·leafP
           const rnd = mulberry32(o.seed), tips = [], segs = [], seg = o.seg || 6, R = (m) => m[0] + ((rnd() * (m[1] - m[0] + 1)) | 0);
@@ -132,7 +141,7 @@
           if (o.natural) return natTree(g, o);
           const rnd = mulberry32(o.seed), tips = [], segs = [];
           const flowerPts = [];
-          const limb = (a, b, r1, r2) => { segs.push([a.x, a.y, a.z, b.x, b.y, b.z, r1, r2]); const d = b.clone().sub(a), L = d.length(); const m = new THREE.Mesh(new THREE.CylinderGeometry(r2, r1, L, 7), o.barkMat); m.position.copy(a).addScaledVector(d, 0.5); m.quaternion.setFromUnitVectors(_rtUp, d.normalize()); m.castShadow = true; m.receiveShadow = true; g.add(m); };
+          const limb = (a, b, r1, r2) => { segs.push([a.x, a.y, a.z, b.x, b.y, b.z, r1, r2]); const d = b.clone().sub(a), L = d.length(); const m = new THREE.Mesh(bkAttr(new THREE.CylinderGeometry(r2, r1, L, 7), L), o.barkMat); m.position.copy(a).addScaledVector(d, 0.5); m.quaternion.setFromUnitVectors(_rtUp, d.normalize()); m.castShadow = true; m.receiveShadow = true; g.add(m); };
 
           // Hàm đệ quy bẻ cong cành (Midpoint Displacement) áp dụng cho recTree
           const crookedLimb = (a, b, r1, r2, depth = 0, maxDepth = (o.limbMaxDepth != null ? o.limbMaxDepth : 2)) => {
@@ -151,7 +160,7 @@
             const midR = (r1 + r2) * 0.5;
             crookedLimb(a, mid, r1, midR, depth + 1, maxDepth);
 
-            const js = new THREE.Mesh(new THREE.SphereGeometry(midR, 6, 6), o.barkMat);
+            const js = new THREE.Mesh(bkAttr(new THREE.SphereGeometry(midR, 6, 6), Math.PI * midR), o.barkMat);
             js.position.copy(mid); js.castShadow = true; js.receiveShadow = true; g.add(js);
 
             crookedLimb(mid, b, midR, r2, depth + 1, maxDepth);
@@ -162,7 +171,7 @@
             if (depth > 0) { b.x += (rnd() - 0.5) * len * 0.3; b.z += (rnd() - 0.5) * len * 0.3; }   // thân chính thẳng, nhánh con xiêu vẹo
             crookedLimb(a, b, r, r * o.radK);
 
-            const jsNode = new THREE.Mesh(new THREE.SphereGeometry(r * o.radK, 6, 6), o.barkMat);
+            const jsNode = new THREE.Mesh(bkAttr(new THREE.SphereGeometry(r * o.radK, 6, 6), Math.PI * r * o.radK), o.barkMat);
             jsNode.position.copy(b); jsNode.castShadow = true; jsNode.receiveShadow = true; g.add(jsNode);
 
             // Mọc hoa đệ quy dọc theo cành (ngoại trừ thân chính sát đất)
