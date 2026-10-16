@@ -153,6 +153,7 @@
           const Href = V0.top * s * 0.875;   // chiều cao cây (để gió uốn ∝ (độ cao/H)²)
           vegPush(vegPools[V0.key], _vp.set(0, 0, 0), _vqI, _vs.set(s, s * 0.875, s), undefined, [0, Href]);   // Tăng chiều cao thêm 25% (0.7 * 1.25 = 0.875)
           for (const tp of V0.tips) vegPush(vegPools.blob, _vp.set(tp.x * s, tp.y * s * 0.875, tp.z * s), _vqI, _vs.set(0.62 * s, 0.62 * s * 1.012, 0.62 * s), lc, [Math.max(0.01, tp.y * s * 0.875), Href]);
+          return V0;
         }
         function addGrassTuft(px, py, pz, rotY, s) {
           const n = 4 + (Math.random() * 4 | 0); vegGroup(px, py, pz, rotY, 1);

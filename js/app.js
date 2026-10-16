@@ -2145,6 +2145,7 @@
           const Href = V0.top * s * 0.875;
           vegPush(vegPools[V0.key], _vp.set(0, 0, 0), _vqI, _vs.set(s, s * 0.875, s), undefined, [0, Href]);
           for (const tp of V0.tips) vegPush(vegPools.blob, _vp.set(tp.x * s, tp.y * s * 0.875, tp.z * s), _vqI, _vs.set(0.62 * s, 0.62 * s * 1.012, 0.62 * s), lc, [Math.max(0.01, tp.y * s * 0.875), Href]);
+          return V0;
         }
         function addGrassTuft(px, py, pz, rotY, s) {
           const n = 4 + (Math.random() * 4 | 0); vegGroup(px, py, pz, rotY, 1);
@@ -2238,7 +2239,7 @@
           const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); geo.setIndex(I); geo.computeVertexNormals(); return geo;
         }
         function natTree(g, o) {
-          const rnd = mulberry32(o.seed), tips = [], seg = o.seg || 6, R = (m) => m[0] + ((rnd() * (m[1] - m[0] + 1)) | 0);
+          const rnd = mulberry32(o.seed), tips = [], segs = [], seg = o.seg || 6, R = (m) => m[0] + ((rnd() * (m[1] - m[0] + 1)) | 0);
           const branch = (a, dir, len, r0, depth) => {
             const NS = depth ? 4 : 6, pts = [a.clone()], rad = [r0], d = dir.clone().normalize(), p = a.clone(), gn = o.gnarl * (depth ? 1 : 0.35), bend = depth ? o.bend / depth : 0.04;
             for (let s = 1; s <= NS; s++) {
@@ -2247,6 +2248,7 @@
               p.addScaledVector(d, len / NS); pts.push(p.clone()); rad.push(r0 * (1 - (1 - o.tipK) * s / NS));
             }
             const m = new THREE.Mesh(taperTube(pts, rad, seg), o.barkMat); m.castShadow = true; m.receiveShadow = true; g.add(m);
+            for (let s = 0; s < NS; s++) segs.push([pts[s].x, pts[s].y, pts[s].z, pts[s + 1].x, pts[s + 1].y, pts[s + 1].z, rad[s], rad[s + 1]]);
             const end = pts[NS];
             if (depth === 0 || depth === 1 || rnd() < (o.leafP ?? 0.35)) tips.push(end.clone());
             if (depth >= o.maxDepth || r0 * o.tipK < 0.004) return;
@@ -2268,13 +2270,13 @@
             }
           };
           branch(new THREE.Vector3(0, 0, 0), _rtUp, o.height, o.trunkR, 0);
-          return { tips, rnd, flowerPts: [] };
+          return { tips, rnd, flowerPts: [], segs };
         }
         function recTree(g, o) {
           if (o.natural) return natTree(g, o);
-          const rnd = mulberry32(o.seed), tips = [];
+          const rnd = mulberry32(o.seed), tips = [], segs = [];
           const flowerPts = [];
-          const limb = (a, b, r1, r2) => { const d = b.clone().sub(a), L = d.length(); const m = new THREE.Mesh(new THREE.CylinderGeometry(r2, r1, L, 7), o.barkMat); m.position.copy(a).addScaledVector(d, 0.5); m.quaternion.setFromUnitVectors(_rtUp, d.normalize()); m.castShadow = true; m.receiveShadow = true; g.add(m); };
+          const limb = (a, b, r1, r2) => { segs.push([a.x, a.y, a.z, b.x, b.y, b.z, r1, r2]); const d = b.clone().sub(a), L = d.length(); const m = new THREE.Mesh(new THREE.CylinderGeometry(r2, r1, L, 7), o.barkMat); m.position.copy(a).addScaledVector(d, 0.5); m.quaternion.setFromUnitVectors(_rtUp, d.normalize()); m.castShadow = true; m.receiveShadow = true; g.add(m); };
 
           const crookedLimb = (a, b, r1, r2, depth = 0, maxDepth = (o.limbMaxDepth != null ? o.limbMaxDepth : 2)) => {
             const d = b.clone().sub(a), L = d.length();
@@ -2337,7 +2339,7 @@
               grow(b, nd, len * o.lenK * lengthFactor, r * (depth === 0 && o.rootK ? o.rootK : o.radK), depth + 1);
             }
           })(new THREE.Vector3(0, 0, 0), _rtUp.clone(), o.trunkLen, o.trunkR, 0);
-          return { tips, rnd, flowerPts };
+          return { tips, rnd, flowerPts, segs };
         }
         function cloudPts(rnd, cx2, cy2, cz2, r, n, pts) { for (let i = 0; i < n; i++) { const rr = r * Math.cbrt(rnd()), th = rnd() * 6.283, ph = Math.acos(2 * rnd() - 1); pts.push([cx2 + rr * Math.sin(ph) * Math.cos(th), cy2 + rr * Math.cos(ph) * 0.8, cz2 + rr * Math.sin(ph) * Math.sin(th)]); } }
         const WIND_N = 6, WIND_Z0 = 0.1, WIND_M_PER_U = 1.15, WIND_LAMS = [34, 21, 13, 8, 5, 3.2], TAU = Math.PI * 2;
@@ -2636,7 +2638,7 @@
         forestWindShader(forestBark);
         for (let v = 0; v < 12; v++) {
           const tmp = new THREE.Group();
-          const { tips } = recTree(tmp, { natural: true, seed: 20260708 + v * 9173, barkMat: forestBark, height: 4.2, trunkR: 0.165, bole: 0.18 + 0.08 * (v % 3) / 2,
+          const { tips, segs } = recTree(tmp, { natural: true, seed: 20260708 + v * 9173, barkMat: forestBark, height: 4.2, trunkR: 0.165, bole: 0.18 + 0.08 * (v % 3) / 2,
             nLat0: [10, 13], ang0: 0.95, angTaper: 0.5, latLen: 0.55, bend: 0.55, nLat1: [3, 4], ang1: 0.6, subLen: 0.5, maxDepth: 3, tipK: 0.15, childK: 0.6, gnarl: 0.26, leafP: 0.12 });
           tmp.updateMatrixWorld(true);
           const geos = []; tmp.traverse(o => { if (o.isMesh && o.geometry) { const g2 = o.geometry.clone(); g2.applyMatrix4(o.matrixWorld); geos.push(g2); } });
@@ -2645,7 +2647,7 @@
           tmp.traverse(o => { if (o.geometry) o.geometry.dispose(); });
           tmp.clear();
           vegPools['recbranch' + v] = { geo: merged, mat: forestBark, color: false, cast: true, list: [] };
-          _forestVariants.push({ key: 'recbranch' + v, tips: tips.map(t => t.clone()), top: Math.max(...tips.map(t => t.y)) });
+          _forestVariants.push({ key: 'recbranch' + v, tips: tips.map(t => t.clone()), top: Math.max(...tips.map(t => t.y)), segs });
         }
         {
           let tn = 0, tt = 0;
@@ -2653,22 +2655,22 @@
             tt++; const i = 3 + (Math.random() * (GX - 6) | 0), j = 3 + (Math.random() * (GZ - 6) | 0);
             if (!freeTree(i, j)) continue;
             const tx = wx(i), ty = surfaceY(i, j), tz = wz(j);
-            const ts = 1.575 + Math.random() * 1.05; addTreeInst(ts, tx, ty, tz, Math.random() * 6.28);
-            treeCoords.push({ x: tx, y: ty, z: tz, s: ts }); tn++;
+            const ts = 1.575 + Math.random() * 1.05, rot = Math.random() * 6.28, V = addTreeInst(ts, tx, ty, tz, rot);
+            treeCoords.push({ x: tx, y: ty, z: tz, s: ts, V, rot }); tn++;
           }
           let bn = 0, bt = 0;
           while (bn < 3 && bt < 4000) {
             bt++; const i = 3 + (Math.random() * (GX - 6) | 0), j = 3 + (Math.random() * (GZ - 6) | 0);
             if (!freeTree(i, j)) continue;
             const tx = wx(i), ty = surfaceY(i, j), tz = wz(j);
-            const ts = 3.5 + Math.random() * 1.4; addTreeInst(ts, tx, ty, tz, Math.random() * 6.28);
-            treeCoords.push({ x: tx, y: ty, z: tz, s: ts }); bn++;
+            const ts = 3.5 + Math.random() * 1.4, rot = Math.random() * 6.28, V = addTreeInst(ts, tx, ty, tz, rot);
+            treeCoords.push({ x: tx, y: ty, z: tz, s: ts, V, rot }); bn++;
           }
         }
         function fruitTree(s, seed) {
           const g = new THREE.Group();
           const barkMat = new THREE.MeshLambertMaterial({ color: 0x6b4f3a, transparent: true, opacity: 0.90 });
-          const { tips, rnd } = recTree(g, { seed, s, barkMat, trunkLen: 1.7 * s, trunkR: 0.125 * s, maxDepth: 4, nMin: 2, nMax: 3, lenK: 0.74, radK: 0.6, spread: 0.72, upBias: 0.22, firstSplitN: 4 });
+          const { tips, rnd, segs } = recTree(g, { seed, s, barkMat, trunkLen: 1.7 * s, trunkR: 0.125 * s, maxDepth: 4, nMin: 2, nMax: 3, lenK: 0.74, radK: 0.6, spread: 0.72, upBias: 0.22, firstSplitN: 4 });
           const pts = []; for (const tp of tips) cloudPts(rnd, tp.x, tp.y + 0.08 * s, tp.z, 0.62 * s, 40, pts);
           cloudPts(rnd, 0, 2.7 * s, 0, 1.05 * s, 130, pts);
           tuftInstanced(g, rnd, pts, leafHexGeo(0.09 * s), [0x86a364, 0x78935b, 0x6e8754, 0x61784a], 0.60); g.userData.leafPts = pts;
@@ -2727,7 +2729,7 @@
             fruit.add(apple); apples.push({ g: apple, home: apple.position.clone(), rot: apple.rotation.y, on: true, sw: 0, sv: 0, swy: 0, svy: 0 });
           }
           const out = bakeStatic(g);
-          out.add(fruit); out.userData.apples = apples; out.userData.appleR = 0.12 * s * AK;
+          out.add(fruit); out.userData.apples = apples; out.userData.appleR = 0.12 * s * AK; out.userData.limbs = segs;
           return out;
         }
 
@@ -4390,7 +4392,21 @@
         const x2gi = x => x / BLOCK + cx - 0.5, z2gj = z => z / BLOCK + cz - 0.5;
         let cowHutRect = null;
         const cowOK = (x, z) => { const gi = Math.round(x2gi(x)), gj = Math.round(z2gj(z)); return gi > 4 && gi < GX - 4 && gj > 4 && gj < DAM_J + 6 && !isRiver(gi, gj) && padH(gi, gj) === null && damWalkAt(x, z) === null && !(cowHutRect && x > cowHutRect.x0 && x < cowHutRect.x1 && z > cowHutRect.z0 && z < cowHutRect.z1); };
-        const cowY = (x, z) => { const d = damDeckY(x, z); return d !== null ? d : surfaceY(Math.round(x2gi(x)), Math.round(z2gj(z))); };
+        const cowY = (x, z) => { const d = damDeckY(x, z); if (d !== null) return d; const s = surfaceY(Math.round(x2gi(x)), Math.round(z2gj(z))); if (!roadContains(x, z)) return s; const r = roadSurfaceAt(x, z).y; return r > s ? r : s; };
+        let envG = null;
+        function envFree(x, z) {
+          if (!envG || envG.n !== obstacleCoords.length + ENG_PROPS.length) {
+            const C = 0.25, x0 = wx(-MX) - BLOCK / 2, z0 = wz(-MZ) - BLOCK / 2, nx = Math.ceil((GX + 2 * MX) * BLOCK / C), nz = Math.ceil((GZ + 2 * MZ) * BLOCK / C), a = new Uint8Array(nx * nz);
+            const disc = (x, z, r) => { const i0 = Math.max(0, Math.floor((x - r - x0) / C)), i1 = Math.min(nx - 1, Math.floor((x + r - x0) / C)), j0 = Math.max(0, Math.floor((z - r - z0) / C)), j1 = Math.min(nz - 1, Math.floor((z + r - z0) / C));
+              for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) { const cx = x0 + (i + 0.5) * C - x, cz = z0 + (j + 0.5) * C - z; if (cx * cx + cz * cz <= r * r) a[i * nz + j] = 1; } };
+            for (const o of obstacleCoords) disc(o.x, o.z, o.r);
+            for (const o of ENG_PROPS) disc(o.x, o.z, o.r);
+            for (let gi = -MX; gi < GX + MX; gi++) for (let gj = -MZ; gj < GZ + MZ; gj++) if (isWater(gi, gj)) disc(wx(gi), wz(gj), BLOCK * 0.71);
+            envG = { a, C, x0, z0, nx, nz, n: obstacleCoords.length + ENG_PROPS.length };
+          }
+          const G = envG, i = Math.floor((x - G.x0) / G.C), j = Math.floor((z - G.z0) / G.C);
+          return i >= 0 && j >= 0 && i < G.nx && j < G.nz && !G.a[i * G.nz + j];
+        }
         for (const c of cowCells) {
           const i = c[0] * S, j = c[1] * S; if (isRiver(i, j) || padH(i, j) !== null) continue;
           const m = cow((1.053 + Math.random() * 0.2835) * 0.9), x = wx(i), z = wz(j), ang = Math.random() * 6.28; m.position.set(x, surfaceY(i, j), z); m.rotation.y = -ang; scene.add(m);
@@ -13356,6 +13372,22 @@
           for (const c of cows) if (h(c) < 0.9) { R.from = c; return 'hop'; }
           return null;
         }
+        function branchPerches(segs, toWorld, rS, o) {
+          const out = [], a = new THREE.Vector3(), b = new THREE.Vector3(), d = new THREE.Vector3(), top = Math.max(...segs.map(s => Math.max(s[1], s[4])));
+          for (const s of segs) {
+            const r = 0.5 * (s[6] + s[7]) * rS, ym = 0.5 * (s[1] + s[4]);
+            if (r < o.rMin || r > o.rMax || ym < o.y0 * top || ym > o.y1 * top) continue;
+            toWorld(a.set(s[0], s[1], s[2])); toWorld(b.set(s[3], s[4], s[5])); d.subVectors(b, a); const L = d.length(); if (L < 0.1) continue; d.divideScalar(L);
+            if (Math.abs(d.y) > 0.6) continue;
+            const m = a.clone().lerp(b, 0.5); m.y += r;
+            out.push({ p: m, yaw: Math.atan2(d.x, d.z) + Math.PI / 2, score: Math.hypot(s[0] + s[3], s[2] + s[5]) / Math.max(top, 1e-3) - ym / top });
+          }
+          out.sort((x, y) => x.score - y.score); return out;
+        }
+        function pickPerches(list, n, gap) {
+          const res = []; for (const c of list) { if (res.every(q => q.p.distanceTo(c.p) >= gap)) res.push(c); if (res.length >= n) break; }
+          while (res.length < n && list.length) res.push(list[res.length % list.length]); return res;
+        }
         function makeSparrow(brain, size = 1) {
           const SC = 0.18 * size, up = new THREE.Vector3(0, 1, 0);
           const vc = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }), lam = c => new THREE.MeshLambertMaterial({ color: c, flatShading: true });
@@ -13476,13 +13508,13 @@
                   B.scan -= dt; if ((B.hT -= dt) <= 0) { B.hT = 0.25 + Math.random() * 0.4; B.hyT = (Math.random() - 0.5) * 2; B.hpT = -0.2; }
                 } else {
                   B.yaw += (Math.random() - 0.5) * 1.6; const n = 1 + (Math.random() * 3 | 0), a = root.position.clone(), b = a.clone().add(tmp.set(Math.sin(B.yaw), 0, Math.cos(B.yaw)).multiplyScalar(0.08 + Math.random() * 0.06));
-                  if (isWater(Math.round(x2gi(b.x)), Math.round(z2gj(b.z))) || cowHutRect && b.x > cowHutRect.x0 && b.x < cowHutRect.x1 && b.z > cowHutRect.z0 && b.z < cowHutRect.z1) B.yaw += Math.PI; else { b.y = cowY(b.x, b.z); B.hop = { a, b, k: -0.07, n }; }
+                  if (!envFree(b.x, b.z) || cowHutRect && b.x > cowHutRect.x0 && b.x < cowHutRect.x1 && b.z > cowHutRect.z0 && b.z < cowHutRect.z1) B.yaw += Math.PI;
                 }
                 if (!B.hop) root.position.y = g;
                 const fl = B.bath ? null : sparrowFlush(root.position), near = fl === 'fly';
                 if (fl === 'hop' && !B.hop) {
                   const f = sparrowFlush.from; B.yaw = Math.atan2(root.position.x - f.x, root.position.z - f.z); B.nPeck = 0;
-                  const a = root.position.clone(), b2 = a.clone().add(tmp.set(Math.sin(B.yaw), 0, Math.cos(B.yaw)).multiplyScalar(0.14)); b2.y = cowY(b2.x, b2.z); B.hop = { a, b: b2, k: 0, n: 2 };
+                  const a = root.position.clone(), b2 = a.clone().add(tmp.set(Math.sin(B.yaw), 0, Math.cos(B.yaw)).multiplyScalar(0.14)); b2.y = cowY(b2.x, b2.z); if (envFree(b2.x, b2.z)) B.hop = { a, b: b2, k: 0, n: 2 };
                 }
                 if (near || B.k > B.T) brain.next(S, near);
               }
@@ -13530,7 +13562,8 @@
           const W = {
             home: () => ({ p: LG.localToWorld(new THREE.Vector3(0, 2.525, 0.12 + Math.random() * 0.32)), yaw: LY + (Math.random() < 0.5 ? 1 : -1) * Math.PI / 2, kind: 'home', T: 12 + Math.random() * 18 }),
             apple: () => { tree.updateMatrixWorld(true); const A = tree.userData.apples, a = A[(Math.random() * A.length) | 0]; return { p: tree.localToWorld(a.home.clone().add(tmp.set(0, 0.28 * treeS + 0.02, 0))), yaw: Math.random() * TAU, kind: 'apple', T: 6 + Math.random() * 10 }; },
-            roost: () => { tree.updateMatrixWorld(true); return { p: tree.localToWorld(new THREE.Vector3(0.18 * treeS, 1.78 * treeS, 0.08 * treeS)), yaw: Math.random() * TAU, kind: 'roost', sleep: true }; },
+            roost: () => { if (!W._perch) { tree.updateMatrixWorld(true); W._perch = pickPerches(branchPerches(tree.userData.limbs, v => tree.localToWorld(v), tree.scale.x, { rMin: 0.012, rMax: 0.07, y0: 0.4, y1: 0.85 }), 3, 0.25); }
+              const c = W._perch[(Math.random() * W._perch.length) | 0]; return { p: c.p.clone(), yaw: c.yaw + (Math.random() < 0.5 ? 0 : Math.PI), kind: 'roost', sleep: true }; },
             roof: () => ({ p: caravanObj.localToWorld(new THREE.Vector3(2.2 + Math.random() * 0.3, 3.75, 0.95 + Math.random() * 0.2)), yaw: caravanObj.rotation.y + Math.PI + (Math.random() - 0.5), kind: 'roof', T: 6 + Math.random() * 10 }),
             wire: () => {
               const a = gridPoles[0], b = subTie.e, t = 0.35 + Math.random() * 0.3, m = a.clone().lerp(b, 0.5); m.y -= 0.3;
@@ -13541,7 +13574,7 @@
               const c = LG.getWorldPosition(tmp2);
               for (let k = 0; k < 20; k++) {
                 const a = Math.random() * TAU, r = 1.4 + Math.random() * 2.6, x = c.x + Math.cos(a) * r, z = c.z + Math.sin(a) * r;
-                if (isWater(Math.round(x2gi(x)), Math.round(z2gj(z))) || obstacleCoords.some(o => Math.hypot(x - o.x, z - o.z) < o.r + 0.3) || ENG_PROPS.some(o => Math.hypot(x - o.x, z - o.z) < o.r + 0.25)) continue;
+                if (isWater(Math.round(x2gi(x)), Math.round(z2gj(z))) || !envFree(x, z) || obstacleCoords.some(o => Math.hypot(x - o.x, z - o.z) < o.r + 0.3) || ENG_PROPS.some(o => Math.hypot(x - o.x, z - o.z) < o.r + 0.25)) continue;
                 return { p: new THREE.Vector3(x, cowY(x, z), z), yaw: Math.random() * TAU, kind: 'ground', T: 12 + Math.random() * 12 };
               }
               return W.home();
@@ -13549,7 +13582,7 @@
           };
           const ROUTE = ['home', 'ground', 'apple', 'roof', 'wire'];
           const bird = makeSparrow({
-            tick(S, dt) { const B = S.state; if (!sparrowAwake() && B.st !== 'fly' && B.at && B.at.kind !== 'roost') S.flyTo(W.roost()); else if (sparrowAwake() && B.st === 'sleep') { B.st = 'perch'; B.T = 4 + Math.random() * 4; B.k = 0; } },
+            tick(S, dt) { const B = S.state; if (!sparrowAwake() && B.st !== 'fly' && B.at && B.at.kind !== 'roost') S.flyTo(W.roost()); else if (!sparrowAwake() && B.st === 'perch' && B.at && B.at.kind === 'roost') B.st = 'sleep'; else if (sparrowAwake() && B.st === 'sleep') { B.st = 'perch'; B.T = 4 + Math.random() * 4; B.k = 0; } },
             next(S) { const B = S.state; if (!sparrowAwake()) return; const kind = B.at.kind === 'roost' ? 'home' : ROUTE[(ROUTE.indexOf(B.at.kind) + 1) % ROUTE.length]; S.flyTo(W[kind === 'ground' && Math.random() < 0.4 ? 'apple' : kind]()); }
           });
           bird.land(sparrowAwake() ? W.home() : W.roost());
@@ -13636,7 +13669,7 @@
               else {
                 for (let k = 0; k < 20; k++) {
                   const cw = cows[(Math.random() * cows.length) | 0], a = Math.random() * TAU, r = 1.2 + Math.random() * 2.5, x = cw.x + Math.cos(a) * r, z = cw.z + Math.sin(a) * r;
-                  if (isWater(Math.round(x2gi(x)), Math.round(z2gj(z))) || (cowHutRect && x > cowHutRect.x0 && x < cowHutRect.x1 && z > cowHutRect.z0 && z < cowHutRect.z1) || Math.hypot(x - box.pos.x, z - box.pos.z) > 70) continue;
+                  if (!envFree(x, z) || (cowHutRect && x > cowHutRect.x0 && x < cowHutRect.x1 && z > cowHutRect.z0 && z < cowHutRect.z1) || Math.hypot(x - box.pos.x, z - box.pos.z) > 70) continue;
                   S.flyTo({ p: new THREE.Vector3(x, cowY(x, z), z), yaw: Math.random() * TAU, kind: 'ground', T: 6 + Math.random() * 10 }); return;
                 }
                 S.state.k = 0;
@@ -13650,7 +13683,7 @@
           const F = { T: 3, night: null, stage: 0 }, rnd = Math.random, _v = new THREE.Vector3();
           const birds = [0, 1, 2, 3, 4].map(() => { const b = makeSparrow({ tick(S) { if (sparrowAwake() && S.state.st === 'sleep') { S.state.st = 'perch'; S.state.k = 0; } }, next(S, scared) { if (scared) F.T = Math.min(F.T, 0); },
             landed(S) { if (S.state.at.kind === 'air' && S.route.length) S.flyTo(S.route.shift()); } }, 0.8 + 0.12 * rnd()); b.ph = rnd(); b.route = []; b.go = null; return b; });
-          const okGround = (x, z) => { const i = Math.round(x2gi(x)), j = Math.round(z2gj(z)); return i > 3 && j > 3 && i < GX - 3 && j < GZ - 3 && !isWater(i, j) && !obstacleCoords.some(o => Math.hypot(x - o.x, z - o.z) < o.r + 0.5)
+          const okGround = (x, z) => { const i = Math.round(x2gi(x)), j = Math.round(z2gj(z)); return i > 3 && j > 3 && i < GX - 3 && j < GZ - 3 && !isWater(i, j) && envFree(x, z) && !obstacleCoords.some(o => Math.hypot(x - o.x, z - o.z) < o.r + 0.5)
             && !(cowHutRect && x > cowHutRect.x0 - 1 && x < cowHutRect.x1 + 1 && z > cowHutRect.z0 - 1 && z < cowHutRect.z1 + 1) && !(engObj && Math.hypot(x - engObj.g.position.x, z - engObj.g.position.z) < 6); };
           const roostTree = treeCoords.reduce((a, t) => Math.hypot(t.x - pf.x, t.z - pf.z) < Math.hypot(a.x - pf.x, a.z - pf.z) ? t : a, treeCoords[0]);
           const spots = (kind) => {
@@ -13664,8 +13697,10 @@
               const a = gridPoles[0], b = subTie.e, m = a.clone().lerp(b, 0.5); m.y -= 0.3; const L = a.distanceTo(b), t0 = 0.3 + 0.4 * rnd();
               return birds.map((_, i) => { const t = t0 + (i - 2) * (0.2 + 0.04 * rnd()) / L; return { p: a.clone().multiplyScalar((1 - t) * (1 - t)).addScaledVector(m, 2 * t * (1 - t)).addScaledVector(b, t * t), yaw: Math.atan2(b.x - a.x, b.z - a.z) + Math.PI / 2 + (rnd() < 0.3 ? Math.PI : 0), kind: 'wire', T: 1e9 }; });
             }
-            const T = roostTree, ts = T.s || 2, H = ts * NATURE_SCALE * 3.7;
-            return birds.map((_, i) => { const a = i * 1.26 + rnd(), r = 0.25 + 0.5 * rnd() * ts * NATURE_SCALE; return { p: new THREE.Vector3(T.x + Math.cos(a) * r, T.y + (0.62 + 0.2 * rnd()) * H, T.z + Math.sin(a) * r), yaw: rnd() * TAU, kind: 'roost', sleep: true }; });
+            if (!F.perch) { const T = roostTree, sN = (T.s || 2) * NATURE_SCALE, c = Math.cos(T.rot || 0), s = Math.sin(T.rot || 0);
+              const toW = v => { const x = v.x * sN, y = v.y * sN * 0.875, z = v.z * sN; return v.set(T.x + x * c + z * s, T.y + y, T.z - x * s + z * c); };
+              F.perch = T.V ? pickPerches(branchPerches(T.V.segs, toW, sN, { rMin: 0.012, rMax: 0.09, y0: 0.35, y1: 0.8 }), 5, 0.3) : null; }
+            return birds.map((_, i) => { const P = F.perch && F.perch[i % F.perch.length]; return P ? { p: P.p.clone(), yaw: P.yaw + (rnd() < 0.5 ? 0 : Math.PI), kind: 'roost', sleep: true } : { p: new THREE.Vector3(roostTree.x, roostTree.y + 4, roostTree.z), yaw: rnd() * TAU, kind: 'roost', sleep: true }; });
           };
           function depart(kind, play) {
             const S = spots(kind), loop = [];

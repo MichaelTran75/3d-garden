@@ -5,7 +5,7 @@
           const tmp = new THREE.Group();
           // cành tự nhiên (G 15/10, học mẫu GLB): thân chính tới ngọn cao ~4,2 · gốc trơn 18–26% · 10–13 cành bên: dưới xoè ~70° gần ngang rồi uốn cong lên,
           // trên xoè ~40° · mỗi cành bên 3–4 cành con xoè ~34° · cành con chẻ đôi ở đầu · gấp khúc rõ; gốc to 0,165 như cũ
-          const { tips } = recTree(tmp, { natural: true, seed: 20260708 + v * 9173, barkMat: forestBark, height: 4.2, trunkR: 0.165, bole: 0.18 + 0.08 * (v % 3) / 2,
+          const { tips, segs } = recTree(tmp, { natural: true, seed: 20260708 + v * 9173, barkMat: forestBark, height: 4.2, trunkR: 0.165, bole: 0.18 + 0.08 * (v % 3) / 2,
             nLat0: [10, 13], ang0: 0.95, angTaper: 0.5, latLen: 0.55, bend: 0.55, nLat1: [3, 4], ang1: 0.6, subLen: 0.5, maxDepth: 3, tipK: 0.15, childK: 0.6, gnarl: 0.26, leafP: 0.12 });   // ~16 khối tán / cây (cũ 8–18)
           tmp.updateMatrixWorld(true);
           const geos = []; tmp.traverse(o => { if (o.isMesh && o.geometry) { const g2 = o.geometry.clone(); g2.applyMatrix4(o.matrixWorld); geos.push(g2); } });
@@ -14,7 +14,7 @@
           tmp.traverse(o => { if (o.geometry) o.geometry.dispose(); });
           tmp.clear();
           vegPools['recbranch' + v] = { geo: merged, mat: forestBark, color: false, cast: true, list: [] };
-          _forestVariants.push({ key: 'recbranch' + v, tips: tips.map(t => t.clone()), top: Math.max(...tips.map(t => t.y)) });
+          _forestVariants.push({ key: 'recbranch' + v, tips: tips.map(t => t.clone()), top: Math.max(...tips.map(t => t.y)), segs });
         }
         // ---- đặt cây rừng (bỏ cây thông → cây nhánh đệ quy) ----
         {
@@ -23,23 +23,23 @@
             tt++; const i = 3 + (Math.random() * (GX - 6) | 0), j = 3 + (Math.random() * (GZ - 6) | 0);
             if (!freeTree(i, j)) continue;
             const tx = wx(i), ty = surfaceY(i, j), tz = wz(j);
-            const ts = 1.575 + Math.random() * 1.05; addTreeInst(ts, tx, ty, tz, Math.random() * 6.28);   // to thêm 75% (0.9→1.575)
-            treeCoords.push({ x: tx, y: ty, z: tz, s: ts }); tn++;
+            const ts = 1.575 + Math.random() * 1.05, rot = Math.random() * 6.28, V = addTreeInst(ts, tx, ty, tz, rot);   // to thêm 75% (0.9→1.575)
+            treeCoords.push({ x: tx, y: ty, z: tz, s: ts, V, rot }); tn++;
           }
           let bn = 0, bt = 0;
           while (bn < 3 && bt < 4000) {
             bt++; const i = 3 + (Math.random() * (GX - 6) | 0), j = 3 + (Math.random() * (GZ - 6) | 0);
             if (!freeTree(i, j)) continue;
             const tx = wx(i), ty = surfaceY(i, j), tz = wz(j);
-            const ts = 3.5 + Math.random() * 1.4; addTreeInst(ts, tx, ty, tz, Math.random() * 6.28);   // to thêm 75% (2.0→3.5)
-            treeCoords.push({ x: tx, y: ty, z: tz, s: ts }); bn++;
+            const ts = 3.5 + Math.random() * 1.4, rot = Math.random() * 6.28, V = addTreeInst(ts, tx, ty, tz, rot);   // to thêm 75% (2.0→3.5)
+            treeCoords.push({ x: tx, y: ty, z: tz, s: ts, V, rot }); bn++;
           }
         }
         // ---- 2 cây táo (ĐỆ QUY) cạnh caravan ----
         function fruitTree(s, seed) {
           const g = new THREE.Group();
           const barkMat = new THREE.MeshLambertMaterial({ color: 0x6b4f3a, transparent: true, opacity: 0.90 });   // thân cây rõ hơn 20% (0.75 * 1.2 = 0.90)
-          const { tips, rnd } = recTree(g, { seed, s, barkMat, trunkLen: 1.7 * s, trunkR: 0.125 * s, maxDepth: 4, nMin: 2, nMax: 3, lenK: 0.74, radK: 0.6, spread: 0.72, upBias: 0.22, firstSplitN: 4 });
+          const { tips, rnd, segs } = recTree(g, { seed, s, barkMat, trunkLen: 1.7 * s, trunkR: 0.125 * s, maxDepth: 4, nMin: 2, nMax: 3, lenK: 0.74, radK: 0.6, spread: 0.72, upBias: 0.22, firstSplitN: 4 });
           const pts = []; for (const tp of tips) cloudPts(rnd, tp.x, tp.y + 0.08 * s, tp.z, 0.62 * s, 40, pts);
           cloudPts(rnd, 0, 2.7 * s, 0, 1.05 * s, 130, pts);   // chùm trung tâm cho tán dày ruột
           tuftInstanced(g, rnd, pts, leafHexGeo(0.09 * s), [0x86a364, 0x78935b, 0x6e8754, 0x61784a], 0.60); g.userData.leafPts = pts;   // điểm lá: lá rụng theo cơn giật (nature/wind-field.js)   // lá cây trong suốt hơn 20% (0.75 * 0.8 = 0.60)
@@ -101,7 +101,7 @@
             fruit.add(apple); apples.push({ g: apple, home: apple.position.clone(), rot: apple.rotation.y, on: true, sw: 0, sv: 0, swy: 0, svy: 0 });
           }
           const out = bakeStatic(g);   // gộp toàn bộ cành theo vật liệu → vài draw call/cây
-          out.add(fruit); out.userData.apples = apples; out.userData.appleR = 0.12 * s * AK;   // quả gắn SAU khi gộp: lô vẽ chung (draw-batch) vẫn gom chung 1 lượt vẽ
+          out.add(fruit); out.userData.apples = apples; out.userData.appleR = 0.12 * s * AK; out.userData.limbs = segs;   // quả gắn SAU khi gộp: lô vẽ chung (draw-batch) vẫn gom chung 1 lượt vẽ
           return out;
         }
 

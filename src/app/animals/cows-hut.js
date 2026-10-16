@@ -70,7 +70,25 @@
         const x2gi = x => x / BLOCK + cx - 0.5, z2gj = z => z / BLOCK + cz - 0.5;
         let cowHutRect = null;   // khung chuồng bò (đặt khi dựng chuồng): bò gặm cỏ tự do không đi xuyên vách
         const cowOK = (x, z) => { const gi = Math.round(x2gi(x)), gj = Math.round(z2gj(z)); return gi > 4 && gi < GX - 4 && gj > 4 && gj < DAM_J + 6 && !isRiver(gi, gj) && padH(gi, gj) === null && damWalkAt(x, z) === null && !(cowHutRect && x > cowHutRect.x0 && x < cowHutRect.x1 && z > cowHutRect.z0 && z < cowHutRect.z1); };
-        const cowY = (x, z) => { const d = damDeckY(x, z); return d !== null ? d : surfaceY(Math.round(x2gi(x)), Math.round(z2gj(z))); };   // trên đập/dốc nối: cao độ mặt đường đập
+        // độ cao mặt đứng cho mọi con vật + kỹ sư: trên đập/dốc nối = mặt đường đập · trên đường nội bộ = mặt đường (đắp cao hơn ô đất tới 1,3 m —
+        // G 16/10: chim đứng mép đường bị lún; roadSurfaceAt ở world/street-lamps.js) · còn lại = ô đất
+        const cowY = (x, z) => { const d = damDeckY(x, z); if (d !== null) return d; const s = surfaceY(Math.round(x2gi(x)), Math.round(z2gj(z))); if (!roadContains(x, z)) return s; const r = roadSurfaceAt(x, z).y; return r > s ? r : s; };
+        // ---- LƯỚI MÔI TRƯỜNG cho thú nhỏ (G 16/10 "không bị va chạm"): ô 0,25 m, 1 = bị chắn (vật cản đã đăng ký: thân cây, cột, nhà, đồ trại; nước) —
+        //      dựng 1 lần ở lần hỏi đầu (lúc đó mọi vật cản đã đăng ký); hỏi = tra bảng ----
+        let envG = null;
+        function envFree(x, z) {
+          if (!envG || envG.n !== obstacleCoords.length + ENG_PROPS.length) {   // vật cản đăng ký thêm sau lần dựng trước → dựng lại
+            const C = 0.25, x0 = wx(-MX) - BLOCK / 2, z0 = wz(-MZ) - BLOCK / 2, nx = Math.ceil((GX + 2 * MX) * BLOCK / C), nz = Math.ceil((GZ + 2 * MZ) * BLOCK / C), a = new Uint8Array(nx * nz);
+            const disc = (x, z, r) => { const i0 = Math.max(0, Math.floor((x - r - x0) / C)), i1 = Math.min(nx - 1, Math.floor((x + r - x0) / C)), j0 = Math.max(0, Math.floor((z - r - z0) / C)), j1 = Math.min(nz - 1, Math.floor((z + r - z0) / C));
+              for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) { const cx = x0 + (i + 0.5) * C - x, cz = z0 + (j + 0.5) * C - z; if (cx * cx + cz * cz <= r * r) a[i * nz + j] = 1; } };
+            for (const o of obstacleCoords) disc(o.x, o.z, o.r);
+            for (const o of ENG_PROPS) disc(o.x, o.z, o.r);
+            for (let gi = -MX; gi < GX + MX; gi++) for (let gj = -MZ; gj < GZ + MZ; gj++) if (isWater(gi, gj)) disc(wx(gi), wz(gj), BLOCK * 0.71);
+            envG = { a, C, x0, z0, nx, nz, n: obstacleCoords.length + ENG_PROPS.length };
+          }
+          const G = envG, i = Math.floor((x - G.x0) / G.C), j = Math.floor((z - G.z0) / G.C);
+          return i >= 0 && j >= 0 && i < G.nx && j < G.nz && !G.a[i * G.nz + j];
+        }
         for (const c of cowCells) {
           const i = c[0] * S, j = c[1] * S; if (isRiver(i, j) || padH(i, j) !== null) continue;
           const m = cow((1.053 + Math.random() * 0.2835) * 0.9), x = wx(i), z = wz(j), ang = Math.random() * 6.28; m.position.set(x, surfaceY(i, j), z); m.rotation.y = -ang; scene.add(m);

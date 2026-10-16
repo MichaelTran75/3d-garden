@@ -222,6 +222,15 @@ lò xo) ⇒ lên bậc voxel 0,6 đv thì chân trước lên trước, thân ng
   5–13 s/lần; tạnh mà đất ướt (`sceneWet` > 0,3): tắm, rũ mình · né (`sparrowFlush`): người đang đi 2 m (ngồi 1 m), chó 2,2 m (chạy 3,2 m), gấu
   mèo, cò 3 m; bò bước sát 0,9 m thì nhảy tránh · đàn ~30% xuống kiếm ăn quanh chân bò. Thử: `spSim` (scratchpad `sptest.js`); khoá thời tiết
   bằng getter trên `liveWeather.state` (gán thường bị module thời tiết ghi đè).
+- Chỗ đậu trên CÀNH THẬT (16/10): `recTree`/`natTree` ghi `segs` (đoạn cành [a, b, r1, r2], toạ độ cây) → cây táo `userData.limbs`, biến thể rừng
+  `_forestVariants[k].segs`; `treeCoords` có `V` (biến thể) + `rot` (`addTreeInst` trả biến thể). `branchPerches` (songbird.js) lọc đoạn bán kính vừa
+  chân chim, gần ngang (|dy| < 0,6), giữa tán, xếp gần thân trước; điểm = mặt trên cành. Đo: chân chim cách trục cành = bán kính (sai ≤ 1,2 cm).
+  Đừng đặt chỗ đậu bằng toạ độ đoán theo cỡ cây (cây đổi hình là lơ lửng).
+- Độ cao mặt đứng `cowY` (cows-hut.js) cho MỌI con vật + kỹ sư: đập → `damDeckY` · đường nội bộ → `roadSurfaceAt` (đường đắp cao hơn ô đất tới
+  1,3 m — trước đây thú đi trên đường bị lún) · còn lại ô đất. `envFree(x, z)`: lưới 0,25 m bị chắn (vật cản đăng ký + đồ trại + nước), tự dựng lại khi
+  có vật cản đăng ký thêm — chim sẻ dùng cho chỗ đáp / bước nhảy. Đo va chạm 9 phút (bò, chó, gấu mèo, chim dưới đất, 28 thú ban ngày): 0 lần lấn
+  sâu (chó "trong" xe caravan = đang vào xe trú, đúng kịch bản). Bán kính trong `obstacleCoords` là bán kính NÊN TRÁNH (đã nới) — đừng dùng chặn cứng
+  cho chó/gấu mèo (chúng cố ý tới sát cửa xe, khúc gỗ).
 - Laptop bàn học: `laptopDash(t)` vẽ bảng vận hành chạy (~6 hình/giây, chỉ khi nắp mở) — số MW theo nắng / mây / gió thật.
 - Gấu mèo: thân 2 nửa `U.fore`/`U.aft` gập quanh giữa lưng khi phi nhảy (hông chân vẫn gắn `torso` ⇒ IK không đổi).
 - Đo được (trượt TB của bàn chân trụ, đv/khung ở 30 hình/giây): bò 0,0003–0,0007 · hươu 0,0003 · cò 0,0013 · gấu mèo ~0,003 (ngoặt gắt) ·
