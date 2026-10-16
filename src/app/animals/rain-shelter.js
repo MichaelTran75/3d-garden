@@ -37,7 +37,7 @@
               if (dd > 1.5) { const f = ffDir(bunnyField, b.x, b.z); if (f) { ux = f.x; uz = f.z; } }
               let da = Math.atan2(uz, ux) - b.ang; da = Math.atan2(Math.sin(da), Math.cos(da)); b.ang += dd < 1 ? da : da * Math.min(1, dt * 6);
               b.hop = (b.hop + dt * 3.6) % 1; const lift = Math.max(0, Math.sin(b.hop * Math.PI)) * 0.5, step = Math.min(dd, b.spd * 1.25 * dt * (0.5 + lift));
-              b.x += Math.cos(b.ang) * step; b.z += Math.sin(b.ang) * step;
+              const mv = b.col ? colSlide(b.col, b.x, b.z, b.ang, step, dt) : [b.x + Math.cos(b.ang) * step, b.z + Math.sin(b.ang) * step]; if (mv) { b.x = mv[0]; b.z = mv[1]; }   // vật cản thật (core/collide.js)
               b.g.position.set(b.x, cowY(b.x, b.z) + lift, b.z); b.g.rotation.y = -b.ang;
               b.paws[0].rotation.z = b.paws[1].rotation.z = -0.45 - lift * 0.4; b.head.rotation.z = 0;
             }

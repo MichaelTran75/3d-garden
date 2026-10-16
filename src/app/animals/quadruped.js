@@ -12,6 +12,10 @@
         //  · o.size = cỡ chân (đv thế giới, mặc định 0,35 = chó): ngưỡng nhích chân, dịch chuyển xa (> 4 lần cỡ ⇒ đặt lại chân tại chỗ).
         function quadRig(obj, o) {   // o: legs [{hip, knee, paw, front, L1, L2, bend?, ankleH?}] · gaits {tên: {off[4], duty, stride, lift, vRef?}} · home(L, out) · ground(x, z) · size?, settleT?, settleLift?
           const feet = o.legs.map(L => ({ L, w: new THREE.Vector3(), s0: new THREE.Vector3(), tg: new THREE.Vector3(), sw: false, mode: '', u: 0 }));
+          // bàn chân trụ bị bỏ quá tầm với (hông → điểm đặt > 97% chiều dài chân) ⇒ IK hết tầm, chân hổng khỏi đất (G 17/10 đo: chó 86% lần đo lệch > 3 cm,
+          // bò gặm cỏ nhích chậm bỏ chân lại 0,8 m) ⇒ coi như phải bước bắt kịp ngay
+          // (chỉ khi bước về chỗ "nhà" thì với tới — đứng mép bậc cao mà nhà cũng ngoài tầm thì bước mãi vô ích)
+          const _hw = new THREE.Vector3(), outReach = (F, home) => { const L = F.L, S = obj.scale.y, R0 = (L.L1 + L.L2) * S * 0.97; L.hip.getWorldPosition(_hw); _hw.y -= (L.ankleH || 0) * S; return _hw.distanceTo(F.w) > R0 && _hw.distanceTo(home) < R0; };
           const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3(), _f = new THREE.Vector3(), last = new THREE.Vector3();
           const ease = k => { k = Math.max(0, Math.min(1, k)); return k * k * (3 - 2 * k); };
           const size = o.size || 0.35, settleT = o.settleT || 0.22, settleLift = o.settleLift || 0.035;
@@ -45,7 +49,7 @@
                   if (inSwing && !F.sw) { F.sw = true; F.s0.copy(F.w); F.mode = 'gait'; }
                   else if (!F.sw && swinging < 2) {   // ngoặt gắt / xoay tại chỗ / bị đẩy ngang: chân trụ bị bỏ quá xa ⇒ bước bắt kịp ngay, không chờ tới lượt
                     const ex = F.w.x - _a.x, ez = F.w.z - _a.z;
-                    if (Math.hypot(ex, ez) > Math.max(0.6 * stride, 0.3 * size) || Math.abs(ex * _f.z - ez * _f.x) > 0.3 * size) { F.sw = true; F.mode = 'settle'; F.u = 0; F.s0.copy(F.w); swinging++; }
+                    if (Math.hypot(ex, ez) > Math.max(0.6 * stride, 0.3 * size) || Math.abs(ex * _f.z - ez * _f.x) > 0.3 * size || (!R.fk[i] && outReach(F, _a))) { F.sw = true; F.mode = 'settle'; F.u = 0; F.s0.copy(F.w); swinging++; }
                   }
                   if (F.sw && F.mode === 'gait') {
                     const u = inSwing ? (ph - G.duty) / (1 - G.duty) : 1, ahead = dir * ((1 - u) * (1 - G.duty) + G.duty * 0.5) * T * sp;
@@ -58,7 +62,7 @@
                   if (F.sw && F.mode === 'gait') { F.sw = false; F.w.y = o.ground(F.w.x, F.w.z); swinging--; }
                   const d = Math.hypot(F.w.x - _a.x, F.w.z - _a.z);
                   if (posed && d < 0.46 * size) { F.w.lerp(_a, Math.min(1, dt * 6)); F.w.y = _a.y; }
-                  else if ((d > 0.13 * size || Math.abs(F.w.y - _a.y) > 0.3 * size) && swinging < 1) { F.sw = true; F.mode = 'settle'; F.u = 0; F.s0.copy(F.w); swinging++; }
+                  else if ((d > 0.13 * size || Math.abs(F.w.y - _a.y) > 0.3 * size || (!posed && !R.fk[i] && outReach(F, _a))) && swinging < 1) { F.sw = true; F.mode = 'settle'; F.u = 0; F.s0.copy(F.w); swinging++; }
                 }
                 // IK: hông THẬT (toạ độ gốc con vật — đã gồm thân cao, chúc/ngóc, lắc ngang) → bàn chân (đất hoặc điểm tự do)
                 L.hip.getWorldPosition(_c); obj.worldToLocal(_c); const hipX = _c.x, hipY = _c.y, roll = L.hip.parent === obj ? 0 : L.hip.parent.rotation.x;

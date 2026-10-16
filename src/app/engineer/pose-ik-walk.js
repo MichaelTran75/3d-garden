@@ -282,7 +282,12 @@
           const acc = vWant > v0 ? 2.4 : 4.5; e.vel = v0 + Math.max(-acc * dt, Math.min(acc * dt, vWant - v0));
           let mx = Math.sin(e.g.rotation.y) * 0.75 + ux * 0.25, mz = Math.cos(e.g.rotation.y) * 0.75 + uz * 0.25; const ml = Math.hypot(mx, mz) || 1; mx /= ml; mz /= ml;
           const step = Math.min(e.vel * dt, dist);
-          const nx = e.g.position.x + mx * step, nz = e.g.position.z + mz * step;
+          let nx = e.g.position.x + mx * step, nz = e.g.position.z + mz * step;
+          if (COL.ready && step > 0 && COL_M.eng) {   // vật cản thật chưa có trong bảng né (gốc cây, chân cột, đồ vặt): men theo; kẹt thì đứng (core/collide.js)
+            const mv = colSlide(COL_M.eng, e.g.position.x, e.g.position.z, Math.atan2(mz, mx), step, dt);
+            if (!mv) { e.vel *= 0.5; e.walking = true; return false; }
+            nx = mv[0]; nz = mv[1];
+          }
           const gi = Math.round(x2gi(nx)), gj = Math.round(z2gj(nz));
           if (isWater(gi, gj)) { e.vel = 0; return arrive(); }   // chạm mép nước → coi như đã tới, không lội xuống
           e.g.position.x = nx; e.g.position.z = nz;

@@ -270,6 +270,52 @@ lò xo) ⇒ lên bậc voxel 0,6 đv thì chân trước lên trước, thân ng
 - Đo được (trượt TB của bàn chân trụ, đv/khung ở 30 hình/giây): bò 0,0003–0,0007 · hươu 0,0003 · cò 0,0013 · gấu mèo ~0,003 (ngoặt gắt) ·
   kỹ sư ~0,003 (chưa tính lúc ngoặt). Thử: `slipTest`/`ikErr` (công cụ nháp) — đọc `rig.feet`, so điểm đế thật với `F.w`.
 
+## 8b. Va chạm với môi trường (core/collide.js, G 17/10 "nghiên cứu game engine làm physic…")
+
+Game engine KHÔNG cho nhân vật / thú đi bằng vật lý vật rắn: nhân vật là khối động học (capsule) "đẩy thử rồi trượt dọc" (collide and slide),
+va chạm dùng hình đơn giản / lưới va chạm riêng, chân đặt bằng tia dò + IK, navmesh dựng bằng voxel hoá (Recast). Cảnh này làm đúng cách đó, tự viết
+(Rapier / Jolt / Ammo nặng hàng trăm KB nén — gấp nhiều lần phần còn trống; lại chỉ giải vật rắn).
+- **Dựng**: `colCollect` gom mọi lưới tĩnh (bỏ con vật, người, chim, côn trùng, cá, địa hình khối, cỏ, nước, hiệu ứng, cánh đồng pin, kho pin) →
+  `colBuildTick(4 ms/khung)` raster từng tam giác (cắt đa giác theo hàng z rồi cột x — như Recast) thành khoảng đặc [y0, y1] trong cột ô
+  `COL.C` 0,125 m, gộp khoảng chồng; bỏ tam giác cao hơn mặt đất `COL_TOP` 2,6 m, dưới đất, mặt nằm ngang TRÙNG mặt cowY (mặt đường, mặt đập —
+  còn thành bên đường đắp); CÂY giữ tam giác trong ~0,7 m quanh gốc (thân) + cây rừng giữ thêm cành thấp < 1,75 m vào LỚP CÀNH. Nén `colPack`: mỗi ô
+  4 m = off (Uint16) + y (Int16, cm). Đo 17/10: ~150 nghìn tam giác, 53 nghìn cột, ~1,6 MB, xong ~1 s sau khi mở trang (pane ẩn thì phải gọi khung thủ công).
+  4 lớp (`mask` bit 0–3): chung · xe van · chuồng bò · cành thấp — kỹ sư / chó vào xe, bò vào ô chuồng / tới máng đi lộ trình riêng thì bỏ lớp tương ứng;
+  lớp cành chỉ bò dùng (hươu rúc dưới tán ăn lá, người không bị cành chặn).
+- **Thử bước** `colStepOK(M, x0, z0, x1, z1, ang)`: dấu chân elip (`colFH`: nửa dài a theo mũi, nửa rộng b, tâm lệch `ox` theo mũi — `colDims` lấy từ khối
+  thân lớn nhất; chó ox 0,11: ngực + cổ thò trước gốc) trong dải cao [đất + lo, đất + hi] (lo = bậc bước qua được, hi = lưng). Điểm = ĐỘ LẤN có trọng số
+  (mẫu càng gần tâm elip càng nặng): được đi nếu không vướng hoặc không lấn sâu hơn — trượt dọc mặt vật được, đi xuyên cột mảnh thì không, lọt sẵn vào
+  trong thì thoát ra được. Con ↔ con: `colMoverHits` (mỗi elip ≈ 3 hình tròn), `ignore`: chó ↔ kỹ sư lúc vuốt / xoa đầu.
+  `colSlide`: thẳng → lệch ±0,4 / ±0,8 / ±1,2 rad → bước ngang 90° (bị chặn thẳng mặt: cột mảnh, chân mái hiên xe 12 cm — mọi hướng còn thành phần
+  tiến đều lấn sâu hơn). Kẹt liền > 1,5 s ⇒ cho xuyên 2 s (`ghost`); `colTick` (main-loop, mỗi khung) đếm lùi lượt xuyên THEO THỜI GIAN, hết giờ mà
+  thân còn trong vật thì đi nốt (≤ 2 s). `colTurnOK`: xoay tại chỗ cũng thử (thân dài 1,9 m của bò quét vào cây / con bên cạnh) — cho chạm nhẹ (≤ 4% dấu
+  chân, ≤ 5 cm với con khác). `colPushOut` ("depenetration"): thân lấn > 8% vào vật ⇒ đẩy dần ra phía thoáng (≤ 0,6 m/s) — bò (`cowUnstick`), hươu.
+  Gắn vào: bò (`cowSteer` + nhìn trước 1,2 m lái vòng kiểu Reynolds, `cowWander`), hươu, chó (`move`, `dogTurn`), gấu mèo (`move`), thỏ, cò lội (chỉ
+  tránh nhau), kỹ sư (`engStep`; sát bậc cửa xe 1,3 m thì bỏ lớp xe). Lộ trình riêng không thử: chó ra vào xe (`dogRain`), bò lùi ra khỏi ô (lần lượt
+  4,5 s / con, lùi tới khi đầu ra khỏi mép ô 0,9 m, có con đi ngang sau đuôi thì chờ), làn vào ghế của kỹ sư, gấu mèo trong khúc gỗ + đoạn miệng hang.
+- **Mặt đứng** `colWalkY(x, z, ref, up)`: đất cowY hoặc đỉnh khoảng đặc cao nhất ≤ ref + up (lớp 0–2) — chân bò lên sàn chuồng (sàn cao hơn đất 14 cm),
+  chân chó trên đống củi. `colTopAt`: đỉnh thấp có khoảng thoáng phía trên (tìm chỗ đứng lên được).
+- **Bộ chân 4 chi**: bàn chân trụ ngoài tầm với (hông → điểm đặt > 97% chiều dài chân) mà về "nhà" thì với tới ⇒ bước bắt kịp ngay. Chó đứng thấp 5%
+  (hông 92% chiều dài chân; trước 99% — đo 86% lần chân trụ lệch > 3 cm, trung bình 13 cm); bò gặm cỏ nhích chậm bỏ chân lại 0,8 m.
+- **Tương tác** (bước 3): bò GÃI NGỨA vào thân cây (`cowRubTree`: cây ≤ 14 m chưa con nào gãi, bán kính thân đo trên lớp va chạm ở độ cao vai; tới điểm
+  chờ Q cách chỗ cọ 1,7 m dọc tiếp tuyến → xoay song song → đi thẳng dọc thân cây tới khi vai chạm vỏ → cọ 0,33 lần/s 12–25 s, nghiêng mình, cổ ngoảnh vào
+  cây) · chó NHẢY LÊN ĐỐNG CỦI (`dogPerchSpot`: đống củi dựng ngẫu nhiên mỗi lần mở trang ⇒ chọn chỗ 4 góc dấu chân chênh ít nhất ≤ 25 cm; tới điểm bật
+  thoáng gần nhất, nhún, bật vòng cung, đứng / ngồi ngó, nhảy xuống) · chó nằm ở chỗ TRỐNG quanh chủ đang ngồi (`dogLieSpot`) · máng nước 2 chỗ, con thứ ba
+  chờ · bóng cây cho bò cách thân 2,2 m, chỗ đứng trống thật.
+- **Đo** (scratchpad `colaudit.js`: tia trong thân ↔ lưới tĩnh thật, đoạn chân, bàn chân ↔ đất, hộp thân con ↔ con; `colRun` chạy đồng bộ theo lát
+  ≤ 30 s mỗi lần gọi — chạy nền dài thì trang tự nạp lại; `colBoot`, `colSum`, `dogTrace` / `cowTrace` / `exitTrace` / `pairProbe` / `dogProbe`).
+  4800 mẫu sáng–chiều–tối (cây rừng ngẫu nhiên nên mỗi lần nạp khác nhau): trước bước 2 kẹt 482 lần / 70 phút; bản nháp đầu của bước 2–3 kẹt 34,
+  hươu lấn thân cây 0,63 m, bò 0,84 m, chó chạm đồ trại ~180 mẫu; bản 17/10 sau cùng kẹt 4, chó 0 mẫu, lấn thân lớn nhất 0,37 m. Còn: cò chồng nhau khi
+  BAY theo đàn, chân bò chạm mép bệ tua-bin #3 / vách ô chuồng (đứng trong ô), hươu ăn lá thân trên chạm cành (cố ý: dải hươu ≤ 1,35 m).
+  **Bẫy đã dính**: (1) cây rừng rải NGẪU NHIÊN mỗi lần mở trang (`freeTree`) trước khi dựng chuồng ⇒ có lần 1 cây mọc xuyên ô chuồng — `freeTree` loại vùng
+  chuồng + sân + máng; đống củi cũng ngẫu nhiên. (2) Thân cây trên lớp va chạm RỖNG (chỉ voxel hoá mặt vỏ) ⇒ dò bán kính thân từ trong ra phải tìm vòng
+  trống ĐẦU TIÊN SAU KHI ĐÃ GẶP VỎ (bản đầu lấy luôn vòng 0,15 m trong lõi ⇒ chỗ cọ nằm trong thân cây gốc to, bò lấn 0,86 m). (3) Lượt xuyên trước chỉ
+  giảm khi con vật đang bước ⇒ bò đứng gặm cỏ giữ lượt xuyên cả phút, xoay tự do vào thân cây. (4) Đang quay sang hướng mới (130° mất ~2 s) mà tính là
+  "kẹt" ⇒ đi xuyên. (5) Dải cao của bò lấy đỉnh thân theo hệ toạ độ của THÂN (0,96) thay vì độ cao so với đất ⇒ chỉ tới 1,13–1,26 m, lưng bò ~1,6–1,8 m.
+  (6) Điểm đánh hơi / bát nước / vòng chạy của chó chọn theo bảng né cũ (không có lò chiminea; bát cách vòng ghế 11 cm; vòng chạy đi thẳng qua khe 10 cm giữa
+  ghế và bàn) ⇒ chó kẹt / xoay mãi — giờ thử trên lớp va chạm, bát sang phía bắc bậc cửa, ra vòng chạy theo bảng DP. Bài thử khi pane ẩn: lớp va chạm
+  chỉ dựng khi có khung ⇒ gọi `colBuildTick(50)` tới `COL.ready`; trang mở lúc đêm thì chó đang trong xe (`dogRain`).
+
 ## 9. Bầu trời
 
 - `core/sky-sun-moon.js`: mặt trời/mặt trăng vị trí thật Pleiku, là vật 3D trên "vòm" bán kính 150 quanh đảo + đường chấm quỹ đạo

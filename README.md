@@ -17,6 +17,7 @@ Mã nguồn nằm trong `src/` — đây là nơi duy nhất cần sửa (ngay t
 | `src/js/weather.js` | thời tiết Open-Meteo + đồng hồ Pleiku |
 | `src/js/flight-nav.js` | dẫn đường bay cho ong, bướm |
 | `src/app/manifest.txt` | **thứ tự** ghép các mảnh mã cảnh chính (kèm mô tả từng tệp) |
+| `src/app/core/collide.js` | **lớp va chạm kiểu Recast**: voxel hoá tam giác thật của mọi lưới tĩnh (≤ 2,6 m trên mặt đất) thành khoảng đặc theo cột 0,125 m (~1,7 MB, dựng dần ~1 s sau khi mở trang); con vật thử bước bằng dấu chân elip (chặn, trượt men theo, tránh nhau), mặt đứng cho chân (sàn chuồng, đống củi) |
 | `src/app/core/fixed-step.js` | **vật lý bước cố định 120 Hz** dùng chung (`fixedSteps` + alpha nội suy): câu cá, đuôi chó, tai thỏ chạy như nhau ở mọi tốc độ khung hình |
 | `src/app/loop/close-up.js` | **cận cảnh**: bóng nắng ôm vùng đang nhìn (zoom gần bóng sắc nét), vật tròn đổi bản nhiều cạnh khi zoom gần · **độ phân giải tự điều chỉnh** theo thời gian khung |
 | `src/app/core/` | khởi động, bầu trời, mặt trời/mặt trăng theo vị trí thật ở Pleiku (đường chấm = đường đi thật trong ngày của từng thiên thể), mặt nước, địa hình; **gộp lượt vẽ** (`draw-batch.js`); **trời đêm** (`night-sky.js` + `star-catalog.js`: 2.887 sao thật của Yale Bright Star Catalog quay theo giờ sao địa phương, sao mờ sinh thêm dày về Ngân Hà, Ngân Hà theo toạ độ thiên hà, chạng vạng, trăng làm mờ sao, mây che theo độ phủ mây thật, sao băng + lịch các trận mưa sao băng IMO; lớp nền vẽ trước cảnh, chiếu nổi quanh chân trời theo hướng camera) |

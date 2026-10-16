@@ -87,7 +87,9 @@
             if (dist < 0.6 || s.tmr <= 0) { s.state = 'eat'; s.tmr = 30.0; }
             else {   // xoay trước (≤ 80°/giây) · lệch nhiều thì chỉ nhích chậm, gần đúng hướng mới bước đều
               let dturn = Math.atan2(-dz, dx) - g.rotation.y; dturn = Math.atan2(Math.sin(dturn), Math.cos(dturn));
-              g.rotation.y += Math.sign(dturn) * Math.min(Math.abs(dturn), 1.4 * dt); s.ang = g.rotation.y;
+              const ry = g.rotation.y + Math.sign(dturn) * Math.min(Math.abs(dturn), 1.4 * dt);
+              if (!s.col || colTurnOK(s.col, s.x, s.z, -g.rotation.y, -ry)) g.rotation.y = ry;   // xoay quét thân vào thân cây bên cạnh: bước tiếp đã (core/collide.js)
+              s.ang = g.rotation.y;
               want = 1.1 * Math.max(0.15, Math.cos(Math.min(1.5, Math.abs(dturn)))) * Math.min(1, 0.4 + dist / 1.2);
             }
           } else if (s.state === 'eat') {   // vươn cao cổ gặm lá, nhai
@@ -101,7 +103,10 @@
             }
           }
           s.v += Math.max(-1.6 * dt, Math.min(1.0 * dt, want - s.v));   // tăng tốc êm, phanh nhanh hơn
-          const d = s.v * dt; s.x += Math.cos(g.rotation.y) * d; s.z -= Math.sin(g.rotation.y) * d;
+          const d = s.v * dt, mv = s.col ? colSlide(s.col, s.x, s.z, -g.rotation.y, d, dt) : [s.x + Math.cos(g.rotation.y) * d, s.z - Math.sin(g.rotation.y) * d, 0];   // vướng thân cây: men theo (core/collide.js)
+          if (mv) { s.x = mv[0]; s.z = mv[1]; if (mv[2]) { const ry = g.rotation.y - mv[2] * Math.min(1, dt * 3); if (colTurnOK(s.col, s.x, s.z, -g.rotation.y, -ry)) g.rotation.y = ry; } }
+          else { s.v *= 0.5; if (s.state === 'walk' && (s.col.stuck > 1 || Math.hypot(s.targetX - s.x, s.targetZ - s.z) < 1.2)) s.tmr = 0; }   // vướng thân cây khi đã sát đích gặm lá ⇒ coi như tới
+          if (s.col) { const p = colPushOut(s.col, s.x, s.z, -g.rotation.y, dt); if (p) { s.x = p[0]; s.z = p[1]; } }   // lỡ lấn vào thân cây: đẩy dần ra
           g.position.x = s.x; g.position.z = s.z;
           const rig = s.rig, yF = (rig.support(0) + rig.support(1)) / 2, yH = (rig.support(2) + rig.support(3)) / 2;
           g.position.y = stagDamp(P.y, (yF + yH) / 2, 7, dt);

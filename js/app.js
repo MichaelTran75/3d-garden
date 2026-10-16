@@ -2213,6 +2213,7 @@
           if (j < 11 * S && Math.abs(i - riverC(j)) < 13 * S) return false;
           const tx = wx(i), tz = wz(j);
           if (Math.hypot(tx - (X0 + 74), tz - (Z0 + 103)) < 18) return false;
+          if (tx > X0 + 49 && tx < X0 + 62.5 && tz > Z0 + 45.5 && tz < Z0 + 55) return false;
           return true;
         }
         const treeCoords = [];
@@ -4416,7 +4417,7 @@
           cw.rig = quadRig(m, { legs: cw.legs, gaits: {
             walk: { off: [0.27, 0.77, 0, 0.5], duty: 0.65, stride: 1.15 * Sc, lift: 0.085, vRef: 1.0 },
             trot: { off: [0, 0.5, 0.5, 0], duty: 0.45, stride: 1.9 * Sc, lift: 0.12, vRef: 1.8 } },
-            home: (L, out) => out.set(L.hip.position.x, 0, L.hip.position.z), ground: (x, z) => cowY(x, z), size: Sc, settleT: 0.45, settleLift: 0.07 });
+            home: (L, out) => out.set(L.hip.position.x, 0, L.hip.position.z), ground: (x, z) => colWalkY(x, z, cowY(cw.x, cw.z), 0.3 * Sc), size: Sc, settleT: 0.45, settleLift: 0.07 });
           cows.push(cw);
         }
 
@@ -4528,28 +4529,43 @@
         cows.forEach((c, k) => { c.stall = k; c.mode = 'free'; c.leg = ''; c.sub = 'stand'; });
         const cowHutWanted = () => { const h = liveWeather.localHour; return liveWeather.state.raining || h >= 17.9 || h < 6.2; };
         let hutField = null;
-        const COW_SLIDE = [0, 0.35, -0.35, 0.7, -0.7, 1.1, -1.1];
+        const COW_SLIDE = [0, 0.35, -0.35, 0.7, -0.7, 1.1, -1.1, 1.5, -1.5];
         function cowSteer(c, tx, tz, dt, field) {
           const dx = tx - c.x, dz = tz - c.z, dist = Math.hypot(dx, dz);
           if (dist < 0.1) return true;
           let ux = dx / dist, uz = dz / dist;
           if (field && dist > 3) { const f = ffDir(field, c.x, c.z); if (f) { ux = f.x; uz = f.z; } }
+          const K = c.col;
+          if (K && COL.ready && !(K.ghost > 0) && dist > 1.5) {
+            if ((K.avT = (K.avT || 0) - dt) <= 0) {
+              K.avT = 0.3; K.avA = null;
+              const mk = K.mask(), la = Math.min(1.2, dist - 0.5), th = Math.atan2(uz, ux), sg = Math.sin(c.ang - th) >= 0 ? 1 : -1, pr = (a) => colFootHits(c.x + Math.cos(a) * la, c.z + Math.sin(a) * la, a, K.a, K.b, K.lo, K.hi, mk);
+              if (pr(th) > 0) { let bh = Infinity; for (const o of [0.5 * sg, -0.5 * sg, sg, -sg]) { const h = pr(th + o); if (h < bh) { bh = h; K.avA = th + o; } if (h <= 0) break; } }
+            }
+            if (K.avA != null) { ux = Math.cos(K.avA); uz = Math.sin(K.avA); }
+          } else if (K) K.avA = null;
           let da = Math.atan2(uz, ux) - c.ang; da = Math.atan2(Math.sin(da), Math.cos(da));
-          const mt = 1.4 * dt; c.ang += Math.max(-mt, Math.min(mt, dist < 1 ? da : da * Math.min(1, dt * 3)));
+          const mt = 1.4 * dt, na = c.ang + Math.max(-mt, Math.min(mt, dist < 1 ? da : da * Math.min(1, dt * 3)));
+          const turnOK = !K || colTurnOK(K, c.x, c.z, c.ang, na); if (turnOK) c.ang = na;
           c.vk = Math.min(1, (c.vk || 0) + dt / 0.9);
           const step = dist < 0.6 && Math.abs(da) > 0.8 ? 0 : Math.min(dist, c.spd * c.vk * dt * (Math.abs(da) > 1.2 ? 0.25 : Math.abs(da) > 0.5 ? 0.6 : 1));
           const freeHere = !cowBlocked[Math.round(x2gi(c.x)) + Math.round(z2gj(c.z)) * GX];
+          let moved = step <= 0;
           for (const off of COW_SLIDE) {
-            const a = c.ang + off, nx = c.x + Math.cos(a) * step, nz = c.z + Math.sin(a) * step, ni = Math.round(x2gi(nx)), nj = Math.round(z2gj(nz));
+            const a = c.ang + off, sk = Math.abs(off) > 1.2 ? 0.4 : 1, nx = c.x + Math.cos(a) * step * sk, nz = c.z + Math.sin(a) * step * sk, ni = Math.round(x2gi(nx)), nj = Math.round(z2gj(nz));
             if (isWater(ni, nj) && damDeckY(nx, nz) === null) continue;
             if (field && dist > 3 && freeHere && cowBlocked[ni + nj * GX]) continue;
-            c.x = nx; c.z = nz; if (off) c.ang += off * Math.min(1, dt * 4); break;
+            if (c.col && !(c.col.ghost > 0) && !colStepOK(c.col, c.x, c.z, nx, nz, c.ang)) continue;
+            c.x = nx; c.z = nz; moved = true;
+            if (off) { const na2 = c.ang + off * Math.min(1, dt * 4); if (!K || colTurnOK(K, c.x, c.z, c.ang, na2)) c.ang = na2; }
+            break;
           }
+          if (K) { if (moved) K.stuck = 0; else if (Math.abs(da) < 0.5 || !turnOK) colStuck(K, dt); }
           return false;
         }
         function cowHome(c, dt, t, want) {
           if (want && c.mode !== 'home') { c.mode = 'home'; c.leg = c.leg === 'back' ? 'stall' : 'door'; }
-          else if (!want && c.mode === 'home') { if (c.leg === 'door') c.mode = 'free'; else { c.mode = 'leave'; c.leg = 'back'; } }
+          else if (!want && c.mode === 'home') { if (c.leg === 'door' && !damWalkAt(c.x, c.z)) c.mode = 'free'; else if (c.leg === 'door') { c.mode = 'leave'; c.leg = 'pasture'; } else { c.mode = 'leave'; c.leg = 'back'; c.backW = undefined; } }
           if (c.mode === 'free') return false;
           const st = cowHut.stalls[c.stall % cowHut.stalls.length];
           let gait = 0;
@@ -4567,7 +4583,9 @@
               }
             }
           } else if (c.leg === 'back') {
-            if (!rising) { gait = -1; c.vk = Math.min(1, (c.vk || 0) + dt / 0.9); const ez = st.ez - 0.3; c.z = Math.min(ez, c.z + c.spd * 0.45 * c.vk * dt); c.x += (st.x - c.x) * Math.min(1, dt * 2); if (c.z >= ez - 1e-3) c.leg = 'pasture'; }
+            if ((c.backW = (c.backW ?? cows.filter(o => o.mode === 'leave' && o.leg === 'back' && o.stall < c.stall).length * 4.5) - dt) > 0) { c.vk = 0; }
+            else if (cows.some(o => o !== c && o.leg !== 'back' && o.mode !== 'home' && Math.abs(o.x - st.x) < 1.3 && o.z > c.z - 1.2 && o.z < st.ez + 2)) c.vk = 0;
+            else if (!rising) { gait = -1; c.vk = Math.min(1, (c.vk || 0) + dt / 0.9); const ez = st.ez + 0.6; c.z = Math.min(ez, c.z + c.spd * 0.45 * c.vk * dt); c.x += (st.x - c.x) * Math.min(1, dt * 2); if (c.z >= ez - 1e-3) { c.leg = 'pasture'; c.backW = undefined; } }
           } else {
             gait = 1;
             if (cowSteer(c, c.homeX, c.homeZ, dt, c.homeField) || Math.hypot(c.homeX - c.x, c.homeZ - c.z) < 2.5) { c.mode = 'free'; c.leg = ''; c.state = 'graze'; c.tmr = 4 + Math.random() * 6; }
@@ -4592,13 +4610,13 @@
           return null;
         }
         function cowShadeSpot(c) {
-          let best = null, bd = 15; const sx = sun.position.x - sun.target.position.x, sz = sun.position.z - sun.target.position.z, sl = Math.hypot(sx, sz) || 1;
-          for (const tc of treeCoords) { const d = Math.hypot(tc.x - c.x, tc.z - c.z); if (d < bd) { const x = tc.x - sx / sl * 1.6, z = tc.z - sz / sl * 1.6; if (cowOK(x, z)) { bd = d; best = { x, z }; } } }
+          let best = null, bd = 15; const sx = sun.position.x - sun.target.position.x, sz = sun.position.z - sun.target.position.z, sl = Math.hypot(sx, sz) || 1, K = c.col;
+          for (const tc of treeCoords) { const d = Math.hypot(tc.x - c.x, tc.z - c.z); if (d < bd) { const x = tc.x - sx / sl * 2.2, z = tc.z - sz / sl * 2.2; if (cowOK(x, z) && !(K && colFootHits(x, z, 0, K.a, K.a, K.lo, K.hi, 13) > 0)) { bd = d; best = { x, z }; } } }
           return best;
         }
         const _cwV = new THREE.Vector3(), cowSeen = { tr: 0, trOff: 99, trDone: false };
         const cowTroughDist = c => Math.hypot(cowHut.x + cowHut.W / 2 + 2.3 - c.x, cowHut.z + 0.75 - c.z);
-        function cowGoDrink(c) { c.state = 'drink'; c.sub2 = 'go'; c.tmr = 999; c.lieIn = 3; c.watch = 0; }
+        function cowGoDrink(c) { c.state = 'drink'; c.slot = null; c.sub2 = 'go'; c.tmr = 999; c.lieIn = 3; c.watch = 0; }
         function cowWatch(dt) {
           const close = camera.zoom >= 7; let best = null, bd = 0.6;
           if (close) for (const c of cows) { if (c.mode !== 'free') continue; const v = _cwV.copy(c.g.position).project(camera), d = Math.max(Math.abs(v.x), Math.abs(v.y)); if (d < bd) { bd = d; best = c; } }
@@ -4617,12 +4635,34 @@
             }
           } else { S.tr = 0; if ((S.trOff += dt) > 8) S.trDone = false; }
         }
+        function cowRubTree(c) {
+          if (!COL.ready || !c.col) return null;
+          let best = null, bd = 14;
+          for (const T of treeCoords) { const d = Math.hypot(T.x - c.x, T.z - c.z); if (d < bd && d > 1.5 && !cows.some(o => o !== c && o.rub && o.rub.tree === T)) { bd = d; best = T; } }
+          if (!best) return null;
+          const S = c.g.scale.y, g = cowY(best.x, best.z); let rT = 0, seen = false;
+          for (let r = 0.1; r <= 1.2 && !rT; r += 0.05) { let n = 0; for (let k = 0; k < 12; k++) if (colHit(1, best.x + Math.cos(k / 12 * TAU) * r, best.z + Math.sin(k / 12 * TAU) * r, g + 0.6 * S, g + 1.2 * S)) n++; if (n >= 3) seen = true; else if (seen && n <= 1) rT = r; }
+          if (!rT) return null;
+          const nx0 = c.x - best.x, nz0 = c.z - best.z, nl = Math.hypot(nx0, nz0), nx = nx0 / nl, nz = nz0 / nl, K = c.col, off = rT + K.b * 0.92, sh = 0.35 * K.a;
+          let t0x = -nz, t0z = nx; if (t0x * Math.cos(c.ang) + t0z * Math.sin(c.ang) < 0) { t0x = -t0x; t0z = -t0z; }
+          for (const sg of [1, -1]) {
+            const tx = t0x * sg, tz = t0z * sg, ang = Math.atan2(tz, tx), Px = best.x + nx * off - tx * sh, Pz = best.z + nz * off - tz * sh, Qx = Px - tx * 1.7, Qz = Pz - tz * 1.7;
+            if (!cowOK(Qx, Qz) || colFootHits(Qx, Qz, ang, K.a, K.b, K.lo, K.hi, 13) > 0) continue;
+            let ok = true;
+            for (let k = 1; k <= 10 && ok; k++) ok = cowOK(c.x + (Qx - c.x) * k / 10, c.z + (Qz - c.z) * k / 10) && cowOK(Qx + (Px - Qx) * k / 10, Qz + (Pz - Qz) * k / 10);
+            if (!ok) continue;
+            const side = Math.sign((best.x - Px) * -tz + (best.z - Pz) * tx) || 1;
+            return { st: 'go', k: 0, P: new THREE.Vector3(Px, 0, Pz), Q: new THREE.Vector3(Qx, 0, Qz), ang, side, tree: best };
+          }
+          return null;
+        }
         function cowChoose(c) {
           const h = liveWeather.localHour, G = cowGrazeDrive(h), hot = (liveWeather.state.temperature ?? 24) >= 28 && sunElevSin > 0.55;
-          if ((c.thirst || 0) > 1) return 'drink';
+          if ((c.thirst || 0) > 1) { c.slot = null; return 'drink'; }
           const w = { graze: G, rest: (1 - G) * 0.7, stand: (1 - G) * 0.3, walk: 0.12 }, [nb, nd] = cowNear(c);
           if (nb && nd < 7) { if (nb.state === 'rest' || nb.state === 'shade') w.rest += 0.4 * (1.3 - G); else if (nb.state === 'graze') w.graze += 0.4 * (G + 0.3); }
           if (hot) { w.rest += 0.4; w.graze *= 0.5; }
+          if (Math.random() < 0.07) { const R = cowRubTree(c); if (R) { c.rub = R; return 'scratch'; } }
           let r = Math.random() * (w.graze + w.rest + w.stand + w.walk), pick = 'walk';
           for (const k of ['graze', 'rest', 'stand', 'walk']) { if ((r -= w[k]) <= 0) { pick = k; break; } }
           if (pick === 'rest' && hot) { const sp = cowShadeSpot(c); if (sp) { c.goal = sp; return 'shade'; } }
@@ -4631,11 +4671,11 @@
         function cowFreeTick(c, dt, t) {
           c.thirst = (c.thirst ?? Math.random() * 0.9) + dt / 14400;
           const thr = cowThreat(c);
-          if (thr && c.state !== 'flee') { c.state = 'flee'; c.tmr = 4 + Math.random() * 2; c.angT = Math.atan2(c.z - thr.z, c.x - thr.x); }
+          if (thr && c.state !== 'flee') { c.state = 'flee'; c.rub = null; c.slot = null; c.tmr = 4 + Math.random() * 2; c.angT = Math.atan2(c.z - thr.z, c.x - thr.x); }
           c.tmr -= dt;
-          if (c.tmr <= 0 && !(c.state === 'drink' || c.state === 'shade') || (c.state === 'shade' && c.tmr <= 0 && c.sub2 === 'do')) {
+          if (c.tmr <= 0 && !(c.state === 'drink' || c.state === 'shade' || c.state === 'scratch') || (c.state === 'shade' && c.tmr <= 0 && c.sub2 === 'do')) {
             c.state = cowChoose(c); c.sub2 = 'go'; c.lieIn = 3;
-            c.tmr = { graze: 40 + Math.random() * 80, rest: 60 + Math.random() * 120, stand: 25 + Math.random() * 35, walk: 4 + Math.random() * 6, drink: 999, shade: 999 }[c.state];
+            c.tmr = { graze: 40 + Math.random() * 80, rest: 60 + Math.random() * 120, stand: 25 + Math.random() * 35, walk: 4 + Math.random() * 6, drink: 999, shade: 999, scratch: 999 }[c.state];
             if (c.state === 'walk') {
               let mx = 0, mz = 0, n = 0; for (const o of cows) if (o.mode === 'free') { mx += o.x; mz += o.z; n++; }
               c.angT = n > 1 && Math.hypot(mx / n - c.x, mz / n - c.z) > 9 ? Math.atan2(mz / n - c.z, mx / n - c.x) + (Math.random() - 0.5) * 0.6 : c.ang + (Math.random() - 0.5) * 1.7;
@@ -4662,6 +4702,28 @@
               c.restY = Math.min(1, c.restY + dt * 0.38); c.vk = 0; rum(true); break;
             }
             case 'stand': up(); c.vk = 0; rum(false); break;
+            case 'scratch': {
+              const R = c.rub; if (!R) { c.state = 'stand'; c.tmr = 3; break; } if (!up()) { c.vk = 0; break; }
+              R.k += dt; c.hz = -0.08; c.hx = 0;
+              const quit = () => { c.state = 'stand'; c.tmr = 5; c.rub = null; };
+              if (R.st === 'go') { if (cowSteer(c, R.Q.x, R.Q.z, dt, null)) { R.st = 'turn'; R.k = 0; } else if (R.k > 60) quit(); }
+              else if (R.st === 'turn') {
+                c.vk = 0; let da = R.ang - c.ang; da = Math.atan2(Math.sin(da), Math.cos(da)); const na = c.ang + Math.sign(da) * Math.min(Math.abs(da), 1.1 * dt);
+                if (colTurnOK(c.col, c.x, c.z, c.ang, na)) c.ang = na; else if (R.k > 6) { quit(); break; }
+                if (Math.abs(da) < 0.03) { R.st = 'in'; R.k = 0; }
+              }
+              else if (R.st === 'in') {
+                const K = c.col, sp = 0.35 * Math.min(1, R.k / 0.8), ca = Math.cos(R.ang), sa = Math.sin(R.ang), nx = c.x + ca * sp * dt, nz = c.z + sa * sp * dt;
+                if ((R.P.x - c.x) * ca + (R.P.z - c.z) * sa <= 0.02 || colFootHits(nx, nz, R.ang, K.a, K.b, K.lo, K.hi, 13) > 0 || colMoverHits(K, nx, nz, R.ang) > 1e-3) { R.st = 'rub'; R.k = 0; R.dur = 12 + Math.random() * 13; R.P.set(c.x, 0, c.z); }
+                else if (R.k > 12) quit(); else { c.x = nx; c.z = nz; c.vk = 0.4; }
+              }
+              else {
+                c.vk = 0; const s = Math.sin(2 * Math.PI * 0.33 * R.k) * 0.15 * Math.min(1, R.k / 1.5) * Math.min(1, (R.dur - R.k) / 1.5);
+                c.x = R.P.x + Math.cos(R.ang) * s; c.z = R.P.z + Math.sin(R.ang) * s; c.hz = 0.02 + 0.05 * Math.sin(2 * Math.PI * 0.33 * R.k + 1); c.hx = -0.45 * R.side;
+                if (R.k > R.dur) { c.state = 'stand'; c.tmr = 4 + Math.random() * 4; c.rub = null; }
+              }
+              break;
+            }
             case 'graze': {
               if (!up()) { c.vk = 0; break; }
               c.look = (c.look ?? 30 + Math.random() * 20) - dt;
@@ -4673,19 +4735,20 @@
             }
             case 'flee': if (up()) cowWander(c, dt, c.spd * 1.3); else c.vk = 0; c.hz = -0.1; c.hx = 0; break;
             case 'drink': case 'shade': {
-              const tgt = c.state === 'drink' ? _cwT.set(cowHut.x + cowHut.W / 2 + 0.95 + 1.45 * c.g.scale.y, 0, cowHut.z + 0.75) : c.goal;
+              if (c.state === 'drink' && c.slot == null) { const used = cows.filter(o => o !== c && o.state === 'drink' && o.slot != null).map(o => o.slot); c.slot = [0, 1].find(k => !used.includes(k)) ?? null; }
+              const tgt = c.state === 'drink' ? _cwT.set(cowHut.x + cowHut.W / 2 + 0.95 + 1.45 * c.g.scale.y + (c.slot == null ? 2.9 : 0), 0, cowHut.z + 0.75 + (c.slot == null ? 0 : c.slot ? 0.43 : -0.43)) : c.goal;
               if (c.sub2 === 'go') {
                 c.hz = -0.18; c.hx = 0;
                 const far = c.state === 'drink' && Math.hypot(tgt.x - c.x, tgt.z - c.z) > 7;
-                if (up() && cowSteer(c, tgt.x, tgt.z, dt, far ? hutField : null)) { c.sub2 = 'do'; c.tmr = c.state === 'drink' ? 60 + Math.random() * 90 : 120 + Math.random() * 120; c.lieIn = 3; }
-                else if (c.tmr < 999 - 240) { c.state = 'stand'; c.tmr = 5; c.thirst = Math.min(c.thirst, 0.6); }
+                if (up() && cowSteer(c, tgt.x, tgt.z, dt, far ? hutField : null)) { if (c.state === 'drink' && c.slot == null) c.vk = 0; else { c.sub2 = 'do'; c.tmr = c.state === 'drink' ? 60 + Math.random() * 90 : 120 + Math.random() * 120; c.lieIn = 3; } }
+                else if (c.tmr < 999 - 240) { c.state = 'stand'; c.slot = null; c.tmr = 5; c.thirst = Math.min(c.thirst, 0.6); }
               }
               else if (c.state === 'drink') {
                 c.vk = 0; let da = Math.PI - c.ang; da = Math.atan2(Math.sin(da), Math.cos(da)); c.ang += da * Math.min(1, dt * 2);
                 c.sip = (c.sip ?? 15 + Math.random() * 10) - dt;
                 if (c.sip < 0) { c.hz = -0.1; c.hx = 0.3 * Math.sin(t * 0.9 + c.ph); if (c.sip < -2.5) c.sip = 15 + Math.random() * 10; }
                 else { c.hz = -0.32 + 0.04 * Math.sin(t * 3.2); c.hx = 0; c.chew = 0.3; c.reachY = cowHut.y + 0.39; }
-                if (c.tmr <= 0) { c.thirst = 0; c.state = 'stand'; c.mode = 'leave'; c.leg = 'pasture'; }
+                if (c.tmr <= 0) { c.thirst = 0; c.state = 'stand'; c.slot = null; c.mode = 'leave'; c.leg = 'pasture'; }
               } else { if ((c.lieIn -= dt) > 0) { c.vk = 0; c.hz = -0.15; c.reach = 0.08; c.hx = 0.3 * Math.sin(t * 1.4 + c.ph); } else { c.restY = Math.min(1, c.restY + dt * 0.38); c.vk = 0; rum(true); } }
               break;
             }
@@ -4696,10 +4759,20 @@
           if (c.angT === undefined) c.angT = c.ang;
           for (const o of cows) { if (o === c) continue; const dx = o.x - c.x, dz = o.z - c.z, d = Math.hypot(dx, dz); if (d < 1.8 && dx * Math.cos(c.ang) + dz * Math.sin(c.ang) > 0) { c.angT = c.ang + (dx * Math.sin(c.ang) - dz * Math.cos(c.ang) > 0 ? 0.6 : -0.6); break; } }
           let da = c.angT - c.ang; da = Math.atan2(Math.sin(da), Math.cos(da));
-          const mt = 1.2 * dt; c.ang += Math.max(-mt, Math.min(mt, da));
+          const mt = 1.2 * dt, na = c.ang + Math.max(-mt, Math.min(mt, da)), turnOK = !c.col || colTurnOK(c.col, c.x, c.z, c.ang, na);
+          if (turnOK) c.ang = na;
           c.vk = Math.min(1, (c.vk || 0) + dt / 0.9);
           const v = sp * c.vk * (Math.abs(da) > 0.9 ? 0.3 : 1), nx = c.x + Math.cos(c.ang) * v * dt, nz = c.z + Math.sin(c.ang) * v * dt;
-          if (cowOK(nx, nz)) { c.x = nx; c.z = nz; } else if (Math.abs(da) < 0.3) c.angT = c.ang + 2.3;
+          if (cowOK(nx, nz) && (!c.col || c.col.ghost > 0 || colStepOK(c.col, c.x, c.z, nx, nz, c.ang))) { c.x = nx; c.z = nz; if (c.col) c.col.stuck = 0; }
+          else if (sp < 0.3 && c.gwalk > 0) c.gwalk = 0;
+          else {
+            if (Math.abs(da) < 0.3) c.angT = c.ang + (Math.random() < 0.5 ? 2.3 : -2.3);
+            if (c.col && (Math.abs(da) < 0.3 || !turnOK)) colStuck(c.col, dt);
+          }
+        }
+        function cowUnstick(c, dt) {
+          if (!c.col || c.state === 'scratch') return;
+          const p = colPushOut(c.col, c.x, c.z, c.ang, dt); if (p && cowOK(p[0], p[1])) { c.x = p[0]; c.z = p[1]; }
         }
         const cowSm = (a, b, x) => { const k = Math.max(0, Math.min(1, (x - a) / (b - a))); return k * k * (3 - 2 * k); };
         function cowDamp(S, target, w, dt) { const k = w * dt, ex = 1 / (1 + k + 0.48 * k * k + 0.235 * k * k * k), c = S.x - target, tmp = (S.v + w * c) * dt; S.v = (S.v - w * tmp) * ex; S.x = target + (c + tmp) * ex; return S.x; }
@@ -4731,7 +4804,8 @@
           }
           rig.step(dt, dist, P.v, c.gait, h, pitch, fF + fH > 0.02);
           const lat = Math.sin(2 * Math.PI * (psi + 0.055)) * walkA;
-          U.body.position.z = 0.022 * lat; U.body.rotation.x = 0.035 * lat + 0.1 * fH * P.lieSide;
+          P.rb = (P.rb || 0) + ((c.rub && c.rub.st === 'rub' ? 0.07 * c.rub.side : 0) - (P.rb || 0)) * Math.min(1, dt * 2);
+          U.body.position.z = 0.022 * lat; U.body.rotation.x = 0.035 * lat + 0.1 * fH * P.lieSide + P.rb;
           cowDamp(P.hz, c.hz ?? -0.2, 5, dt); cowDamp(P.hx, c.hx ?? 0, 5, dt);
           const mz = _cwM.set(0.21, -0.15, 0).applyMatrix4(U.muzzle.matrixWorld), tgtY = c.reachY ?? (c.reach != null ? cowY(mz.x, mz.z) + c.reach : null);
           P.nk = tgtY === null ? Math.max(0, P.nk - dt * 1.6) : Math.max(0, Math.min(1, P.nk + Math.max(-1.2, Math.min(1.2, (mz.y - tgtY) * 4)) * dt));
@@ -4832,7 +4906,9 @@
             if (dist < 0.6 || s.tmr <= 0) { s.state = 'eat'; s.tmr = 30.0; }
             else {
               let dturn = Math.atan2(-dz, dx) - g.rotation.y; dturn = Math.atan2(Math.sin(dturn), Math.cos(dturn));
-              g.rotation.y += Math.sign(dturn) * Math.min(Math.abs(dturn), 1.4 * dt); s.ang = g.rotation.y;
+              const ry = g.rotation.y + Math.sign(dturn) * Math.min(Math.abs(dturn), 1.4 * dt);
+              if (!s.col || colTurnOK(s.col, s.x, s.z, -g.rotation.y, -ry)) g.rotation.y = ry;
+              s.ang = g.rotation.y;
               want = 1.1 * Math.max(0.15, Math.cos(Math.min(1.5, Math.abs(dturn)))) * Math.min(1, 0.4 + dist / 1.2);
             }
           } else if (s.state === 'eat') {
@@ -4846,7 +4922,10 @@
             }
           }
           s.v += Math.max(-1.6 * dt, Math.min(1.0 * dt, want - s.v));
-          const d = s.v * dt; s.x += Math.cos(g.rotation.y) * d; s.z -= Math.sin(g.rotation.y) * d;
+          const d = s.v * dt, mv = s.col ? colSlide(s.col, s.x, s.z, -g.rotation.y, d, dt) : [s.x + Math.cos(g.rotation.y) * d, s.z - Math.sin(g.rotation.y) * d, 0];
+          if (mv) { s.x = mv[0]; s.z = mv[1]; if (mv[2]) { const ry = g.rotation.y - mv[2] * Math.min(1, dt * 3); if (colTurnOK(s.col, s.x, s.z, -g.rotation.y, -ry)) g.rotation.y = ry; } }
+          else { s.v *= 0.5; if (s.state === 'walk' && (s.col.stuck > 1 || Math.hypot(s.targetX - s.x, s.targetZ - s.z) < 1.2)) s.tmr = 0; }
+          if (s.col) { const p = colPushOut(s.col, s.x, s.z, -g.rotation.y, dt); if (p) { s.x = p[0]; s.z = p[1]; } }
           g.position.x = s.x; g.position.z = s.z;
           const rig = s.rig, yF = (rig.support(0) + rig.support(1)) / 2, yH = (rig.support(2) + rig.support(3)) / 2;
           g.position.y = stagDamp(P.y, (yF + yH) / 2, 7, dt);
@@ -5958,7 +6037,12 @@
           const acc = vWant > v0 ? 2.4 : 4.5; e.vel = v0 + Math.max(-acc * dt, Math.min(acc * dt, vWant - v0));
           let mx = Math.sin(e.g.rotation.y) * 0.75 + ux * 0.25, mz = Math.cos(e.g.rotation.y) * 0.75 + uz * 0.25; const ml = Math.hypot(mx, mz) || 1; mx /= ml; mz /= ml;
           const step = Math.min(e.vel * dt, dist);
-          const nx = e.g.position.x + mx * step, nz = e.g.position.z + mz * step;
+          let nx = e.g.position.x + mx * step, nz = e.g.position.z + mz * step;
+          if (COL.ready && step > 0 && COL_M.eng) {
+            const mv = colSlide(COL_M.eng, e.g.position.x, e.g.position.z, Math.atan2(mz, mx), step, dt);
+            if (!mv) { e.vel *= 0.5; e.walking = true; return false; }
+            nx = mv[0]; nz = mv[1];
+          }
           const gi = Math.round(x2gi(nx)), gj = Math.round(z2gj(nz));
           if (isWater(gi, gj)) { e.vel = 0; return arrive(); }
           e.g.position.x = nx; e.g.position.z = nz;
@@ -8504,7 +8588,7 @@
               if (dd > 1.5) { const f = ffDir(bunnyField, b.x, b.z); if (f) { ux = f.x; uz = f.z; } }
               let da = Math.atan2(uz, ux) - b.ang; da = Math.atan2(Math.sin(da), Math.cos(da)); b.ang += dd < 1 ? da : da * Math.min(1, dt * 6);
               b.hop = (b.hop + dt * 3.6) % 1; const lift = Math.max(0, Math.sin(b.hop * Math.PI)) * 0.5, step = Math.min(dd, b.spd * 1.25 * dt * (0.5 + lift));
-              b.x += Math.cos(b.ang) * step; b.z += Math.sin(b.ang) * step;
+              const mv = b.col ? colSlide(b.col, b.x, b.z, b.ang, step, dt) : [b.x + Math.cos(b.ang) * step, b.z + Math.sin(b.ang) * step]; if (mv) { b.x = mv[0]; b.z = mv[1]; }
               b.g.position.set(b.x, cowY(b.x, b.z) + lift, b.z); b.g.rotation.y = -b.ang;
               b.paws[0].rotation.z = b.paws[1].rotation.z = -0.45 - lift * 0.4; b.head.rotation.z = 0;
             }
@@ -8534,6 +8618,7 @@
         }
         function quadRig(obj, o) {
           const feet = o.legs.map(L => ({ L, w: new THREE.Vector3(), s0: new THREE.Vector3(), tg: new THREE.Vector3(), sw: false, mode: '', u: 0 }));
+          const _hw = new THREE.Vector3(), outReach = (F, home) => { const L = F.L, S = obj.scale.y, R0 = (L.L1 + L.L2) * S * 0.97; L.hip.getWorldPosition(_hw); _hw.y -= (L.ankleH || 0) * S; return _hw.distanceTo(F.w) > R0 && _hw.distanceTo(home) < R0; };
           const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3(), _f = new THREE.Vector3(), last = new THREE.Vector3();
           const ease = k => { k = Math.max(0, Math.min(1, k)); return k * k * (3 - 2 * k); };
           const size = o.size || 0.35, settleT = o.settleT || 0.22, settleLift = o.settleLift || 0.035;
@@ -8567,7 +8652,7 @@
                   if (inSwing && !F.sw) { F.sw = true; F.s0.copy(F.w); F.mode = 'gait'; }
                   else if (!F.sw && swinging < 2) {
                     const ex = F.w.x - _a.x, ez = F.w.z - _a.z;
-                    if (Math.hypot(ex, ez) > Math.max(0.6 * stride, 0.3 * size) || Math.abs(ex * _f.z - ez * _f.x) > 0.3 * size) { F.sw = true; F.mode = 'settle'; F.u = 0; F.s0.copy(F.w); swinging++; }
+                    if (Math.hypot(ex, ez) > Math.max(0.6 * stride, 0.3 * size) || Math.abs(ex * _f.z - ez * _f.x) > 0.3 * size || (!R.fk[i] && outReach(F, _a))) { F.sw = true; F.mode = 'settle'; F.u = 0; F.s0.copy(F.w); swinging++; }
                   }
                   if (F.sw && F.mode === 'gait') {
                     const u = inSwing ? (ph - G.duty) / (1 - G.duty) : 1, ahead = dir * ((1 - u) * (1 - G.duty) + G.duty * 0.5) * T * sp;
@@ -8580,7 +8665,7 @@
                   if (F.sw && F.mode === 'gait') { F.sw = false; F.w.y = o.ground(F.w.x, F.w.z); swinging--; }
                   const d = Math.hypot(F.w.x - _a.x, F.w.z - _a.z);
                   if (posed && d < 0.46 * size) { F.w.lerp(_a, Math.min(1, dt * 6)); F.w.y = _a.y; }
-                  else if ((d > 0.13 * size || Math.abs(F.w.y - _a.y) > 0.3 * size) && swinging < 1) { F.sw = true; F.mode = 'settle'; F.u = 0; F.s0.copy(F.w); swinging++; }
+                  else if ((d > 0.13 * size || Math.abs(F.w.y - _a.y) > 0.3 * size || (!posed && !R.fk[i] && outReach(F, _a))) && swinging < 1) { F.sw = true; F.mode = 'settle'; F.u = 0; F.s0.copy(F.w); swinging++; }
                 }
                 L.hip.getWorldPosition(_c); obj.worldToLocal(_c); const hipX = _c.x, hipY = _c.y, roll = L.hip.parent === obj ? 0 : L.hip.parent.rotation.x;
                 if (R.free[i]) _b.copy(R.free[i]); else { obj.worldToLocal(_b.copy(F.w)); _b.y += L.ankleH || 0; }
@@ -8608,8 +8693,13 @@
           { const steel = new THREE.MeshLambertMaterial({ color: 0xb7bdc2 }), water = new THREE.MeshLambertMaterial({ color: 0x5f8fae });
             const b = new THREE.Mesh(new THREE.LatheGeometry([[0, 0.002], [0.1, 0.002], [0.13, 0.06], [0.14, 0.065]].map(([r, y]) => new THREE.Vector2(r, y)), 18), steel); b.castShadow = true; bowl.add(b);
             const w = new THREE.Mesh(new THREE.CircleGeometry(0.115, 18), water); w.rotation.x = -Math.PI / 2; w.position.y = 0.045; bowl.add(w); }
-          const bowlP = vanPt(1.05, 0, 2.15); bowlP.y = cowY(bowlP.x, bowlP.z); bowl.position.copy(bowlP); scene.add(bowl);
-          const drinkP = bowlP.clone(), toBowl = new THREE.Vector3(); { const vo = dogDoorFar.clone().sub(dogDoorStep).setY(0).normalize(); drinkP.addScaledVector(vo, 0.42); toBowl.copy(bowlP).sub(drinkP).setY(0).normalize(); }
+          const bowlP = new THREE.Vector3(), drinkP = new THREE.Vector3(), toBowl = new THREE.Vector3();
+          { const vo = dogDoorFar.clone().sub(dogDoorStep).setY(0).normalize();
+            const free = () => !ENG_PROPS.some(o => Math.hypot(drinkP.x - o.x, drinkP.z - o.z) < o.r + 0.4 || Math.hypot(bowlP.x - o.x, bowlP.z - o.z) < o.r + 0.2) && !obstacleCoords.some(o => Math.hypot(drinkP.x - o.x, drinkP.z - o.z) < o.r + 0.25);
+            for (const lx of [1.05, -0.75, -0.95, 1.05]) { bowlP.copy(vanPt(lx, 0, 2.15)); drinkP.copy(bowlP).addScaledVector(vo, 0.42); if (free()) break; }
+            bowlP.y = drinkP.y = cowY(bowlP.x, bowlP.z); toBowl.copy(bowlP).sub(drinkP).setY(0).normalize(); }
+          bowl.position.copy(bowlP); scene.add(bowl);
+          let drinkF = null;
           const P = { h: spr(0.12 * s), pitch: spr(0), hp: spr(0.1), hy: spr(0), fold: spr(1), sit: spr(0), bow: spr(0), roll: spr(0), ear: spr(0), wag: spr(0) };
           let v = 0, gait = 'walk', ground = (x, z) => cowY(x, z), turnRate = 0, prevYaw = 0;
           const GAITS = {
@@ -8624,7 +8714,7 @@
             return out.set(x, 0, z);
           }
           function poseTargets(mode) {
-            const T = { h: H0, pitch: 0, fold: 0, sit: 0, bow: 0 };
+            const T = { h: H0 * 0.95, pitch: 0, fold: 0, sit: 0, bow: 0 };
             if (mode === 'lie') { T.h = 0.12 * s; T.fold = 1; }
             else if (mode === 'sit') { T.h = 0.215 * s; T.pitch = 0.5; T.sit = 1; }
             else if (mode === 'bow') { T.h = 0.24 * s; T.pitch = -0.35; T.bow = 1; }
@@ -8654,9 +8744,14 @@
           function move(dt) {
             const acc = B.want > v ? 3.2 : 5; v += Math.max(-acc * dt, Math.min(acc * dt, B.want - v));
             if (v < 1e-3) { v = 0; return 0; }
-            const f = fwdOf(dogObj.rotation.y), p = dogObj.position, nx = p.x + f.x * v * dt, nz = p.z + f.z * v * dt;
+            const f = fwdOf(dogObj.rotation.y), p = dogObj.position; let nx = p.x + f.x * v * dt, nz = p.z + f.z * v * dt;
             if (!B.inside && isWater(Math.round(x2gi(nx)), Math.round(z2gj(nz)))) { v = 0; return 0; }
-            p.x = nx; p.z = nz; return v * dt;
+            if (!B.inside && !dogRain.st && COL_M.dog) {
+              const mv = colSlide(COL_M.dog, p.x, p.z, -dogObj.rotation.y, v * dt, dt);
+              if (!mv) { v *= 0.4; return 0; }
+              nx = mv[0]; nz = mv[1]; if (mv[2]) dogObj.rotation.y -= mv[2] * Math.min(1, dt * 4);
+            }
+            const d = Math.hypot(nx - p.x, nz - p.z); p.x = nx; p.z = nz; return d;
           }
           function body(dt, t) {
             const T = poseTargets(B.mode), psi = rig.psi, c2 = Math.cos(4 * Math.PI * psi), s1 = Math.sin(2 * Math.PI * psi);
@@ -8681,9 +8776,36 @@
           const restP = dogLie.clone();
           if (!dogRain.st) { dogObj.position.set(restP.x, cowY(restP.x, restP.z), restP.z); dogObj.rotation.y = yawOf(pf.x - restP.x, pf.z - restP.z) + 0.4; }
           const eng = () => engObj && !engObj.inVan && engObj.phase !== 'van' && engObj.g.parent === scene ? engObj : null;
-          const randPt = (r0, r1) => { for (let k = 0; k < 14; k++) { const a = Math.random() * 6.2832, r = r0 + Math.random() * (r1 - r0), x = restP.x + Math.cos(a) * r, z = restP.z + Math.sin(a) * r; if (isWater(Math.round(x2gi(x)), Math.round(z2gj(z)))) continue; if (obstacleCoords.some(o => Math.hypot(x - o.x, z - o.z) < o.r + 0.4) || ENG_PROPS.some(o => Math.hypot(x - o.x, z - o.z) < o.r + 0.3)) continue; if (Math.abs(cowY(x, z) - cowY(restP.x, restP.z)) > 0.7) continue; return _a.set(x, 0, z).clone(); } return restP.clone(); };
-          function setSt(st, t) { B.st = st; B.k = 0; B.t = t || 0; }
-          const ZR = 2.2; let zoomC = null;
+          const randPt = (r0, r1) => { for (let k = 0; k < 14; k++) { const a = Math.random() * 6.2832, r = r0 + Math.random() * (r1 - r0), x = restP.x + Math.cos(a) * r, z = restP.z + Math.sin(a) * r; if (isWater(Math.round(x2gi(x)), Math.round(z2gj(z)))) continue; if (obstacleCoords.some(o => Math.hypot(x - o.x, z - o.z) < o.r + 0.4) || ENG_PROPS.some(o => Math.hypot(x - o.x, z - o.z) < o.r + 0.3)) continue; if (Math.abs(cowY(x, z) - cowY(restP.x, restP.z)) > 0.7) continue; if (COL.ready && COL_M.dog && colFootHits(x, z, 0, COL_M.dog.a + 0.15, COL_M.dog.a + 0.15, COL_M.dog.lo, COL_M.dog.hi, 7) > 0) continue; return _a.set(x, 0, z).clone(); } return restP.clone(); };
+          function setSt(st, t) { B.st = st; B.k = 0; B.t = t || 0; if (st !== 'perch') { B.pc = null; B.air = false; } }
+          let perchS;
+          function dogPerchSpot() {
+            if (perchS !== undefined || !COL.ready) return perchS || null;
+            perchS = null; let best = 1e9; const tb = scene.getObjectByName('Bàn trà (Camp Table)'), perchNo = [CAMP_SEAT.pos, FISH_SEAT.pos].concat(tb ? [tb.position] : []);
+            for (let dx = -8; dx <= 8; dx += 0.25) for (let dz = -8; dz <= 8; dz += 0.25) {
+              const x = restP.x + dx, z = restP.z + dz, y = colTopAt(x, z, 0.3, 0.6, 0.6, 1); if (y === null) continue;
+              if (perchNo.some(q => Math.hypot(x - q.x, z - q.z) < 1.0)) continue;
+              let dev = 0; for (const [u, w] of [[-0.15, -0.08], [0.15, -0.08], [-0.15, 0.08], [0.15, 0.08]]) { const y2 = colTopAt(x + u, z + w, 0.15, 0.65, 0.6, 1); dev = Math.max(dev, y2 === null ? 9 : Math.abs(y2 - y)); }
+              const sc = dev + 0.01 * Math.hypot(dx, dz); if (dev <= 0.25 && sc < best) { best = sc; perchS = new THREE.Vector3(x, y, z); }
+            }
+            return perchS;
+          }
+          function dogTurn(yt, k) {
+            let dy = yt - dogObj.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); const ny = dogObj.rotation.y + dy * Math.min(1, k), M = COL_M.dog;
+            if (M && COL.ready && !B.inside) { const p = dogObj.position, mk = M.mask(), h0 = colFH(M, p.x, p.z, -dogObj.rotation.y, mk, 0.08), h1 = colFH(M, p.x, p.z, -ny, mk, 0.08); if (h1 > h0 + 1e-6) return; }
+            dogObj.rotation.y = ny;
+          }
+          function dogLieSpot(ep, ey) {
+            const M = COL_M.dog; if (!M || !COL.ready) return null;
+            for (const R of [1.1, 1.4, 1.7]) for (const a of [0.8, -0.8, 1.3, -1.3, 0.4, -0.4, 1.9, -1.9]) {
+              const x = ep.x + Math.sin(ey + a) * R, z = ep.z + Math.cos(ey + a) * R;
+              if (isWater(Math.round(x2gi(x)), Math.round(z2gj(z))) || Math.abs(cowY(x, z) - cowY(ep.x, ep.z)) > 0.3) continue;
+              if (colFH(M, x, z, Math.atan2(ep.z - z, ep.x - x), 7, 0.12, 0.05, 0.03) > 0 || ENG_PROPS.some(o => Math.hypot(x - o.x, z - o.z) < o.r * 0.6)) continue;
+              return new THREE.Vector3(x, 0, z);
+            }
+            return null;
+          }
+          const ZR = 2.2; let zoomC = null, zoomF = null;
           function zoomCenter() {
             if (zoomC) return zoomC;
             const cw = cherryWind && cherryWind.active ? cherryWind : null, obs = [...obstacleCoords, ...ENG_PROPS]; let best = Infinity;
@@ -8706,6 +8828,7 @@
             const r = Math.random();
             if (r < 0.22) return setSt('drink');
             if (r < 0.36 && (hh < 9 || hh > 16)) return setSt('zoom', 7 + Math.random() * 3);
+            if (r > 0.9 && dogPerchSpot()) return setSt('perch');
             B.n = 3 + Math.floor(Math.random() * 4); setSt('sniff');
           }
           function shelterTick(dt, t) {
@@ -8763,15 +8886,16 @@
               }
               case 'sniff': {
                 B.mode = 'stand'; B.sniff = 1; B.headP = -0.42; B.wagAmp = 0.2; B.wagF = 2.2;
-                if (!B.hasTgt) { B.tgt.copy(randPt(1.5, 6)); B.hasTgt = true; B.pause = 0; }
-                if (B.pause > 0) { B.pause -= dt; B.want = 0; B.headP = -0.75; if (B.pause <= 0) { B.hasTgt = false; if (--B.n <= 0) setSt('return'); } }
+                if (!B.hasTgt) { B.tgt.copy(randPt(1.5, 6)); B.hasTgt = true; B.pause = 0; B.tk = 0; }
+                if (B.pause <= 0 && (B.tk += dt) > 12) { B.hasTgt = false; if (--B.n <= 0) setSt('return'); }
+                else if (B.pause > 0) { B.pause -= dt; B.want = 0; B.headP = -0.75; if (B.pause <= 0) { B.hasTgt = false; if (--B.n <= 0) setSt('return'); } }
                 else if (steer(B.tgt.x + Math.sin(t * 1.3) * 0.25, B.tgt.z + Math.cos(t * 1.1) * 0.25, 0.5, dt, null, 0.3)) B.pause = 1.5 + Math.random() * 2.5;
                 if (E && E.walking && E.g.position.distanceTo(p) < 4 && Math.random() < dt * 0.05) setSt('follow', 40 + Math.random() * 40);
                 break;
               }
               case 'drink': {
                 B.mode = 'stand';
-                if (B.k < 60 && !B.atBowl) { if (steer(drinkP.x, drinkP.z, 1.0, dt, null, 0.08)) { B.atBowl = true; B.k = 0; } B.wagAmp = 0.15; B.wagF = 2; }
+                if (B.k < 60 && !B.atBowl) { if (steer(drinkP.x, drinkP.z, 1.0, dt, drinkF || (drinkF = buildFlowField(drinkP.x, drinkP.z)), 0.08)) { B.atBowl = true; B.k = 0; } B.wagAmp = 0.15; B.wagF = 2; }
                 else {
                   B.want = 0; let dy = yawOf(toBowl.x, toBowl.z) - dogObj.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); dogObj.rotation.y += dy * Math.min(1, dt * 5);
                   B.headP = -0.95 + 0.07 * Math.sin(t * 19); B.wagAmp = 0.1; B.wagF = 1.2;
@@ -8783,7 +8907,8 @@
                 B.mode = 'stand'; B.wagAmp = 0.5; B.wagF = 3;
                 const C = zoomCenter(), dc = Math.hypot(p.x - C.x, p.z - C.z), a = Math.atan2(p.z - C.z, p.x - C.x) + 0.9;
                 if (dc > ZR + 0.8) B.t += dt;
-                steer(C.x + Math.cos(a) * ZR, C.z + Math.sin(a) * ZR, 2.9, dt, null, 0.05);
+                if (dc > ZR + 1.5) steer(C.x, C.z, 2.9, dt, zoomF || (zoomF = buildFlowField(C.x, C.z)), 0.05);
+                else steer(C.x + Math.cos(a) * ZR, C.z + Math.sin(a) * ZR, 2.9, dt, null, 0.05);
                 if (B.t <= 0 || B.k > 25) setSt('return');
                 break;
               }
@@ -8793,19 +8918,52 @@
                 if (B.patAt) {
                   B.t = Math.max(B.t, 3); B.look = _hp.copy(ep).setY(ep.y + 1.2); B.wagAmp = engPetting ? 0.75 : 0.55; B.wagF = engPetting ? 3.4 : 2.8;
                   B.patReady = steer(B.patAt.x, B.patAt.z, 0.9, dt, null, 0.12);
-                  if (B.patReady) { B.want = 0; B.mode = 'sit'; let dy = yawOf(ep.x - p.x, ep.z - p.z) - dogObj.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); dogObj.rotation.y += dy * Math.min(1, dt * 4); }
+                  if (B.patReady) { B.want = 0; B.mode = 'sit'; dogTurn(yawOf(ep.x - p.x, ep.z - p.z), dt * 4); }
                   else B.mode = 'stand';
                   break;
                 }
-                const tx = ep.x - fx * 1.3 + fz * 0.55, tz = ep.z - fz * 1.3 - fx * 0.55;
+                let tx = ep.x - fx * 1.3 + fz * 0.55, tz = ep.z - fz * 1.3 - fx * 0.55;
+                const seated = !!E.seat && E.seat.st === 'seated';
+                if (seated) { if (B.lieAt === null || B.lieAt === undefined) B.lieAt = dogLieSpot(ep, ey) || false; if (B.lieAt) { tx = B.lieAt.x; tz = B.lieAt.z; } } else B.lieAt = null;
                 B.look = _hp.copy(ep).setY(ep.y + 1.2); B.wagAmp = 0.45; B.wagF = 2.6;
-                if (E.walking || d > 2.2) { B.mode = 'stand'; steer(tx, tz, d > 4.5 ? 2.6 : d > 2.4 ? 1.6 : Math.max(0.5, E.vel || 0.7), dt, null, 0.25); }
-                else { B.want = 0; B.mode = E.seat ? 'lie' : 'sit'; let dy = yawOf(ep.x - p.x, ep.z - p.z) - dogObj.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); dogObj.rotation.y += dy * Math.min(1, dt * 3); }
+                if (E.walking || d > 2.2 || (B.lieAt && Math.hypot(tx - p.x, tz - p.z) > 0.25)) { B.mode = 'stand'; steer(tx, tz, d > 4.5 ? 2.6 : d > 2.4 ? 1.6 : Math.max(0.5, E.vel || 0.7), dt, null, B.lieAt ? 0.1 : 0.25); }
+                else { B.want = 0; B.mode = E.seat ? 'lie' : 'sit'; dogTurn(yawOf(ep.x - p.x, ep.z - p.z), dt * 3); }
                 break;
               }
               case 'return': {
                 B.mode = 'stand'; B.wagAmp = 0.15; B.wagF = 2;
                 if (steer(restP.x, restP.z, p.distanceTo(restP) > 3 ? 1.3 : 0.7, dt, p.distanceTo(restP) > 2 ? dogFireField : null, 0.12)) { setSt('circle'); B.n = 1 + Math.random() * 0.8; }
+                break;
+              }
+              case 'perch': {
+                const S0 = dogPerchSpot(); if (!S0) { setSt('return'); break; }
+                const Q = B.pc || (B.pc = { st: 'go', k: 0, A: new THREE.Vector3(), Bp: new THREE.Vector3() });
+                Q.k += dt; B.wagAmp = 0.35; B.wagF = 2.4;
+                if (Q.st === 'go') {
+                  if (Q.k < dt * 1.5) {
+                    const dx = p.x - S0.x, dz = p.z - S0.z, l = Math.hypot(dx, dz) || 1, M = COL_M.dog; let r = 0.45;
+                    while (r < 1.6 && M && colFH(M, S0.x + dx / l * r, S0.z + dz / l * r, Math.atan2(-dz, -dx), 7) > 0) r += 0.05;
+                    Q.A.set(S0.x + dx / l * r, 0, S0.z + dz / l * r);
+                  }
+                  B.mode = 'stand'; B.look = _hp.set(S0.x, S0.y + 0.2, S0.z);
+                  if (steer(Q.A.x, Q.A.z, 0.8, dt, null, 0.08)) { Q.st = 'aim'; Q.k = 0; }
+                  else if (Q.k > 25) { B.pc = null; setSt('return'); }
+                } else if (Q.st === 'aim') { B.want = 0; dogTurn(yawOf(S0.x - p.x, S0.z - p.z), dt * 6); B.mode = Q.k > 0.25 ? 'bow' : 'stand'; if (Q.k > 0.5) { Q.st = 'jump'; Q.k = 0; Q.A.copy(p); Q.y0 = p.y; } }
+                else if (Q.st === 'jump' || Q.st === 'down') {
+                  const T = Q.st === 'jump' ? 0.5 : 0.45, u = Math.min(1, Q.k / T), Ap = Q.A, Bt = Q.st === 'jump' ? S0 : Q.Bp, ya = Q.y0, yb = Q.st === 'jump' ? S0.y : cowY(Bt.x, Bt.z);
+                  p.x = Ap.x + (Bt.x - Ap.x) * u; p.z = Ap.z + (Bt.z - Ap.z) * u; p.y = ya + (yb - ya) * u + Math.sin(Math.PI * u) * 0.28;
+                  B.want = 0; v = 0; B.mode = 'stand'; B.air = true; dogObj.rotation.y = yawOf(Bt.x - Ap.x, Bt.z - Ap.z);
+                  dogObj.updateMatrixWorld(true); rig.plant(() => p.y - 0.01);
+                  if (u >= 1) { B.air = false; if (Q.st === 'jump') { Q.st = 'on'; Q.k = 0; Q.dur = 4 + Math.random() * 4; ground = (x, z) => colWalkY(x, z, S0.y - 0.12, 0.22); } else { B.pc = null; ground = cowY; setSt('return'); } }
+                } else {
+                  B.want = 0; B.mode = Q.k > 1.6 ? 'sit' : 'stand';
+                  const a = Q.k * 0.7; B.look = _hp.set(p.x + Math.cos(a) * 4, p.y + 0.4, p.z + Math.sin(a) * 4);
+                  if (Q.k > Q.dur) {
+                    const f = fwdOf(dogObj.rotation.y); Q.Bp.set(S0.x + f.x * 0.7, 0, S0.z + f.z * 0.7);
+                    if (COL_M.dog && colFH(COL_M.dog, Q.Bp.x, Q.Bp.z, -dogObj.rotation.y, 7) > 0) Q.Bp.set(Q.A.x, 0, Q.A.z);
+                    Q.st = 'down'; Q.k = 0; Q.A.copy(p); Q.y0 = p.y;
+                  }
+                }
                 break;
               }
               case 'circle': {
@@ -8823,11 +8981,12 @@
               if (!shelterTick(dt, t)) behave(dt, t);
               if (gait === 'walk' && v > 1.0) gait = 'trot'; else if (gait === 'trot' && v < 0.8) gait = 'walk'; else if (gait === 'trot' && v > 2.3) gait = 'gallop'; else if (gait === 'gallop' && v < 2.0) gait = 'trot';
               const dist = move(dt);
-              if (dogRain.st !== 'hopIn' && dogRain.st !== 'hopOut') dogObj.position.y = ground(dogObj.position.x, dogObj.position.z);
+              if (dogRain.st !== 'hopIn' && dogRain.st !== 'hopOut' && !B.air) dogObj.position.y = ground(dogObj.position.x, dogObj.position.z);
               body(dt, t); rig.step(dt, dist, v, gait, P.h.x, P.pitch.x, P.fold.x + P.sit.x + P.bow.x > 0.05);
               updateSoftTail(dogTail, dt, U.tail.rotation.y, dogZzzGroup.visible ? 1 : 0);
             },
             pettable: () => !dogRain.st && B.st === 'lie' && dogObj.position.distanceTo(restP) < 0.8,
+            perchSpot: () => dogPerchSpot(),
             state: B, rig
           };
         })();
@@ -10384,6 +10543,7 @@
             const f = fwd(), p = O.position; let nx = p.x + f.x * B.v * dt, nz = p.z + f.z * B.v * dt;
             const push = racAvoidLog(nx, nz); if (push) { nx = push[0]; nz = push[1]; }
             if (isWater(Math.round(x2gi(nx)), Math.round(z2gj(nz)))) { B.v = 0; return 0; }
+            if (COL_M.rac) { const s = Math.hypot(nx - p.x, nz - p.z), mv = colSlide(COL_M.rac, p.x, p.z, Math.atan2(nz - p.z, nx - p.x), s, dt); if (!mv) { B.v *= 0.4; return 0; } nx = mv[0]; nz = mv[1]; }
             const d = Math.hypot(nx - p.x, nz - p.z); p.x = nx; p.z = nz; return d;
           }
           function threat() {
@@ -13351,14 +13511,16 @@
                 if (b.peckElapsed <= 1.65) peck = 1.8 * Math.sin(Math.PI * b.peckElapsed / 1.65);
                 b.caughtFish.visible = b.peckSuccess && b.peckElapsed >= .9 && b.peckElapsed < 2.4;
                 if (b.peckElapsed >= 2.8) { b.peckElapsed = -1; b.caughtFish.visible = false; b.nextPeck = 6 + b.rng() * 4; }
-              } else if (b.nextPeck <= 0) {
+              } else if (b.nextPeck <= 0 && !(b.col && colMoverHits(b.col, b.foot.x, b.foot.z, b.col.ang()) > 0.02)) {
                 b.peckElapsed = 0; b.strikes++; b.peckSuccess = b.strikes % 3 === 0;
                 if (b.peckSuccess) b.catches++;
               } else {
                 const dx = b.wadeTarget.x - b.foot.x, dz = b.wadeTarget.z - b.foot.z, distance = Math.hypot(dx, dz);
-                if (distance < .12) pickStorkWadeTarget(b);
+                if (distance < .12 || (b.col && b.nextPeck <= 0 && colMoverHits(b.col, b.foot.x, b.foot.z, b.col.ang()) > 0.02 && b.rng() < dt * 2)) pickStorkWadeTarget(b);
                 else {
-                  const step = Math.min(distance, dt * .48); b.foot.x += dx / distance * step; b.foot.z += dz / distance * step; moved = step;
+                  const step = Math.min(distance, dt * .48), nx = b.foot.x + dx / distance * step, nz = b.foot.z + dz / distance * step;
+                  if (b.col && !colStepOK(b.col, b.foot.x, b.foot.z, nx, nz, Math.atan2(dz, dx))) pickStorkWadeTarget(b);
+                  else { b.foot.x = nx; b.foot.z = nz; moved = step; }
                   const heading = Math.atan2(dx, dz), turn = Math.atan2(Math.sin(heading - b.m.rotation.y), Math.cos(heading - b.m.rotation.y)); b.m.rotation.y += turn * Math.min(1, dt * 3);
                 }
               }
@@ -14199,6 +14361,238 @@
           }
           RX.po += (pT - RX.po) * (1 - Math.exp(-dt * 7)); e.head.rotation.x += RX.po;
         }
+        const COL = { C: 0.125, T: 32, L: [new Map(), new Map(), new Map(), new Map()], ready: false, queue: null, qi: 0, tris: 0, cells: 0, movers: [] };
+        const COL_GEN = 0, COL_VAN = 1, COL_SHED = 2, COL_BR = 3, COL_TOP = 2.6,
+        COL_SKIP = /^(Cánh đồng pin|Nhà kho mái pin)/;
+        const _clA = new Float64Array(48), _clB = new Float64Array(48), _clC = new Float64Array(48), _clV = new THREE.Vector3(), _clM = new THREE.Matrix4();
+        function colClip(src, n, dst, ax, v, sg) {
+          let m = 0;
+          for (let i = 0, j = n - 1; i < n; j = i, i++) {
+            const da = sg * (src[j * 3 + ax] - v), db = sg * (src[i * 3 + ax] - v);
+            if ((da >= 0) !== (db >= 0)) { const s = da / (da - db); for (let k = 0; k < 3; k++) dst[m * 3 + k] = src[j * 3 + k] + (src[i * 3 + k] - src[j * 3 + k]) * s; m++; }
+            if (db >= 0) { for (let k = 0; k < 3; k++) dst[m * 3 + k] = src[i * 3 + k]; m++; }
+          }
+          return m;
+        }
+        function colAddSpan(layer, xi, zi, y0, y1) {
+          const T = COL.T, ti = Math.floor(xi / T), tj = Math.floor(zi / T), key = ti * 65536 + tj, M = COL.L[layer];
+          let tile = M.get(key); if (!tile) { tile = new Array(T * T); M.set(key, tile); }
+          const ci = (xi - ti * T) + (zi - tj * T) * T; let s = tile[ci];
+          if (!s) { tile[ci] = [y0, y1]; COL.cells++; return; }
+          for (let k = 0; k < s.length; k += 2) if (y0 <= s[k + 1] + 0.03 && y1 >= s[k] - 0.03) {
+            s[k] = Math.min(s[k], y0); s[k + 1] = Math.max(s[k + 1], y1);
+            for (let q = s.length - 2; q > k; q -= 2) if (s[q] <= s[k + 1] + 0.03 && s[q + 1] >= s[k] - 0.03) { s[k] = Math.min(s[k], s[q]); s[k + 1] = Math.max(s[k + 1], s[q + 1]); s.splice(q, 2); }
+            return;
+          }
+          if (s.length >= 12) { s[s.length - 1] = Math.max(s[s.length - 1], y1); return; }
+          s.push(y0, y1);
+        }
+        function colRasterTri(layer, P) {
+          const C = COL.C;
+          let z0 = Infinity, z1 = -Infinity; for (let k = 2; k < 9; k += 3) { z0 = Math.min(z0, P[k]); z1 = Math.max(z1, P[k]); }
+          for (let zi = Math.floor(z0 / C), ze = Math.floor(z1 / C); zi <= ze; zi++) {
+            let n = colClip(P, 3, _clA, 2, zi * C, 1); if (n < 3) continue;
+            n = colClip(_clA, n, _clB, 2, (zi + 1) * C, -1); if (n < 3) continue;
+            let x0 = Infinity, x1 = -Infinity; for (let k = 0; k < n; k++) { x0 = Math.min(x0, _clB[k * 3]); x1 = Math.max(x1, _clB[k * 3]); }
+            for (let xi = Math.floor(x0 / C), xe = Math.floor(x1 / C); xi <= xe; xi++) {
+              let m = colClip(_clB, n, _clC, 0, xi * C, 1); if (m < 3) continue;
+              m = colClip(_clC, m, _clA, 0, (xi + 1) * C, -1); if (m < 3) continue;
+              let y0 = Infinity, y1 = -Infinity; for (let k = 0; k < m; k++) { y0 = Math.min(y0, _clA[k * 3 + 1]); y1 = Math.max(y1, _clA[k * 3 + 1]); }
+              colAddSpan(layer, xi, zi, y0, y1);
+            }
+          }
+        }
+        function colCollect() {
+          const skip = new Set(), add = o => o && o.isObject3D && o.traverse(c => skip.add(c));
+          for (const c of cows) add(c.g); if (stag) add(stag.g); for (const b of bunnies) add(b.g); add(dogObj); add(raccoonObj); add(engObj.g);
+          for (const b of birds) add(b.m); add(songbird.root); for (const b of flock.birds) add(b.root); for (const b of nestPairs.flat()) add(b.root);
+          for (const b of butterflies) add(b.g); for (const f of fishies) add(f.g || f.m); add(campTeaCup); add(grill.keep.g); add(campObj.fish.stick);
+          add(daytimeAnimals); add(nighttimeFireflies);
+          for (const m of terrainMeshes) skip.add(m);
+          const shed = scene.getObjectByName('Chuồng bò (Cow Shed)'), Q = [];
+          const fx = /khói|smoke|mưa|rain|mây|cloud|gợn|ripple|lá rừng|lá cây|cánh hoa|giọt|bọt|đầm sen|lotus|vệt sáng|chùm sáng|ánh đèn|bóng đổ|zzz|nhãn|label|sóng|dây câu|phao/i;
+          scene.traverse(o => {
+            if (!(o.isMesh || o.isInstancedMesh) || o.isSkinnedMesh || skip.has(o) || o.userData.noCollide) return;
+            const g = o.geometry; if (!g || !g.attributes.position) return;
+            if (o.isInstancedMesh && g.attributes.position.count === 24 && Math.abs((g.boundingSphere?.radius || 0) - 0.52) < 0.02) return;
+            for (let p = o; p; p = p.parent) if (!p.visible) return;
+            if (fx.test(o.name + '|' + (o.parent ? o.parent.name : ''))) return;
+            for (let p = o; p; p = p.parent) if (COL_SKIP.test(p.name)) return;
+            const mt = Array.isArray(o.material) ? o.material[0] : o.material; if (!mt || mt.visible === false) return;
+            const tree = o.isInstancedMesh && g.attributes.position.count > 1000;
+            if ((!tree && mt.transparent && mt.opacity < 0.6) || (o.isInstancedMesh && !tree && o.count > 400)) return;
+            let layer = COL_GEN; for (let p = o; p; p = p.parent) { if (p === caravanObj) { layer = COL_VAN; break; } if (p === shed) { layer = COL_SHED; break; } }
+            let trunk = null; for (let p = o; p && !trunk; p = p.parent) { if (appleTrees.includes(p) || /^Cây anh đào/.test(p.name)) trunk = [p.position.x, p.position.z, 0.7]; else if (/^Cây cổ thụ/.test(p.name)) trunk = [p.position.x, p.position.z, 1.6]; }
+            o.updateWorldMatrix(true, false);
+            if (!g.boundingSphere) g.computeBoundingSphere();
+            for (let k = 0, n = o.isInstancedMesh ? o.count : 1; k < n; k++) {
+              const M = new THREE.Matrix4(); if (o.isInstancedMesh) { o.getMatrixAt(k, M); M.premultiply(o.matrixWorld); } else M.copy(o.matrixWorld);
+              const e = M.elements, r = g.boundingSphere.radius * Math.max(Math.hypot(e[0], e[1], e[2]), Math.hypot(e[4], e[5], e[6]), Math.hypot(e[8], e[9], e[10]));
+              if (r < (o.isInstancedMesh && !tree ? 0.25 : 0.04)) continue;
+              const c = _clV.copy(g.boundingSphere.center).applyMatrix4(M); if (c.y - r > cowY(c.x, c.z) + COL_TOP + 0.5) continue;
+              Q.push([g, M, layer, tree ? [e[12], e[14], 0.7, 1.75] : trunk]);
+            }
+          });
+          return Q;
+        }
+        function colBuildTick(budget) {
+          if (COL.ready) return;
+          if (!COL.queue) { COL.queue = colCollect(); COL.qi = 0; COL.ti = 0; return; }
+          const t0 = performance.now(), P = new Float64Array(9);
+          while (performance.now() - t0 < budget) {
+            const job = COL.queue[COL.qi]; if (!job) { colPack(); COL.ready = true; COL.queue = null; return; }
+            const [g, M, layer, tk] = job, pos = g.attributes.position, idx = g.index, nT = (idx ? idx.count : pos.count) / 3, e = M.elements;
+            for (let n = 0; n < 400 && COL.ti < nT; n++, COL.ti++) {
+              let lo = Infinity, hi = -Infinity;
+              for (let v = 0; v < 3; v++) {
+                const i = idx ? idx.getX(COL.ti * 3 + v) : COL.ti * 3 + v, x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+                P[v * 3] = e[0] * x + e[4] * y + e[8] * z + e[12]; P[v * 3 + 1] = e[1] * x + e[5] * y + e[9] * z + e[13]; P[v * 3 + 2] = e[2] * x + e[6] * y + e[10] * z + e[14];
+                lo = Math.min(lo, P[v * 3 + 1]); hi = Math.max(hi, P[v * 3 + 1]);
+              }
+              const mx = (P[0] + P[3] + P[6]) / 3, mz = (P[2] + P[5] + P[8]) / 3, gy = cowY(mx, mz);
+              let L = layer;
+              if (tk && Math.hypot(mx - tk[0], mz - tk[1]) > tk[2]) { if (tk[3] && lo < gy + tk[3]) L = COL_BR; else continue; }
+              const ux = P[3] - P[0], uy = P[4] - P[1], uz = P[5] - P[2], vx = P[6] - P[0], vy = P[7] - P[1], vz = P[8] - P[2], nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+              if (Math.abs(ny) > 0.9 * Math.hypot(nx, ny, nz) && Math.abs((P[1] + P[4] + P[7]) / 3 - gy) < 0.06) continue;
+              if (lo > gy + COL_TOP || hi < gy - 0.05) continue;
+              colRasterTri(L, P); COL.tris++;
+            }
+            if (COL.ti >= nT) { COL.qi++; COL.ti = 0; }
+          }
+        }
+        function colPack() {
+          const T2 = COL.T * COL.T;
+          for (const M of COL.L) for (const [key, tile] of M) {
+            let n = 0; for (let i = 0; i < T2; i++) if (tile[i]) n += tile[i].length;
+            const off = new Uint16Array(T2 + 1), y = new Int16Array(n); let k = 0;
+            for (let i = 0; i < T2; i++) { off[i] = k; const s = tile[i]; if (s) for (const v of s) y[k++] = Math.round(v * 100); }
+            off[T2] = k; M.set(key, { off, y });
+          }
+        }
+        let _colT = null, _colI = 0;
+        function colCell(layer, x, z) {
+          const C = COL.C, T = COL.T, xi = Math.floor(x / C), zi = Math.floor(z / C), ti = Math.floor(xi / T), tj = Math.floor(zi / T);
+          _colT = COL.L[layer].get(ti * 65536 + tj); if (!_colT) return false;
+          _colI = (xi - ti * T) + (zi - tj * T) * T; return _colT.off[_colI + 1] > _colT.off[_colI];
+        }
+        function colHit(mask, x, z, y0, y1) {
+          const a = y0 * 100, b = y1 * 100;
+          for (let L = 0; L < 4; L++) { if (!(mask >> L & 1) || !colCell(L, x, z)) continue; const Y = _colT.y; for (let k = _colT.off[_colI], e = _colT.off[_colI + 1]; k < e; k += 2) if (Y[k] < b && Y[k + 1] > a) return true; }
+          return false;
+        }
+        function colWalkY(x, z, ref, up) {
+          let y = cowY(x, z); if (!COL.ready) return y;
+          const lim = (ref + up) * 100;
+          for (let L = 0; L < 3; L++) { if (!colCell(L, x, z)) continue; const Y = _colT.y; for (let k = _colT.off[_colI], e = _colT.off[_colI + 1]; k < e; k += 2) if (Y[k + 1] > y * 100 && Y[k + 1] <= lim) y = Y[k + 1] / 100; }
+          return y;
+        }
+        function colFootHits(x, z, ang, a, b, lo, hi, mask) {
+          if (!COL.ready) return 0;
+          const ca = Math.cos(ang), sa = Math.sin(ang), g = cowY(x, z), C = COL.C, na = Math.max(1, Math.round(a / C)), nb = Math.max(1, Math.round(b / C));
+          let n = 0;
+          for (let i = -na; i <= na; i++) for (let j = -nb; j <= nb; j++) {
+            const u = i / na, v = j / nb; if (u * u + v * v > 1) continue;
+            const px = x + ca * u * a - sa * v * b, pz = z + sa * u * a + ca * v * b;
+            if (colHit(mask, px, pz, g + lo, g + hi)) n += 1 - 0.9 * (u * u + v * v);
+          }
+          return n;
+        }
+        function colFH(M, x, z, ang, mk = M.mask(), da = 0, db = 0, lo = M.lo) {
+          const o = M.ox || 0;
+          return colFootHits(x + Math.cos(ang) * o, z + Math.sin(ang) * o, ang, M.a + da, M.b + db, lo, M.hi, mk);
+        }
+        function colMoverAdd(o) { COL.movers.push(o); return o; }
+        function colMoverHits(self, x, z, ang) {
+          let s = 0; const ca = Math.cos(ang), sa = Math.sin(ang), rS = self.b, dS = Math.max(0, self.a - self.b); x += ca * (self.ox || 0); z += sa * (self.ox || 0);
+          for (const o of COL.movers) {
+            if (o === self || !o.on() || (self.ignore && self.ignore(o))) continue;
+            const ox = o.x(), oz = o.z(); if (Math.abs(ox - x) > self.a + o.a + 0.1 || Math.abs(oz - z) > self.a + o.a + 0.1) continue;
+            const oa = o.ang(), co = Math.cos(oa), so = Math.sin(oa), rO = o.b, dO = Math.max(0, o.a - o.b), cx = ox + co * (o.ox || 0), cz = oz + so * (o.ox || 0);
+            for (const u of [-1, 0, 1]) for (const v of [-1, 0, 1]) {
+              const d = Math.hypot(x + ca * u * dS - (cx + co * v * dO), z + sa * u * dS - (cz + so * v * dO)), p = rS + rO - d;
+              if (p > 0) s += p;
+            }
+          }
+          return s;
+        }
+        function colStepOK(M, x0, z0, x1, z1, ang) {
+          const h1 = colFH(M, x1, z1, ang);
+          let ok = true;
+          if (h1 > 0) ok = h1 <= colFH(M, x0, z0, ang) + 1e-6;
+          if (ok && COL.movers.length) { const m1 = colMoverHits(M, x1, z1, ang); if (m1 > 1e-3) ok = m1 <= colMoverHits(M, x0, z0, ang) + 1e-4; }
+          return ok;
+        }
+        const COL_SLIDE = [0, 0.4, -0.4, 0.8, -0.8, 1.2, -1.2];
+        function colStuck(M, dt) { if ((M.stuck = (M.stuck || 0) + dt) > 1.5) { M.ghost = 2; M.stuck = 0; } }
+        function colSlide(M, x0, z0, ang, step, dt) {
+          if (!COL.ready || M.ghost > 0) return [x0 + Math.cos(ang) * step, z0 + Math.sin(ang) * step, 0];
+          for (const off of COL_SLIDE) {
+            const a = ang + off, s = step * Math.cos(off * 0.8), x1 = x0 + Math.cos(a) * s, z1 = z0 + Math.sin(a) * s;
+            if (colStepOK(M, x0, z0, x1, z1, ang)) { M.stuck = 0; return [x1, z1, off]; }
+          }
+          const sd = M.sd || 1;
+          for (const off of [1.5708 * sd, -1.5708 * sd]) {
+            const a = ang + off, s = step * 0.35, x1 = x0 + Math.cos(a) * s, z1 = z0 + Math.sin(a) * s;
+            if (colStepOK(M, x0, z0, x1, z1, ang)) { M.stuck = 0; M.sd = Math.sign(off); return [x1, z1, off]; }
+          }
+          colStuck(M, dt); return null;
+        }
+        function colTick(dt) {
+          for (const M of COL.movers) {
+            if (!(M.ghost > 0) || (M.ghost -= dt) > 0) continue;
+            if ((M.gext = (M.gext || 0) + 0.25) <= 2 && colFH(M, M.x(), M.z(), M.ang()) > 0) M.ghost = 0.25; else M.gext = 0;
+          }
+        }
+        function colFootW(M) {
+          if (M.W === undefined) { const na = Math.max(1, Math.round(M.a / COL.C)), nb = Math.max(1, Math.round(M.b / COL.C)); M.W = 0; for (let i = -na; i <= na; i++) for (let j = -nb; j <= nb; j++) { const q = (i / na) ** 2 + (j / nb) ** 2; if (q <= 1) M.W += 1 - 0.9 * q; } }
+          return M.W;
+        }
+        function colTurnOK(M, x, z, a0, a1) {
+          if (!COL.ready || M.ghost > 0 || Math.abs(a1 - a0) < 1e-4) return true;
+          const mk = M.mask(), h1 = colFH(M, x, z, a1, mk);
+          if (h1 > 0.04 * colFootW(M) && h1 > colFH(M, x, z, a0, mk) + 1e-6) return false;
+          if (COL.movers.length) { const m1 = colMoverHits(M, x, z, a1); if (m1 > 0.05 && m1 > colMoverHits(M, x, z, a0) + 1e-4) return false; }
+          return true;
+        }
+        function colPushOut(M, x, z, ang, dt) {
+          if (!COL.ready || M.ghost > 0 || !M.on()) return null;
+          if (!M.pin && (M.pt = (M.pt || 0) - dt) > 0) return null;
+          const mk = M.mask(), f = (px, pz) => colFH(M, px, pz, ang, mk), h0 = f(x, z);
+          if (h0 <= 0.08 * colFootW(M)) { M.pin = false; M.pt = 0.25; return null; }
+          let bx = 0, bz = 0, bh = h0;
+          for (let k = 0; k < 8; k++) { const dx = Math.cos(k * Math.PI / 4), dz = Math.sin(k * Math.PI / 4), h = f(x + dx * 0.25, z + dz * 0.25); if (h < bh) { bh = h; bx = dx; bz = dz; } }
+          M.pin = bh < h0; if (!M.pin) { M.pt = 0.25; return null; }
+          return [x + bx * 0.6 * dt, z + bz * 0.6 * dt];
+        }
+        function colDims(root, pick) {
+          root.updateWorldMatrix(true, true);
+          const inv = new THREE.Matrix4().copy(root.matrixWorld).invert(), M = new THREE.Matrix4(), B = new THREE.Box3(); let best = null, bv = 0;
+          root.traverse(o => { if (!o.isMesh || (pick && !pick(o))) return; const g = o.geometry; if (!g.boundingBox) g.computeBoundingBox(); const b = g.boundingBox.clone().applyMatrix4(M.multiplyMatrices(inv, o.matrixWorld)), s = b.getSize(_clV), v = s.x * s.y * s.z; if (v > bv) { bv = v; best = b; } });
+          const S = root.scale.y; B.copy(best); const cx = (B.min.x + B.max.x) / 2, cz = (B.min.z + B.max.z) / 2;
+          return { a: Math.max(B.max.x - cx, B.max.z - cz) * S, b: Math.min(B.max.x - cx, B.max.z - cz) * S, top: B.max.y * S, bot: B.min.y * S, ox: cx * S };
+        }
+        const COL_M = {};
+        {
+          const m = (o) => colMoverAdd(Object.assign({ stuck: 0, ghost: 0, ignore: null, mask: () => 7 }, o));
+          cows.forEach(c => { const D = colDims(c.g.userData.torso || c.g), S = c.g.scale.y;
+            c.col = m({ kind: 'cow', a: D.a + 0.1 * S, b: D.b, lo: 0.3 * S, hi: 1.6 * S, w: 4, x: () => c.x, z: () => c.z, ang: () => c.ang, on: () => c.g.visible,
+              mask: () => (c.state === 'scratch' && c.rub && c.rub.st === 'rub') ? 0 : c.mode === 'home' || (c.state === 'drink' && c.sub2 !== 'go') || (c.state === 'drink' && Math.hypot(cowHut.x + cowHut.W / 2 + 2.4 - c.x, cowHut.z + 0.75 - c.z) < 3.5) ? 9 : 13 }); });
+          if (stag) { const D = colDims(stag.g, o => !/chân|leg|móng|hoof/i.test(o.name)); stag.col = m({ kind: 'deer', a: D.a, b: D.b, lo: 0.35, hi: Math.min(1.35, Math.max(1.1, D.top)), w: 2, x: () => stag.x, z: () => stag.z, ang: () => -stag.g.rotation.y, on: () => stag.g.visible }); }
+          { const D = colDims(dogObj.userData.torso); COL_M.dog = m({ kind: 'dog', a: D.a + 0.12, b: D.b, ox: D.ox, lo: 0.12, hi: Math.max(0.45, D.top), w: 1, x: () => dogObj.position.x, z: () => dogObj.position.z, ang: () => -dogObj.rotation.y, on: () => !dogRain.st,
+            ignore: o => o.kind === 'eng' && (engPetting || !!dogBrain.state.patAt || engObj.phase === 'toDog' || engObj.phase === 'pet') }); }
+          { const D = colDims(raccoonObj.userData.torso); COL_M.rac = m({ kind: 'rac', a: D.a + 0.1, b: D.b, ox: D.ox + 0.05, lo: 0.1, hi: Math.max(0.35, D.top), w: 1, x: () => raccoonObj.position.x, z: () => raccoonObj.position.z, ang: () => -raccoonObj.rotation.y, on: () => raccoonObj.visible, mask: () => /^(den|exit|enter|out|toMouth)$/.test(raccoonBrain.state.st) || Math.hypot(raccoonObj.position.x - racHome.x, raccoonObj.position.z - racHome.z) < 2.5 ? 0 : 7 }); }
+          bunnies.forEach(b => { const D = colDims(b.g); b.col = m({ kind: 'bunny', a: D.a, b: D.b, lo: 0.12, hi: Math.max(0.5, D.top), w: 0.5, x: () => b.x, z: () => b.z, ang: () => b.ang, on: () => b.g.visible, mask: () => b.shelter ? 5 : 7 }); });
+          COL_M.eng = m({ kind: 'eng', a: 0.24, b: 0.24, lo: 0.25, hi: 1.85, w: 2, x: () => engObj.g.position.x, z: () => engObj.g.position.z, ang: () => 0, on: () => !engObj.inVan && engObj.g.parent === scene && engObj.phase !== 'van',
+            mask: () => Math.hypot(engObj.g.position.x - dogDoorStep.x, engObj.g.position.z - dogDoorStep.z) < 1.3 ? 5 : 7,
+            ignore: o => o.kind === 'dog' && (engPetting || !!dogBrain.state.patAt || engObj.phase === 'toDog' || engObj.phase === 'pet') });
+          birds.forEach(b => { if (b.m && b.foot) b.col = m({ kind: 'stork', a: 0.48, b: 0.22, lo: 0.5, hi: 1.4, w: 1, x: () => b.foot.x, z: () => b.foot.z, ang: () => Math.PI / 2 - b.m.rotation.y, on: () => b.m.visible && b.state === 'wade' }); });
+        }
+        function colTopAt(x, z, lo, hi, clear, mask = 7) {
+          if (!COL.ready) return null; const g = cowY(x, z); let top = null;
+          for (let L = 0; L < 3; L++) { if (!(mask >> L & 1) || !colCell(L, x, z)) continue; const Y = _colT.y, a = _colT.off[_colI], e = _colT.off[_colI + 1];
+            for (let k = a; k < e; k += 2) { const t = Y[k + 1] / 100; if (t - g < lo || t - g > hi) continue; let free = true; for (let q = a; q < e; q += 2) if (Y[q] / 100 > t + 0.02 && Y[q] / 100 < t + clear) { free = false; break; } if (free && (top === null || t > top)) top = t; } }
+          return top;
+        }
         const labelGroup = new THREE.Group(); scene.add(labelGroup);
         function rr(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
         const annotationLabelScale = 0.65;
@@ -14819,6 +15213,7 @@
           if (disposed || suspended) { frameId = 0; return; }
           if (ts !== undefined) adaptResolution(ts);
           frameId = requestAnimationFrame(loop); const dt = Math.min(clock.getDelta(), 0.05) || 1 / 60;
+          if (!COL.ready) colBuildTick(4); else colTick(dt);
           const insectsAwake = liveWeather.wildlifeAwake;
           if (insectsAwake) flightNav.update();
           if (autoRotate) tTheta += 0.0008; theta += (tTheta - theta) * 0.08; phi += (tPhi - phi) * 0.08;
@@ -14860,7 +15255,7 @@
           for (const im of damIMs) im.instanceMatrix.needsUpdate = true;
           const cowWantHut = cowHutWanted();
           cowWatch(dt);
-          for (const c of cows) { if (!cowHome(c, dt, t, cowWantHut)) cowFreeTick(c, dt, t); cowPose(c, dt, t); }
+          for (const c of cows) { if (!cowHome(c, dt, t, cowWantHut)) { cowFreeTick(c, dt, t); cowUnstick(c, dt); } cowPose(c, dt, t); }
           if (stag) stagTick(dt, t);
 
 
@@ -15293,7 +15688,8 @@
                 b.hop = (b.hop + dt * 3.2) % 1;
                 const lift = Math.max(0, Math.sin(b.hop * Math.PI)) * 0.5;
                 const nx = b.x + Math.cos(b.ang) * b.spd * dt * (0.5 + lift), nz = b.z + Math.sin(b.ang) * b.spd * dt * (0.5 + lift);
-                if (bunOK(nx, nz)) { b.x = nx; b.z = nz; } else b.ang += 2.3 + Math.random();
+                if (bunOK(nx, nz) && (!b.col || b.col.ghost > 0 || colStepOK(b.col, b.x, b.z, nx, nz, b.ang))) { b.x = nx; b.z = nz; if (b.col) b.col.stuck = 0; }
+                else { b.ang += 2.3 + Math.random(); if (b.col) colStuck(b.col, dt); }
                 b.g.position.set(b.x, gy + lift, b.z); b.g.rotation.y = -b.ang; b.g.rotation.x = 0;
                 b.paws[0].rotation.z = b.paws[1].rotation.z = -0.45 - lift * 0.4;
                 b.head.rotation.z = 0;

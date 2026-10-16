@@ -49,6 +49,7 @@
             const f = fwd(), p = O.position; let nx = p.x + f.x * B.v * dt, nz = p.z + f.z * B.v * dt;
             const push = racAvoidLog(nx, nz); if (push) { nx = push[0]; nz = push[1]; }
             if (isWater(Math.round(x2gi(nx)), Math.round(z2gj(nz)))) { B.v = 0; return 0; }
+            if (COL_M.rac) { const s = Math.hypot(nx - p.x, nz - p.z), mv = colSlide(COL_M.rac, p.x, p.z, Math.atan2(nz - p.z, nx - p.x), s, dt); if (!mv) { B.v *= 0.4; return 0; } nx = mv[0]; nz = mv[1]; }   // vật cản thật (core/collide.js)
             const d = Math.hypot(nx - p.x, nz - p.z); p.x = nx; p.z = nz; return d;
           }
           function threat() {   // chó đang ở ngoài trong 4 m · người đi tới trong 2,8 m

@@ -63,6 +63,8 @@
           // không cho cây mọc trong bán kính 18m quanh khu caravan (X0 + 74, Z0 + 103)
           const tx = wx(i), tz = wz(j);
           if (Math.hypot(tx - (X0 + 74), tz - (Z0 + 103)) < 18) return false;
+          // chuồng bò (ghim 54, 49) + sân trước chuồng + máng nước bên đông: G 17/10 đo được 1 cây rừng mọc xuyên ô chuồng số 2 (cây rải ngẫu nhiên mỗi lần mở trang)
+          if (tx > X0 + 49 && tx < X0 + 62.5 && tz > Z0 + 45.5 && tz < Z0 + 55) return false;
           return true;
         }
         const treeCoords = [];   // cây rừng đặt SAU khi dựng mẫu nhánh đệ quy (xem bên dưới, sau recTree)

@@ -3,6 +3,7 @@
           if (disposed || suspended) { frameId = 0; return; }
           if (ts !== undefined) adaptResolution(ts);   // độ phân giải tự điều chỉnh (loop/close-up.js)
           frameId = requestAnimationFrame(loop); const dt = Math.min(clock.getDelta(), 0.05) || 1 / 60;   // khung đầu: Clock.getDelta() trả 0 (mô phỏng chia cho dt sẽ ra NaN)
+          if (!COL.ready) colBuildTick(4); else colTick(dt);   // lớp va chạm dựng dần sau khi mở trang · đồng hồ lượt xuyên khi kẹt (core/collide.js)
           const insectsAwake = liveWeather.wildlifeAwake;
           if (insectsAwake) flightNav.update();
           if (autoRotate) tTheta += 0.0008; theta += (tTheta - theta) * 0.08; phi += (tPhi - phi) * 0.08;
@@ -49,7 +50,7 @@
           for (const im of damIMs) im.instanceMatrix.needsUpdate = true;
           const cowWantHut = cowHutWanted();
           cowWatch(dt);   // người xem zoom cận bò / máng nước (animals/cows-hut.js)
-          for (const c of cows) { if (!cowHome(c, dt, t, cowWantHut)) cowFreeTick(c, dt, t); cowPose(c, dt, t); }   // hành vi → dáng (animals/cows-hut.js)
+          for (const c of cows) { if (!cowHome(c, dt, t, cowWantHut)) { cowFreeTick(c, dt, t); cowUnstick(c, dt); } cowPose(c, dt, t); }   // hành vi → dáng (animals/cows-hut.js)
           if (stag) stagTick(dt, t);   // chú hươu: hành vi + bộ chân IK (animals/deer-crab-bunny.js)
 
 

@@ -21,8 +21,15 @@
           { const steel = new THREE.MeshLambertMaterial({ color: 0xb7bdc2 }), water = new THREE.MeshLambertMaterial({ color: 0x5f8fae });
             const b = new THREE.Mesh(new THREE.LatheGeometry([[0, 0.002], [0.1, 0.002], [0.13, 0.06], [0.14, 0.065]].map(([r, y]) => new THREE.Vector2(r, y)), 18), steel); b.castShadow = true; bowl.add(b);
             const w = new THREE.Mesh(new THREE.CircleGeometry(0.115, 18), water); w.rotation.x = -Math.PI / 2; w.position.y = 0.045; bowl.add(w); }
-          const bowlP = vanPt(1.05, 0, 2.15); bowlP.y = cowY(bowlP.x, bowlP.z); bowl.position.copy(bowlP); scene.add(bowl);
-          const drinkP = bowlP.clone(), toBowl = new THREE.Vector3(); { const vo = dogDoorFar.clone().sub(dogDoorStep).setY(0).normalize(); drinkP.addScaledVector(vo, 0.42); toBowl.copy(bowlP).sub(drinkP).setY(0).normalize(); }
+          // chỗ đứng uống phải cách ghế cắm trại / bàn trà ≥ 0,4 m: chỗ cũ (phía nam bậc cửa) chỉ cách vòng ghế 11 cm — mông chó tì lưng ghế, đường tới bát
+          // cắt qua góc ghế (lớp va chạm chặn ⇒ kẹt rồi đi xuyên) ⇒ vướng thì sang phía bắc bậc cửa
+          const bowlP = new THREE.Vector3(), drinkP = new THREE.Vector3(), toBowl = new THREE.Vector3();
+          { const vo = dogDoorFar.clone().sub(dogDoorStep).setY(0).normalize();
+            const free = () => !ENG_PROPS.some(o => Math.hypot(drinkP.x - o.x, drinkP.z - o.z) < o.r + 0.4 || Math.hypot(bowlP.x - o.x, bowlP.z - o.z) < o.r + 0.2) && !obstacleCoords.some(o => Math.hypot(drinkP.x - o.x, drinkP.z - o.z) < o.r + 0.25);
+            for (const lx of [1.05, -0.75, -0.95, 1.05]) { bowlP.copy(vanPt(lx, 0, 2.15)); drinkP.copy(bowlP).addScaledVector(vo, 0.42); if (free()) break; }
+            bowlP.y = drinkP.y = cowY(bowlP.x, bowlP.z); toBowl.copy(bowlP).sub(drinkP).setY(0).normalize(); }
+          bowl.position.copy(bowlP); scene.add(bowl);
+          let drinkF = null;   // bảng DP tới chỗ uống (dựng lần đầu chó đi uống)
           // ---- trạng thái thân + chân ----
           const P = { h: spr(0.12 * s), pitch: spr(0), hp: spr(0.1), hy: spr(0), fold: spr(1), sit: spr(0), bow: spr(0), roll: spr(0), ear: spr(0), wag: spr(0) };
           let v = 0, gait = 'walk', ground = (x, z) => cowY(x, z), turnRate = 0, prevYaw = 0;
@@ -38,7 +45,7 @@
             return out.set(x, 0, z);
           }
           function poseTargets(mode) {   // dáng đích (thân cao, chúc/ngóc) cho từng chế độ
-            const T = { h: H0, pitch: 0, fold: 0, sit: 0, bow: 0 };
+            const T = { h: H0 * 0.95, pitch: 0, fold: 0, sit: 0, bow: 0 };   // đứng: hông ~92% chiều dài chân (trước 99% — chân duỗi thẳng, bước nào cũng hết tầm với)
             if (mode === 'lie') { T.h = 0.12 * s; T.fold = 1; }
             else if (mode === 'sit') { T.h = 0.215 * s; T.pitch = 0.5; T.sit = 1; }
             else if (mode === 'bow') { T.h = 0.24 * s; T.pitch = -0.35; T.bow = 1; }
@@ -69,9 +76,14 @@
           function move(dt) {   // tích phân tốc độ + vị trí theo HƯỚNG THÂN (không trượt ngang); chặn bước xuống nước
             const acc = B.want > v ? 3.2 : 5; v += Math.max(-acc * dt, Math.min(acc * dt, B.want - v));
             if (v < 1e-3) { v = 0; return 0; }
-            const f = fwdOf(dogObj.rotation.y), p = dogObj.position, nx = p.x + f.x * v * dt, nz = p.z + f.z * v * dt;
+            const f = fwdOf(dogObj.rotation.y), p = dogObj.position; let nx = p.x + f.x * v * dt, nz = p.z + f.z * v * dt;
             if (!B.inside && isWater(Math.round(x2gi(nx)), Math.round(z2gj(nz)))) { v = 0; return 0; }
-            p.x = nx; p.z = nz; return v * dt;
+            if (!B.inside && !dogRain.st && COL_M.dog) {   // vướng đồ trại, thân cây, cột thật: men theo; kẹt thì chậm lại (core/collide.js)
+              const mv = colSlide(COL_M.dog, p.x, p.z, -dogObj.rotation.y, v * dt, dt);
+              if (!mv) { v *= 0.4; return 0; }
+              nx = mv[0]; nz = mv[1]; if (mv[2]) dogObj.rotation.y -= mv[2] * Math.min(1, dt * 4);
+            }
+            const d = Math.hypot(nx - p.x, nz - p.z); p.x = nx; p.z = nz; return d;
           }
           // ---- thân, đầu, tai, đuôi ----
           function body(dt, t) {
@@ -102,14 +114,44 @@
           const restP = dogLie.clone();
           if (!dogRain.st) { dogObj.position.set(restP.x, cowY(restP.x, restP.z), restP.z); dogObj.rotation.y = yawOf(pf.x - restP.x, pf.z - restP.z) + 0.4; }
           const eng = () => engObj && !engObj.inVan && engObj.phase !== 'van' && engObj.g.parent === scene ? engObj : null;
-          const randPt = (r0, r1) => { for (let k = 0; k < 14; k++) { const a = Math.random() * 6.2832, r = r0 + Math.random() * (r1 - r0), x = restP.x + Math.cos(a) * r, z = restP.z + Math.sin(a) * r; if (isWater(Math.round(x2gi(x)), Math.round(z2gj(z)))) continue; if (obstacleCoords.some(o => Math.hypot(x - o.x, z - o.z) < o.r + 0.4) || ENG_PROPS.some(o => Math.hypot(x - o.x, z - o.z) < o.r + 0.3)) continue; if (Math.abs(cowY(x, z) - cowY(restP.x, restP.z)) > 0.7) continue; return _a.set(x, 0, z).clone(); } return restP.clone(); };
-          function setSt(st, t) { B.st = st; B.k = 0; B.t = t || 0; }
+          const randPt = (r0, r1) => { for (let k = 0; k < 14; k++) { const a = Math.random() * 6.2832, r = r0 + Math.random() * (r1 - r0), x = restP.x + Math.cos(a) * r, z = restP.z + Math.sin(a) * r; if (isWater(Math.round(x2gi(x)), Math.round(z2gj(z)))) continue; if (obstacleCoords.some(o => Math.hypot(x - o.x, z - o.z) < o.r + 0.4) || ENG_PROPS.some(o => Math.hypot(x - o.x, z - o.z) < o.r + 0.3)) continue; if (Math.abs(cowY(x, z) - cowY(restP.x, restP.z)) > 0.7) continue; if (COL.ready && COL_M.dog && colFootHits(x, z, 0, COL_M.dog.a + 0.15, COL_M.dog.a + 0.15, COL_M.dog.lo, COL_M.dog.hi, 7) > 0) continue; return _a.set(x, 0, z).clone(); } return restP.clone(); };   // điểm trống thật trên lớp va chạm (lò chiminea, đống củi… không có trong bảng né)
+          function setSt(st, t) { B.st = st; B.k = 0; B.t = t || 0; if (st !== 'perch') { B.pc = null; B.air = false; } }
+          let perchS;
+          function dogPerchSpot() {
+            if (perchS !== undefined || !COL.ready) return perchS || null;
+            perchS = null; let best = 1e9; const tb = scene.getObjectByName('Bàn trà (Camp Table)'), perchNo = [CAMP_SEAT.pos, FISH_SEAT.pos].concat(tb ? [tb.position] : []);
+            for (let dx = -8; dx <= 8; dx += 0.25) for (let dz = -8; dz <= 8; dz += 0.25) {
+              const x = restP.x + dx, z = restP.z + dz, y = colTopAt(x, z, 0.3, 0.6, 0.6, 1); if (y === null) continue;
+              if (perchNo.some(q => Math.hypot(x - q.x, z - q.z) < 1.0)) continue;   // không nhảy lên ghế, bàn trà của kỹ sư
+              // đống củi dựng ngẫu nhiên (khúc gỗ tròn xếp chồng): chọn chỗ 4 góc dấu chân chênh ÍT NHẤT (≤ 25 cm), gần chỗ nằm; mỗi chân tự đặt đúng mặt gỗ
+              let dev = 0; for (const [u, w] of [[-0.15, -0.08], [0.15, -0.08], [-0.15, 0.08], [0.15, 0.08]]) { const y2 = colTopAt(x + u, z + w, 0.15, 0.65, 0.6, 1); dev = Math.max(dev, y2 === null ? 9 : Math.abs(y2 - y)); }
+              const sc = dev + 0.01 * Math.hypot(dx, dz); if (dev <= 0.25 && sc < best) { best = sc; perchS = new THREE.Vector3(x, y, z); }
+            }
+            return perchS;
+          }
+          // xoay tại chỗ có kiểm va chạm: xoay mà thân lấn sâu hơn vào vật (ghế, bàn, xe) thì thôi (core/collide.js)
+          function dogTurn(yt, k) {
+            let dy = yt - dogObj.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); const ny = dogObj.rotation.y + dy * Math.min(1, k), M = COL_M.dog;
+            if (M && COL.ready && !B.inside) { const p = dogObj.position, mk = M.mask(), h0 = colFH(M, p.x, p.z, -dogObj.rotation.y, mk, 0.08), h1 = colFH(M, p.x, p.z, -ny, mk, 0.08); if (h1 > h0 + 1e-6) return; }
+            dogObj.rotation.y = ny;
+          }
+          // chỗ nằm trống quanh chủ đang ngồi: thử các hướng 2 bên–trước rồi sau, bán kính 1,1–1,7 m; dấu chân lúc nằm (dài thêm 12 cm) không vướng gì
+          function dogLieSpot(ep, ey) {
+            const M = COL_M.dog; if (!M || !COL.ready) return null;
+            for (const R of [1.1, 1.4, 1.7]) for (const a of [0.8, -0.8, 1.3, -1.3, 0.4, -0.4, 1.9, -1.9]) {
+              const x = ep.x + Math.sin(ey + a) * R, z = ep.z + Math.cos(ey + a) * R;
+              if (isWater(Math.round(x2gi(x)), Math.round(z2gj(z))) || Math.abs(cowY(x, z) - cowY(ep.x, ep.z)) > 0.3) continue;
+              if (colFH(M, x, z, Math.atan2(ep.z - z, ep.x - x), 7, 0.12, 0.05, 0.03) > 0 || ENG_PROPS.some(o => Math.hypot(x - o.x, z - o.z) < o.r * 0.6)) continue;   // nằm sát đất: thử từ 3 cm (chân lò, thanh ngang ghế)
+              return new THREE.Vector3(x, 0, z);
+            }
+            return null;
+          }
           // CHỖ CHẠY VÒNG (zoomies) — G 16/10: vòng cũ quanh bếp lửa luồn qua khe 0,9 m giữa lò chiminea và đống củi, trông như chó xoay mãi một chỗ.
           // Giờ: bãi cỏ trống quanh chỗ nằm (dò 3,5–14 m): dải chạy (bán kính ZR ± 0,6 m) trống trên lưới môi trường (envFree: không vật cản, không nước),
           // ngoài đường, đất chênh ≤ 0,7 m (quanh trại là đất bậc thang: cho qua 1 bậc voxel); TRONG vòng không có vật gì (bản đầu chỉ dò các vòng ⇒ tâm
           // cách gốc táo 0,98 m, chó chạy quanh gốc cây); cách gốc táo ≥ ZR + 1,8, ngoài tán anh đào. Chọn chỗ ít bậc, gần, ngồi ghế cắm trại nhìn
           // thấy (lệch hướng ghế ≤ 1,3 rad), xa tán táo (< 5,4 m thì bị trừ điểm). Tìm 1 lần; không có thì quanh bếp lửa như cũ.
-          const ZR = 2.2; let zoomC = null;
+          const ZR = 2.2; let zoomC = null, zoomF = null;
           function zoomCenter() {
             if (zoomC) return zoomC;
             const cw = cherryWind && cherryWind.active ? cherryWind : null, obs = [...obstacleCoords, ...ENG_PROPS]; let best = Infinity;
@@ -132,6 +174,7 @@
             const r = Math.random();
             if (r < 0.22) return setSt('drink');
             if (r < 0.36 && (hh < 9 || hh > 16)) return setSt('zoom', 7 + Math.random() * 3);
+            if (r > 0.9 && dogPerchSpot()) return setSt('perch');   // nhảy lên đống củi đứng ngó (G 17/10, bước 3)
             B.n = 3 + Math.floor(Math.random() * 4); setSt('sniff');
           }
           function shelterTick(dt, t) {   // mưa / tối: vào xe nằm gầm bàn vuông (giữ nguyên lộ trình cũ: tới cửa → bậc → nhảy lên → giường)
@@ -189,15 +232,16 @@
               }
               case 'sniff': {   // đánh hơi: đi chậm mũi sát đất tới chỗ có mùi, dừng hít, đi tiếp
                 B.mode = 'stand'; B.sniff = 1; B.headP = -0.42; B.wagAmp = 0.2; B.wagF = 2.2;
-                if (!B.hasTgt) { B.tgt.copy(randPt(1.5, 6)); B.hasTgt = true; B.pause = 0; }
-                if (B.pause > 0) { B.pause -= dt; B.want = 0; B.headP = -0.75; if (B.pause <= 0) { B.hasTgt = false; if (--B.n <= 0) setSt('return'); } }
+                if (!B.hasTgt) { B.tgt.copy(randPt(1.5, 6)); B.hasTgt = true; B.pause = 0; B.tk = 0; }
+                if (B.pause <= 0 && (B.tk += dt) > 12) { B.hasTgt = false; if (--B.n <= 0) setSt('return'); }   // 12 s chưa tới (bị vật chắn): đánh hơi chỗ khác — trước đây xoay mãi cạnh lò chiminea
+                else if (B.pause > 0) { B.pause -= dt; B.want = 0; B.headP = -0.75; if (B.pause <= 0) { B.hasTgt = false; if (--B.n <= 0) setSt('return'); } }
                 else if (steer(B.tgt.x + Math.sin(t * 1.3) * 0.25, B.tgt.z + Math.cos(t * 1.1) * 0.25, 0.5, dt, null, 0.3)) B.pause = 1.5 + Math.random() * 2.5;
                 if (E && E.walking && E.g.position.distanceTo(p) < 4 && Math.random() < dt * 0.05) setSt('follow', 40 + Math.random() * 40);
                 break;
               }
               case 'drink': {   // tới bát nước cạnh bậc cửa xe, cúi uống (liếm nước ~3 lần/giây)
                 B.mode = 'stand';
-                if (B.k < 60 && !B.atBowl) { if (steer(drinkP.x, drinkP.z, 1.0, dt, null, 0.08)) { B.atBowl = true; B.k = 0; } B.wagAmp = 0.15; B.wagF = 2; }
+                if (B.k < 60 && !B.atBowl) { if (steer(drinkP.x, drinkP.z, 1.0, dt, drinkF || (drinkF = buildFlowField(drinkP.x, drinkP.z)), 0.08)) { B.atBowl = true; B.k = 0; } B.wagAmp = 0.15; B.wagF = 2; }
                 else {
                   B.want = 0; let dy = yawOf(toBowl.x, toBowl.z) - dogObj.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); dogObj.rotation.y += dy * Math.min(1, dt * 5);
                   B.headP = -0.95 + 0.07 * Math.sin(t * 19); B.wagAmp = 0.1; B.wagF = 1.2;
@@ -210,7 +254,9 @@
                 const C = zoomCenter(), dc = Math.hypot(p.x - C.x, p.z - C.z), a = Math.atan2(p.z - C.z, p.x - C.x) + 0.9;
                 // đang chạy ra bãi: chưa tính giờ chạy vòng (tối đa 25 s cả lượt)
                 if (dc > ZR + 0.8) B.t += dt;
-                steer(C.x + Math.cos(a) * ZR, C.z + Math.sin(a) * ZR, 2.9, dt, null, 0.05);
+                // còn xa bãi: theo bảng DP tới tâm vòng (vòng qua ghế, bàn trà — đi thẳng thì lách vào khe 10 cm giữa ghế và bàn, kẹt ở đó cả phút)
+                if (dc > ZR + 1.5) steer(C.x, C.z, 2.9, dt, zoomF || (zoomF = buildFlowField(C.x, C.z)), 0.05);
+                else steer(C.x + Math.cos(a) * ZR, C.z + Math.sin(a) * ZR, 2.9, dt, null, 0.05);
                 if (B.t <= 0 || B.k > 25) setSt('return');
                 break;
               }
@@ -220,19 +266,54 @@
                 if (B.patAt) {   // chủ gọi lại xoa đầu (engineer/reactions.js): tới trước mặt chủ, ngồi ngẩng nhìn, đuôi vẫy tít
                   B.t = Math.max(B.t, 3); B.look = _hp.copy(ep).setY(ep.y + 1.2); B.wagAmp = engPetting ? 0.75 : 0.55; B.wagF = engPetting ? 3.4 : 2.8;
                   B.patReady = steer(B.patAt.x, B.patAt.z, 0.9, dt, null, 0.12);
-                  if (B.patReady) { B.want = 0; B.mode = 'sit'; let dy = yawOf(ep.x - p.x, ep.z - p.z) - dogObj.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); dogObj.rotation.y += dy * Math.min(1, dt * 4); }
+                  if (B.patReady) { B.want = 0; B.mode = 'sit'; dogTurn(yawOf(ep.x - p.x, ep.z - p.z), dt * 4); }
                   else B.mode = 'stand';
                   break;
                 }
-                const tx = ep.x - fx * 1.3 + fz * 0.55, tz = ep.z - fz * 1.3 - fx * 0.55;
+                // chủ ngồi ghế: nằm ở 1 chỗ TRỐNG quanh chủ (trước đây nằm theo chủ 1,3 m sau lưng = sau ghế cắm trại ⇒ nằm đè ghế, bàn trà — G 17/10 đo 284 lần)
+                let tx = ep.x - fx * 1.3 + fz * 0.55, tz = ep.z - fz * 1.3 - fx * 0.55;
+                const seated = !!E.seat && E.seat.st === 'seated';
+                if (seated) { if (B.lieAt === null || B.lieAt === undefined) B.lieAt = dogLieSpot(ep, ey) || false; if (B.lieAt) { tx = B.lieAt.x; tz = B.lieAt.z; } } else B.lieAt = null;
                 B.look = _hp.copy(ep).setY(ep.y + 1.2); B.wagAmp = 0.45; B.wagF = 2.6;
-                if (E.walking || d > 2.2) { B.mode = 'stand'; steer(tx, tz, d > 4.5 ? 2.6 : d > 2.4 ? 1.6 : Math.max(0.5, E.vel || 0.7), dt, null, 0.25); }
-                else { B.want = 0; B.mode = E.seat ? 'lie' : 'sit'; let dy = yawOf(ep.x - p.x, ep.z - p.z) - dogObj.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); dogObj.rotation.y += dy * Math.min(1, dt * 3); }
+                if (E.walking || d > 2.2 || (B.lieAt && Math.hypot(tx - p.x, tz - p.z) > 0.25)) { B.mode = 'stand'; steer(tx, tz, d > 4.5 ? 2.6 : d > 2.4 ? 1.6 : Math.max(0.5, E.vel || 0.7), dt, null, B.lieAt ? 0.1 : 0.25); }
+                else { B.want = 0; B.mode = E.seat ? 'lie' : 'sit'; dogTurn(yawOf(ep.x - p.x, ep.z - p.z), dt * 3); }
                 break;
               }
               case 'return': {   // về chỗ nằm cạnh bếp lửa
                 B.mode = 'stand'; B.wagAmp = 0.15; B.wagF = 2;
                 if (steer(restP.x, restP.z, p.distanceTo(restP) > 3 ? 1.3 : 0.7, dt, p.distanceTo(restP) > 2 ? dogFireField : null, 0.12)) { setSt('circle'); B.n = 1 + Math.random() * 0.8; }
+                break;
+              }
+              case 'perch': {   // NHẢY LÊN ĐỐNG CỦI: tới mép, nhún, bật vòng cung lên đỉnh (mặt đứng đo trên lớp va chạm), đứng / ngồi ngó quanh, nhảy xuống bên kia
+                const S0 = dogPerchSpot(); if (!S0) { setSt('return'); break; }
+                const Q = B.pc || (B.pc = { st: 'go', k: 0, A: new THREE.Vector3(), Bp: new THREE.Vector3() });
+                Q.k += dt; B.wagAmp = 0.35; B.wagF = 2.4;
+                if (Q.st === 'go') {   // điểm bật: cách tâm đỉnh 0,6 m về phía chó đang đứng
+                  if (Q.k < dt * 1.5) {   // điểm bật = chỗ gần nhất (từ 0,45 m ra) mà thân chó quay vào đống củi không vướng
+                    const dx = p.x - S0.x, dz = p.z - S0.z, l = Math.hypot(dx, dz) || 1, M = COL_M.dog; let r = 0.45;
+                    while (r < 1.6 && M && colFH(M, S0.x + dx / l * r, S0.z + dz / l * r, Math.atan2(-dz, -dx), 7) > 0) r += 0.05;
+                    Q.A.set(S0.x + dx / l * r, 0, S0.z + dz / l * r);
+                  }
+                  B.mode = 'stand'; B.look = _hp.set(S0.x, S0.y + 0.2, S0.z);
+                  if (steer(Q.A.x, Q.A.z, 0.8, dt, null, 0.08)) { Q.st = 'aim'; Q.k = 0; }
+                  else if (Q.k > 25) { B.pc = null; setSt('return'); }
+                } else if (Q.st === 'aim') { B.want = 0; dogTurn(yawOf(S0.x - p.x, S0.z - p.z), dt * 6); B.mode = Q.k > 0.25 ? 'bow' : 'stand'; if (Q.k > 0.5) { Q.st = 'jump'; Q.k = 0; Q.A.copy(p); Q.y0 = p.y; } }   // nhún trước khi bật
+                // bay: vòng cung từ điểm bật tới đỉnh (lên) / từ đỉnh xuống đất; đáp lên đỉnh thì mỗi bàn chân đặt đúng mặt khúc gỗ dưới nó (colWalkY)
+                else if (Q.st === 'jump' || Q.st === 'down') {
+                  const T = Q.st === 'jump' ? 0.5 : 0.45, u = Math.min(1, Q.k / T), Ap = Q.A, Bt = Q.st === 'jump' ? S0 : Q.Bp, ya = Q.y0, yb = Q.st === 'jump' ? S0.y : cowY(Bt.x, Bt.z);
+                  p.x = Ap.x + (Bt.x - Ap.x) * u; p.z = Ap.z + (Bt.z - Ap.z) * u; p.y = ya + (yb - ya) * u + Math.sin(Math.PI * u) * 0.28;
+                  B.want = 0; v = 0; B.mode = 'stand'; B.air = true; dogObj.rotation.y = yawOf(Bt.x - Ap.x, Bt.z - Ap.z);
+                  dogObj.updateMatrixWorld(true); rig.plant(() => p.y - 0.01);
+                  if (u >= 1) { B.air = false; if (Q.st === 'jump') { Q.st = 'on'; Q.k = 0; Q.dur = 4 + Math.random() * 4; ground = (x, z) => colWalkY(x, z, S0.y - 0.12, 0.22); } else { B.pc = null; ground = cowY; setSt('return'); } }
+                } else {   // trên đỉnh: đứng ngó quanh, rồi ngồi; hết giờ: nhảy xuống phía trước (vướng thì quay lại chỗ bật)
+                  B.want = 0; B.mode = Q.k > 1.6 ? 'sit' : 'stand';
+                  const a = Q.k * 0.7; B.look = _hp.set(p.x + Math.cos(a) * 4, p.y + 0.4, p.z + Math.sin(a) * 4);
+                  if (Q.k > Q.dur) {
+                    const f = fwdOf(dogObj.rotation.y); Q.Bp.set(S0.x + f.x * 0.7, 0, S0.z + f.z * 0.7);
+                    if (COL_M.dog && colFH(COL_M.dog, Q.Bp.x, Q.Bp.z, -dogObj.rotation.y, 7) > 0) Q.Bp.set(Q.A.x, 0, Q.A.z);
+                    Q.st = 'down'; Q.k = 0; Q.A.copy(p); Q.y0 = p.y;
+                  }
+                }
                 break;
               }
               case 'circle': {   // xoay 1–2 vòng tại chỗ trước khi nằm (tập tính giẫm ổ)
@@ -251,11 +332,12 @@
               // chọn dáng đi theo tốc độ (có trễ để khỏi đổi qua lại)
               if (gait === 'walk' && v > 1.0) gait = 'trot'; else if (gait === 'trot' && v < 0.8) gait = 'walk'; else if (gait === 'trot' && v > 2.3) gait = 'gallop'; else if (gait === 'gallop' && v < 2.0) gait = 'trot';
               const dist = move(dt);
-              if (dogRain.st !== 'hopIn' && dogRain.st !== 'hopOut') dogObj.position.y = ground(dogObj.position.x, dogObj.position.z);
+              if (dogRain.st !== 'hopIn' && dogRain.st !== 'hopOut' && !B.air) dogObj.position.y = ground(dogObj.position.x, dogObj.position.z);
               body(dt, t); rig.step(dt, dist, v, gait, P.h.x, P.pitch.x, P.fold.x + P.sit.x + P.bow.x > 0.05);
               updateSoftTail(dogTail, dt, U.tail.rotation.y, dogZzzGroup.visible ? 1 : 0);
             },
             pettable: () => !dogRain.st && B.st === 'lie' && dogObj.position.distanceTo(restP) < 0.8,
+            perchSpot: () => dogPerchSpot(),
             state: B, rig
           };
         })();

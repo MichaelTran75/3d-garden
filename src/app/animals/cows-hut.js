@@ -101,7 +101,7 @@
           cw.rig = quadRig(m, { legs: cw.legs, gaits: {   // đi bộ 4 phách trình tự bên (sau-T → trước-T → sau-P → trước-P), chạm đất ~65%; nước kiệu khi vội
             walk: { off: [0.27, 0.77, 0, 0.5], duty: 0.65, stride: 1.15 * Sc, lift: 0.085, vRef: 1.0 },
             trot: { off: [0, 0.5, 0.5, 0], duty: 0.45, stride: 1.9 * Sc, lift: 0.12, vRef: 1.8 } },
-            home: (L, out) => out.set(L.hip.position.x, 0, L.hip.position.z), ground: (x, z) => cowY(x, z), size: Sc, settleT: 0.45, settleLift: 0.07 });
+            home: (L, out) => out.set(L.hip.position.x, 0, L.hip.position.z), ground: (x, z) => colWalkY(x, z, cowY(cw.x, cw.z), 0.3 * Sc), size: Sc, settleT: 0.45, settleLift: 0.07 });   // mặt đứng: đất hoặc sàn chuồng / bậc thấp (core/collide.js)
           cows.push(cw);
         }
 
@@ -232,29 +232,46 @@
         cows.forEach((c, k) => { c.stall = k; c.mode = 'free'; c.leg = ''; c.sub = 'stand'; });
         const cowHutWanted = () => { const h = liveWeather.localHour; return liveWeather.state.raining || h >= 17.9 || h < 6.2; };   // chiều tối hoặc mưa → về chuồng
         let hutField = null;   // trường dòng chảy về cửa chuồng (dựng sau khi lưới cấm sẵn sàng); mỗi con có thêm c.homeField về bãi quen
-        const COW_SLIDE = [0, 0.35, -0.35, 0.7, -0.7, 1.1, -1.1];
+        const COW_SLIDE = [0, 0.35, -0.35, 0.7, -0.7, 1.1, -1.1, 1.5, -1.5];
         function cowSteer(c, tx, tz, dt, field) {   // đi về (tx,tz): xa thì theo trường dòng chảy (vòng qua nước, chuồng), gần thì đi thẳng
           const dx = tx - c.x, dz = tz - c.z, dist = Math.hypot(dx, dz);
           if (dist < 0.1) return true;
           let ux = dx / dist, uz = dz / dist;
           if (field && dist > 3) { const f = ffDir(field, c.x, c.z); if (f) { ux = f.x; uz = f.z; } }
+          // nhìn trước 1,2 m theo hướng muốn đi (kiểu "obstacle avoidance" của Reynolds): thân cây / cột chắn thì lái vòng sang phía thoáng (±29° / ±57°),
+          // khỏi húc vào rồi mới trượt / đi xuyên. Dò lại mỗi 0,3 s; nhìn trước tối đa tới cách đích 0,5 m, còn cách đích < 1,5 m thì thôi (đích sát vật: máng, chỗ gãi)
+          const K = c.col;
+          if (K && COL.ready && !(K.ghost > 0) && dist > 1.5) {
+            if ((K.avT = (K.avT || 0) - dt) <= 0) {
+              K.avT = 0.3; K.avA = null;
+              const mk = K.mask(), la = Math.min(1.2, dist - 0.5), th = Math.atan2(uz, ux), sg = Math.sin(c.ang - th) >= 0 ? 1 : -1, pr = (a) => colFootHits(c.x + Math.cos(a) * la, c.z + Math.sin(a) * la, a, K.a, K.b, K.lo, K.hi, mk);
+              if (pr(th) > 0) { let bh = Infinity; for (const o of [0.5 * sg, -0.5 * sg, sg, -sg]) { const h = pr(th + o); if (h < bh) { bh = h; K.avA = th + o; } if (h <= 0) break; } }
+            }
+            if (K.avA != null) { ux = Math.cos(K.avA); uz = Math.sin(K.avA); }
+          } else if (K) K.avA = null;
           let da = Math.atan2(uz, ux) - c.ang; da = Math.atan2(Math.sin(da), Math.cos(da));
-          const mt = 1.4 * dt; c.ang += Math.max(-mt, Math.min(mt, dist < 1 ? da : da * Math.min(1, dt * 3)));   // quay đầu mượt (bò quay chậm, ≤ 80°/giây), sát đích thì nhắm thẳng
+          const mt = 1.4 * dt, na = c.ang + Math.max(-mt, Math.min(mt, dist < 1 ? da : da * Math.min(1, dt * 3)));   // quay đầu mượt (bò quay chậm, ≤ 80°/giây), sát đích thì nhắm thẳng
+          const turnOK = !K || colTurnOK(K, c.x, c.z, c.ang, na); if (turnOK) c.ang = na;   // xoay mà quét thân vào cây / con bên cạnh thì chưa xoay (đi tiếp / trượt ra đã)
           c.vk = Math.min(1, (c.vk || 0) + dt / 0.9);   // nhấc bước tăng tốc dần ~0,9 s
           const step = dist < 0.6 && Math.abs(da) > 0.8 ? 0 : Math.min(dist, c.spd * c.vk * dt * (Math.abs(da) > 1.2 ? 0.25 : Math.abs(da) > 0.5 ? 0.6 : 1));   // ngoặt gắt sát đích: quay tại chỗ trước
-          // bước thử theo hướng mặt; vướng thì trượt lệch dần ±20°/40°/63° (men theo lan can, vách chuồng, mép nước)
+          // bước thử theo hướng mặt; vướng thì trượt lệch dần ±20°/40°/63° (men theo lan can, vách chuồng, mép nước), chặn thẳng mặt thì nhích ngang ±86°
           const freeHere = !cowBlocked[Math.round(x2gi(c.x)) + Math.round(z2gj(c.z)) * GX];
+          let moved = step <= 0;
           for (const off of COW_SLIDE) {
-            const a = c.ang + off, nx = c.x + Math.cos(a) * step, nz = c.z + Math.sin(a) * step, ni = Math.round(x2gi(nx)), nj = Math.round(z2gj(nz));
+            const a = c.ang + off, sk = Math.abs(off) > 1.2 ? 0.4 : 1, nx = c.x + Math.cos(a) * step * sk, nz = c.z + Math.sin(a) * step * sk, ni = Math.round(x2gi(nx)), nj = Math.round(z2gj(nz));
             if (isWater(ni, nj) && damDeckY(nx, nz) === null) continue;                      // không bao giờ lội sông: chỉ qua bằng mặt đập
             if (field && dist > 3 && freeHere && cowBlocked[ni + nj * GX]) continue;      // không cắt góc xuyên lan can / vách
-            c.x = nx; c.z = nz; if (off) c.ang += off * Math.min(1, dt * 4); break;
+            if (c.col && !(c.col.ghost > 0) && !colStepOK(c.col, c.x, c.z, nx, nz, c.ang)) continue;   // thân cây, cột, vách thật (core/collide.js)
+            c.x = nx; c.z = nz; moved = true;
+            if (off) { const na2 = c.ang + off * Math.min(1, dt * 4); if (!K || colTurnOK(K, c.x, c.z, c.ang, na2)) c.ang = na2; }
+            break;
           }
+          if (K) { if (moved) K.stuck = 0; else if (Math.abs(da) < 0.5 || !turnOK) colStuck(K, dt); }   // đang quay về hướng mới (ra khỏi ô chuồng quay ~180°) thì chưa tính là kẹt
           return false;
         }
         function cowHome(c, dt, t, want) {   // true = bò đang trong lộ trình chuồng (tự lo vị trí + dáng), false = để hành vi gặm cỏ cũ chạy
           if (want && c.mode !== 'home') { c.mode = 'home'; c.leg = c.leg === 'back' ? 'stall' : 'door'; }
-          else if (!want && c.mode === 'home') { if (c.leg === 'door') c.mode = 'free'; else { c.mode = 'leave'; c.leg = 'back'; } }
+          else if (!want && c.mode === 'home') { if (c.leg === 'door' && !damWalkAt(c.x, c.z)) c.mode = 'free'; else if (c.leg === 'door') { c.mode = 'leave'; c.leg = 'pasture'; } else { c.mode = 'leave'; c.leg = 'back'; c.backW = undefined; } }   // hết mưa giữa đường về chuồng: thả tại chỗ — trừ khi đang trên mặt đập (về bãi quen, không gặm cỏ giữa cầu sát lan can)
           if (c.mode === 'free') return false;
           const st = cowHut.stalls[c.stall % cowHut.stalls.length];
           let gait = 0;   // 1 bước tới · -1 lùi · 0 đứng yên
@@ -271,8 +288,12 @@
                 c.tmr = c.sub === 'rest' ? 40 + Math.random() * 60 : 10 + Math.random() * 16;
               }
             }
-          } else if (c.leg === 'back') {   // lùi thẳng ra khỏi ô, mặt vẫn hướng máng
-            if (!rising) { gait = -1; c.vk = Math.min(1, (c.vk || 0) + dt / 0.9); const ez = st.ez - 0.3; c.z = Math.min(ez, c.z + c.spd * 0.45 * c.vk * dt); c.x += (st.x - c.x) * Math.min(1, dt * 2); if (c.z >= ez - 1e-3) c.leg = 'pasture'; }
+          } else if (c.leg === 'back') {   // lùi thẳng ra khỏi ô, mặt vẫn hướng máng — LẦN LƯỢT từng con (~4,5 s / ô): ra cùng lúc thì 3–4 con đứng sát nhau 1,5 m
+            // trước cửa ô, thân dài 1,9 m không con nào xoay được (lớp va chạm chặn xoay quét vào con bên cạnh) ⇒ kẹt rồi đi xuyên nhau
+            // lùi tới khi đầu ra khỏi mép ô ~0,9 m (trước chỉ tới mép: quay người là đầu quét vào cột ô ⇒ bị chặn xoay, kẹt)
+            if ((c.backW = (c.backW ?? cows.filter(o => o.mode === 'leave' && o.leg === 'back' && o.stall < c.stall).length * 4.5) - dt) > 0) { c.vk = 0; }
+            else if (cows.some(o => o !== c && o.leg !== 'back' && o.mode !== 'home' && Math.abs(o.x - st.x) < 1.3 && o.z > c.z - 1.2 && o.z < st.ez + 2)) c.vk = 0;   // con khác (đã ra) đang đi ngang sau đuôi: chờ
+            else if (!rising) { gait = -1; c.vk = Math.min(1, (c.vk || 0) + dt / 0.9); const ez = st.ez + 0.6; c.z = Math.min(ez, c.z + c.spd * 0.45 * c.vk * dt); c.x += (st.x - c.x) * Math.min(1, dt * 2); if (c.z >= ez - 1e-3) { c.leg = 'pasture'; c.backW = undefined; } }
           } else {   // về bãi gặm quen của từng con theo trường dòng chảy riêng (vòng qua chuồng, sông), tới nơi thì thả tự do
             gait = 1;
             if (cowSteer(c, c.homeX, c.homeZ, dt, c.homeField) || Math.hypot(c.homeX - c.x, c.homeZ - c.z) < 2.5) { c.mode = 'free'; c.leg = ''; c.state = 'graze'; c.tmr = 4 + Math.random() * 6; }
@@ -306,9 +327,10 @@
           if (!dogRain.st && Math.hypot(dogObj.position.x - c.x, dogObj.position.z - c.z) < 3.5) return dogObj.position;
           return null;
         }
-        function cowShadeSpot(c) {   // bóng cây gần nhất (≤ 15 m), phía khuất nắng của thân cây
-          let best = null, bd = 15; const sx = sun.position.x - sun.target.position.x, sz = sun.position.z - sun.target.position.z, sl = Math.hypot(sx, sz) || 1;
-          for (const tc of treeCoords) { const d = Math.hypot(tc.x - c.x, tc.z - c.z); if (d < bd) { const x = tc.x - sx / sl * 1.6, z = tc.z - sz / sl * 1.6; if (cowOK(x, z)) { bd = d; best = { x, z }; } } }
+        function cowShadeSpot(c) {   // bóng cây gần nhất (≤ 15 m), phía khuất nắng của thân cây — cách tâm thân 2,2 m: bò dài 1,9 m xoay hướng nào cũng không chạm thân
+          // cây (1,6 m cũ: mõm / mông tì vào gốc to); chỗ đứng trống thật trên lớp va chạm (cây rừng khác, cột)
+          let best = null, bd = 15; const sx = sun.position.x - sun.target.position.x, sz = sun.position.z - sun.target.position.z, sl = Math.hypot(sx, sz) || 1, K = c.col;
+          for (const tc of treeCoords) { const d = Math.hypot(tc.x - c.x, tc.z - c.z); if (d < bd) { const x = tc.x - sx / sl * 2.2, z = tc.z - sz / sl * 2.2; if (cowOK(x, z) && !(K && colFootHits(x, z, 0, K.a, K.a, K.lo, K.hi, 13) > 0)) { bd = d; best = { x, z }; } } }
           return best;
         }
         // ---- NGƯỜI XEM ZOOM CẬN (G 15/10): cữ uống thật thưa ⇒ hiếm khi trùng lúc có người xem. Zoom cận 1 con (camera.zoom ≥ 7, con đó gần giữa
@@ -318,7 +340,7 @@
         //      ứng; rời khung ≥ 8 s mới tính lại.
         const _cwV = new THREE.Vector3(), cowSeen = { tr: 0, trOff: 99, trDone: false };
         const cowTroughDist = c => Math.hypot(cowHut.x + cowHut.W / 2 + 2.3 - c.x, cowHut.z + 0.75 - c.z);
-        function cowGoDrink(c) { c.state = 'drink'; c.sub2 = 'go'; c.tmr = 999; c.lieIn = 3; c.watch = 0; }
+        function cowGoDrink(c) { c.state = 'drink'; c.slot = null; c.sub2 = 'go'; c.tmr = 999; c.lieIn = 3; c.watch = 0; }
         function cowWatch(dt) {
           const close = camera.zoom >= 7; let best = null, bd = 0.6;
           if (close) for (const c of cows) { if (c.mode !== 'free') continue; const v = _cwV.copy(c.g.position).project(camera), d = Math.max(Math.abs(v.x), Math.abs(v.y)); if (d < bd) { bd = d; best = c; } }
@@ -337,12 +359,38 @@
             }
           } else { S.tr = 0; if ((S.trOff += dt) > 8) S.trDone = false; }
         }
+        // cây gần (≤ 14 m, cùng bờ, đi thẳng tới được) để gãi ngứa: bán kính thân đo ở độ cao vai trên lớp va chạm (core/collide.js); chỗ đứng P = vai sát
+        // thân cây. Tới điểm chờ Q cách P 1,7 m dọc tiếp tuyến, xoay song song rồi mới đi dọc thân cây vào P (đi thẳng vào P thì đầu húc xuyên thân cây lúc quay)
+        function cowRubTree(c) {
+          if (!COL.ready || !c.col) return null;
+          let best = null, bd = 14;
+          for (const T of treeCoords) { const d = Math.hypot(T.x - c.x, T.z - c.z); if (d < bd && d > 1.5 && !cows.some(o => o !== c && o.rub && o.rub.tree === T)) { bd = d; best = T; } }   // mỗi cây 1 con
+          if (!best) return null;
+          // bán kính thân: vòng đầu tiên KHÔNG chạm sau khi đã gặp vỏ — thân cây trên lớp va chạm RỖNG (chỉ voxel hoá mặt vỏ), vòng nhỏ trong lõi thân to
+          // cũng không chạm (bản đầu lấy luôn 0,15 m ⇒ chỗ đứng nằm trong thân cây gốc to)
+          const S = c.g.scale.y, g = cowY(best.x, best.z); let rT = 0, seen = false;
+          for (let r = 0.1; r <= 1.2 && !rT; r += 0.05) { let n = 0; for (let k = 0; k < 12; k++) if (colHit(1, best.x + Math.cos(k / 12 * TAU) * r, best.z + Math.sin(k / 12 * TAU) * r, g + 0.6 * S, g + 1.2 * S)) n++; if (n >= 3) seen = true; else if (seen && n <= 1) rT = r; }
+          if (!rT) return null;
+          const nx0 = c.x - best.x, nz0 = c.z - best.z, nl = Math.hypot(nx0, nz0), nx = nx0 / nl, nz = nz0 / nl, K = c.col, off = rT + K.b * 0.92, sh = 0.35 * K.a;
+          let t0x = -nz, t0z = nx; if (t0x * Math.cos(c.ang) + t0z * Math.sin(c.ang) < 0) { t0x = -t0x; t0z = -t0z; }   // ưu tiên chiều xuôi theo hướng đang đứng
+          for (const sg of [1, -1]) {
+            const tx = t0x * sg, tz = t0z * sg, ang = Math.atan2(tz, tx), Px = best.x + nx * off - tx * sh, Pz = best.z + nz * off - tz * sh, Qx = Px - tx * 1.7, Qz = Pz - tz * 1.7;
+            if (!cowOK(Qx, Qz) || colFootHits(Qx, Qz, ang, K.a, K.b, K.lo, K.hi, 13) > 0) continue;   // điểm chờ thoáng (không vướng cây khác, cành thấp, vách, cột)
+            let ok = true;
+            for (let k = 1; k <= 10 && ok; k++) ok = cowOK(c.x + (Qx - c.x) * k / 10, c.z + (Qz - c.z) * k / 10) && cowOK(Qx + (Px - Qx) * k / 10, Qz + (Pz - Qz) * k / 10);   // đường thẳng tới (không qua sông, chuồng, mép bãi)
+            if (!ok) continue;
+            const side = Math.sign((best.x - Px) * -tz + (best.z - Pz) * tx) || 1;   // cây ở bên trái (+1) / phải (−1) thân bò
+            return { st: 'go', k: 0, P: new THREE.Vector3(Px, 0, Pz), Q: new THREE.Vector3(Qx, 0, Qz), ang, side, tree: best };
+          }
+          return null;
+        }
         function cowChoose(c) {
           const h = liveWeather.localHour, G = cowGrazeDrive(h), hot = (liveWeather.state.temperature ?? 24) >= 28 && sunElevSin > 0.55;
-          if ((c.thirst || 0) > 1) return 'drink';
+          if ((c.thirst || 0) > 1) { c.slot = null; return 'drink'; }
           const w = { graze: G, rest: (1 - G) * 0.7, stand: (1 - G) * 0.3, walk: 0.12 }, [nb, nd] = cowNear(c);
           if (nb && nd < 7) { if (nb.state === 'rest' || nb.state === 'shade') w.rest += 0.4 * (1.3 - G); else if (nb.state === 'graze') w.graze += 0.4 * (G + 0.3); }   // bắt chước con gần — mạnh hay yếu theo nhịp giờ (nhịp giờ vẫn thắng về lâu)
           if (hot) { w.rest += 0.4; w.graze *= 0.5; }
+          if (Math.random() < 0.07) { const R = cowRubTree(c); if (R) { c.rub = R; return 'scratch'; } }   // gãi ngứa: cọ vai / cổ vào thân cây gần (G 17/10, bước 3)
           let r = Math.random() * (w.graze + w.rest + w.stand + w.walk), pick = 'walk';
           for (const k of ['graze', 'rest', 'stand', 'walk']) { if ((r -= w[k]) <= 0) { pick = k; break; } }
           if (pick === 'rest' && hot) { const sp = cowShadeSpot(c); if (sp) { c.goal = sp; return 'shade'; } }
@@ -351,11 +399,11 @@
         function cowFreeTick(c, dt, t) {
           c.thirst = (c.thirst ?? Math.random() * 0.9) + dt / 14400;   // cữ uống ~4 giờ thả bãi ⇒ 2–3 lần/ngày (OSU: 2–5 lần)
           const thr = cowThreat(c);
-          if (thr && c.state !== 'flee') { c.state = 'flee'; c.tmr = 4 + Math.random() * 2; c.angT = Math.atan2(c.z - thr.z, c.x - thr.x); }
+          if (thr && c.state !== 'flee') { c.state = 'flee'; c.rub = null; c.slot = null; c.tmr = 4 + Math.random() * 2; c.angT = Math.atan2(c.z - thr.z, c.x - thr.x); }
           c.tmr -= dt;
-          if (c.tmr <= 0 && !(c.state === 'drink' || c.state === 'shade') || (c.state === 'shade' && c.tmr <= 0 && c.sub2 === 'do')) {
+          if (c.tmr <= 0 && !(c.state === 'drink' || c.state === 'shade' || c.state === 'scratch') || (c.state === 'shade' && c.tmr <= 0 && c.sub2 === 'do')) {
             c.state = cowChoose(c); c.sub2 = 'go'; c.lieIn = 3;
-            c.tmr = { graze: 40 + Math.random() * 80, rest: 60 + Math.random() * 120, stand: 25 + Math.random() * 35, walk: 4 + Math.random() * 6, drink: 999, shade: 999 }[c.state];
+            c.tmr = { graze: 40 + Math.random() * 80, rest: 60 + Math.random() * 120, stand: 25 + Math.random() * 35, walk: 4 + Math.random() * 6, drink: 999, shade: 999, scratch: 999 }[c.state];
             if (c.state === 'walk') {   // đi tiếp tới chỗ khác — lạc xa bầy (> 9 m) thì đi về phía tâm bầy
               let mx = 0, mz = 0, n = 0; for (const o of cows) if (o.mode === 'free') { mx += o.x; mz += o.z; n++; }
               c.angT = n > 1 && Math.hypot(mx / n - c.x, mz / n - c.z) > 9 ? Math.atan2(mz / n - c.z, mx / n - c.x) + (Math.random() - 0.5) * 0.6 : c.ang + (Math.random() - 0.5) * 1.7;
@@ -382,6 +430,28 @@
               c.restY = Math.min(1, c.restY + dt * 0.38); c.vk = 0; rum(true); break;
             }
             case 'stand': up(); c.vk = 0; rum(false); break;   // đứng nhai lại, đổi chân
+            case 'scratch': {   // GÃI NGỨA vào thân cây: tới điểm chờ Q → xoay song song thân cây → đi dọc vào chỗ vai chạm thân → cọ tới lui (bỏ va chạm tĩnh), nghiêng mình, cổ ngoảnh vào cây
+              const R = c.rub; if (!R) { c.state = 'stand'; c.tmr = 3; break; } if (!up()) { c.vk = 0; break; }
+              R.k += dt; c.hz = -0.08; c.hx = 0;
+              const quit = () => { c.state = 'stand'; c.tmr = 5; c.rub = null; };
+              if (R.st === 'go') { if (cowSteer(c, R.Q.x, R.Q.z, dt, null)) { R.st = 'turn'; R.k = 0; } else if (R.k > 60) quit(); }   // tới điểm chờ Q
+              else if (R.st === 'turn') {   // xoay song song thân cây
+                c.vk = 0; let da = R.ang - c.ang; da = Math.atan2(Math.sin(da), Math.cos(da)); const na = c.ang + Math.sign(da) * Math.min(Math.abs(da), 1.1 * dt);
+                if (colTurnOK(c.col, c.x, c.z, c.ang, na)) c.ang = na; else if (R.k > 6) { quit(); break; }
+                if (Math.abs(da) < 0.03) { R.st = 'in'; R.k = 0; }
+              }
+              else if (R.st === 'in') {   // đi thẳng dọc thân cây (theo tiếp tuyến) vào chỗ vai chạm — va chạm vẫn bật: chạm vỏ cây trước P thì dừng ngay đó mà cọ
+                const K = c.col, sp = 0.35 * Math.min(1, R.k / 0.8), ca = Math.cos(R.ang), sa = Math.sin(R.ang), nx = c.x + ca * sp * dt, nz = c.z + sa * sp * dt;
+                if ((R.P.x - c.x) * ca + (R.P.z - c.z) * sa <= 0.02 || colFootHits(nx, nz, R.ang, K.a, K.b, K.lo, K.hi, 13) > 0 || colMoverHits(K, nx, nz, R.ang) > 1e-3) { R.st = 'rub'; R.k = 0; R.dur = 12 + Math.random() * 13; R.P.set(c.x, 0, c.z); }
+                else if (R.k > 12) quit(); else { c.x = nx; c.z = nz; c.vk = 0.4; }
+              }
+              else {   // cọ: thân trượt tới lui dọc thân cây ~0,33 lần/s, ép nhẹ vào cây, đầu ngẩng ngoảnh về phía cây
+                c.vk = 0; const s = Math.sin(2 * Math.PI * 0.33 * R.k) * 0.15 * Math.min(1, R.k / 1.5) * Math.min(1, (R.dur - R.k) / 1.5);
+                c.x = R.P.x + Math.cos(R.ang) * s; c.z = R.P.z + Math.sin(R.ang) * s; c.hz = 0.02 + 0.05 * Math.sin(2 * Math.PI * 0.33 * R.k + 1); c.hx = -0.45 * R.side;
+                if (R.k > R.dur) { c.state = 'stand'; c.tmr = 4 + Math.random() * 4; c.rub = null; }
+              }
+              break;
+            }
             case 'graze': {   // ô ăn: đầu quét trái–phải, giật cắn ~0,85 lần/s; nhích 1–2 bước sang búi kế; ~30–50 s ngẩng canh chừng + nhai
               if (!up()) { c.vk = 0; break; }
               c.look = (c.look ?? 30 + Math.random() * 20) - dt;
@@ -393,19 +463,21 @@
             }
             case 'flee': if (up()) cowWander(c, dt, c.spd * 1.3); else c.vk = 0; c.hz = -0.1; c.hx = 0; break;
             case 'drink': case 'shade': {   // đi tới máng nước (đứng phía đông máng, mặt quay vào) / bóng cây
-              const tgt = c.state === 'drink' ? _cwT.set(cowHut.x + cowHut.W / 2 + 0.95 + 1.45 * c.g.scale.y, 0, cowHut.z + 0.75) : c.goal;
+              // máng dài 1,6 m ⇒ 2 chỗ uống cạnh nhau; hết chỗ thì đứng chờ cách máng ~3 m (trước đây cả bầy nhắm cùng 1 điểm ⇒ chồng lên nhau)
+              if (c.state === 'drink' && c.slot == null) { const used = cows.filter(o => o !== c && o.state === 'drink' && o.slot != null).map(o => o.slot); c.slot = [0, 1].find(k => !used.includes(k)) ?? null; }
+              const tgt = c.state === 'drink' ? _cwT.set(cowHut.x + cowHut.W / 2 + 0.95 + 1.45 * c.g.scale.y + (c.slot == null ? 2.9 : 0), 0, cowHut.z + 0.75 + (c.slot == null ? 0 : c.slot ? 0.43 : -0.43)) : c.goal;
               if (c.sub2 === 'go') {
                 c.hz = -0.18; c.hx = 0;
                 const far = c.state === 'drink' && Math.hypot(tgt.x - c.x, tgt.z - c.z) > 7;   // xa máng: theo trường về cửa chuồng (vòng qua sông, vách) rồi mới đi thẳng
-                if (up() && cowSteer(c, tgt.x, tgt.z, dt, far ? hutField : null)) { c.sub2 = 'do'; c.tmr = c.state === 'drink' ? 60 + Math.random() * 90 : 120 + Math.random() * 120; c.lieIn = 3; }
-                else if (c.tmr < 999 - 240) { c.state = 'stand'; c.tmr = 5; c.thirst = Math.min(c.thirst, 0.6); }   // 4 phút chưa tới (kẹt) → thôi, lát nữa khát lại
+                if (up() && cowSteer(c, tgt.x, tgt.z, dt, far ? hutField : null)) { if (c.state === 'drink' && c.slot == null) c.vk = 0; else { c.sub2 = 'do'; c.tmr = c.state === 'drink' ? 60 + Math.random() * 90 : 120 + Math.random() * 120; c.lieIn = 3; } }   // chờ tới lượt
+                else if (c.tmr < 999 - 240) { c.state = 'stand'; c.slot = null; c.tmr = 5; c.thirst = Math.min(c.thirst, 0.6); }   // 4 phút chưa tới (kẹt) → thôi, lát nữa khát lại
               }
               else if (c.state === 'drink') {   // uống từng đợt hút 15–25 s, giữa các đợt ngẩng lên nhìn quanh ~2,5 s; cả lần 1–2,5 phút
                 c.vk = 0; let da = Math.PI - c.ang; da = Math.atan2(Math.sin(da), Math.cos(da)); c.ang += da * Math.min(1, dt * 2);
                 c.sip = (c.sip ?? 15 + Math.random() * 10) - dt;
                 if (c.sip < 0) { c.hz = -0.1; c.hx = 0.3 * Math.sin(t * 0.9 + c.ph); if (c.sip < -2.5) c.sip = 15 + Math.random() * 10; }
                 else { c.hz = -0.32 + 0.04 * Math.sin(t * 3.2); c.hx = 0; c.chew = 0.3; c.reachY = cowHut.y + 0.39; }   // mõm ngập ~3 cm, hút từng ngụm
-                if (c.tmr <= 0) { c.thirst = 0; c.state = 'stand'; c.mode = 'leave'; c.leg = 'pasture'; }   // uống xong: theo trường dòng chảy về bãi gặm quen (cowHome)
+                if (c.tmr <= 0) { c.thirst = 0; c.state = 'stand'; c.slot = null; c.mode = 'leave'; c.leg = 'pasture'; }   // uống xong: theo trường dòng chảy về bãi gặm quen (cowHome)
               } else { if ((c.lieIn -= dt) > 0) { c.vk = 0; c.hz = -0.15; c.reach = 0.08; c.hx = 0.3 * Math.sin(t * 1.4 + c.ph); } else { c.restY = Math.min(1, c.restY + dt * 0.38); c.vk = 0; rum(true); } }
               break;
             }
@@ -416,10 +488,20 @@
           if (c.angT === undefined) c.angT = c.ang;
           for (const o of cows) { if (o === c) continue; const dx = o.x - c.x, dz = o.z - c.z, d = Math.hypot(dx, dz); if (d < 1.8 && dx * Math.cos(c.ang) + dz * Math.sin(c.ang) > 0) { c.angT = c.ang + (dx * Math.sin(c.ang) - dz * Math.cos(c.ang) > 0 ? 0.6 : -0.6); break; } }
           let da = c.angT - c.ang; da = Math.atan2(Math.sin(da), Math.cos(da));
-          const mt = 1.2 * dt; c.ang += Math.max(-mt, Math.min(mt, da));
+          const mt = 1.2 * dt, na = c.ang + Math.max(-mt, Math.min(mt, da)), turnOK = !c.col || colTurnOK(c.col, c.x, c.z, c.ang, na);
+          if (turnOK) c.ang = na;   // xoay quét thân vào cây bên cạnh: đi tiếp đã
           c.vk = Math.min(1, (c.vk || 0) + dt / 0.9);
           const v = sp * c.vk * (Math.abs(da) > 0.9 ? 0.3 : 1), nx = c.x + Math.cos(c.ang) * v * dt, nz = c.z + Math.sin(c.ang) * v * dt;
-          if (cowOK(nx, nz)) { c.x = nx; c.z = nz; } else if (Math.abs(da) < 0.3) c.angT = c.ang + 2.3;
+          if (cowOK(nx, nz) && (!c.col || c.col.ghost > 0 || colStepOK(c.col, c.x, c.z, nx, nz, c.ang))) { c.x = nx; c.z = nz; if (c.col) c.col.stuck = 0; }
+          else if (sp < 0.3 && c.gwalk > 0) c.gwalk = 0;   // nhích gặm cỏ mà vướng (thân cây, bệ tua-bin): thôi nhích, gặm tại chỗ
+          else {   // vướng (nước, chuồng, mép bãi, thân cây): quay sang hướng khác — đang quay thì chưa tính là kẹt (quay 130° mất ~2 s ⇒ trước đây thành "kẹt" rồi đi xuyên)
+            if (Math.abs(da) < 0.3) c.angT = c.ang + (Math.random() < 0.5 ? 2.3 : -2.3);
+            if (c.col && (Math.abs(da) < 0.3 || !turnOK)) colStuck(c.col, dt);
+          }
+        }
+        function cowUnstick(c, dt) {   // thân lỡ lấn vào vật (sau lượt xuyên khi kẹt, mở trang có cây mọc chỗ bò đứng…) ⇒ đẩy dần ra chỗ thoáng (core/collide.js)
+          if (!c.col || c.state === 'scratch') return;
+          const p = colPushOut(c.col, c.x, c.z, c.ang, dt); if (p && cowOK(p[0], p[1])) { c.x = p[0]; c.z = p[1]; }
         }
         // ---- DÁNG BÒ mỗi khung (sau hành vi): tốc độ thật từ quãng đã đi → bộ chân IK · thân theo chỗ chân đứng · nảy / lắc theo nhịp chân ·
         //      đầu gật theo chân trước · nằm xuống QUỲ CHÂN TRƯỚC trước rồi mới hạ mông, đứng dậy NHỔM MÔNG trước rồi mới duỗi chân trước · đuôi mềm phẩy ruồi ----
@@ -455,7 +537,8 @@
           rig.step(dt, dist, P.v, c.gait, h, pitch, fF + fH > 0.02);
           // khối thân lắc ngang về phía 2 chân cùng bên đang trụ (1 lần/chu kỳ); nằm thì nghiêng về bên gập chân sau
           const lat = Math.sin(2 * Math.PI * (psi + 0.055)) * walkA;
-          U.body.position.z = 0.022 * lat; U.body.rotation.x = 0.035 * lat + 0.1 * fH * P.lieSide;
+          P.rb = (P.rb || 0) + ((c.rub && c.rub.st === 'rub' ? 0.07 * c.rub.side : 0) - (P.rb || 0)) * Math.min(1, dt * 2);   // gãi ngứa: ép mình vào thân cây
+          U.body.position.z = 0.022 * lat; U.body.rotation.x = 0.035 * lat + 0.1 * fH * P.lieSide + P.rb;
           // đầu: dáng đích của hành vi (lò xo) + gật 2 lần/chu kỳ (thấp nhất ngay sau khi mỗi chân trước chạm đất) + bù chúc/ngóc của thân
           cowDamp(P.hz, c.hz ?? -0.2, 5, dt); cowDamp(P.hx, c.hx ?? 0, 5, dt);
           // cổ: có đích mõm thì hạ dần tới khi mõm vừa chạm (c.reach = cao trên mặt đất ngay dưới mõm · c.reachY = cao độ tuyệt đối: mặt nước máng,

@@ -51,7 +51,8 @@
                 b.hop = (b.hop + dt * 3.2) % 1;
                 const lift = Math.max(0, Math.sin(b.hop * Math.PI)) * 0.5;          // lift when jumping
                 const nx = b.x + Math.cos(b.ang) * b.spd * dt * (0.5 + lift), nz = b.z + Math.sin(b.ang) * b.spd * dt * (0.5 + lift);
-                if (bunOK(nx, nz)) { b.x = nx; b.z = nz; } else b.ang += 2.3 + Math.random();
+                if (bunOK(nx, nz) && (!b.col || b.col.ghost > 0 || colStepOK(b.col, b.x, b.z, nx, nz, b.ang))) { b.x = nx; b.z = nz; if (b.col) b.col.stuck = 0; }
+                else { b.ang += 2.3 + Math.random(); if (b.col) colStuck(b.col, dt); }   // vướng (nước, gốc cây, đồ vật thật — core/collide.js): nhảy hướng khác
                 b.g.position.set(b.x, gy + lift, b.z); b.g.rotation.y = -b.ang; b.g.rotation.x = 0; // vertical posture
                 b.paws[0].rotation.z = b.paws[1].rotation.z = -0.45 - lift * 0.4;   // arms retracted when jumping
                 b.head.rotation.z = 0;
