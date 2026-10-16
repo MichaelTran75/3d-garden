@@ -517,27 +517,24 @@
             }
           }
           const SKY_GLSL = `
-            uniform vec3 uR, uU, uF; uniform vec2 uK, uDrift; uniform float uTime, uCloud, uOff;
+            uniform vec3 uR, uU, uF; uniform vec2 uK; uniform float uTime, uCloud, uOff;
             float sh3(vec3 p) { p = fract(p * 0.3183099 + 0.1) * 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
             float sn3(vec3 x) { vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f);
               return mix(mix(mix(sh3(i), sh3(i + vec3(1, 0, 0)), f.x), mix(sh3(i + vec3(0, 1, 0)), sh3(i + vec3(1, 1, 0)), f.x), f.y),
                          mix(mix(sh3(i + vec3(0, 0, 1)), sh3(i + vec3(1, 0, 1)), f.x), mix(sh3(i + vec3(0, 1, 1)), sh3(i + 1.0), f.x), f.y), f.z); }
             float sfbm(vec3 p) { float s = 0.0, a = 0.5; for (int k = 0; k < 4; k++) { s += a * sn3(p); p = p * 2.03 + 7.1; a *= 0.5; } return s * 1.0667; }
-            float skyCloud(vec3 d) {   // mây theo độ phủ thật: lớp phẳng trên đầu nhìn phối cảnh (dồn dày về chân trời), trôi theo gió
-              if (uCloud < 0.02) return 0.0;
-              float th = mix(0.72, 0.3, uCloud);
-              return smoothstep(th - 0.08, th + 0.08, sfbm(vec3(d.xz / (max(d.y, 0.0) + 0.1) * 0.8 + uDrift, 0.5)));
-            }`;
-          const U = { uR: { value: new THREE.Vector3() }, uU: { value: new THREE.Vector3(0, 1, 0) }, uF: { value: new THREE.Vector3() }, uK: { value: new THREE.Vector2(1, 1) }, uOff: { value: -0.4 }, uDrift: { value: new THREE.Vector2() },
+            // (G 16/10) BỎ LỚP MÂY NỀN — đã có mây khối voxel 3D; độ phủ mây thật (uCloud) chỉ còn làm mờ ĐỀU sao + Ngân Hà (trời âm u không thấy sao)
+            `;
+          const U = { uR: { value: new THREE.Vector3() }, uU: { value: new THREE.Vector3(0, 1, 0) }, uF: { value: new THREE.Vector3() }, uK: { value: new THREE.Vector2(1, 1) }, uOff: { value: -0.4 },
             uTime: { value: 0 }, uCloud: { value: 0 }, uEq: { value: new THREE.Matrix3() }, uGal: { value: new THREE.Matrix3() }, uLim: { value: 6 }, uPx: { value: 1 },
-            uBg: { value: new THREE.Color() }, uZen: { value: new THREE.Color() }, uHor: { value: new THREE.Color() }, uGround: { value: new THREE.Color() }, uCloudCol: { value: new THREE.Color() },
+            uBg: { value: new THREE.Color() }, uZen: { value: new THREE.Color() }, uHor: { value: new THREE.Color() }, uGround: { value: new THREE.Color() },
             uGlow: { value: new THREE.Color() }, uTwi: { value: 0 }, uMW: { value: 0 }, uMix: { value: 0 }, uSun: { value: new THREE.Vector4() } };
           const mk = (o, ord) => { o.frustumCulled = false; o.renderOrder = ord; o.layers.set(LAYER); o.userData.noBatch = true; o.raycast = () => {}; scene.add(o); return o; };
           const quadGeo = new THREE.BufferGeometry(); quadGeo.setAttribute('position', new THREE.Float32BufferAttribute([-1, -1, 0, 3, -1, 0, -1, 3, 0], 3));
           const back = mk(new THREE.Mesh(quadGeo, new THREE.ShaderMaterial({ uniforms: U, depthTest: false, depthWrite: false,
             vertexShader: 'varying vec2 vNdc; void main() { vNdc = position.xy; gl_Position = vec4(position.xy, 0.0, 1.0); }',
             fragmentShader: SKY_GLSL + `
-              uniform vec3 uBg, uZen, uHor, uGround, uCloudCol, uGlow; uniform float uMix, uMW, uTwi; uniform vec4 uSun; uniform mat3 uGal;
+              uniform vec3 uBg, uZen, uHor, uGround, uGlow; uniform float uMix, uMW, uTwi; uniform vec4 uSun; uniform mat3 uGal;
               varying vec2 vNdc;
               void main() {
                 vec2 p = (vNdc - vec2(0.0, uOff)) / uK; vec3 d = normalize(uR * (4.0 * p.x) + uU * (4.0 * p.y) + uF * (4.0 - dot(p, p)));   // chiếu nổi ngược: điểm ảnh → hướng
@@ -554,10 +551,9 @@
                     float cl = sfbm(g * 5.0), cl2 = sfbm(g * 13.0 + 3.0), dk = smoothstep(0.42, 0.62, sfbm(g * 9.0 + 7.0));   // đám mây sao + vệt bụi tối
                     float lon = 0.3 + 0.7 * pow(0.5 + 0.5 * cos(l), 1.5) + 0.45 * bul * exp(-b * b / 0.012);
                     float rb = b - 0.03 + 0.04 * (cl - 0.5), rift = exp(-rb * rb / 0.0012) * smoothstep(-0.55, -0.25, l) * smoothstep(1.55, 1.15, l);
-                    c += uMW * band * lon * pow(0.25 + 0.95 * cl, 1.6) * (0.7 + 0.6 * cl2) * (1.0 - 0.8 * rift) * (1.0 - 0.45 * dk * band) * mix(vec3(0.5, 0.58, 0.78), vec3(0.95, 0.8, 0.58), bul) * 0.085 * smoothstep(-0.05, 0.15, el);
+                    c += uMW * band * lon * pow(0.25 + 0.95 * cl, 1.6) * (0.7 + 0.6 * cl2) * (1.0 - 0.8 * rift) * (1.0 - 0.45 * dk * band) * mix(vec3(0.5, 0.58, 0.78), vec3(0.95, 0.8, 0.58), bul) * 0.085 * smoothstep(-0.05, 0.15, el) * (1.0 - 0.9 * uCloud);
                   }
                 }
-                c = mix(c, uCloudCol * (0.8 + 0.5 * hz), skyCloud(d) * smoothstep(-0.03, 0.03, el) * 0.94);
                 c = mix(c, uGround, smoothstep(0.004, -0.05, el));                                   // dưới chân trời: không sao, sương tối
                 gl_FragColor = vec4(mix(uBg, c, uMix), 1.0);
                 #include <colorspace_fragment>
@@ -576,7 +572,8 @@
                 float X = 1.0 / (max(el, 0.0) + 0.50572 * pow(max(96.07995 - acos(clamp(el, -1.0, 1.0)) * 57.29578, 1.0), -1.6364));   // khối khí Kasten–Young
                 float lo = smoothstep(1.3, 7.0, X), fq = mix(7.0, 3.0, lo), ph = aSeed * 50.0;
                 float m = aMag + 0.22 * (X - 1.0) + (0.06 + 0.45 * lo) * (0.6 * sin(uTime * fq + ph) + 0.4 * sin(uTime * fq * 1.71 + ph * 1.3));   // tắt dần + lấp lánh
-                float b = exp2(-1.329 * (m - uLim)) * (1.0 - skyCloud(d));   // = 10^(−0,4(m − cấp giới hạn)) · phần không bị mây che
+                // = 10^(−0,4(m − cấp giới hạn)) · mây che đều theo độ phủ thật
+                float b = exp2(-1.329 * (m - uLim)) * (1.0 - 0.9 * uCloud);
                 if (b < 0.7) return;
                 gl_Position = vec4(2.0 * vec2(dot(d, uR), dot(d, uU)) / max(1.0 + dot(d, uF), 0.02) * uK + vec2(0.0, uOff), 0.0, 1.0);
                 float lb = log(b);
@@ -613,7 +610,7 @@
           let islandBase = null;
           const meteors = [], _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3(), _d = new THREE.Vector3(), _e = new THREE.Vector3(), _f = new THREE.Vector3();
           const M = new THREE.Matrix3(), Mt = new THREE.Matrix3(), _cv = new THREE.Color();
-          let mix = 0, lim = -2, drift = 0, nq = 0;
+          let mix = 0, lim = -2, nq = 0;
           const toNdc = (d, out) => { const z = Math.max(1 + d.dot(U.uF.value), 0.02); out.x = 2 * d.dot(U.uR.value) / z * U.uK.value.x; out.y = 2 * d.dot(U.uU.value) / z * U.uK.value.y + U.uOff.value; return out; };
           const fromNdc = (x, y, out) => { const px = x / U.uK.value.x, py = (y - U.uOff.value) / U.uK.value.y; return out.copy(U.uR.value).multiplyScalar(4 * px).addScaledVector(U.uU.value, 4 * py).addScaledVector(U.uF.value, 4 - px * px - py * py).normalize(); };
           const eqDir = (raDeg, deDeg, out) => out.set(Math.cos(deDeg * RD) * Math.cos(raDeg * RD), Math.cos(deDeg * RD) * Math.sin(raDeg * RD), Math.sin(deDeg * RD)).applyMatrix3(M);
@@ -662,7 +659,6 @@
             lim -= 2.1 * moonB; U.uLim.value = lim;
             const w = liveWeather.state, cur = w.fresh ? w.data?.current : null, cloud = w.raining ? 1 : cur && Number.isFinite(cur.cloud_cover) ? cur.cloud_cover / 100 : 0.3;
             U.uCloud.value = cloud;
-            drift = (drift + dt * (0.02 + 0.004 * (sceneWind.speed || 8))) % 5000; U.uDrift.value.set(sceneWind.dir.x, sceneWind.dir.y).multiplyScalar(-drift);
             camera.getWorldDirection(_a); const camEl = Math.asin(Math.max(-1, Math.min(1, -_a.y))) / RD;
             _a.y = 0; if (_a.lengthSq() < 1e-6) _a.set(0, 0, -1); _a.normalize();
             U.uF.value.copy(_a); U.uR.value.crossVectors(_a, SKY_UP).normalize();
@@ -684,7 +680,6 @@
             const gl = smooth01(-14, -2, se); U.uGlow.value.setRGB(0.35, 0.08, 0.1).lerp(_cv.setRGB(1, 0.45, 0.15), smooth01(-8, 0, se)).multiplyScalar(gl * 0.6);
             U.uTwi.value = smooth01(-16, 0, se) * 0.9;
             skyDir(hs, _b); _b.y = 0; _b.normalize(); U.uSun.value.set(_b.x, 0, _b.z, se);
-            U.uCloudCol.value.setRGB(0.016 + 0.03 * moonB, 0.018 + 0.035 * moonB, 0.026 + 0.045 * moonB).add(_cv.copy(U.uGlow.value).multiplyScalar(0.6)).add(_cv.setRGB(0.05, 0.06, 0.09).multiplyScalar(U.uTwi.value));
             U.uMW.value = smooth01(5, 6.1, lim); U.uMix.value = mix; U.uBg.value.copy(scene.background);
             if (scene.fog) scene.fog.color.lerp(_cv.copy(U.uHor.value).multiplyScalar(1.6), mix * 0.85);
             const D = new Date(Date.now() + SUN_TZ * 3600000), y0 = Date.UTC(D.getUTCFullYear(), 0, 1), doy = (Date.UTC(D.getUTCFullYear(), D.getUTCMonth(), D.getUTCDate()) - y0) / 864e5 + liveWeather.localHour / 24;
