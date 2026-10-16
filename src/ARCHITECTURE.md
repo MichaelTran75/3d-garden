@@ -62,6 +62,13 @@ cận cảnh, hiệu năng, cách thử và các bẫy đã dính. Chi tiết t�
   35–41k/cây) · anh đào ~100k. Đàn chim sẻ ~280 lượt vẽ (mảnh nhỏ không gộp). Mô phỏng (mọi hành vi) chỉ ~0,4 ms/khung — nút thắt là GPU.
   Cách đo: bọc `renderer.renderBufferDirect`, lấy chênh `info.render.triangles` mỗi lệnh (`scene` = null ⇒ lượt bóng); lô gộp chia lại theo
   `userData.batchSrc.recs`. Đã cắt: lá phẳng lục giác `leafHexGeo` (24 → 4 tam giác/lá) và ô đất phẳng không đổ bóng (`flatTopGeo` chỉ mặt trên).
+  **Khối đất chỉ dựng mặt lộ ra + chia ô lớn** (16/10, `core/sky-sun-moon.js` `terrFaces`, `core/terrain.js`): mọi mặt khối đất là 1 hình chung (mặt +y
+  của hộp, giữ 24 đỉnh) xoay bằng `FACE_R[f]` về hướng mặt — BoxGeometry dựng mọi mặt cùng kiểu UV nên trùng khít từng đỉnh (sai số 0). Ô mặt đất
+  không phẳng: mặt trên + mặt bên giáp ô thấp hơn / nước / mép; thân cột: mặt bên giáp cột thấp hơn (giữ chiều cao thân cũ ⇒ texture y hệt);
+  đáy sông: mặt trên + mặt bên giáp đáy thấp hơn. Không mặt đáy nào. Bản đồ chia `TERR_CHUNK` = 6 × 6 ô lớn, mỗi ô lớn 1 InstancedMesh / loại
+  (vật liệu × đổ bóng). Đo: toàn cảnh 3,05 → 2,49 triệu tam giác (2 lượt), +~120 lượt vẽ cùng vật liệu (~1,3 µs CPU/lượt); cận cảnh địa hình
+  vẽ còn ~1/3 (4 × 4: ~1/2, 8 × 8: ~1/5 nhưng toàn cảnh +250 lượt). A/B cùng phiên lệch ≤ 0,014/255; tia rê chuột trùng 100%.
+  Bẫy so 2 bản dựng: three.js lấy `Math.random` cho uuid mỗi vật/hình/vật liệu ⇒ thêm lưới làm lệch dãy ngẫu nhiên sau đó (cây, bò đặt khác).
 - **Độ phân giải tự điều chỉnh** (`loop/close-up.js`, `DRES`): khung chậm (> 22 ms) 1,5 s → hạ mật độ điểm ảnh ×0,85; nhanh
   (< 17,8 ms) 4 s → nâng ×1,1; sàn 0,6. Hạ mà không nhanh lên ≥ 8% (màn 30 Hz, nghẽn CPU) → trả lại, thôi thử 60 s.
   Trang thử đặt `window.__resLock = true` để ảnh chụp giữ cỡ.

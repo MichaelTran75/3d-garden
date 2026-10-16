@@ -1,6 +1,21 @@
         // ---- build terrain (cull hidden underground voxels -> 98% bodies reduced, zero lag) ----
         const grass = [], shore = [], bodies = [], waters = [], riverbed = [];
-        const cellTop = (ni, nj) => (ni < -MX || nj < -MZ || ni >= GX + MX || nj >= GZ + MZ || (ni === 158 && nj === 103) || gridWater[(ni + MX) * gridD + nj + MZ]) ? -1 : gridH[(ni + MX) * gridD + nj + MZ];   // −1: nước / ngoài bản đồ / cột đã xoá
+        // G 16/10 (bước 5): CHỈ DỰNG MẶT LỘ RA. Ô mặt đất: mặt trên + mặt bên giáp ô thấp hơn / nước / ngoài bản đồ. Thân cột: chỉ mặt bên giáp cột
+        // thấp hơn đỉnh thân (giữ nguyên chiều cao thân cũ ⇒ texture y hệt; phần chìm trong cột cạnh bị che). Đáy sông: mặt trên + mặt bên giáp ô nước
+        // có đáy thấp hơn / khe thân đập / mép bản đồ (giáp bờ: thân cột bờ xuống tới 0 che kín). Không vẽ mặt đáy nào.
+        // lớp đáy sông của ô nước (dùng cả khi xét mặt bên giáp ô nước cạnh)
+        const bedOf = (i, j) => {
+          const surf = Math.round((j < DAM_J ? RES : DOWN) * S);
+          // 0 giữa lòng → 1 mép bờ
+          const dd = riverDist(i, j), hh = Math.max(1, riverHalf(j)), tt = Math.min(1, dd / hh);
+          // đáy nhấp nhô, sâu ở giữa
+          const bed = Math.round(surf - (1 + 2.6 * (1 - tt * tt)) + Math.sin(i * 0.5) * Math.sin(j * 0.4 + 1.1) * 0.8);
+          return Math.max(0, Math.min(surf - 1, bed));
+        };
+        // cột cạnh: nước / ngoài bản đồ = 0
+        const colH = (ni, nj) => (ni < -MX || ni >= GX + MX || nj < -MZ || nj >= GZ + MZ || gridWater[(ni + MX) * gridD + nj + MZ]) ? 0 : gridH[(ni + MX) * gridD + nj + MZ];
+        // −1: nước / ngoài bản đồ / cột đã xoá
+        const cellTop = (ni, nj) => (ni < -MX || nj < -MZ || ni >= GX + MX || nj >= GZ + MZ || (ni === 158 && nj === 103) || gridWater[(ni + MX) * gridD + nj + MZ]) ? -1 : gridH[(ni + MX) * gridD + nj + MZ];
         for (let i = -MX; i < GX + MX; i++) {
           const gi = (i + MX) * gridD;
           for (let j = -MZ; j < GZ + MZ; j++) {
@@ -8,14 +23,20 @@
             const idx = gi + (j + MZ);
 
             if (gridWater[idx]) {
-              if (j >= DAM_J && j < DAM_J + 2 * S) continue;              // dam gap (smooth dam covers)
-              const surf = Math.round((j < DAM_J ? RES : DOWN) * S);
-              const dd = riverDist(i, j), hh = Math.max(1, riverHalf(j)), tt = Math.min(1, dd / hh);              // 0 giữa lòng → 1 mép bờ
-              let bed = Math.round(surf - (1 + 2.6 * (1 - tt * tt)) + Math.sin(i * 0.5) * Math.sin(j * 0.4 + 1.1) * 0.8);    // đáy nhấp nhô, sâu ở giữa
-              bed = Math.max(0, Math.min(surf - 1, bed));
-              if (bed > 0) riverbed.push({ x: wx(i), y: (bed - 0.5) * BLOCK, z: wz(j), sy: 1 });                        // lớp đáy sông nhìn thấy qua nước
+              // dam gap (smooth dam covers)
+              if (j >= DAM_J && j < DAM_J + 2 * S) continue;
+              const surf = Math.round((j < DAM_J ? RES : DOWN) * S), bed = bedOf(i, j);
+              // mặt bên khối đáy lộ ra?
+              const bedSide = (ni, nj) => {
+                if (ni < -MX || ni >= GX + MX || nj < -MZ || nj >= GZ + MZ) return true;
+                const n = (ni + MX) * gridD + nj + MZ; if (!gridWater[n]) return gridH[n] < bed;
+                return (nj >= DAM_J && nj < DAM_J + 2 * S) || bedOf(ni, nj) < bed;
+              };
+              // lớp đáy sông nhìn thấy qua nước
+              if (bed > 0) riverbed.push({ x: wx(i), y: (bed - 0.5) * BLOCK, z: wz(j), sy: 1, m: 4 | (bedSide(i + 1, j) ? 1 : 0) | (bedSide(i - 1, j) ? 2 : 0) | (bedSide(i, j + 1) ? 16 : 0) | (bedSide(i, j - 1) ? 32 : 0) });
               const wh = surf - bed;
-              waters.push({ x: wx(i), y: (bed + wh / 2) * BLOCK, z: wz(j), sy: wh, i, j });                          // cột nước nằm trên đáy
+              // cột nước nằm trên đáy
+              waters.push({ x: wx(i), y: (bed + wh / 2) * BLOCK, z: wz(j), sy: wh, i, j });
               continue;
             }
 
@@ -27,34 +48,16 @@
               (j - 1 >= -MZ && gridWater[gi + (j - 1 + MZ)]) ||
               poolMetric(i, j) < 1.55;
 
-            const flat = cellTop(i + 1, j) >= h && cellTop(i - 1, j) >= h && cellTop(i, j + 1) >= h && cellTop(i, j - 1) >= h;   // 4 mặt bên bị ô cạnh che hết
-            (nearWater ? shore : grass).push([wx(i), wy(top), wz(j), flat]);
+            // mặt bên lộ ra (bit +x 1 · −x 2 · +z 4 · −z 8); 0 = ô phẳng (4 mặt bên bị ô cạnh che hết)
+            const sides = (cellTop(i + 1, j) < h ? 1 : 0) | (cellTop(i - 1, j) < h ? 2 : 0) | (cellTop(i, j + 1) < h ? 4 : 0) | (cellTop(i, j - 1) < h ? 8 : 0);
+            (nearWater ? shore : grass).push([wx(i), wy(top), wz(j), sides]);
 
             // CULL CÁC VOXEL CHÌM KHÔNG NHÌN THẤY:
             // Cột thân đất (bodies) chỉ nhìn thấy khi có ít nhất 1 mặt bên lộ ra (giáp nước, mép bản đồ, hoặc hàng xóm thấp hơn)
             if (top > 0) {
-              let minH = top;
-              if (i + 1 >= GX + MX || gridWater[gi + gridD + (j + MZ)]) minH = 0;
-              else if (gridH[gi + gridD + (j + MZ)] < minH) minH = gridH[gi + gridD + (j + MZ)];
-
-              if (minH > 0) {
-                if (i - 1 < -MX || gridWater[gi - gridD + (j + MZ)]) minH = 0;
-                else if (gridH[gi - gridD + (j + MZ)] < minH) minH = gridH[gi - gridD + (j + MZ)];
-              }
-
-              if (minH > 0) {
-                if (j + 1 >= GZ + MZ || gridWater[gi + (j + 1 + MZ)]) minH = 0;
-                else if (gridH[gi + (j + 1 + MZ)] < minH) minH = gridH[gi + (j + 1 + MZ)];
-              }
-
-              if (minH > 0) {
-                if (j - 1 < -MZ || gridWater[gi + (j - 1 + MZ)]) minH = 0;
-                else if (gridH[gi + (j - 1 + MZ)] < minH) minH = gridH[gi + (j - 1 + MZ)];
-              }
-
-              if (minH < top) {
-                bodies.push({ x: wx(i), y: (minH + top) * BLOCK / 2, z: wz(j), sy: top - minH });
-              }
+              const a = colH(i + 1, j), b = colH(i - 1, j), c = colH(i, j + 1), d = colH(i, j - 1), minH = Math.min(top, a, b, c, d);
+              // thân từ cột cạnh thấp nhất tới đỉnh như cũ; chỉ vẽ mặt bên giáp cột thấp hơn đỉnh thân
+              if (minH < top) bodies.push({ x: wx(i), y: (minH + top) * BLOCK / 2, z: wz(j), sy: top - minH, m: (a < top ? 1 : 0) | (b < top ? 2 : 0) | (c < top ? 16 : 0) | (d < top ? 32 : 0) });
             }
           }
         }

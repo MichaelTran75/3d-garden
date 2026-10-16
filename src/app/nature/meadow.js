@@ -46,7 +46,8 @@
           const tops = new Map(), _m = new THREE.Matrix4(), _p = new THREE.Vector3(), _c = new THREE.Color();
           for (const im of terrainMeshes) {
             if (!im.isInstancedMesh || !im.instanceColor || (im.material !== grassMat && im.material !== shoreMat)) continue;
-            for (let k = 0; k < im.count; k++) { im.getMatrixAt(k, _m); _p.setFromMatrixPosition(_m); tops.set(Math.round(x2gi(_p.x)) + Math.round(z2gj(_p.z)) * GX, [im, k]); }
+            // ô không phẳng có mặt trên + các mặt bên ở nhiều lưới: gom hết [lưới, chỉ số, lưới, chỉ số…] để tô cùng màu
+            for (let k = 0; k < im.count; k++) { im.getMatrixAt(k, _m); _p.setFromMatrixPosition(_m); const key = Math.round(x2gi(_p.x)) + Math.round(z2gj(_p.z)) * GX, L = tops.get(key); if (L) L.push(im, k); else tops.set(key, [im, k]); }
           }
           const lushOf = (i, j, moist) => Math.max(0, Math.min(1, 0.3 + 0.7 * moist + 0.6 * (vnoise(i * 0.09 + 41, j * 0.09 + 7) - 0.5)));
           const dirty = new Set(), _cL = new THREE.Color(), _lawnTint = new THREE.Color(0.8, 1.0, 0.62);
@@ -55,7 +56,7 @@
             const lush = L ? 0.75 : lushOf(i, j, moist), dens = L ? 0.6 : Math.min(1, (sc - thr) / Math.max(1e-3, top - thr));
             t[0].getColorAt(t[1], _c); _c.multiplyScalar(1.015 + 0.05 * dens).lerp(_c.clone().offsetHSL(0.012 * (lush - 0.5), 0.04, 0), 0.6);   // mặt đất dưới mảng cỏ: tươi hơn chút
             if (L) { const e = Math.min(1, L / 0.3); _c.lerp(_cL.copy(_c).multiply(_lawnTint), 0.85 * e); }   // thảm ngắn: nền xanh đậm như cỏ mượt, loang dần ra mép
-            t[0].setColorAt(t[1], _c); dirty.add(t[0]);
+            for (let q = 0; q < t.length; q += 2) { t[q].setColorAt(t[q + 1], _c); dirty.add(t[q]); }
           }
           for (const im of dirty) im.instanceColor.needsUpdate = true;
           // ---- dữ liệu từng ô (xếp theo mảng 24 × 24 ô để cắt khung nhìn) ----

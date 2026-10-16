@@ -280,43 +280,72 @@
         // Trước đây giữ cả mặt đáy cho lượt đổ bóng (vẽ mặt sau); nhưng tia nắng muốn rơi xuống chỗ thấp hơn thì phải ra khỏi khối đất qua một
         // ô KHÔNG phẳng (mép dốc/nước = hộp đủ 6 mặt, vẫn đổ bóng) ⇒ ô phẳng không góp gì vào bóng thấy được. G 16/10: −232k tam giác lượt vẽ chính,
         // −464k lượt bóng mỗi khung; ảnh trước/sau lúc 10:00 và 17:20 (vách sông, đồi, toàn cảnh) lệch trung bình ≤ 0,01/255.
+        // MẶT KHỐI ĐẤT (G 16/10, bước 5): chỉ dựng mặt lộ ra, mọi mặt dùng CHUNG 1 HÌNH = mặt +y của hộp (giữ 24 đỉnh, chỉ đổi chỉ mục ⇒ khung bao
+        // vẫn là cả khối: cắt theo khung nhìn, đáy đảo cho chân trời không đổi), xoay về hướng mặt bằng ma trận từng bản. BoxGeometry dựng mọi mặt
+        // cùng một kiểu (UV: u × v = pháp tuyến, cùng đường chéo) nên mặt xoay trùng khít mặt hộp cũ, cả texture ⇒ ảnh y hệt (A/B cùng phiên,
+        // cùng khung hình: lệch TB ≤ 0,014/255). Chỉ số mặt theo nhóm của BoxGeometry: 0 +x · 1 −x · 2 +y · 3 −y · 4 +z · 5 −z.
         const flatTopGeo = (() => {
-          const g = boxGeo.clone(), idx = g.index.array, keep = [];
-          for (const gr of g.groups) if (gr.materialIndex === 2) for (let i = gr.start; i < gr.start + gr.count; i++) keep.push(idx[i]);
-          g.setIndex(keep); g.clearGroups(); return g;
+          const g = boxGeo.clone(), idx = g.index.array, gr = g.groups.find(q => q.materialIndex === 2);
+          g.setIndex(Array.from(idx.subarray(gr.start, gr.start + gr.count))); g.clearGroups(); return g;
         })();
-        // instanced unit cubes (with optional per-instance tint) — mục có p[3] = true (ô phẳng) dùng hình chỉ mặt trên + đáy
+        // ma trận xoay mặt +y → mặt f, lấy từ chính hộp: khung (u, v, pháp tuyến) dựng từ 3 đỉnh có UV (0,0) (1,0) (0,1)
+        const FACE_R = (() => {
+          const P = boxGeo.attributes.position, U = boxGeo.attributes.uv, N = boxGeo.attributes.normal, I = boxGeo.index.array;
+          const frame = (f) => {
+            const gr = boxGeo.groups.find(q => q.materialIndex === f), at = [];
+            for (let k = gr.start; k < gr.start + gr.count; k++) { const v = I[k]; at[Math.round(U.getX(v)) + 2 * Math.round(U.getY(v))] = v; }
+            const p = (v) => new THREE.Vector3().fromBufferAttribute(P, v), o = p(at[0]);
+            return new THREE.Matrix4().makeBasis(p(at[1]).sub(o).normalize(), p(at[2]).sub(o).normalize(), new THREE.Vector3().fromBufferAttribute(N, at[0]));
+          };
+          // khung trực chuẩn: nghịch đảo = chuyển vị
+          const F0t = frame(2).transpose();
+          return [0, 1, 2, 3, 4, 5].map(f => frame(f).multiply(F0t));
+        })();
+        // CHIA Ô LỚN TERR_CHUNK × TERR_CHUNK: mỗi ô lớn 1 InstancedMesh cho mỗi loại (vật liệu × đổ bóng) ⇒ zoom cận, renderer bỏ qua ô lớn ngoài
+        // khung nhìn (lượt bóng cũng vậy — camera bóng ôm vùng nhìn); toàn cảnh thêm vài chục lượt vẽ cùng vật liệu (~1,3 µs CPU/lượt, đo 16/10).
+        const TERR_CHUNK = 6, _tfM = new THREE.Matrix4(), _tfS = new THREE.Matrix4();
+        let terrSpan = null;
+        // recs: [x, y, z, chiều cao (khối), chỉ số mặt, màu | null] — mỗi bản ghi 1 mặt
+        function terrFaces(recs, mat, cast, collect) {
+          if (!recs.length) return;
+          if (!terrSpan) { const x0 = wx(-MX) - BLOCK / 2, z0 = wz(-MZ) - BLOCK / 2; terrSpan = [x0, z0, Math.max(wx(GX + MX - 1) - x0, wz(GZ + MZ - 1) - z0) / TERR_CHUNK + BLOCK]; }
+          const [x0, z0, cs] = terrSpan, bins = new Map(), cl = (v) => Math.min(TERR_CHUNK - 1, Math.max(0, Math.floor(v / cs)));
+          for (const r of recs) { const k = cl(r[0] - x0) + TERR_CHUNK * cl(r[2] - z0); (bins.get(k) || bins.set(k, []).get(k)).push(r); }
+          for (const list of bins.values()) {
+            const im = new THREE.InstancedMesh(flatTopGeo, mat, list.length);
+            list.forEach((r, k) => { _tfM.makeTranslation(r[0], r[1], r[2]).multiply(_tfS.makeScale(1, r[3], 1)).multiply(FACE_R[r[4]]); im.setMatrixAt(k, _tfM); if (r[5]) im.setColorAt(k, r[5]); });
+            im.castShadow = cast; im.receiveShadow = true; im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; scene.add(im);
+            if (collect) terrainMeshes.push(im);
+          }
+        }
+        // ô mặt đất (tô màu bậc theo ô): p[3] = mặt bên lộ ra (bit +x 1 · −x 2 · +z 4 · −z 8 — ô cạnh thấp hơn / nước / ngoài bản đồ); 0 = ô phẳng.
+        // Ô phẳng: chỉ mặt trên, KHÔNG đổ bóng (vẫn nhận bóng). Ô không phẳng: mặt trên + từng mặt bên lộ (cùng màu ô), đổ bóng; không mặt đáy (luôn
+        // nằm trên thân cột). Bóng: tia nắng tới chỗ nhìn thấy được luôn rời khối đất qua một mặt lộ quay lưng về mặt trời ⇒ bóng địa hình như cũ.
         function instanced(positions, mat, tint, collect) {
           if (!positions.length) return;
-          if (tint) for (const p of positions) p[4] = 0.94 + Math.random() * 0.10;   // sắc độ ngẫu nhiên lấy theo thứ tự ô như cũ, rồi mới tách 2 lưới
-          const flat = positions.filter(p => p[3]), full = positions.filter(p => !p[3]);
-          if (flat.length && full.length) { instancedOne(flat, mat, tint, collect, flatTopGeo); instancedOne(full, mat, tint, collect, boxGeo); return; }
-          instancedOne(positions, mat, tint, collect, flat.length ? flatTopGeo : boxGeo);
-        }
-        function instancedOne(positions, mat, tint, collect, geo) {
-          const im = new THREE.InstancedMesh(geo, mat, positions.length); const mm = new THREE.Matrix4();
-          const col = new THREE.Color();
-          for (let k = 0; k < positions.length; k++) {
-            const p = positions[k];
-            mm.makeTranslation(p[0], p[1], p[2]); im.setMatrixAt(k, mm);
+          // sắc độ ngẫu nhiên lấy theo thứ tự ô như cũ
+          if (tint) for (const p of positions) p[4] = 0.94 + Math.random() * 0.10;
+          const flat = [], full = [];
+          for (const p of positions) {
+            let c = null;
             if (tint) {
-              const e = Math.min(0.999, Math.max(0, (p[1] - 1.2) / 6.5));   // độ cao → vị trí trong bảng màu bậc
+              // độ cao → vị trí trong bảng màu bậc
+              const e = Math.min(0.999, Math.max(0, (p[1] - 1.2) / 6.5));
               const _f = e * (TERR_LAYERS.length - 1), _bi = _f | 0, _bt = _f - _bi;
-              col.copy(TERR_LAYERS[_bi]).lerp(TERR_LAYERS[Math.min(_bi + 1, TERR_LAYERS.length - 1)], _bt);   // nội suy mượt giữa 2 bậc
-              col.multiplyScalar(p[4]);
-              im.setColorAt(k, col);
+              // nội suy mượt giữa 2 bậc
+              c = TERR_LAYERS[_bi].clone().lerp(TERR_LAYERS[Math.min(_bi + 1, TERR_LAYERS.length - 1)], _bt).multiplyScalar(p[4]);
             }
+            if (!p[3]) { flat.push([p[0], p[1], p[2], 1, 2, c]); continue; }
+            full.push([p[0], p[1], p[2], 1, 2, c]);
+            for (const [bit, f] of [[1, 0], [2, 1], [4, 4], [8, 5]]) if (p[3] & bit) full.push([p[0], p[1], p[2], 1, f, c]);
           }
-          im.castShadow = geo !== flatTopGeo; im.receiveShadow = true; im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; scene.add(im);
-          if (collect) terrainMeshes.push(im);
+          terrFaces(flat, mat, false, collect); terrFaces(full, mat, true, collect);
         }
-        // instanced boxes with per-instance Y-scale (merged column bodies → huge perf win)
+        // khối có chiều cao riêng (thân cột đất, đáy sông; merged column bodies → huge perf win): chỉ vẽ các mặt ghi trong p.m
+        // (bit = 1 << chỉ số mặt: +x 1 · −x 2 · +y 4 · −y 8 · +z 16 · −z 32); ma trận như hộp cũ (cao sy khối) ⇒ texture không đổi
         function instancedScaled(items, mat, collect) {
-          if (!items.length) return;
-          const im = new THREE.InstancedMesh(boxGeo, mat, items.length); const mm = new THREE.Matrix4();
-          for (let k = 0; k < items.length; k++) { const p = items[k]; mm.makeScale(1, p.sy, 1); mm.setPosition(p.x, p.y, p.z); im.setMatrixAt(k, mm); }
-          im.castShadow = true; im.receiveShadow = true; im.instanceMatrix.needsUpdate = true; scene.add(im);
-          if (collect) terrainMeshes.push(im);
+          const recs = []; for (const p of items) for (let f = 0; f < 6; f++) if (p.m & (1 << f)) recs.push([p.x, p.y, p.z, p.sy, f, null]);
+          terrFaces(recs, mat, true, collect);
         }
 
         function landH(i, j) { const fi = i / S, fj = j / S; const dhi = fi - 85.4, dhj = fj + 4.2, hill = 10 * Math.exp(-(dhi * dhi / (2 * 18 * 18) + dhj * dhj / (2 * 15 * 15))); const dhi2 = fi - 42.5, dhj2 = fj - 52.5, hill2 = 2.2 * Math.exp(-(dhi2 * dhi2 / 32 + dhj2 * dhj2 / 32)); return 2.9 + Math.sin(fi * 0.4) * Math.cos(fj * 0.33) * 0.6 + Math.sin((fi + fj) * 0.21) * 0.4 + Math.sin(fi * 1.17 + fj * 0.61) * 0.12 - (fj / 45) * 0.7 + hill + hill2; }   // hill: đỉnh tại corner (217,2), độ cao 10 · bán kính dốc 18/15; hill2: đồi nhỏ tại x102 z126 (ngoài solar farm), độ cao 2.2

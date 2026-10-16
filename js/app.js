@@ -361,40 +361,54 @@
         const terrainMeshes = [];   // các lưới mặt địa hình dùng cho raycast tọa độ khi hover
         const TERR_LAYERS = [0x244d18, 0x2c5a1d, 0x356822, 0x3f7628, 0x4a842e, 0x569234, 0x64a03c, 0x74ad46, 0x86ba52, 0x99c661, 0xadd072, 0xc2da86].map(h => new THREE.Color(h));
         const flatTopGeo = (() => {
-          const g = boxGeo.clone(), idx = g.index.array, keep = [];
-          for (const gr of g.groups) if (gr.materialIndex === 2) for (let i = gr.start; i < gr.start + gr.count; i++) keep.push(idx[i]);
-          g.setIndex(keep); g.clearGroups(); return g;
+          const g = boxGeo.clone(), idx = g.index.array, gr = g.groups.find(q => q.materialIndex === 2);
+          g.setIndex(Array.from(idx.subarray(gr.start, gr.start + gr.count))); g.clearGroups(); return g;
         })();
+        const FACE_R = (() => {
+          const P = boxGeo.attributes.position, U = boxGeo.attributes.uv, N = boxGeo.attributes.normal, I = boxGeo.index.array;
+          const frame = (f) => {
+            const gr = boxGeo.groups.find(q => q.materialIndex === f), at = [];
+            for (let k = gr.start; k < gr.start + gr.count; k++) { const v = I[k]; at[Math.round(U.getX(v)) + 2 * Math.round(U.getY(v))] = v; }
+            const p = (v) => new THREE.Vector3().fromBufferAttribute(P, v), o = p(at[0]);
+            return new THREE.Matrix4().makeBasis(p(at[1]).sub(o).normalize(), p(at[2]).sub(o).normalize(), new THREE.Vector3().fromBufferAttribute(N, at[0]));
+          };
+          const F0t = frame(2).transpose();
+          return [0, 1, 2, 3, 4, 5].map(f => frame(f).multiply(F0t));
+        })();
+        const TERR_CHUNK = 6, _tfM = new THREE.Matrix4(), _tfS = new THREE.Matrix4();
+        let terrSpan = null;
+        function terrFaces(recs, mat, cast, collect) {
+          if (!recs.length) return;
+          if (!terrSpan) { const x0 = wx(-MX) - BLOCK / 2, z0 = wz(-MZ) - BLOCK / 2; terrSpan = [x0, z0, Math.max(wx(GX + MX - 1) - x0, wz(GZ + MZ - 1) - z0) / TERR_CHUNK + BLOCK]; }
+          const [x0, z0, cs] = terrSpan, bins = new Map(), cl = (v) => Math.min(TERR_CHUNK - 1, Math.max(0, Math.floor(v / cs)));
+          for (const r of recs) { const k = cl(r[0] - x0) + TERR_CHUNK * cl(r[2] - z0); (bins.get(k) || bins.set(k, []).get(k)).push(r); }
+          for (const list of bins.values()) {
+            const im = new THREE.InstancedMesh(flatTopGeo, mat, list.length);
+            list.forEach((r, k) => { _tfM.makeTranslation(r[0], r[1], r[2]).multiply(_tfS.makeScale(1, r[3], 1)).multiply(FACE_R[r[4]]); im.setMatrixAt(k, _tfM); if (r[5]) im.setColorAt(k, r[5]); });
+            im.castShadow = cast; im.receiveShadow = true; im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; scene.add(im);
+            if (collect) terrainMeshes.push(im);
+          }
+        }
         function instanced(positions, mat, tint, collect) {
           if (!positions.length) return;
-          if (tint) for (const p of positions) p[4] = 0.94 + Math.random() * 0.10;   // sắc độ ngẫu nhiên lấy theo thứ tự ô như cũ, rồi mới tách 2 lưới
-          const flat = positions.filter(p => p[3]), full = positions.filter(p => !p[3]);
-          if (flat.length && full.length) { instancedOne(flat, mat, tint, collect, flatTopGeo); instancedOne(full, mat, tint, collect, boxGeo); return; }
-          instancedOne(positions, mat, tint, collect, flat.length ? flatTopGeo : boxGeo);
-        }
-        function instancedOne(positions, mat, tint, collect, geo) {
-          const im = new THREE.InstancedMesh(geo, mat, positions.length); const mm = new THREE.Matrix4();
-          const col = new THREE.Color();
-          for (let k = 0; k < positions.length; k++) {
-            const p = positions[k];
-            mm.makeTranslation(p[0], p[1], p[2]); im.setMatrixAt(k, mm);
+          if (tint) for (const p of positions) p[4] = 0.94 + Math.random() * 0.10;
+          const flat = [], full = [];
+          for (const p of positions) {
+            let c = null;
             if (tint) {
-              const e = Math.min(0.999, Math.max(0, (p[1] - 1.2) / 6.5));   // độ cao → vị trí trong bảng màu bậc
+              const e = Math.min(0.999, Math.max(0, (p[1] - 1.2) / 6.5));
               const _f = e * (TERR_LAYERS.length - 1), _bi = _f | 0, _bt = _f - _bi;
-              col.copy(TERR_LAYERS[_bi]).lerp(TERR_LAYERS[Math.min(_bi + 1, TERR_LAYERS.length - 1)], _bt);   // nội suy mượt giữa 2 bậc
-              col.multiplyScalar(p[4]);
-              im.setColorAt(k, col);
+              c = TERR_LAYERS[_bi].clone().lerp(TERR_LAYERS[Math.min(_bi + 1, TERR_LAYERS.length - 1)], _bt).multiplyScalar(p[4]);
             }
+            if (!p[3]) { flat.push([p[0], p[1], p[2], 1, 2, c]); continue; }
+            full.push([p[0], p[1], p[2], 1, 2, c]);
+            for (const [bit, f] of [[1, 0], [2, 1], [4, 4], [8, 5]]) if (p[3] & bit) full.push([p[0], p[1], p[2], 1, f, c]);
           }
-          im.castShadow = geo !== flatTopGeo; im.receiveShadow = true; im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; scene.add(im);
-          if (collect) terrainMeshes.push(im);
+          terrFaces(flat, mat, false, collect); terrFaces(full, mat, true, collect);
         }
         function instancedScaled(items, mat, collect) {
-          if (!items.length) return;
-          const im = new THREE.InstancedMesh(boxGeo, mat, items.length); const mm = new THREE.Matrix4();
-          for (let k = 0; k < items.length; k++) { const p = items[k]; mm.makeScale(1, p.sy, 1); mm.setPosition(p.x, p.y, p.z); im.setMatrixAt(k, mm); }
-          im.castShadow = true; im.receiveShadow = true; im.instanceMatrix.needsUpdate = true; scene.add(im);
-          if (collect) terrainMeshes.push(im);
+          const recs = []; for (const p of items) for (let f = 0; f < 6; f++) if (p.m & (1 << f)) recs.push([p.x, p.y, p.z, p.sy, f, null]);
+          terrFaces(recs, mat, true, collect);
         }
 
         function landH(i, j) { const fi = i / S, fj = j / S; const dhi = fi - 85.4, dhj = fj + 4.2, hill = 10 * Math.exp(-(dhi * dhi / (2 * 18 * 18) + dhj * dhj / (2 * 15 * 15))); const dhi2 = fi - 42.5, dhj2 = fj - 52.5, hill2 = 2.2 * Math.exp(-(dhi2 * dhi2 / 32 + dhj2 * dhj2 / 32)); return 2.9 + Math.sin(fi * 0.4) * Math.cos(fj * 0.33) * 0.6 + Math.sin((fi + fj) * 0.21) * 0.4 + Math.sin(fi * 1.17 + fj * 0.61) * 0.12 - (fj / 45) * 0.7 + hill + hill2; }   // hill: đỉnh tại corner (217,2), độ cao 10 · bán kính dốc 18/15; hill2: đồi nhỏ tại x102 z126 (ngoài solar farm), độ cao 2.2
@@ -707,7 +721,14 @@
           return { update, U, meteors, spawn: spawnMeteor, get lim() { return lim; } };
         })();
         const grass = [], shore = [], bodies = [], waters = [], riverbed = [];
-        const cellTop = (ni, nj) => (ni < -MX || nj < -MZ || ni >= GX + MX || nj >= GZ + MZ || (ni === 158 && nj === 103) || gridWater[(ni + MX) * gridD + nj + MZ]) ? -1 : gridH[(ni + MX) * gridD + nj + MZ];   // −1: nước / ngoài bản đồ / cột đã xoá
+        const bedOf = (i, j) => {
+          const surf = Math.round((j < DAM_J ? RES : DOWN) * S);
+          const dd = riverDist(i, j), hh = Math.max(1, riverHalf(j)), tt = Math.min(1, dd / hh);
+          const bed = Math.round(surf - (1 + 2.6 * (1 - tt * tt)) + Math.sin(i * 0.5) * Math.sin(j * 0.4 + 1.1) * 0.8);
+          return Math.max(0, Math.min(surf - 1, bed));
+        };
+        const colH = (ni, nj) => (ni < -MX || ni >= GX + MX || nj < -MZ || nj >= GZ + MZ || gridWater[(ni + MX) * gridD + nj + MZ]) ? 0 : gridH[(ni + MX) * gridD + nj + MZ];
+        const cellTop = (ni, nj) => (ni < -MX || nj < -MZ || ni >= GX + MX || nj >= GZ + MZ || (ni === 158 && nj === 103) || gridWater[(ni + MX) * gridD + nj + MZ]) ? -1 : gridH[(ni + MX) * gridD + nj + MZ];
         for (let i = -MX; i < GX + MX; i++) {
           const gi = (i + MX) * gridD;
           for (let j = -MZ; j < GZ + MZ; j++) {
@@ -715,14 +736,16 @@
             const idx = gi + (j + MZ);
 
             if (gridWater[idx]) {
-              if (j >= DAM_J && j < DAM_J + 2 * S) continue;              // dam gap (smooth dam covers)
-              const surf = Math.round((j < DAM_J ? RES : DOWN) * S);
-              const dd = riverDist(i, j), hh = Math.max(1, riverHalf(j)), tt = Math.min(1, dd / hh);              // 0 giữa lòng → 1 mép bờ
-              let bed = Math.round(surf - (1 + 2.6 * (1 - tt * tt)) + Math.sin(i * 0.5) * Math.sin(j * 0.4 + 1.1) * 0.8);    // đáy nhấp nhô, sâu ở giữa
-              bed = Math.max(0, Math.min(surf - 1, bed));
-              if (bed > 0) riverbed.push({ x: wx(i), y: (bed - 0.5) * BLOCK, z: wz(j), sy: 1 });                        // lớp đáy sông nhìn thấy qua nước
+              if (j >= DAM_J && j < DAM_J + 2 * S) continue;
+              const surf = Math.round((j < DAM_J ? RES : DOWN) * S), bed = bedOf(i, j);
+              const bedSide = (ni, nj) => {
+                if (ni < -MX || ni >= GX + MX || nj < -MZ || nj >= GZ + MZ) return true;
+                const n = (ni + MX) * gridD + nj + MZ; if (!gridWater[n]) return gridH[n] < bed;
+                return (nj >= DAM_J && nj < DAM_J + 2 * S) || bedOf(ni, nj) < bed;
+              };
+              if (bed > 0) riverbed.push({ x: wx(i), y: (bed - 0.5) * BLOCK, z: wz(j), sy: 1, m: 4 | (bedSide(i + 1, j) ? 1 : 0) | (bedSide(i - 1, j) ? 2 : 0) | (bedSide(i, j + 1) ? 16 : 0) | (bedSide(i, j - 1) ? 32 : 0) });
               const wh = surf - bed;
-              waters.push({ x: wx(i), y: (bed + wh / 2) * BLOCK, z: wz(j), sy: wh, i, j });                          // cột nước nằm trên đáy
+              waters.push({ x: wx(i), y: (bed + wh / 2) * BLOCK, z: wz(j), sy: wh, i, j });
               continue;
             }
 
@@ -734,32 +757,12 @@
               (j - 1 >= -MZ && gridWater[gi + (j - 1 + MZ)]) ||
               poolMetric(i, j) < 1.55;
 
-            const flat = cellTop(i + 1, j) >= h && cellTop(i - 1, j) >= h && cellTop(i, j + 1) >= h && cellTop(i, j - 1) >= h;   // 4 mặt bên bị ô cạnh che hết
-            (nearWater ? shore : grass).push([wx(i), wy(top), wz(j), flat]);
+            const sides = (cellTop(i + 1, j) < h ? 1 : 0) | (cellTop(i - 1, j) < h ? 2 : 0) | (cellTop(i, j + 1) < h ? 4 : 0) | (cellTop(i, j - 1) < h ? 8 : 0);
+            (nearWater ? shore : grass).push([wx(i), wy(top), wz(j), sides]);
 
             if (top > 0) {
-              let minH = top;
-              if (i + 1 >= GX + MX || gridWater[gi + gridD + (j + MZ)]) minH = 0;
-              else if (gridH[gi + gridD + (j + MZ)] < minH) minH = gridH[gi + gridD + (j + MZ)];
-
-              if (minH > 0) {
-                if (i - 1 < -MX || gridWater[gi - gridD + (j + MZ)]) minH = 0;
-                else if (gridH[gi - gridD + (j + MZ)] < minH) minH = gridH[gi - gridD + (j + MZ)];
-              }
-
-              if (minH > 0) {
-                if (j + 1 >= GZ + MZ || gridWater[gi + (j + 1 + MZ)]) minH = 0;
-                else if (gridH[gi + (j + 1 + MZ)] < minH) minH = gridH[gi + (j + 1 + MZ)];
-              }
-
-              if (minH > 0) {
-                if (j - 1 < -MZ || gridWater[gi + (j - 1 + MZ)]) minH = 0;
-                else if (gridH[gi + (j - 1 + MZ)] < minH) minH = gridH[gi + (j - 1 + MZ)];
-              }
-
-              if (minH < top) {
-                bodies.push({ x: wx(i), y: (minH + top) * BLOCK / 2, z: wz(j), sy: top - minH });
-              }
+              const a = colH(i + 1, j), b = colH(i - 1, j), c = colH(i, j + 1), d = colH(i, j - 1), minH = Math.min(top, a, b, c, d);
+              if (minH < top) bodies.push({ x: wx(i), y: (minH + top) * BLOCK / 2, z: wz(j), sy: top - minH, m: (a < top ? 1 : 0) | (b < top ? 2 : 0) | (c < top ? 16 : 0) | (d < top ? 32 : 0) });
             }
           }
         }
@@ -11483,7 +11486,7 @@
           const tops = new Map(), _m = new THREE.Matrix4(), _p = new THREE.Vector3(), _c = new THREE.Color();
           for (const im of terrainMeshes) {
             if (!im.isInstancedMesh || !im.instanceColor || (im.material !== grassMat && im.material !== shoreMat)) continue;
-            for (let k = 0; k < im.count; k++) { im.getMatrixAt(k, _m); _p.setFromMatrixPosition(_m); tops.set(Math.round(x2gi(_p.x)) + Math.round(z2gj(_p.z)) * GX, [im, k]); }
+            for (let k = 0; k < im.count; k++) { im.getMatrixAt(k, _m); _p.setFromMatrixPosition(_m); const key = Math.round(x2gi(_p.x)) + Math.round(z2gj(_p.z)) * GX, L = tops.get(key); if (L) L.push(im, k); else tops.set(key, [im, k]); }
           }
           const lushOf = (i, j, moist) => Math.max(0, Math.min(1, 0.3 + 0.7 * moist + 0.6 * (vnoise(i * 0.09 + 41, j * 0.09 + 7) - 0.5)));
           const dirty = new Set(), _cL = new THREE.Color(), _lawnTint = new THREE.Color(0.8, 1.0, 0.62);
@@ -11492,7 +11495,7 @@
             const lush = L ? 0.75 : lushOf(i, j, moist), dens = L ? 0.6 : Math.min(1, (sc - thr) / Math.max(1e-3, top - thr));
             t[0].getColorAt(t[1], _c); _c.multiplyScalar(1.015 + 0.05 * dens).lerp(_c.clone().offsetHSL(0.012 * (lush - 0.5), 0.04, 0), 0.6);   // mặt đất dưới mảng cỏ: tươi hơn chút
             if (L) { const e = Math.min(1, L / 0.3); _c.lerp(_cL.copy(_c).multiply(_lawnTint), 0.85 * e); }   // thảm ngắn: nền xanh đậm như cỏ mượt, loang dần ra mép
-            t[0].setColorAt(t[1], _c); dirty.add(t[0]);
+            for (let q = 0; q < t.length; q += 2) { t[q].setColorAt(t[q + 1], _c); dirty.add(t[q]); }
           }
           for (const im of dirty) im.instanceColor.needsUpdate = true;
           const chunks = new Map();
