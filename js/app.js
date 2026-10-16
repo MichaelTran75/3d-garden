@@ -4338,20 +4338,21 @@
         const cows = [];
         const COW_H0 = 0.975, COW_SPAN = 1.22, COW_PIV = 0.25;
         const cowHoof = new THREE.MeshLambertMaterial({ color: 0x35312c });
-        const COW_HOOF_GEO = (() => {
+        function cloveHoofGeo(o) {
           const claw = (zc) => {
             const g = new THREE.BoxGeometry(1, 1, 1), p = g.attributes.position, sz = Math.sign(zc);
             for (let v = 0; v < p.count; v++) {
               const sx = Math.sign(p.getX(v)), sy = Math.sign(p.getY(v)), out = Math.sign(p.getZ(v)) === sz, top = sy > 0, toe = sx > 0;
-              const x = top ? (toe ? 0.055 : -0.065) : (toe ? 0.115 : -0.075), y = top ? -0.065 : -0.15;
-              const z = zc + (out ? sz * 0.039 : -sz * 0.033) - (out && toe ? sz * (top ? 0.01 : 0.022) : 0);
+              const x = top ? (toe ? o.tToe : o.tHeel) : (toe ? o.toe : o.heel), y = top ? o.top : o.sole;
+              const z = zc + (out ? sz * o.out : -sz * o.inn) - (out && toe ? sz * (top ? o.tt : o.tb) : 0);
               p.setXYZ(v, x, y, z);
             }
             g.computeVertexNormals(); return g;
           };
-          const dew = (zc) => new THREE.BoxGeometry(0.04, 0.035, 0.035).translate(-0.095, -0.035, zc);
-          return mergeGeometries([claw(0.045), claw(-0.045), dew(0.045), dew(-0.045)], false);
-        })();
+          const dew = (zc) => new THREE.BoxGeometry(o.dew[0], o.dew[1], o.dew[1]).translate(o.dew[2], o.dew[3], zc);
+          return mergeGeometries([claw(o.zc), claw(-o.zc), dew(o.zc), dew(-o.zc)], false);
+        }
+        const COW_HOOF_GEO = cloveHoofGeo({ top: -0.065, sole: -0.15, toe: 0.115, heel: -0.075, tToe: 0.055, tHeel: -0.065, zc: 0.045, out: 0.039, inn: 0.033, tb: 0.022, tt: 0.01, dew: [0.04, 0.035, -0.095, -0.035] });
         function cow(k) {
           const g = new THREE.Group();
           const P = (par, w, h, d, mat, x, y, z, o) => { const m = bx(w, h, d, mat, true, o !== false); m.position.set(x, y, z); par.add(m); return m; };
@@ -4778,7 +4779,8 @@
             P(baseHorn, 0.06, 0.3, 0.06, hornMat, 0.08, 0.12, sz * 0.08, 0.3 * sz, 0, 0.5);
             P(baseHorn, 0.06, 0.25, 0.06, hornMat, -0.08, 0.24, -sz * 0.04, -0.2 * sz, 0, -0.4);
           }
-          const legs = [], hoofMat = new THREE.MeshLambertMaterial({ color: 0x222222 });
+          const legs = [], hoofMat = new THREE.MeshLambertMaterial({ color: 0x2e2a27 });
+          const hoofGeo = cloveHoofGeo({ top: -0.025, sole: -0.08, toe: 0.1, heel: -0.05, tToe: 0.04, tHeel: -0.045, zc: 0.036, out: 0.03, inn: 0.028, tb: 0.02, tt: 0.01, dew: [0.03, 0.025, -0.065, -0.015] });
           const legDefs = [[0.45, 0.22], [0.45, -0.22], [-0.48, 0.22], [-0.48, -0.22]];
           for (const lp of legDefs) {
             const hip = new THREE.Group(); hip.position.set(lp[0], STAG_PIV, lp[1]); torso.add(hip);
@@ -4786,7 +4788,8 @@
             const knee = new THREE.Group(); knee.position.y = -0.55 - STAG_PIV; hip.add(knee);
             P(knee, 0.14, 0.6, 0.14, deerMat, 0, -0.3, 0);
             const paw = new THREE.Group(); paw.position.y = -0.6; knee.add(paw);
-            P(paw, 0.16, 0.08, 0.16, hoofMat, 0, -0.04, 0);
+            P(paw, 0.13, 0.03, 0.13, deerMat, 0, -0.01, 0);
+            { const h = new THREE.Mesh(hoofGeo, hoofMat); h.castShadow = h.receiveShadow = true; paw.add(h); }
             legs.push({ hip, knee, paw, front: lp[0] > 0, side: Math.sign(lp[1]), L1: 0.55 + STAG_PIV, L2: 0.6, ankleH: 0.08, bend: lp[0] > 0 ? 1 : -1 });
           }
           const tailG = new THREE.Group(); tailG.position.set(-0.7, 1.9, 0); body.add(tailG);
@@ -9258,8 +9261,8 @@
         }
         const ventTop = new THREE.Vector3(), ventSmoke = (() => {
           const vs = caravanObj.getWorldScale(new THREE.Vector3()).y;
-          const S = fluids.addSmoke({ NR: 40, NZ: 120, H: 0.02 * vs, NP: 400, NS: 0, NT: 14, buoy: 4, kNu: 0.03, nu0: 0.002, tauT: 5, iters: 30, dens: 1.3,
-            inlet: { r: 0.045 * vs }, lid: { r: 0.095 * vs, z0: 0.03 * vs, z1: 0.1 * vs } }, { name: 'Khói ống bếp (sợi khói Navier–Stokes)', opacity: 0.75 });
+          const S = fluids.addSmoke({ NR: 40, NZ: 150, H: 0.02 * vs, NP: 400, NS: 0, NT: 14, buoy: 4, kNu: 0.03, nu0: 0.002, tauT: 5, iters: 30, dens: 0.8,
+            inlet: { r: 0.045 * vs }, lid: { r: 0.095 * vs, z0: 0.03 * vs, z1: 0.1 * vs } }, { name: 'Khói ống bếp (sợi khói Navier–Stokes)', opacity: 0.6 });
           S.on = false; return S;
         })();
         let ventRun = 0; const _usA = new THREE.Vector3(), _usS = new THREE.Vector3();
@@ -9288,8 +9291,8 @@
           const heat = lit ? Math.max(0.35, st, fry ? 1 : 0) : 0.12 * ventRun / 25;
           const VS = ventSmoke; VS.on = heat > 0.01;
           if (VS.on) { caravanObj.localToWorld(VS.base.copy(caravanObj.userData.chimneyTop)); VS.base.y -= 0.02 * caravanObj.getWorldScale(ventTop).y;
-            VS.heat = 0.8 + 0.5 * heat; VS.smoke = 1 + 0.5 * heat; VS.rate = 0.25 + 0.6 * heat;
-            plumeLight(VS, _plumeSmokeC.copy(PLUME_COL.steam).lerp(PLUME_COL.smoke, fry ? 0.6 : 0.1), PLUME_COL.steam, _plumeGlow.setRGB(0, 0, 0)); }
+            VS.heat = 0.8 + 0.5 * heat; VS.smoke = 1 + 0.5 * heat; VS.rate = 0.3 * (0.25 + 0.6 * heat); VS.draft = 0;
+            plumeLight(VS, _plumeSmokeC.copy(PLUME_COL.smoke).lerp(PLUME_COL.steam, fry ? 0.05 : 0.3), PLUME_COL.steam, _plumeGlow.setRGB(0, 0, 0)); }
         }
         function engSay(label, text) {
           const now = Date.now(), ctx = engContext(now);
@@ -11995,7 +11998,7 @@
         for (let n = 0; n < 6; n++) {
           const sp = BF_SP[n], bt = butterfly(sp);
           const startP = pickBflyTarget(); bt.g.position.copy(startP); scene.add(bt.g);
-          butterflies.push({ g: bt.g, wL: bt.wingL, wR: bt.wingR, pos: startP.clone(), target: pickBflyTarget(startP), spd: (1.6 + Math.random() * 0.9) * 0.9, ph: Math.random() * 6.28,
+          butterflies.push({ g: bt.g, wL: bt.wingL, wR: bt.wingR, pos: startP.clone(), target: pickBflyTarget(startP), spd: (1.6 + Math.random() * 0.9) * 0.9 * 0.7, ph: Math.random() * 6.28,
             hz: sp[4], glide: sp[5], fph: Math.random() * TAU, glideT: 0, nextGlide: TAU * (2 + Math.random() * 4), ang: 0.4 });
         }
         function bflyFlap(bf, dt, k = 1) {

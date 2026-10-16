@@ -28,7 +28,10 @@
             P(baseHorn, 0.06, 0.3, 0.06, hornMat, 0.08, 0.12, sz * 0.08, 0.3 * sz, 0, 0.5);
             P(baseHorn, 0.06, 0.25, 0.06, hornMat, -0.08, 0.24, -sz * 0.04, -0.2 * sz, 0, -0.4);
           }
-          const legs = [], hoofMat = new THREE.MeshLambertMaterial({ color: 0x222222 });
+          // móng hươu (G 16/10 "sửa móng hươu như móng bò"): trước là khối đen 0,16 × 0,08 rộng hơn ống chân 0,14 ⇒ như đi guốc. Giờ: cổ chân lông nâu ngắn +
+          // 2 móng chẻ THON NHỌN (hươu: móng hẹp, mũi nhọn, hình tim nhìn từ dưới), rộng bằng ống chân, + 2 móng huyền nhỏ sau cổ chân; đế vẫn −0,08 (ankleH)
+          const legs = [], hoofMat = new THREE.MeshLambertMaterial({ color: 0x2e2a27 });
+          const hoofGeo = cloveHoofGeo({ top: -0.025, sole: -0.08, toe: 0.1, heel: -0.05, tToe: 0.04, tHeel: -0.045, zc: 0.036, out: 0.03, inn: 0.028, tb: 0.02, tt: 0.01, dew: [0.03, 0.025, -0.065, -0.015] });
           const legDefs = [[0.45, 0.22], [0.45, -0.22], [-0.48, 0.22], [-0.48, -0.22]];   // trước-T, trước-P, sau-T, sau-P (trái = +z)
           for (const lp of legDefs) {
             const hip = new THREE.Group(); hip.position.set(lp[0], STAG_PIV, lp[1]); torso.add(hip);
@@ -36,7 +39,8 @@
             const knee = new THREE.Group(); knee.position.y = -0.55 - STAG_PIV; hip.add(knee);
             P(knee, 0.14, 0.6, 0.14, deerMat, 0, -0.3, 0);
             const paw = new THREE.Group(); paw.position.y = -0.6; knee.add(paw);
-            P(paw, 0.16, 0.08, 0.16, hoofMat, 0, -0.04, 0);   // móng: đế ở −0,08 dưới cổ chân
+            P(paw, 0.13, 0.03, 0.13, deerMat, 0, -0.01, 0);   // cổ chân lông
+            { const h = new THREE.Mesh(hoofGeo, hoofMat); h.castShadow = h.receiveShadow = true; paw.add(h); }
             legs.push({ hip, knee, paw, front: lp[0] > 0, side: Math.sign(lp[1]), L1: 0.55 + STAG_PIV, L2: 0.6, ankleH: 0.08, bend: lp[0] > 0 ? 1 : -1 });
           }
           const tailG = new THREE.Group(); tailG.position.set(-0.7, 1.9, 0); body.add(tailG);

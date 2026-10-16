@@ -8,21 +8,24 @@
         //      ⇒ cục đen cao 0,24 to hơn chân. Móng thật: 2 MÓNG CHẺ thấp (~6% chiều cao vai), mặt trước vát ~50° (mũi móng ló trước cổ chân), đế dài hơn
         //      vành móng, gót thấp; trên móng là cổ chân lông trắng; 2 móng huyền nhỏ sau cổ chân. Đế giữ ở −0,15 (ankleH: IK nhắm cổ chân). Gộp 1 lưới dùng chung.
         const cowHoof = new THREE.MeshLambertMaterial({ color: 0x35312c });
-        const COW_HOOF_GEO = (() => {
+        // MÓNG CHẺ dùng chung (bò, hươu): 2 móng hình nêm (đế dài hơn vành, mặt trước vát, mũi thon dần về khe chẻ) + 2 móng huyền sau cổ chân, gộp 1 lưới.
+        //   o: top/sole = y vành / đế · toe/heel = x mũi / gót ở đế · tToe/tHeel = x mũi / gót ở vành · zc = tâm mỗi móng · out/inn = nửa rộng ra ngoài / vào khe
+        //      · tb/tt = độ thon mũi ở đế / vành · dew = [rộng, cao, x, y] móng huyền
+        function cloveHoofGeo(o) {
           const claw = (zc) => {
             const g = new THREE.BoxGeometry(1, 1, 1), p = g.attributes.position, sz = Math.sign(zc);
             for (let v = 0; v < p.count; v++) {
               const sx = Math.sign(p.getX(v)), sy = Math.sign(p.getY(v)), out = Math.sign(p.getZ(v)) === sz, top = sy > 0, toe = sx > 0;
-              const x = top ? (toe ? 0.055 : -0.065) : (toe ? 0.115 : -0.075), y = top ? -0.065 : -0.15;
-              // mũi móng thon dần về phía khe chẻ
-              const z = zc + (out ? sz * 0.039 : -sz * 0.033) - (out && toe ? sz * (top ? 0.01 : 0.022) : 0);
+              const x = top ? (toe ? o.tToe : o.tHeel) : (toe ? o.toe : o.heel), y = top ? o.top : o.sole;
+              const z = zc + (out ? sz * o.out : -sz * o.inn) - (out && toe ? sz * (top ? o.tt : o.tb) : 0);
               p.setXYZ(v, x, y, z);
             }
             g.computeVertexNormals(); return g;
           };
-          const dew = (zc) => new THREE.BoxGeometry(0.04, 0.035, 0.035).translate(-0.095, -0.035, zc);   // móng huyền
-          return mergeGeometries([claw(0.045), claw(-0.045), dew(0.045), dew(-0.045)], false);
-        })();
+          const dew = (zc) => new THREE.BoxGeometry(o.dew[0], o.dew[1], o.dew[1]).translate(o.dew[2], o.dew[3], zc);
+          return mergeGeometries([claw(o.zc), claw(-o.zc), dew(o.zc), dew(-o.zc)], false);
+        }
+        const COW_HOOF_GEO = cloveHoofGeo({ top: -0.065, sole: -0.15, toe: 0.115, heel: -0.075, tToe: 0.055, tHeel: -0.065, zc: 0.045, out: 0.039, inn: 0.033, tb: 0.022, tt: 0.01, dew: [0.04, 0.035, -0.095, -0.035] });
         function cow(k) {
           const g = new THREE.Group();
           const P = (par, w, h, d, mat, x, y, z, o) => { const m = bx(w, h, d, mat, true, o !== false); m.position.set(x, y, z); par.add(m); return m; };

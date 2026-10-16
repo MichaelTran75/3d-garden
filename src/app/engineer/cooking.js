@@ -59,8 +59,10 @@
         //      Hơi nước trắng khi luộc/nấu, khói dầu xám khi chiên; tắt lửa quạt chạy thêm ~25 s cho hết mùi. ----
         const ventTop = new THREE.Vector3(), ventSmoke = (() => {
           const vs = caravanObj.getWorldScale(new THREE.Vector3()).y;   // ống: r 4,5 cm · khe 3 cm · nón r 9,5 cm cao 7 cm (toạ độ xe × tỉ lệ xe)
-          const S = fluids.addSmoke({ NR: 40, NZ: 120, H: 0.02 * vs, NP: 400, NS: 0, NT: 14, buoy: 4, kNu: 0.03, nu0: 0.002, tauT: 5, iters: 30, dens: 1.3,
-            inlet: { r: 0.045 * vs }, lid: { r: 0.095 * vs, z0: 0.03 * vs, z1: 0.1 * vs } }, { name: 'Khói ống bếp (sợi khói Navier–Stokes)', opacity: 0.75 });
+          // G 16/10 "cho khói nấu ăn giống khói fire camp": cùng độ đặc hạt (dens 0,8) + độ đục (0,6) như lửa trại (trước 1,3 × 0,75 ⇒ đặc gấp đôi),
+          // vùng bốc cao 3 m (trước 2,4) cho sợi khói toả; ô 2 cm giữ nguyên để còn phân giải miệng ống 4,5 cm + nón che mưa
+          const S = fluids.addSmoke({ NR: 40, NZ: 150, H: 0.02 * vs, NP: 400, NS: 0, NT: 14, buoy: 4, kNu: 0.03, nu0: 0.002, tauT: 5, iters: 30, dens: 0.8,
+            inlet: { r: 0.045 * vs }, lid: { r: 0.095 * vs, z0: 0.03 * vs, z1: 0.1 * vs } }, { name: 'Khói ống bếp (sợi khói Navier–Stokes)', opacity: 0.6 });
           S.on = false; return S;
         })();
         let ventRun = 0; const _usA = new THREE.Vector3(), _usS = new THREE.Vector3();
@@ -89,8 +91,10 @@
           const heat = lit ? Math.max(0.35, st, fry ? 1 : 0) : 0.12 * ventRun / 25;   // còn hơi trong ống sau khi tắt lửa
           const VS = ventSmoke; VS.on = heat > 0.01;   // khói ống bếp theo độ nóng: nhiệt, lượng khói, sức đẩy quạt hút; màu hơi trắng → khói dầu xám khi chiên
           if (VS.on) { caravanObj.localToWorld(VS.base.copy(caravanObj.userData.chimneyTop)); VS.base.y -= 0.02 * caravanObj.getWorldScale(ventTop).y;
-            VS.heat = 0.8 + 0.5 * heat; VS.smoke = 1 + 0.5 * heat; VS.rate = 0.25 + 0.6 * heat;   // khí thải qua quạt hút còn nóng, đặc hơi + khói dầu VS.draft = 0.9 + 1.1 * Math.min(1, heat * 2);
-            plumeLight(VS, _plumeSmokeC.copy(PLUME_COL.steam).lerp(PLUME_COL.smoke, fry ? 0.6 : 0.1), PLUME_COL.steam, _plumeGlow.setRGB(0, 0, 0)); }
+            // khí thải còn nóng. G 16/10: lượng khói −70% (số hạt thả ra × 0,3); bốc nhờ hơi nóng như lửa trại (draft 0 — dòng "VS.draft = …" cũ bị nuốt vào
+            // chú thích nên chưa từng chạy); màu xám khói như lửa trại, ngả trắng hơi nước khi luộc / nấu, gần như xám hẳn khi chiên
+            VS.heat = 0.8 + 0.5 * heat; VS.smoke = 1 + 0.5 * heat; VS.rate = 0.3 * (0.25 + 0.6 * heat); VS.draft = 0;
+            plumeLight(VS, _plumeSmokeC.copy(PLUME_COL.smoke).lerp(PLUME_COL.steam, fry ? 0.05 : 0.3), PLUME_COL.steam, _plumeGlow.setRGB(0, 0, 0)); }
         }
         function engSay(label, text) {   // nảy ý ngay khi có sự việc (múc xong udon…): dùng chung đám mây suy nghĩ
           const now = Date.now(), ctx = engContext(now);

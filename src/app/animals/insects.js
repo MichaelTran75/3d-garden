@@ -224,7 +224,8 @@
         for (let n = 0; n < 6; n++) {
           const sp = BF_SP[n], bt = butterfly(sp);
           const startP = pickBflyTarget(); bt.g.position.copy(startP); scene.add(bt.g);
-          butterflies.push({ g: bt.g, wL: bt.wingL, wR: bt.wingR, pos: startP.clone(), target: pickBflyTarget(startP), spd: (1.6 + Math.random() * 0.9) * 0.9, ph: Math.random() * 6.28,
+          // G 16/10: bướm bay chậm 30% (cả lúc tìm hoa lẫn lúc đi trú mưa)
+          butterflies.push({ g: bt.g, wL: bt.wingL, wR: bt.wingR, pos: startP.clone(), target: pickBflyTarget(startP), spd: (1.6 + Math.random() * 0.9) * 0.9 * 0.7, ph: Math.random() * 6.28,
             hz: sp[4], glide: sp[5], fph: Math.random() * TAU, glideT: 0, nextGlide: TAU * (2 + Math.random() * 4), ang: 0.4 });
         }
         function bflyFlap(bf, dt, k = 1) {   // vỗ – lượn; trả về độ nhấp nhô thân (vỗ xuống nâng thân) · k: hệ số nhịp (vội tránh mưa vỗ nhanh hơn)
