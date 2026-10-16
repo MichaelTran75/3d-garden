@@ -5971,8 +5971,8 @@
           return false;
         }
 
-        const BUBBLE_W = 640, BUBBLE_H = 352;
-        const checkBubbleCanvas = document.createElement('canvas'); checkBubbleCanvas.width = BUBBLE_W; checkBubbleCanvas.height = BUBBLE_H;
+        const BUBBLE_W = 640, BUBBLE_H = 352, BUBBLE_RES = 2, THOUGHT_K = 0.5;
+        const checkBubbleCanvas = document.createElement('canvas'); checkBubbleCanvas.width = BUBBLE_W * BUBBLE_RES; checkBubbleCanvas.height = BUBBLE_H * BUBBLE_RES;
         const cbCtx = checkBubbleCanvas.getContext('2d');
         const checkBubbleTex = new THREE.CanvasTexture(checkBubbleCanvas); checkBubbleTex.colorSpace = THREE.SRGBColorSpace;
         const checkBubbleSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: checkBubbleTex, transparent: true, opacity: 0.97, depthWrite: false, depthTest: false }));
@@ -6030,11 +6030,17 @@
           const seconds = fishing ? Math.max(0, Math.ceil(engObj.timer)) : -1;
           const key = seconds + '|' + (showThought ? thought.revision : -1) + '|' + (fishing ? fishingStatusText() : '');
           if (key === engineerLabelKey) return; engineerLabelKey = key;
-          cbCtx.clearRect(0, 0, BUBBLE_W, BUBBLE_H);
+          cbCtx.setTransform(BUBBLE_RES, 0, 0, BUBBLE_RES, 0, 0); cbCtx.clearRect(0, 0, BUBBLE_W, BUBBLE_H);
           cbCtx.textAlign = 'center'; cbCtx.textBaseline = 'middle';
           const rows = [];
           let cloud = null;
-          if (showThought) { cloud = drawThoughtCloud(cbCtx, thought.header, thought.message, 294); rows.push({ type: 'weather', text: thought.header, y: cloud.y0 + 17 }, ...cloud.lines.map((l, i) => ({ type: 'thought', text: l, y: 0 }))); }
+          if (showThought) {
+            const ys = (y) => BUBBLE_H - (BUBBLE_H - y) * THOUGHT_K;
+            cbCtx.save(); cbCtx.translate(BUBBLE_W / 2, BUBBLE_H); cbCtx.scale(THOUGHT_K, THOUGHT_K); cbCtx.translate(-BUBBLE_W / 2, -BUBBLE_H);
+            const c = drawThoughtCloud(cbCtx, thought.header, thought.message, 294); cbCtx.restore();
+            cloud = { ...c, y0: ys(c.y0), y1: ys(c.y1) };
+            rows.push({ type: 'weather', text: thought.header, y: ys(c.y0 + 17) }, ...cloud.lines.map((l, i) => ({ type: 'thought', text: l, y: 0 })));
+          }
           if (fishing) {
             const top = cloud ? Math.max(30, cloud.y0 - 82) : 260;
             for (const [type, text, y, size, color] of [['countdown', '🎣 ' + fmtCountdown(seconds), top, 34, '#ffd34a'], ['fish', fishingStatusText(), top + 46, 34, '#65b3ff']]) {
