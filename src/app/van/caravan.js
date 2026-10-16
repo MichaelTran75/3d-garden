@@ -9,6 +9,62 @@
           studyDeskLighting.light.intensity = on ? 1.35 : 0;
           studyDeskLighting.bulb.emissiveIntensity = on ? 1.6 : 0;
         }
+        // ---- MacBook Pro 16" (2021) dựng bằng code (G 17/10 gửi GLB "MacBook Pro 2021", KangaroOz 3D, CC-BY-NC — chỉ đo dáng; mẫu đó là đời Touch Bar 2016–20,
+        //      ở đây theo đời 2021 thật): thân 355,7 × 248,1 mm, dày 16,8 mm khi gập (đế 10,5 · nắp 6,3), góc bo 1 cm, nhôm xám không gian · lòng bàn phím
+        //      đen anod, phím đen cao đủ (hàng F + Touch ID), loa 2 bên đục lỗ, trackpad 160 × 100 mm · bản lề đen · nắp: kính đen viền 4,9 / 3,5 mm, màn
+        //      345,9 × 223,6 mm (3456×2234 ⇒ 1,547), TAI THỎ vẽ trên màn · lưng nắp: logo táo bóng · cổng 2 cạnh (MagSafe, Thunderbolt, tai nghe | HDMI, TB, SD).
+        //      Gốc = giữa đáy; bản lề quay quanh trục x ở mép sau (nắp gập: mặt màn úp xuống −y, mở: quay về +z) ----
+        const MBP = { W: 0.3557, D: 0.2481, HB: 0.0105, HL: 0.0063, SW: 0.3459, SH: 0.2236, CW: 512, CH: 331 };
+        function macbookPro() {
+          const { W, D, HB, HL, SW, SH } = MBP, g = new THREE.Group();
+          const rr = (w, h, r) => { const s = new THREE.Shape(), x = -w / 2, y = -h / 2; s.moveTo(x + r, y); s.lineTo(x + w - r, y); s.quadraticCurveTo(x + w, y, x + w, y + r); s.lineTo(x + w, y + h - r); s.quadraticCurveTo(x + w, y + h, x + w - r, y + h); s.lineTo(x + r, y + h); s.quadraticCurveTo(x, y + h, x, y + h - r); s.lineTo(x, y + r); s.quadraticCurveTo(x, y, x + r, y); return s; };
+          const slab = (th) => { const geo = new THREE.ExtrudeGeometry(rr(W, D, 0.01), { depth: th - 0.0016, bevelEnabled: true, bevelThickness: 0.0008, bevelSize: 0.0008, bevelSegments: 2, curveSegments: 4 }); geo.rotateX(-Math.PI / 2); geo.translate(0, 0.0008, 0); return geo; };   // hình bo nằm ngang, đáy y = 0
+          const alu = new THREE.MeshPhongMaterial({ color: 0x6a6d73, specular: 0x5a5a5a, shininess: 45 }), dark = new THREE.MeshPhongMaterial({ color: 0x1a1a1c, specular: 0x333333, shininess: 60 });
+          const base = new THREE.Mesh(slab(HB), alu); base.castShadow = true; g.add(base);
+          // mặt trên đế (canvas 1024 × 714 ≈ 2,9 px/mm): lòng phím đen, phím + chữ, loa 2 bên, trackpad · ảnh phát sáng riêng (chỉ chữ phím) cho đèn nền bàn phím
+          const cv = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
+          const top = cv(1024, 714), x = top.getContext('2d'), glow = cv(512, 357), gx = glow.getContext('2d'), k = 1024 / (W * 1000);   // px / mm
+          const R = (X, Y, w, h, r, c, ctx = x, s = 1) => { ctx.fillStyle = c; ctx.beginPath(); ctx.roundRect(X * k * s, Y * k * s, w * k * s, h * k * s, r * k * s); ctx.fill(); };
+          x.fillStyle = '#6d7076'; x.fillRect(0, 0, 1024, 714); gx.fillStyle = '#000'; gx.fillRect(0, 0, 512, 357);
+          const kbX = 37, kbY = 12, kbW = 282, kbH = 113;   // mm từ góc trái–sau
+          R(kbX - 3, kbY - 3, kbW + 6, kbH + 6, 4, '#141416');
+          const rows = [['esc', ...'F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12'.split(' '), ''], ['`', ...'1234567890-='.split(''), 'delete'], ['tab', ...'QWERTYUIOP[]\\'.split('')], ['caps', ...'ASDFGHJKL;\''.split(''), 'return'], ['shift', ...'ZXCVBNM,./'.split(''), 'shift'], ['fn', 'ctrl', 'opt', 'cmd', ' ', 'cmd', 'opt', '◀', '▲▼', '▶']];
+          const wide = { delete: 1.5, tab: 1.5, caps: 1.8, return: 1.9, shift: 2.4, ' ': 5.6, cmd: 1.25, esc: 1.5 }, P = 19.0;
+          rows.forEach((row, r) => {
+            const units = row.reduce((s, c) => s + (wide[c] || 1), 0); let cx = kbX, y = kbY + r * P;
+            row.forEach(c => { const w = (wide[c] || 1) * (kbW / units) - 2.2;
+              R(cx, y + 0.6, w, P - 3, 1.8, '#202023'); R(cx + 0.4, y + 0.8, w - 0.8, P - 4.4, 1.6, '#2a2a2e');   // phím: viền + mặt hơi sáng
+              if (c) for (const [ctx, s, col] of [[x, 1, 'rgba(235,235,240,0.85)'], [gx, 0.5, '#fff']]) { ctx.fillStyle = col; ctx.font = (c.length > 2 ? 2.6 : 3.8) * k * s + 'px Arial, sans-serif'; ctx.textAlign = c.length > 2 ? 'left' : 'center'; ctx.fillText(c, (c.length > 2 ? cx + 1.6 : cx + w / 2) * k * s, (y + (c.length > 2 ? 12.5 : 10.5)) * k * s); }
+              if (r === 0 && !c) { x.strokeStyle = '#444'; x.lineWidth = 1.5; x.beginPath(); x.arc((cx + w / 2) * k, (y + 8) * k, 4.5 * k, 0, 6.283); x.stroke(); }   // nút Touch ID
+              cx += w + 2.2; });
+          });
+          for (const sx of [kbX - 25, kbX + kbW + 6]) { x.fillStyle = '#3c3e43'; for (let yy = kbY; yy < kbY + kbH; yy += 1.25) for (let xx = sx; xx < sx + 19; xx += 1.25) x.fillRect(xx * k, yy * k, 1.6, 1.6); }   // loa đục lỗ
+          R((W * 1000 - 160) / 2, 248.1 - 13 - 100, 160, 100, 7, '#75787e'); x.strokeStyle = 'rgba(40,40,44,0.35)'; x.lineWidth = 2; x.beginPath(); x.roundRect((W * 1000 - 160) / 2 * k, (248.1 - 113) * k, 160 * k, 100 * k, 7 * k); x.stroke();   // trackpad
+          const tt = new THREE.CanvasTexture(top), gt = new THREE.CanvasTexture(glow); tt.colorSpace = gt.colorSpace = THREE.SRGBColorSpace; tt.anisotropy = 4;
+          for (const t of [tt, gt]) { t.repeat.set(1 / W, 1 / D); t.offset.set(0.5, 0.5); }
+          const keyMat = new THREE.MeshPhongMaterial({ map: tt, emissiveMap: gt, emissive: 0xfff4e0, emissiveIntensity: 0, specular: 0x333333, shininess: 30 });
+          const deck = new THREE.Mesh(new THREE.ShapeGeometry(rr(W - 0.0006, D - 0.0006, 0.0098), 4), keyMat); deck.rotation.x = -Math.PI / 2; deck.position.y = HB + 0.00005; g.add(deck);   // UV hình = toạ độ m ⇒ repeat 1/W, offset ½
+          // cổng 2 cạnh: trái MagSafe · TB · TB · tai nghe; phải HDMI · TB · khe SD
+          for (const [sx, list] of [[-1, [[-0.075, 0.016], [-0.045, 0.008], [-0.028, 0.008], [0.03, 0.004]]], [1, [[-0.07, 0.014], [-0.045, 0.008], [0.04, 0.024]]]]) for (const [z, w] of list) { const p = new THREE.Mesh(new THREE.BoxGeometry(0.0012, 0.0032, w), dark); p.position.set(sx * (W / 2 + 0.0002), HB * 0.48, z); g.add(p); }
+          const hingeBar = new THREE.Mesh(new THREE.CylinderGeometry(0.0045, 0.0045, W - 0.06, 10), dark); hingeBar.rotation.z = Math.PI / 2; hingeBar.position.set(0, HB - 0.001, -D / 2 + 0.006); g.add(hingeBar);
+          const hinge = new THREE.Group(); hinge.position.set(0, HB, -D / 2 + 0.006); g.add(hinge);
+          const lid = new THREE.Mesh(slab(HL), alu); lid.position.z = D / 2 - 0.006; lid.castShadow = true; hinge.add(lid);
+          const glass = new THREE.Mesh(new THREE.ShapeGeometry(rr(W - 0.0016, D - 0.0016, 0.0092), 4), new THREE.MeshPhongMaterial({ color: 0x08080a, specular: 0x555555, shininess: 140 }));
+          glass.rotation.x = Math.PI / 2; glass.position.set(0, -0.0002, D / 2 - 0.006); hinge.add(glass);   // kính đen mặt trong (úp xuống khi gập)
+          const sc = cv(MBP.CW, MBP.CH), sx2 = sc.getContext('2d'); sx2.fillStyle = '#000'; sx2.fillRect(0, 0, MBP.CW, MBP.CH);
+          const scrTex = new THREE.CanvasTexture(sc); scrTex.colorSpace = THREE.SRGBColorSpace; scrTex.anisotropy = 4;
+          const screenMat = new THREE.MeshBasicMaterial({ map: scrTex, color: 0x101214 });
+          const scr = new THREE.Mesh(new THREE.PlaneGeometry(SW, SH), screenMat); scr.rotation.x = Math.PI / 2; scr.position.set(0, -0.0004, D - 0.006 - 0.0035 - SH / 2); hinge.add(scr);   // viền trên 3,5 mm (tai thỏ nằm trong màn)
+          // logo táo (lưng nắp, bóng hơn nhôm): thân 2 thuỳ + vết cắn + lá — hướng lá về mép trên nắp
+          const ap = new THREE.Shape(), A = 0.0125;
+          ap.moveTo(0, -0.98 * A); ap.bezierCurveTo(-0.45 * A, -1.12 * A, -1.02 * A, -0.55 * A, -0.98 * A, 0.12 * A); ap.bezierCurveTo(-0.95 * A, 0.62 * A, -0.55 * A, 0.86 * A, -0.2 * A, 0.72 * A);
+          ap.quadraticCurveTo(0, 0.66 * A, 0.2 * A, 0.72 * A); ap.bezierCurveTo(0.55 * A, 0.86 * A, 0.86 * A, 0.62 * A, 0.9 * A, 0.42 * A); ap.quadraticCurveTo(0.62 * A, 0.18 * A, 0.66 * A, -0.12 * A);
+          ap.quadraticCurveTo(0.7 * A, -0.38 * A, 0.95 * A, -0.48 * A); ap.bezierCurveTo(0.8 * A, -0.92 * A, 0.4 * A, -1.12 * A, 0, -0.98 * A);
+          const leaf = new THREE.Shape(); leaf.moveTo(0.02 * A, 0.8 * A); leaf.quadraticCurveTo(0.05 * A, 1.25 * A, 0.42 * A, 1.32 * A); leaf.quadraticCurveTo(0.42 * A, 0.92 * A, 0.02 * A, 0.8 * A);
+          const logo = new THREE.Mesh(new THREE.ShapeGeometry([ap, leaf], 6), new THREE.MeshPhongMaterial({ color: 0x3a3c40, specular: 0xbbbbbb, shininess: 160 }));
+          logo.rotation.set(-Math.PI / 2, 0, Math.PI); logo.position.set(0, HL + 0.0002, D / 2 - 0.006); hinge.add(logo);   // xoay π quanh pháp tuyến: lá về mép trên nắp, vết cắn bên phải người nhìn lưng nắp
+          return { g, hinge, screenMat, keyMat, canvas: sc, ctx: sx2, tex: scrTex };
+        }
         function engHelmetProp() {   // mũ bảo hộ rời (đv xe = cỡ mũ đang đội: ×ENGINEER_BASE_SCALE); gốc ở đáy 2 ốp tai (mũ đặt xuống thì tì trên ốp tai)
           const g = new THREE.Group(); g.name = 'Mũ bảo hộ (đã tháo)'; g.userData.noBake = true;
           const h = legoHelmet(engHelm, caravanDark); h.position.y = 0.07; g.add(h);   // cùng hình mũ đang đội; tì trên 2 ốp tai
@@ -91,7 +147,7 @@
             bedPart(0.2, 0.025, 0.006, dx, 0.31, frontZ - 0.012, flexaWhite, false);
           }
           bedPart(bedLen - 0.05, 0.146, bedW - 0.05, bedCx, mattTop - 0.073, bedZ, mattGrey);                                  // đệm
-          const duvet = bx(bedLen * 0.5, 0.06, bedW - 0.02, cushMat); duvet.position.set(bedCx - bedLen * 0.22, yIn + mattTop + 0.03, bedZ + 0.01); bed.add(duvet);   // chăn đỏ gấp cuối giường
+          const duvet = bx(bedLen * 0.5, 0.06, bedW - 0.02, cushMat); duvet.position.set(bedCx - bedLen * 0.22, yIn + mattTop + 0.03, bedZ + 0.01); duvet.userData.noBake = duvet.userData.noBatch = true; bed.add(duvet);   // chăn đỏ gấp cuối giường (ngủ thì ẩn, trải chăn đắp — engineer/sleep.js)
           // Gối Flexa: thân phồng (dày giữa, dẹt dần về đường may, mép hơi cong vào tạo 4 góc nhọn), viền ống may quanh mép,
           // vải họa tiết quả trám (canvas). dent > 0 tạo vết lõm giữa mặt gối chỗ gác đầu.
           function flexaPillow(w, h, t, fabric, trim, dent = 0) {
@@ -175,28 +231,12 @@
           studyDeskLighting.light = studyLight; studyDeskLighting.bulb = bulbMat;
           // Lon nước ngọt ở góc trái phía trước mặt bàn, giữa nhãn quay về phía cửa hông.
           const coke = sodaCan(); coke.scale.setScalar(1.155); coke.position.set(dX - .37 * DESK_K, yIn + dH + .001, dZ + .09 * DESK_K); coke.rotation.y = -.6; coke.name = 'Lon coke trên bàn học'; study.add(coke);   // lon to thêm 5% rồi thêm 10% (G 15/10), gốc ở tâm đáy nên vẫn đứng sát mặt bàn
-          // Laptop giữa bàn, trước ghế: thân nhôm xám, bàn phím + touchpad; nắp gắn bản lề mép sau (đóng phẳng khi rảnh, mở ~106° khi làm việc)
+          // Laptop giữa bàn, trước ghế: MacBook Pro 16" (macbookPro ở trên) — nắp gắn bản lề mép sau (gập phẳng khi rảnh, mở ~106° khi làm việc)
           {
-            const lap = new THREE.Group(); lap.name = 'Laptop'; lap.position.set(dX - .01, yIn + dH + .001, dZ + .05 * DESK_K); lap.scale.setScalar(1.2); study.add(lap);   // G 15/10: to thêm 20% (gốc ở đáy giữa ⇒ vẫn nằm trên mặt bàn, cách sổ 4 cm)
-            const alu = new THREE.MeshLambertMaterial({ color: 0x3d4046 });
-            const kc = document.createElement('canvas'); kc.width = 128; kc.height = 48; const kx = kc.getContext('2d');
-            kx.fillStyle = '#1e2024'; kx.fillRect(0, 0, 128, 48); kx.fillStyle = '#3a3e45';
-            for (let r = 0; r < 4; r++) for (let k = 0; k < 13; k++) kx.fillRect(3 + k * 9.6, 3 + r * 11, 8, 9);   // phím
-            kx.fillRect(30, 3 + 4 * 11 - 1, 66, 4);
-            const keyTex = new THREE.CanvasTexture(kc); keyTex.colorSpace = THREE.SRGBColorSpace;
-            const base = bx(.33, .016, .23, alu, true, true, lineDark); base.position.y = .008; lap.add(base);
-            const kb = new THREE.Mesh(new THREE.PlaneGeometry(.29, .105), new THREE.MeshLambertMaterial({ map: keyTex })); kb.rotation.x = -Math.PI / 2; kb.position.set(0, .0165, -.035); lap.add(kb);
-            const pad = new THREE.Mesh(new THREE.PlaneGeometry(.095, .06), new THREE.MeshLambertMaterial({ color: 0x55595f })); pad.rotation.x = -Math.PI / 2; pad.position.set(0, .0166, .068); lap.add(pad);
-            const hinge = new THREE.Group(); hinge.position.set(0, .016, -.115); lap.add(hinge);
-            const lid = bx(.33, .01, .22, alu, true, true, lineDark); lid.position.set(0, .005, .11); hinge.add(lid);
-            const sc = document.createElement('canvas'); sc.width = 256; sc.height = 160; const sx2 = sc.getContext('2d');   // màn hình: bảng vận hành chạy / trình phát nhạc (vẽ mỗi khung ở engineer/routine-fx.js)
-            sx2.fillStyle = '#0f1a26'; sx2.fillRect(0, 0, 256, 160);
-            const scrTex = new THREE.CanvasTexture(sc); scrTex.colorSpace = THREE.SRGBColorSpace;
-            const screenMat = new THREE.MeshBasicMaterial({ map: scrTex, color: 0x101214 });
-            const scr = new THREE.Mesh(new THREE.PlaneGeometry(.29, .18), screenMat); scr.rotation.x = Math.PI / 2; scr.position.set(0, -.0006, .112); hinge.add(scr);   // mặt trong nắp: quay xuống khi đóng, quay về người dùng khi mở
+            const M = macbookPro(), lap = M.g; lap.name = 'Laptop'; lap.position.set(dX - .01, yIn + dH + .001, dZ + .05 * DESK_K); lap.scale.setScalar(1.11); study.add(lap);   // G 15/10 cho to thêm 20% ⇒ máy 16" thật × 1,11 vẫn rộng ~0,4 m như cũ; gốc ở đáy giữa
             const glow = new THREE.PointLight(0x9fc8ff, 0, 1.4 * CAMP_SCALE, 2); glow.position.set(0, .14, .02); lap.add(glow);
             lap.traverse(o => { o.userData.noBake = true; });
-            Object.assign(studyLaptop, { hinge, screen: screenMat, light: glow, group: lap, canvas: sc, ctx: sx2, tex: scrTex, mode: 'dash', drawnAt: -1 });
+            Object.assign(studyLaptop, { hinge: M.hinge, screen: M.screenMat, keys: M.keyMat, light: glow, group: lap, canvas: M.canvas, ctx: M.ctx, tex: M.tex, mode: 'dash', drawnAt: -1 });
           }
           study.userData.layout = {
             desk: { center: [dX, dZ], size: [1.08 * DESK_K, .5 * DESK_K], height: dH },
@@ -526,7 +566,8 @@
             table: { center: [-0.65, 0.8], size: [0.62, 0.62] },
             study: study.userData.layout,
             sleepPosition: [bedCx - 1.35 + 2.06 * (1.026 - ENGINEER_BASE_SCALE), yIn + 0.49 + 0.05, bedZ], sleepHead: [bedCx + 1.1, 4, bedZ],   // người nhỏ đi: dời gốc về phía gối để đầu vẫn gác đúng gối
-            stool: { obj: stool, rest: -0.04 }, bath: bathRig, bedHelmet, kitchen, cerealBowl, tableUdon, studyCoke: coke
+            stool: { obj: stool, rest: -0.04 }, bath: bathRig, bedHelmet, kitchen, cerealBowl, tableUdon, studyCoke: coke,
+            bedTop: yIn + mattTop, duvet, duvetMat: cushMat, bedGroup: bed   // engineer/sleep.js: mặt nệm, chăn gấp cuối giường (ẩn khi trải chăn đắp)
           };
           // xem xuyên: mặc định mọi thứ của xe là vỏ; sàn, nội thất, bánh xe & đèn lồng hiên giữ nguyên
           g.userData.xray = 'shell';

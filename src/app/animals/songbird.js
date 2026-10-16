@@ -109,8 +109,8 @@
               const air0 = B.at && B.at.kind === 'air';   // đang bay qua điểm trên không (đàn lượn): nối tiếp hướng bay, không cất cánh lại
               B.fromAir = air0; B.st = 'fly'; B.k = 0; B.to = w; B.A.copy(root.position); B.Bp.copy(w.p);
               const d = B.A.distanceTo(B.Bp), dir = tmp.subVectors(B.Bp, B.A).setY(0).normalize();
-              // G 16/10: bay chậm 30% (4,2 → 2,94 m/s)
-              B.dur = Math.max(1.3, d / 2.94 + 0.55);
+              // G 16/10: bay chậm 30% (4,2 → 2,94 m/s) · G 17/10: chậm thêm 30% (2,94 → 2,06 m/s; nhịp vỗ cánh giữ nguyên)
+              B.dur = Math.max(1.86, d / 2.06 + 0.79);
               if (air0) B.c1.copy(B.A).addScaledVector(_q.subVectors(B.A, B.c2).normalize(), 0.33 * d); else B.c1.copy(B.A).addScaledVector(up, 0.3 + 0.1 * d).addScaledVector(dir, 0.25 * d);
               B.c2.copy(B.Bp).addScaledVector(up, (w.kind === 'air' ? 0.05 : 0.25) + 0.08 * d).addScaledVector(dir, -0.22 * d);
             },

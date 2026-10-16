@@ -13,12 +13,8 @@
               if (e.g.parent !== caravanObj) {
                 caravanObj.add(e.g);
                 e.g.scale.setScalar(ENGINEER_BASE_SCALE); // The scaled van supplies the single 0.90 factor while sleeping.
-                e.g.position.fromArray(caravanObj.userData.interior.sleepPosition);
-                e.g.rotation.set(0, 0, -Math.PI / 2 + 0.05);   // đầu hơi nâng, gác lên gối nằm
-                e.legs[0].rotation.set(0, 0, 0); e.legs[1].rotation.set(0, 0, 0);
-                e.knees[0].rotation.set(0, 0, 0); e.knees[1].rotation.set(0, 0, 0);
+                e.g.position.fromArray(caravanObj.userData.interior.sleepPosition);   // tư thế nằm, chăn, thở, trở mình: engSleepTick (engineer/sleep.js)
                 e.arms[0].rotation.set(0, 0, 0); e.arms[1].rotation.set(0, 0, 0);
-                e.head.rotation.set(0, 0, 0);
                 e.rodGrp.visible = false; groundRod.visible = true;
                 checkBubbleSprite.visible = false;
                 // ngủ: mũ để cuối giường, khăn trên giá, đồ cầm tay cất, ghế đẩu kéo ra, cửa phòng tắm & nắp bồn cầu đóng, tắt nước
@@ -27,6 +23,7 @@
                 for (const k in e.props) e.props[k].visible = false; if (e.clip) e.clip.visible = false;
                 stoolAt(VSTOOL.rest); VAN_DOORS.entry.target = VAN_DOORS.wc.target = 0; LID.target = 0; showerFx.on = false; VBATH.tapWater.visible = false; chipsBag.visible = false;
               }
+              engSleepTick(e, dt, t, hh);
               fishLine.visible = false; bobber.visible = false;
               zzzGroup.visible = true;
               for (const z of zzzs) {
@@ -47,7 +44,7 @@
               }
               napFx.update(dt, t, null); musicFx.update(dt, t, false); laptopScreenTick(t, false);
             } else {
-              if (e.g.parent === caravanObj) engWake(e);   // 06:00: ngồi dậy ở mép giường
+              if (e.g.parent === caravanObj) { engSleepEnd(e); engWake(e); }   // 06:00: mặt thức, gấp chăn, ngồi dậy ở mép giường
               zzzGroup.visible = false;
               sleepSprite.visible = false;
               // ---- lịch cả ngày: việc theo giờ (mưa thì việc ngoài trời trống vào hiên) · mở trang giữa chừng thì đặt sẵn ở chỗ đang làm ----
@@ -237,4 +234,5 @@
             engReactArms(e, dt, t); // phản ứng: đích tay cử chỉ — sau khi đầu đã quay / cúi xong khung này
             engArmPost(e, dt);      // khuỷu tay + cổ tay (IK 2 đoạn giữ đúng chỗ bàn tay) · eo vặn theo nhịp bước
             applePick.tick(e, dt);  // sào, quả trong rổ / tay / giỏ theo bàn tay đã đặt xong · quả trên cây đung đưa
+            if (e.act === 'sleep' && e.g.parent === caravanObj) engSleepPost(e);   // chăn phủ theo thân đã hiển thị (engineer/sleep.js)
           }

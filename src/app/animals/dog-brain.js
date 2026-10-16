@@ -1,7 +1,7 @@
         // ===== CHÓ: HÀNH VI + VẬN ĐỘNG (G 13/10: "research and improve dog behaviour and movement") =====
         //  Tập tính chó nhà: ngủ / nằm nghỉ 12–14 giờ mỗi ngày, xen kẽ đánh hơi khám phá (mũi sát đất, đi chậm, dừng hít lâu chỗ có mùi), đi theo chủ
         //  (giữ khoảng 1–3 m, chủ dừng thì ngồi nhìn), uống nước, chơi đùa ngắn (chạy vòng "zoomies"); dậy thì VƯƠN VAI kiểu cúi chào (chân trước duỗi,
-        //  mông cao) rồi GIŨ LÔNG (~4–5 lần/giây); XOAY 1–2 vòng trước khi nằm; đuôi cao vẫy nhanh = vui (chủ tới gần, được vuốt), thấp chậm = thư giãn.
+        //  mông cao) rồi GIŨ LÔNG (~4–5 lần/giây); tới chỗ nằm chỉ xoay ngắn quay mặt về bếp lửa (G 17/10 bỏ xoay 1–2 vòng tại chỗ); đuôi cao vẫy nhanh = vui (chủ tới gần, được vuốt), thấp chậm = thư giãn.
         //  Dáng đi (Hildebrand, cơ sinh học dáng đi tứ chi):
         //   · ĐI BỘ 4 phách, trình tự bên: sau-T → trước-T → sau-P → trước-P; mỗi chân chạm đất ~65% chu kỳ; đầu nhấp theo nhịp chân trước.
         //   · NƯỚC KIỆU 2 phách, chân CHÉO cùng nhịp (trước-T + sau-P), chạm đất ~45%; thân nảy 2 lần/chu kỳ.
@@ -115,8 +115,23 @@
           if (!dogRain.st) { dogObj.position.set(restP.x, cowY(restP.x, restP.z), restP.z); dogObj.rotation.y = yawOf(pf.x - restP.x, pf.z - restP.z) + 0.4; }
           const eng = () => engObj && !engObj.inVan && engObj.phase !== 'van' && engObj.g.parent === scene ? engObj : null;
           const randPt = (r0, r1) => { for (let k = 0; k < 14; k++) { const a = Math.random() * 6.2832, r = r0 + Math.random() * (r1 - r0), x = restP.x + Math.cos(a) * r, z = restP.z + Math.sin(a) * r; if (isWater(Math.round(x2gi(x)), Math.round(z2gj(z)))) continue; if (obstacleCoords.some(o => Math.hypot(x - o.x, z - o.z) < o.r + 0.4) || ENG_PROPS.some(o => Math.hypot(x - o.x, z - o.z) < o.r + 0.3)) continue; if (Math.abs(cowY(x, z) - cowY(restP.x, restP.z)) > 0.7) continue; if (COL.ready && COL_M.dog && colFootHits(x, z, 0, COL_M.dog.a + 0.15, COL_M.dog.a + 0.15, COL_M.dog.lo, COL_M.dog.hi, 7) > 0) continue; return _a.set(x, 0, z).clone(); } return restP.clone(); };   // điểm trống thật trên lớp va chạm (lò chiminea, đống củi… không có trong bảng né)
-          function setSt(st, t) { B.st = st; B.k = 0; B.t = t || 0; if (st !== 'perch') { B.pc = null; B.air = false; } }
+          function setSt(st, t) { B.st = st; B.k = 0; B.t = t || 0; B.yt = undefined; if (st !== 'perch') { B.pc = null; B.air = false; } }
           let perchS;
+          // ---- BẢNG ĐƯỜNG ĐI RIÊNG CỦA CHÓ (G 17/10 "remove its motion đứng 1 chỗ xoay vòng"): bảng DP chung ô 0,6 m dẫn chó về chỗ nằm qua khe 12 cm giữa
+          //      lò chiminea và đống củi (cả 2 chưa có trong lưới cấm; chỗ nằm sát vòng tránh bếp lửa nên vùng luôn-mở quanh đích nới tới 2,2 m, trùm cả khe)
+          //      ⇒ chó kẹt ở khe, xoay 2 vòng / 6 s. Lớp va chạm dựng xong thì quanh trại (± 40 m) dựng LƯỚI CẤM TỪ VA CHẠM THẬT: ô có ≥ 2/5 điểm chạm vật ở
+          //      tầm thân chó (+ nước, nền san) bị cấm, vòng an toàn bếp lửa thì không; quanh đích chỉ mở 0,5 m ⇒ dựng lại bảng về chỗ nằm; bảng tới bát nước /
+          //      bãi chạy vòng dựng sau cũng theo lưới này ----
+          let dogBlk = null;
+          function dogNavBuild() {
+            dogBlk = ffBlocked.slice(); const M = COL_M.dog, R0 = 40, i0 = Math.max(0, Math.floor(x2gi(restP.x - R0))), i1 = Math.min(GX - 1, Math.ceil(x2gi(restP.x + R0))), j0 = Math.max(0, Math.floor(z2gj(restP.z - R0))), j1 = Math.min(GZ - 1, Math.ceil(z2gj(restP.z + R0)));
+            for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+              const n = i + j * GX, x = wx(i), z = wz(j), g = cowY(x, z); let k = 0;
+              for (const [dx, dz] of [[0, 0], [0.16, 0], [-0.16, 0], [0, 0.16], [0, -0.16]]) if (colHit(7, x + dx, z + dz, g + M.lo, g + M.hi)) k++;
+              dogBlk[n] = k >= 2 || isWater(i, j) || padH(i, j) !== null ? 1 : 0;
+            }
+            dogFireField.set(buildFlowField(dogLie.x, dogLie.z, dogBlk, 0.5)); zoomF = drinkF = null;
+          }
           function dogPerchSpot() {
             if (perchS !== undefined || !COL.ready) return perchS || null;
             perchS = null; let best = 1e9; const tb = scene.getObjectByName('Bàn trà (Camp Table)'), perchNo = [CAMP_SEAT.pos, FISH_SEAT.pos].concat(tb ? [tb.position] : []);
@@ -198,7 +213,7 @@
             }
             else if (D.st === 'toBed') { B.inside = true; ground = () => floorY; if (steer(dogBed.x, dogBed.z, 0.6, dt, null, 0.08)) D.st = 'in'; }
             else if (D.st === 'toExit') { B.inside = true; ground = () => floorY; if (steer(dogInside.x, dogInside.z, 0.6, dt, null, 0.08)) { D.st = 'hopOut'; D.t = 0; } }
-            else if (D.st === 'toFire') { B.inside = false; ground = cowY; if (steer(dogLie.x, dogLie.z, 1.2, dt, dogFireField, 0.1)) { D.st = null; setSt('circle'); B.n = 1.2 + Math.random(); return false; } }
+            else if (D.st === 'toFire') { B.inside = false; ground = cowY; if (steer(dogLie.x, dogLie.z, 1.2, dt, dogFireField, 0.1)) { D.st = null; setSt('circle'); return false; } }
             else {   // 'in': nằm gầm bàn vuông, mặt nhìn ra cửa; tối thì ngủ (gục mõm, thở chậm, Zzz)
               B.inside = true; ground = () => floorY; B.want = 0; B.mode = 'lie';
               let dy = yawOf(dogInside.x - dogBed.x, dogInside.z - dogBed.z) - dogObj.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); dogObj.rotation.y += dy * Math.min(1, dt * 2);
@@ -241,7 +256,7 @@
               }
               case 'drink': {   // tới bát nước cạnh bậc cửa xe, cúi uống (liếm nước ~3 lần/giây)
                 B.mode = 'stand';
-                if (B.k < 60 && !B.atBowl) { if (steer(drinkP.x, drinkP.z, 1.0, dt, drinkF || (drinkF = buildFlowField(drinkP.x, drinkP.z)), 0.08)) { B.atBowl = true; B.k = 0; } B.wagAmp = 0.15; B.wagF = 2; }
+                if (B.k < 60 && !B.atBowl) { if (steer(drinkP.x, drinkP.z, 1.0, dt, drinkF || (drinkF = dogBlk ? buildFlowField(drinkP.x, drinkP.z, dogBlk, 0.5) : buildFlowField(drinkP.x, drinkP.z)), 0.08)) { B.atBowl = true; B.k = 0; } B.wagAmp = 0.15; B.wagF = 2; }
                 else {
                   B.want = 0; let dy = yawOf(toBowl.x, toBowl.z) - dogObj.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); dogObj.rotation.y += dy * Math.min(1, dt * 5);
                   B.headP = -0.95 + 0.07 * Math.sin(t * 19); B.wagAmp = 0.1; B.wagF = 1.2;
@@ -255,7 +270,8 @@
                 // đang chạy ra bãi: chưa tính giờ chạy vòng (tối đa 25 s cả lượt)
                 if (dc > ZR + 0.8) B.t += dt;
                 // còn xa bãi: theo bảng DP tới tâm vòng (vòng qua ghế, bàn trà — đi thẳng thì lách vào khe 10 cm giữa ghế và bàn, kẹt ở đó cả phút)
-                if (dc > ZR + 1.5) steer(C.x, C.z, 2.9, dt, zoomF || (zoomF = buildFlowField(C.x, C.z)), 0.05);
+                if (dc > ZR + 1.5) steer(C.x, C.z, 2.9, dt, zoomF || (zoomF = dogBlk ? buildFlowField(C.x, C.z, dogBlk, 0.6) : buildFlowField(C.x, C.z)), 0.05);
+                if (B.k < dt * 1.5 || dc < B.zd - 0.3) { B.zd = dc; B.zt = 0; } else if ((B.zt += dt) > 4 && dc > ZR + 1.5) { setSt('return'); break; }   // 4 s chạy ra mà không lại gần bãi (kẹt cạnh xe, bậc cửa): thôi chơi
                 else steer(C.x + Math.cos(a) * ZR, C.z + Math.sin(a) * ZR, 2.9, dt, null, 0.05);
                 if (B.t <= 0 || B.k > 25) setSt('return');
                 break;
@@ -281,7 +297,7 @@
               }
               case 'return': {   // về chỗ nằm cạnh bếp lửa
                 B.mode = 'stand'; B.wagAmp = 0.15; B.wagF = 2;
-                if (steer(restP.x, restP.z, p.distanceTo(restP) > 3 ? 1.3 : 0.7, dt, p.distanceTo(restP) > 2 ? dogFireField : null, 0.12)) { setSt('circle'); B.n = 1 + Math.random() * 0.8; }
+                if (steer(restP.x, restP.z, p.distanceTo(restP) > 3 ? 1.3 : 0.7, dt, p.distanceTo(restP) > 2 ? dogFireField : null, 0.12)) { setSt('circle'); }
                 break;
               }
               case 'perch': {   // NHẢY LÊN ĐỐNG CỦI: tới mép, nhún, bật vòng cung lên đỉnh (mặt đứng đo trên lớp va chạm), đứng / ngồi ngó quanh, nhảy xuống bên kia
@@ -316,10 +332,13 @@
                 }
                 break;
               }
-              case 'circle': {   // xoay 1–2 vòng tại chỗ trước khi nằm (tập tính giẫm ổ)
-                B.mode = 'stand'; B.want = 0.25; const turn = 4.2 * dt; dogObj.rotation.y += turn; B.n -= turn / 6.2832; B.wagAmp = 0.1;
-                p.x += (restP.x - p.x) * Math.min(1, dt * 2); p.z += (restP.z - p.z) * Math.min(1, dt * 2);
-                if (B.n <= 0) { setSt('lie', 50 + Math.random() * 100); B.doze = 0; const toFire = yawOf(pf.x - p.x, pf.z - p.z); dogObj.rotation.y = toFire + Math.atan2(Math.sin(dogObj.rotation.y - toFire), Math.cos(dogObj.rotation.y - toFire)) * 0.3; }
+              case 'circle': {   // tới chỗ nằm: chỉ xoay ngắn cho mặt quay về bếp lửa rồi nằm — G 17/10 bỏ cảnh xoay 1–2 vòng tại chỗ (giẫm ổ) trông như chó đứng 1 chỗ
+                // xoay vòng; trước đây xong vòng còn giật hướng tức thì lúc nằm. Xoay có kiểm va chạm (dogTurn), tối đa 2 s
+                B.mode = 'stand'; B.want = 0; B.wagAmp = 0.1;
+                if (B.yt === undefined) { const toFire = yawOf(pf.x - p.x, pf.z - p.z); B.yt = toFire + Math.atan2(Math.sin(dogObj.rotation.y - toFire), Math.cos(dogObj.rotation.y - toFire)) * 0.3; }
+                dogTurn(B.yt, dt * 3);
+                let dy = B.yt - dogObj.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
+                if (Math.abs(dy) < 0.12 || B.k > 2) { setSt('lie', 50 + Math.random() * 100); B.doze = 0; }
                 break;
               }
             }
@@ -328,7 +347,12 @@
           return {
             update(dt, t) {
               dt = Math.min(dt, 0.05);
+              if (!dogBlk && COL.ready && COL_M.dog) dogNavBuild();
               if (!shelterTick(dt, t)) behave(dt, t);
+              // lưới an toàn: đứng 1 chỗ (< 0,4 m / 3 s) mà thân xoay > 5,5 rad ⇒ đang kẹt giữa vật (khe lọt lưới) — cho đi xuyên 1,5 s thoát ra
+              { const y = dogObj.rotation.y, p = dogObj.position; let d = y - (B.spinY ?? y); d = Math.atan2(Math.sin(d), Math.cos(d)); B.spinY = y; B.spin = (B.spin || 0) * Math.exp(-dt / 3) + Math.abs(d);
+                if (!B.spinP || (B.spinT = (B.spinT || 0) + dt) > 3) { B.spinP = p.clone(); B.spinT = 0; }
+                if (B.spin > 5.5 && p.distanceTo(B.spinP) < 0.4 && COL_M.dog && !(B.st === 'zoom' || B.st === 'perch' || B.inside)) { COL_M.dog.ghost = 1.5; B.spin = 0; } }
               // chọn dáng đi theo tốc độ (có trễ để khỏi đổi qua lại)
               if (gait === 'walk' && v > 1.0) gait = 'trot'; else if (gait === 'trot' && v < 0.8) gait = 'walk'; else if (gait === 'trot' && v > 2.3) gait = 'gallop'; else if (gait === 'gallop' && v < 2.0) gait = 'trot';
               const dist = move(dt);
@@ -337,7 +361,7 @@
               updateSoftTail(dogTail, dt, U.tail.rotation.y, dogZzzGroup.visible ? 1 : 0);
             },
             pettable: () => !dogRain.st && B.st === 'lie' && dogObj.position.distanceTo(restP) < 0.8,
-            perchSpot: () => dogPerchSpot(),
+            perchSpot: () => dogPerchSpot(), zoomSpot: () => zoomCenter(),
             state: B, rig
           };
         })();

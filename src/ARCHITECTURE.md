@@ -265,7 +265,23 @@ lò xo) ⇒ lên bậc voxel 0,6 đv thì chân trước lên trước, thân ng
   Worker trả kết quả sau mỗi khung (scratchpad `smoketest2.js` · `simW`: đợi phiên bản vị trí hạt tăng). Pane ẩn thì `requestAnimationFrame` không chạy.
 - Nền trời (`core/night-sky.js`, 16/10): BỎ lớp mây nền (đã có mây khối voxel 3D). Độ phủ mây thật `uCloud` chỉ làm mờ đều sao + Ngân Hà
   (× (1 − 0,9·uCloud)). Lưu ý: màu hồng của trời hoàng hôn lúc âm u trước đây là do lớp mây nền phủ kín, tô theo ánh ráng — giờ lộ màu chạng vạng gốc.
-- Laptop bàn học: `laptopDash(t)` vẽ bảng vận hành chạy (~6 hình/giây, chỉ khi nắp mở) — số MW theo nắng / mây / gió thật.
+- Laptop bàn học (G 17/10): MacBook Pro 16" 2021 dựng bằng code (`macbookPro()` ở van/caravan.js — kích thước thật × 1,11, mặt đế 1 canvas
+  1024 × 714 vẽ phím / loa / trackpad, ảnh phát sáng riêng chỉ chữ phím = đèn nền bàn phím). Màn 512 × 331 (tỉ lệ 1,547) vẽ 8 hình/giây khi nắp mở
+  (`laptopScreenTick`, engineer/routine-fx.js): hình nền vẽ sẵn 1 lần, thanh menu + tai thỏ, Dock, cửa sổ "GHC · Vận hành" (số MW theo nắng / mây /
+  gió thật, lịch sử 30 s có sẵn khi mở máy), Ghi chú đang gõ, con trỏ chuột lượn hiện nhãn giá trị, thông báo 45 s/lần, màn khoá 1,8 s khi vừa mở nắp,
+  buổi tối cửa sổ Nhạc. Bẫy: UV của ShapeGeometry = toạ độ hình (m) ⇒ texture repeat 1/W, 1/D, offset ½; logo lưng nắp xoay π quanh pháp tuyến.
+- Kỹ sư ngủ (`engineer/sleep.js`, G 17/10): `engSleepTick` (trước engPoseEnd) đặt đích khớp + điểm đặt bàn tay (`reachT`) theo LỊCH TƯ THẾ mỗi đêm
+  (`sleepPlan(day)`: nghiêng trái mặt ra phòng → ngửa → nghiêng phải…, 35–70 phút/lần, trở mình 4 s lăn quanh trục thân `rotation.x` của gốc), thở
+  12–15 lần/phút (REM 25 phút cuối mỗi chu kỳ 90 phút: nhanh hơn + giật cổ chân), cử động nhỏ 4 phút/lần, mặt in "ngủ" (đổi `map` của đầu).
+  `engSleepPost` (sau engArmPost) phủ chăn: lưới 27 × 17 trên nệm, cao = mặt trên các khối thân / đùi / cẳng / giày (chân khối vuông: bán kính phủ
+  0,19 vì góc khối), làm mềm 2 lượt, mép trước rủ xuống. Chăn gấp cuối giường (`interior.duvet`) không gộp tĩnh để ẩn / hiện được. **Bẫy**: gốc
+  kỹ sư thứ tự Euler 'YXZ' (yaw 0 ⇒ Rx·Rz đúng); nằm nghiêng trục thân phải cao hơn nệm nửa bề ngang thân, bản cũ lún 20 cm vào nệm.
+- Chó (G 17/10 "remove its motion đứng 1 chỗ xoay vòng"): bỏ xoay 1–2 vòng trước khi nằm (`'circle'` giờ chỉ xoay ngắn ≤ 2 s quay mặt về bếp lửa).
+  Xoay thật sự là do KẸT: bảng DP chung ô 0,6 m dẫn qua khe 12 cm giữa lò chiminea và đống củi (đích nằm sát vòng tránh bếp lửa ⇒ vùng luôn-mở
+  quanh đích nới tới 2,2 m) và `ffDir` ở ô cấm chỉ sang ô rẻ nhất 5×5 xuyên qua đống củi. Sửa: `dogNavBuild` (lớp va chạm xong) dựng lưới cấm từ
+  va chạm thật quanh trại ± 40 m (ô có ≥ 2/5 điểm chạm vật tầm thân chó), `buildFlowField(…, unR 0,5)`; `ffDir` ở ô cấm chọn ô KỀ trước; điểm đánh hơi
+  thử trên lớp va chạm + tối đa 12 s; chạy vòng 4 s không lại gần bãi thì thôi; lưới an toàn > 5,5 rad / 3 s tại chỗ ⇒ đi xuyên 1,5 s. Đo bằng
+  `spinScan` (scratchpad): xoay > 230° / 6 s mà dịch < 0,5 m — trước 62 lần / 25 phút, sau 0 (chỉ còn quay đầu 250° lúc hết chạy vòng).
 - Gấu mèo: thân 2 nửa `U.fore`/`U.aft` gập quanh giữa lưng khi phi nhảy (hông chân vẫn gắn `torso` ⇒ IK không đổi).
 - Đo được (trượt TB của bàn chân trụ, đv/khung ở 30 hình/giây): bò 0,0003–0,0007 · hươu 0,0003 · cò 0,0013 · gấu mèo ~0,003 (ngoặt gắt) ·
   kỹ sư ~0,003 (chưa tính lúc ngoặt). Thử: `slipTest`/`ikErr` (công cụ nháp) — đọc `rig.feet`, so điểm đế thật với `F.w`.

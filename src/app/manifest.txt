@@ -52,6 +52,7 @@ engineer/van-nav.js                    # đi lại trong xe: nút, cửa lùa, b
 engineer/van-stations.js               # các trạm: bàn học, bàn ăn, giường, WC, lavabo, kệ mũ, vòi sen, khăn
 engineer/cooking.js                    # nấu udon, chiên cơm, rửa bát; điều phối các trạm (engVan)
 engineer/routine-fx.js                 # tia nước, hơi nước, nốt nhạc, Zzz ngủ trưa, gói snack, màn hình nhạc
+engineer/sleep.js                      # KỸ SƯ NGỦ: nằm nghiêng / ngửa theo lịch trở mình mỗi đêm, chăn phủ theo thân, thở, mặt ngủ
 engineer/meal-read.js                  # ĂN · ĐỌC SÁCH · CÁ NƯỚNG: tay mềm (IK khuỷu + hướng cổ tay), thìa vào miệng, sách 2 tay, cầm que cá ăn, quăng que, xiên & cắm cá mới
 engineer/apple-pick.js                 # HÁI TÁO: sào rút có rổ lưới, vặn bứt cuống, quả cùng chùm đung đưa, giỏ mây
 animals/raccoon-brain.js               # GẤU MÈO: chạng vạng–đêm, kiếm ăn, cào bới, đứng 2 chân, trộm táo, bỏ chạy về hang; dáng đi IK

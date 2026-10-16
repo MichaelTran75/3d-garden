@@ -202,5 +202,6 @@
           if (studyLaptop.hinge) {   // nắp laptop mở/đóng mượt; màn hình sáng dần khi đã mở
             studyLaptop.open += (studyLaptop.target - studyLaptop.open) * Math.min(1, dt * 2.2);
             const o = studyLaptop.open; studyLaptop.hinge.rotation.x = -1.85 * o;
-            const lit = Math.max(0, (o - 0.6) / 0.4); studyLaptop.screen.color.setScalar(0.06 + 0.94 * lit); studyLaptop.light.intensity = 0.7 * lit;
+            const lit = Math.max(0, (o - 0.6) / 0.4), hh = liveWeather.localHour; studyLaptop.screen.color.setScalar(0.06 + 0.94 * lit); studyLaptop.light.intensity = 0.7 * lit;
+            if (studyLaptop.keys) studyLaptop.keys.emissiveIntensity = lit * (hh >= 18 || hh < 6.5 ? 0.85 : 0.2);   // đèn nền bàn phím (chữ phím sáng), tối sáng hơn
           }

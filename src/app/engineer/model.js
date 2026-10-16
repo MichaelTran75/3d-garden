@@ -53,6 +53,13 @@
             x.strokeStyle = '#3a2a1f'; x.lineWidth = 4; x.lineCap = 'round'; for (const ex of [228, 284]) { x.beginPath(); x.moveTo(ex - 10, 40); x.quadraticCurveTo(ex, 34, ex + 10, 39); x.stroke(); }
             x.strokeStyle = '#1b1b1b'; x.beginPath(); x.ellipse(256, 74, 24, 18, 0, 0.15 * Math.PI, 0.85 * Math.PI); x.stroke();   // miệng cười
           });
+          const faceSleep = canvasTex(512, 128, x => {   // mặt NGỦ (G 17/10 ảnh LEGO ngủ): mắt nhắm cong xuống + mi, lông mày giãn, miệng mỉm nhỏ
+            x.fillStyle = '#' + new THREE.Color(LEGO_YELLOW).getHexString(); x.fillRect(0, 0, 512, 128);
+            x.strokeStyle = '#1b1b1b'; x.lineWidth = 4; x.lineCap = 'round';
+            for (const ex of [228, 284]) { x.beginPath(); x.arc(ex, 54, 9, 0.12 * Math.PI, 0.88 * Math.PI); x.stroke(); for (const dx of [-6, 0, 6]) { x.beginPath(); x.moveTo(ex + dx, 63); x.lineTo(ex + dx * 1.3, 67); x.stroke(); } }
+            x.strokeStyle = '#3a2a1f'; for (const ex of [228, 284]) { x.beginPath(); x.moveTo(ex - 10, 41); x.quadraticCurveTo(ex, 38, ex + 10, 41); x.stroke(); }
+            x.strokeStyle = '#1b1b1b'; x.beginPath(); x.ellipse(256, 78, 12, 8, 0, 0.2 * Math.PI, 0.8 * Math.PI); x.stroke();
+          });
           const head = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.26, 28, 1, true, Math.PI), plastic(0xffffff, { map: face })); head.castShadow = true; headG.add(head);
           const capGeo = new THREE.LatheGeometry([[0.2, 0], [0.196, 0.022], [0.182, 0.036], [0, 0.04]].map(([r, y]) => new THREE.Vector2(r, y)), 28);
           const capTop = new THREE.Mesh(capGeo, legoYellow); capTop.position.y = 0.13; headG.add(capTop);
@@ -147,5 +154,5 @@
           // ---- EO (khớp thắt lưng, y 1,255): thân + đầu + 2 tay + khăn — vặn ngược nhịp hông khi đi, cúi / ngửa người khi với hái táo, nhặt đồ ----
           const spine = new THREE.Group(); spine.position.y = 1.255; spine.name = 'Eo'; g.add(spine);
           for (const o of [torso, neck, headG, towel, ...arms]) { g.remove(o); o.position.y -= 1.255; spine.add(o); }
-          g.userData = { elbows, wrists, spine, legs, knees, ankles, arms, head: headG, helmet, hair, towel, rodGrp, rodTilt, rodTip, rod, clip, props: { spoon, bottle, cup, book, bookLeaf, chip, chopsticks, knife, spatula, handBowl, handPan } }; g.scale.setScalar(ENGINEER_BASE_SCALE * CAMP_SCALE); return g;
+          g.userData = { elbows, wrists, spine, legs, knees, ankles, arms, head: headG, torso, face: { mat: head.material, awake: face, sleep: faceSleep }, helmet, hair, towel, rodGrp, rodTilt, rodTip, rod, clip, props: { spoon, bottle, cup, book, bookLeaf, chip, chopsticks, knife, spatula, handBowl, handPan } }; g.scale.setScalar(ENGINEER_BASE_SCALE * CAMP_SCALE); return g;
         }

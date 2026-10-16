@@ -62,7 +62,7 @@
             geom.computeVertexNormals();
           }
 
-          const AK = 0.8;   // G 14/10: quả táo nhỏ đi 20%
+          const AK = 0.56;   // G 14/10: quả táo nhỏ đi 20% · G 17/10: nhỏ thêm 30% (0,8 × 0,7)
           const bodyGeom = new THREE.SphereGeometry(0.12 * s, 8, 8); deformApple(bodyGeom); bodyGeom.scale(AK, AK, AK);
           const leftGeom = new THREE.SphereGeometry(0.12 * s, 8, 8, 0, Math.PI); deformApple(leftGeom); leftGeom.scale(AK, AK, AK);
           const rightGeom = new THREE.SphereGeometry(0.12 * s, 8, 8, Math.PI, Math.PI); deformApple(rightGeom); rightGeom.scale(AK, AK, AK);

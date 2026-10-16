@@ -9,7 +9,7 @@
         //  Hái 4 quả rồi dựng sào vào gốc, xách giỏ về đặt cạnh bàn trà. Tư thế tay do IK khuỷu (engArmPost: e.reachT = điểm nắm trên sào / quả / giỏ).
         //  Cảnh lặp theo ngày: 5:00 sáng táo trên cây đủ lại, giỏ rỗng về gốc cây.
         const applePick = (() => {
-          const POLE_SEG = 1.8, EXT_MIN = 0.1, EXT_MAX = 1.7, GRIP_LO = 0.35, GRIP_HI = 0.85, GRIP_PLANT = 1.5, CUP_OFF = 0.08, N_PICK = 4;
+          const POLE_SEG = 1.8, EXT_MIN = 0.1, EXT_MAX = 1.7, GRIP_LO = 0.35, GRIP_HI = 0.85, GRIP_PLANT = 1.5, CUP_OFF = 0.05, N_PICK = 4;   // CUP_OFF: tâm quả trên đầu sào (G 17/10 quả nhỏ 30% ⇒ thấp 3 cm, vẫn tựa đáy lưới)
           const UP = new THREE.Vector3(0, 1, 0), _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3(), _d = new THREE.Vector3();
           const lerp = (a, b, k) => a + (b - a) * k, ease = k => minJerk(Math.max(0, Math.min(1, k)));
           // ---- sào: ống dưới (tay cầm bọc cao su, khoá rút) + ống trên trượt trong ống dưới; gốc toạ độ = đầu dưới, +y dọc sào ----
@@ -49,7 +49,7 @@
             const handle = new THREE.Mesh(new THREE.TorusGeometry(0.34 * BK, 0.014, 6, 20, Math.PI), rimM); handle.position.y = 0.27 * BK; handle.scale.y = 0.75; basket.add(handle);   // quai cong qua miệng giỏ
           }
           const BASKET_TOP = 0.53 * BK;   // đỉnh quai (đv thế giới, tính từ đáy giỏ)
-          const SLOTS = [[0.115, 0.11, 0], [-0.058, 0.11, 0.1], [-0.058, 0.11, -0.1], [0.03, 0.27, 0.02], [-0.06, 0.31, -0.05]].map(p => new THREE.Vector3(...p));   // giỏ nhỏ: 3 quả đáy xếp tam giác chạm nhau, quả thứ 4 chồng lên khe giữa (ló khỏi miệng giỏ)
+          const SLOTS = [[0.115, 0.11, 0], [-0.058, 0.11, 0.1], [-0.058, 0.11, -0.1], [0.03, 0.27, 0.02], [-0.06, 0.31, -0.05]].map(p => new THREE.Vector3(...p).multiplyScalar(0.7));   // × 0,7: quả nhỏ 30% (G 17/10) vẫn chạm nhau, tựa đáy giỏ   // giỏ nhỏ: 3 quả đáy xếp tam giác chạm nhau, quả thứ 4 chồng lên khe giữa (ló khỏi miệng giỏ)
           // ---- cây, quả, chỗ đứng ----
           const trees = appleTrees.map(T => { T.updateMatrixWorld(true); return { T, base: T.getWorldPosition(new THREE.Vector3()), rA: T.userData.appleR * T.scale.x, apples: T.userData.apples }; });
           for (const tr of trees) for (const a of tr.apples) { a.tr = tr; a.st = 'tree'; a.world = a.g.getWorldPosition(new THREE.Vector3()); a.stemL = tr.rA * 1.1; }
@@ -253,7 +253,7 @@
             if (St.st !== 'idle' && St.st !== 'walk') poleSet(St.cfg.B, St.cfg.H);
             if (St.basketAt === 'hand') { e.wrists[1].getWorldPosition(_w); basket.position.set(_w.x, _w.y - BASKET_TOP, _w.z); basket.rotation.set(0, e.g.rotation.y, 0); basket.updateMatrixWorld(true); }
             if (St.cupApple) { _a.subVectors(St.cfg.H, St.cfg.B).normalize(); setAppleWorld(St.cupApple, _b.copy(St.cfg.H).addScaledVector(_a, CUP_OFF + 0.02), 0, 0, St.spin || 0); }
-            if (St.handApple) { e.wrists[0].localToWorld(_w.set(0, -0.02, 0.07)); setAppleWorld(St.handApple, _w); }
+            if (St.handApple) { e.wrists[0].localToWorld(_w.set(0, -0.02, 0.055)); setAppleWorld(St.handApple, _w); }
             St.inBasket.forEach((a, i) => setAppleWorld(a, basket.localToWorld(_w.copy(SLOTS[Math.min(i, SLOTS.length - 1)])), 0.2 * (i % 2), 0.15 * ((i + 1) % 2), i * 1.3));
             const w0 = 12.6, z = 0.07, h = Math.min(dt, 1 / 30);   // con lắc cuống quả: ω ≈ 2π·2 Hz, tắt dần ζ 0,07
             for (const tr of trees) for (const a of tr.apples) {
