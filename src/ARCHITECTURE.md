@@ -69,6 +69,9 @@ cận cảnh, hiệu năng, cách thử và các bẫy đã dính. Chi tiết t�
   (vật liệu × đổ bóng). Đo: toàn cảnh 3,05 → 2,49 triệu tam giác (2 lượt), +~120 lượt vẽ cùng vật liệu (~1,3 µs CPU/lượt); cận cảnh địa hình
   vẽ còn ~1/3 (4 × 4: ~1/2, 8 × 8: ~1/5 nhưng toàn cảnh +250 lượt). A/B cùng phiên lệch ≤ 0,014/255; tia rê chuột trùng 100%.
   Bẫy so 2 bản dựng: three.js lấy `Math.random` cho uuid mỗi vật/hình/vật liệu ⇒ thêm lưới làm lệch dãy ngẫu nhiên sau đó (cây, bò đặt khác).
+  **Dung lượng (16/10):** build.py bỏ cả chú thích CUỐI DÒNG cho trang web (`js_scan`: bộ tách từ tối giản — chuỗi, template `${}` (không đụng
+  chữ template ⇒ shader GLSL giữ nguyên), regex đoán theo ký tự trước). Mỗi lần dựng kiểm: chuỗi token trước = sau, rồi `node --check`. app.js
+  gzip 420 → 359 KB. Viết chú thích cuối dòng thoải mái; bản một tệp (thử, gỡ lỗi) vẫn giữ chú thích.
 - **Độ phân giải tự điều chỉnh** (`loop/close-up.js`, `DRES`): khung chậm (> 22 ms) 1,5 s → hạ mật độ điểm ảnh ×0,85; nhanh
   (< 17,8 ms) 4 s → nâng ×1,1; sàn 0,6. Hạ mà không nhanh lên ≥ 8% (màn 30 Hz, nghẽn CPU) → trả lại, thôi thử 60 s.
   Trang thử đặt `window.__resLock = true` để ảnh chụp giữ cỡ.
@@ -211,6 +214,14 @@ lò xo) ⇒ lên bậc voxel 0,6 đv thì chân trước lên trước, thân ng
   → tay về đùi 10 s. Cầm: cốc thành con cổ tay với khung nắm cố định `TEA_GQ` (vòng chữ C quanh thanh đứng của quai); vị trí cổ tay giải ngược
   từ điểm cốc cần tới (`teaWrist`). Đặt xuống: cốc đứng thẳng, giữ hướng quai ⇒ lần với sau khớp đúng. Hết giờ chờ cốc về vòng mới đứng dậy;
   rời pha giữa chừng (tối) thì `teaRelease` trả cốc về vòng. Đo: cốc không nhảy (0 mm lúc cầm/đặt), IK lệch 0 mm, cổ tay trái 26–51°, phải 4–8° khi ôm.
+- Chim sẻ (`animals/songbird.js`, 16/10): 10 con (trại · 2 cặp hộp tổ · đàn 5) GỘP thành 1 lô 'Chim sẻ' (~280 → vài lượt vẽ; lô gộp không cắt theo
+  khung nhìn nên bay xa vẫn đúng). Bay 2,94 m/s (−30%). Lớp phản xạ dùng chung trong `makeSparrow`: đuổi chơi (`sally`: lá / cánh hoa đang rơi từ
+  `cherryCtl`/`forestLeafCtl`, bướm — ngoái nhìn trong 4 m, ~0,45 lần/s khi trong 3 m thì bay ra vờn ~1 s rồi về chỗ cũ) · gió thật m/s tại chỗ
+  chim = vector gió cảnh × `sceneWind.ms / sceneWind.U` (gió cảnh đã thu nhỏ ~3–4×): quay đón gió từ 2,5 m/s (thanh đèn / dây: 1 trong 2 hướng
+  vuông thanh), thu mình áp lông từ 6 m/s, bay dạt theo gió, > 9 m/s không lượn nghỉ cánh · mưa ban ngày trú mà không ngủ: xù lông, rũ nước
+  5–13 s/lần; tạnh mà đất ướt (`sceneWet` > 0,3): tắm, rũ mình · né (`sparrowFlush`): người đang đi 2 m (ngồi 1 m), chó 2,2 m (chạy 3,2 m), gấu
+  mèo, cò 3 m; bò bước sát 0,9 m thì nhảy tránh · đàn ~30% xuống kiếm ăn quanh chân bò. Thử: `spSim` (scratchpad `sptest.js`); khoá thời tiết
+  bằng getter trên `liveWeather.state` (gán thường bị module thời tiết ghi đè).
 - Laptop bàn học: `laptopDash(t)` vẽ bảng vận hành chạy (~6 hình/giây, chỉ khi nắp mở) — số MW theo nắng / mây / gió thật.
 - Gấu mèo: thân 2 nửa `U.fore`/`U.aft` gập quanh giữa lưng khi phi nhảy (hông chân vẫn gắn `torso` ⇒ IK không đổi).
 - Đo được (trượt TB của bàn chân trụ, đv/khung ở 30 hình/giây): bò 0,0003–0,0007 · hươu 0,0003 · cò 0,0013 · gấu mèo ~0,003 (ngoặt gắt) ·

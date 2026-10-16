@@ -84,7 +84,7 @@
         container.appendChild(renderer.domElement);
         scene.background = new THREE.Color(0xE2D6C0);
         scene.fog = new THREE.Fog(0xE2D6C0, 280, 700);
-        const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 4000); camera.zoom = 0.5;   // mặc định: zoom-out tối đa khi mở trang
+        const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 4000); camera.zoom = 0.5;
 
         const hemi = new THREE.HemisphereLight(0xffffff, 0xb6ab8e, 0.82); scene.add(hemi);
         const amb = new THREE.AmbientLight(0xffffff, 0.28); scene.add(amb);
@@ -94,7 +94,7 @@
         sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.04; scene.add(sun);
 
         const PHYS_HZ = 120, PHYS_H = 1 / PHYS_HZ;
-        function fixedSteps(S, dt, h, step) {   // S: { acc } riêng của từng hệ · step(h, i) gọi cho mỗi bước · trả alpha 0..1 để nội suy khi vẽ
+        function fixedSteps(S, dt, h, step) {
           S.acc = Math.min((S.acc || 0) + (dt > 0 ? dt : 0), 0.1);
           let i = 0;
           while (S.acc >= h) { S.acc -= h; step(h, i++); }
@@ -102,7 +102,7 @@
         }
         const sky = new THREE.Group(); sky.rotation.set(0, -0.8, 0.2); scene.add(sky);
         const ORB = 150, PATH_N = 96;
-        function dashPath(color, opacity) {   // nét đứt 1px, đỉnh điền lúc chạy (fillPath)
+        function dashPath(color, opacity) {
           const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array((PATH_N + 1) * 3), 3));
           const l = new THREE.Line(geo, new THREE.LineDashedMaterial({ color, dashSize: 1.1, gapSize: 1.9, transparent: true, opacity })); l.frustumCulled = false; l.userData.dec = 9; sky.add(l); return l;
         }
@@ -112,20 +112,20 @@
         const skySun = new THREE.Mesh(new THREE.SphereGeometry(5, 18, 18), new THREE.MeshBasicMaterial({ color: 0xffd34a, transparent: true, opacity: 0.5 })); sky.add(skySun);
         const moonCanvas = document.createElement('canvas'); moonCanvas.width = moonCanvas.height = 160;
         const moonTex = new THREE.CanvasTexture(moonCanvas); moonTex.colorSpace = THREE.SRGBColorSpace;
-        const _maria = [[-0.32, -0.18, 0.34], [0.18, -0.3, 0.26], [0.05, 0.24, 0.3], [-0.08, 0.04, 0.17]];   // vùng biển trăng (maria) cố định
-        function drawMoonPhase(psi, shine) {   // psi: góc lệch trăng–mặt trời (0 = trăng non, π = trăng tròn), phần sáng luôn ở phía +x · shine: độ hiện phần khuất (ánh đất)
+        const _maria = [[-0.32, -0.18, 0.34], [0.18, -0.3, 0.26], [0.05, 0.24, 0.3], [-0.08, 0.04, 0.17]];
+        function drawMoonPhase(psi, shine) {
           const ctx = moonCanvas.getContext('2d'), Sz = 160, R = 74, cx = Sz / 2, cy = Sz / 2;
           ctx.clearRect(0, 0, Sz, Sz);
           const img = ctx.createImageData(Sz, Sz), d = img.data;
-          const sx = Math.sin(psi), szn = -Math.cos(psi);   // hướng mặt trời trong hệ toạ độ trăng
+          const sx = Math.sin(psi), szn = -Math.cos(psi);
           for (let y = 0; y < Sz; y++) for (let x = 0; x < Sz; x++) {
             const dx = (x - cx) / R, dy = (y - cy) / R, rr = dx * dx + dy * dy;
             if (rr > 1) continue;
             const z = Math.sqrt(1 - rr);
             const lit = dx * sx + z * szn > 0;
-            let v = lit ? 1 : 0.16;                                          // phần khuất vẫn mờ nhẹ (earthshine)
+            let v = lit ? 1 : 0.16;
             if (lit) for (const m of _maria) { const mx = dx - m[0], my = dy - m[1]; if (mx * mx + my * my < m[2] * m[2]) { v = 0.8; break; } }
-            const edge = Math.min(1, (1 - Math.sqrt(rr)) * R * 0.9);         // viền mềm ~1px
+            const edge = Math.min(1, (1 - Math.sqrt(rr)) * R * 0.9);
             const i = (y * Sz + x) * 4;
             d[i] = Math.min(255, 233 * v + 18); d[i + 1] = Math.min(255, 238 * v + 18); d[i + 2] = Math.min(255, 246 * v + 20);
             d[i + 3] = Math.round(255 * edge * (lit ? 0.92 : shine));
@@ -134,23 +134,23 @@
         }
         let _moonKey = '';
         const skyMoon = new THREE.Sprite(new THREE.SpriteMaterial({ map: moonTex, color: 0xE2D6C0, transparent: true, opacity: 0.92, depthWrite: false })); skyMoon.scale.set(9.5, 9.5, 1); sky.add(skyMoon);
-        const _wp = new THREE.Vector3(), _mp = new THREE.Vector3(), _sunV = new THREE.Vector3(), _tv = new THREE.Vector3(), _nv = new THREE.Vector3(), _liC = new THREE.Color(), _bgC = new THREE.Color();   // scratch: updateSky chạy mỗi frame, không clone() mới
-        const moonDayC = new THREE.Color(0xffffff), moonNightC = new THREE.Color(0xE2D6C0), mPathDay = new THREE.Color(0x3d4f6e), mPathNight = new THREE.Color(0xc9d3e6), sPathDay = new THREE.Color(0x000000), sPathNight = new THREE.Color(0xc2b190);   // đường chấm: sẫm trên nền trời ngày, sáng trên nền đêm
+        const _wp = new THREE.Vector3(), _mp = new THREE.Vector3(), _sunV = new THREE.Vector3(), _tv = new THREE.Vector3(), _nv = new THREE.Vector3(), _liC = new THREE.Color(), _bgC = new THREE.Color();
+        const moonDayC = new THREE.Color(0xffffff), moonNightC = new THREE.Color(0xE2D6C0), mPathDay = new THREE.Color(0x3d4f6e), mPathNight = new THREE.Color(0xc9d3e6), sPathDay = new THREE.Color(0x000000), sPathNight = new THREE.Color(0xc2b190);
         const dayBg = new THREE.Color(0xE2D6C0), nightBg = new THREE.Color(0x44547d).multiplyScalar(0.8), duskBg = new THREE.Color(0xc89c74).multiplyScalar(0.8);
         const dayLi = new THREE.Color(0xfff4e0), duskLi = new THREE.Color(0xffb066), nightLi = new THREE.Color(0x8fa6cf);
-        const liveWeather = window.gardenWeather; let nightFactor = 0, skyDusk = 0, sunElevSin = 0.5;   // skyDusk: 1 khi mặt trời sát chân trời (mây nhuộm cam)
+        const liveWeather = window.gardenWeather; let nightFactor = 0, skyDusk = 0, sunElevSin = 0.5;
         const SUN_LAT = 13.98333 * Math.PI / 180, SUN_LON = 108.0, SUN_TZ = 7, RD = Math.PI / 180;
         sky.updateMatrixWorld();
         const SKY_UP = new THREE.Vector3(0, 1, 0), SKY_EAST = new THREE.Vector3(-1, 0, 0).applyQuaternion(sky.quaternion).setY(0).normalize(), SKY_NORTH = new THREE.Vector3().crossVectors(SKY_UP, SKY_EAST);
-        function sceneDay(hh) {   // số ngày kể từ J2000 tại giờ cảnh hh (giờ Pleiku) của ngày hôm nay ở Pleiku
+        function sceneDay(hh) {
           const d = new Date(Date.now() + SUN_TZ * 3600000);
           return (Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) + (hh - SUN_TZ) * 3600000) / 86400000 + 2440587.5 - 2451545;
         }
-        function sunEq(n) {   // mặt trời → xích kinh, xích vĩ (rad)
+        function sunEq(n) {
           const L = 280.46 + 0.9856474 * n, g = (357.528 + 0.9856003 * n) * RD, lam = (L + 1.915 * Math.sin(g) + 0.02 * Math.sin(2 * g)) * RD, eps = (23.439 - 4e-7 * n) * RD;
           return { ra: Math.atan2(Math.cos(eps) * Math.sin(lam), Math.cos(lam)), dec: Math.asin(Math.sin(eps) * Math.sin(lam)), par: 0 };
         }
-        function moonEq(n) {   // mặt trăng → xích kinh, xích vĩ, thị sai ngang (rad): 6 số hạng kinh độ hoàng đạo, 4 vĩ độ, 5 thị sai
+        function moonEq(n) {
           const T = n / 36525, s = (a, b) => Math.sin((a + b * T) * RD), c = (a, b) => Math.cos((a + b * T) * RD);
           const lam = (218.32 + 481267.881 * T + 6.29 * s(134.9, 477198.85) - 1.27 * s(259.2, -413335.38) + 0.66 * s(235.7, 890534.23) + 0.21 * s(269.9, 954397.7) - 0.19 * s(357.5, 35999.05) - 0.11 * s(186.6, 966404.05)) * RD;
           const bet = (5.13 * s(93.3, 483202.03) + 0.28 * s(228.2, 960400.87) - 0.28 * s(318.3, 6003.18) - 0.17 * s(217.6, -407332.2)) * RD;
@@ -159,32 +159,32 @@
           return { ra: Math.atan2(Math.cos(eps) * cb * sl - Math.sin(eps) * Math.sin(bet), cb * Math.cos(lam)), dec: Math.asin(Math.sin(eps) * cb * sl + Math.cos(eps) * Math.sin(bet)), par };
         }
         const hourAngle = (n, ra) => (18.697374558 + 24.06570982441908 * n + SUN_LON / 15) * 15 * RD - ra;
-        function horiz(H, dec, par) {   // góc giờ H + xích vĩ → { el, az } (az từ hướng bắc theo chiều kim đồng hồ); thị sai par hạ trăng thấp xuống tới ~1°
+        function horiz(H, dec, par) {
           const el = Math.asin(Math.sin(SUN_LAT) * Math.sin(dec) + Math.cos(SUN_LAT) * Math.cos(dec) * Math.cos(H));
           return { el: el - par * Math.cos(el), az: Math.atan2(-Math.sin(H), Math.tan(dec) * Math.cos(SUN_LAT) - Math.sin(SUN_LAT) * Math.cos(H)) };
         }
-        function solarPosition(hh) { const n = sceneDay(hh), q = sunEq(n), h = horiz(hourAngle(n, q.ra), q.dec, 0); h.dec = q.dec; return h; }   // { el, az, dec } lúc hh giờ hôm nay
-        const skyDir = (h, out) => { const ce = Math.cos(h.el); return out.copy(SKY_EAST).multiplyScalar(ce * Math.sin(h.az)).addScaledVector(SKY_NORTH, ce * Math.cos(h.az)).addScaledVector(SKY_UP, Math.sin(h.el)); };   // vector đơn vị, toạ độ thế giới
-        function fillPath(line, q) {   // vòng nhật động: đường thiên thể đi qua trong 1 vòng quay của Trái Đất ở xích vĩ hiện tại
+        function solarPosition(hh) { const n = sceneDay(hh), q = sunEq(n), h = horiz(hourAngle(n, q.ra), q.dec, 0); h.dec = q.dec; return h; }
+        const skyDir = (h, out) => { const ce = Math.cos(h.el); return out.copy(SKY_EAST).multiplyScalar(ce * Math.sin(h.az)).addScaledVector(SKY_NORTH, ce * Math.cos(h.az)).addScaledVector(SKY_UP, Math.sin(h.el)); };
+        function fillPath(line, q) {
           const a = line.geometry.attributes.position;
           for (let i = 0; i <= PATH_N; i++) { sky.worldToLocal(skyDir(horiz(i / PATH_N * 2 * Math.PI, q.dec, q.par), _tv).multiplyScalar(ORB)); a.setXYZ(i, _tv.x, _tv.y, _tv.z); }
           a.needsUpdate = true; line.geometry.computeBoundingSphere(); line.computeLineDistances(); line.userData.dec = q.dec;
         }
         const smooth01 = (a, b, x) => { const k = Math.max(0, Math.min(1, (x - a) / (b - a))); return k * k * (3 - 2 * k); };
-        const viaUp = (a, b, t, out) => (t < 0.5 ? out.copy(a).lerp(SKY_UP, t * 2) : out.copy(SKY_UP).lerp(b, t * 2 - 1)).normalize();   // a → thiên đỉnh → b
+        const viaUp = (a, b, t, out) => (t < 0.5 ? out.copy(a).lerp(SKY_UP, t * 2) : out.copy(SKY_UP).lerp(b, t * 2 - 1)).normalize();
         function updateSky() {
           const n = sceneDay(liveWeather.localHour), sq = sunEq(n), mq = moonEq(n);
-          if (Math.abs(sq.dec - pathLine.userData.dec) > 3e-4) fillPath(pathLine, sq);   // xích vĩ mặt trời đổi ~0,4°/ngày, trăng tới ~6°/ngày
+          if (Math.abs(sq.dec - pathLine.userData.dec) > 3e-4) fillPath(pathLine, sq);
           if (Math.abs(mq.dec - moonPath.userData.dec) > 3e-4) fillPath(moonPath, mq);
           const mh = horiz(hourAngle(n, mq.ra), mq.dec, mq.par);
-          skyDir(horiz(hourAngle(n, sq.ra), sq.dec, 0), _wp); skyDir(mh, _mp);   // hướng tới mặt trời / mặt trăng (thế giới)
+          skyDir(horiz(hourAngle(n, sq.ra), sq.dec, 0), _wp); skyDir(mh, _mp);
           sky.updateMatrixWorld();
           skySun.position.copy(sky.worldToLocal(_tv.copy(_wp).multiplyScalar(ORB))); skyMoon.position.copy(sky.worldToLocal(_tv.copy(_mp).multiplyScalar(ORB)));
           const elev = _wp.y, dayF = Math.min(1, Math.max(0, (elev + 0.04) / 0.34)), dusk = Math.max(0, 1 - Math.abs(elev) / 0.2); nightFactor = 1 - dayF; skyDusk = dusk; sunElevSin = elev;
           _nv.copy(_wp).negate(); _nv.y = Math.max(_nv.y, 0.26); _nv.normalize();
           _tv.copy(_mp); _tv.y = Math.max(_tv.y, 0.26); _tv.normalize();
           viaUp(_nv, _tv, smooth01(-0.02, 0.12, _mp.y), _sunV); _nv.copy(_sunV); viaUp(_nv, _wp, smooth01(-0.08, 0.03, elev), _sunV);
-          sun.position.copy(_sunV).multiplyScalar(150).add(sun.target.position);   // hướng nắng = position − target (đích theo vùng nhìn: loop/close-up.js)
+          sun.position.copy(_sunV).multiplyScalar(150).add(sun.target.position);
           sun.intensity = 0.36 + dayF * 0.74;
           sun.color.copy(_liC.copy(dayLi).lerp(nightLi, 1 - dayF).lerp(duskLi, dusk * 0.75));
           hemi.intensity = 0.46 + dayF * 0.46; amb.intensity = 0.26 + dayF * 0.12;
@@ -193,7 +193,7 @@
           const cpsi = Math.sin(sq.dec) * Math.sin(mq.dec) + Math.cos(sq.dec) * Math.cos(mq.dec) * Math.cos(sq.ra - mq.ra);
           skyMoon.visible = mh.el > -0.04 && cpsi < 0.975;
           if (skyMoon.visible) {
-            const dq = Math.round(dayF * 4) / 4, key = Math.round(Math.acos(Math.max(-1, cpsi)) * 90) + '|' + dq;   // vẽ lại khi pha đổi ~0,6° hoặc trời sáng/tối hẳn
+            const dq = Math.round(dayF * 4) / 4, key = Math.round(Math.acos(Math.max(-1, cpsi)) * 90) + '|' + dq;
             if (key !== _moonKey) { _moonKey = key; drawMoonPhase(Math.acos(Math.max(-1, cpsi)), 0.5 * (1 - dq)); }
             skyMoon.material.color.copy(moonNightC).lerp(moonDayC, dayF); skyMoon.material.opacity = 0.92 - 0.17 * dayF;
             _nv.copy(_mp).multiplyScalar(ORB); _tv.copy(_wp).addScaledVector(_mp, -_wp.dot(_mp)).multiplyScalar(8).add(_nv).project(camera); _nv.project(camera);
@@ -203,11 +203,11 @@
         updateSky();
 
         /* ============ TUNABLE ============ */
-        const S = 4;                       // mật độ: 1 khối gốc = S^3 khối nhỏ (S=4 → 64)
-        const BLOCK = 2.4 / S;               // cạnh 1 khối (0.6)
-        const GX = (62 + 30) * S, GZ = (52 + 30) * S; // mở rộng mỗi chiều 30 cubes length (92x82 khối gốc)
+        const S = 4;
+        const BLOCK = 2.4 / S;
+        const GX = (62 + 30) * S, GZ = (52 + 30) * S;
         const DAM_J = 24 * S;
-        const RES = 2.7, DOWN = 1.35, VALLEY = 3.2;   // mực nước hồ / hạ lưu & bề rộng thung lũng (đơn vị khối gốc)
+        const RES = 2.7, DOWN = 1.35, VALLEY = 3.2;
         const riverC = (j) => (32 + Math.sin((j / S) * 0.26) * 5 + Math.sin((j / S) * 0.08 + 1.2) * 1.1) * S;
         const RHALF = 2.25 * S;
         /* ================================= */
@@ -217,14 +217,14 @@
         const riverDist = (i, j) => { const dx = i - riverC(j); return dx > 0 ? dx / 1.65 : Math.abs(dx); };
         const riverHalf = (j) => {
           const oj = j / S, below = Math.max(0, 1 - Math.abs(oj - 28) / 7);
-          let lake = 0; if (oj < 24) { const a = Math.min(1, (24 - oj) / 4), b = Math.min(1, (oj - 6) / 4); lake = Math.max(0, Math.min(a, b)); lake = lake * lake * (3 - 2 * lake); }  // hồ chứa thượng lưu phình rộng
+          let lake = 0; if (oj < 24) { const a = Math.min(1, (24 - oj) / 4), b = Math.min(1, (oj - 6) / 4); lake = Math.max(0, Math.min(a, b)); lake = lake * lake * (3 - 2 * lake); }
           return RHALF + below * 1.55 * S + lake * 2.6 * S;
         };
         const poolMetric = (i, j) => { const oi = i / S, oj = j / S, ci = 33.2 + Math.sin((oj - 25) * 0.55) * 0.9, cj = 29.4; return Math.hypot((oi - ci) / 5.4, (oj - cj) / 5.7); };
         const plungePool = (i, j) => j > DAM_J + 1.4 * S && j < 35 * S && poolMetric(i, j) < 1;
         const isRiver = (i, j) => riverDist(i, j) <= riverHalf(j);
         const isWater = (i, j) => isRiver(i, j) || plungePool(i, j);
-        const resTopY = RES * S * BLOCK, downY = DOWN * S * BLOCK, lakeY = Math.round(DOWN * S) * BLOCK;   // lakeY = mặt nước hồ hạ lưu (làm tròn theo lưới khối)
+        const resTopY = RES * S * BLOCK, downY = DOWN * S * BLOCK, lakeY = Math.round(DOWN * S) * BLOCK;
 
         function tex(base, spots) {
           const c = document.createElement('canvas'); c.width = c.height = 16; const x = c.getContext('2d');
@@ -232,10 +232,10 @@
           const t = new THREE.CanvasTexture(c); t.magFilter = THREE.NearestFilter; t.minFilter = THREE.NearestFilter; t.colorSpace = THREE.SRGBColorSpace; return t;
         }
         const TM = (t, o = {}) => new THREE.MeshLambertMaterial(Object.assign({ map: t }, o));
-        const grassMat = TM(tex('#dedbce', ['#cfccbc', '#e8e5d6', '#c6c3b2', '#d6d3c2']));   // nền trung tính sáng → MÀU BẬC (instanceColor) hiện đúng
+        const grassMat = TM(tex('#dedbce', ['#cfccbc', '#e8e5d6', '#c6c3b2', '#d6d3c2']));
         const shoreMat = TM(tex('#dedbce', ['#cfccbc', '#e8e5d6', '#c6c3b2', '#d6d3c2']));
         const dirtMat = TM(tex('#7d5a38', ['#8a6642', '#6b4c2e', '#92704a']));
-        const sandMat = TM(tex('#857149', ['#968057', '#73613e', '#a08a5c', '#6a5a3a']));   // đáy sông (riverbed)
+        const sandMat = TM(tex('#857149', ['#968057', '#73613e', '#a08a5c', '#6a5a3a']));
         const causticU = { uCTime: { value: 0 }, uCaust: { value: new THREE.Color(0, 0, 0) } };
         sandMat.onBeforeCompile = (shader) => {
           Object.assign(shader.uniforms, causticU);
@@ -269,7 +269,7 @@
           uSim: { value: null }, uSimBox: { value: new THREE.Vector4(0, 0, 1, 1) }, uSimTexel: { value: new THREE.Vector2(1, 1) }, uSimDx: { value: BLOCK }, uSimOn: { value: 0 } };
         const WATER_SKY = { day: new THREE.Color(0xa8d4f2), dusk: new THREE.Color(0xe8b48c), night: new THREE.Color(0x1a2640), rain: new THREE.Color(0x8b99a8) }, _wsC = new THREE.Color();
         const WATER_COL = { shallow: waterU.uShallow.value.clone(), deep: waterU.uDeep.value.clone(), spec: waterMat.specular.clone() };
-        let waterSurfMesh = null;   // lưới mặt nước gộp (dựng ở phần địa hình), thuộc tính aWater: dòng chảy xz · độ sâu · gần bờ
+        let waterSurfMesh = null;
         waterMat.onBeforeCompile = (shader) => {
           shader.uniforms.uTime = { value: 0 };
           Object.assign(shader.uniforms, waterU);
@@ -346,19 +346,19 @@
             #include <opaque_fragment>`);
           waterMat.userData.shader = shader;
         };
-        function updateWaterLook(rain) {   // màu trời phản chiếu + bọt theo ánh sáng cảnh; gió → gợn mạnh; mưa → vòng gợn
+        function updateWaterLook(rain) {
           waterU.uSky.value.copy(WATER_SKY.day).lerp(WATER_SKY.night, nightFactor).lerp(WATER_SKY.dusk, skyDusk * 0.25).lerp(_wsC.copy(WATER_SKY.rain).multiplyScalar(1 - 0.8 * nightFactor), 0.7 * rain);
           const lit = Math.min(1.05, hemi.intensity * 0.55 + amb.intensity * 0.6 + sun.intensity * 0.45);
           waterU.uFoamCol.value.setRGB(0.80, 0.84, 0.86).multiplyScalar(lit);
           waterU.uWindK.value = Math.min(1.6, 0.25 + (liveWeather.state.windSpeed ?? 8) / 22); waterU.uRain.value = rain;
           causticU.uCaust.value.copy(sun.color).multiplyScalar(sun.intensity * 0.42 * (1 - nightFactor) * (1 - 0.8 * rain));
-          const nk = 1 - 0.62 * nightFactor;   // đêm: nước sẫm hơn bờ (phản chiếu trời tối), lấp lánh trăng/đèn nhẹ hơn; mưa làm mờ ánh phản chiếu
+          const nk = 1 - 0.62 * nightFactor;
           waterU.uShallow.value.copy(WATER_COL.shallow).multiplyScalar(nk); waterU.uDeep.value.copy(WATER_COL.deep).multiplyScalar(nk);
           waterMat.specular.copy(WATER_COL.spec).multiplyScalar((1 - 0.72 * nightFactor) * (1 - 0.4 * rain));
         }
 
         const boxGeo = new THREE.BoxGeometry(BLOCK, BLOCK, BLOCK);
-        const terrainMeshes = [];   // các lưới mặt địa hình dùng cho raycast tọa độ khi hover
+        const terrainMeshes = [];
         const TERR_LAYERS = [0x244d18, 0x2c5a1d, 0x356822, 0x3f7628, 0x4a842e, 0x569234, 0x64a03c, 0x74ad46, 0x86ba52, 0x99c661, 0xadd072, 0xc2da86].map(h => new THREE.Color(h));
         const flatTopGeo = (() => {
           const g = boxGeo.clone(), idx = g.index.array, gr = g.groups.find(q => q.materialIndex === 2);
@@ -411,7 +411,7 @@
           terrFaces(recs, mat, true, collect);
         }
 
-        function landH(i, j) { const fi = i / S, fj = j / S; const dhi = fi - 85.4, dhj = fj + 4.2, hill = 10 * Math.exp(-(dhi * dhi / (2 * 18 * 18) + dhj * dhj / (2 * 15 * 15))); const dhi2 = fi - 42.5, dhj2 = fj - 52.5, hill2 = 2.2 * Math.exp(-(dhi2 * dhi2 / 32 + dhj2 * dhj2 / 32)); return 2.9 + Math.sin(fi * 0.4) * Math.cos(fj * 0.33) * 0.6 + Math.sin((fi + fj) * 0.21) * 0.4 + Math.sin(fi * 1.17 + fj * 0.61) * 0.12 - (fj / 45) * 0.7 + hill + hill2; }   // hill: đỉnh tại corner (217,2), độ cao 10 · bán kính dốc 18/15; hill2: đồi nhỏ tại x102 z126 (ngoài solar farm), độ cao 2.2
+        function landH(i, j) { const fi = i / S, fj = j / S; const dhi = fi - 85.4, dhj = fj + 4.2, hill = 10 * Math.exp(-(dhi * dhi / (2 * 18 * 18) + dhj * dhj / (2 * 15 * 15))); const dhi2 = fi - 42.5, dhj2 = fj - 52.5, hill2 = 2.2 * Math.exp(-(dhi2 * dhi2 / 32 + dhj2 * dhj2 / 32)); return 2.9 + Math.sin(fi * 0.4) * Math.cos(fj * 0.33) * 0.6 + Math.sin((fi + fj) * 0.21) * 0.4 + Math.sin(fi * 1.17 + fj * 0.61) * 0.12 - (fj / 45) * 0.7 + hill + hill2; }
         function terr(i, j) {
           const d = riverDist(i, j); const surf = (j < DAM_J ? RES : DOWN);
           const half = riverHalf(j);
@@ -422,7 +422,7 @@
           if (pm < 1.42) { const t = Math.max(0, (pm - 1) / 0.42), sm = t * t * (3 - 2 * t); return Math.max(1, Math.round((DOWN + (base - DOWN) * sm) * S)); }
           return Math.max(1, Math.round(base * S));
         }
-        const pads = [{ i0: 28, i1: 113, j0: 24, j1: 50, h: 3 }, { i0: 4, i1: 19, j0: 16, j1: 33, h: 3 }, { i0: 20, i1: 27, j0: 24, j1: 30, h: 3 }]; // OLD grid coords · bệ solar farm + bệ san phẳng trạm biến áp (h=3 khớp solar → sân trạm phẳng đều)
+        const pads = [{ i0: 28, i1: 113, j0: 24, j1: 50, h: 3 }, { i0: 4, i1: 19, j0: 16, j1: 33, h: 3 }, { i0: 20, i1: 27, j0: 24, j1: 30, h: 3 }];
         function padH(i, j) { const oi = i / S, oj = j / S; for (const p of pads) if (oi >= p.i0 && oi <= p.i1 && oj >= p.j0 && oj <= p.j1) return p.h * S; return null; }
         function padHeight(i, j) {
           const oi = i / S, oj = j / S; let maxH = null;
@@ -439,7 +439,7 @@
           }
           return maxH;
         }
-        const VOXEL_H_OVERRIDES = {   // hoisted: getVoxelHeight chạy ~120k lần lúc build + mỗi frame qua cowY — không tạo object mới mỗi lần gọi
+        const VOXEL_H_OVERRIDES = {
           '74,103': 6, '73,103': 6, '75,103': 6, '74,102': 6, '74,104': 6,
           '63,98': 7, '62,98': 7, '64,98': 7, '63,97': 7, '63,99': 7, '62,97': 7, '64,99': 7
         };
@@ -460,7 +460,7 @@
           const h = padHeight(i, j);
           return h === null ? terr(i, j) : h;
         }
-        const MX = 20, MZ = 20;  // nới biên đất quanh đảo (nội dung giữ nguyên vì cx,cz không đổi)
+        const MX = 20, MZ = 20;
         const gridW = GX + 2 * MX, gridD = GZ + 2 * MZ;
         let gridH = new Int16Array(gridW * gridD);
         let gridWater = new Uint8Array(gridW * gridD);
@@ -490,9 +490,9 @@
           'B1WISgMHhKhLAxV8DjACCy2XDAECctTvAAlf0A4BATJqMQMJeLhPAQOBC2wABco07wAEnqQQAQOih+8CAKLH7wIDs6gQAQqy+TABBBzN0AAIazRwARLz5y0DI1ZnLQIDeyzvAQG9RgwBBhbILwMTL/XwAQFlCpABAfi7UAEG4DARAQPsdQwBB5+oMAEDBIzRAAcqhbADAFVOagICxFzwAASM5e0BArHk7wACpKoOAQh9Z24CAz9l0QMBygPrAQVQcFABEMR86wEDIDDxAATGyGsDBY2pzAAA2jUxAgR7R1ABBQmX8QABDihMAwVyKQ8DA3QF7wIJKi5wAQSklo4BA/Ao8QECexrsAAQdSe8BBb6ykAAGGnbxAAx2aREDBiwVjQEJU7CwAQmx5/AAEUJX8AAFvz3QAAL0gjEDA0VX0AENAY1RAwCTNc4CDjZODwEDXq7QAgIDq/AAAb906QEB31GNAQDfUY0BBK7ISgMB75aQAANejQ0BBAIoLwMEG2jxAAPH8RABAzYEDgED/8rsAAks9zABA26o7gAHtOpMAwKwZvEBAZFMEQEFg3awAgTiaQ8BBsQr8AALD2hvAQR/E+8BAkgy8QECgKyPAAhY6RABAdSp7wIArHQtAg/Une4BADZNkQEDJHHqABStT3ECAr3y7AECTvFOAQMg2/ABGDkTjgAJonQvAQFjr+wBB2PwEAEFsNIQAAHLEO0BAgWqLQIAbGsvAwNW1g8BAHOP8AEAurPPABCLV08BCGpsUAMDf0tPAwIGLQ4BAaNL0QIBvEtRAwecc5EAAas3cQAFueSKAQTOgzABBL52kQEHyHJtAQXOik0DAPaJ8AEIxzTuAAO7OZABBHYN8AIFlmvxAgNbC2sDB5vUKAMAlEgQAQcsSUwDAg9tUQEA+otpAwnrVVEBAiqTEAECTlXwAQVp2k0BBQ307wEGLrgvAgQ/Zw8BAmZL0AAAIwnQAgK6Za8BCfqtbwEA+m1wAQ16TGoDAHoMUAMKDXzxAQL4h88BAXVpTgMCU6xtAwdKjC4BCAdTEAEAUUtxAAf8dy4CA3y2DwEKYi/xAAt8nXECAsWq8AALiswtAwA2LvABAntu0QECCUtPAwrkkNEAA0omEAEE5c3wAAZXr4oACpSncAICrWRNAQKDjlEBDW9mcQADGUdQAQOfWlEAA3c9cAEJ6crvAQAq7wsBC2po8QEDgYpxAQI7mO0CARXHDQEBDneRAQUCgi8AAQTi8AACtCvPAQdzC2sDB0j88AABZzOtAQIu0I8BAH31DwEDAtZwAAEwJ9ECAf1V0QAR77oKAQAISTEBAXAMDwEFUklxAgp+Mi8CAtVLUAMQuMxOAwKL5w4DBqbucAABg27vAQKd5HABADlc8AEGigNQAQEeUPEAAXF3MAAITSuGAATHJ3EDBYnLTwMB0bMqAQOj8xABAwvFEAEBWlDtAQMMjQ4BA9RpTgMDkShxAwUv7K4BBgryrwAJ+YENAQcrKHADAYtXLgICYYMRARL8ymoDBGiZMAICYWiRAwC7Kc4ACB8uigMK9RkRAQmyGHAAGHv7DwEEntVKAQTYLDABD+u2LAECOGIOARkX+o8BBoax0AAClX4uAQgSpNABAQCJEQEL7vAwAgq6g+gAByzY7wEGgSXNAAEVbm8BA+eJ6QACSZHxAQ6ryLADA2J0EAEBPIlrAwU9qUwDB6IVkQEMeKhvAwDO0W4CAJFocQMHeMjsAADn7vAABLlTEQEFRjPxAAeTG3ABDRaK0QAGqtHrAAsMpusAC4zm7QAIf5XtAQg/z+8AB/f18AEDSWpwAg6BUnAAAIkGcQET7+lvAwdDEtABHmNW0QEIrrvLAgk/l/AACTTt6QEEFIgQARFQKIwBA+ExcQAZjpIsAACOUjEBBGq06wEBi7brAANFaxABAEWLEAEO66/vAAji1W8DBKB27wEErssQAQfucfAABbWHEQENilTxAQE1U3AABMVVUQECt63uAQFalPABAT/MjgEM9MPvAACO60sDAYhDMQINj+dQAwH/KtEABJp28QEAmhYvAgYmiLACDCHm6gAB+iVsAwf/5hABBLMr7gECvLDuAAEYL48BA9kHsQIGsIpuARAPcLEBEs8PEQEBTNlKAQOk1O4AAF6JSgMENsVsAgS9yy8CBSInSwMBHHwQAQLPGdABAWS/7gEAzvnPARBn6UcDDzsSyQEA//pQAQi7R+8BCiGJDgEBojgRAQQ43G8BBFtoiAEDQ62MAQOOTm8CA0/m0AEPLVgtAws3p48BDLZt7gEF01xvAQcPyWkDCiXsbwEBz7DqAAjJpjABEn7E7AAI7VQsAQwNK28BAd5oiwEDezDtAQuNlPAAAwZZ8AEBXepvAgOufXABBWrJ6wAD38jvAQM2lREBIRy3EAECHDrtABPMfJEBA6F0kQEJn3YNAQQneckAAh7o7wABRm8RAQsyFQ0BAJUIkAAIXdWOAQZDLgwBAZ+qkAAIxKsvAgP6cg8BAsZwTwMCWE+PAQKFsO0CCtbTEAEA1jPQAQM78O4BB7QTMQMFryuRAQOL7pABFr2KbwEFcfANAQSXSgsBA/NzcAAGGOdMAwVudXABA41xDwEBszHNAQG5VxABARx1LQIFeJbxAAHxKi8BBq6krgECs7NOAwGQk7ABEvqEUQEJ1CcPAQXJSxABApU1cAAPpmhRAwdBbG0CAXJ7cAEEI2zxAAtQTHEDCCRoEQEOCiYxAwZ3iWsABDFr7wANSlHxAABY9PAACGm27gADL03xAALnM5AABa5c7gEBmfAPAQKyiuoAACGVsAEB7bxsAQJ87wsBA7t4cAAHI1SRAAIgifAABivz8AAAeynRAQQRpe4ABali8QEAaY4PAQHec+0AAnNa8AED42koAgEFl/ABASjoUAMLWczvAAin2w8BCnJnEQEB1IcsAwMI0FABCHvLCgEKRycOAQRpje8BBqVPEQEQIirxAQPtZK8CAbqs8AED1ifQAgPdZzADBPGo8AEDI7pvAQFbjfEAAm6VcQIHemgPAQW6i/EAAE45EQEAIQpRAw0MrhABAohu7QAOn1FxAQLzVXECAC9xkQED5PbjAR5SKHEAH2SOjwEE33kwAgVNww0BBYcOEAEDMKnwAQaq6U8DAA130AEBCjeRAQAKt7ABBK+2zgEBXVAwAgHyaPEABnfEzwECM6trAgGmU24BASv9EAEDvfTvAAMFLPEAAWg98QEHO7POAQInTy4BA/zOEAED0egwAQ08iPEBCWPs8AADyfXwAQLudWwCDY56DwEL8kROAwHOkzECBLymEAEHAxkwAQr06+8AA6zcDwEBj5ZOAAM5jfACAAZULwEAbQDxAAFldxEBA/hL8AACU8tIAwHP9y0ACr9QzwEAv1DQAQBoKBEBBVxJcQIDDORuAQHZ1VABAPXu7wADVIzwAQU/jAwBBhZTUQEClubvAQJMpfAAAWfpjwEDz/UrAgFr8lABBq3SDQECqfTwAAO2NfAAAvtYUQMG5JkxAQhXWLABA/rODQEKsErqAQRXT/EBAoSoLwIPe4rxAQMiLA0BA31Z8QEASE8RAQV2UusBCiFvLAIBsqZwAQFpKVABAGlJUAEGFAsMAQD3kXACBGoW0QIBx/WQAQvNSA8BBxTRkAECm72wAQNDCe4BBEMMiwEB1iMRAQIBCQ4BExuaEAEKBnwLAQGWLjEDDGiwcAIA9dZOAwJBWvAAEoLrDwEBCv3uAAfNsw8DAutH8QAAx7YOAQh8OQ0BBqEsEAEBF3RxAwEPEpEBCTGQ8AAWCU8QAQHXjzECAa5b7wEL06yNAQEpTU8DChjILQIDq9TQAgBTZvABBAmIjgEHx6htAgNDNTADCh+yEAEDpGvQAQOEsxABAL1r8QAAjTCMAQd0tjACBA9wjwEZYvSOAAwxWc0BC4FvkAAA+JTrAAH4lHACCx+2LwMHYZwPARRP8e4ABYNTcAIBijfxAQI8VVEBAx+OEAEBcwcQAQ7tGG8B' +
           'AvG3EAEBk0svAgDFr+4CAsAucAMIdW1xAQMsb5EBEPWwMAMCXJUPAQCcVzECCDOzTgEIF3hwAQMbsw4BECJtkAEBGvJQAQtAjXEBApSUEQEGoxYwAQgF+CoCD+KR6gABfOwPAQH+VXABC0tTbQAH+yWxAQJ9fC0BCWdT8AEFHEPRAQ3ZdS4AAOKWcAABa3nwAAF6RfEBABZOkQEAk7GlAQPZkVABAQQ0UAMJ6SjxAQctkG0BCTm68AICR1QvAgmBkQ8BC44oDgEBIxENAQRSGdABAlOLLwEA1zbwAgF1OtAAAfQyMQEDBxLxAQA8lg0BCCsL7wABh+UwAgIsd/ECCD9N8AEIgZUxAgF3c4wAAlfrLwEJuqkuAwLVCdEBAJXWMAMCHTNRAAYKo+0BBu50zwED6HgQAQGF+5AAA3KlMAACGQTxAAFu1JABCBNLTwABEBzvAAlBqc8ACU1KEAEJjZPwAAQFW/EACmQ2EQEGMnQwAwWZJpAAEDykLAEB0N0uAgeMNlADFJUJ8QAB2u8rAgbDlPEAENJv0QABUvjPAQEOmu4BAk5Y7QAHGdWwAQGzMvABA4o28AEIjNQvAwJ72O0AAS20MAED8RTvAAtiFBEBAiz38AAIxm0uAQLC1k8DA8WtDAEHN7ZwAQiZDPEADrutLwIEX41LAQ4nV0kBC/MQEQEIuPXuABTqpUgDE8PscAILeX4RAQfVzI8BBmXVbQECMluuAQF8D/AABLM4UAMPv3hxAAJS3fABEwLyzQIIRFbvAAAWiBABAVBS8QEPm5LvAQM7pY8BDYsP0AAKmPJsAQCXhwsBABAFcAEDBXLxAQbNjy4BAsTT7wEASXTwAgfKcVABAVfN0AICFrAQAQLUMi0CBTyFUAEAxoxwAAMOahEBDQz45gEGIqQwAgPyWFEDDq3yrgEGxQavAQp9FPAAATtErAEE/noMAQA8Gk8BBHVVDgEFgituAQEJ9gkBAgiJcQID3bJwAQDdcg4BBhwW8AADfDbvAgFRXhEBAk8u7QEAG89uAAkuiJABBTL4LwMExkMRAQLIB9AABv4JMAEB1HfQARDTZhABBDcLjgAD0VQvAQZnru8BB+PX7wIBCHgRAQTsKPEAA/F10QAH/FTwAAOc5QwBCXCyEAESUbftAQz3E/EAAu2RMQEHw/BwAQlyuG8DDzQ4cQMCRGovARMiCZEBEHjszwEETqKwAQLOF+0ABEWm8AAI7+ztAQVAyvAAAng47wAE49bQAAKOC48AEDsM8QEDL2CRAQn6DQ8BCc2RjwEdX9ULAQH96HABAxdL0QABiEOQAA3HEW8BA8MWjQEKVOwQAQFNDXEAAe6QTQESAHcuAgY09k4DAEeK7wEAzWxxAgbPV9ADAR/7qQEJiNswAwZ/xs4BCr7IzwEPhRMOAQIBjS4BBzWx8AEPS0wRAQC1jZEBDV6P8QANYURuAQIELC0BA64Y0QEFmRYxAwToVPEBAeB7sQIKivxrAwEfDC8BAKUjMQAIRfgQAQYzNI8AEgIPSwEGrggRARYa2A0BCdkWEAEYL1fQAQKKjE8DCJqOrwEAb3ORAQEJu08DE2aQEAEGCQ2NAQGxl5AADz4iDQEBgM1QAQStPA8BAd3rEAEBGXkvAwICEXEABKWsDwEF2rwQAQBQl3EABXIabgAHG7VvAQHB0ekAAxWzLgECjjRuAQMhqu4BAWKOEAEF3ZruAQcUFBEBCMN4LgMDIu3KAQiBSvABGF118AEEEhORAQhLAREBGZuUMAMCl42QAQhbSWsCG2Bp8QEETxtwAA45xo4BDwJ9cAEBLIkRARHxSnECHJ2PrwIB54XvAAV8m+4BATgbMQAK1g/RAQMp+/AAARKbkAMG5vDvAAHxL0sBAwC40AAB+OjuAASIbS4CBoE0bQEOpyeoAgIiCu8BAfJJkAAP29wvAQL0KdEBAOWVbgECNgpwAQEasewBBfFtsQIAd5yRAQJYOgwBBAhZ0QEEj3rwAwMa+lABA8w6EQEIJjbxAAVO/zACCA8X7wAEQQwRAQEQa3ECCCNajgEGpsgPAQS1Nu4ABpmIEAEEuC0RAQCdLg4BEHcmMQEDSeXqABKzgTAAAZwucQIDBzHxAgdFOM8CAwnVLwICK1JQAwEprPAAAcBv7QEWSPkOAQvLOC8CAScD8QEDuQUxAQQ+cG8DCZR88QAMk3txAwNzBC8CBtXQDwEJC2kRAQL/T28BAP/PjgEEYjptAQFEqC0BA3q4jgACOQhOAAICnvEBAcmQkQEGqhdPAwEazu8BCPA47QECQIruARH7xE8AE1HMcAEI+s8tAgUXnZABEil5rwEEP2/wAAoY2lAAAE3b8AEH8RaQAw/e9+4AATErbgIJ7FFsAgEm91ADAzXV7wEKqgcpAARfNUsBBqPoDwEBp4zvAAVvlxABEn3m7wAFiCGuAQUwtA0BAilSbgEJx77vAAGD7DABC+CG7AEMlc2NAAHEmwwBAe95EQEDX5QMAQTBIdECBwpJkQAMsjeQAAS/sXABASfq7gEBpy5tABX+nu8AAjDt6wEHkRHwAQg3Sg4BBtc40AAHp3gRAwSxk1EBA7yq5gEUK3ARAQcfWjABCZ8GDgEMhtfMAgiZl/ABCtKJkAEB8vvwAAL91GkAAa0wzwIE5XgPAQVoJtEAArMSKgIEoW6RARGP+m8DAMfrDgEDQ4huAQGsEY8AAYa0DwEGPjjRAANm3U4BCWBQEQEJPOwMAQGKkVAABAKMTwEBvlExAgT1hw0BEIyx0AEJyBiPARTsTo4AEmJODgELoG5wAASVEA0BA6XFjQEDtvhvAAJezu4CCBu8DwEDN8oOAQFKTvABApuNMAEEpHgRAQr0cPAAAzhUzwEPpxXRAghTzfABBG2sDQEBMJLwABQSW5AABinUTgEIVMzOAAo5MPABDCKRDgEBc4DxAAxEMi8BCmgaMAMO+dYQARNHqS4CBEiM7wEC/xMxAAaRVfAADGyI7wEdQlgNAQPpp+8BA7CXbgIM+BgxAgLM3QsBBXhNkAECADFuAQXhNy4CA0wKEQEKyyzRAAPVzE8BA1AQrwEEQQ3xAANqDS8CCNZxcAAHODUQAQLA7DACFa4MkQEAQDgwAQSecNAACGz6DwECEscwAwcNfPABAYKPEQEKD3vxAQH/Ku8BHKPMMAIIa4EwAQVmk3AAAfIR0QEUODpPASWSRPABAXh0bwAIItkPAANe7w8BA5+mEAEB6RlwAwM40W0BB1cELwI=';
         const nightSky = (() => {
-          const LAYER = 2; camera.layers.enable(LAYER);   // lớp riêng: lượt vẽ phụ (bản đồ mặt chắn mưa…) không vẽ nền trời
+          const LAYER = 2; camera.layers.enable(LAYER);
           const L0 = Math.log(2400), L1 = Math.log(42000);
-          const kelvinRGB = (K, out) => {   // xấp xỉ màu vật đen (Tanner Helland) → sRGB 0..1 → tuyến tính, chuẩn hoá kênh lớn nhất = 1
+          const kelvinRGB = (K, out) => {
             const t = K / 100, r = t <= 66 ? 255 : 329.7 * Math.pow(t - 60, -0.1332), g = t <= 66 ? 99.47 * Math.log(t) - 161.1 : 288.1 * Math.pow(t - 60, -0.0755), b = t >= 66 ? 255 : t <= 19 ? 0 : 138.5 * Math.log(t - 10) - 305;
             const c = [r, g, b].map(v => Math.pow(Math.max(0, Math.min(255, v)) / 255, 2.2)), m = Math.max(...c); out.push(c[0] / m, c[1] / m, c[2] / m);
           };
@@ -506,11 +506,11 @@
               kelvinRGB(Math.exp(L0 + (y >>> 21 & 31) / 31 * (L1 - L0)), col); seed.push(rnd());
             }
           }
-          const GAL = new THREE.Matrix3().set(-0.0548755604, -0.8734370902, -0.4838350155, 0.4941094279, -0.4448296300, 0.7469822445, -0.8676661490, -0.1980763734, 0.4559837762);   // xích đạo J2000 → thiên hà
-          { const v = new THREE.Vector3(), a = 0.44, A0 = Math.pow(10, a * 5.5), A1 = Math.pow(10, a * 6.6);   // số sao tăng ~×2,75 mỗi cấp
+          const GAL = new THREE.Matrix3().set(-0.0548755604, -0.8734370902, -0.4838350155, 0.4941094279, -0.4448296300, 0.7469822445, -0.8676661490, -0.1980763734, 0.4559837762);
+          { const v = new THREE.Vector3(), a = 0.44, A0 = Math.pow(10, a * 5.5), A1 = Math.pow(10, a * 6.6);
             for (let n = 0; n < 3600;) {
               const z = rnd() * 2 - 1, f = rnd() * 2 * Math.PI, s = Math.sqrt(1 - z * z); v.set(s * Math.cos(f), s * Math.sin(f), z);
-              const gb = Math.abs(v.clone().applyMatrix3(GAL).z);   // |sin vĩ độ thiên hà|
+              const gb = Math.abs(v.clone().applyMatrix3(GAL).z);
               if (rnd() > 0.3 + 0.7 * Math.exp(-gb / 0.22)) continue;
               pos.push(v.x, v.y, v.z); mag.push(Math.log10(A0 + rnd() * (A1 - A0)) / a);
               const u = rnd(); kelvinRGB(u < 0.55 ? 4200 + rnd() * 1800 : u < 0.88 ? 6000 + rnd() * 3500 : 9500 + rnd() * 12000, col); seed.push(rnd()); n++;
@@ -532,7 +532,7 @@
             uTime: { value: 0 }, uCloud: { value: 0 }, uEq: { value: new THREE.Matrix3() }, uGal: { value: new THREE.Matrix3() }, uLim: { value: 6 }, uPx: { value: 1 },
             uBg: { value: new THREE.Color() }, uZen: { value: new THREE.Color() }, uHor: { value: new THREE.Color() }, uGround: { value: new THREE.Color() }, uCloudCol: { value: new THREE.Color() },
             uGlow: { value: new THREE.Color() }, uTwi: { value: 0 }, uMW: { value: 0 }, uMix: { value: 0 }, uSun: { value: new THREE.Vector4() } };
-          const mk = (o, ord) => { o.frustumCulled = false; o.renderOrder = ord; o.layers.set(LAYER); o.userData.noBatch = true; o.raycast = () => {}; scene.add(o); return o; };   // để hiện lúc dựng: compileAsync biên dịch sẵn shader, khung đầu update() đặt lại
+          const mk = (o, ord) => { o.frustumCulled = false; o.renderOrder = ord; o.layers.set(LAYER); o.userData.noBatch = true; o.raycast = () => {}; scene.add(o); return o; };
           const quadGeo = new THREE.BufferGeometry(); quadGeo.setAttribute('position', new THREE.Float32BufferAttribute([-1, -1, 0, 3, -1, 0, -1, 3, 0], 3));
           const back = mk(new THREE.Mesh(quadGeo, new THREE.ShaderMaterial({ uniforms: U, depthTest: false, depthWrite: false,
             vertexShader: 'varying vec2 vNdc; void main() { vNdc = position.xy; gl_Position = vec4(position.xy, 0.0, 1.0); }',
@@ -610,28 +610,28 @@
               }` })), -1001);
           const SHOWERS = [[1, 3.6, 0.6, 110, 230, 49, 41], [4, 22.5, 1.5, 18, 271, 34, 49], [5, 6, 4, 50, 338, -1, 66], [7, 30, 6, 25, 340, -16, 41], [8, 12.5, 3, 100, 48, 58, 59],
             [10, 8.5, 0.5, 10, 262, 54, 20], [10, 10, 15, 5, 32, 9, 27], [10, 21.5, 6, 20, 95, 16, 66], [11, 12, 15, 5, 58, 22, 29], [11, 17.5, 2, 15, 152, 22, 71], [12, 14, 2.5, 150, 112, 33, 35], [12, 22, 1, 10, 217, 76, 33]];
-          let islandBase = null;   // 4 góc đáy khối đảo (thế giới), đo 1 lần sau khi địa hình dựng xong
+          let islandBase = null;
           const meteors = [], _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3(), _d = new THREE.Vector3(), _e = new THREE.Vector3(), _f = new THREE.Vector3();
           const M = new THREE.Matrix3(), Mt = new THREE.Matrix3(), _cv = new THREE.Color();
           let mix = 0, lim = -2, drift = 0, nq = 0;
           const toNdc = (d, out) => { const z = Math.max(1 + d.dot(U.uF.value), 0.02); out.x = 2 * d.dot(U.uR.value) / z * U.uK.value.x; out.y = 2 * d.dot(U.uU.value) / z * U.uK.value.y + U.uOff.value; return out; };
           const fromNdc = (x, y, out) => { const px = x / U.uK.value.x, py = (y - U.uOff.value) / U.uK.value.y; return out.copy(U.uR.value).multiplyScalar(4 * px).addScaledVector(U.uU.value, 4 * py).addScaledVector(U.uF.value, 4 - px * px - py * py).normalize(); };
           const eqDir = (raDeg, deDeg, out) => out.set(Math.cos(deDeg * RD) * Math.cos(raDeg * RD), Math.cos(deDeg * RD) * Math.sin(raDeg * RD), Math.sin(deDeg * RD)).applyMatrix3(M);
-          function spawnMeteor(sh) {   // sh: trận mưa (hoặc null = sao băng lẻ)
+          function spawnMeteor(sh) {
             const W = renderer.domElement.width, H = renderer.domElement.height;
             for (let tries = 0; tries < 8; tries++) {
               const d0 = fromNdc(rnd() * 1.8 - 0.9, U.uOff.value + 0.2 + rnd() * (0.75 - U.uOff.value), new THREE.Vector3());
-              if (d0.y < 0.17) continue;   // cao trên ~10°
+              if (d0.y < 0.17) continue;
               let v, ang, tn = new THREE.Vector3();
               if (sh) {
-                eqDir(sh[4], sh[5], _a); const cpsi = d0.dot(_a); if (cpsi > 0.97) continue;   // quá gần tâm: vệt ngắn, bỏ
+                eqDir(sh[4], sh[5], _a); const cpsi = d0.dot(_a); if (cpsi > 0.97) continue;
                 tn.copy(d0).multiplyScalar(cpsi).sub(_a).normalize(); v = sh[6]; ang = (6 + 20 * Math.sqrt(1 - cpsi * cpsi)) * (0.5 + 0.7 * rnd());
               } else {
                 _a.set(0, 1, 0).cross(d0).normalize(); _b.crossVectors(d0, _a); const th = rnd() * 2 * Math.PI;
-                tn.copy(_a).multiplyScalar(Math.cos(th)).addScaledVector(_b, Math.sin(th) - 0.35).normalize(); tn.addScaledVector(d0, -tn.dot(d0)).normalize();   // nghiêng nhẹ xuống
+                tn.copy(_a).multiplyScalar(Math.cos(th)).addScaledVector(_b, Math.sin(th) - 0.35).normalize(); tn.addScaledVector(d0, -tn.dot(d0)).normalize();
                 v = 20 + rnd() * 50; ang = 5 + rnd() * 15;
               }
-              const r = rnd(), m = r < 0.03 ? -4 - rnd() * 2 : 2.6 - Math.log(1 + rnd() * (Math.pow(2.6, 5) - 1)) / Math.log(2.6);   // phân bố độ sáng (chỉ số r ≈ 2,6) + quả cầu lửa hiếm
+              const r = rnd(), m = r < 0.03 ? -4 - rnd() * 2 : 2.6 - Math.log(1 + rnd() * (Math.pow(2.6, 5) - 1)) / Math.log(2.6);
               if (m > lim - 0.3) continue;
               const d1 = d0.clone().multiplyScalar(Math.cos(ang * RD)).addScaledVector(tn, Math.sin(ang * RD));
               const fast = Math.min(1, Math.max(0, (v - 35) / 30));
@@ -639,7 +639,7 @@
               return;
             }
           }
-          function quad(T, Hd, wPx, cr, cg, cb, a, kind) {   // dải từ T (đuôi) tới Hd (đầu), toạ độ NDC, rộng wPx điểm ảnh
+          function quad(T, Hd, wPx, cr, cg, cb, a, kind) {
             if (nq >= MQ) return;
             const W = renderer.domElement.width / 2, H = renderer.domElement.height / 2;
             let dx = (Hd.x - T.x) * W, dy = (Hd.y - T.y) * H; const L = Math.hypot(dx, dy) || 1; dx /= L; dy /= L;
@@ -676,7 +676,7 @@
             U.uK.value.set(1.05 * (camera.top - camera.bottom) / (camera.right - camera.left), 1.05);
             U.uPx.value = renderer.getPixelRatio(); U.uTime.value = t % 3600;
             const lst = (18.697374558 + 24.06570982441908 * n + SUN_LON / 15) * 15 * RD, cl = Math.cos(lst), sl = Math.sin(lst), cp = Math.cos(SUN_LAT), sp = Math.sin(SUN_LAT);
-            M.set(-sl, cl, 0, -sp * cl, -sp * sl, cp, cp * cl, cp * sl, sp);   // hàng: đông · bắc · thiên đỉnh
+            M.set(-sl, cl, 0, -sp * cl, -sp * sl, cp, cp * cl, cp * sl, sp);
             Mt.set(SKY_EAST.x, SKY_NORTH.x, SKY_UP.x, SKY_EAST.y, SKY_NORTH.y, SKY_UP.y, SKY_EAST.z, SKY_NORTH.z, SKY_UP.z); M.premultiply(Mt); U.uEq.value.copy(M);
             U.uGal.value.copy(GAL).multiply(Mt.copy(M).transpose());
             U.uZen.value.setRGB(0.0027 + 0.012 * moonB, 0.004 + 0.022 * moonB, 0.012 + 0.05 * moonB); U.uHor.value.setRGB(0.011 + 0.02 * moonB, 0.018 + 0.03 * moonB, 0.045 + 0.06 * moonB);
@@ -686,7 +686,7 @@
             skyDir(hs, _b); _b.y = 0; _b.normalize(); U.uSun.value.set(_b.x, 0, _b.z, se);
             U.uCloudCol.value.setRGB(0.016 + 0.03 * moonB, 0.018 + 0.035 * moonB, 0.026 + 0.045 * moonB).add(_cv.copy(U.uGlow.value).multiplyScalar(0.6)).add(_cv.setRGB(0.05, 0.06, 0.09).multiplyScalar(U.uTwi.value));
             U.uMW.value = smooth01(5, 6.1, lim); U.uMix.value = mix; U.uBg.value.copy(scene.background);
-            if (scene.fog) scene.fog.color.lerp(_cv.copy(U.uHor.value).multiplyScalar(1.6), mix * 0.85);   // sương xa hoà vào chân trời đêm
+            if (scene.fog) scene.fog.color.lerp(_cv.copy(U.uHor.value).multiplyScalar(1.6), mix * 0.85);
             const D = new Date(Date.now() + SUN_TZ * 3600000), y0 = Date.UTC(D.getUTCFullYear(), 0, 1), doy = (Date.UTC(D.getUTCFullYear(), D.getUTCMonth(), D.getUTCDate()) - y0) / 864e5 + liveWeather.localHour / 24;
             let base = 1 / 45; const act = [];
             for (const s of SHOWERS) {
@@ -695,7 +695,7 @@
               const rel = eqDir(s[4], s[5], _c).y; if (rel <= 0) continue;
               const r = Math.pow(s[3] / 20, 0.6) * Math.exp(-0.5 * dd * dd / (s[2] * s[2])) * rel / 30; base += r; act.push([s, r]);
             }
-            if (meteors.length < 3 && rnd() < base * smooth01(2.5, 5, lim) * (1 - cloud) * dt) {   // chọn lẻ hay trận nào theo tỉ lệ tần suất
+            if (meteors.length < 3 && rnd() < base * smooth01(2.5, 5, lim) * (1 - cloud) * dt) {
               let pick = null, u = rnd() * base - 1 / 45;
               if (u >= 0) for (const [s, r] of act) { if (u < r) { pick = s; break; } u -= r; }
               spawnMeteor(pick);
@@ -732,7 +732,7 @@
         for (let i = -MX; i < GX + MX; i++) {
           const gi = (i + MX) * gridD;
           for (let j = -MZ; j < GZ + MZ; j++) {
-            if (i === 158 && j === 103) continue; // xóa cột block theo yêu cầu
+            if (i === 158 && j === 103) continue;
             const idx = gi + (j + MZ);
 
             if (gridWater[idx]) {
@@ -767,7 +767,7 @@
           }
         }
         instanced(grass, grassMat, true, true);
-        grass.length = 0; // Giải phóng mảng RAM lập tức
+        grass.length = 0;
         instanced(shore, shoreMat, true, true);
         shore.length = 0;
         instancedScaled(bodies, dirtMat);
@@ -796,14 +796,14 @@
           const cellS = (i, j) => (i < -MX || j < -MZ || i >= GX + MX || j >= GZ + MZ) ? 0 : Math.min(6, shoreD[(i + MX) * gridD + j + MZ]);
           waters.forEach((w, wi) => {
             const topY = w.y + (w.sy * BLOCK) / 2, i = w.i, j = w.j;
-            for (let v = 0; v < 4; v++) {   // góc (−,−) (+,−) (−,+) (+,+): trung bình 4 ô quanh góc → độ sâu, độ gần bờ chuyển mượt qua các ô
+            for (let v = 0; v < 4; v++) {
               const si = v & 1 ? 1 : -1, sj = v & 2 ? 1 : -1, o = (wi * 4 + v);
               wPos[o * 3] = w.x + si * a; wPos[o * 3 + 1] = topY; wPos[o * 3 + 2] = w.z + sj * a; wNrm[o * 3 + 1] = 1;
               const dd = (cellD(i, j) + cellD(i + si, j) + cellD(i, j + sj) + cellD(i + si, j + sj)) / 4;
               const sd = (cellS(i, j) + cellS(i + si, j) + cellS(i, j + sj) + cellS(i + si, j + sj)) / 4, k = Math.min(1, Math.max(0, (sd - 0.4) / 2.4));
-              wAttr[o * 4 + 2] = dd; wAttr[o * 4 + 3] = 1 - k * k * (3 - 2 * k);   // xy = dòng chảy (điền ở khung đầu) · z = độ sâu · w = gần bờ
+              wAttr[o * 4 + 2] = dd; wAttr[o * 4 + 3] = 1 - k * k * (3 - 2 * k);
             }
-            const b = wi * 4; wIdx.set([b, b + 2, b + 1, b + 2, b + 3, b + 1], wi * 6);   // mặt hướng lên như PlaneGeometry xoay −90° quanh X
+            const b = wi * 4; wIdx.set([b, b + 2, b + 1, b + 2, b + 3, b + 1], wi * 6);
           });
           const waterSurfGeo = new THREE.BufferGeometry();
           waterSurfGeo.setAttribute('position', new THREE.BufferAttribute(wPos, 3)); waterSurfGeo.setAttribute('normal', new THREE.BufferAttribute(wNrm, 3));
@@ -815,7 +815,7 @@
           scene.add(waterMesh);
           terrainMeshes.push(waterMesh); waterSurfMesh = waterMesh;
         }
-        waters.length = 0; // Giải phóng mảng RAM lập tức
+        waters.length = 0;
         for (let i = -MX; i < GX + MX; i++) for (let j = -MZ; j < GZ + MZ; j++) {
           const idx = (i + MX) * gridD + j + MZ;
           if (gridWater[idx]) gridH[idx] = getVoxelHeight(i, j);
@@ -824,16 +824,16 @@
         gridH = gridWater = null;
 
         const AXC = { x: 0xc0473a, y: 0x3a7d44, z: 0x2f6fb0 };
-        const X0 = wx(-MX), Z0 = wz(-MZ);                                    // góc gốc = (min X, min Z) → mọi tọa độ đều dương
-        const axLenX = wx(GX + MX - 1) - X0, axLenZ = wz(GZ + MZ - 1) - Z0;  // độ dài bằng cạnh địa hình
+        const X0 = wx(-MX), Z0 = wz(-MZ);
+        const axLenX = wx(GX + MX - 1) - X0, axLenZ = wz(GZ + MZ - 1) - Z0;
         const axesGroup = new THREE.Group(); axesGroup.position.set(X0, 0, Z0); scene.add(axesGroup);
         (function buildAxes() {
-          const AX = axLenX * 1.12, AY = 52, AZ = axLenZ * 1.12, O = new THREE.Vector3(0, 0, 0);   // X/Z dài hơn 1 chút
+          const AX = axLenX * 1.12, AY = 52, AZ = axLenZ * 1.12, O = new THREE.Vector3(0, 0, 0);
           const line = (from, to, color, op) => { const ln = new THREE.Line(new THREE.BufferGeometry().setFromPoints([from, to]), new THREE.LineBasicMaterial({ color, transparent: true, opacity: op })); ln.renderOrder = 18; axesGroup.add(ln); };
-          line(O, new THREE.Vector3(AX, 0, 0), AXC.x, 0.9);   // X chạy dọc cạnh địa hình
-          line(O, new THREE.Vector3(0, AY, 0), AXC.y, 0.9);   // Y hướng lên
-          line(O, new THREE.Vector3(0, 0, AZ), AXC.z, 0.9);   // Z chạy dọc cạnh địa hình
-          const cone = (color, pos, rot) => { const c = new THREE.Mesh(new THREE.ConeGeometry(0.8, 2.5, 14), new THREE.MeshBasicMaterial({ color })); c.position.copy(pos); if (rot) c.rotation.copy(rot); axesGroup.add(c); };   // mũi tên nhỏ đi 1/2
+          line(O, new THREE.Vector3(AX, 0, 0), AXC.x, 0.9);
+          line(O, new THREE.Vector3(0, AY, 0), AXC.y, 0.9);
+          line(O, new THREE.Vector3(0, 0, AZ), AXC.z, 0.9);
+          const cone = (color, pos, rot) => { const c = new THREE.Mesh(new THREE.ConeGeometry(0.8, 2.5, 14), new THREE.MeshBasicMaterial({ color })); c.position.copy(pos); if (rot) c.rotation.copy(rot); axesGroup.add(c); };
           cone(AXC.x, new THREE.Vector3(AX, 0, 0), new THREE.Euler(0, 0, -Math.PI / 2));
           cone(AXC.y, new THREE.Vector3(0, AY, 0));
           cone(AXC.z, new THREE.Vector3(0, 0, AZ), new THREE.Euler(Math.PI / 2, 0, 0));
@@ -849,14 +849,14 @@
 
         const pinH = 7;
         const pin = new THREE.Group(); pin.visible = false; scene.add(pin);
-        const PIN_OP = 0.65;   // ghim trong suốt 35%
+        const PIN_OP = 0.65;
         const pinLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, pinH, 0)]), new THREE.LineBasicMaterial({ color: 0xE2D6C0, transparent: true, opacity: PIN_OP })); pin.add(pinLine);
-        const pinHead = new THREE.Group(); pinHead.position.y = 0; pin.add(pinHead);   // mũi tên đậu ở mặt đất (mũi chạm điểm)
+        const pinHead = new THREE.Group(); pinHead.position.y = 0; pin.add(pinHead);
         const pinMat = new THREE.MeshBasicMaterial({ color: 0xE2D6C0, transparent: true, opacity: PIN_OP });
-        const pinArrow = new THREE.Mesh(new THREE.ConeGeometry(0.55, 1.1, 16), pinMat); pinArrow.rotation.x = Math.PI; pinArrow.position.y = 0.55; pinHead.add(pinArrow);   // mũi tên nhỏ chúc xuống điểm
-        const pinShaft = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 1.2, 10), pinMat); pinShaft.position.y = 1.7; pinHead.add(pinShaft);   // cán mũi tên
-        const pinRing = new THREE.Mesh(new THREE.RingGeometry(0.7, 1.15, 22), new THREE.MeshBasicMaterial({ color: 0xE2D6C0, transparent: true, opacity: PIN_OP, side: THREE.DoubleSide })); pinRing.rotation.x = -Math.PI / 2; pinRing.position.y = pinH; pin.add(pinRing);   // vòng tròn ở ĐỈNH cột
-        const _glowCol = new THREE.Color().setRGB(2.0, 1.9, 1.25), _prevCol = new THREE.Color();   // màu overbright ấm → sáng rực
+        const pinArrow = new THREE.Mesh(new THREE.ConeGeometry(0.55, 1.1, 16), pinMat); pinArrow.rotation.x = Math.PI; pinArrow.position.y = 0.55; pinHead.add(pinArrow);
+        const pinShaft = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 1.2, 10), pinMat); pinShaft.position.y = 1.7; pinHead.add(pinShaft);
+        const pinRing = new THREE.Mesh(new THREE.RingGeometry(0.7, 1.15, 22), new THREE.MeshBasicMaterial({ color: 0xE2D6C0, transparent: true, opacity: PIN_OP, side: THREE.DoubleSide })); pinRing.rotation.x = -Math.PI / 2; pinRing.position.y = pinH; pin.add(pinRing);
+        const _glowCol = new THREE.Color().setRGB(2.0, 1.9, 1.25), _prevCol = new THREE.Color();
         let glowMesh = null, glowId = -1;
         function clearGlow() { if (glowMesh && glowId >= 0 && glowMesh.instanceColor) { glowMesh.setColorAt(glowId, _prevCol); glowMesh.instanceColor.needsUpdate = true; } glowMesh = null; glowId = -1; }
         function setGlow(mesh, id) {
@@ -864,10 +864,10 @@
           clearGlow();
           if (!mesh || !mesh.instanceColor || id == null || id < 0) return;
           mesh.getColorAt(id, _prevCol); glowMesh = mesh; glowId = id;
-          mesh.setColorAt(id, _glowCol); mesh.instanceColor.needsUpdate = true;   // khối ngay dưới mũi tên bừng sáng
+          mesh.setColorAt(id, _glowCol); mesh.instanceColor.needsUpdate = true;
         }
         let pinDropStart = -1;
-        const _tailV = new THREE.Vector3();   // chiếu đuôi mũi tên (đỉnh cán) ra màn hình để neo nhãn toạ độ
+        const _tailV = new THREE.Vector3();
 
         /* ===== LINE-ART structures ===== */
         const OUT = 0x4b4a46, lineMat = new THREE.LineBasicMaterial({ color: OUT }), lineDark = new THREE.LineBasicMaterial({ color: 0x243240 });
@@ -895,9 +895,9 @@
         const leafMats = [0x78935b, 0x6e8754, 0x86a364, 0x61784a].map(co => new THREE.MeshLambertMaterial({ color: co, transparent: true, opacity: 0.5, depthWrite: false }));
         const cowWhite = new THREE.MeshLambertMaterial({ color: 0xE2D6C0 }), cowDark = new THREE.MeshLambertMaterial({ color: 0x3b3a37 }), cowPink = new THREE.MeshLambertMaterial({ color: 0xd7a39b }), cowLeg = new THREE.MeshLambertMaterial({ color: 0x55514b }), cowHorn = new THREE.MeshLambertMaterial({ color: 0xddd2b8 });
         const koiWhiteM = new THREE.MeshLambertMaterial({ color: 0xE2D6C0, side: THREE.DoubleSide }),
-          koiSkinM = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }),   // da cá tô màu theo ĐỈNH (mép đốm pha mềm) — đốm nằm trên da, không lồi khối
-          koiEyeM = new THREE.MeshPhongMaterial({ color: 0x111012, shininess: 90, specular: 0x666666 }),   // con ngươi ướt có ánh
-          koiIrisM = new THREE.MeshLambertMaterial({ color: 0xd8c89a }), koiBarbelM = new THREE.MeshLambertMaterial({ color: 0xe6d3c6 });   // viền mống vàng nhạt · râu
+          koiSkinM = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }),
+          koiEyeM = new THREE.MeshPhongMaterial({ color: 0x111012, shininess: 90, specular: 0x666666 }),
+          koiIrisM = new THREE.MeshLambertMaterial({ color: 0xd8c89a }), koiBarbelM = new THREE.MeshLambertMaterial({ color: 0xe6d3c6 });
         const _koiC = { white: new THREE.Color(0xE2D6C0), red: new THREE.Color(0xd8492f), black: new THREE.Color(0x2b2724) };
         const metalMat = new THREE.MeshLambertMaterial({ color: 0x7b858c });
         const cableMat = new THREE.LineBasicMaterial({ color: 0x20262b, transparent: true, opacity: 0.72 });
@@ -908,7 +908,7 @@
         function bx(w, h, d, mat, cast, out, lm) { const geo = new THREE.BoxGeometry(w, h, d); const m = new THREE.Mesh(geo, mat); m.castShadow = cast !== false; m.receiveShadow = true; if (out !== false) edge(m, geo, lm); return m; }
         function cyl(rt, rb, h, mat, cast, out, lm, segs = 7) { const geo = new THREE.CylinderGeometry(rt, rb, h, segs); const m = new THREE.Mesh(geo, mat); m.castShadow = cast !== false; m.receiveShadow = true; if (out !== false) edge(m, geo, lm); return m; }
         const _rbUp = new THREE.Vector3(0, 1, 0), _rbD = new THREE.Vector3();
-        function rodBetween(parent, a, b, r, mat, segs = 6, cast = true) {   // ống tròn nối 2 điểm: giằng, thanh néo, ống, thanh thang
+        function rodBetween(parent, a, b, r, mat, segs = 6, cast = true) {
           _rbD.subVectors(b, a); const m = cyl(r, r, _rbD.length(), mat, cast, false, null, segs);
           m.position.addVectors(a, b).multiplyScalar(0.5); m.quaternion.setFromUnitVectors(_rbUp, _rbD.normalize()); parent.add(m); return m;
         }
@@ -921,21 +921,21 @@
           const s = LANTERN_SCALE, top = 31.69, h = 6, Y = v => (v - top) * s;
           const parts = { frame: [], glass: [], bulb: [] };
           const put = (list, geo, x, y, z, ry = 0, rz = 0) => { if (rz) geo.rotateZ(rz); if (ry) geo.rotateY(ry); geo.translate(x * s, Y(y), z * s); list.push(geo); };
-          for (const y of [0.5, 14.5]) put(parts.frame, new THREE.BoxGeometry(2 * h * s, s, 2 * h * s), 0, y, 0);                                   // hộp đế · hộp nóc
-          for (const sx of [-1, 1]) for (const sz of [-1, 1]) put(parts.frame, new THREE.BoxGeometry(.55 * s, 13 * s, .55 * s), sx * (h - .275), 7.5, sz * (h - .275));   // cột góc
+          for (const y of [0.5, 14.5]) put(parts.frame, new THREE.BoxGeometry(2 * h * s, s, 2 * h * s), 0, y, 0);
+          for (const sx of [-1, 1]) for (const sz of [-1, 1]) put(parts.frame, new THREE.BoxGeometry(.55 * s, 13 * s, .55 * s), sx * (h - .275), 7.5, sz * (h - .275));
           const brace = Math.hypot(11, 13), lean = Math.atan2(13, 11);
           for (let face = 0; face < 4; face++) {
             const ry = face * Math.PI / 2, nx = Math.sin(ry), nz = Math.cos(ry);
-            put(parts.glass, new THREE.BoxGeometry(11 * s, 13 * s, .04 * s), nx * (h - .15), 7.5, nz * (h - .15), ry);                              // ô kính
-            for (const sign of [-1, 1]) put(parts.frame, new THREE.BoxGeometry(brace * s, .22 * s, .22 * s), nx * (h - .04), 7.5, nz * (h - .04), ry, sign * lean);   // giằng chữ X
+            put(parts.glass, new THREE.BoxGeometry(11 * s, 13 * s, .04 * s), nx * (h - .15), 7.5, nz * (h - .15), ry);
+            for (const sign of [-1, 1]) put(parts.frame, new THREE.BoxGeometry(brace * s, .22 * s, .22 * s), nx * (h - .04), 7.5, nz * (h - .04), ry, sign * lean);
           }
-          put(parts.frame, new THREE.CylinderGeometry(3.2 * s, 3.2 * s, 2 * s, 16), 0, 1.29, 0);                                                     // đế bóng
-          put(parts.bulb, new THREE.SphereGeometry(3.22 * s, 16, 12), 0, 5.235, 0);                                                                 // bóng cầu
+          put(parts.frame, new THREE.CylinderGeometry(3.2 * s, 3.2 * s, 2 * s, 16), 0, 1.29, 0);
+          put(parts.bulb, new THREE.SphereGeometry(3.22 * s, 16, 12), 0, 5.235, 0);
           const cap = [[3.2, 15], [3.2, 16.64], [3.6, 17.5], [4, 17.55], [4, 17.62], [3.7, 17.8], [2.8, 18.17], [1.5, 18.42], [0, 18.49]];
-          put(parts.frame, new THREE.LatheGeometry(cap.map(([r, y]) => new THREE.Vector2(r * s, (y - 15) * s)), 20), 0, 15, 0);                   // ống thông hơi + nắp vòm
+          put(parts.frame, new THREE.LatheGeometry(cap.map(([r, y]) => new THREE.Vector2(r * s, (y - 15) * s)), 20), 0, 15, 0);
           const arc = [[6.05, 15], [6.03, 19], [5.97, 22.5], [5.85, 24.6], [5.55, 26.4], [5, 27.95], [4.5, 29], [3.5, 30.3], [2, 31.2], [0, 31.57]];
           const handle = [...arc, ...arc.slice(0, -1).reverse().map(([u, y]) => [-u, y])].map(([u, y]) => new THREE.Vector3(u * s * Math.SQRT1_2, Y(y), u * s * Math.SQRT1_2));
-          parts.frame.push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(handle), 48, .28 * s, 6, false));                                     // quai theo đường chéo hộp
+          parts.frame.push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(handle), 48, .28 * s, 6, false));
           const merge = list => { const geo = mergeGeometries(list, false); for (const g of list) g.dispose(); return geo; };
           return {
             frame: merge(parts.frame), glass: merge(parts.glass), bulb: merge(parts.bulb), bulbY: Y(5.235),
@@ -967,7 +967,7 @@
             for (let p = o; p && p !== group; p = p.parent) if (p.userData.noBake) return;
             const mesh = o.isMesh && !o.isInstancedMesh, seg = o.isLineSegments;
             if (!(mesh || seg) || !o.geometry || Array.isArray(o.material)) return;
-            const role = seg ? '' : xrayRole(o, group);   // vỏ & nội thất cùng vật liệu vẫn gộp riêng để còn ẩn được vỏ
+            const role = seg ? '' : xrayRole(o, group);
             const key = (seg ? 'L' : 'M') + '|' + o.material.uuid + '|' + (o.castShadow ? 1 : 0) + '|' + (o.receiveShadow ? 1 : 0) + '|' + role;
             let bin = bins.get(key);
             if (!bin) { bin = { mat: o.material, cast: o.castShadow, recv: o.receiveShadow, seg, role, origs: [] }; bins.set(key, bin); }
@@ -1006,27 +1006,27 @@
         }
 
         const fallBlocks = [], tailJets = [], sprayBits = [], rainbowMats = [], damIMs = [], damMist = [];
-        let damRainbow = null;   // cầu vồng chân đập (đậm nhạt theo mặt trời)
+        let damRainbow = null;
         const damWalk = [], damExits = [];
-        function damWalkAt(x, z) {   // null = không ở trên/sát đập; off ≤ 0: trên mặt đi, 0 < off ≤ 0.9: dải lan can
+        function damWalkAt(x, z) {
           for (const p of damWalk) { if (x < p.x0 || x > p.x1) continue; const a = p.at(x), off = Math.abs(z - a.zc) - a.hw; if (off <= 0.9) return { y: a.y, off }; }
           return null;
         }
         const damDeckY = (x, z) => { const w = damWalkAt(x, z); return w && w.off <= 0 ? w.y : null; };
-        const _dmP = new THREE.Vector3(), _dmQ = new THREE.Quaternion(), _dmE = new THREE.Euler(), _dmS = new THREE.Vector3(1, 1, 1), _dmM = new THREE.Matrix4();   // scratch ghi ma trận bọt nước mỗi frame
+        const _dmP = new THREE.Vector3(), _dmQ = new THREE.Quaternion(), _dmE = new THREE.Euler(), _dmS = new THREE.Vector3(1, 1, 1), _dmM = new THREE.Matrix4();
         (function buildDam() {
           const g = new THREE.Group();
           const dcx = wx(riverC(DAM_J)), dz = (wz(DAM_J) + wz(DAM_J + 2 * S - 1)) / 2;
           g.position.set(dcx, 0, dz); g.name = 'Trạm thủy điện (Hydro Dam)'; scene.add(g);
-          const Wd = 34, ox = 5, Hd = resTopY + 1.2, Zd = 2 * S * BLOCK, dsZ = Zd / 2;                                    // ox=lệch phải · dsZ=mặt hạ lưu
-          const wall = bx(Wd, Hd, Zd, concreteMat); wall.position.set(ox, Hd / 2, 0); g.add(wall);                  // tường đập bắc qua sông
-          const crest = bx(Wd + 0.8, 0.6, Zd + 1.6, concreteDark); crest.position.set(ox, Hd + 0.3, 0); g.add(crest);   // đường trên đỉnh
-          { const crestAt = { zc: dz, hw: (Zd + 1.6) / 2 - 0.3, y: Hd + 0.6 };   // lan can ở ±(Zd/2 + 0,7)
+          const Wd = 34, ox = 5, Hd = resTopY + 1.2, Zd = 2 * S * BLOCK, dsZ = Zd / 2;
+          const wall = bx(Wd, Hd, Zd, concreteMat); wall.position.set(ox, Hd / 2, 0); g.add(wall);
+          const crest = bx(Wd + 0.8, 0.6, Zd + 1.6, concreteDark); crest.position.set(ox, Hd + 0.3, 0); g.add(crest);
+          { const crestAt = { zc: dz, hw: (Zd + 1.6) / 2 - 0.3, y: Hd + 0.6 };
             damWalk.push({ x0: dcx + ox - (Wd + 0.8) / 2, x1: dcx + ox + (Wd + 0.8) / 2, at: () => crestAt }); }
           for (const zz of [-1, 1]) {
             for (let i = -8; i <= 8; i++) { const post = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.6, 6), metalMat); post.position.set(ox + i * 2.0, Hd + 0.9, zz * (Zd / 2 + 0.7)); g.add(post); }
             const rail = bx(Wd + 0.8, 0.08, 0.08, metalMat, true, false); rail.position.set(ox, Hd + 1.2, zz * (Zd / 2 + 0.7)); g.add(rail);
-          }                       // lan can hai mép đỉnh
+          }
           g.userData.damApproaches = [];
           for (const side of [-1, 1]) {
             const approach = new THREE.Group(); approach.name = side < 0 ? 'Dốc nối bờ trái (Dam Approach)' : 'Dốc nối bờ phải (Dam Approach)';
@@ -1069,7 +1069,7 @@
             { const rampAt = { zc: 0, hw: 0, y: 0 }, landAt = { zc: dz + endZ, hw: endWidth / 2 - 0.25, y: landingY }, ex = endX + side * landingRun;
               damWalk.push({ x0: dcx + Math.min(startX, endX), x1: dcx + Math.max(startX, endX), at: x => { const lx = x - dcx; rampAt.zc = dz + centerZAt(lx); rampAt.hw = halfWidthAt(lx) - 0.25; rampAt.y = deckYAt(lx); return rampAt; } });
               damWalk.push({ x0: dcx + Math.min(endX, ex), x1: dcx + Math.max(endX, ex), at: () => landAt });
-              damExits.push({ x: dcx + ex + side * 1.2, z: dz + endZ }); }   // bãi đất ngay đầu chiếu nghỉ (bò bước xuống bờ ở đây)
+              damExits.push({ x: dcx + ex + side * 1.2, z: dz + endZ }); }
           }
           const nBays = 5, Wf = Wd, x0 = ox - Wf / 2, bayPitch = Wf / nBays, pierW = 1.5, bayW = bayPitch - pierW;
           const faceZ = Zd / 2, sillY = downY + 0.3, gateTopY = Hd - 0.4;
@@ -1078,17 +1078,17 @@
             const pier = bx(pierW, pierH, 3.0, concreteMat); pier.position.set(px, sillY + pierH / 2, faceZ + 1.0); g.add(pier);
             const cap = bx(pierW + 0.3, 0.5, 3.4, concreteDark); cap.position.set(px, sillY + pierH + 0.05, faceZ + 1.0); g.add(cap);
           }
-          const midBays = [1, 2, 3];   // chỉ giữ thiết kế cửa van ở 3 khoang giữa
+          const midBays = [1, 2, 3];
           for (const bI of midBays) {
             const cx = x0 + bayPitch * (bI + 0.5);
             const chuteTop = gateTopY - 0.4, chuteBot = sillY + 0.2, dy = chuteTop - chuteBot, dz = 3.2, len = Math.hypot(dy, dz), ang = Math.atan2(dy, dz);
             const chute = bx(bayW, 0.4, len, concreteMat, true, true, lineDark); chute.rotation.x = ang; chute.position.set(cx, (chuteTop + chuteBot) / 2, faceZ + dz / 2 + 0.1); g.add(chute);
-            const gate = bx(bayW, 2.6, 0.3, warningMat, true, true, lineDark); gate.rotation.x = -0.32; gate.position.set(cx, gateTopY - 0.9, faceZ + 0.55); g.add(gate);   // cửa van cung (tainter)
-            for (let r = 0; r < 2; r++) { const rib = bx(bayW + 0.1, 0.18, 0.42, gateMat, true, false); rib.rotation.x = -0.32; rib.position.set(cx, gateTopY - 0.4 - r * 1.2, faceZ + 0.62); g.add(rib); }   // gân ngang
-            for (const sx of [-1, 1]) { const arm = bx(0.16, 2.4, 0.16, metalMat, true, false); arm.rotation.x = 0.5; arm.position.set(cx + sx * bayW / 2, gateTopY - 0.6, faceZ + 1.2); g.add(arm); }   // tay cung + gối quay
+            const gate = bx(bayW, 2.6, 0.3, warningMat, true, true, lineDark); gate.rotation.x = -0.32; gate.position.set(cx, gateTopY - 0.9, faceZ + 0.55); g.add(gate);
+            for (let r = 0; r < 2; r++) { const rib = bx(bayW + 0.1, 0.18, 0.42, gateMat, true, false); rib.rotation.x = -0.32; rib.position.set(cx, gateTopY - 0.4 - r * 1.2, faceZ + 0.62); g.add(rib); }
+            for (const sx of [-1, 1]) { const arm = bx(0.16, 2.4, 0.16, metalMat, true, false); arm.rotation.x = 0.5; arm.position.set(cx + sx * bayW / 2, gateTopY - 0.6, faceZ + 1.2); g.add(arm); }
             const bucketLen = 0.88, bucketThick = 0.16, bucketLipY = chuteBot + 0.16;
             const bucket = bx(bayW - 0.08, bucketThick, bucketLen, concreteDark, true, true, lineDark);
-            bucket.rotation.x = -0.44;   // góc hất cong ngược lên trên của mố nhảy
+            bucket.rotation.x = -0.44;
             bucket.position.set(cx, bucketLipY, faceZ + dz + 0.38); g.add(bucket);
             for (const sx of [-1, 1]) {
               const bWall = bx(0.12, 0.46, bucketLen + 0.08, concreteMat, true, true, lineDark);
@@ -1108,12 +1108,12 @@
             const it = bx(1.5, Hd * 0.5, 1.5, concreteMat); it.position.set(ox + s * 9, Hd * 0.6, -Zd / 2 - 0.9); g.add(it);
             const cap = bx(1.75, 0.4, 1.75, concreteDark); cap.position.set(ox + s * 9, Hd * 0.85, -Zd / 2 - 0.9); g.add(cap);
             const tr = cyl(0.1, 0.1, 1.4, metalMat, true, false, null, 8); tr.position.set(ox + s * 9, Hd + 0.7, -Zd / 2 - 0.9); g.add(tr);
-          }    // tháp lấy nước + cột
+          }
           const sheetIM = new THREE.InstancedMesh(new THREE.BoxGeometry(bayW * 0.84, 0.75, 0.38), sheetMat, 30);
           const foamIM = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.26, 0), foamMat, 15);
-          const tailIM = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 0), foamMat, 16);    // bán kính 1 → cỡ thật nằm trong scale per-instance
+          const tailIM = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 0), foamMat, 16);
           const sprayIM = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 0), foamMat, 24);
-          for (const im of [sheetIM, foamIM, tailIM, sprayIM]) { im.frustumCulled = false; g.add(im); damIMs.push(im); }   // instance chạy khắp mặt đập → tắt culling theo bounding gốc
+          for (const im of [sheetIM, foamIM, tailIM, sprayIM]) { im.frustumCulled = false; g.add(im); damIMs.push(im); }
           let _si = 0, _fi = 0;
           for (const bI of midBays) {
             const cx = x0 + bayPitch * (bI + 0.5);
@@ -1125,8 +1125,8 @@
           }
           for (let n = 0; n < 16; n++) tailJets.push({ im: tailIM, id: n, x: ox + (Math.random() - 0.5) * 7.5, y: downY + 0.35, z0: dsZ + 0.9, len: 8 + Math.random() * 5, sp: 0.24 + Math.random() * 0.195, ph: Math.random(), sc: (0.236 + Math.random() * 0.225) * (0.55 + Math.random() * 0.7) });
           for (let n = 0; n < 24; n++) sprayBits.push({ im: sprayIM, id: n, x: ox + (Math.random() - 0.5) * 14, z: Zd / 2 + 3.2 + Math.random() * 2.5, y0: sillY + 0.4, h: 1.5 + Math.random() * 2.2, sp: 0.7 + Math.random() * 0.6, ph: Math.random(), r: 0.14 + Math.random() * 0.15 });
-          for (let m = 0; m < 3; m++) { const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: mistMap, color: 0xE2D6C0, transparent: true, opacity: 0.3, depthWrite: false })); sprite.position.set(ox + (m - 1) * 7, downY + 1.4, Zd / 2 + 2.2); sprite.scale.set(11, 7, 1); sprite.renderOrder = 4; sprite.visible = false; g.add(sprite); damMist.push({ s: sprite, x: sprite.position.x, y: sprite.position.y, z: sprite.position.z, wx: dcx, wz: dz, ph: m * 2.1 }); }   // màn hơi bị gió đẩy lệch (cập nhật trong vòng lặp)
-          const rainbowGroup = new THREE.Group(); rainbowGroup.userData.noBake = true;   // opacity từng cung animate riêng
+          for (let m = 0; m < 3; m++) { const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: mistMap, color: 0xE2D6C0, transparent: true, opacity: 0.3, depthWrite: false })); sprite.position.set(ox + (m - 1) * 7, downY + 1.4, Zd / 2 + 2.2); sprite.scale.set(11, 7, 1); sprite.renderOrder = 4; sprite.visible = false; g.add(sprite); damMist.push({ s: sprite, x: sprite.position.x, y: sprite.position.y, z: sprite.position.z, wx: dcx, wz: dz, ph: m * 2.1 }); }
+          const rainbowGroup = new THREE.Group(); rainbowGroup.userData.noBake = true;
           rainbowGroup.position.set(ox, downY + 3.8, Zd / 2 + 4.2);
           rainbowGroup.rotation.y = -0.35; g.add(rainbowGroup); damRainbow = rainbowGroup; rainbowGroup.userData.baseY = rainbowGroup.position.y;
           const rainbowCols = [0xff2222, 0xff7f00, 0xffee00, 0x22ff55, 0x0088ff, 0x4b0082, 0x9400d3];
@@ -1136,7 +1136,7 @@
             const mat = new THREE.MeshBasicMaterial({ color: rainbowCols[i], transparent: true, opacity: 0.38, side: THREE.DoubleSide, depthWrite: false });
             const arc = new THREE.Mesh(geo, mat); rainbowGroup.add(arc); rainbowMats.push(mat);
           }
-          bakeStatic(g);   // gộp ~100 mesh tĩnh của đập (tường·trụ pin·lan can·cẩu trục·tháp lấy nước) — nước/cầu vồng noBake giữ động
+          bakeStatic(g);
         })();
 
         const rotors = [];
@@ -1252,9 +1252,9 @@
           g.add(body, rotor); rotors.push({ rotor, sp: 0.25 + Math.random() * 0.22 });
           return g;
         }
-        const windCells = [[11, 3, 1.5], [17, 6, 1.35], [23, 3, 1.55], [29, 6, 1.3], [37, 4, 1.4], [44, 8, 1.25], [7, 8, 1.45]]; // OLD coords
-        const numSprites = [];                   // tất cả số (tua-bin + cột điện) — tắt cùng nút "Trục"
-        function turbineNum(n) {                 // số tua-bin — kiểu giống cột điện (chữ trắng viền đậm, font Courier), nổi trên đỉnh
+        const windCells = [[11, 3, 1.5], [17, 6, 1.35], [23, 3, 1.55], [29, 6, 1.3], [37, 4, 1.4], [44, 8, 1.25], [7, 8, 1.45]];
+        const numSprites = [];
+        function turbineNum(n) {
           const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d');
           x.clearRect(0, 0, 128, 128);
           x.font = '700 64px "Courier New", Courier, monospace'; x.textAlign = 'center'; x.textBaseline = 'middle';
@@ -1267,30 +1267,30 @@
         let wtn = 0;
         for (const c of windCells) {
           const i = c[0] * S, j = c[1] * S; if (isRiver(i, j)) continue; wtn++;
-          const s = c[2] * 1.22 * 1.05 * 1.1 * 1.05; const t = turbine(s);   // tua-bin cao/lớn thêm 10% + 5%
+          const s = c[2] * 1.22 * 1.05 * 1.1 * 1.05; const t = turbine(s);
           if (wtn === 1) t.position.set(X0 + 23, 9, Z0 + 13);
           else if (wtn === 2) t.position.set(X0 + 58, 8, Z0 + 7);
           else if (wtn === 3) t.position.set(X0 + 88, 8, Z0 + 23);
-          else if (wtn === 4) t.position.set(X0 + 139, 11, Z0 + 8);              // tua-bin 4 → góc (139,11,8)
-          else if (wtn === 5) t.position.set(X0 + 176, 24, Z0 + 7);        // tua-bin 5 → góc (176,24,7)
+          else if (wtn === 4) t.position.set(X0 + 139, 11, Z0 + 8);
+          else if (wtn === 5) t.position.set(X0 + 176, 24, Z0 + 7);
           else t.position.set(wx(i), surfaceY(i, j), wz(j));
           t.rotation.y = -0.5 + Math.random(); t.name = 'Tua-bin gió #' + wtn + ' (Wind Turbine)'; scene.add(t);
           const num = turbineNum(wtn); num.position.set(0, (0.45 + 15 + 9 + TURBINE_HUB_LIFT) * s, 0); t.add(num); numSprites.push(num);
           obstacleCoords.push({ x: t.position.x, y: t.position.y, z: t.position.z, r: 3.5, h: (25 + TURBINE_HUB_LIFT) * s });
         }
-        if (rotors[1]) rotors[1].sp *= 0.35;                                          // tua-bin 2 quay chậm
-        if (rotors[3]) rotors[3].sp *= 2; if (rotors[4]) rotors[4].sp *= 2;            // tua-bin 4 & 5 quay nhanh gấp đôi
+        if (rotors[1]) rotors[1].sp *= 0.35;
+        if (rotors[3]) rotors[3].sp *= 2; if (rotors[4]) rotors[4].sp *= 2;
 
         const ARCHITECTURE_SCALE = 0.90;
 
-        function solarRow(len, glass) {   // glass share chung giữa các hàng cùng kích thước — không clone texture/material mỗi hàng
+        function solarRow(len, glass) {
           const g = new THREE.Group();
           const pgeo = new THREE.BoxGeometry(len, 0.1, 2.4); const panel = new THREE.Mesh(pgeo, glass); panel.castShadow = true; panel.receiveShadow = true; edge(panel, pgeo, lineDark);
           const tilt = new THREE.Group(); tilt.add(panel); tilt.rotation.x = -0.5; tilt.position.y = 1.7; g.add(tilt);
           for (let i = -1; i <= 1; i++) { const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.5, 8), legMat); leg.castShadow = true; leg.position.set(i * len * 0.36, 0.75, 0.3); g.add(leg); } return g;
         }
         {
-          const lo = 6, hi = 110, len = (hi - lo) * BLOCK, gi = ((lo + hi) / 2) * S;   // gấp đôi diện tích sang phải (mép trái giữ ở 30)
+          const lo = 6, hi = 110, len = (hi - lo) * BLOCK, gi = ((lo + hi) / 2) * S;
           const glass = glassMat.clone(); glass.map = cellRep.clone(); glass.map.repeat.set(Math.round(len / 2), 1); glass.map.needsUpdate = true;
           const farm = new THREE.Group(); farm.name = 'Cánh đồng pin mặt trời (Solar Farm)';
           const farmMidJ = (26 + 15 * 1.45 / 2) * S;
@@ -1505,14 +1505,14 @@
           g.userData.architecture = { unit, width: w, height: h, depth: d, wallThickness: wallT, openings: openingAudit, roofEquipment, yaw };
           return bakeStatic(g);
         }
-        const bdefs = [[7, 19, 11, 7, 6, true, 0], [13, 27, 9, 6, 5, true, 1], [6, 29, 8, 5, 7, false, 2]]; // preserved campus footprints
+        const bdefs = [[7, 19, 11, 7, 6, true, 0], [13, 27, 9, 6, 5, true, 1], [6, 29, 8, 5, 7, false, 2]];
         for (const b of bdefs) {
           const yaw = b[6] === 0 ? 0 : Math.PI;
           const o = building(b[2], b[3], b[4], b[5], b[6], yaw);
           o.rotation.y = yaw; o.scale.setScalar(ARCHITECTURE_SCALE);
           o.position.set(wx(b[0] * S), surfaceY(b[0] * S, b[1] * S), wz(b[1] * S)); scene.add(o);
         }
-        for (const b of bdefs) obstacleCoords.push({ x: wx(b[0] * S), y: surfaceY(b[0] * S, b[1] * S), z: wz(b[1] * S), r: (Math.max(b[2], b[4]) / 2 + 1.2) * ARCHITECTURE_SCALE, h: (b[3] + 1.8) * ARCHITECTURE_SCALE });   // nhà → vật cản: ong/bướm vọt qua mái thay vì xuyên tường
+        for (const b of bdefs) obstacleCoords.push({ x: wx(b[0] * S), y: surfaceY(b[0] * S, b[1] * S), z: wz(b[1] * S), r: (Math.max(b[2], b[4]) / 2 + 1.2) * ARCHITECTURE_SCALE, h: (b[3] + 1.8) * ARCHITECTURE_SCALE });
         const campusRoad = new THREE.Group(); campusRoad.name = 'Đường nội bộ (Campus Access Road)';
         const roadWidth = 3.2, roadShoulder = .24, roadHalf = roadWidth / 2 + roadShoulder;
         const roadStartX = wx(-MX) - BLOCK / 2, roadCornerX = wx(17 * S);
@@ -1602,8 +1602,8 @@
           for (let k = 0; k < 4; k++) { rod(at(k, 0), at(k, 1), 0.075, legMat, 8); const b = at(k, 0); add(bx(0.44, 0.26, 0.44, concreteMat, true, true), b.x, 0.02, b.z); }
           const lv = [0, 0.36, 0.7, 1];
           for (let k = 0; k < 4; k++) for (let i = 0; i < 3; i++) {
-            if (i) rod(at(k, lv[i]), at(k + 1, lv[i]), 0.045);                                                                        // giằng ngang
-            rod(at(k, lv[i]), at(k + 1, lv[i + 1]), 0.014, legMat, 4); rod(at(k + 1, lv[i]), at(k, lv[i + 1]), 0.014, legMat, 4);   // giằng chéo X (thanh néo gió)
+            if (i) rod(at(k, lv[i]), at(k + 1, lv[i]), 0.045);
+            rod(at(k, lv[i]), at(k + 1, lv[i + 1]), 0.014, legMat, 4); rod(at(k + 1, lv[i]), at(k, lv[i + 1]), 0.014, legMat, 4);
           }
           C(0.13, 0.13, TH, legMat, 0, TH / 2, 0, 12); C(0.2, 0.2, 0.08, legMat, 0, 0.3, 0, 12);
           for (const f of [0.36, 0.7]) for (let k = 0; k < 4; k++) rod(v3(0, 0.12 + (TH - 0.12) * f, 0), at(k, f), 0.012, legMat, 4);
@@ -1632,7 +1632,7 @@
             for (const q of [0.25, 0.5, 0.75]) { const a = q * Math.PI; rod(P(r + 0.3 * Math.sin(a), cage, 0.3 * Math.cos(a)), P(r + 0.3 * Math.sin(a), cageTop, 0.3 * Math.cos(a)), 0.01, legMat, 4); }
           };
           ladder(RB + 0.22, 0.1, y0 + 0.9, 1.7, TH - 0.08); ladder(R + 0.16, y0 + 0.05, yTop + 0.3, 0);
-          for (const f of [0.36, 0.7]) rod(P(RB + 0.22, 0.12 + (TH - 0.12) * f, 0), at(0, f), 0.016, legMat, 4);   // chân đỡ thang vào cột
+          for (const f of [0.36, 0.7]) rod(P(RB + 0.22, 0.12 + (TH - 0.12) * f, 0), at(0, f), 0.016, legMat, 4);
           const oc = Math.cos(2.09), os = Math.sin(2.09);
           rod(v3(R * oc, yTop - 0.12, R * os), v3((R + 0.12) * oc, yTop - 0.12, (R + 0.12) * os), 0.04);
           rod(v3((R + 0.12) * oc, yTop - 0.12, (R + 0.12) * os), v3((R + 0.12) * oc, TH - 0.05, (R + 0.12) * os), 0.04);
@@ -1660,8 +1660,8 @@
           const p = worldCell(oi, oj), g = new THREE.Group(); g.position.copy(p); g.name = 'Cột điện #' + poleCounter + ' (Power Pole)'; scene.add(g);
           obstacleCoords.push({ x: p.x, y: p.y, z: p.z, r: 1.5, h: h + 1.5 });
           let rotY = 0;
-          if (poleCounter === 1 || poleCounter === 2 || poleCounter === 3 || poleCounter === 5) rotY = Math.PI / 2;        // cột 1, 2, 3 & 5 xoay 90°
-          else if (poleCounter === 6) rotY = Math.PI / 6;                        // cột 6 xoay ngược chiều kim đồng hồ 30°
+          if (poleCounter === 1 || poleCounter === 2 || poleCounter === 3 || poleCounter === 5) rotY = Math.PI / 2;
+          else if (poleCounter === 6) rotY = Math.PI / 6;
           g.rotation.y = rotY;
           const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.13, h, 8), metalMat); mast.position.y = h / 2; mast.castShadow = true; g.add(mast);
           const arm = bx(2.7, 0.12, 0.16, metalMat, true, true, lineDark); arm.position.y = h * 0.88; g.add(arm);
@@ -1686,15 +1686,15 @@
         }
         function substation(oi, oj) {
           const p = worldCell(oi, oj), g = new THREE.Group(); g.position.copy(p); g.name = 'Trạm biến áp (Substation)'; g.scale.setScalar(ARCHITECTURE_SCALE); scene.add(g);
-          const Y0 = 0.26, ZC = -0.55, GH = 10.8, steel = metalMat, v3 = (x, y, z) => new THREE.Vector3(x, y, z), V2 = (x, y) => new THREE.Vector2(x, y);   // mặt đá dăm · tim tuyến (thẳng hàng cột 1) · cao xà cổng néo ≈ xà cột điện
-          const zs = [-0.8, 0, 0.8].map(d => ZC + d);   // 3 pha
+          const Y0 = 0.26, ZC = -0.55, GH = 10.8, steel = metalMat, v3 = (x, y, z) => new THREE.Vector3(x, y, z), V2 = (x, y) => new THREE.Vector2(x, y);
+          const zs = [-0.8, 0, 0.8].map(d => ZC + d);
           obstacleCoords.push({ x: p.x, y: p.y, z: p.z, r: 7.2 * ARCHITECTURE_SCALE, h: (GH + 1.3) * ARCHITECTURE_SCALE });
           const paint = new THREE.MeshLambertMaterial({ color: 0x8a949a }), glassD = new THREE.MeshLambertMaterial({ color: 0x3a4650 });
           const add = (m, x, y, z) => { m.position.set(x, y, z); g.add(m); return m; };
           const B = (w, h, d, mat, x, y, z, out = false) => add(bx(w, h, d, mat, true, out, lineDark), x, y, z);
           const C = (r0, r1, h, mat, x, y, z, segs = 10) => add(cyl(r0, r1, h, mat, true, false, null, segs), x, y, z);
           const R = (a, b, r, mat = steel, segs = 4) => rodBetween(g, a, b, r, mat, segs, r > 0.02);
-          const insC = new Map(), ins = (h, r, x, y, z) => {   // sứ có tán lớn/nhỏ xen kẽ (lathe), hình dùng chung theo cỡ
+          const insC = new Map(), ins = (h, r, x, y, z) => {
             const k = h + '|' + r; let geo = insC.get(k);
             if (!geo) { const n = Math.max(3, Math.round(h / 0.11)), pts = [V2(0.001, 0), V2(r * 0.6, 0)]; for (let i = 0; i < n; i++) { const y0 = h * i / n, d = h / n; pts.push(V2(r * 0.42, y0 + d * 0.2), V2(r * (i % 2 ? 0.78 : 1), y0 + d * 0.45), V2(r * 0.42, y0 + d * 0.7)); } pts.push(V2(r * 0.5, h), V2(0.001, h)); insC.set(k, geo = new THREE.LatheGeometry(pts, 9)); }
             const m = new THREE.Mesh(geo, ceramicMat); m.castShadow = true; return add(m, x, y, z);
@@ -1704,14 +1704,14 @@
             const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(10, 7); t.colorSpace = THREE.SRGBColorSpace; return new THREE.MeshLambertMaterial({ map: t }); })();
           add(bx(12.0, 0.14, 8.4, concreteMat, true, true, lineMat), 0, 0.07, 0); add(bx(11.6, 0.24, 8.0, gravel, false, true, lineMat), 0, 0.14, 0);
           B(9.2, 0.05, 0.38, concreteMat, 0, Y0 + 0.005, -2.55, true); B(0.38, 0.05, 3.8, concreteMat, 0.75, Y0 + 0.005, -0.55, true);
-          const ped = (x, z, h) => { B(0.3, 0.12, 0.3, concreteMat, x, Y0 + 0.02, z); C(0.05, 0.07, h, steel, x, Y0 + h / 2, z, 8); B(0.22, 0.04, 0.22, steel, x, Y0 + h, z); return Y0 + h + 0.02; };   // trụ thép trên móng
-          const SA = x => zs.map(z => { const y = ped(x, z, 1.55); ins(1.05, 0.1, x, y, z); add(new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.018, 4, 18), steel), x, y + 0.92, z).rotation.x = Math.PI / 2; C(0.05, 0.05, 0.12, steel, x, y + 1.1, z, 8); B(0.1, 0.14, 0.08, gateMat, x + 0.08, Y0 + 0.9, z); return v3(x, y + 1.16, z); });   // chống sét van: vòng phân áp + bộ đếm sét
-          const CT = x => zs.map(z => { const y = ped(x, z, 1.3), hy = y + 1.44; C(0.17, 0.19, 0.32, paint, x, y + 0.16, z, 12); ins(0.95, 0.12, x, y + 0.32, z); C(0.22, 0.2, 0.3, paint, x, hy, z, 12); add(new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 5, 0, Math.PI * 2, 0, 1.3), paint), x, hy + 0.08, z).castShadow = true; B(0.52, 0.06, 0.08, steel, x, hy, z); return v3(x, hy, z); });   // biến dòng dầu kiểu đầu bầu
-          const DS = x => zs.map(z => { const y = ped(x, z, 1.3), ty = y + 1.05; B(0.8, 0.1, 0.12, steel, x, y + 0.05, z); for (const d of [-0.3, 0.3]) { C(0.07, 0.07, 0.06, steel, x + d, y + 0.13, z, 8); ins(0.85, 0.1, x + d, y + 0.16, z); } B(0.64, 0.035, 0.035, steel, x, ty + 0.03, z); B(0.08, 0.07, 0.08, steel, x, ty + 0.03, z); B(0.12, 0.2, 0.1, gateMat, x - 0.06, Y0 + 0.75, z + 0.1); R(v3(x + 0.38, y + 0.12, z), v3(x + 0.04, y + 0.2, z), 0.012); return [v3(x - 0.3, ty, z), v3(x + 0.3, ty, z)]; });   // dao cách ly quay giữa + dao tiếp địa gập
-          const CB = x => { for (const d of [-1.0, 1.0]) { C(0.06, 0.08, 1.25, steel, x, Y0 + 0.625, ZC + d, 8); B(0.32, 0.12, 0.32, concreteMat, x, Y0 + 0.04, ZC + d); } B(0.14, 0.1, 2.1, steel, x, Y0 + 1.25, ZC); B(0.42, 0.6, 0.32, gateMat, x + 0.32, Y0 + 0.9, ZC, true);   // khung chung + tủ truyền động lò xo
-            return zs.map(z => { const y = Y0 + 1.3; C(0.1, 0.12, 0.14, steel, x, y + 0.07, z, 8); ins(0.75, 0.12, x, y + 0.14, z); C(0.11, 0.11, 0.16, steel, x, y + 0.97, z, 10); ins(0.6, 0.11, x, y + 1.05, z); C(0.12, 0.1, 0.12, steel, x, y + 1.71, z, 10); B(0.46, 0.05, 0.1, steel, x, y + 1.73, z); return v3(x, y + 1.73, z); }); };   // máy cắt SF6 sứ đứng: sứ đỡ + buồng dập hồ quang
+          const ped = (x, z, h) => { B(0.3, 0.12, 0.3, concreteMat, x, Y0 + 0.02, z); C(0.05, 0.07, h, steel, x, Y0 + h / 2, z, 8); B(0.22, 0.04, 0.22, steel, x, Y0 + h, z); return Y0 + h + 0.02; };
+          const SA = x => zs.map(z => { const y = ped(x, z, 1.55); ins(1.05, 0.1, x, y, z); add(new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.018, 4, 18), steel), x, y + 0.92, z).rotation.x = Math.PI / 2; C(0.05, 0.05, 0.12, steel, x, y + 1.1, z, 8); B(0.1, 0.14, 0.08, gateMat, x + 0.08, Y0 + 0.9, z); return v3(x, y + 1.16, z); });
+          const CT = x => zs.map(z => { const y = ped(x, z, 1.3), hy = y + 1.44; C(0.17, 0.19, 0.32, paint, x, y + 0.16, z, 12); ins(0.95, 0.12, x, y + 0.32, z); C(0.22, 0.2, 0.3, paint, x, hy, z, 12); add(new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 5, 0, Math.PI * 2, 0, 1.3), paint), x, hy + 0.08, z).castShadow = true; B(0.52, 0.06, 0.08, steel, x, hy, z); return v3(x, hy, z); });
+          const DS = x => zs.map(z => { const y = ped(x, z, 1.3), ty = y + 1.05; B(0.8, 0.1, 0.12, steel, x, y + 0.05, z); for (const d of [-0.3, 0.3]) { C(0.07, 0.07, 0.06, steel, x + d, y + 0.13, z, 8); ins(0.85, 0.1, x + d, y + 0.16, z); } B(0.64, 0.035, 0.035, steel, x, ty + 0.03, z); B(0.08, 0.07, 0.08, steel, x, ty + 0.03, z); B(0.12, 0.2, 0.1, gateMat, x - 0.06, Y0 + 0.75, z + 0.1); R(v3(x + 0.38, y + 0.12, z), v3(x + 0.04, y + 0.2, z), 0.012); return [v3(x - 0.3, ty, z), v3(x + 0.3, ty, z)]; });
+          const CB = x => { for (const d of [-1.0, 1.0]) { C(0.06, 0.08, 1.25, steel, x, Y0 + 0.625, ZC + d, 8); B(0.32, 0.12, 0.32, concreteMat, x, Y0 + 0.04, ZC + d); } B(0.14, 0.1, 2.1, steel, x, Y0 + 1.25, ZC); B(0.42, 0.6, 0.32, gateMat, x + 0.32, Y0 + 0.9, ZC, true);
+            return zs.map(z => { const y = Y0 + 1.3; C(0.1, 0.12, 0.14, steel, x, y + 0.07, z, 8); ins(0.75, 0.12, x, y + 0.14, z); C(0.11, 0.11, 0.16, steel, x, y + 0.97, z, 10); ins(0.6, 0.11, x, y + 1.05, z); C(0.12, 0.1, 0.12, steel, x, y + 1.71, z, 10); B(0.46, 0.05, 0.1, steel, x, y + 1.73, z); return v3(x, y + 1.73, z); }); };
           const node = x => { for (const d of [-1.15, 1.15]) { C(0.06, 0.08, 1.9, steel, x, Y0 + 0.95, ZC + d, 8); B(0.32, 0.12, 0.32, concreteMat, x, Y0 + 0.04, ZC + d); } B(0.12, 0.12, 2.5, steel, x, Y0 + 1.9, ZC);
-            return zs.map(z => { ins(1.0, 0.11, x, Y0 + 1.96, z); add(cyl(0.045, 0.045, 0.9, steel, true, false, null, 8), x, Y0 + 3.0, z).rotation.z = Math.PI / 2; return v3(x, Y0 + 3.0, z); }); };   // giá + sứ đỡ + đoạn thanh cái ống
+            return zs.map(z => { ins(1.0, 0.11, x, Y0 + 1.96, z); add(cyl(0.045, 0.045, 0.9, steel, true, false, null, 8), x, Y0 + 3.0, z).rotation.z = Math.PI / 2; return v3(x, Y0 + 3.0, z); }); };
           const cs = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
           const lattice = (x, z, h, w0, w1) => { const n = Math.round(h / 0.85), P = (c, y) => { const w = (w0 + (w1 - w0) * y / h) / 2; return v3(x + c[0] * w, Y0 + y, z + c[1] * w); };
             for (const c of cs) R(P(c, 0), P(c, h), 0.032, steel, 5);
@@ -1721,28 +1721,28 @@
             const z0 = ZC - 1.55, z1 = ZC + 1.55, n = 7, P = (c, z) => v3(x + c[0] * 0.18, Y0 + GH + c[1] * 0.18, z);
             for (const c of cs) R(P(c, z0), P(c, z1), 0.026, steel, 5);
             for (let i = 0; i < n; i++) for (let k = 0; k < 4; k++) { const a = cs[k], b = cs[(k + 1) % 4], za = z0 + (z1 - z0) * i / n, zb = z0 + (z1 - z0) * (i + 1) / n; R(P(a, zb), P(b, zb), 0.012); R(P(a, za), P(b, zb), 0.009); }
-            return [-1.17, 0, 1.17].map(d => { const z = ZC + d, a = v3(x + dir * 0.2, Y0 + GH, z), b = v3(x + dir * 0.95, Y0 + GH - 0.1, z), st = ins(0.72, 0.085, 0, 0, 0);   // 3 pha cách 1,05 m (= khoảng pha trên xà cột)
+            return [-1.17, 0, 1.17].map(d => { const z = ZC + d, a = v3(x + dir * 0.2, Y0 + GH, z), b = v3(x + dir * 0.95, Y0 + GH - 0.1, z), st = ins(0.72, 0.085, 0, 0, 0);
               st.position.copy(a); st.quaternion.setFromUnitVectors(v3(0, 1, 0), b.clone().sub(a).normalize()); return [b, a]; });
           };
           const xfmr = (x, z, s) => { const X = d => x + s * d, top = Y0 + 1.53;
-            for (const d of [-1.25, 1.25]) { B(2.6, 0.2, 0.1, concreteMat, x, Y0 + 0.08, z + d); B(0.1, 0.2, 2.6, concreteMat, x + d, Y0 + 0.08, z); }   // tường hố thu dầu
+            for (const d of [-1.25, 1.25]) { B(2.6, 0.2, 0.1, concreteMat, x, Y0 + 0.08, z + d); B(0.1, 0.2, 2.6, concreteMat, x + d, Y0 + 0.08, z); }
             for (const d of [-0.38, 0.38]) B(0.18, 0.18, 1.7, concreteMat, X(d), Y0 + 0.09, z);
             B(1.2, 1.35, 1.75, paint, x, Y0 + 0.855, z, true); B(1.3, 0.07, 1.85, paint, x, top + 0.035, z, true);
-            for (const d of [-0.55, 0, 0.55]) B(0.05, 1.22, 0.07, paint, X(0.62), Y0 + 0.86, z + d);   // gân tăng cứng
-            for (const bz of [-0.45, 0.45]) {   // 2 dàn tản nhiệt (7 lá) + ống góp trên/dưới + quạt gió dưới đáy
+            for (const d of [-0.55, 0, 0.55]) B(0.05, 1.22, 0.07, paint, X(0.62), Y0 + 0.86, z + d);
+            for (const bz of [-0.45, 0.45]) {
               for (let i = 0; i < 7; i++) B(0.52, 1.05, 0.025, paint, X(-0.92), Y0 + 0.86, z + bz + (i - 3) * 0.055);
               for (const yy of [0.42, 1.3]) R(v3(X(-0.7), Y0 + yy, z + bz - 0.21), v3(X(-0.7), Y0 + yy, z + bz + 0.21), 0.035, paint, 6);
               C(0.16, 0.16, 0.07, gateMat, X(-0.92), Y0 + 0.28, z + bz, 12);
             }
-            const cx = X(-0.3), cy = top + 0.62;   // bình dầu phụ trên giá + ống rơ-le hơi + bình hút ẩm (hạt silica vàng)
+            const cx = X(-0.3), cy = top + 0.62;
             R(v3(cx, cy, z - 0.78), v3(cx, cy, z + 0.78), 0.19, paint, 14);
             for (const d of [-0.55, 0.55]) R(v3(cx, top + 0.05, z + d), v3(cx, cy - 0.16, z + d), 0.025);
             R(v3(cx, cy - 0.18, z + 0.3), v3(X(0.05), top + 0.07, z + 0.3), 0.025); B(0.1, 0.08, 0.08, gateMat, (cx + X(0.05)) / 2, (cy + top) / 2 - 0.05, z + 0.3);
             R(v3(cx, cy - 0.15, z - 0.75), v3(cx, cy - 0.5, z - 0.75), 0.015); C(0.05, 0.05, 0.2, warningMat, cx, cy - 0.6, z - 0.75, 8);
-            for (const d of [-0.35, 0, 0.35]) { ins(0.35, 0.07, X(-0.08), top + 0.07, z + d); C(0.03, 0.03, 0.1, steel, X(-0.08), top + 0.47, z + d, 6); }   // sứ hạ áp
-            ins(0.45, 0.07, X(0.42), top + 0.07, z + 0.82); C(0.06, 0.06, 0.08, steel, X(0.15), top + 0.11, z - 0.6, 8);   // sứ trung tính · van an toàn
-            B(0.12, 0.55, 0.42, gateMat, X(0.66), Y0 + 0.75, z + 0.45, true);   // tủ điều khiển trên thành thùng
-            return [-0.55, 0, 0.55].map(d => { C(0.11, 0.13, 0.12, paint, X(0.42), top + 0.13, z + d); ins(0.95, 0.105, X(0.42), top + 0.19, z + d); C(0.035, 0.035, 0.14, steel, X(0.42), top + 1.21, z + d, 6); return v3(X(0.42), top + 1.28, z + d); });   // sứ cao áp
+            for (const d of [-0.35, 0, 0.35]) { ins(0.35, 0.07, X(-0.08), top + 0.07, z + d); C(0.03, 0.03, 0.1, steel, X(-0.08), top + 0.47, z + d, 6); }
+            ins(0.45, 0.07, X(0.42), top + 0.07, z + 0.82); C(0.06, 0.06, 0.08, steel, X(0.15), top + 0.11, z - 0.6, 8);
+            B(0.12, 0.55, 0.42, gateMat, X(0.66), Y0 + 0.75, z + 0.45, true);
+            return [-0.55, 0, 0.55].map(d => { C(0.11, 0.13, 0.12, paint, X(0.42), top + 0.13, z + d); ins(0.95, 0.105, X(0.42), top + 0.19, z + d); C(0.035, 0.035, 0.14, steel, X(0.42), top + 1.21, z + d, 6); return v3(X(0.42), top + 1.28, z + d); });
           };
           const gW = gantry(-5.2, -1), gE = gantry(5.2, 1), sW = SA(-4.55), sE = SA(4.55), dW = DS(-3.75), dE = DS(3.75), cW = CT(-2.95), cE = CT(2.95);
           const bW = CB(-2.15), bE = CB(2.15), nA = node(-1.3), nB = node(1.3), dM = DS(0), t1 = xfmr(-2.6, 2.35, 1), t2 = xfmr(2.6, 2.35, -1);
@@ -1756,13 +1756,13 @@
           { const z0 = 2.45; B(1.9, 0.12, 1.9, concreteMat, 0, Y0 + 0.06, z0, true); B(1.7, 1.3, 1.7, wallMat, 0, Y0 + 0.77, z0, true); B(1.84, 0.12, 1.84, concreteDark, 0, Y0 + 1.48, z0, true);
             B(0.46, 0.9, 0.05, gateMat, -0.42, Y0 + 0.57, z0 - 0.86, true); B(0.62, 0.04, 0.32, concreteDark, -0.42, Y0 + 1.08, z0 - 1.0, true);
             for (const d of [0.12, 0.52]) B(0.3, 0.32, 0.04, glassD, d, Y0 + 0.85, z0 - 0.86, true);
-            for (const d of [-0.45, 0.15]) B(0.42, 0.32, 0.04, glassD, d, Y0 + 0.85, z0 + 0.86, true);   // cửa sổ mặt sau
-            B(0.04, 0.3, 0.5, gateMat, 0.86, Y0 + 1.0, z0 - 0.35, true);   // cửa thông gió (lá sách)
+            for (const d of [-0.45, 0.15]) B(0.42, 0.32, 0.04, glassD, d, Y0 + 0.85, z0 + 0.86, true);
+            B(0.04, 0.3, 0.5, gateMat, 0.86, Y0 + 1.0, z0 - 0.35, true);
             B(0.14, 0.3, 0.46, legMat, 0.92, Y0 + 0.5, z0, true); }
           { B(1.5, 0.08, 0.45, steel, 3.3, Y0 + 0.7, -3.05); for (const d of [-0.6, 0.6]) C(0.04, 0.04, 0.7, steel, 3.3 + d, Y0 + 0.35, -3.05, 6);
-            for (let k = 0; k < 5; k++) { B(0.2, 0.42, 0.3, paint, 2.75 + k * 0.275, Y0 + 0.95, -3.05, true); ins(0.16, 0.05, 2.75 + k * 0.275, Y0 + 1.16, -3.05); } }   // dàn tụ bù
-          for (const [x, z] of [[4.95, 3.25], [-4.95, -3.25]]) { B(0.4, 0.14, 0.4, concreteMat, x, Y0 + 0.05, z); C(0.03, 0.11, 9.5, steel, x, Y0 + 4.75, z, 8); C(0.004, 0.025, 0.9, steel, x, Y0 + 9.95, z, 6); }   // cột thu sét
-          for (const [x, z] of [[-4.95, 3.25], [4.95, -3.25]]) { C(0.05, 0.07, 4.2, steel, x, Y0 + 2.1, z, 8); B(0.42, 0.14, 0.24, warningMat, x, Y0 + 4.2, z + (z > 0 ? -0.12 : 0.12), true); }   // đèn pha sân trạm
+            for (let k = 0; k < 5; k++) { B(0.2, 0.42, 0.3, paint, 2.75 + k * 0.275, Y0 + 0.95, -3.05, true); ins(0.16, 0.05, 2.75 + k * 0.275, Y0 + 1.16, -3.05); } }
+          for (const [x, z] of [[4.95, 3.25], [-4.95, -3.25]]) { B(0.4, 0.14, 0.4, concreteMat, x, Y0 + 0.05, z); C(0.03, 0.11, 9.5, steel, x, Y0 + 4.75, z, 8); C(0.004, 0.025, 0.9, steel, x, Y0 + 9.95, z, 6); }
+          for (const [x, z] of [[-4.95, 3.25], [4.95, -3.25]]) { C(0.05, 0.07, 4.2, steel, x, Y0 + 2.1, z, 8); B(0.42, 0.14, 0.24, warningMat, x, Y0 + 4.2, z + (z > 0 ? -0.12 : 0.12), true); }
           { const fh = 1.05, hw = 5.6, hd = 3.7, fy = Y0 - 0.02, meshMat = new THREE.MeshLambertMaterial({ color: 0x59646d, transparent: true, opacity: 0.28, side: THREE.DoubleSide, depthWrite: false }), barb = [];
             const side = (x0, z0, x1, z1) => { const L = Math.hypot(x1 - x0, z1 - z0), n = Math.max(1, Math.round(L / 1.0));
               for (let i = 0; i <= n; i++) { const f = i / n; C(0.028, 0.028, fh + 0.2, steel, x0 + (x1 - x0) * f, fy + (fh + 0.2) / 2, z0 + (z1 - z0) * f, 6); }
@@ -1770,7 +1770,7 @@
               R(v3(x0, fy + fh, z0), v3(x1, fy + fh, z1), 0.018);
               for (let k = 1; k <= 3; k++) barb.push(v3(x0, fy + fh + k * 0.06, z0), v3(x1, fy + fh + k * 0.06, z1)); };
             side(-hw, -hd, -1.25, -hd); side(1.25, -hd, hw, -hd); side(-hw, hd, hw, hd); side(-hw, -hd, -hw, hd); side(hw, -hd, hw, hd);
-            for (const sx of [-1, 1]) { const x0 = sx * 1.22, x1 = sx * 0.03; for (const y of [fy + 0.06, fy + fh]) R(v3(x0, y, -hd), v3(x1, y, -hd), 0.022); for (const x of [x0, x1]) R(v3(x, fy + 0.06, -hd), v3(x, fy + fh, -hd), 0.022); R(v3(x0, fy + 0.06, -hd), v3(x1, fy + fh, -hd), 0.014); add(new THREE.Mesh(new THREE.PlaneGeometry(1.19, fh * 0.9), meshMat), (x0 + x1) / 2, fy + fh * 0.53, -hd); }   // cánh cổng
+            for (const sx of [-1, 1]) { const x0 = sx * 1.22, x1 = sx * 0.03; for (const y of [fy + 0.06, fy + fh]) R(v3(x0, y, -hd), v3(x1, y, -hd), 0.022); for (const x of [x0, x1]) R(v3(x, fy + 0.06, -hd), v3(x, fy + fh, -hd), 0.022); R(v3(x0, fy + 0.06, -hd), v3(x1, fy + fh, -hd), 0.014); add(new THREE.Mesh(new THREE.PlaneGeometry(1.19, fh * 0.9), meshMat), (x0 + x1) / 2, fy + fh * 0.53, -hd); }
             g.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(barb), cableMat));
             for (const [x, z] of [[-3.2, -hd - 0.03], [2.6, -hd - 0.03], [-0.62, -hd - 0.03]]) B(0.5, 0.38, 0.03, warningMat, x, Y0 + 0.62, z, true); }
           const electSymbols = [], electGroup = new THREE.Group(); g.add(electGroup);
@@ -1781,7 +1781,7 @@
             for (let n = 0; n < 3; n++) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: eTex, transparent: true, opacity: 0, depthWrite: false })); sp.scale.setScalar(1.08); electGroup.add(sp); electSymbols.push({ m: sp, ph: n * 1.6 }); }
           }
           substationAnim = {
-            update: (time) => {   // ⚡ bay lên mềm như bong bóng
+            update: (time) => {
               for (const sym of electSymbols) {
                 const q = (time * 0.304 + sym.ph) % 1.0;
                 sym.m.position.set(-2.6 + Math.sin(time * 1.2 + sym.ph) * 0.3, 2.2 + q * 3.8, 2.35 + Math.cos(time * 0.96 + sym.ph) * 0.3);
@@ -1791,14 +1791,14 @@
             }
           };
           bakeStatic(g);
-          const tie = q => { const w = p.clone().addScaledVector(q, ARCHITECTURE_SCALE); w.crossarmDir = v3(0, 0, -1); return w; };   // điểm néo pha giữa (hướng xà như cột 1, 2 ⇒ 3 dây không bắt chéo)
+          const tie = q => { const w = p.clone().addScaledVector(q, ARCHITECTURE_SCALE); w.crossarmDir = v3(0, 0, -1); return w; };
           return { w: tie(gW[1][0]), e: tie(gE[1][0]) };
         }
         const subTie = substation(23.5, 27.2);
         const gridDefs = [[27, 27, 10.8], [18.5, 26.8, 10.8], [12.5, 27.0, 10.8], [8.1, 22.0, 10.8], [7.0, 29.0, 10.8]];
         const gridPoles = gridDefs.map(c => poleAt(c[0], c[1], c[2]));
         const buildingTies = [worldCell(13, 27, 7.6 * ARCHITECTURE_SCALE), worldCell(7, 19, 8.5 * ARCHITECTURE_SCALE), worldCell(6, 29, 7.5 * ARCHITECTURE_SCALE)];
-        wire(gridPoles[0], subTie.e, 0.3); wire(subTie.w, gridPoles[1], 0.5); wire(gridPoles[1], gridPoles[2], 0.55); wire(gridPoles[2], buildingTies[0], 0.45); wire(gridPoles[2], gridPoles[3], 0.7); wire(gridPoles[3], buildingTies[1], 0.45); wire(gridPoles[2], gridPoles[4], 0.65);   // 2 lộ 110 kV vào 2 cổng néo của trạm
+        wire(gridPoles[0], subTie.e, 0.3); wire(subTie.w, gridPoles[1], 0.5); wire(gridPoles[1], gridPoles[2], 0.55); wire(gridPoles[2], buildingTies[0], 0.45); wire(gridPoles[2], gridPoles[3], 0.7); wire(gridPoles[3], buildingTies[1], 0.45); wire(gridPoles[2], gridPoles[4], 0.65);
 
         function batteryBank() {
           const g = new THREE.Group();
@@ -1813,7 +1813,7 @@
             return cg;
           }
           container(-1.25); container(1.25);
-          const term = new THREE.Group(); term.position.set(1.25, 1.92, -0.65); g.add(term);   // sứ đấu nối trên nóc
+          const term = new THREE.Group(); term.position.set(1.25, 1.92, -0.65); g.add(term);
           for (let k = 0; k < 3; k++) {
             const bu = new THREE.Group(); bu.position.set(-0.35 + k * 0.35, 0, 0); term.add(bu);
             for (let m = 0; m < 3; m++) { const d = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 0.1, 8), ceramicMat); d.position.y = m * 0.12; d.castShadow = true; bu.add(d); }
@@ -1826,8 +1826,8 @@
           const bat = batteryBank(), bp = worldCell(BATTERY_CELL[0], BATTERY_CELL[1]); bat.position.copy(bp); bat.scale.setScalar(ARCHITECTURE_SCALE); bat.name = 'Cụm pin lưu trữ (Battery Storage)'; scene.add(bat);
           obstacleCoords.push({ x: bp.x, y: bp.y, z: bp.z, r: 3.5 * ARCHITECTURE_SCALE, h: 3.0 * ARCHITECTURE_SCALE });
           const batTerm = bp.clone().add(new THREE.Vector3(1.25, 2.3, -0.65).multiplyScalar(ARCHITECTURE_SCALE));
-          const batPole = poleAt(44, 30, 10.8);             // cột điện số 6 kế bên pin (cao 10.8m)
-          wire(gridPoles[0], batPole, 1.5);              // nối với lưới điện hiện có
+          const batPole = poleAt(44, 30, 10.8);
+          wire(gridPoles[0], batPole, 1.5);
           const angle = Math.PI / 4;
           const perpPole = new THREE.Vector3(Math.cos(angle), 0, -Math.sin(angle));
           const offsetsPole = [-1.05, 0, 1.05];
@@ -1839,36 +1839,36 @@
             const curve = new THREE.QuadraticBezierCurve3(p0, p1, p2);
             scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(curve.getPoints(18)), cableMat));
           }
-        }                   // dây hạ xuống pin lưu trữ
+        }
 
         const stationTan = new THREE.MeshLambertMaterial({ color: 0xa99d80 }), stationAlu = new THREE.MeshLambertMaterial({ color: 0xb4bbbf });
         const stationBox = new THREE.MeshLambertMaterial({ color: 0xc8cdc6 }), stationDark = new THREE.MeshLambertMaterial({ color: 0x30353a });
         const stationGround = (x, z) => surfaceY(Math.round(x / BLOCK + cx - 0.5), Math.round(z / BLOCK + cz - 0.5));
         const _stUp = new THREE.Vector3(0, 1, 0), _stDir = new THREE.Vector3();
-        function stationRod(parent, a, b, r, mat, segs = 8) {   // ống tròn nối 2 điểm: chân · giằng · cần · trụ
+        function stationRod(parent, a, b, r, mat, segs = 8) {
           _stDir.subVectors(b, a); const m = cyl(r, r, _stDir.length(), mat, r > 0.025, false, null, segs);
           m.position.addVectors(a, b).multiplyScalar(0.5); m.quaternion.setFromUnitVectors(_stUp, _stDir.normalize()); parent.add(m); return m;
         }
-        function stationCable(parent, pts) {   // cáp tín hiệu dạng LineSegments → bakeStatic gộp chung 1 draw call
+        function stationCable(parent, pts) {
           const seg = []; for (let k = 1; k < pts.length; k++) seg.push(pts[k - 1], pts[k]);
           parent.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(seg), cableMat));
         }
-        function gillShield(parent, x, yTop, z, r, plates) {   // hộp chắn bức xạ nhiều tầng (multi-plate gill shield) che cảm biến nhiệt-ẩm
+        function gillShield(parent, x, yTop, z, r, plates) {
           const sg = new THREE.Group(); sg.position.set(x, yTop, z); parent.add(sg);
           const cap = cyl(r * 0.8, r * 1.06, 0.07, wallMat, true, true, lineMat, 16); cap.position.y = -0.035; sg.add(cap);
           for (let k = 1; k <= plates; k++) { const p = cyl(r, r * 1.04, 0.024, wallMat, true, true, lineMat, 16); p.position.y = -0.035 - k * 0.064; sg.add(p); }
           const stackH = plates * 0.064, core = cyl(r * 0.5, r * 0.5, stackH, stationDark, false, false, null, 10); core.position.y = -0.07 - stackH / 2; sg.add(core);
           for (let k = 0; k < 3; k++) { const a = k / 3 * Math.PI * 2 + 0.5, rod = cyl(0.012, 0.012, stackH + 0.05, stationAlu, false, false, null, 5); rod.position.set(Math.cos(a) * r * 0.78, -0.06 - stackH / 2, Math.sin(a) * r * 0.78); sg.add(rod); }
         }
-        function windMonitor() {   // phong kế cánh quạt + đuôi lái (propeller wind monitor): cả cụm xoay theo hướng gió (+X = mũi đón gió), cánh quạt quay theo tốc độ gió
+        function windMonitor() {
           const vane = new THREE.Group();
           const stub = cyl(0.04, 0.05, 0.16, stationTan, true, false, null, 10); stub.position.y = -0.1; vane.add(stub);
-          const body = cyl(0.04, 0.07, 1.0, wallMat, true, false, null, 12); body.rotation.z = Math.PI / 2; body.position.x = 0.02; vane.add(body);   // thân thon dần về đuôi
+          const body = cyl(0.04, 0.07, 1.0, wallMat, true, false, null, 12); body.rotation.z = Math.PI / 2; body.position.x = 0.02; vane.add(body);
           const nacelle = cyl(0.085, 0.085, 0.2, wallMat, true, true, lineMat, 14); nacelle.rotation.z = Math.PI / 2; nacelle.position.x = 0.44; vane.add(nacelle);
           const fin = bx(0.32, 0.52, 0.024, wallMat, true, true, lineMat); fin.position.set(-0.6, 0.05, 0); vane.add(fin);
           const prop = new THREE.Group(); prop.position.x = 0.6; vane.add(prop);
           const hub = cone(0.06, 0.14, stationDark, true, false, null, 10); hub.rotation.z = -Math.PI / 2; hub.position.x = 0.07; prop.add(hub);
-          for (let k = 0; k < 4; k++) {   // 4 cánh xoắn (helicoid) màu tối
+          for (let k = 0; k < 4; k++) {
             const arm = new THREE.Group(); arm.rotation.x = k * Math.PI / 2; prop.add(arm);
             const blade = bx(0.018, 0.25, 0.075, stationDark, true, false); blade.position.y = 0.16; blade.rotation.y = 0.45; arm.add(blade);
           }
@@ -1895,7 +1895,7 @@
           for (const y of [armY, yagiY]) { const pc = bx(0.13, 0.13, 0.13, stationTan, true, false); pc.position.set(postX, y, 0); g.add(pc); }
           stationRod(g, V(-0.1, yagiY, 0), V(postX, yagiY, 0), 0.03, stationTan);
           const wm = windMonitor(); wm.vane.position.set(postX, 11.18, 0); g.add(wm.vane);
-          const compassY = 10.86, northMat = new THREE.MeshLambertMaterial({ color: 0xc8402f, transparent: true, opacity: 0.5, depthWrite: false }), arrowMat = new THREE.MeshLambertMaterial({ color: 0xb8bcc0, transparent: true, opacity: 0.5, depthWrite: false });   // vector hướng trong 50%
+          const compassY = 10.86, northMat = new THREE.MeshLambertMaterial({ color: 0xc8402f, transparent: true, opacity: 0.5, depthWrite: false }), arrowMat = new THREE.MeshLambertMaterial({ color: 0xb8bcc0, transparent: true, opacity: 0.5, depthWrite: false });
           const compassHub = cyl(0.055, 0.055, 0.07, stationDark, true, false, null, 10); compassHub.position.set(postX, compassY, 0); g.add(compassHub);
           const letterTex = (ch, col) => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'); x.font = 'bold 44px Arial, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.lineWidth = 7; x.strokeStyle = 'rgba(240,234,222,0.9)'; x.strokeText(ch, 32, 34); x.fillStyle = col; x.fillText(ch, 32, 34); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; };
           for (const [dx, dz, ch, north] of [[0, -1, 'B', true], [1, 0, 'Đ', false], [0, 1, 'N', false], [-1, 0, 'T', false]]) {
@@ -1916,7 +1916,7 @@
             const text = ok ? 'Gió ' + names[Math.round((((deg % 360) + 360) % 360) / 45) % 8] + ' · ' + Math.round(deg) + '°' + (Number.isFinite(speed) ? ' · ' + Math.round(speed) + ' km/h' : '') : 'Gió · chưa có số liệu';
             const x = badgeCanvas.getContext('2d'); x.clearRect(0, 0, 512, 96); x.font = '600 38px Inter, system-ui, Arial';
             const w = Math.min(500, x.measureText(text).width + 56);
-            x.beginPath(); x.roundRect(256 - w / 2, 10, w, 76, 34); x.fillStyle = 'rgba(226,214,192,0.82)'; x.fill();   // nền thẻ, không viền
+            x.beginPath(); x.roundRect(256 - w / 2, 10, w, 76, 34); x.fillStyle = 'rgba(226,214,192,0.82)'; x.fill();
             x.fillStyle = '#1f2a33'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(text, 256, 50);
             badgeTex.needsUpdate = true;
           };
@@ -1945,11 +1945,11 @@
           stationCable(g, loop);
           stationCable(g, [V(-0.3, 7.5, 0.12), V(-0.12, 7.15, 0.2), V(0, 6.7, 0.2), V(0, 0.18, 0.2)]);
           const light = sph(0.09, new THREE.MeshBasicMaterial({ color: 0xff3b30 }), false, false, null, 10); light.position.set(rodX, rodTop + 0.06, 0); g.add(light);
-          wm.vane.userData.noBake = light.userData.noBake = true;   // phong kế (kèm cánh quạt) · đèn nháy giữ động
+          wm.vane.userData.noBake = light.userData.noBake = true;
           bakeStatic(g); bakeStatic(wm.vane); bakeStatic(wm.prop);
-          return { g, vane: wm.vane, prop: wm.prop, light, setWindBadge, top: V(rodX, rodTop + 0.12, 0), feed: V(-0.52, 8.1, -0.16) };   // top: neo nhãn · feed: điểm nhận cáp điện lưới
+          return { g, vane: wm.vane, prop: wm.prop, light, setWindBadge, top: V(rodX, rodTop + 0.12, 0), feed: V(-0.52, 8.1, -0.16) };
         }
-        function tripodStation(x, z) {   // trạm khí tượng mini chân ba (tripod) — thấp, đặt kế cột chính
+        function tripodStation(x, z) {
           const g = new THREE.Group(), y0 = stationGround(x, z); g.position.set(x, y0, z); g.name = 'Trạm khí tượng mini (Tripod Weather Station)';
           const V = (px, py, pz) => new THREE.Vector3(px, py, pz);
           const topY = 2.95, armY = 2.86, collarY = 1.15, lowY = 0.32;
@@ -1966,17 +1966,17 @@
           }
           stationRod(g, V(-0.62, armY, 0), V(1.05, armY, 0), 0.03, stationAlu);
           const clamp = bx(0.15, 0.16, 0.15, stationAlu, true, true, lineDark); clamp.position.y = armY; g.add(clamp);
-          const pv = new THREE.Group(); pv.position.set(-0.4, 2.909, 0); g.add(pv);   // nằm ngang, mặt pin hướng thẳng lên trời
+          const pv = new THREE.Group(); pv.position.set(-0.4, 2.909, 0); g.add(pv);
           pv.add(bx(0.58, 0.03, 0.44, stationAlu, true, true, lineDark));
           const pvCells = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.034, 0.38), glassMat); pvCells.castShadow = true; pvCells.receiveShadow = true; pv.add(pvCells);
-          stationRod(g, V(-0.05, 2.6, 0), V(-0.45, 2.84, 0), 0.014, stationAlu, 6);   // thanh chống chéo đỡ nhánh trái
+          stationRod(g, V(-0.05, 2.6, 0), V(-0.45, 2.84, 0), 0.014, stationAlu, 6);
           const sStem = cyl(0.018, 0.018, 0.1, stationAlu, false, false, null, 6); sStem.position.set(0.48, armY + 0.07, 0); g.add(sStem);
           const sBody = cyl(0.045, 0.05, 0.15, stationBox, true, true, lineDark, 14); sBody.position.set(0.48, armY + 0.19, 0); g.add(sBody);
           const sCap = cyl(0.055, 0.055, 0.025, stationDark, false, false, null, 10); sCap.position.set(0.48, armY + 0.28, 0); g.add(sCap);
           stationRod(g, V(1.0, armY, 0), V(1.0, armY + 0.22, 0), 0.018, stationAlu, 6);
           const anem = new THREE.Group(); anem.position.set(1.0, armY + 0.26, 0); g.add(anem);
           anem.add(cyl(0.03, 0.04, 0.07, stationDark, true, false, null, 8));
-          for (let k = 0; k < 3; k++) {   // 3 chén gió: miệng chén cùng quay một chiều
+          for (let k = 0; k < 3; k++) {
             const piv = new THREE.Group(); piv.rotation.y = k / 3 * Math.PI * 2; anem.add(piv);
             const arm = cyl(0.008, 0.008, 0.16, stationAlu, false, false, null, 5); arm.rotation.z = Math.PI / 2; arm.position.x = 0.09; piv.add(arm);
             const cup = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 5, 0, Math.PI * 2, 0, Math.PI / 2), stationDark); cup.rotation.x = -Math.PI / 2; cup.position.x = 0.19; cup.castShadow = true; piv.add(cup);
@@ -1995,10 +1995,10 @@
           anem.userData.noBake = true;
           bakeStatic(g); bakeStatic(anem);
           obstacleCoords.push({ x, y: y0, z, r: 1.4, h: 3.2 });
-          return { g, anem, top: V(0, topY + 0.04, 0) };   // top: neo nhãn khí tượng (đỉnh cột trạm mini)
+          return { g, anem, top: V(0, topY + 0.04, 0) };
         }
-        const wmast = weatherMast(X0 + 73, Z0 + 89); scene.add(wmast.g);   // cột khí tượng ở tọa độ góc (73, _, 89), chân cột đặt đúng mặt đất
-        const wmini = tripodStation(X0 + 75.8, Z0 + 88.4); scene.add(wmini.g);   // trạm mini chân ba cách cột chính ~2,8 m về phía đông
+        const wmast = weatherMast(X0 + 73, Z0 + 89); scene.add(wmast.g);
+        const wmini = tripodStation(X0 + 75.8, Z0 + 88.4); scene.add(wmini.g);
 
         function roadSurfaceAt(x, z) {
           const st = campusRoad.userData.road.stations; let best = null;
@@ -2012,7 +2012,7 @@
         function roadLightPool(c, headW, R) {
           const n = 30, geo = new THREE.PlaneGeometry(2 * R, 2 * R, n, n); geo.rotateX(-Math.PI / 2);
           const pos = geo.attributes.position, aIn = new Float32Array(pos.count), aD = new Float32Array(pos.count), half = roadWidth / 2, info = roadSurfaceAt(c.x, c.z);
-          const lx = headW.x - c.x, lz = headW.z - c.z, lean = Math.hypot(lx, lz) || 1;   // phía chân cột: sáng hơn chút (gần nguồn)
+          const lx = headW.x - c.x, lz = headW.z - c.z, lean = Math.hypot(lx, lz) || 1;
           for (let i = 0; i < pos.count; i++) {
             const x = c.x + pos.getX(i), z = c.z + pos.getZ(i), r = roadSurfaceAt(x, z);
             pos.setY(i, r.y + 0.012 - c.y);
@@ -2038,7 +2038,7 @@
           const V = (px, py, pz) => new THREE.Vector3(px, py, pz), poleH = 4.9, armR = 0.55;
           const base = cyl(0.2, 0.24, 0.3, concreteDark, true, true, lineMat, 16); base.position.y = 0.1; g.add(base);
           const pole = cyl(0.055, 0.085, poleH, gateMat, true, false, null, 12); pole.position.y = poleH / 2 + 0.25; g.add(pole);
-          const door = bx(0.06, 0.28, 0.12, gateMat, false, true, lineDark); door.position.set(0.075, 0.75, 0); g.add(door);   // nắp hộp điện chân cột
+          const door = bx(0.06, 0.28, 0.12, gateMat, false, true, lineDark); door.position.set(0.075, 0.75, 0); g.add(door);
           const top = poleH + 0.25, curve = new THREE.CatmullRomCurve3([V(0, top - 0.05, 0), V(0, top + armR * 0.55, 0), V(armR * 0.45, top + armR * 0.85, 0), V(armR, top + armR * 0.8, 0), V(armR * 1.55, top + armR * 0.6, 0)]);
           const arm = new THREE.Mesh(new THREE.TubeGeometry(curve, 24, 0.035, 8, false), gateMat); arm.castShadow = true; g.add(arm);
           const head = bx(0.52, 0.07, 0.24, gateMat, true, true, lineDark); head.position.set(armR * 1.55 + 0.2, top + armR * 0.6 - 0.02, 0); head.rotation.z = -0.08; g.add(head);
@@ -2059,7 +2059,7 @@
           light.target.position.copy(aim); glowG.add(light, light.target);
           const pool = roadLightPool(aimW, headW, 4.2); scene.add(pool);
           const beamDir = aim.clone().sub(V(headX, headY, 0)), beamH = beamDir.length() * 0.97, beamR = beamH * Math.tan(0.45);
-          const beamGeo = new THREE.ConeGeometry(beamR, beamH, 40, 1, true); beamGeo.translate(0, -beamH / 2, 0);   // đỉnh nón ở gốc toạ độ = mặt LED
+          const beamGeo = new THREE.ConeGeometry(beamR, beamH, 40, 1, true); beamGeo.translate(0, -beamH / 2, 0);
           const beamMat = new THREE.ShaderMaterial({
             uniforms: { uOpacity: { value: 0 }, uColor: { value: new THREE.Color(0xffd59a) } },
             vertexShader: 'varying float vY; varying vec3 vN; varying vec3 vV;\n' +
@@ -2072,7 +2072,7 @@
           beam.quaternion.setFromUnitVectors(V(0, -1, 0), beamDir.normalize()); beam.visible = false; glowG.add(beam);
           return { g, light, ledMat, beam, beamMat, pool };
         }
-        const streetLamps = [streetLamp(50, 92), streetLamp(31, 66)];   // toạ độ ghim (x, z); chân đèn theo mặt đất
+        const streetLamps = [streetLamp(50, 92), streetLamp(31, 66)];
         const mastReadout = document.getElementById('weather-mast');
         let mastLabel = null;
         function updateMastReadout() {
@@ -2095,7 +2095,7 @@
         }
         {
           const p0 = gridPoles[0];
-          const p2 = wmast.g.localToWorld(wmast.feed.clone());   // cáp điện lưới vào lưng tủ datalogger
+          const p2 = wmast.g.localToWorld(wmast.feed.clone());
           const p1 = p0.clone().lerp(p2, 0.5); p1.y -= 0.6;
           const curve = new THREE.QuadraticBezierCurve3(p0, p1, p2);
           scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(curve.getPoints(18)), cableMat));
@@ -2103,47 +2103,47 @@
 
         /* ===== VEGETATION INSTANCING — gom cỏ/cây/hoa tĩnh thành InstancedMesh (≈2000 mesh → 7 draw call).
            Hình học gốc chuẩn hoá (bán kính/cao ~1) rồi đặt qua ma trận per-instance; màu lá/cỏ/cánh hoa qua instanceColor. */
-        const NATURE_SCALE = 0.90; // Whole-object size; world scatter and flight/walk paths stay independent.
+        const NATURE_SCALE = 0.90;
         const flowerMats = [0xe8556d, 0xf2c14e, 0xE2D6C0, 0xb07fd4, 0xe8843a].map(c => new THREE.MeshLambertMaterial({ color: c }));
         const flCen = new THREE.MeshLambertMaterial({ color: 0xf4d24f }), flStem = new THREE.MeshLambertMaterial({ color: 0x4f7a34 });
         const bladeGreenCols = [0x5d8f34, 0x6fa343, 0x7ab84e, 0x53842f].map(c => new THREE.Color(c));
-        const leafMatInst = new THREE.MeshLambertMaterial({ color: 0xffffff, transparent: true, opacity: 0.5, depthWrite: false, flatShading: true });   // triangle-ball flat shading — CÂY RỪNG luôn trong suốt 50%
+        const leafMatInst = new THREE.MeshLambertMaterial({ color: 0xffffff, transparent: true, opacity: 0.5, depthWrite: false, flatShading: true });
         const vegPools = {
           trunk: { geo: new THREE.CylinderGeometry(0.18, 0.28, 1, 7), mat: trunkMat, color: false, cast: false, list: [] },
-          cone: { geo: new THREE.ConeGeometry(1, 2.1, 9), mat: leafMatInst, color: true, cast: true, list: [] },   // tán lá kim (cây type 0)
-          blob: { geo: new THREE.IcosahedronGeometry(1, 0), mat: leafMatInst, color: true, cast: true, list: [] },  // tán lá TRIANGLE BALL (icosahedron thô)
-          blade: { geo: (() => { const bg = new THREE.BufferGeometry(); bg.setAttribute('position', new THREE.Float32BufferAttribute([-0.035, -0.5, 0, 0.035, -0.5, 0, 0, 0.5, 0], 3)); bg.computeVertexNormals(); return bg; })(), mat: new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide }), color: true, cast: false, list: [] },  // lá cỏ PHẲNG mỏng tuyệt đối: tam giác dẹt 1 mặt phẳng (thay trụ nhọn), DoubleSide để nhìn 2 phía
+          cone: { geo: new THREE.ConeGeometry(1, 2.1, 9), mat: leafMatInst, color: true, cast: true, list: [] },
+          blob: { geo: new THREE.IcosahedronGeometry(1, 0), mat: leafMatInst, color: true, cast: true, list: [] },
+          blade: { geo: (() => { const bg = new THREE.BufferGeometry(); bg.setAttribute('position', new THREE.Float32BufferAttribute([-0.035, -0.5, 0, 0.035, -0.5, 0, 0, 0.5, 0], 3)); bg.computeVertexNormals(); return bg; })(), mat: new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide }), color: true, cast: false, list: [] },
           stem: { geo: new THREE.CylinderGeometry(0.0125, 0.015, 0.7, 5), mat: flStem, color: false, cast: false, list: [] },
 
           petal: { geo: new THREE.SphereGeometry(0.17, 6, 5), mat: new THREE.MeshLambertMaterial({ color: 0xffffff }), color: true, cast: false, list: [] },
           fcen: { geo: new THREE.SphereGeometry(0.12, 6, 6), mat: flCen, color: false, cast: false, list: [] },
-          fcube: { geo: new THREE.BoxGeometry(1, 1, 1), mat: new THREE.MeshLambertMaterial({ color: 0xffffff }), color: true, cast: false, list: [] }   // cube đơn vị — mọi cánh hoa Minecraft đều scale từ đây
+          fcube: { geo: new THREE.BoxGeometry(1, 1, 1), mat: new THREE.MeshLambertMaterial({ color: 0xffffff }), color: true, cast: false, list: [] }
         };
         const _vgm = new THREE.Matrix4(), _vlm = new THREE.Matrix4(), _vp = new THREE.Vector3(), _vs = new THREE.Vector3(), _ve = new THREE.Euler(), _vq = new THREE.Quaternion(), _vqI = new THREE.Quaternion();
-        function vegGroup(px, py, pz, rotY, scl) { _vgm.makeRotationY(rotY); if (scl !== 1) _vgm.scale(_vs.set(scl, scl, scl)); _vgm.setPosition(px, py, pz); }   // ma trận cụm (T·Ry·S)
+        function vegGroup(px, py, pz, rotY, scl) { _vgm.makeRotationY(rotY); if (scl !== 1) _vgm.scale(_vs.set(scl, scl, scl)); _vgm.setPosition(px, py, pz); }
         function vegPush(pool, pos, quat, scl, color, sway) { if ((pool === vegPools.blade || pool === vegPools.stem || pool === vegPools.petal || pool === vegPools.fcen || pool === vegPools.fcube) && roadContains(_vgm.elements[12], _vgm.elements[14], .35)) return; _vlm.compose(pos, quat, scl); const m = new THREE.Matrix4().multiplyMatrices(_vgm, _vlm); const e = color ? { m, c: color } : { m };
-          if (!sway && pool.autoSway) { const gs = Math.hypot(_vgm.elements[4], _vgm.elements[5], _vgm.elements[6]); sway = [pool.autoSway === 'vertex' ? -pos.y * gs : pos.y * gs, 0]; }   // hoa: độ cao trên gốc cụm
-          if (sway) e.s = sway; pool.list.push(e); }   // sway = [độ cao trên gốc, chiều cao cây] cho gió rừng
+          if (!sway && pool.autoSway) { const gs = Math.hypot(_vgm.elements[4], _vgm.elements[5], _vgm.elements[6]); sway = [pool.autoSway === 'vertex' ? -pos.y * gs : pos.y * gs, 0]; }
+          if (sway) e.s = sway; pool.list.push(e); }
         function buildVegPool(pool) {
           if (!pool.list.length) return;
           const im = new THREE.InstancedMesh(pool.geo, pool.mat, pool.list.length); im.castShadow = pool.cast; im.receiveShadow = false;
           for (let k = 0; k < pool.list.length; k++) { const e = pool.list[k]; im.setMatrixAt(k, e.m); if (pool.color) im.setColorAt(k, e.c); }
-          if (pool.list.some(e => e.s)) {   // thuộc tính từng cây cho shader gió rừng (aSway)
+          if (pool.list.some(e => e.s)) {
             const sw = new Float32Array(pool.list.length * 2); pool.list.forEach((e, k) => { if (e.s) { sw[k * 2] = e.s[0]; sw[k * 2 + 1] = e.s[1]; } });
             pool.geo.setAttribute('aSway', new THREE.InstancedBufferAttribute(sw, 2));
           }
           im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; scene.add(im);
           if (pool === vegPools.blob || _forestVariants.some(v => pool === vegPools[v.key])) flightRoots.push(im);
-          pool.list.length = 0; // Release thousands of Matrix4 objects from RAM
+          pool.list.length = 0;
         }
         const _blobDefs = [[0, 3.2, 0, 1.7], [0.85, 2.7, 0.42, 1.25], [-0.75, 2.8, -0.4, 1.3], [0.3, 3.8, -0.25, 1.1]];
-        const _forestVariants = [];   // mẫu nhánh đệ quy dùng chung (điền sau khi recTree sẵn sàng)
-        function addTreeInst(s, px, py, pz, rotY) {   // 1 cây rừng: thân + NHÁNH ĐỆ QUY (instanced) + tán lá triangle-ball ở đầu cành
-          s *= NATURE_SCALE; // Scale branches, tip offsets and canopy together around this tree's ground root.
+        const _forestVariants = [];
+        function addTreeInst(s, px, py, pz, rotY) {
+          s *= NATURE_SCALE;
           const lc = leafMats[(Math.random() * leafMats.length) | 0].color; vegGroup(px, py, pz, rotY, 1);
           const V0 = _forestVariants[(Math.random() * _forestVariants.length) | 0];
-          const Href = V0.top * s * 0.875;   // chiều cao cây (để gió uốn ∝ (độ cao/H)²)
-          vegPush(vegPools[V0.key], _vp.set(0, 0, 0), _vqI, _vs.set(s, s * 0.875, s), undefined, [0, Href]);   // Tăng chiều cao thêm 25% (0.7 * 1.25 = 0.875)
+          const Href = V0.top * s * 0.875;
+          vegPush(vegPools[V0.key], _vp.set(0, 0, 0), _vqI, _vs.set(s, s * 0.875, s), undefined, [0, Href]);
           for (const tp of V0.tips) vegPush(vegPools.blob, _vp.set(tp.x * s, tp.y * s * 0.875, tp.z * s), _vqI, _vs.set(0.62 * s, 0.62 * s * 1.012, 0.62 * s), lc, [Math.max(0.01, tp.y * s * 0.875), Href]);
         }
         function addGrassTuft(px, py, pz, rotY, s) {
@@ -2166,37 +2166,37 @@
         function addFlower(px, py, pz, rotY) {
           const scl = (0.9 + Math.random() * 0.6) * 0.7; vegGroup(px, py, pz, rotY, scl);
           const kind = (Math.random() * 6) | 0, cube = vegPools.fcube;
-          const tall = kind === 3;                                                                       // allium: thân cao đặc trưng
-          if (!roadContains(px, pz, .35)) { const f = new THREE.Vector3(px, py + 0.5, pz); f.top = py + scl * ((tall ? 1.02 : 0.8) + [-0.02, 0.17, 0.045, 0.17, -0.06, 0.1][kind]); flowerCoords.push(f); }   // top: chỗ ong đáp (lòng chén poppy/tulip · đỉnh búp · nhuỵ cúc)
+          const tall = kind === 3;
+          if (!roadContains(px, pz, .35)) { const f = new THREE.Vector3(px, py + 0.5, pz); f.top = py + scl * ((tall ? 1.02 : 0.8) + [-0.02, 0.17, 0.045, 0.17, -0.06, 0.1][kind]); flowerCoords.push(f); }
           vegPush(vegPools.stem, _vp.set(0, tall ? 0.45 : 0.35, 0), _vqI, _vs.set(1, tall ? 1.3 : 1, 1));
-          const hy = tall ? 1.02 : 0.8;                                                                  // độ cao đầu hoa
-          if (kind === 0 || kind === 4) {                                                                // poppy / tulip: 4 cánh dựng quanh thành chén
+          const hy = tall ? 1.02 : 0.8;
+          if (kind === 0 || kind === 4) {
             const pc = kind === 0 ? _mcCol.poppy : _mcTulip[(Math.random() * 4) | 0], ph = kind === 0 ? 0.17 : 0.24;
             for (let p = 0; p < 4; p++) {
               const a = p / 4 * 6.283; _ve.set(0, -a, 0); _vq.setFromEuler(_ve);
               vegPush(cube, _vp.set(Math.cos(a) * 0.1, hy, Math.sin(a) * 0.1), _vq, _vs.set(0.035, ph, 0.17), pc);
             }
-            if (kind === 0) vegPush(cube, _vp.set(0, hy - 0.05, 0), _vqI, _vs.set(0.13, 0.05, 0.13), _mcCol.poppyEye);   // nhuỵ đen trong lòng poppy
-            else vegPush(cube, _vp.set(0, hy - ph / 2 + 0.02, 0), _vqI, _vs.set(0.14, 0.04, 0.14), pc);                  // đáy chén tulip
-          } else if (kind === 1 || kind === 3) {                                                         // dandelion / allium: pom-pom cube tròn
+            if (kind === 0) vegPush(cube, _vp.set(0, hy - 0.05, 0), _vqI, _vs.set(0.13, 0.05, 0.13), _mcCol.poppyEye);
+            else vegPush(cube, _vp.set(0, hy - ph / 2 + 0.02, 0), _vqI, _vs.set(0.14, 0.04, 0.14), pc);
+          } else if (kind === 1 || kind === 3) {
             const pc = kind === 1 ? _mcCol.dand : _mcCol.allium;
             vegPush(cube, _vp.set(0, hy + 0.02, 0), _vqI, _vs.set(0.16, 0.16, 0.16), pc);
             for (const o of [[0.09, 0, 0], [-0.09, 0, 0], [0, 0.09, 0], [0, -0.09, 0], [0, 0, 0.09], [0, 0, -0.09]])
               vegPush(cube, _vp.set(o[0], hy + 0.02 + o[1], o[2]), _vqI, _vs.set(0.1, 0.1, 0.1), pc);
-          } else if (kind === 2) {                                                                       // oxeye daisy: 8 cánh dẹt toả tròn + nhuỵ vàng
+          } else if (kind === 2) {
             for (let p = 0; p < 8; p++) {
               const a = p / 8 * 6.283; _ve.set(0, -a, 0.06); _vq.setFromEuler(_ve);
               vegPush(cube, _vp.set(Math.cos(a) * 0.14, hy, Math.sin(a) * 0.14), _vq, _vs.set(0.16, 0.02, 0.07), _mcCol.daisy);
             }
             vegPush(cube, _vp.set(0, hy + 0.015, 0), _vqI, _vs.set(0.11, 0.05, 0.11), _mcCol.daisyEye);
-          } else {                                                                                       // cornflower: chùm cube xanh biếc nghiêng ngẫu nhiên
+          } else {
             for (let p = 0; p < 6; p++) {
               const a = p / 6 * 6.283; _ve.set((Math.random() - 0.5) * 0.7, Math.random() * 6.283, (Math.random() - 0.5) * 0.7); _vq.setFromEuler(_ve);
               vegPush(cube, _vp.set(Math.cos(a) * 0.07, hy + (p % 2) * 0.04, Math.sin(a) * 0.07), _vq, _vs.set(0.08, 0.08, 0.08), _mcCol.corn);
             }
             vegPush(cube, _vp.set(0, hy + 0.05, 0), _vqI, _vs.set(0.09, 0.09, 0.09), _mcCol.corn);
           }
-          for (const la of [0.7, 3.8]) { _ve.set(0.55, la, 0); _vq.setFromEuler(_ve); vegPush(vegPools.blade, _vp.set(Math.cos(la) * 0.08, 0.22, Math.sin(la) * 0.08), _vq, _vs.set(2.2, 0.4, 2.2), bladeGreenCols[1]); }   // 2 lá cỏ ôm gốc kiểu Minecraft
+          for (const la of [0.7, 3.8]) { _ve.set(0.55, la, 0); _vq.setFromEuler(_ve); vegPush(vegPools.blade, _vp.set(Math.cos(la) * 0.08, 0.22, Math.sin(la) * 0.08), _vq, _vs.set(2.2, 0.4, 2.2), bladeGreenCols[1]); }
         }
 
         function tree(type, s) {
@@ -2219,12 +2219,12 @@
           if (Math.hypot(tx - (X0 + 74), tz - (Z0 + 103)) < 18) return false;
           return true;
         }
-        const treeCoords = [];   // cây rừng đặt SAU khi dựng mẫu nhánh đệ quy (xem bên dưới, sau recTree)
+        const treeCoords = [];
 
         function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let z = Math.imul(a ^ a >>> 15, 1 | a); z = (z + Math.imul(z ^ z >>> 7, 61 | z)) ^ z; return ((z ^ z >>> 14) >>> 0) / 4294967296; }; }
         const _rtUp = new THREE.Vector3(0, 1, 0), _rtA = new THREE.Vector3(), _rtB = new THREE.Vector3(), _rtAx = new THREE.Vector3();
         const _ntN = new THREE.Vector3(), _ntB = new THREE.Vector3(), _ntT = new THREE.Vector3(), _ntX = new THREE.Vector3();
-        function taperTube(pts, rad, seg) {   // ống cong qua pts, bán kính rad[i], khép ngọn bằng 1 đỉnh; pháp tuyến hướng ra ngoài
+        function taperTube(pts, rad, seg) {
           const n = pts.length, P = [], I = [];
           _ntT.subVectors(pts[1], pts[0]).normalize(); _ntN.set(1, 0, 0); if (Math.abs(_ntT.x) > 0.9) _ntN.set(0, 0, 1);
           for (let i = 0; i < n; i++) {
@@ -2237,22 +2237,22 @@
           for (let k = 0; k < seg; k++) I.push((n - 1) * seg + k, (n - 1) * seg + (k + 1) % seg, n * seg);
           const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); geo.setIndex(I); geo.computeVertexNormals(); return geo;
         }
-        function natTree(g, o) {   // o: seed·barkMat·height·trunkR·bole·nLat0[min,max]·ang0·angTaper (cành dưới xoè ngang hơn)·latLen·bend·nLat1[min,max]·ang1·subLen·maxDepth·tipK·childK·gnarl·leafP
+        function natTree(g, o) {
           const rnd = mulberry32(o.seed), tips = [], seg = o.seg || 6, R = (m) => m[0] + ((rnd() * (m[1] - m[0] + 1)) | 0);
           const branch = (a, dir, len, r0, depth) => {
             const NS = depth ? 4 : 6, pts = [a.clone()], rad = [r0], d = dir.clone().normalize(), p = a.clone(), gn = o.gnarl * (depth ? 1 : 0.35), bend = depth ? o.bend / depth : 0.04;
             for (let s = 1; s <= NS; s++) {
-              d.lerp(_rtUp, bend / NS).normalize();                                                        // hướng sáng: cành cong dần lên
-              d.x += (rnd() - 0.5) * gn; d.z += (rnd() - 0.5) * gn; d.y += (rnd() - 0.5) * gn * 0.4; d.normalize();   // gấp khúc nhẹ
+              d.lerp(_rtUp, bend / NS).normalize();
+              d.x += (rnd() - 0.5) * gn; d.z += (rnd() - 0.5) * gn; d.y += (rnd() - 0.5) * gn * 0.4; d.normalize();
               p.addScaledVector(d, len / NS); pts.push(p.clone()); rad.push(r0 * (1 - (1 - o.tipK) * s / NS));
             }
             const m = new THREE.Mesh(taperTube(pts, rad, seg), o.barkMat); m.castShadow = true; m.receiveShadow = true; g.add(m);
             const end = pts[NS];
-            if (depth === 0 || depth === 1 || rnd() < (o.leafP ?? 0.35)) tips.push(end.clone());           // điểm tán lá: ngọn thân, đầu cành cấp 1, ~1/3 đầu cành cấp 2
+            if (depth === 0 || depth === 1 || rnd() < (o.leafP ?? 0.35)) tips.push(end.clone());
             if (depth >= o.maxDepth || r0 * o.tipK < 0.004) return;
             const at = (t, outP, outT) => { const f = t * NS, i = Math.min(NS - 1, f | 0), u = f - i; outP.lerpVectors(pts[i], pts[i + 1], u); outT.subVectors(pts[i + 1], pts[i]).normalize(); return rad[i] + (rad[i + 1] - rad[i]) * u; };
             const P = new THREE.Vector3(), T = new THREE.Vector3();
-            if (depth >= 2) {   // cành con: chẻ 2 nhánh nhọn ở đầu
+            if (depth >= 2) {
               for (const sgn of [-1, 1]) { at(0.92, P, T); _ntX.set(1, 0, 0); if (Math.abs(T.x) > 0.9) _ntX.set(0, 0, 1); _ntX.crossVectors(T, _ntX).normalize();
                 branch(P, T.clone().applyAxisAngle(_ntX, sgn * (0.42 + 0.2 * rnd())), len * (0.32 + 0.12 * rnd()), rad[NS - 1] * 0.8, depth + 1); }
               return;
@@ -2261,16 +2261,16 @@
             for (let k = 0; k < n; k++) {
               const t = t0 + (k + 0.25 + 0.5 * rnd()) / n * (0.94 - t0), r = at(t, P, T), tn = (t - t0) / (0.94 - t0);
               _ntN.set(1, 0, 0); if (Math.abs(T.x) > 0.9) _ntN.set(0, 0, 1); _ntN.crossVectors(T, _ntN).normalize(); _ntB.crossVectors(T, _ntN);
-              const az = az0 + k * 2.39996 + (rnd() - 0.5) * 0.5;                                                       // góc vàng quanh cành mẹ
+              const az = az0 + k * 2.39996 + (rnd() - 0.5) * 0.5;
               _ntX.copy(_ntN).multiplyScalar(Math.cos(az)).addScaledVector(_ntB, Math.sin(az));
-              const ang = (depth ? o.ang1 : o.ang0 * (1 + (o.angTaper || 0) * (0.5 - tn))) * (0.85 + 0.3 * rnd()), cl = len * (depth ? o.subLen : o.latLen) * (1 - (depth ? 0.45 : 0.62) * tn) * (0.8 + 0.4 * rnd());   // dưới dài – trên ngắn
+              const ang = (depth ? o.ang1 : o.ang0 * (1 + (o.angTaper || 0) * (0.5 - tn))) * (0.85 + 0.3 * rnd()), cl = len * (depth ? o.subLen : o.latLen) * (1 - (depth ? 0.45 : 0.62) * tn) * (0.8 + 0.4 * rnd());
               branch(P, T.clone().applyAxisAngle(_ntX, ang), cl, Math.min(r * o.childK, r0 * 0.6), depth + 1);
             }
           };
           branch(new THREE.Vector3(0, 0, 0), _rtUp, o.height, o.trunkR, 0);
           return { tips, rnd, flowerPts: [] };
         }
-        function recTree(g, o) {   // o: seed·s·barkMat·trunkLen·trunkR·maxDepth·nMin/nMax·lenK·radK·spread·upBias·recursiveLeaves  (o.natural → natTree)
+        function recTree(g, o) {
           if (o.natural) return natTree(g, o);
           const rnd = mulberry32(o.seed), tips = [];
           const flowerPts = [];
@@ -2300,7 +2300,7 @@
 
           (function grow(a, dir, len, r, depth) {
             const b = a.clone().addScaledVector(dir, len);
-            if (depth > 0) { b.x += (rnd() - 0.5) * len * 0.3; b.z += (rnd() - 0.5) * len * 0.3; }   // thân chính thẳng, nhánh con xiêu vẹo
+            if (depth > 0) { b.x += (rnd() - 0.5) * len * 0.3; b.z += (rnd() - 0.5) * len * 0.3; }
             crookedLimb(a, b, r, r * o.radK);
 
             const jsNode = new THREE.Mesh(new THREE.SphereGeometry(r * o.radK, 6, 6), o.barkMat);
@@ -2321,12 +2321,12 @@
               }
             }
 
-            if (depth >= o.maxDepth || r * o.radK < 0.012 * o.s) { tips.push(b); return; }           // BASE CASE: đủ sâu / cành quá mảnh
+            if (depth >= o.maxDepth || r * o.radK < 0.012 * o.s) { tips.push(b); return; }
             const n = (depth === 0 && o.firstSplitN) ? o.firstSplitN : o.nMin + ((rnd() * (o.nMax - o.nMin + 1)) | 0);
-            for (let k = 0; k < n; k++) {                                                            // BƯỚC ĐỆ QUY: rẽ 2-3 nhánh quanh trục cha
+            for (let k = 0; k < n; k++) {
               _rtA.set(1, 0, 0); if (Math.abs(dir.x) > 0.9) _rtA.set(0, 0, 1);
               _rtB.crossVectors(dir, _rtA).normalize(); _rtAx.crossVectors(dir, _rtB).normalize();
-              const az = (k / n + rnd() * 0.35) * 6.283;                                             // chia đều quanh trục + jitter → tán toả tròn
+              const az = (k / n + rnd() * 0.35) * 6.283;
               _rtAx.multiplyScalar(Math.cos(az)).addScaledVector(_rtB, Math.sin(az)).normalize();
 
               const angleFactor = (depth === 0) ? 0.48 * (0.75 + rnd() * 0.5) : (0.6 + rnd() * 0.8);
@@ -2334,18 +2334,18 @@
               nd.y += o.upBias; nd.normalize();
 
               const lengthFactor = (depth === 0) ? (0.6 + rnd() * 0.6) : (0.75 + rnd() * 0.5);
-              grow(b, nd, len * o.lenK * lengthFactor, r * (depth === 0 && o.rootK ? o.rootK : o.radK), depth + 1);   // rootK (tùy chọn): thân giữ to, nhánh cấp 1 đột ngột nhỏ (cây cổ thụ)
+              grow(b, nd, len * o.lenK * lengthFactor, r * (depth === 0 && o.rootK ? o.rootK : o.radK), depth + 1);
             }
           })(new THREE.Vector3(0, 0, 0), _rtUp.clone(), o.trunkLen, o.trunkR, 0);
           return { tips, rnd, flowerPts };
         }
         function cloudPts(rnd, cx2, cy2, cz2, r, n, pts) { for (let i = 0; i < n; i++) { const rr = r * Math.cbrt(rnd()), th = rnd() * 6.283, ph = Math.acos(2 * rnd() - 1); pts.push([cx2 + rr * Math.sin(ph) * Math.cos(th), cy2 + rr * Math.cos(ph) * 0.8, cz2 + rr * Math.sin(ph) * Math.sin(th)]); } }
         const WIND_N = 6, WIND_Z0 = 0.1, WIND_M_PER_U = 1.15, WIND_LAMS = [34, 21, 13, 8, 5, 3.2], TAU = Math.PI * 2;
-        const WIND_SREF = 0.25 + 0.2 * (30 / 3.6);   // U10_cảnh ở 30 km/h — mốc chuẩn hoá lực gió
-        const TREE_SWAY_K = 0.25;   // cây (thân, cành, lá, rừng) rung lắc: đã giảm 2 lần × ½
+        const WIND_SREF = 0.25 + 0.2 * (30 / 3.6);
+        const TREE_SWAY_K = 0.25;
         const sceneWind = {
           dir: new THREE.Vector2(0.977, 0.213), speed: 8, U: 0.69, I: 0.22, stab: 0, sig: new THREE.Vector3(0.15, 0.08, 0.12), ms: 2.2,
-          k: 0.27, gust: 1, sceneSpeed: 0.69,   // giữ tên cũ cho chỗ khác đọc
+          k: 0.27, gust: 1, sceneSpeed: 0.69,
           modes: [], phase: new Float64Array(WIND_N), flutPhase: 0,
           u: { uTime: { value: 0 }, uWindDir: { value: new THREE.Vector2(0.977, 0.213) }, uWindU: { value: 0.69 }, uFlutPhase: { value: 0 },
             uTk: { value: Array.from({ length: WIND_N }, () => new THREE.Vector4()) }, uTa: { value: Array.from({ length: WIND_N }, () => new THREE.Vector4()) },
@@ -2354,7 +2354,7 @@
         const windMap = { on: 0, data: null, x0: 0, z0: 0, nx: 1, nz: 1, dx: 1 };
         const _hP2 = Array.from({ length: 31 }, (_, e) => Math.pow(2, e - 15));
         const halfF = hv => { const e = (hv >> 10) & 0x1f, m = hv & 0x3ff, sg = hv & 0x8000 ? -1 : 1; return e ? sg * _hP2[e] * (1 + m / 1024) : sg * m * 5.960464477539063e-8; };
-        function windMapSample(x, z, out) {   // → out (gió TB chuẩn hoá x, z · hệ số nhiễu loạn); khớp phép lấy mẫu LinearFilter trên GPU
+        function windMapSample(x, z, out) {
           const M = windMap, D = sceneWind.dir; out.set(D.x, D.y, 1); if (!M.on || !M.data) return out;
           const fx = Math.min(M.nx - 1.0001, Math.max(0, (x - M.x0) / M.dx - 0.5)), fz = Math.min(M.nz - 1.0001, Math.max(0, (z - M.z0) / M.dx - 0.5));
           const a = fx | 0, b = fz | 0, tx = fx - a, tz = fz - b, c = (b * M.nx + a) * 4, r = M.nx * 4, d = M.data, k = M.on;
@@ -2364,8 +2364,8 @@
         { const r = mulberry32(51423); let sum = 0;
           for (let n = 0; n < WIND_N; n++) {
             const lam = WIND_LAMS[n], k = TAU / lam, th = r() * TAU, el = (r() - 0.5) * 1.2;
-            const kw = new THREE.Vector3(Math.cos(el) * Math.cos(th) * k * 0.5, Math.sin(el) * k, Math.cos(el) * Math.sin(th) * k);   // hệ (dọc gió, đứng, ngang gió); dọc gió ×0,5 = xoáy dài gấp đôi
-            const kh = kw.clone().normalize(), e = new THREE.Vector3(r() - 0.5, r() - 0.5, r() - 0.5); e.addScaledVector(kh, -e.dot(kh)).normalize();   // biên độ ⊥ k → ∇·u = 0
+            const kw = new THREE.Vector3(Math.cos(el) * Math.cos(th) * k * 0.5, Math.sin(el) * k, Math.cos(el) * Math.sin(th) * k);
+            const kh = kw.clone().normalize(), e = new THREE.Vector3(r() - 0.5, r() - 0.5, r() - 0.5); e.addScaledVector(kh, -e.dot(kh)).normalize();
             const a = Math.cbrt(lam); sum += a * a / 2;
             sceneWind.modes.push({ kw, e, a, k: kw.length() }); sceneWind.phase[n] = r() * TAU;
           }
@@ -2380,7 +2380,7 @@
           return out;
         }
         const _wmS = new THREE.Vector3();
-        function windAt(x, y, z, zAbove, out) {   // gió (đv/s) tại điểm có độ cao zAbove trên mặt đất: trung bình (bản đồ gió × profile log) + nhiễu loạn
+        function windAt(x, y, z, zAbove, out) {
           const f = windProfile(zAbove), g = Math.min(1.1, Math.max(0.3, 0.35 + 0.65 * f)), m = windMapSample(x, z, _wmS);
           windTurb(x, y, z, out).multiplyScalar(g * m.z);
           out.x += m.x * sceneWind.U * f; out.z += m.y * sceneWind.U * f;
@@ -2417,7 +2417,7 @@
           mat.customProgramCacheKey = () => key; mat.needsUpdate = true;
           return mat;
         }
-        const treeWinds = [], BR_K = [1.15, 2.1, 3.4], BR_MU = [0.18, 0.1, 0.05], BR_PH = [0, 1.7, 4.1];   // cành: tần số / tần số thân · tỉ lệ khối lượng với thân · pha quanh thân
+        const treeWinds = [], BR_K = [1.15, 2.1, 3.4], BR_MU = [0.18, 0.1, 0.05], BR_PH = [0, 1.7, 4.1];
         const TREE_GLSL = `
           uniform vec3 uTreeBase; uniform vec4 uTreeDim; uniform vec2 uBend; uniform float uFlutter; uniform float uLeafLean; uniform vec2 uBr[3];
           vec3 treeWind(vec3 wp, vec3 seed) {
@@ -2448,15 +2448,15 @@
           return injectWorldWind(mat, { uTreeBase: tw.u.uTreeBase, uTreeDim: tw.u.uTreeDim, uBend: tw.u.uBend, uBr: tw.u.uBr, uFlutter: { value: flutter * TREE_SWAY_K * 0.3 }, uLeafLean: { value: flutter * 3 } }, TREE_GLSL,
             'treeWind( windW.xyz, ( modelMatrix * vec4( windSeed, 1.0 ) ).xyz )', 'treeWind3');
         }
-        function makeTreeWind(o) {   // o: freq (Hz), zeta (tắt dần cấu trúc), lean (đv ở ngọn khi gió 30 km/h), branchAmp (độ mềm ngọn cành)
+        function makeTreeWind(o) {
           const tw = Object.assign({ bx: 0, bz: 0, vx: 0, vz: 0, px: 0, pz: 0, ex: 0, ez: 0, aero: 0, H: 1, R: 1, F: 0, shake: 0, shakeRaw: 0, active: false, crown: new THREE.Vector3(), crownZ: 1, ph: {} }, o, { lean: o.lean * TREE_SWAY_K, branchAmp: o.branchAmp * TREE_SWAY_K });
           tw.br = BR_K.map(() => ({ x: 0, z: 0, vx: 0, vz: 0, px: 0, pz: 0, ex: 0, ez: 0 }));
           tw.u = { uTreeBase: { value: new THREE.Vector3(0, -1e4, 0) }, uTreeDim: { value: new THREE.Vector4(1, 1, 0, tw.branchAmp) }, uBend: { value: new THREE.Vector2() }, uBr: { value: BR_K.map(() => new THREE.Vector2()) } };
-          tw.depthMat = windShader(new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking }), tw, 0);   // bóng đổ đung đưa cùng cây
+          tw.depthMat = windShader(new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking }), tw, 0);
           treeWinds.push(tw); return tw;
         }
-        const genericFoliageWind = makeTreeWind({ freq: 1, zeta: 1, lean: 0, branchAmp: 0 });   // lá cây không có mô hình thân: chỉ rung theo gió
-        function finalizeTreeWind(tw, group) {   // gốc, chiều cao, bán kính tán, tâm áp lực — đo SAU khi đặt cây vào cảnh
+        const genericFoliageWind = makeTreeWind({ freq: 1, zeta: 1, lean: 0, branchAmp: 0 });
+        function finalizeTreeWind(tw, group) {
           group.updateMatrixWorld(true);
           const box = new THREE.Box3().setFromObject(group), base = group.getWorldPosition(new THREE.Vector3());
           tw.base = base; tw.H = Math.max(1, box.max.y - base.y);
@@ -2466,7 +2466,7 @@
           group.traverse(o => { if (o.isMesh && o.castShadow && o.material && o.material.userData && o.material.userData.treeWind === tw) o.customDepthMaterial = tw.depthMat; });
         }
         const _wtmp = new THREE.Vector3(), _wtmp2 = new THREE.Vector3();
-        function treeWindAt(tw, p, out) {   // = treeWind() trên GPU (phần thân + cành, không có lá rung) — cho cò/bướm đậu trên cành
+        function treeWindAt(tw, p, out) {
           out.set(0, 0, 0); if (!tw || !tw.active) return out;
           const B = tw.u.uBend.value, rx = p.x - tw.base.x, ry = p.y - tw.base.y, rz = p.z - tw.base.z, h = Math.max(0, ry) / tw.H, hb = h * h;
           const flex = tw.branchAmp * Math.min(Math.pow(Math.hypot(rx, rz) / tw.R, 2) + hb * 0.3, 1.6);
@@ -2486,7 +2486,7 @@
           }`;
         function grassWindShader(mat) {
           injectWorldWind(mat, {}, GRASS_GLSL, 'grassWind( ( modelMatrix * windIM * vec4( 0.0, -0.5, 0.0, 1.0 ) ).xyz, position.y + 0.5, length( vec3( windIM[ 1 ] ) ) )', 'grassWind2');
-          const base = mat.onBeforeCompile;   // + kiểu cỏ mềm (như thảm cỏ meadow.js): pháp tuyến chĩa lên như mặt đất, gốc sẫm → ngọn sáng
+          const base = mat.onBeforeCompile;
           mat.onBeforeCompile = shader => {
             base(shader);
             shader.vertexShader = 'varying float vGT;\n' + shader.vertexShader.replace('#include <beginnormal_vertex>', 'vec3 objectNormal = vec3( 0.0, 1.0, 0.0 ); vGT = position.y + 0.5;');
@@ -2523,21 +2523,21 @@
         }
         function updateSceneWind(dt, t) {
           const w = liveWeather.state, cur = w.fresh ? w.data?.current : null;
-          let tx = 0.977, tz = 0.213, sp = 8, gst = null;   // chưa có dữ liệu: gió nhẹ cùng hướng mây mặc định
+          let tx = 0.977, tz = 0.213, sp = 8, gst = null;
           if (w.fresh && w.windDirection !== null) { const a = w.windDirection * Math.PI / 180; tx = -Math.sin(a); tz = Math.cos(a); sp = Math.max(0, w.windSpeed || 0); gst = Number.isFinite(w.windGusts) ? w.windGusts : null; }
-          const kd = Math.min(1, dt * 0.5), D = sceneWind.dir;   // số liệu mới về → đổi hướng/tốc độ mượt trong vài giây
+          const kd = Math.min(1, dt * 0.5), D = sceneWind.dir;
           D.x += (tx - D.x) * kd; D.y += (tz - D.y) * kd; const dl = Math.hypot(D.x, D.y) || 1; D.x /= dl; D.y /= dl;
           sceneWind.speed += (sp - sceneWind.speed) * kd;
           const ms = sceneWind.ms = sceneWind.speed / 3.6;
           sceneWind.U = 0.25 + 0.2 * ms;
-          let I = 0.22; if (gst !== null && sp > 2) I = Math.min(0.45, Math.max(0.08, (gst / sp - 1) / 3.2));   // từ hệ số giật thật: G = 1 + g·I, hệ số đỉnh g ≈ 3–3,5 (giật lớn nhất trong giờ)
+          let I = 0.22; if (gst !== null && sp > 2) I = Math.min(0.45, Math.max(0.08, (gst / sp - 1) / 3.2));
           const hr = liveWeather.localHour, cloud = cur && Number.isFinite(cur.cloud_cover) ? cur.cloud_cover / 100 : 0.5;
           const sun = Math.max(0, Math.sin(Math.PI * (hr - 6) / 12));
           const stabT = sun > 0.05 ? -sun * (1 - 0.7 * cloud) * (1 - Math.min(1, ms / 6)) : (1 - 0.8 * cloud) * (1 - Math.min(1, ms / 5));
           sceneWind.stab += (stabT - sceneWind.stab) * Math.min(1, dt * 0.2);
           const st = sceneWind.stab;
           sceneWind.I += (I * (st > 0 ? 1 - 0.4 * st : 1 - 0.35 * st) - sceneWind.I) * kd;
-          const sa = sceneWind.I * sceneWind.U, rw = st > 0 ? 0.5 - 0.25 * st : 0.5 - 0.35 * st;   // σw/σu: 0,25 (ổn định) … 0,5 (trung tính) … 0,85 (đối lưu)
+          const sa = sceneWind.I * sceneWind.U, rw = st > 0 ? 0.5 - 0.25 * st : 0.5 - 0.35 * st;
           sceneWind.sig.set(sa, sa * rw, sa * 0.8);
           const ax = D.x, az = D.y, P = sceneWind.phase, h = Math.min(dt, 0.1);
           for (let n = 0; n < WIND_N; n++) {
@@ -2548,33 +2548,33 @@
             P[n] = (P[n] + (-m.kw.x * sceneWind.U + 0.5 * m.k * sa) * h) % TAU; if (P[n] < 0) P[n] += TAU;
             sceneWind.u.uTk.value[n].set(kW.x, kW.y, kW.z, 0); sceneWind.u.uTa.value[n].set(aW.x, aW.y, aW.z, P[n]);
           }
-          sceneWind.flutPhase = (sceneWind.flutPhase + TAU * 2.2 * (1 + 0.12 * ms) * h) % (TAU * 100);   // lá rung ~2–4 Hz, tăng nhẹ theo gió
+          sceneWind.flutPhase = (sceneWind.flutPhase + TAU * 2.2 * (1 + 0.12 * ms) * h) % (TAU * 100);
           sceneWind.u.uWindDir.value.copy(D); sceneWind.u.uWindU.value = sceneWind.U; sceneWind.u.uFlutPhase.value = sceneWind.flutPhase;
           sceneWind.u.uTime.value = t % SHADER_TIME_LOOP;
           sceneWind.k = Math.min(2, sceneWind.speed / 30); sceneWind.sceneSpeed = sceneWind.U;
           windAt(0, 8, 0, 8, _wtmp); sceneWind.gust = Math.max(0.2, (_wtmp.x * ax + _wtmp.z * az) / Math.max(0.05, sceneWind.U * windProfile(8)));
           for (const tw of treeWinds) {
             if (!tw.active || !tw.lean) continue;
-            windAt(tw.crown.x, tw.crown.y, tw.crown.z, tw.crownZ, _wtmp);   // gió tại tâm áp lực tán
+            windAt(tw.crown.x, tw.crown.y, tw.crown.z, tw.crownZ, _wtmp);
             const s = Math.hypot(_wtmp.x, _wtmp.z) + 1e-6, F = Math.pow(s / WIND_SREF, 1.3);
-            tw.F = F; tw.aero = 0.12 * Math.min(2, s / WIND_SREF);          // lực chuẩn hoá · tắt dần khí động tăng theo gió
+            tw.F = F; tw.aero = 0.12 * Math.min(2, s / WIND_SREF);
             tw.ex = _wtmp.x / s * F * tw.lean; tw.ez = _wtmp.z / s * F * tw.lean;
-            for (let i = 0; i < 3; i++) {   // gió ở từng phía tán: cơn giật chạm các cành lệch nhau → cành đẩy theo PHẦN CHÊNH so với tâm tán
+            for (let i = 0; i < 3; i++) {
               const B = tw.br[i], a = BR_PH[i];
               windAt(tw.crown.x + Math.cos(a) * tw.R * 0.6, tw.crown.y, tw.crown.z + Math.sin(a) * tw.R * 0.6, tw.crownZ, _wtmp2);
               const s2 = Math.hypot(_wtmp2.x, _wtmp2.z) + 1e-6, F2 = Math.pow(s2 / WIND_SREF, 1.3) - F;
               B.ex = _wtmp2.x / s2 * F2 * tw.lean * 0.45; B.ez = _wtmp2.z / s2 * F2 * tw.lean * 0.45;
             }
             tw.shakeRaw = 0; const al = fixedSteps(tw.ph, dt, PHYS_H, hh => treeStep(tw, hh));
-            tw.shake = Math.max(tw.shakeRaw, tw.shake * Math.exp(-dt / 0.4));   // giữ đỉnh gia tốc cành, nhả dần
+            tw.shake = Math.max(tw.shakeRaw, tw.shake * Math.exp(-dt / 0.4));
             tw.u.uBend.value.set(tw.px + (tw.bx - tw.px) * al, tw.pz + (tw.bz - tw.pz) * al);
             for (let i = 0; i < 3; i++) { const B = tw.br[i]; tw.u.uBr.value[i].set(B.px + (B.x - B.px) * al, B.pz + (B.z - B.pz) * al); }
           }
         }
-        function treeStep(tw, hh) {   // 1 bước 1/120 s: thân (lò xo 2 chiều) + 3 cành ghép (toạ độ tương đối với thân, bị thân giật) — Euler bán ẩn
+        function treeStep(tw, hh) {
           const om = TAU * tw.freq, o2 = om * om, c2 = 2 * (tw.zeta + tw.aero) * om;
           let rx = 0, rz = 0;
-          for (let i = 0; i < 3; i++) {   // phản lực lò xo + giảm chấn của cành lên thân (theo tỉ lệ khối lượng)
+          for (let i = 0; i < 3; i++) {
             const B = tw.br[i], ob = om * BR_K[i], cb = 2 * (0.07 + tw.aero) * ob;
             rx += BR_MU[i] * (cb * B.vx + ob * ob * (B.x - B.ex)); rz += BR_MU[i] * (cb * B.vz + ob * ob * (B.z - B.ez));
           }
@@ -2583,14 +2583,14 @@
           let sh = 0;
           for (let i = 0; i < 3; i++) {
             const B = tw.br[i], ob = om * BR_K[i], cb = 2 * (0.07 + tw.aero) * ob;
-            const bx = ob * ob * (B.ex - B.x) - cb * B.vx - ax, bz = ob * ob * (B.ez - B.z) - cb * B.vz - az;   // cành: lò xo + giảm chấn − gia tốc thân
+            const bx = ob * ob * (B.ex - B.x) - cb * B.vx - ax, bz = ob * ob * (B.ez - B.z) - cb * B.vz - az;
             B.px = B.x; B.pz = B.z; B.vx += bx * hh; B.vz += bz * hh; B.x += B.vx * hh; B.z += B.vz * hh;
-            sh = Math.max(sh, Math.hypot(bx + ax, bz + az));   // gia tốc tuyệt đối của cành
+            sh = Math.max(sh, Math.hypot(bx + ax, bz + az));
           }
           tw.shakeRaw = Math.max(tw.shakeRaw, sh);
         }
         const _wq = new THREE.Quaternion(), _wpv = new THREE.Vector3(), _wsv = new THREE.Vector3(), _rotW = new THREE.Vector3();
-        function windInLocal(obj, vec, out) {   // véc-tơ thế giới → hệ toạ độ của obj (độ dài theo đơn vị cục bộ)
+        function windInLocal(obj, vec, out) {
           obj.updateWorldMatrix(true, false); obj.matrixWorld.decompose(_wpv, _wq, _wsv);
           return out.copy(vec).applyQuaternion(_wq.invert()).divideScalar(_wsv.x || 1);
         }
@@ -2598,7 +2598,7 @@
         const _plA = new THREE.Vector3(), _plT = new THREE.Vector3(), _plS = new THREE.Vector3();
         const CAMP_PLUME = { h0: 0.8, rise: 0.75, cap: 3.2, tau: 0.4, windK: 1 }, KETTLE_PLUME = { h0: 1.5, rise: 0.22, cap: 0.6, tau: 0.25, windK: 0.9 }, CUP_PLUME = { h0: 0.9, rise: 0.06, cap: 0.3, tau: 0.4, windK: 0.5 };
         function plumeRise(a, o, Us, zCap) { return zCap * (1 - Math.exp(-Math.min(o.rise * Math.pow(a, 0.75), o.rise * 0.8 * Math.pow(a, 2 / 3) / Math.cbrt(Math.max(0.08, Us) / 0.7)) / zCap)); }
-        function plumeOffset(src, a, o, out) {   // src: điểm phát (thế giới), a: tuổi cụm khói (s) → out: dịch chuyển (thế giới); trả về độ cao đã bốc
+        function plumeOffset(src, a, o, out) {
           const st = sceneWind.stab, Us = sceneWind.U * windProfile(o.h0 + 0.6), zCap = o.cap * (st > 0 ? 1 - 0.55 * st : 1);
           const z = plumeRise(a, o, Us, zCap);
           let x = 0; const n = 6, da = a / n;
@@ -2609,17 +2609,17 @@
           out.set(sceneWind.dir.x * x + _plT.x * tl, z + _plT.y * tl, sceneWind.dir.y * x + _plT.z * tl);
           return z;
         }
-        grassWindShader(vegPools.blade.mat);   // cỏ (cả thảm cỏ lông heo) gợn sóng theo gió
+        grassWindShader(vegPools.blade.mat);
         vegPools.stem.autoSway = 'vertex'; vegPools.fcube.autoSway = 'rigid'; vegPools.petal.autoSway = 'rigid'; vegPools.fcen.autoSway = 'rigid';
-        for (const k of ['stem', 'fcube', 'petal', 'fcen']) flowerWindShader(vegPools[k].mat, 0.37);   // thân & đầu hoa đung đưa cùng gió sát đất
-        forestWindShader(leafMatInst);         // khối tán cây rừng
+        for (const k of ['stem', 'fcube', 'petal', 'fcen']) flowerWindShader(vegPools[k].mat, 0.37);
+        forestWindShader(leafMatInst);
         function leafHexGeo(r) {
           const pos = [], uv = [], nrm = [];
           for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3; pos.push(r * Math.cos(a), 0, r * Math.sin(a)); uv.push(0.5 + 0.5 * Math.cos(a), 0.5 + 0.5 * Math.sin(a)); nrm.push(0, 1, 0); }
           const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3));
           g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex([0, 2, 1, 0, 3, 2, 0, 4, 3, 0, 5, 4]); g.userData.twoSided = true; return g;
         }
-        function tuftInstanced(g, rnd, pts, geo, cols, opacity, swayScale = 1.0, tw = null, flutter = 0.025 * swayScale) {   // đám lá/hoa instanced quanh các điểm pts · rung theo gió (tw: mô hình thân cây riêng nếu có)
+        function tuftInstanced(g, rnd, pts, geo, cols, opacity, swayScale = 1.0, tw = null, flutter = 0.025 * swayScale) {
           const mat = windShader(new THREE.MeshLambertMaterial({ transparent: true, opacity }), tw || genericFoliageWind, flutter);
           if (geo.userData.twoSided) { mat.side = THREE.DoubleSide; mat.forceSinglePass = true; }
           const im = new THREE.InstancedMesh(geo, mat, pts.length);
@@ -2632,12 +2632,12 @@
           im.castShadow = true; im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; g.add(im);
           return im;
         }
-        const forestBark = new THREE.MeshLambertMaterial({ color: 0xcbb488, transparent: true, opacity: 0.5 });   // gỗ tan sáng — CÂY RỪNG luôn trong suốt 50%
-        forestWindShader(forestBark);   // cành cây rừng nghiêng theo gió cùng khối tán
+        const forestBark = new THREE.MeshLambertMaterial({ color: 0xcbb488, transparent: true, opacity: 0.5 });
+        forestWindShader(forestBark);
         for (let v = 0; v < 12; v++) {
           const tmp = new THREE.Group();
           const { tips } = recTree(tmp, { natural: true, seed: 20260708 + v * 9173, barkMat: forestBark, height: 4.2, trunkR: 0.165, bole: 0.18 + 0.08 * (v % 3) / 2,
-            nLat0: [10, 13], ang0: 0.95, angTaper: 0.5, latLen: 0.55, bend: 0.55, nLat1: [3, 4], ang1: 0.6, subLen: 0.5, maxDepth: 3, tipK: 0.15, childK: 0.6, gnarl: 0.26, leafP: 0.12 });   // ~16 khối tán / cây (cũ 8–18)
+            nLat0: [10, 13], ang0: 0.95, angTaper: 0.5, latLen: 0.55, bend: 0.55, nLat1: [3, 4], ang1: 0.6, subLen: 0.5, maxDepth: 3, tipK: 0.15, childK: 0.6, gnarl: 0.26, leafP: 0.12 });
           tmp.updateMatrixWorld(true);
           const geos = []; tmp.traverse(o => { if (o.isMesh && o.geometry) { const g2 = o.geometry.clone(); g2.applyMatrix4(o.matrixWorld); geos.push(g2); } });
           const merged = mergeGeometries ? mergeGeometries(geos, false) : geos[0];
@@ -2653,7 +2653,7 @@
             tt++; const i = 3 + (Math.random() * (GX - 6) | 0), j = 3 + (Math.random() * (GZ - 6) | 0);
             if (!freeTree(i, j)) continue;
             const tx = wx(i), ty = surfaceY(i, j), tz = wz(j);
-            const ts = 1.575 + Math.random() * 1.05; addTreeInst(ts, tx, ty, tz, Math.random() * 6.28);   // to thêm 75% (0.9→1.575)
+            const ts = 1.575 + Math.random() * 1.05; addTreeInst(ts, tx, ty, tz, Math.random() * 6.28);
             treeCoords.push({ x: tx, y: ty, z: tz, s: ts }); tn++;
           }
           let bn = 0, bt = 0;
@@ -2661,17 +2661,17 @@
             bt++; const i = 3 + (Math.random() * (GX - 6) | 0), j = 3 + (Math.random() * (GZ - 6) | 0);
             if (!freeTree(i, j)) continue;
             const tx = wx(i), ty = surfaceY(i, j), tz = wz(j);
-            const ts = 3.5 + Math.random() * 1.4; addTreeInst(ts, tx, ty, tz, Math.random() * 6.28);   // to thêm 75% (2.0→3.5)
+            const ts = 3.5 + Math.random() * 1.4; addTreeInst(ts, tx, ty, tz, Math.random() * 6.28);
             treeCoords.push({ x: tx, y: ty, z: tz, s: ts }); bn++;
           }
         }
         function fruitTree(s, seed) {
           const g = new THREE.Group();
-          const barkMat = new THREE.MeshLambertMaterial({ color: 0x6b4f3a, transparent: true, opacity: 0.90 });   // thân cây rõ hơn 20% (0.75 * 1.2 = 0.90)
+          const barkMat = new THREE.MeshLambertMaterial({ color: 0x6b4f3a, transparent: true, opacity: 0.90 });
           const { tips, rnd } = recTree(g, { seed, s, barkMat, trunkLen: 1.7 * s, trunkR: 0.125 * s, maxDepth: 4, nMin: 2, nMax: 3, lenK: 0.74, radK: 0.6, spread: 0.72, upBias: 0.22, firstSplitN: 4 });
           const pts = []; for (const tp of tips) cloudPts(rnd, tp.x, tp.y + 0.08 * s, tp.z, 0.62 * s, 40, pts);
-          cloudPts(rnd, 0, 2.7 * s, 0, 1.05 * s, 130, pts);   // chùm trung tâm cho tán dày ruột
-          tuftInstanced(g, rnd, pts, leafHexGeo(0.09 * s), [0x86a364, 0x78935b, 0x6e8754, 0x61784a], 0.60); g.userData.leafPts = pts;   // điểm lá: lá rụng theo cơn giật (nature/wind-field.js)   // lá cây trong suốt hơn 20% (0.75 * 0.8 = 0.60)
+          cloudPts(rnd, 0, 2.7 * s, 0, 1.05 * s, 130, pts);
+          tuftInstanced(g, rnd, pts, leafHexGeo(0.09 * s), [0x86a364, 0x78935b, 0x6e8754, 0x61784a], 0.60); g.userData.leafPts = pts;
           function deformApple(geom) {
             const pos = geom.attributes.position;
             for (let i = 0; i < pos.count; i++) {
@@ -2690,18 +2690,18 @@
             geom.computeVertexNormals();
           }
 
-          const AK = 0.8;   // G 14/10: quả táo nhỏ đi 20%
+          const AK = 0.8;
           const bodyGeom = new THREE.SphereGeometry(0.12 * s, 8, 8); deformApple(bodyGeom); bodyGeom.scale(AK, AK, AK);
           const leftGeom = new THREE.SphereGeometry(0.12 * s, 8, 8, 0, Math.PI); deformApple(leftGeom); leftGeom.scale(AK, AK, AK);
           const rightGeom = new THREE.SphereGeometry(0.12 * s, 8, 8, Math.PI, Math.PI); deformApple(rightGeom); rightGeom.scale(AK, AK, AK);
 
           const bodyMat = new THREE.MeshLambertMaterial({ color: 0xd93d2b, flatShading: true });
           const yellowMat = new THREE.MeshLambertMaterial({ color: 0xe5b82c, flatShading: true });
-          const greenMat = new THREE.MeshLambertMaterial({ color: 0x6e8e3d, flatShading: true }); // xanh lá táo tươi
+          const greenMat = new THREE.MeshLambertMaterial({ color: 0x6e8e3d, flatShading: true });
           const stemGeom = new THREE.CylinderGeometry(0.005 * s * AK, 0.008 * s * AK, 0.09 * s * AK, 4);
           const stemMat = new THREE.MeshLambertMaterial({ color: 0x5a3e29, flatShading: true });
 
-          const fruit = new THREE.Group(), apples = []; fruit.name = 'Quả táo';   // quả RIÊNG (không gộp tĩnh) ⇒ kỹ sư hái được từng quả
+          const fruit = new THREE.Group(), apples = []; fruit.name = 'Quả táo';
           for (let i = 0; i < tips.length; i += 3) {
             const tp = tips[i], apple = new THREE.Group();
             const rVal = rnd();
@@ -2726,8 +2726,8 @@
             apple.rotation.y = rnd() * 6.28;
             fruit.add(apple); apples.push({ g: apple, home: apple.position.clone(), rot: apple.rotation.y, on: true, sw: 0, sv: 0, swy: 0, svy: 0 });
           }
-          const out = bakeStatic(g);   // gộp toàn bộ cành theo vật liệu → vài draw call/cây
-          out.add(fruit); out.userData.apples = apples; out.userData.appleR = 0.12 * s * AK;   // quả gắn SAU khi gộp: lô vẽ chung (draw-batch) vẫn gom chung 1 lượt vẽ
+          const out = bakeStatic(g);
+          out.add(fruit); out.userData.apples = apples; out.userData.appleR = 0.12 * s * AK;
           return out;
         }
 
@@ -2736,10 +2736,10 @@
         ft1.position.copy(worldCell(21.5, 31.5)); ft1.rotation.y = -1.852; scene.add(ft1);
         ft2.position.copy(worldCell(24.5, 34.5)); ft2.rotation.y = -0.794; scene.add(ft2);
         flightRoots.push(ft1, ft2);
-        const appleTrees = [ft1, ft2];   // kỹ sư hái táo (engineer/apple-pick.js)
-        for (const T of appleTrees) obstacleCoords.push({ x: T.position.x, y: T.position.y, z: T.position.z, r: 0.35, h: 3 });   // thân cây: người & chó đi vòng
+        const appleTrees = [ft1, ft2];
+        for (const T of appleTrees) obstacleCoords.push({ x: T.position.x, y: T.position.y, z: T.position.z, r: 0.35, h: 3 });
 
-        function deadLogOut(x, z, m) {   // (x, z) nằm dưới thân khúc gỗ chết (cách trục < bán kính + m) → điểm dời ra mép gần nhất; ở ngoài → null
+        function deadLogOut(x, z, m) {
           const L = deadLog; if (!L) return null;
           const ux = L.bx - L.ax, uz = L.bz - L.az, ll = ux * ux + uz * uz, k = Math.max(0, Math.min(1, ((x - L.ax) * ux + (z - L.az) * uz) / ll));
           const cx = L.ax + ux * k, cz = L.az + uz * k, r = L.ra + (L.rb - L.ra) * k + m; let dx = x - cx, dz = z - cz, d = Math.hypot(dx, dz);
@@ -2747,15 +2747,15 @@
           if (d < 1e-4) { dx = -uz; dz = ux; d = Math.sqrt(ll); }
           return [cx + dx / d * r, cz + dz / d * r];
         }
-        let deadLog = null;   // trục thân gỗ chết trên mặt đất (đầu a to r 0,70 · đầu b nhỏ r 0,56) — cỏ / hoa không mọc xuyên (nature/grass-scatter.js)
+        let deadLog = null;
         (function environmentalDetails() {
           const logBarkMat = new THREE.MeshLambertMaterial({ color: 0x2d251d, flatShading: true, side: THREE.DoubleSide });
           const stumpBarkMat = new THREE.MeshLambertMaterial({ color: 0x6e5744 });
           const innerWoodMat = new THREE.MeshLambertMaterial({ color: 0xd7b889, flatShading: true, side: THREE.DoubleSide });
 
           const logGroup = new THREE.Group();
-          logGroup.position.set(X0 + 101.0, 7.0 + 0.50, Z0 + 104.5); // Hạ thấp hơn một chút theo yêu cầu
-          logGroup.rotation.set(0.08, -Math.atan2(101.0 - 108.0, 102.0 - 100.0), Math.PI / 2); // Nằm ngang hơi xiên góc
+          logGroup.position.set(X0 + 101.0, 7.0 + 0.50, Z0 + 104.5);
+          logGroup.rotation.set(0.08, -Math.atan2(101.0 - 108.0, 102.0 - 100.0), Math.PI / 2);
           logGroup.updateMatrixWorld(true);
           { const a = new THREE.Vector3(0, -3.8, 0).applyMatrix4(logGroup.matrixWorld), b = new THREE.Vector3(0, 3.8, 0).applyMatrix4(logGroup.matrixWorld); deadLog = { ax: a.x, az: a.z, bx: b.x, bz: b.z, ra: 0.70, rb: 0.56 }; }
 
@@ -2806,8 +2806,8 @@
 
           function createMushroom(s) {
             const mGroup = new THREE.Group();
-            const stalkMat = new THREE.MeshLambertMaterial({ color: 0xE2D6C0 }); // thân nấm trắng ngà
-            const capMat = new THREE.MeshLambertMaterial({ color: 0xd84a3a, flatShading: true }); // mũ nấm đỏ cam
+            const stalkMat = new THREE.MeshLambertMaterial({ color: 0xE2D6C0 });
+            const capMat = new THREE.MeshLambertMaterial({ color: 0xd84a3a, flatShading: true });
 
             const stalk = bx(0.04 * s, 0.14 * s, 0.04 * s, stalkMat, false, false);
             stalk.position.y = 0.07 * s; mGroup.add(stalk);
@@ -2835,10 +2835,10 @@
           stumpCanvas.width = 256; stumpCanvas.height = 256;
           const sCtx = stumpCanvas.getContext('2d');
           sCtx.fillStyle = '#c8a576'; sCtx.fillRect(0, 0, 256, 256);
-          sCtx.lineWidth = 3.2;                                                      // nét vân gỗ đậm hơn (2.2 -> 3.2)
+          sCtx.lineWidth = 3.2;
           const sRnd = mulberry32(8888);
           for (let r = 8; r < 128; r += 8) {
-            sCtx.strokeStyle = `rgba(75, 48, 28, ${0.75 + sRnd() * 0.25})`;        // sắc độ tối hơn và opacity cao hơn
+            sCtx.strokeStyle = `rgba(75, 48, 28, ${0.75 + sRnd() * 0.25})`;
             sCtx.beginPath();
             const cx = 128 + (sRnd() - 0.5) * 5;
             const cy = 128 + (sRnd() - 0.5) * 5;
@@ -2853,12 +2853,12 @@
             sCtx.stroke();
           }
           const sGrad = sCtx.createRadialGradient(128, 128, 0, 128, 128, 35);
-          sGrad.addColorStop(0, 'rgba(60, 40, 25, 0.65)');                           // tâm tối màu hơn
+          sGrad.addColorStop(0, 'rgba(60, 40, 25, 0.65)');
           sGrad.addColorStop(1, 'rgba(60, 40, 25, 0)');
           sCtx.fillStyle = sGrad; sCtx.beginPath(); sCtx.arc(128, 128, 35, 0, Math.PI * 2); sCtx.fill();
 
           const stumpRingTex = new THREE.CanvasTexture(stumpCanvas);
-          const stumpTopMat = new THREE.MeshLambertMaterial({ color: 0xc8a576, map: stumpRingTex }); // màu nền mặt cắt tối dã dặn hơn
+          const stumpTopMat = new THREE.MeshLambertMaterial({ color: 0xc8a576, map: stumpRingTex });
 
           const stumpBark = new THREE.Mesh(new THREE.CylinderGeometry(0.96, 1.12, 0.45, 12, 1, true), stumpBarkMat);
           stumpBark.position.y = 0.225; stumpBark.castShadow = true; stumpBark.receiveShadow = true; stumpGroup.add(stumpBark);
@@ -2878,8 +2878,8 @@
             if (Math.hypot(tx - (X0 + 74), tz - (Z0 + 103)) < 20) continue;
 
             const ty = surfaceY(i, j);
-            const r = 0.26 + smRnd() * 0.16; // bán kính từ 0.26 đến 0.42 (nhỏ hơn một nửa của 0.92)
-            const h = (0.18 + smRnd() * 0.16) * (1.0 + smRnd() * 2.0); // chiều cao ngẫu nhiên, tối đa gấp 3 lần baseline
+            const r = 0.26 + smRnd() * 0.16;
+            const h = (0.18 + smRnd() * 0.16) * (1.0 + smRnd() * 2.0);
 
             const sg = new THREE.Group();
             sg.position.set(tx, ty, tz);
@@ -2900,13 +2900,13 @@
         (function woodPost() {
           const g = new THREE.Group();
           g.position.set(X0 + 106, 7.0, Z0 + 109); g.rotation.set(0.03, 0.6, 0.04); g.name = 'Khúc gỗ đứng (Wood Post)';
-          const barkMat = new THREE.MeshLambertMaterial({ color: 0x2d251d });                        // vỏ nâu xám tối cùng tông khúc gỗ chết
-          const innerMat = new THREE.MeshLambertMaterial({ color: 0xd2af82, flatShading: true });    // gỗ sáng ở mặt cắt (đậm hơn một chút)
+          const barkMat = new THREE.MeshLambertMaterial({ color: 0x2d251d });
+          const innerMat = new THREE.MeshLambertMaterial({ color: 0xd2af82, flatShading: true });
           const rc = document.createElement('canvas'); rc.width = rc.height = 128; const rx = rc.getContext('2d');
-          rx.fillStyle = '#d2af82'; rx.fillRect(0, 0, 128, 128); rx.lineWidth = 2.2;                 // nét vẽ vân to hơn
+          rx.fillStyle = '#d2af82'; rx.fillRect(0, 0, 128, 128); rx.lineWidth = 2.2;
           const rnd = mulberry32(106109);
           for (let r = 5; r < 60; r += 5) {
-            rx.strokeStyle = `rgba(85, 55, 30, ${0.75 + rnd() * 0.25})`; rx.beginPath();           // vân màu đậm hơn, rõ nét hơn
+            rx.strokeStyle = `rgba(85, 55, 30, ${0.75 + rnd() * 0.25})`; rx.beginPath();
             const cx = 64 + (rnd() - 0.5) * 4, cy = 64 + (rnd() - 0.5) * 4, steps = 30;
             for (let j = 0; j <= steps; j++) { const th = j / steps * 6.283, off = (Math.sin(th * 3) + Math.cos(th * 5)) * 1.1, px = cx + Math.cos(th) * (r + off), py = cy + Math.sin(th) * (r + off); j ? rx.lineTo(px, py) : rx.moveTo(px, py); }
             rx.stroke();
@@ -2921,14 +2921,14 @@
             const m = new THREE.Mesh(geo, barkMat); m.position.y = len / 2; m.castShadow = true; edge(m, geo, postEdgeMat); s.add(m);
             const cap = new THREE.Mesh(new THREE.CircleGeometry(0.092, 8), innerMat); cap.rotation.x = -Math.PI / 2; cap.position.y = len + 0.002; s.add(cap);
           }
-          stub(0.44, 1.16, 0.05, -1.15, 0.05, 0.55);    // mấu trên, chĩa phải-lên
-          stub(-0.44, 0.58, -0.06, 1.2, -0.35, 0.46);   // mấu dưới, chĩa trái-lên
+          stub(0.44, 1.16, 0.05, -1.15, 0.05, 0.55);
+          stub(-0.44, 0.58, -0.06, 1.2, -0.35, 0.46);
           scene.add(bakeStatic(g));
         })();
 
         const cherryBark = new THREE.MeshLambertMaterial({ color: 0x6b4f3a, transparent: true, opacity: 0.75 });
         const cherryPinks = [0xffd1dc, 0xffb7c5, 0xffc0cb, 0xf6a5c0, 0xffe3ec, 0xff9fb6];
-        function cherryTree(s) {   // cây anh đào ĐỆ QUY — tán hoa cube instanced ở cành tận cùng + chùm trung tâm
+        function cherryTree(s) {
           const g = new THREE.Group();
           const { tips, rnd, flowerPts } = recTree(g, { seed: 4242, s, barkMat: cherryBark, trunkLen: 2.53 * s, trunkR: 0.33 * s, maxDepth: 4, nMin: 3, nMax: 3, lenK: 0.78, radK: 0.55, spread: 1.05, upBias: 0.05, recursiveLeaves: true, firstSplitN: 4 });
           const blossomPts = [], leafPts = [];
@@ -2946,38 +2946,38 @@
             _col.setHex(cherryPinks[(rnd() * cherryPinks.length) | 0]); fallen.setColorAt(k, _col);
           }
           fallen.instanceMatrix.needsUpdate = true; if (fallen.instanceColor) fallen.instanceColor.needsUpdate = true; g.add(fallen); fallen.name = 'Cánh hoa rụng dưới gốc';
-          bakeStatic(g);   // gộp cành cherryBark thành 1 mesh (các InstancedMesh hoa được bake bỏ qua, giữ nguyên)
-          g.userData.treeWind = tw; g.userData.blossomPts = blossomPts; g.userData.fallen = fallen;   // cánh hoa rơi sinh từ chính các chùm hoa (toạ độ cục bộ)
+          bakeStatic(g);
+          g.userData.treeWind = tw; g.userData.blossomPts = blossomPts; g.userData.fallen = fallen;
           return g;
         }
         const DAM_J1 = DAM_J + 2 * S, RIVER_U = 0.32, LAKE_U = 0.03;
-        let fluids = null;   // nước nông + khói/hơi nước (nature/fluids.js gán ngay sau mảnh này)
+        let fluids = null;
         const DAM_OUTLETS = [[dcx - 1.8, dz + dsZ + 3.8], [dcx + 5.0, dz + dsZ + 3.8], [dcx + 11.8, dz + dsZ + 3.8]];
-        const waterCell = (i, j) => isWater(i, j) && !(j >= DAM_J && j < DAM_J1);   // ô thân đập không phải mặt nước
+        const waterCell = (i, j) => isWater(i, j) && !(j >= DAM_J && j < DAM_J1);
         const waterBaseY = j => Math.round((j < DAM_J ? RES : DOWN) * S) * BLOCK;
-        function waveAt(x, z) { return fluids && fluids.water.ready ? fluids.water.height(x, z) : 0; }   // đúng số liệu shader dùng để dời đỉnh mặt nước
+        function waveAt(x, z) { return fluids && fluids.water.ready ? fluids.water.height(x, z) : 0; }
         const waterSurfaceY = (x, z) => waterBaseY(Math.round(z2gj(z))) + waveAt(x, z);
-        function riverBedY(i, j) {   // đúng công thức đáy sông lúc dựng địa hình (đáy nhấp nhô, sâu ở giữa lòng)
+        function riverBedY(i, j) {
           const surf = Math.round((j < DAM_J ? RES : DOWN) * S), tt = Math.min(1, riverDist(i, j) / Math.max(1, riverHalf(j)));
           const bed = Math.round(surf - (1 + 2.6 * (1 - tt * tt)) + Math.sin(i * 0.5) * Math.sin(j * 0.4 + 1.1) * 0.8);
           return Math.max(0, Math.min(surf - 1, bed)) * BLOCK;
         }
-        function waterFlow(x, z, t, out) {   // vận tốc dòng mặt nước (m/s) → out.x, out.z
+        function waterFlow(x, z, t, out) {
           if (fluids && fluids.water.ready) return fluids.water.flow(x, z, out);
           const i = x2gi(x), j = z2gj(z), dc = riverC(j + 0.5) - riverC(j - 0.5), n = Math.hypot(dc, 1);
           const half = Math.max(1, riverHalf(j)), d = Math.min(1, riverDist(i, j) / half);
           const u = (j < DAM_J ? LAKE_U : RIVER_U * RHALF / half) * Math.max(0.15, 1 - d * d);
           out.x = dc / n * u; out.z = u / n;
-          if (j >= DAM_J1) for (const [ox, oz] of DAM_OUTLETS) {   // dưới đập: nước tỏa ra từ cửa xả (chỉ phía hạ lưu cửa)
+          if (j >= DAM_J1) for (const [ox, oz] of DAM_OUTLETS) {
             const ex = x - ox, ez = z - oz, r = Math.hypot(ex, ez);
             if (r > 0.3 && r < 14 && ez > -1) { const k = 0.45 * (1 - r / 14) / r; out.x += ex * k; out.z += ez * k; }
           }
-          out.x += 0.05 * Math.sin(z * 0.9 + t * 0.35); out.z += 0.05 * Math.cos(x * 0.8 - t * 0.3);   // xoáy nhỏ trôi chậm
+          out.x += 0.05 * Math.sin(z * 0.9 + t * 0.35); out.z += 0.05 * Math.cos(x * 0.8 - t * 0.3);
           return out;
         }
         let waterFlowFilled = false;
-        function fillWaterFlow() {   // vận tốc dòng mặt tại từng đỉnh mặt nước → shader cuốn gợn và bọt đúng chiều dòng (hồ gần như lặng, sông chảy, cửa xả tỏa ra)
-          waterFlowFilled = true; if (!waterSurfMesh) return;   // gọi ở khung đầu: waterFlow cần x2gi/z2gj khai báo ở phần sau
+        function fillWaterFlow() {
+          waterFlowFilled = true; if (!waterSurfMesh) return;
           const P = waterSurfMesh.geometry.attributes.position, A = waterSurfMesh.geometry.attributes.aWater, f = new THREE.Vector3();
           for (let v = 0; v < P.count; v++) { waterFlow(P.getX(v), P.getZ(v), 0, f); A.setXY(v, f.x, f.z); }
           A.needsUpdate = true;
@@ -3007,7 +3007,7 @@
               for (let k = 0; k < NB; k++) {
                 const b = B[k]; if (!b.on) continue;
                 b.p.y += b.v * dt; b.p.x += Math.sin(t * 9 + b.ph) * 0.03 * dt; const top = waterSurfaceY(b.p.x, b.p.z);
-                if (b.p.y >= top - 0.01) { b.on = false; bub.setMatrixAt(k, zero); fx.ring(b.p.x, top, b.p.z, 0.07); any = true; continue; }   // bọt vỡ trên mặt nước
+                if (b.p.y >= top - 0.01) { b.on = false; bub.setMatrixAt(k, zero); fx.ring(b.p.x, top, b.p.z, 0.07); any = true; continue; }
                 any = true; bub.setMatrixAt(k, mtx.makeTranslation(b.p.x, b.p.y, b.p.z));
               }
               bub.instanceMatrix.needsUpdate = true; if (!any) active = 0;
@@ -3018,11 +3018,11 @@
         const _lfM = new THREE.Matrix4(), _lfQ = new THREE.Quaternion(), _lfQ2 = new THREE.Quaternion(), _lfE = new THREE.Euler(0, 0, 0, 'YXZ'), _lfP = new THREE.Vector3(), _lfS = new THREE.Vector3(), _lfW = new THREE.Vector3(), _lfA = new THREE.Vector3(), _lfF = new THREE.Vector3(), _lfN = new THREE.Vector3();
         function makeLeafFall(o) {
           const im = new THREE.InstancedMesh(o.geo, new THREE.MeshLambertMaterial({ transparent: true, opacity: o.opacity }), o.n);
-          im.name = o.name; im.frustumCulled = false; im.castShadow = true; im.userData.noBake = true; im.renderOrder = -1; scene.add(im);   // vẽ trước mặt nước trong suốt ⇒ lá chìm dưới nước vẫn thấy qua làn nước
+          im.name = o.name; im.frustumCulled = false; im.castShadow = true; im.userData.noBake = true; im.renderOrder = -1; scene.add(im);
           const col = new THREE.Color(), parts = [];
           for (let k = 0; k < o.n; k++) {
             col.setHex(o.color(k)); im.setColorAt(k, col);
-            parts.push({ st: 0, p: new THREE.Vector3(), v: new THREE.Vector3(), age: 0, rest: 0, life: 0, ph: 0, om: 3, ax: 0, mode: 0, rot: 0, tilt: 0, yaw: 0, spin: 0, look: 0, sinkAt: Infinity, sinkV: 0.06, fish: 0 });   // st: 0 trên tán · 1 rơi · 2 nằm đất · 3 nổi · 4 chìm · 5 nằm đáy
+            parts.push({ st: 0, p: new THREE.Vector3(), v: new THREE.Vector3(), age: 0, rest: 0, life: 0, ph: 0, om: 3, ax: 0, mode: 0, rot: 0, tilt: 0, yaw: 0, spin: 0, look: 0, sinkAt: Infinity, sinkV: 0.06, fish: 0 });
             im.setMatrixAt(k, _lfM.compose(_lfP.set(0, -999, 0), _lfQ.identity(), _lfS.setScalar(0)));
           }
           if (im.instanceColor) im.instanceColor.needsUpdate = true;
@@ -3034,32 +3034,32 @@
           const M = o.group.matrixWorld;
           for (let k = 0; k < L.parts.length; k++) {
             const q = L.parts[k];
-            if (q.st === 0) {   // còn trên tán
+            if (q.st === 0) {
               if (L.acc < 1) { L.im.setMatrixAt(k, _lfM.compose(_lfP.set(0, -999, 0), _lfQ.identity(), _lfS.setScalar(0))); continue; }
               const pt = o.pick ? o.pick() : o.pts[(Math.random() * o.pts.length) | 0];
               if (!pt) { L.acc = Math.min(L.acc, 0.99); L.im.setMatrixAt(k, _lfM.compose(_lfP.set(0, -999, 0), _lfQ.identity(), _lfS.setScalar(0))); continue; }
               L.acc -= 1;
               q.p.set(pt[0], pt[1], pt[2]).applyMatrix4(M); q.p.x += (Math.random() - 0.5) * 0.3; q.p.z += (Math.random() - 0.5) * 0.3;
-              windAt(q.p.x, q.p.y, q.p.z, q.p.y - cowY(q.p.x, q.p.z), q.v); q.v.multiplyScalar(0.5);   // bứt ra mang sẵn một phần vận tốc gió
+              windAt(q.p.x, q.p.y, q.p.z, q.p.y - cowY(q.p.x, q.p.z), q.v); q.v.multiplyScalar(0.5);
               q.st = 1; q.age = 0; q.mode = Math.random() < o.tumble ? 1 : 0; q.ph = Math.random() * TAU; q.ax = Math.random() * TAU; q.rot = 0;
               q.om = q.mode ? (o.tumbleW[0] + Math.random() * (o.tumbleW[1] - o.tumbleW[0])) * (Math.random() < 0.5 ? -1 : 1) : o.flutW[0] + Math.random() * (o.flutW[1] - o.flutW[0]);
               q.yaw = Math.random() * TAU; q.tilt = (Math.random() - 0.5) * 0.3; q.fish = 0;
             }
             let sc = o.scale;
-            if (q.st === 1) {   // đang rơi
+            if (q.st === 1) {
               q.age += h;
               const gy = cowY(q.p.x, q.p.z);
               windAt(q.p.x, q.p.y, q.p.z, Math.max(0.05, q.p.y - gy), _lfW);
-              const rx = q.v.x - _lfW.x, ry = q.v.y - _lfW.y, rz = q.v.z - _lfW.z, kf = 1 / (1 + cd * Math.hypot(rx, ry, rz) * h);   // cản bậc 2, tích phân ẩn (ổn định)
+              const rx = q.v.x - _lfW.x, ry = q.v.y - _lfW.y, rz = q.v.z - _lfW.z, kf = 1 / (1 + cd * Math.hypot(rx, ry, rz) * h);
               q.v.set(_lfW.x + rx * kf, _lfW.y + ry * kf - o.g * h, _lfW.z + rz * kf);
               const sx = Math.cos(q.ax), sz = Math.sin(q.ax);
               let ox = 0, oy = 0, oz = 0;
-              if (q.mode === 0) {   // đu đưa: vận tốc ngang A·cos φ theo trục đu, rơi nhanh nhất giữa nhịp, nhấc nhẹ ở hai đầu
+              if (q.mode === 0) {
                 q.ph += q.om * h; q.ax += 0.12 * h;
                 const c1 = Math.cos(q.ph), s1 = Math.sin(q.ph);
                 ox = sx * o.flutA * c1; oz = sz * o.flutA * c1; oy = -o.vTerm * 1.15 * Math.cos(2 * q.ph);
                 _lfE.set(0.8 * s1, q.ax + q.yaw * 0.2, q.tilt); _lfQ.setFromEuler(_lfE);
-              } else {              // lộn vòng: tự xoay quanh trục ngang (sx, 0, sz), trượt chéo theo hướng ⊥ trục
+              } else {
                 q.rot += q.om * h; const dsg = q.om > 0 ? 1 : -1;
                 ox = -sz * o.vTerm * 0.7 * dsg; oz = sx * o.vTerm * 0.7 * dsg; oy = o.vTerm * 0.15 * Math.sin(2 * q.rot);
                 _lfQ.setFromAxisAngle(_lfA.set(sx, 0, sz), q.rot); _lfQ2.setFromAxisAngle(_lfA.set(0, 1, 0), q.yaw); _lfQ.multiply(_lfQ2);
@@ -3067,7 +3067,7 @@
               q.p.x += (q.v.x + ox) * h; q.p.y += (q.v.y + oy) * h; q.p.z += (q.v.z + oz) * h;
               const gi = Math.round(x2gi(q.p.x)), gj = Math.round(z2gj(q.p.z)), onW = waterCell(gi, gj), gy2 = onW ? waterSurfaceY(q.p.x, q.p.z) : cowY(q.p.x, q.p.z);
               if (q.p.y <= gy2 + 0.02) {
-                if (onW) {   // CHẠM MẶT NƯỚC: dừng lại trên mặt, gợn một vòng nhỏ; định trước lá này có ngấm nước chìm hay không
+                if (onW) {
                   q.p.y = gy2 + 0.004; q.st = 3; q.rest = 0; q.yaw = q.ax; q.spin = (Math.random() - 0.5) * 0.6; q.look = 1 + Math.random() * 3;
                   q.life = o.floatLife[0] + Math.random() * (o.floatLife[1] - o.floatLife[0]);
                   q.sinkAt = Math.random() < o.sinkP ? 4 + Math.random() * (q.life - 8) : Infinity;
@@ -3076,17 +3076,17 @@
               }
               else if (q.age > 45 || gi < -40 || gj < -40 || gi > GX + 40 || gj > GZ + 40) q.st = 0;
             }
-            if (q.st === 2) {   // nằm trên đất
+            if (q.st === 2) {
               q.rest += h;
               windAt(q.p.x, q.p.y, q.p.z, 0.15, _lfW); const wh = Math.hypot(_lfW.x, _lfW.z);
-              if (wh > o.slideU) {   // gió sát đất đủ mạnh: lá trượt lăn trên cỏ
+              if (wh > o.slideU) {
                 const f = (wh - o.slideU) / wh * 0.6;
                 q.p.x += _lfW.x * f * h; q.p.z += _lfW.z * f * h; q.yaw += 1.2 * f * h * (q.om > 0 ? 1 : -1);
-                if (waterCell(Math.round(x2gi(q.p.x)), Math.round(z2gj(q.p.z)))) {   // trượt qua mép bờ: rơi xuống mặt nước bên dưới
+                if (waterCell(Math.round(x2gi(q.p.x)), Math.round(z2gj(q.p.z)))) {
                   q.st = 1; q.age = 0; q.mode = 0; q.v.set(_lfW.x * 0.3, 0, _lfW.z * 0.3);
                 } else {
                   q.p.y = cowY(q.p.x, q.p.z) + 0.02;
-                  if (wh > o.slideU * 1.6 && _lfW.y > 0.04 && Math.random() < h * 0.5) {   // cơn giật có luồng lên: bốc lá bay lại
+                  if (wh > o.slideU * 1.6 && _lfW.y > 0.04 && Math.random() < h * 0.5) {
                     q.st = 1; q.age = 0; q.v.set(_lfW.x * 0.8, 0.5 + _lfW.y * 2, _lfW.z * 0.8); q.mode = 1; q.om = (6 + Math.random() * 4) * (Math.random() < 0.5 ? -1 : 1); q.rot = 0; q.ax = Math.atan2(_lfW.z, _lfW.x) + Math.PI / 2;
                   }
                 }
@@ -3097,29 +3097,29 @@
                 if (q.rest >= q.life) q.st = 0;
               } else _lfQ.identity();
             }
-            if (q.st === 3) {   // NỔI: trôi theo dòng + một phần gió (leeway), chạm bờ thì dừng sát bờ, nhấp nhô & nghiêng theo mặt sóng
+            if (q.st === 3) {
               q.rest += h;
               waterFlow(q.p.x, q.p.z, t, _lfF); windAt(q.p.x, q.p.y, q.p.z, 0.1, _lfW);
-              const kr = 1 - Math.exp(-h / 0.8);   // lá có quán tính nhỏ: bám theo dòng sau ~0,8 s
+              const kr = 1 - Math.exp(-h / 0.8);
               q.v.x += (_lfF.x + _lfW.x * o.leeway - q.v.x) * kr; q.v.z += (_lfF.z + _lfW.z * o.leeway - q.v.z) * kr;
               const nx = q.p.x + q.v.x * h, nz = q.p.z + q.v.z * h;
-              if (waterCell(Math.round(x2gi(nx)), Math.round(z2gj(q.p.z)))) q.p.x = nx; else q.v.x *= -0.2;   // chạm bờ: dừng, nảy nhẹ
+              if (waterCell(Math.round(x2gi(nx)), Math.round(z2gj(q.p.z)))) q.p.x = nx; else q.v.x *= -0.2;
               if (waterCell(Math.round(x2gi(q.p.x)), Math.round(z2gj(nz)))) q.p.z = nz; else q.v.z *= -0.2;
               const wy = waterSurfaceY(q.p.x, q.p.z), gx = waterSurfaceY(q.p.x + 0.2, q.p.z) - wy, gz = waterSurfaceY(q.p.x, q.p.z + 0.2) - wy;
               q.p.y = wy + 0.004;
               q.spin += ((Math.random() - 0.5) * 0.8 - q.spin) * h * 0.3; q.yaw += q.spin * h;
               _lfQ.setFromUnitVectors(_lfA.set(0, 1, 0), _lfN.set(-gx / 0.2, 1, -gz / 0.2).normalize()); _lfQ2.setFromAxisAngle(_lfA.set(0, 1, 0), q.yaw); _lfQ.multiply(_lfQ2);
-              if (q.rest >= q.sinkAt) {   // ngấm nước: bắt đầu chìm — cá gần đó để ý
+              if (q.rest >= q.sinkAt) {
                 q.st = 4; q.sinkV = o.sinkV[0] + Math.random() * (o.sinkV[1] - o.sinkV[0]); q.ph = Math.random() * TAU; q.look = 2;
                 q.p.y = wy - 0.02; fishAlertLeaf(q, 8, 0.9);
               } else {
-                if ((q.look -= h) <= 0) { q.look = 3 + Math.random() * 2; if (!q.fish) fishAlertLeaf(q, 2.5, 0.15); }   // thỉnh thoảng cá ngoi lên đớp lá đang nổi
+                if ((q.look -= h) <= 0) { q.look = 3 + Math.random() * 2; if (!q.fish) fishAlertLeaf(q, 2.5, 0.15); }
                 sc *= Math.max(0, Math.min(1, (q.life - q.rest) / 1.5));
                 const gi = Math.round(x2gi(q.p.x)), gj = Math.round(z2gj(q.p.z));
                 if (q.rest >= q.life || gi < -MX || gj < -MZ || gi >= GX + MX || gj >= GZ + MZ) q.st = 0;
               }
             }
-            if (q.st === 4) {   // CHÌM: rơi chậm trong nước, lắc lư như lá rơi trong không khí nhưng chậm hơn nhiều, trôi theo dòng yếu dần về đáy
+            if (q.st === 4) {
               q.rest += h; q.ph += 2.4 * h; q.yaw += 0.2 * h;
               const gi = Math.round(x2gi(q.p.x)), gj = Math.round(z2gj(q.p.z)), top = waterSurfaceY(q.p.x, q.p.z), bed = riverBedY(gi, gj);
               const fz = Math.max(0, Math.min(1, (q.p.y - bed) / Math.max(0.2, top - bed)));
@@ -3128,12 +3128,12 @@
               const sw = Math.cos(q.ph) * 0.06, nx = q.p.x + (q.v.x + Math.cos(q.ax) * sw) * h, nz = q.p.z + (q.v.z + Math.sin(q.ax) * sw) * h;
               if (waterCell(Math.round(x2gi(nx)), gj)) q.p.x = nx;
               if (waterCell(gi, Math.round(z2gj(nz)))) q.p.z = nz;
-              q.p.y = Math.min(q.p.y - q.sinkV * (0.7 + 0.6 * Math.abs(Math.sin(q.ph))) * h, top - 0.02);   // chìm nhanh nhất lúc lá dựng nghiêng
+              q.p.y = Math.min(q.p.y - q.sinkV * (0.7 + 0.6 * Math.abs(Math.sin(q.ph))) * h, top - 0.02);
               _lfE.set(0.45 * Math.sin(q.ph), q.yaw, q.tilt); _lfQ.setFromEuler(_lfE);
               if (q.p.y <= bed + 0.012) { q.p.y = bed + 0.012; q.st = 5; q.rest = 0; q.life = 10 + Math.random() * 10; q.tilt = (Math.random() - 0.5) * 0.2; }
               else if ((q.look -= h) <= 0) { q.look = 2; if (!q.fish) fishAlertLeaf(q, 8, 0.6); }
             }
-            if (q.st === 5) {   // nằm dưới đáy rồi mờ dần
+            if (q.st === 5) {
               q.rest += h; _lfE.set(q.tilt, q.yaw, 0); _lfQ.setFromEuler(_lfE);
               sc *= Math.max(0, Math.min(1, (q.life - q.rest) / 2)); if (q.rest >= q.life) q.st = 0;
             }
@@ -3143,15 +3143,15 @@
           L.im.instanceMatrix.needsUpdate = true;
         }
         let cherryCtl = null, oldTreeLeafCtl = null, cherryWind = null, oldTreeWind = null;
-        { const ct = cherryTree(1.2); ct.position.copy(worldCell(29, 35.5)); ct.rotation.y = Math.random() * 6.28; ct.name = 'Cây anh đào (Cherry Blossom Tree)'; scene.add(ct);   // 1 cây duy nhất cạnh xe van
+        { const ct = cherryTree(1.2); ct.position.copy(worldCell(29, 35.5)); ct.rotation.y = Math.random() * 6.28; ct.name = 'Cây anh đào (Cherry Blossom Tree)'; scene.add(ct);
           cherryWind = ct.userData.treeWind; finalizeTreeWind(cherryWind, ct);
-          { // cánh hoa rải sẵn dưới gốc: đặt lúc dựng cây theo độ cao cố định ⇒ lơ lửng trên mép bậc đất / lệch độ cao. Nay hạ đúng mặt ô đất;
+          {
             const F = ct.userData.fallen, m = new THREE.Matrix4(), p = new THREE.Vector3(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), inv = new THREE.Matrix4();
             ct.updateMatrixWorld(true); inv.copy(F.matrixWorld).invert();
-            const cell = (x, z) => [Math.round(x / BLOCK + cx - 0.5), Math.round(z / BLOCK + cz - 0.5)], hd = 0.09;   // (= x2gi/z2gj, khai báo sau tệp này)
+            const cell = (x, z) => [Math.round(x / BLOCK + cx - 0.5), Math.round(z / BLOCK + cz - 0.5)], hd = 0.09;
             for (let k = 0; k < F.count; k++) {
               F.getMatrixAt(k, m); m.decompose(p, q, sc); p.applyMatrix4(F.matrixWorld);
-              const ys = [[-hd, -hd], [hd, -hd], [-hd, hd], [hd, hd], [0, 0]].map(([dx, dz]) => { const [i, j] = cell(p.x + dx, p.z + dz); return waterCell(i, j) ? NaN : surfaceY(i, j); });   // (cowY chưa khai báo lúc này; quanh gốc anh đào không có mặt đập nên trùng nhau)
+              const ys = [[-hd, -hd], [hd, -hd], [-hd, hd], [hd, hd], [0, 0]].map(([dx, dz]) => { const [i, j] = cell(p.x + dx, p.z + dz); return waterCell(i, j) ? NaN : surfaceY(i, j); });
               const ok = ys.every(y => Math.abs(y - ys[4]) < 1e-3);
               if (ok) { p.y = ys[4] + 0.01; p.applyMatrix4(inv); } else sc.setScalar(0);
               F.setMatrixAt(k, m.compose(p, q, sc));
@@ -3161,7 +3161,7 @@
           cherryCtl = makeLeafFall({ name: 'Cánh hoa anh đào rơi theo gió', group: ct, pts: ct.userData.blossomPts, n: 36, geo: new THREE.BoxGeometry(0.19 * 1.2, 0.002 * 1.2, 0.19 * 1.2), opacity: 0.75,
             color: () => cherryPinks[(Math.random() * cherryPinks.length) | 0], scale: 1, tw: cherryWind, g: 3.5, vTerm: 0.45, flutA: 0.5, flutW: [3.5, 5], tumble: 0.15, tumbleW: [9, 14], slideU: 0.5, rate0: 0.15, rateK: 3.0, shake0: 0.02, restLife: [10, 20], floatLife: [25, 45], sinkP: 0.25, sinkV: [0.05, 0.08], leeway: 0.035 }); }
 
-        function fluidKernel() {   // JS thuần, không đọc biến bên ngoài → chạy được trong Worker lẫn trên luồng chính (dự phòng)
+        function fluidKernel() {
           const f32 = new Float32Array(1), i32 = new Int32Array(f32.buffer);
           function toHalf(val) {
             f32[0] = val; const x = i32[0];
@@ -3171,7 +3171,7 @@
             if (e < 113) { m |= 0x0800; return bits | ((m >> (114 - e)) + ((m >> (113 - e)) & 1)); }
             bits |= ((e - 112) << 10) | (m >> 1); return bits + (m & 1);
           }
-          function bil(arr, w, h, fx, fz) {   // nội suy song tuyến trên lưới w × h (toạ độ theo ô, kẹp trong lưới)
+          function bil(arr, w, h, fx, fz) {
             fx = fx < 0 ? 0 : fx > w - 1.0001 ? w - 1.0001 : fx; fz = fz < 0 ? 0 : fz > h - 1.0001 ? h - 1.0001 : fz;
             const a = fx | 0, b = fz | 0, tx = fx - a, tz = fz - b, c = b * w + a;
             return (arr[c] * (1 - tx) + arr[c + 1] * tx) * (1 - tz) + (arr[c + w] * (1 - tx) + arr[c + w + 1] * tx) * tz;
@@ -3198,7 +3198,7 @@
               u, u2: new Float32Array((nx + 1) * nz), v, v2: new Float32Array(nx * (nz + 1)),
               foam: new Float32Array(N), foam2: new Float32Array(N), cells: Int32Array.from(cells), uf: Int32Array.from(uf), vf: Int32Array.from(vf), sponge, acc: 0 };
           }
-          function splashWater(imp, n) {   // imp: [x, z (ô), bán kính (ô), cường độ] — mặt nước lõm xuống rồi tự dội thành sóng tròn lan ra
+          function splashWater(imp, n) {
             const { nx, nz, mask, kind, h, foam } = W;
             for (let k = 0; k < n; k++) {
               const cx = imp[k * 4], cz = imp[k * 4 + 1], r = Math.max(0.6, imp[k * 4 + 2]), s = imp[k * 4 + 3];
@@ -3223,10 +3223,10 @@
               v2[f] = bil(v, nx, nz + 1, a - dt * uu * idx, b - dt * vv * idx);
             }
             [u, u2] = [u2, u]; [v, v2] = [v2, v];
-            for (let k = 0; k < jets.length; k++) v[jets[k]] = jetV[k];   // cửa xả: nước phụt ra hạ lưu
+            for (let k = 0; k < jets.length; k++) v[jets[k]] = jetV[k];
             for (let k = 0; k < cells.length; k++) {
               const c = cells[k];
-              if (kind[c]) { h2[c] = target[c] - bed[c]; continue; }   // biên mở / cửa xả / mép hồ sát đập: giữ mực
+              if (kind[c]) { h2[c] = target[c] - bed[c]; continue; }
               const b = (c / nx) | 0, a = c - b * nx, fl = b * nx1 + a, uL = u[fl], uR = u[fl + 1], vB = v[c], vT = v[c + nx];
               const flux = uR * (uR > 0 ? h[c] : h[c + 1]) - uL * (uL > 0 ? h[c - 1] : h[c]) + vT * (vT > 0 ? h[c] : h[c + nx]) - vB * (vB > 0 ? h[c - nx] : h[c]);
               h2[c] = Math.max(0.05, h[c] - dt * idx * flux);
@@ -3254,7 +3254,7 @@
             }
             W.u = u; W.u2 = u2; W.v = v; W.v2 = v2; W.foam = foam2; W.foam2 = foam;
           }
-          function encodeWater(out) {   // RGBA half-float mỗi ô: độ cao mặt so với mực tĩnh · vận tốc x · vận tốc z · bọt
+          function encodeWater(out) {
             const { nx, nz, mask, bed, rest, h, u, v, foam } = W, nx1 = nx + 1;
             for (let b = 0, c = 0; b < nz; b++) for (let a = 0; a < nx; a++, c++) {
               const o = c * 4;
@@ -3265,7 +3265,7 @@
             return out;
           }
 
-          let SM = null, gSpare = null; const SMS = [];   // nhiều nguồn khói (lửa trại, ống khói lò chiminea): SM = nguồn đang tính
+          let SM = null, gSpare = null; const SMS = [];
           const sU = (r, z) => bil(SM.u, SM.NR + 1, SM.NZ, r / SM.H, z / SM.H - 0.5);
           const sW = (r, z) => bil(SM.w, SM.NR, SM.NZ + 1, r / SM.H - 0.5, z / SM.H);
           const sC = (a, r, z) => bil(a, SM.NR, SM.NZ, r / SM.H - 0.5, z / SM.H - 0.5);
@@ -3275,28 +3275,28 @@
             SM = Object.assign({ NC, u: F((NR + 1) * NZ), u2: F((NR + 1) * NZ), w: F(NR * (NZ + 1)), w2: F(NR * (NZ + 1)), T: F(NC), T2: F(NC), S: F(NC), S2: F(NC), p: F(NC), dv: F(NC), SS: F(NC),
               nu: F(NZ), wc: F(NZ), acc: 0, rec: 0, spS: 0, spQ: 0, pr: F(NP), pth: F(NP), pz: F(NP), dx: F(NP), dz: F(NP), vx: F(NP), vz: F(NP), pu: F(NP), pw: F(NP), pt: F(NP),
               age: F(NP).fill(1e3), life: F(NP), pk: F(NP), pwid: F(NP), pd: F(NP), hist: F(NP * NT * 3), zMin: 0.05, nuMax: 0.045 }, c);
-            if (c.inlet) {   // ỐNG KHÓI CÓ NÓN: đáy miền = miệng ống (khí nóng phụt lên ở r < inlet.r), nón che mưa = ô ĐẶC (r < lid.r, lid.z0 → lid.z1) —
+            if (c.inlet) {
               const H = c.H; SM.nI = Math.max(1, Math.round(c.inlet.r / H)); SM.nL = Math.max(SM.nI + 1, Math.round(c.lid.r / H));
               SM.jL0 = Math.max(1, Math.round(c.lid.z0 / H)); SM.jL1 = Math.max(SM.jL0 + 1, Math.round(c.lid.z1 / H)); SM.zMin = 0.003;
-              SM.nuMax = Math.min(0.045, 0.18 * H * H * 30);   // ô nhỏ: khuếch tán hiện chỉ ổn định khi dt·ν/H² ≤ 0,2 (bản đầu nổ trường khói sau ~100 bước)
+              SM.nuMax = Math.min(0.045, 0.18 * H * H * 30);
               SM.solid = new Uint8Array(NC); for (let j = SM.jL0; j < SM.jL1; j++) for (let i = 0; i < SM.nL; i++) SM.solid[j * NR + i] = 1;
             }
             const warm = { heat: 1, smoke: 0, rF: 0.3, zF: 0.6, draft: 1 };
-            for (let t = 0; t < 3; t += 1 / 30) stepSmoke(1 / 30, warm);   // khởi động: cột khí nóng đã thành hình
+            for (let t = 0; t < 3; t += 1 / 30) stepSmoke(1 / 30, warm);
             SMS[id || 0] = SM;
           }
-          function lidZero() {   // ô đặc của nón: không có dòng qua mặt nào của nón, không chứa nhiệt / khói
+          function lidZero() {
             const g = SM, { NR, solid } = g, NU = NR + 1;
             for (let j = g.jL0; j <= g.jL1; j++) for (let i = 0; i < g.nL; i++) g.w[j * NR + i] = 0;
             for (let j = g.jL0; j < g.jL1; j++) { for (let i = 1; i <= g.nL; i++) g.u[j * NU + i] = 0; for (let i = 0; i < g.nL; i++) { const c = j * NR + i; if (solid[c]) { g.T[c] = 0; g.S[c] = 0; } } }
           }
-          function diffuseAx(a, b, nr, nz, rOff, nuOf, dt, vec, amb) {   // b = a + dt·ν·∇²a (Laplace đối xứng trục; vec: thêm −a/r² của vận tốc hướng kính; amb: giá trị ngoài vách, null = gradient 0)
+          function diffuseAx(a, b, nr, nz, rOff, nuOf, dt, vec, amb) {
             const H2 = SM.H * SM.H;
             for (let j = 0; j < nz; j++) {
               const k = dt * nuOf(j) / H2, jm = j > 0 ? j - 1 : 0, jp = j < nz - 1 ? j + 1 : j;
               for (let i = 0; i < nr; i++) {
                 const c = j * nr + i, f = a[c], rc = i + rOff;
-                if (rc === 0) { b[c] = 0; continue; }   // trục: u = 0
+                if (rc === 0) { b[c] = 0; continue; }
                 const fe = i < nr - 1 ? a[c + 1] : amb === null ? f : amb, fw = i > 0 ? a[c - 1] : f;
                 let L = ((rc + 0.5) * (fe - f) - Math.max(0, rc - 0.5) * (f - fw)) / rc + a[jp * nr + i] + a[jm * nr + i] - 2 * f;
                 if (vec) L -= f / (rc * rc);
@@ -3304,7 +3304,7 @@
               }
             }
           }
-          function turbAx() {   // vận tốc trục w_c, bán kính nửa vận tốc r½ → ν_t từng tầng · |S| ≈ |∂w/∂r| + |∂u/∂z| ở tâm ô (cho rối của hạt)
+          function turbAx() {
             const g = SM, { NR, NZ, H, w, u } = g, NU = NR + 1, wcen = (i, j) => 0.5 * (w[j * NR + i] + w[(j + 1) * NR + i]), ucen = (i, j) => 0.5 * (u[j * NU + i] + u[j * NU + i + 1]);
             for (let j = 0; j < NZ; j++) {
               let wm = 0, rh = NR * H;
@@ -3320,7 +3320,7 @@
           }
           function advectAx(dt) {
             const g = SM, { NR, NZ, H } = g, NU = NR + 1, Rm = NR * H, Zm = NZ * H;
-            for (let j = 0; j < NZ; j++) for (let i = 1; i <= NR; i++) {   // u: truy ngược; qua trục thì lấy đối xứng (u đổi dấu)
+            for (let j = 0; j < NZ; j++) for (let i = 1; i <= NR; i++) {
               const r = i * H, z = (j + 0.5) * H, c = j * NU + i;
               let rb = r - dt * g.u[c], sg = 1; if (rb < 0) { rb = -rb; sg = -1; }
               g.u2[c] = sg * sU(rb, z - dt * sW(r, z));
@@ -3330,17 +3330,17 @@
               const r = (i + 0.5) * H, z = j * H, c = j * NR + i;
               g.w2[c] = sW(Math.abs(r - dt * sU(r, z)), z - dt * g.w[c]);
             }
-            for (let i = 0; i < NR; i++) g.w2[i] = 0;   // mặt đất
-            for (let j = 0; j < NZ; j++) for (let i = 0; i < NR; i++) {   // nhiệt & khói; khí đi vào từ ngoài miền = không khí sạch, nguội
+            for (let i = 0; i < NR; i++) g.w2[i] = 0;
+            for (let j = 0; j < NZ; j++) for (let i = 0; i < NR; i++) {
               const r = (i + 0.5) * H, z = (j + 0.5) * H, c = j * NR + i, rb = Math.abs(r - dt * sU(r, z)), zb = z - dt * sW(r, z), out = rb > Rm || zb > Zm;
               g.T2[c] = out ? 0 : sC(g.T, rb, zb); g.S2[c] = out ? 0 : sC(g.S, rb, zb);
             }
             [g.u, g.u2] = [g.u2, g.u]; [g.w, g.w2] = [g.w2, g.w]; [g.T, g.T2] = [g.T2, g.T]; [g.S, g.S2] = [g.S2, g.S];
           }
-          function projectAx(iters) {   // ∇·u = (1/r)∂(r·u)/∂r + ∂w/∂z = 0: Poisson có trọng r (nhân H²), SOR đỏ-đen ω 1.8, khởi động ấm
+          function projectAx(iters) {
             const g = SM, { NR, NZ, H, p, dv, u, w } = g, NU = NR + 1;
             for (let j = 0; j < NZ; j++) for (let i = 0; i < NR; i++) dv[j * NR + i] = H * (((i + 1) * u[j * NU + i + 1] - i * u[j * NU + i]) / (i + 0.5) + w[(j + 1) * NR + i] - w[j * NR + i]);
-            const sol = g.solid;   // ô đặc (nón ống khói): mặt giáp ô đặc = tường (Neumann), không hiệu chỉnh vận tốc qua đó
+            const sol = g.solid;
             for (let it = 0; it < iters; it++) for (let par = 0; par < 2; par++) for (let j = 0; j < NZ; j++) for (let i = (j + par) & 1; i < NR; i += 2) {
               const c = j * NR + i; if (sol && sol[c]) continue;
               let aE = (i + 1) / (i + 0.5), aW = i / (i + 0.5), aN = 1, aS = j > 0 ? 1 : 0;
@@ -3353,37 +3353,37 @@
           }
           function stepSmoke(dt, m) {
             const g = SM, { NR, NZ, H } = g, nF = Math.min(NR, Math.ceil(m.rF / H)), j1 = Math.min(NZ, Math.ceil(m.zF / H));
-            if (g.inlet) for (let j = 0; j < g.jL0; j++) for (let i = 0; i < g.nI; i++) { const c = j * NR + i; g.T[c] = Math.max(g.T[c], m.heat); g.S[c] = Math.max(g.S[c], Math.min(1.5, m.smoke)); }   // miệng ống: khí thải vào miền mang sẵn nhiệt + nồng độ khói (không cộng dồn — ống nhỏ, khí đi nhanh)
-            else for (let j = 0; j < j1; j++) for (let i = 0; i < nF; i++) {   // lòng lửa: bể nhiệt + nguồn khói theo cỡ lửa
+            if (g.inlet) for (let j = 0; j < g.jL0; j++) for (let i = 0; i < g.nI; i++) { const c = j * NR + i; g.T[c] = Math.max(g.T[c], m.heat); g.S[c] = Math.max(g.S[c], Math.min(1.5, m.smoke)); }
+            else for (let j = 0; j < j1; j++) for (let i = 0; i < nF; i++) {
               const c = j * NR + i, k = 1 - ((i + 0.5) * H / m.rF) ** 2; if (k <= 0) continue;
               g.T[c] = Math.max(g.T[c], m.heat * k); g.S[c] = Math.min(1.5, g.S[c] + m.smoke * k * dt);
             }
-            for (let j = 1; j < NZ; j++) for (let i = 0; i < NR; i++) g.w[j * NR + i] += dt * g.buoy * 0.5 * (g.T[j * NR + i] + g.T[(j - 1) * NR + i]);   // lực nổi
+            for (let j = 1; j < NZ; j++) for (let i = 0; i < NR; i++) g.w[j * NR + i] += dt * g.buoy * 0.5 * (g.T[j * NR + i] + g.T[(j - 1) * NR + i]);
             turbAx();
             diffuseAx(g.u, g.u2, NR + 1, NZ, 0, j => g.nu[j], dt, true, null); [g.u, g.u2] = [g.u2, g.u];
             diffuseAx(g.w, g.w2, NR, NZ + 1, 0.5, j => g.nu[Math.min(j, NZ - 1)], dt, false, null); [g.w, g.w2] = [g.w2, g.w];
-            diffuseAx(g.T, g.T2, NR, NZ, 0.5, j => g.nu[j] * 1.1, dt, false, 0); [g.T, g.T2] = [g.T2, g.T];   // Pr_t ≈ 0.9
+            diffuseAx(g.T, g.T2, NR, NZ, 0.5, j => g.nu[j] * 1.1, dt, false, 0); [g.T, g.T2] = [g.T2, g.T];
             diffuseAx(g.S, g.S2, NR, NZ, 0.5, j => g.nu[j] * 1.1, dt, false, 0); [g.S, g.S2] = [g.S2, g.S];
             advectAx(dt);
-            const kc = Math.exp(-dt / g.tauT); for (let c = 0; c < g.NC; c++) g.T[c] *= kc;   // toả nhiệt ra môi trường
-            for (let i = 0; i < NR; i++) g.w[i] = g.inlet && i < g.nI ? m.draft || 0 : 0;   // đáy: mặt đất · miệng ống khói thì khí phụt lên theo sức hút ống
+            const kc = Math.exp(-dt / g.tauT); for (let c = 0; c < g.NC; c++) g.T[c] *= kc;
+            for (let i = 0; i < NR; i++) g.w[i] = g.inlet && i < g.nI ? m.draft || 0 : 0;
             if (g.solid) lidZero();
             projectAx(g.iters);
             if (g.solid) lidZero();
           }
           function smokeSpawn(n, m) {
             const g = SM, NT = g.NT; let x, y, z;
-            if (n < g.NS) {   // hơi ấm: phụt khỏi vòi
+            if (n < g.NS) {
               const s = m.spout, q = 0.75 + 0.5 * Math.random();
               x = s[0] + (Math.random() - 0.5) * 0.03; y = s[1] + (Math.random() - 0.5) * 0.03; z = s[2] + (Math.random() - 0.5) * 0.03;
               const th = Math.atan2(z, x), c = Math.cos(th), sn = Math.sin(th);
               g.pr[n] = Math.hypot(x, z); g.pth[n] = th; g.pz[n] = y; g.pu[n] = (s[3] * c + s[5] * sn) * q; g.pt[n] = (s[5] * c - s[3] * sn) * q; g.pw[n] = s[4] * q;
               g.life[n] = 1 + Math.random() * 1.2;
-            } else if (g.inlet) {   // ống khói: hạt ra từ miệng ống, ngay dưới nón
+            } else if (g.inlet) {
               const r = g.inlet.r * 0.85 * Math.sqrt(Math.random()), th = Math.random() * 6.2832;
               x = r * Math.cos(th); z = r * Math.sin(th); y = 0.004 + Math.random() * Math.max(0.004, g.lid.z0 - 0.01);
               g.pr[n] = r; g.pth[n] = th; g.pz[n] = y; g.pu[n] = g.pw[n] = g.pt[n] = 0; g.life[n] = 6 + Math.random() * 5;
-            } else {   // khói: bốc từ lòng lửa
+            } else {
               const r = m.rF * 0.85 * Math.sqrt(Math.random()), th = Math.random() * 6.2832;
               x = r * Math.cos(th); z = r * Math.sin(th); y = 0.12 + Math.random() * Math.max(0.1, m.zF - 0.12);
               g.pr[n] = r; g.pth[n] = th; g.pz[n] = y; g.pu[n] = g.pw[n] = g.pt[n] = 0; g.life[n] = 6 + Math.random() * 5;
@@ -3393,25 +3393,25 @@
           }
           function moveSmoke(dt, m, shift) {
             const g = SM, { NP, NT, H, NS } = g, Rm = g.NR * H, Zm = g.NZ * H, W = m.wind, kw = 1 - Math.exp(-dt);
-            g.spS += dt * m.rate * (NP - NS) / 8.5; g.spQ += dt * m.steam * NS / 1.6;   // nhịp thả hạt ≈ số hạt / tuổi thọ trung bình
+            g.spS += dt * m.rate * (NP - NS) / 8.5; g.spQ += dt * m.steam * NS / 1.6;
             for (let n = 0; n < NP; n++) {
               const steam = n < NS;
               if (g.age[n] >= g.life[n]) { if (steam ? g.spQ < 1 : g.spS < 1) continue; if (steam) g.spQ--; else g.spS--; smokeSpawn(n, m); }
-              let r = g.pr[n], z = g.pz[n], ur = 0.04, wz = 0.3, sig = 0.06, TLi = 0.8;   // trên / ngoài miền tính: khí đã nguội, bốc chậm & tản
+              let r = g.pr[n], z = g.pz[n], ur = 0.04, wz = 0.3, sig = 0.06, TLi = 0.8;
               if (r < Rm && z < Zm) {
                 const S = sC(g.SS, r, z), j = Math.min(g.NZ - 1, (z / H) | 0);
                 ur = sU(r, z); wz = sW(r, z); TLi = S + 0.5;
-                g.pd[n] = Math.min(1, Math.sqrt(Math.max(0, sC(g.S, r, z))) * g.dens) * Math.exp(-Math.hypot(g.dx[n], g.dz[n]) / 4);   // độ đậm theo nồng độ khói tại chỗ (√: loãng dần đều) · gió ngang cuốn thêm khí sạch vào chùm ⇒ loãng theo quãng bị kéo đi
-                sig = Math.min(0.12 * g.wc[j] + 0.03, 1.49 * Math.sqrt(Math.max(0, g.nu[j] - g.nu0) * S));   // trần σ ≈ 12 % vận tốc trục (cường độ rối đo được ở chùm nổi)
-              } else g.pd[n] *= Math.exp(-dt / 1.5);   // ra khỏi miền tính: khói tiếp tục loãng, tan hẳn sau vài giây
-              if (steam) { TLi += 3.5; wz += 0.2; }   // tia hơi tắt nhanh · hơi ấm nhẹ hơn không khí
+                g.pd[n] = Math.min(1, Math.sqrt(Math.max(0, sC(g.S, r, z))) * g.dens) * Math.exp(-Math.hypot(g.dx[n], g.dz[n]) / 4);
+                sig = Math.min(0.12 * g.wc[j] + 0.03, 1.49 * Math.sqrt(Math.max(0, g.nu[j] - g.nu0) * S));
+              } else g.pd[n] *= Math.exp(-dt / 1.5);
+              if (steam) { TLi += 3.5; wz += 0.2; }
               const a = Math.exp(-dt * TLi), b = sig * Math.sqrt(1 - a * a);
               g.pu[n] = g.pu[n] * a + b * gauss(); g.pw[n] = g.pw[n] * a + b * gauss(); g.pt[n] = g.pt[n] * a + b * gauss();
               r += (ur + g.pu[n]) * dt; z += (wz + g.pw[n]) * dt; let th = g.pth[n] + g.pt[n] * dt / Math.max(r, 0.05);
               if (r < 0) { r = -r; th += Math.PI; }
               if (z < g.zMin) { z = g.zMin; g.pw[n] = Math.abs(g.pw[n]); }
-              if (g.solid && r < g.lid.r && z > g.lid.z0 && z < g.lid.z1) { z = g.lid.z0 - 0.003; g.pw[n] = Math.min(0, g.pw[n]); }   // không xuyên nón
-              const zl = Math.min(7.999, z), k0 = zl | 0, f = zl - k0;   // gió thật tại độ cao hạt (tầng 1 đv), quán tính ~1 s
+              if (g.solid && r < g.lid.r && z > g.lid.z0 && z < g.lid.z1) { z = g.lid.z0 - 0.003; g.pw[n] = Math.min(0, g.pw[n]); }
+              const zl = Math.min(7.999, z), k0 = zl | 0, f = zl - k0;
               g.vx[n] += (W[k0 * 2] * (1 - f) + W[k0 * 2 + 2] * f - g.vx[n]) * kw; g.vz[n] += (W[k0 * 2 + 1] * (1 - f) + W[k0 * 2 + 3] * f - g.vz[n]) * kw;
               g.dx[n] += g.vx[n] * dt; g.dz[n] += g.vz[n] * dt;
               g.pr[n] = r; g.pz[n] = z; g.pth[n] = th; g.age[n] += dt; if (z > 14) g.age[n] = g.life[n];
@@ -3420,7 +3420,7 @@
               g.hist[o] = g.dx[n] + r * Math.cos(th); g.hist[o + 1] = z; g.hist[o + 2] = g.dz[n] + r * Math.sin(th);
             }
           }
-          function buildSmoke(m, P, D) {   // dải sợi khói quay mặt về camera · D = [độ đục, tỉ lệ hơi, nhiệt, mép] (Uint8)
+          function buildSmoke(m, P, D) {
             const g = SM, { NP, NT, H, NS } = g, cam = m.cam, Rm = g.NR * H, Zm = g.NZ * H, Hs = g.hist;
             for (let n = 0, v = 0; n < NP; n++) {
               const steam = n < NS, age = g.age[n], life = g.life[n], o = n * NT * 3;
@@ -3445,38 +3445,38 @@
                 sx *= k; sy *= k; sz *= k;
                 const q = v * 3, X = Hs[o + j * 3], Y = Hs[o + j * 3 + 1], Z = Hs[o + j * 3 + 2];
                 P[q] = X + sx; P[q + 1] = Y + sy; P[q + 2] = Z + sz; P[q + 3] = X - sx; P[q + 4] = Y - sy; P[q + 5] = Z - sz;
-                const al = Math.round(A * Math.pow(1 - uu, steam ? 2.4 : 1.3) * Math.min(1, j / 1.5 + 0.35)), e = v * 4;   // vệt hơi ngắn hơn (bay hơi nhanh)
+                const al = Math.round(A * Math.pow(1 - uu, steam ? 2.4 : 1.3) * Math.min(1, j / 1.5 + 0.35)), e = v * 4;
                 D[e] = D[e + 4] = al; D[e + 1] = D[e + 5] = Q; D[e + 2] = D[e + 6] = TQ; D[e + 3] = 255; D[e + 7] = 0;
               }
             }
           }
 
           let WF = null;
-          function initWind(c) {   // c: { nx, nz, dx, drag (cản lỗ rỗng /đv), expo (độ phơi gió địa hình), lrec, conf, iters, warm, ux, uz }
+          function initWind(c) {
             const N = c.nx * c.nz, A = () => new Float32Array(N);
             WF = Object.assign({ N, u: A(), v: A(), u2: A(), v2: A(), p: A(), p2: A(), dv: A(), w: A(), acc: 0 }, c);
             WF.u.fill(c.ux); WF.v.fill(c.uz);
-            for (let t = 0; t < c.warm; t += 0.05) stepWind(0.05, c.ux, c.uz);   // chạy trước cho vệt khuất gió & xoáy hình thành
+            for (let t = 0; t < c.warm; t += 0.05) stepWind(0.05, c.ux, c.uz);
           }
           function stepWind(dt, ux, uz) {
             const F = WF, nx = F.nx, nz = F.nz, dx = F.dx, N = F.N, u = F.u, v = F.v, u2 = F.u2, v2 = F.v2, w = F.w, drag = F.drag, s = dt / dx;
             const U0 = Math.max(1e-4, Math.hypot(ux, uz));
-            for (let b = 0; b < nz; b++) for (let a = 0; a < nx; a++) {   // cuốn theo chính nó (bán Lagrange)
+            for (let b = 0; b < nz; b++) for (let a = 0; a < nx; a++) {
               const c = b * nx + a, x = a - u[c] * s, z = b - v[c] * s;
               u2[c] = bil(u, nx, nz, x, z); v2[c] = bil(v, nx, nz, x, z);
             }
-            for (let c = 0; c < N; c++) {   // trộn động lượng từ trên cao (phục hồi theo quãng đường) + cản lỗ rỗng bậc 2 (ẩn)
+            for (let c = 0; c < N; c++) {
               const sp = Math.hypot(u2[c], v2[c]), kr = 1 - Math.exp(-Math.max(sp, 0.3 * U0) * dt / F.lrec);
               const uu = u2[c] + (ux - u2[c]) * kr, vv = v2[c] + (uz - v2[c]) * kr, kd = 1 / (1 + dt * drag[c] * Math.hypot(uu, vv));
               u[c] = uu * kd; v[c] = vv * kd;
             }
-            for (let b = 1; b < nz - 1; b++) for (let a = 1; a < nx - 1; a++) { const c = b * nx + a; w[c] = ((v[c + 1] - v[c - 1]) - (u[c + nx] - u[c - nx])) / (2 * dx); }   // xoáy
-            for (let b = 5; b < nz - 5; b++) for (let a = 5; a < nx - 5; a++) {   // giữ xoáy: f = ε·dx·(N × ω), N = ∇|ω|/|∇|ω|| (trừ dải sát mép)
+            for (let b = 1; b < nz - 1; b++) for (let a = 1; a < nx - 1; a++) { const c = b * nx + a; w[c] = ((v[c + 1] - v[c - 1]) - (u[c + nx] - u[c - nx])) / (2 * dx); }
+            for (let b = 5; b < nz - 5; b++) for (let a = 5; a < nx - 5; a++) {
               const c = b * nx + a, gx = Math.abs(w[c + 1]) - Math.abs(w[c - 1]), gz = Math.abs(w[c + nx]) - Math.abs(w[c - nx]), l = Math.hypot(gx, gz) + 1e-9;
               u[c] += dt * F.conf * dx * (gz / l) * w[c]; v[c] -= dt * F.conf * dx * (gx / l) * w[c];
             }
-            const iL = ux > 0, iR = ux < 0, iT = uz > 0, iB = uz < 0;   // mép nào là mép gió vào
-            const edges = () => {   // biên: mép gió vào + VÙNG ĐỆM 4 ô hoà dần về gió tự do (khỏi sọc số) · mép gió ra: gradient 0
+            const iL = ux > 0, iR = ux < 0, iT = uz > 0, iB = uz < 0;
+            const edges = () => {
               for (let b = 0; b < nz; b++) for (let a = 0; a < nx; a++) {
                 const din = Math.min(iL ? a : 99, iR ? nx - 1 - a : 99, iT ? b : 99, iB ? nz - 1 - b : 99), c = b * nx + a;
                 if (din < 4) { const k = 1 - din / 4; u[c] += (ux - u[c]) * k; v[c] += (uz - v[c]) * k; continue; }
@@ -3485,7 +3485,7 @@
               }
             };
             edges();
-            const p = F.p, p2 = F.p2, dv = F.dv;   // chiếu không phân kỳ: ∇²p = ∇·u (Jacobi, khởi động ấm) · mép gió vào ∂p/∂n = 0, mép gió ra p = 0 · u −= ∇p
+            const p = F.p, p2 = F.p2, dv = F.dv;
             for (let b = 1; b < nz - 1; b++) for (let a = 1; a < nx - 1; a++) { const c = b * nx + a; dv[c] = ((u[c + 1] - u[c - 1]) + (v[c + nx] - v[c - nx])) * 0.5 * dx; }
             for (let it = 0; it < F.iters; it++) {
               for (let b = 1; b < nz - 1; b++) for (let a = 1; a < nx - 1; a++) { const c = b * nx + a; p2[c] = (p[c - 1] + p[c + 1] + p[c - nx] + p[c + nx] - dv[c]) * 0.25; }
@@ -3496,18 +3496,18 @@
             for (let b = 1; b < nz - 1; b++) for (let a = 1; a < nx - 1; a++) { const c = b * nx + a; u[c] -= (p[c + 1] - p[c - 1]) * 0.5 / dx; v[c] -= (p[c + nx] - p[c - nx]) * 0.5 / dx; }
             edges(); F.U0 = U0;
           }
-          function encodeWind(out) {   // RGBA half-float: gió TB chuẩn hoá theo gió tự do × độ phơi (x, z) · hệ số nhiễu loạn · |gió| chuẩn hoá
+          function encodeWind(out) {
             const F = WF, U0 = F.U0 || 1;
             for (let c = 0; c < F.N; c++) {
               const e = F.expo[c], mx = F.u[c] / U0 * e, mz = F.v[c] / U0 * e, sp = Math.hypot(mx, mz);
-              const tb = Math.min(1.8, Math.max(0.55, 0.65 + 0.35 * Math.min(1.2, sp) + 1.6 * Math.abs(F.w[c]) * F.dx / U0));   // mép vệt khuất gió / sau vật cản: nhiễu loạn mạnh hơn
+              const tb = Math.min(1.8, Math.max(0.55, 0.65 + 0.35 * Math.min(1.2, sp) + 1.6 * Math.abs(F.w[c]) * F.dx / U0));
               out[c * 4] = toHalf(mx); out[c * 4 + 1] = toHalf(mz); out[c * 4 + 2] = toHalf(tb); out[c * 4 + 3] = toHalf(sp);
             }
             return out;
           }
 
           function handle(m) {
-            if (m.t === 'water') { initWater(m.grid); for (let t = 0; t < m.warm; t += WSTEP) stepWater(WSTEP, 0, 0); return null; }   // chạy trước ~40 s cho dòng ổn định
+            if (m.t === 'water') { initWater(m.grid); for (let t = 0; t < m.warm; t += WSTEP) stepWater(WSTEP, 0, 0); return null; }
             if (m.t === 'smoke') { initSmoke(m.cfg, m.id); return null; }
             if (m.t === 'wind') { initWind(m.cfg); return null; }
             if (m.t !== 'step') return null;
@@ -3519,23 +3519,23 @@
               const buf = m.bufs.water && m.bufs.water.byteLength === W.nx * W.nz * 8 ? new Uint16Array(m.bufs.water) : new Uint16Array(W.nx * W.nz * 4);
               res.water = encodeWater(buf).buffer; transfer.push(res.water);
             }
-            if (m.smokes) for (let id = 0; id < m.smokes.length; id++) {   // từng nguồn khói đang bật (nguồn tắt: không gửi tham số ⇒ không tính)
+            if (m.smokes) for (let id = 0; id < m.smokes.length; id++) {
               const k = m.smokes[id]; SM = SMS[id]; if (!k || !SM) continue;
               const NV = SM.NP * SM.NT * 2, sb = m.bufs.smokes && m.bufs.smokes[id], bp = sb && sb[0], bd = sb && sb[1];
               SM.acc = Math.min(SM.acc + m.dt, 0.1);
               while (SM.acc >= 1 / 30) { stepSmoke(1 / 30, k); SM.acc -= 1 / 30; }
-              for (let s = 0; s < 2; s++) { SM.rec += m.dt / 2; const sh = SM.rec >= 0.03; if (sh) SM.rec = Math.min(0.03, SM.rec - 0.03); moveSmoke(m.dt / 2, k, sh); }   // vệt: ghi 1 điểm mỗi 30 ms (~0,4 s đường đi)
+              for (let s = 0; s < 2; s++) { SM.rec += m.dt / 2; const sh = SM.rec >= 0.03; if (sh) SM.rec = Math.min(0.03, SM.rec - 0.03); moveSmoke(m.dt / 2, k, sh); }
               const P = bp && bp.byteLength === NV * 12 ? new Float32Array(bp) : new Float32Array(NV * 3), D = bd && bd.byteLength === NV * 4 ? new Uint8Array(bd) : new Uint8Array(NV * 4);
               buildSmoke(k, P, D); (res.smokes || (res.smokes = []))[id] = { pos: P.buffer, d: D.buffer }; transfer.push(P.buffer, D.buffer);
             }
-            if (WF && m.wind2) {   // bản đồ gió: bước cố định 0,05 s, gửi về khi có bước mới
+            if (WF && m.wind2) {
               WF.acc = Math.min(WF.acc + m.dt, 0.2); let n = 0;
               while (WF.acc >= 0.05) { stepWind(0.05, m.wind2[0], m.wind2[1]); WF.acc -= 0.05; n++; }
               if (n) { const b = m.bufs.wmap && m.bufs.wmap.byteLength === WF.N * 8 ? new Uint16Array(m.bufs.wmap) : new Uint16Array(WF.N * 4); res.wmap = encodeWind(b).buffer; transfer.push(res.wmap); }
             }
             return { msg: res, transfer };
           }
-          return { handle, smokeState: (id) => SMS[id || 0], windState: () => WF };   // smokeState: cho bộ thử ngoài (Node) đọc trường khói
+          return { handle, smokeState: (id) => SMS[id || 0], windState: () => WF };
         }
 
         fluids = (() => {
@@ -3548,11 +3548,11 @@
             const i = i0 + a, j = j0 + b, c = b * nx + a;
             if (!waterCell(i, j)) continue;
             mask[c] = 1; wCells.push(c); bed[c] = riverBedY(i, j); target[c] = rest[c] = waterBaseY(j);
-            if (i <= -MX || i >= GX + MX - 1 || j <= -MZ || j >= GZ + MZ - 1) { kind[c] = 1; target[c] += j < DAM_J ? 0.004 : -0.06; }   // mép bản đồ: biên mở (thượng nguồn hồ dâng rất nhẹ · cuối sông thấp hơn chút cho nước chảy ra)
-            else if (j === DAM_J - 1) { kind[c] = 3; target[c] -= 0.004; }   // mép hồ sát đập: nước rút qua cửa lấy nước → hồ trôi rất chậm về đập
+            if (i <= -MX || i >= GX + MX - 1 || j <= -MZ || j >= GZ + MZ - 1) { kind[c] = 1; target[c] += j < DAM_J ? 0.004 : -0.06; }
+            else if (j === DAM_J - 1) { kind[c] = 3; target[c] -= 0.004; }
           }
           const jets = { faces: [], speeds: [] };
-          for (const [ox, oz] of DAM_OUTLETS) {   // 3 cửa xả: ô nguồn giữ mực dâng 10 cm, mặt ô phía hạ lưu phụt 2,4 m/s
+          for (const [ox, oz] of DAM_OUTLETS) {
             const ca = Math.floor((ox - x0) / dx), cb = Math.floor((oz - z0) / dx);
             for (let db = -1; db <= 0; db++) for (let da = -1; da <= 1; da++) {
               const c = (cb + db) * nx + ca + da; if (!mask[c]) continue;
@@ -3596,9 +3596,9 @@
               #include <colorspace_fragment>
               #include <fog_fragment>
             }`;
-          const smokes = [];   // các nguồn khói (id = chỉ số)
+          const smokes = [];
           const _pf = new THREE.Vector3(), _pw = new THREE.Vector3();
-          function addSmoke(cfg, look) {   // cfg: lưới (NR × NZ ô cạnh H) + số hạt NP (NS hạt đầu là hơi) × NT điểm vệt + hệ số vật lý · look: tên, độ đục
+          function addSmoke(cfg, look) {
             const NT = cfg.NT, NV = cfg.NP * NT * 2, idx = new Uint16Array(cfg.NP * (NT - 1) * 6);
             for (let p = 0, o = 0; p < cfg.NP; p++) for (let j = 0; j < NT - 1; j++) { const b = (p * NT + j) * 2; idx[o++] = b; idx[o++] = b + 1; idx[o++] = b + 2; idx[o++] = b + 1; idx[o++] = b + 3; idx[o++] = b + 2; }
             const geo = new THREE.BufferGeometry();
@@ -3618,7 +3618,7 @@
           function onOut(m) {
             busy = false;
             if (m.water) { const arr = new Uint16Array(m.water); spareW = wData ? wData.buffer : null; wData = arr; wTex.image.data = arr; wTex.needsUpdate = true; if (!water.ready) { water.ready = true; waterU.uSimOn.value = 1; } }
-            if (m.wmap) {   // bản đồ gió mới: thay dữ liệu texture + mảng đọc trên CPU (windMapSample)
+            if (m.wmap) {
               const arr = new Uint16Array(m.wmap), tx = sceneWind.u.uWMap.value; spareWind = windMap.data ? windMap.data.buffer : null; windMap.data = arr;
               if (tx.image.width !== windMap.nx) { const t2 = new THREE.DataTexture(arr, windMap.nx, windMap.nz, THREE.RGBAFormat, THREE.HalfFloatType); t2.magFilter = t2.minFilter = THREE.LinearFilter; t2.generateMipmaps = false; t2.name = 'Bản đồ gió NS'; sceneWind.u.uWMap.value = t2; tx.dispose(); t2.needsUpdate = true; }
               else { tx.image.data = arr; tx.needsUpdate = true; }
@@ -3640,17 +3640,17 @@
             worker.onmessage = e => onOut(e.data);
             worker.onerror = e => { e.preventDefault?.(); worker.terminate(); worker = null; busy = false; local = fluidKernel(); local.handle(initMsg); for (const sm of smokes) local.handle({ t: 'smoke', cfg: sm.cfg, id: sm.id }); };
           } catch (e) { worker = null; local = fluidKernel(); }
-          const initMsg = { t: 'water', warm: worker ? 12 : 0, grid: { nx, nz, dx, mask, kind, bed, target, rest, jets, u0, v0 } };   // luồng phụ: chạy trước 12 s cho tia cửa xả & xoáy hình thành
+          const initMsg = { t: 'water', warm: worker ? 12 : 0, grid: { nx, nz, dx, mask, kind, bed, target, rest, jets, u0, v0 } };
           post(initMsg);
           sceneEvents.signal.addEventListener('abort', () => { worker?.terminate(); worker = null; if (url) URL.revokeObjectURL(url); });
           return {
-            water, addSmoke, wCells, windCfg: () => windCfg,   // windCfg: cấu hình bản đồ gió (vật cản, độ phơi) — gỡ lỗi
-            initWind(cfg) {   // nature/wind-field.js gọi sau khi cảnh dựng xong: lưới vật cản + độ phơi gió
+            water, addSmoke, wCells, windCfg: () => windCfg,
+            initWind(cfg) {
               cfg.warm = worker ? 30 : 3; windCfg = cfg; Object.assign(windMap, { x0: cfg.x0, z0: cfg.z0, nx: cfg.nx, nz: cfg.nz, dx: cfg.dx });
               sceneWind.u.uWBox.value.set(cfg.x0, cfg.z0, 1 / (cfg.nx * cfg.dx), 1 / (cfg.nz * cfg.dx));
               post({ t: 'wind', cfg });
             },
-            splash(x, z, r, s) {   // vật chạm nước tại (x, z) thế giới: bán kính r (đv), cường độ s (m lún xuống)
+            splash(x, z, r, s) {
               if (nImp >= 96) return;
               imp.set([(x - x0) / dx, (z - z0) / dx, r / dx, s], nImp * 4); nImp++;
             },
@@ -3660,15 +3660,15 @@
               for (let k = Math.round(rain * 6 * (0.5 + Math.random())); k > 0; k--) { const c = wCells[(Math.random() * wCells.length) | 0], a = c % nx, b = (c / nx) | 0; this.splash(x0 + (a + 0.5) * dx, z0 + (b + 0.5) * dx, 0.5, 0.008 + 0.01 * Math.random()); }
               const msg = { t: 'step', dt: Math.min(accDt, 0.1), nImp, imp: imp.slice(0, nImp * 4), wind: [sceneWind.dir.x * sceneWind.U * 0.0036, sceneWind.dir.y * sceneWind.U * 0.0036], bufs: { water: spareW } };
               const transfer = spareW ? [spareW] : []; spareW = null; nImp = 0; accDt = 0;
-              if (windCfg) {   // mép gió vào: giải theo đơn vị CHUẨN HOÁ (gió tự do = 1, chỉ đổi hướng) ⇒ gió mạnh/yếu đi thì bản đồ đúng ngay, tốc độ thật nhân ở windVec/windAt
+              if (windCfg) {
                 msg.wind2 = [sceneWind.dir.x, sceneWind.dir.y];
                 if (spareWind) { msg.bufs.wmap = spareWind; transfer.push(spareWind); spareWind = null; }
-                if (windMap.on && windMap.on < 1) { windMap.on = Math.min(1, windMap.on + Math.min(dt, 0.1) / 3); }   // hiện dần trong 3 s
+                if (windMap.on && windMap.on < 1) { windMap.on = Math.min(1, windMap.on + Math.min(dt, 0.1) / 3); }
                 sceneWind.u.uWOn.value = windMap.on;
               }
               for (const smoke of smokes) {
                 smoke.mesh.visible = smoke.on;
-                if (smoke.on) {   // gió thật 9 tầng trên tâm nguồn · hướng nhìn (dải quay mặt về camera) · cỡ 1 điểm ảnh (sợi xa vẫn ≥ ~2 px)
+                if (smoke.on) {
                   const B = smoke.base, W = smoke.wind; smoke.mesh.position.copy(B);
                   const kW = Math.min(5, Math.max(1, sceneWind.speed / 3.6 / 0.76 / Math.max(0.1, sceneWind.U)));
                   for (let k = 0; k < 9; k++) { windAt(B.x, B.y + k, B.z, k + 0.3, _pw); W[k * 2] = _pw.x * kW; W[k * 2 + 1] = _pw.z * kW; }
@@ -3684,7 +3684,7 @@
         })();
         const PLUME_COL = { smoke: new THREE.Color(0.42, 0.40, 0.38), steam: new THREE.Color(0.92, 0.93, 0.95), glow: new THREE.Color(1.0, 0.42, 0.1) };
         const _plumeGlow = new THREE.Color(), _plumeSmokeC = new THREE.Color(), _plumeQ = new THREE.Quaternion(), _smokeTop = new THREE.Vector3(), _smokeJet = new THREE.Vector3();
-        function plumeLight(P, smoke, steam, glow) {   // màu khói/hơi theo ánh sáng cảnh lúc này (đêm tối hẳn, chỉ sáng nơi lửa hắt lên)
+        function plumeLight(P, smoke, steam, glow) {
           const lit = Math.min(1.05, hemi.intensity * 0.5 + amb.intensity * 0.55 + sun.intensity * 0.42), U = P.mat.uniforms;
           U.uSmoke.value.copy(smoke).multiplyScalar(lit); U.uSteam.value.copy(steam).multiplyScalar(lit); U.uGlow.value.copy(glow);
         }
@@ -3692,26 +3692,26 @@
         let _koiN = 0;
         const koiPattern = () => { const i = _koiN++; return i < 2 ? 'black' : i === 2 ? 'mixed' : 'red'; };
         const KOI_U = [0, 0.044, 0.086, 0.177, 0.25, 0.333, 0.414, 0.496, 0.576, 0.653, 0.737, 0.824, 0.911, 1.0];
-        const KOI_H = [0.047, 0.104, 0.126, 0.153, 0.172, 0.179, 0.180, 0.179, 0.167, 0.154, 0.137, 0.117, 0.097, 0.089];   // nửa cao (× s)
-        const KOI_W = [0.046, 0.112, 0.123, 0.126, 0.152, 0.142, 0.127, 0.123, 0.110, 0.092, 0.073, 0.063, 0.053, 0.032];   // nửa rộng
-        const KOI_Y = [-0.05, -0.041, -0.016, 0.011, 0.023, 0.032, 0.033, 0.026, 0.022, 0.022, 0.013, 0.006, 0.0, -0.01];   // đường giữa (lưng gù)
+        const KOI_H = [0.047, 0.104, 0.126, 0.153, 0.172, 0.179, 0.180, 0.179, 0.167, 0.154, 0.137, 0.117, 0.097, 0.089];
+        const KOI_W = [0.046, 0.112, 0.123, 0.126, 0.152, 0.142, 0.127, 0.123, 0.110, 0.092, 0.073, 0.063, 0.053, 0.032];
+        const KOI_Y = [-0.05, -0.041, -0.016, 0.011, 0.023, 0.032, 0.033, 0.026, 0.022, 0.022, 0.013, 0.006, 0.0, -0.01];
         const koiFinM = new THREE.MeshPhongMaterial({ side: THREE.DoubleSide, shininess: 30, specular: 0x222222 });
-        const KOI_TW = 512, KOI_TH = 256, KOI_BW = 400, KOI_SX = 408;   // canvas da: thân u∈[0,1] → x 0…400 · ô vây có tia x 408…512
-        function koiFinSwatch(c, x0, w) {   // màng vây trắng hơi trong: gốc ửng hồng, ngọn xanh nhạt, tia vây xám mảnh
+        const KOI_TW = 512, KOI_TH = 256, KOI_BW = 400, KOI_SX = 408;
+        function koiFinSwatch(c, x0, w) {
           const gr = c.createLinearGradient(0, KOI_TH, 0, 0); gr.addColorStop(0, '#f1dfd6'); gr.addColorStop(0.35, '#f4efe9'); gr.addColorStop(1, '#dfe9ee');
           c.fillStyle = gr; c.fillRect(x0, 0, w, KOI_TH);
           c.strokeStyle = 'rgba(128,120,118,0.55)'; c.lineWidth = 1.4;
           for (let k = 0; k <= 13; k++) { const x = x0 + 2 + k * (w - 4) / 13; c.beginPath(); c.moveTo(x, KOI_TH); c.bezierCurveTo(x, KOI_TH * 0.6, x + 1.5, KOI_TH * 0.3, x + (k % 2 ? 1 : -1), 4); c.stroke(); }
-          c.fillStyle = 'rgba(150,150,155,0.35)'; c.fillRect(x0, 0, w, 3);   // mép ngọn vây
+          c.fillStyle = 'rgba(150,150,155,0.35)'; c.fillRect(x0, 0, w, 3);
         }
         if (!koiFinM.map) { const cv = document.createElement('canvas'); cv.width = 128; cv.height = KOI_TH; koiFinSwatch(cv.getContext('2d'), 0, 128); const tx = new THREE.CanvasTexture(cv); tx.colorSpace = THREE.SRGBColorSpace; koiFinM.map = tx; }
-        function koiSkin(pattern) {   // canvas da riêng mỗi con (toạ độ: x = u dọc thân, y = góc quanh thân: mép trên/dưới = bụng, giữa = sống lưng)
+        function koiSkin(pattern) {
           const cv = document.createElement('canvas'); cv.width = KOI_TW; cv.height = KOI_TH; const c = cv.getContext('2d');
-          const X = u => u * KOI_BW, Y = phi => (0.5 + phi / (2 * Math.PI)) * KOI_TH;   // phi: góc tính từ sống lưng (0), ±π = bụng
+          const X = u => u * KOI_BW, Y = phi => (0.5 + phi / (2 * Math.PI)) * KOI_TH;
           const gr = c.createLinearGradient(0, 0, 0, KOI_TH); gr.addColorStop(0, '#f6f2ee'); gr.addColorStop(0.5, '#ece4dc'); gr.addColorStop(1, '#f6f2ee');
           c.fillStyle = gr; c.fillRect(0, 0, KOI_BW + 8, KOI_TH);
           const hi = '#d9401f', hiEdge = 'rgba(240,120,60,0.55)', sumi = '#2b2724';
-          const blob = (u, phi, ru, rf, col, edge) => {   // mảng màu hữu cơ: vài elip chồng nhau + quầng mép loang
+          const blob = (u, phi, ru, rf, col, edge) => {
             const parts = [[0, 0, 1, 1]]; for (let k = 0; k < 3; k++) parts.push([(Math.random() - 0.5) * ru * 1.1, (Math.random() - 0.5) * rf * 0.9, 0.55 + Math.random() * 0.4, 0.55 + Math.random() * 0.4]);
             for (const pass of edge ? [1, 0] : [0]) {
               c.fillStyle = pass ? edge : col;
@@ -3720,15 +3720,15 @@
           };
           const spot = () => ({ u: 0.2 + Math.random() * 0.62, f: (Math.random() - 0.5) * 1.4, ru: 0.06 + Math.random() * 0.08, rf: 0.55 + Math.random() * 0.5 });
           const n = 2 + (Math.random() * 3 | 0);
-          if (pattern === 'black') { for (let k = 0; k < n + 1; k++) { const p = spot(); blob(p.u, p.f, p.ru * 0.8, p.rf * 0.8, sumi, null); } }   // trắng + đốm mực (kiểu Shiro Bekko)
+          if (pattern === 'black') { for (let k = 0; k < n + 1; k++) { const p = spot(); blob(p.u, p.f, p.ru * 0.8, p.rf * 0.8, sumi, null); } }
           else {
-            for (let k = 0; k < n; k++) { const p = spot(); blob(p.u, p.f, p.ru, p.rf, hi, hiEdge); }   // Kohaku: mảng hi đỏ trên lưng
-            if (Math.random() < 0.6) blob(0.075 + Math.random() * 0.03, 0, 0.05, 0.6, hi, hiEdge);   // đốm đỏ đỉnh đầu
-            if (pattern === 'mixed') for (let k = 0; k < 4; k++) { const p = spot(); blob(p.u, p.f, p.ru * 0.35, p.rf * 0.35, sumi, null); }   // Sanke: thêm đốm mực nhỏ
+            for (let k = 0; k < n; k++) { const p = spot(); blob(p.u, p.f, p.ru, p.rf, hi, hiEdge); }
+            if (Math.random() < 0.6) blob(0.075 + Math.random() * 0.03, 0, 0.05, 0.6, hi, hiEdge);
+            if (pattern === 'mixed') for (let k = 0; k < 4; k++) { const p = spot(); blob(p.u, p.f, p.ru * 0.35, p.rf * 0.35, sumi, null); }
           }
           for (const y0 of [0, KOI_TH]) { const g2 = c.createLinearGradient(0, y0, 0, KOI_TH / 2); g2.addColorStop(0, '#f6f2ee'); g2.addColorStop(0.42, 'rgba(246,242,238,1)'); g2.addColorStop(0.62, 'rgba(246,242,238,0)'); c.fillStyle = g2; c.fillRect(0, Math.min(y0, KOI_TH / 2), KOI_BW + 8, KOI_TH / 2); }
           c.lineWidth = 1.1;
-          const sw = KOI_BW / 34, sh = KOI_TH / 22, img = c.getImageData(0, 0, KOI_BW, KOI_TH).data;   // đọc màu nền 1 lần: vảy trên mảng màu thì nét đậm hơn
+          const sw = KOI_BW / 34, sh = KOI_TH / 22, img = c.getImageData(0, 0, KOI_BW, KOI_TH).data;
           for (let r = 0; r <= 22; r++) for (let q = 0; q < 34; q++) {
             const u = (q + (r % 2) * 0.5) / 34; if (u < 0.205 || u > 0.985) continue;
             const x = X(u), y = r * sh, onCol = img[((Math.min(KOI_TH - 1, y | 0) * KOI_BW) + Math.min(KOI_BW - 1, x | 0)) * 4 + 1] < 150;
@@ -3744,10 +3744,10 @@
           return tx;
         }
         function fish(s, pattern) {
-          s *= 0.9;   // Cá koi nhỏ đi 10%
+          s *= 0.9;
           const g = new THREE.Group();
           const L = 1.1, SL = s * L;
-          function prof(arr, u) {   // Catmull-Rom qua các mốc đo
+          function prof(arr, u) {
             let i = 0; while (i < KOI_U.length - 2 && u > KOI_U[i + 1]) i++;
             const t = Math.min(1, Math.max(0, (u - KOI_U[i]) / (KOI_U[i + 1] - KOI_U[i])));
             const p0 = arr[Math.max(0, i - 1)], p1 = arr[i], p2 = arr[i + 1], p3 = arr[Math.min(arr.length - 1, i + 2)];
@@ -3757,8 +3757,8 @@
           const NS = 34, M = 20;
           const pos = [], uv = [], idx = [];
           const xNose = 0.52 * SL, bodyLen = 1.30 * SL, xT = xNose - bodyLen;
-          const UVc = (cx, cy) => uv.push(cx / KOI_TW, 1 - cy / KOI_TH);   // canvas → uv (CanvasTexture lật dọc)
-          function ring(x, yc, h, w, uvf, xOfSin) {   // 1 vòng tiết diện (M+1 đỉnh: đường nối ở BỤNG, toàn trắng); lưng gồ sống · bụng tròn đầy
+          const UVc = (cx, cy) => uv.push(cx / KOI_TW, 1 - cy / KOI_TH);
+          function ring(x, yc, h, w, uvf, xOfSin) {
             const i0 = pos.length / 3;
             for (let j = 0; j <= M; j++) {
               const v = j / M, a = -Math.PI / 2 + v * Math.PI * 2, sn = Math.sin(a), cs = Math.cos(a);
@@ -3777,13 +3777,13 @@
           const tip = pos.length / 3, y0 = prof(KOI_Y, 0) * s;
           pos.push(xNose + 0.03 * SL, y0 - 0.01 * s, 0); UVc(1, KOI_TH / 2);
           for (let j = 0; j < M; j++) idx.push(tip, j + 1, j);
-          const finStart = pos.length / 3;   // từ đây trở đi toàn màng vây → ép pháp tuyến hướng lên cho sáng
+          const finStart = pos.length / 3;
           const tailUV = (k) => v => UVc(KOI_SX + 2 + v * (KOI_TW - KOI_SX - 4), (1 - k) * KOI_TH * 0.98);
           const hP = prof(KOI_H, 1) * s, wP = prof(KOI_W, 1) * s, yP = prof(KOI_Y, 1) * s;
           prev = ring(xT, yP, hP, wP, tailUV(0), null);
           const TL = [{ dx: 0.06, h: 0.15, w: 0.022, sp: 0.02 }, { dx: 0.15, h: 0.24, w: 0.014, sp: 0.07 }, { dx: 0.25, h: 0.29, w: 0.009, sp: 0.15 }, { dx: 0.33, h: 0.30, w: 0.006, sp: 0.2 }, { dx: 0.37, h: 0.27, w: 0.004, sp: 0.18 }];
           TL.forEach((fd, k) => {
-            const kk = (k + 1) / TL.length, fork = 0.11 * kk * kk;   // chẻ giữa: mép sau lùi ít ở giữa, nhiều ở 2 thuỳ
+            const kk = (k + 1) / TL.length, fork = 0.11 * kk * kk;
             const r = ring(0, yP - 0.004 * s, fd.h * s, fd.w * s, tailUV(kk), sn => xT - (fd.dx + fd.sp * Math.pow(Math.abs(sn), 1.15) - fork * (1 - Math.abs(sn))) * SL);
             tube(prev, r); prev = r;
           });
@@ -3792,7 +3792,7 @@
             for (const zo of [d, -d]) for (let i = 0; i < n; i++) { pos.push(vp[i * 3], vp[i * 3 + 1], vp[i * 3 + 2] + zo); UVc(KOI_SX + 2 + st[i * 2] * (KOI_TW - KOI_SX - 4), (1 - st[i * 2 + 1]) * KOI_TH * 0.98); }
             for (let i = 0; i < vt.length; i += 3) idx.push(b0 + vt[i], b0 + vt[i + 1], b0 + vt[i + 2], b0 + n + vt[i + 2], b0 + n + vt[i + 1], b0 + n + vt[i]);
           }
-          {   // vây LƯNG dài (u 0,33 → 0,93): cao ở trước, thấp dần, ngọn ngả về sau
+          {
             const vp = [], vt = [], st = [], DD = 10;
             for (let i = 0; i < DD; i++) {
               const q = i / (DD - 1), u = 0.33 + q * 0.6;
@@ -3802,7 +3802,7 @@
             }
             plate(vp, vt, st);
           }
-          {   // vây HẬU MÔN sát cuống đuôi
+          {
             const vp = [], vt = [], st = [], AN = 4;
             for (let i = 0; i < AN; i++) {
               const q = i / (AN - 1), u = 0.82 + q * 0.14;
@@ -3812,7 +3812,7 @@
             }
             plate(vp, vt, st);
           }
-          for (const sz of [-1, 1]) {   // cặp vây BỤNG (u ≈ 0,42): mái chèo tròn chếch ra sau–dưới
+          for (const sz of [-1, 1]) {
             const u = 0.42, x = xNose - u * bodyLen, yb = (prof(KOI_Y, u) - prof(KOI_H, u) * 0.8) * s, zb = sz * prof(KOI_W, u) * 0.55 * s;
             const vp = [x, yb, zb], st = [0.5, 0], vt = [], NPv = 5;
             for (let k = 0; k <= NPv; k++) { const a = -0.25 + k / NPv * 1.0, R = 0.15 * s; vp.push(x - Math.cos(a) * R * 1.1, yb - Math.sin(a) * R * 0.75, zb + sz * Math.sin(a) * R * 0.55); st.push(k / NPv, 1); if (k) vt.push(0, sz > 0 ? k : k + 1, sz > 0 ? k + 1 : k); }
@@ -3823,14 +3823,14 @@
           bodyGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pos), 3));
           bodyGeo.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(uv), 2));
           bodyGeo.computeVertexNormals();
-          {   // đường nối ở bụng: lấy TB pháp tuyến 2 đỉnh trùng · màng vây dựng đứng bị chiếu cạnh → xám: ép pháp tuyến vây hướng lên cho màng sáng
+          {
             const nrm = bodyGeo.attributes.normal;
             for (let i = 0; i < NS; i++) { const a = i * (M + 1), b = a + M; const x = nrm.getX(a) + nrm.getX(b), y = nrm.getY(a) + nrm.getY(b), z = nrm.getZ(a) + nrm.getZ(b), l = Math.hypot(x, y, z) || 1; nrm.setXYZ(a, x / l, y / l, z / l); nrm.setXYZ(b, x / l, y / l, z / l); }
             for (let i = finStart; i < pos.length / 3; i++) nrm.setXYZ(i, 0, 1, 0);
           }
-          const skin = new THREE.MeshPhongMaterial({ map: koiSkin(pattern), side: THREE.DoubleSide, shininess: 45, specular: 0x2a2a2a });   // da ướt hơi bóng
+          const skin = new THREE.MeshPhongMaterial({ map: koiSkin(pattern), side: THREE.DoubleSide, shininess: 45, specular: 0x2a2a2a });
           const body = new THREE.Mesh(bodyGeo, skin);
-          body.castShadow = true; body.userData.noBake = body.userData.noBatch = true; g.add(body);   // thân uốn mỗi khung (đỉnh dời trên CPU) → không gộp vẽ
+          body.castShadow = true; body.userData.noBake = body.userData.noBatch = true; g.add(body);
 
           const pects = [];
           for (const sz of [-1, 1]) {
@@ -3839,7 +3839,7 @@
             for (let i = 1; i <= NP; i++) pi.push(0, i, i + 1, off, off + i + 1, off + i);
             const pg = new THREE.BufferGeometry();
             pg.setIndex(pi); pg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pp), 3)); pg.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(pu), 2));
-            const pn = new Float32Array(off * 2 * 3); for (let i = 0; i < off * 2; i++) pn[i * 3 + 2] = sz;   // pháp tuyến ép hướng lên sau khi xoay nằm ngang
+            const pn = new Float32Array(off * 2 * 3); for (let i = 0; i < off * 2; i++) pn[i * 3 + 2] = sz;
             pg.setAttribute('normal', new THREE.BufferAttribute(pn, 3));
             const pec = new THREE.Mesh(pg, koiFinM);
             const u = 0.22, px = xNose - u * bodyLen;
@@ -3857,7 +3857,7 @@
             const bar = new THREE.Mesh(new THREE.CylinderGeometry(rad * 0.4 * s, rad * s, len * s, 5), koiBarbelM);
             bar.position.set(xNose - ux * bodyLen + 0.012 * s, y0 - 0.02 * s - len * s * 0.4, sz * dz * s); bar.rotation.set(sz * 0.45, 0, -0.5); g.add(bar);
           }
-          bakeStatic(g);   // gộp mắt, viền mống, râu (thân + vây ngực noBake giữ nguyên)
+          bakeStatic(g);
 
           const rest = Float32Array.from(pos), posAttr = bodyGeo.attributes.position, nV = rest.length / 3;
           const swPh = Math.random() * Math.PI * 2;
@@ -3874,7 +3874,7 @@
           }
           return { g, swim, mouth };
         }
-        const fishOrigin = new THREE.Vector3(X0 + 73, lakeY - 0.62, Z0 + 113);   // đàn cá về tọa độ góc (73, _, 113)
+        const fishOrigin = new THREE.Vector3(X0 + 73, lakeY - 0.62, Z0 + 113);
         for (let n = 0; n < 7; n++) {
           const f = fish(0.58 + Math.random() * 0.18, koiPattern());
           f.g.position.copy(fishOrigin); scene.add(f.g);
@@ -3893,7 +3893,7 @@
         function fishAlertLeaf(q, radius, chance) {
           const lvl = waterBaseY(Math.round(z2gj(q.p.z))) - 0.62; let best = null, bd = radius;
           for (const f of fishies) {
-            if (!fishFree(f) || Math.abs(f.base.y - lvl) > 0.8) continue;   // chỉ cá cùng mặt nước (hồ trên / sông dưới)
+            if (!fishFree(f) || Math.abs(f.base.y - lvl) > 0.8) continue;
             const d = Math.hypot(f.cx - q.p.x, f.cz - q.p.z); if (d < bd) { bd = d; best = f; }
           }
           if (!best || Math.random() >= chance) return null;
@@ -3901,7 +3901,7 @@
           return best;
         }
         function endLeafChase(f) { const q = f.leafT; if (q && q.fish) q.fish--; f.leafT = null; f.leafCool = 6 + Math.random() * 6; f.snap = 0; }
-        function fishSwimStep(f, dt, t, yTarget, pitchTarget) {   // tiến theo hướng f.ang với f.chaseV, giữ trong nước; độ sâu & góc ngóc tiến dần tới đích
+        function fishSwimStep(f, dt, t, yTarget, pitchTarget) {
           const nx = f.cx + Math.cos(f.ang) * f.chaseV * dt, nz = f.cz + Math.sin(f.ang) * f.chaseV * dt;
           if (waterCell(Math.round(x2gi(nx)), Math.round(z2gj(nz)))) { f.cx = nx; f.cz = nz; }
           const top = waterSurfaceY(f.cx, f.cz) - 0.1, bot = riverBedY(Math.round(x2gi(f.cx)), Math.round(z2gj(f.cz))) + 0.2, y0 = f.g.position.y;
@@ -3909,42 +3909,42 @@
           f.dy = y - (f.base.y + Math.sin(t * 0.9 + f.ph) * 0.05);
           f.pitch = (f.pitch || 0) + (pitchTarget - (f.pitch || 0)) * Math.min(1, dt * 3);
           f.g.position.set(f.cx, y, f.cz); f.g.rotation.set(0, -f.ang, f.pitch);
-          f.swT = (f.swT ?? t) + dt * (1 + f.chaseV * 0.9); f.swim(f.swT, f.wob);   // quẫy đuôi nhanh theo tốc độ
+          f.swT = (f.swT ?? t) + dt * (1 + f.chaseV * 0.9); f.swim(f.swT, f.wob);
         }
         function fishChaseLeaf(f, dt, t) {
-          if (f.leafT === FISH_SNAPPED) {   // nhịp lao tới sau cú đớp: đi thẳng, chậm dần rồi thôi
+          if (f.leafT === FISH_SNAPPED) {
             f.snap -= dt; f.chaseV *= Math.exp(-dt * 2.5); f.wob *= Math.exp(-dt * 4);
             fishSwimStep(f, dt, t, f.g.position.y, 0);
             if (f.snap <= 0) { f.leafT = null; f.leafCool = 6 + Math.random() * 6; }
             return true;
           }
           const q = f.leafT;
-          if (!(q.st === 3 || q.st === 4) || (f.leafChase += dt) > 14) { endLeafChase(f); return false; }   // lá đã chạm đáy / bị đớp mất / đuổi mãi không tới
+          if (!(q.st === 3 || q.st === 4) || (f.leafChase += dt) > 14) { endLeafChase(f); return false; }
           f.g.updateWorldMatrix(true, false); f.g.localToWorld(_fcM.copy(f.mouth));
           const dx = q.p.x - _fcM.x, dz = q.p.z - _fcM.z, dy = q.p.y - _fcM.y, dh = Math.hypot(dx, dz), d = Math.hypot(dh, dy);
           let da = Math.atan2(dz, dx) - f.ang; while (da > Math.PI) da -= TAU; while (da < -Math.PI) da += TAU;
           const turn = Math.max(-2.6 * dt, Math.min(2.6 * dt, da)); f.ang += turn;
-          f.wob += (Math.max(-1.1, Math.min(1.1, turn / Math.max(dt, 1e-3) * 0.4)) - f.wob) * Math.min(1, dt * 6);   // thân uốn theo cú rẽ
-          const vT = Math.min(1.7, 0.3 + dh * 0.9) * (Math.abs(da) > 1.2 ? 0.45 : 1);                                 // xa thì lao nhanh, gần thì rón rén
+          f.wob += (Math.max(-1.1, Math.min(1.1, turn / Math.max(dt, 1e-3) * 0.4)) - f.wob) * Math.min(1, dt * 6);
+          const vT = Math.min(1.7, 0.3 + dh * 0.9) * (Math.abs(da) > 1.2 ? 0.45 : 1);
           f.chaseV += (vT - f.chaseV) * Math.min(1, dt * 3);
           fishSwimStep(f, dt, t, f.g.position.y + dy, Math.max(-0.5, Math.min(0.5, Math.atan2(dy, Math.max(0.25, dh)))));
-          if (d < 0.16 + f.chaseV * 0.05) {   // ĐỚP
+          if (d < 0.16 + f.chaseV * 0.05) {
             const eat = Math.random() < 0.7;
-            if (q.st === 3) waterFx.ring(q.p.x, waterSurfaceY(q.p.x, q.p.z), q.p.z, 0.4);   // đớp ngay mặt nước: gợn vòng
+            if (q.st === 3) waterFx.ring(q.p.x, waterSurfaceY(q.p.x, q.p.z), q.p.z, 0.4);
             waterFx.bubbles(_fcM.x, _fcM.y, _fcM.z, eat ? 4 : 2);
             if (q.fish) q.fish--;
             if (eat) q.st = 0;
-            else {   // nhả ra: lá văng tới trước, ngấm thêm nước rồi chìm tiếp chậm hơn
+            else {
               q.p.addScaledVector(_fcD.set(Math.cos(f.ang), 0, Math.sin(f.ang)), 0.25); q.p.y = Math.min(q.p.y, waterSurfaceY(q.p.x, q.p.z) - 0.05);
               if (q.st === 3) { q.st = 4; q.sinkV = 0.04; q.ph = 0; } else q.sinkV *= 0.7;
               q.look = 4;
             }
-            f.leafT = FISH_SNAPPED; f.snap = 0.45; f.chaseV += 0.5;   // lao tới một nhịp
+            f.leafT = FISH_SNAPPED; f.snap = 0.45; f.chaseV += 0.5;
           }
           return true;
         }
 
-        function cloudAtlasPixels() {   // 2×2 ô 256²: RG = pháp tuyến (hệ billboard) · B = độ dày · A = độ phủ — JS thuần (chạy được trong Web Worker)
+        function cloudAtlasPixels() {
           const TS = 256, N = TS * 2, data = new Uint8Array(N * N * 4), Hf = new Float32Array(TS * TS);
           let seed = 20261007;
           const rnd = () => { seed = (seed + 0x6D2B79F5) | 0; let q = Math.imul(seed ^ (seed >>> 15), 1 | seed); q = (q + Math.imul(q ^ (q >>> 7), 61 | q)) ^ q; return ((q ^ (q >>> 14)) >>> 0) / 4294967296; };
@@ -3958,24 +3958,24 @@
             for (let j = 0; j < TS; j++) for (let i = 0; i < TS; i++) {
               const u = (i + 0.5) / TS * 2 - 1, v = (j + 0.5) / TS * 2 - 1;
               let s6 = 0; for (const s of sph) { const dx = u - s[0], dy = v - s[1], q = s[3] * s[3] - dx * dx - dy * dy; if (q > 0) { const hh = s[2] + Math.sqrt(q); if (hh > 0) s6 += hh * hh * hh * hh * hh * hh; } }
-              let h = Math.pow(s6, 1 / 6);                                                          // p-norm p=6: hợp mềm, ngoài mọi cầu = 0
-              if (h > 0) h = Math.max(0, h + ((fbm(u * 5 + tile * 3.1, v * 5, 11) - 0.5) * 0.04 + (vnoise(u * 14, v * 14, 29 + tile) - 0.5) * 0.012) * Math.min(1, h * 6));   // gợn mặt mây
+              let h = Math.pow(s6, 1 / 6);
+              if (h > 0) h = Math.max(0, h + ((fbm(u * 5 + tile * 3.1, v * 5, 11) - 0.5) * 0.04 + (vnoise(u * 14, v * 14, 29 + tile) - 0.5) * 0.012) * Math.min(1, h * 6));
               Hf[j * TS + i] = h;
             }
-            const ox = (tile & 1) * TS, oy = (tile >> 1) * TS, k = TS / 4;   // đạo hàm trung tâm: Δh / (2 · 2/TS)
+            const ox = (tile & 1) * TS, oy = (tile >> 1) * TS, k = TS / 4;
             for (let j = 0; j < TS; j++) for (let i = 0; i < TS; i++) {
               const h = Hf[j * TS + i], u = (i + 0.5) / TS * 2 - 1, v = (j + 0.5) / TS * 2 - 1;
               let nx = -(Hf[j * TS + Math.min(TS - 1, i + 1)] - Hf[j * TS + Math.max(0, i - 1)]) * k, ny = -(Hf[Math.min(TS - 1, j + 1) * TS + i] - Hf[Math.max(0, j - 1) * TS + i]) * k;
               const inv = 1 / Math.hypot(nx, ny, 1); nx *= inv; ny *= inv;
-              const rim = Math.min(1, Math.max(0, (0.97 - Math.hypot(u, v)) / 0.2));   // về 0 trước mép ô atlas
-              let a = (h - 0.02 + (fbm(u * 3.4 + 40 + tile * 7, v * 3.4, 5) - 0.5) * 0.2 * rim) / 0.24; a = a <= 0 ? 0 : a >= 1 ? 1 : a * a * (3 - 2 * a);   // mép xơ mềm
+              const rim = Math.min(1, Math.max(0, (0.97 - Math.hypot(u, v)) / 0.2));
+              let a = (h - 0.02 + (fbm(u * 3.4 + 40 + tile * 7, v * 3.4, 5) - 0.5) * 0.2 * rim) / 0.24; a = a <= 0 ? 0 : a >= 1 ? 1 : a * a * (3 - 2 * a);
               const o = ((oy + j) * N + ox + i) * 4;
               data[o] = Math.round((nx * 0.5 + 0.5) * 255); data[o + 1] = Math.round((ny * 0.5 + 0.5) * 255); data[o + 2] = Math.round(Math.min(1, h / 0.62) * 255); data[o + 3] = Math.round(a * rim * 255);
             }
           }
           return data;
         }
-        function makeCloudAtlas() {   // ~0,1 s tính toán → làm ở LUỒNG PHỤ (Worker từ Blob, không cần tệp ngoài); trang hiện ngay, mây hiện dần khi xong
+        function makeCloudAtlas() {
           const N = 512, tex = new THREE.DataTexture(new Uint8Array(N * N * 4), N, N, THREE.RGBAFormat);
           tex.magFilter = THREE.LinearFilter; tex.minFilter = THREE.LinearMipmapLinearFilter; tex.generateMipmaps = true; tex.needsUpdate = true;
           const fill = data => { if (disposed) return; tex.image.data = data; tex.needsUpdate = true; };
@@ -3988,10 +3988,10 @@
             worker.onerror = e => { e.preventDefault?.(); done(); fill(cloudAtlasPixels()); };
             worker.postMessage(0);
             sceneEvents.signal.addEventListener('abort', done);
-          } catch (e) { done(); fill(cloudAtlasPixels()); }   // trình duyệt chặn Worker → tính ngay trên luồng chính như trước
+          } catch (e) { done(); fill(cloudAtlasPixels()); }
           return tex;
         }
-        function cloudShape(size, wet) {   // đáy phẳng y=0, 2–5 tháp đối lưu, đỉnh vòm súp-lơ; trục dài theo x cục bộ
+        function cloudShape(size, wet) {
           const R = Math.random, L = size * (2.0 + R() * 1.0), Wd = size * (0.95 + R() * 0.4), Hm = size * (wet ? 0.75 : 0.7 + R() * 0.5), puffs = [];
           const add = (x, y, z, r) => { if (puffs.length < 60) puffs.push({ x, y, z, r, tile: (R() * 4) | 0, rot: R() * 6.283, spin: (R() - 0.5) * 0.016, ph: R() * 6.283 }); };
           const nb = 7 + (R() * 4 | 0);
@@ -4059,7 +4059,7 @@
           }`,
           transparent: true, depthWrite: false, fog: true, toneMapped: false, shadowSide: THREE.DoubleSide
         });
-        const cloudDepthMat = new THREE.ShaderMaterial({   // lượt đổ bóng: dither Bayer 4×4 theo độ phủ → bóng mây loang mềm trên địa hình
+        const cloudDepthMat = new THREE.ShaderMaterial({
           uniforms: Object.assign({ uShadow: { value: 0.6 } }, cloudU),
           vertexShader: CLOUD_VS,
           fragmentShader: `
@@ -4084,14 +4084,14 @@
         cloudMesh.frustumCulled = false; cloudMesh.castShadow = true; cloudMesh.receiveShadow = false; cloudMesh.renderOrder = 6; cloudMesh.raycast = () => {};
         cloudMesh.customDepthMaterial = cloudDepthMat; scene.add(cloudMesh);
         let cloudDraw = 0;
-        cloudMesh.onBeforeRender = () => { if (cloudMat.uniforms.uOpacity.value < 0.01) cloudGeo.instanceCount = 0; };   // zoom sát: bỏ lượt vẽ màu, vẫn giữ bóng mây trên đất
+        cloudMesh.onBeforeRender = () => { if (cloudMat.uniforms.uOpacity.value < 0.01) cloudGeo.instanceCount = 0; };
         cloudMesh.onAfterRender = () => { cloudGeo.instanceCount = cloudDraw; };
         const cloudSlots = new Array(MAX_CLOUDS).fill(null);
-        const CLOUD_RX = 128, CLOUD_RZ = 118;   // vùng mây trôi, bao trọn sa bàn
+        const CLOUD_RX = 128, CLOUD_RZ = 118;
         const cloudDrift = new THREE.Vector2(0.55, 0.12), cloudSunKey = new THREE.Vector3(), _cSun = new THREE.Vector3(), _cView = new THREE.Vector3(), _cTmp = new THREE.Color();
         const cloudKeys = [], cloudDepth = new Float32Array(MAX_PUFFS);
         let cloudSpawnT = 0, cloudWet = 0;
-        const CLOUD_PAL = {   // màu tuyến tính [nắng chiếu, bóng mát, chân mây]
+        const CLOUD_PAL = {
           day: [new THREE.Color(0.64, 0.62, 0.56), new THREE.Color(0.48, 0.52, 0.60), new THREE.Color(0.28, 0.31, 0.37)],
           dusk: [new THREE.Color(0.85, 0.44, 0.20), new THREE.Color(0.36, 0.29, 0.36), new THREE.Color(0.20, 0.15, 0.19)],
           night: [new THREE.Color(0.085, 0.095, 0.130), new THREE.Color(0.048, 0.056, 0.082), new THREE.Color(0.026, 0.031, 0.048)],
@@ -4099,19 +4099,19 @@
         };
         function cloudTarget() {
           const w = liveWeather.state, cc = w.fresh ? w.data?.current?.cloud_cover : null;
-          let n = Number.isFinite(cc) ? Math.round(2 + cc / 100 * 7) : 5;   // độ phủ mây thật 0–100 % → 2–9 đám
+          let n = Number.isFinite(cc) ? Math.round(2 + cc / 100 * 7) : 5;
           if (w.raining) n = Math.max(n, 9);
           return Math.min(MAX_CLOUDS, n);
         }
-        function cloudLight(c, sd) {   // sd = hướng tới nắng (đêm là trăng)
+        function cloudLight(c, sd) {
           const P = c.puffs, n = P.length;
           for (let i = 0; i < n; i++) {
             const p = P[i]; let tau = 0, occ = 0;
-            for (let k = 1; k <= 6; k++) {   // từ tâm bông đi về phía nắng, cộng mật độ các bông chắn đường
+            for (let k = 1; k <= 6; k++) {
               const st = k * p.r * 0.7, x = p.x + sd.x * st, y = p.y + sd.y * st, z = p.z + sd.z * st;
               for (let j = 0; j < n; j++) { if (j === i) continue; const q = P[j], dx = x - q.x, dy = y - q.y, dz = z - q.z, f = 1 - (dx * dx + dy * dy + dz * dz) / (q.r * q.r); if (f > 0) tau += f * f; }
             }
-            for (let k = 1; k <= 3; k++) {   // bị các bông phía trên che bớt ánh trời
+            for (let k = 1; k <= 3; k++) {
               const y = p.y + k * p.r * 0.8;
               for (let j = 0; j < n; j++) { if (j === i) continue; const q = P[j], dx = p.x - q.x, dy = y - q.y, dz = p.z - q.z, f = 1 - (dx * dx + dy * dy + dz * dz) / (q.r * q.r); if (f > 0) occ += f; }
             }
@@ -4122,12 +4122,12 @@
         function spawnCloud(initial) {
           const slot = cloudSlots.indexOf(null); if (slot < 0) return;
           const wet = liveWeather.state.raining, size = (wet ? 8.0 : 6.2) + Math.random() * 2.6, sh = cloudShape(size, wet);
-          const dl = Math.hypot(cloudDrift.x, cloudDrift.y) || 1, ang = Math.atan2(cloudDrift.y, cloudDrift.x) + (Math.random() - 0.5) * 0.7, ax = Math.cos(ang), az = Math.sin(ang);   // trục dài xuôi gió
+          const dl = Math.hypot(cloudDrift.x, cloudDrift.y) || 1, ang = Math.atan2(cloudDrift.y, cloudDrift.x) + (Math.random() - 0.5) * 0.7, ax = Math.cos(ang), az = Math.sin(ang);
           for (const p of sh.puffs) { const x = p.x, z = p.z; p.x = x * ax - z * az; p.z = x * az + z * ax; }
           let px = 0, pz = 0;
           for (let tries = 0; tries < 8; tries++) {
             px = (Math.random() * 2 - 1) * CLOUD_RX * 0.8; pz = (Math.random() * 2 - 1) * CLOUD_RZ * 0.8;
-            if (!initial) { const ux = cloudDrift.x / dl, uz = cloudDrift.y / dl, al = px * ux + pz * uz; if (al > 0 && Math.random() < 0.75) { px -= 2 * al * ux; pz -= 2 * al * uz; } }   // ưu tiên sinh ở nửa đầu gió
+            if (!initial) { const ux = cloudDrift.x / dl, uz = cloudDrift.y / dl, al = px * ux + pz * uz; if (al > 0 && Math.random() < 0.75) { px -= 2 * al * ux; pz -= 2 * al * uz; } }
             if (cloudSlots.every(o => !o || Math.hypot(o.pos.x - px, o.pos.z - pz) > (o.L + sh.L) * 0.45)) break;
           }
           const life = 300 + Math.random() * 300, n = sh.puffs.length;
@@ -4147,8 +4147,8 @@
           if (alive < target && cloudSpawnT <= 0) { spawnCloud(false); cloudSpawnT = 6 + Math.random() * 6; }
           if (alive > target) { let old = null; for (const c of cloudSlots) if (c && c.life - c.age > 60 && (!old || c.age > old.age)) old = c; if (old) old.life = old.age + 60; }
           _cSun.copy(sun.position).sub(sun.target.position).normalize(); U.uSunDir.value.copy(_cSun);
-          const relight = _cSun.dot(cloudSunKey) < 0.9997; if (relight) cloudSunKey.copy(_cSun);   // nắng lệch > ~1,4° → tính lại độ che nắng
-          const e = camera.matrixWorld.elements; _cView.set(e[8], e[9], e[10]);   // trục +Z camera: hướng về phía người xem
+          const relight = _cSun.dot(cloudSunKey) < 0.9997; if (relight) cloudSunKey.copy(_cSun);
+          const e = camera.matrixWorld.elements; _cView.set(e[8], e[9], e[10]);
           cloudKeys.length = 0;
           for (let s = 0; s < MAX_CLOUDS; s++) {
             const c = cloudSlots[s]; if (!c) continue;
@@ -4156,44 +4156,44 @@
             const ex = Math.max(Math.abs(c.pos.x) / CLOUD_RX, Math.abs(c.pos.z) / CLOUD_RZ);
             if (c.age >= c.life || ex > 1.02) { cloudSlots[s] = null; continue; }
             const sm = v => { v = Math.min(1, Math.max(0, v)); return v * v * (3 - 2 * v); }, fin = sm(c.age / 40), fout = sm((c.life - c.age) / 45);
-            c.alpha = fin * fout * (1 - sm((ex - 0.8) / 0.2));   // hình thành · tan · mờ dần ở rìa vùng trôi
-            c.g = 0.72 + 0.28 * fin + 0.1 * (1 - fout);          // lớn dần khi hình thành, bung loãng khi tan
+            c.alpha = fin * fout * (1 - sm((ex - 0.8) / 0.2));
+            c.g = 0.72 + 0.28 * fin + 0.1 * (1 - fout);
             if (relight || c.dirty) { cloudLight(c, _cSun); c.dirty = false; }
             if (c.alpha <= 0.003) continue;
             for (let i = 0; i < c.puffs.length; i++) { const p = c.puffs[i], key = s * PUFF_CAP + i; cloudDepth[key] = (c.pos.x + p.x * c.g) * _cView.x + (c.pos.y + p.y * c.g) * _cView.y + (c.pos.z + p.z * c.g) * _cView.z; cloudKeys.push(key); }
           }
-          cloudKeys.sort((a, b) => cloudDepth[a] - cloudDepth[b]);   // xa vẽ trước, gần vẽ sau → alpha chồng đúng thứ tự
+          cloudKeys.sort((a, b) => cloudDepth[a] - cloudDepth[b]);
           const [A, P, M] = cloudBuf;
           for (let n = 0; n < cloudKeys.length; n++) {
             const key = cloudKeys[n], c = cloudSlots[(key / PUFF_CAP) | 0], i = key % PUFF_CAP, p = c.puffs[i], o = n * 4;
             A[o] = c.pos.x + p.x * c.g; A[o + 1] = c.pos.y + p.y * c.g; A[o + 2] = c.pos.z + p.z * c.g; A[o + 3] = c.pos.y;
-            P[o] = p.r * c.g * (1 + 0.035 * Math.sin(t * 0.21 + p.ph)); P[o + 1] = c.sun[i]; P[o + 2] = c.amb[i]; P[o + 3] = c.alpha;   // bông "thở" chậm như mây đang cuộn
-            M[o] = p.tile; M[o + 1] = (p.rot + p.spin * t) % (Math.PI * 2); M[o + 2] = p.spin; M[o + 3] = p.ph;   // xoay chậm, quy về [0, 2π) bằng double
+            P[o] = p.r * c.g * (1 + 0.035 * Math.sin(t * 0.21 + p.ph)); P[o + 1] = c.sun[i]; P[o + 2] = c.amb[i]; P[o + 3] = c.alpha;
+            M[o] = p.tile; M[o + 1] = (p.rot + p.spin * t) % (Math.PI * 2); M[o + 2] = p.spin; M[o + 3] = p.ph;
           }
           cloudGeo.instanceCount = cloudDraw = cloudKeys.length; for (const a of cloudAttr) a.needsUpdate = true;
           const pal = CLOUD_PAL, dw = skyDusk * 0.85, rw = cloudWet * 0.85, rk = 1 - 0.85 * nightFactor, out = [U.uLit.value, U.uShade.value, U.uBase.value], flash = lightning.visible ? 0.4 * lightningMat.opacity : 0;
           for (let k = 0; k < 3; k++) out[k].copy(pal.day[k]).lerp(pal.night[k], nightFactor).lerp(pal.dusk[k], dw).lerp(_cTmp.copy(pal.rain[k]).multiplyScalar(rk), rw).addScalar(flash);
-          U.uOpacity.value = (0.94 + 0.06 * cloudWet) * (1 - THREE.MathUtils.smoothstep(camera.zoom, 1.3, 2.6));   // zoom sát → như đã xuống dưới tầng mây
-          cloudDepthMat.uniforms.uShadow.value = 0.95 + 0.1 * cloudWet;   // lõi mây dày chặn gần hết nắng, mép thưa → bóng loang
+          U.uOpacity.value = (0.94 + 0.06 * cloudWet) * (1 - THREE.MathUtils.smoothstep(camera.zoom, 1.3, 2.6));
+          cloudDepthMat.uniforms.uShadow.value = 0.95 + 0.1 * cloudWet;
         }
 
         const RAIN_PER_CLOUD = 520, RAIN_NEAR = 3600, RAIN_N = MAX_CLOUDS * RAIN_PER_CLOUD + RAIN_NEAR, RAIN_PERIOD = 7.2, RAIN_SPLASH = 0.13;
-        function rainTarget() {   // 0–1: cường độ mưa hiện tại (chỉ thời tiết lúc này, không theo dự báo)
+        function rainTarget() {
           const w = liveWeather.state; if (!w.raining) return 0;
           const c = w.data?.current || {}, code = c.weather_code;
           let k = code >= 51 && code <= 57 ? 0.28 : code === 61 || code === 80 ? 0.5 : code === 63 || code === 66 || code === 81 ? 0.72 : code === 65 || code === 67 || code === 82 ? 0.95 : code >= 95 ? 0.9 : 0.5;
           const mm = Math.max(c.precipitation || 0, (c.rain || 0) + (c.showers || 0));
-          if (mm > 0) k = Math.max(k, Math.min(1, 0.32 + mm / 7));   // ~7 mm/h trở lên → mưa to
+          if (mm > 0) k = Math.max(k, Math.min(1, 0.32 + mm / 7));
           return k;
         }
-        const rainOcc = (() => {   // bản đồ độ cao MẶT CHẮN MƯA: vẽ độ sâu từ trên xuống (camera trực giao) vào texture RGBA (độ sâu nén)
+        const rainOcc = (() => {
           const N = 512, X0 = -134, X1 = 134, Z0 = -124, Z1 = 124, TOP = 120, NEAR = 0.5, FAR = 175;
           const rt = new THREE.WebGLRenderTarget(N, N, { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, generateMipmaps: false, depthBuffer: true });
           rt.texture.name = 'Bản đồ mặt chắn mưa';
           const cam = new THREE.OrthographicCamera(X0, X1, -Z0, -Z1, NEAR, FAR); cam.position.set(0, TOP, 0); cam.up.set(0, 0, -1); cam.lookAt(0, 0, 0); cam.updateMatrixWorld(true);
           const depthMat = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking }), white = new THREE.Color(1, 1, 1), _cc = new THREE.Color();
           let ready = false, lastT = -1e9;
-          function render(t, skip) {   // skip(o) = true → ẩn trong lượt vẽ này (mây, chính hạt mưa, nhãn, chùm đèn…)
+          function render(t, skip) {
             const hidden = [];
             scene.traverseVisible(o => { if (o.isSprite || o.isPoints || skip(o)) hidden.push(o); });
             for (const o of hidden) o.visible = false;
@@ -4286,34 +4286,34 @@
         }
         const rainMesh = new THREE.Mesh(rainGeo, rainMat); rainMesh.name = 'Mưa (GPU)'; rainMesh.visible = false; rainMesh.frustumCulled = false; rainMesh.renderOrder = 5; rainMesh.raycast = () => {};
         rainMesh.userData.noBatch = true; scene.add(rainMesh);
-        let rainK = 0, sceneWet = 0;   // cường độ mưa đang hiện (mượt) · độ ướt mặt đất 0–1 (thấm dần khi mưa, khô dần khi tạnh)
+        let rainK = 0, sceneWet = 0;
         const wetMats = [grassMat, shoreMat, dirtMat].map(m => [m, m.color.clone()]), _rainNight = new THREE.Color(0.33, 0.40, 0.50);
         const lightningMat = new THREE.LineBasicMaterial({ color: 0xE2D6C0, transparent: true, opacity: 0.75, depthWrite: false });
         const lightning = new THREE.Line(new THREE.BufferGeometry(), lightningMat); lightning.visible = false; lightning.frustumCulled = false; scene.add(lightning);
-        lightning.geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(7 * 3), 3).setUsage(THREE.DynamicDrawUsage));   // 7 điểm cấp sẵn, mỗi lần sét chỉ ghi đè
+        lightning.geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(7 * 3), 3).setUsage(THREE.DynamicDrawUsage));
         const _boltP = new THREE.Vector3(), _boltA = new THREE.Vector3(), _boltB = new THREE.Vector3();
         const storm = { next: 18, until: -1 };
         const reducedFlashes = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
         function updateWeatherRain(dt, t) {
           const w = liveWeather.state, want = rainTarget();
-          rainK += (want - rainK) * Math.min(1, dt * 0.35);   // vào/ra mưa mượt trong vài giây
+          rainK += (want - rainK) * Math.min(1, dt * 0.35);
           sceneWet = Math.min(1, Math.max(0, sceneWet + (want > 0 ? dt * (0.004 + 0.012 * want) : -dt * (0.0011 + 0.0016 * (1 - nightFactor)))));
-          const wetK = 1 - 0.24 * sceneWet; for (const [m, c] of wetMats) m.color.copy(c).multiplyScalar(wetK);   // đất cỏ thẫm lại khi ướt
-          if (scene.fog) { scene.fog.near = 280 - 30 * rainK; scene.fog.far = 700 - 70 * rainK; }   // mưa → không khí mờ hơn
+          const wetK = 1 - 0.24 * sceneWet; for (const [m, c] of wetMats) m.color.copy(c).multiplyScalar(wetK);
+          if (scene.fog) { scene.fog.near = 280 - 30 * rainK; scene.fog.far = 700 - 70 * rainK; }
           rainMesh.visible = rainK > 0.01;
           if (rainMesh.visible) {
-            const U = rainU, wd = sceneWind.dir, ws = Math.min(9, 1.2 + sceneWind.ms * 0.9);   // hạt xiên theo gió (đv/s ngang)
+            const U = rainU, wd = sceneWind.dir, ws = Math.min(9, 1.2 + sceneWind.ms * 0.9);
             U.uTime.value = t % 3600; U.uWind.value.set(wd.x * ws, wd.y * ws); U.uDrift.value.addScaledVector(U.uWind.value, dt);
             for (let s = 0; s < MAX_CLOUDS; s++) {
               const c = cloudSlots[s], C = U.uCloud.value[s], X = U.uCloudAx.value[s];
               if (!c) { C.w = 0; continue; }
               C.set(c.pos.x, c.pos.y + 0.4, c.pos.z, c.alpha * rainK); X.set(c.ax, c.az, c.L * 0.42, c.W * 0.42);
             }
-            const vh = (camera.top - camera.bottom) / camera.zoom, px = vh / Math.max(1, renderer.domElement.height);   // đv thế giới / pixel
+            const vh = (camera.top - camera.bottom) / camera.zoom, px = vh / Math.max(1, renderer.domElement.height);
             U.uPx.value = px; U.uNear.value = rainK * THREE.MathUtils.smoothstep(camera.zoom, 1.4, 3.5);
             U.uView.value.set(target.x, target.y, target.z, vh * 0.75);
             camera.getWorldDirection(U.uCamF.value);
-            U.uCol.value.setRGB(0.21, 0.29, 0.39).lerp(_rainNight, nightFactor); U.uAlpha.value = 0.85 - 0.25 * nightFactor;   // ngày: vệt xám lam trên nền sáng · đêm: vệt sáng nhẹ
+            U.uCol.value.setRGB(0.21, 0.29, 0.39).lerp(_rainNight, nightFactor); U.uAlpha.value = 0.85 - 0.25 * nightFactor;
             if (t - rainOcc.lastT > 15) { rainOcc.render(t, o => o === rainMesh || o === cloudMesh || o === lightning || o.name === 'Ánh đèn đường' || o.userData.noRainOcc); U.uOccOn.value = 1; }
           }
           if (w.thunder && !reducedFlashes && t > storm.next) {
@@ -4322,7 +4322,7 @@
               const c = live[(Math.random() * live.length) | 0];
               const start = _boltA.copy(c.pos), end = _boltB.set(start.x + (Math.random() - 0.5) * 5, downY + 0.6, start.z + (Math.random() - 0.5) * 6), la = lightning.geometry.attributes.position;
               for (let i = 0; i <= 6; i++) { _boltP.copy(start).lerp(end, i / 6); la.setXYZ(i, _boltP.x + (Math.random() - 0.5) * 1.2, _boltP.y, _boltP.z + (Math.random() - 0.5) * 1.2); }
-              la.needsUpdate = true; storm.until = t + 0.24;   // ghi đè bộ đệm cũ thay vì tạo bộ đệm GPU mới mỗi lần sét đánh
+              la.needsUpdate = true; storm.until = t + 0.24;
             }
             storm.next = t + 18 + Math.random() * 16;
           }
@@ -4334,7 +4334,7 @@
         for (const m of mistDefs) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: mistMap, color: 0xE2D6C0, transparent: true, opacity: m[5], depthWrite: false })); sp.position.set(m[0], m[1], m[2]); sp.scale.set(m[3], m[4], 1); sp.renderOrder = 3; scene.add(sp); }
 
         const cows = [];
-        const COW_H0 = 0.975, COW_SPAN = 1.22, COW_PIV = 0.25;   // độ cao mặt bụng khi đứng · khoảng cách hông trước–sau · khớp vai/hông nằm trong thân, cao hơn mặt bụng
+        const COW_H0 = 0.975, COW_SPAN = 1.22, COW_PIV = 0.25;
         const cowHoof = new THREE.MeshLambertMaterial({ color: 0x35312c });
         const COW_HOOF_GEO = (() => {
           const claw = (zc) => {
@@ -4347,35 +4347,35 @@
             }
             g.computeVertexNormals(); return g;
           };
-          const dew = (zc) => new THREE.BoxGeometry(0.04, 0.035, 0.035).translate(-0.095, -0.035, zc);   // móng huyền
+          const dew = (zc) => new THREE.BoxGeometry(0.04, 0.035, 0.035).translate(-0.095, -0.035, zc);
           return mergeGeometries([claw(0.045), claw(-0.045), dew(0.045), dew(-0.045)], false);
         })();
         function cow(k) {
           const g = new THREE.Group();
           const P = (par, w, h, d, mat, x, y, z, o) => { const m = bx(w, h, d, mat, true, o !== false); m.position.set(x, y, z); par.add(m); return m; };
           const torso = new THREE.Group(); torso.position.y = COW_H0; g.add(torso);
-          const body = new THREE.Group(); body.position.y = -0.95; torso.add(body);   // khối thân giữ toạ độ cũ (mặt bụng ở 0,95)
-          P(body, 1.7, 0.95, 0.85, cowWhite, 0, 1.4, 0);               // thân
-          P(body, 0.5, 0.5, 0.87, cowDark, 0.45, 1.55, 0, false);       // đốm đen
-          P(body, 0.42, 0.44, 0.88, cowDark, -0.5, 1.3, 0, false);      // đốm đen
+          const body = new THREE.Group(); body.position.y = -0.95; torso.add(body);
+          P(body, 1.7, 0.95, 0.85, cowWhite, 0, 1.4, 0);
+          P(body, 0.5, 0.5, 0.87, cowDark, 0.45, 1.55, 0, false);
+          P(body, 0.42, 0.44, 0.88, cowDark, -0.5, 1.3, 0, false);
           const neck = new THREE.Group(); neck.position.set(0.656, 0.976, 0); neck.rotation.order = 'YZX'; body.add(neck);
-          P(neck, 0.64, 0.44, 0.4, cowWhite, 0.159, 0.152, 0).rotation.z = 0.76;   // khối cổ dọc trục N → gáy (0,54 m + 0,1 lẹm vào ngực)
+          P(neck, 0.64, 0.44, 0.4, cowWhite, 0.159, 0.152, 0).rotation.z = 0.76;
           const hg = new THREE.Group(); hg.position.set(0.394, 0.374, 0); hg.rotation.z = -0.55; neck.add(hg);
-          P(hg, 0.6, 0.6, 0.6, cowWhite, 0.25, 0, 0);               // đầu
-          const muzzle = P(hg, 0.42, 0.3, 0.46, cowPink, 0.62, 0, 0);          // mõm (hàm trên)
-          const jaw = new THREE.Group(); jaw.position.set(0.41, -0.15, 0); hg.add(jaw); P(jaw, 0.38, 0.1, 0.4, cowPink, 0.19, -0.05, 0, false);   // hàm dưới: bản lề sau, nhai = há–ngậm + nghiến ngang
-          const ears = [-1, 1].map(e => { const ep = new THREE.Group(); ep.position.set(0.05, 0.28, e * 0.2); hg.add(ep); P(ep, 0.16, 0.12, 0.3, cowDark, 0, 0, e * 0.15, false); return ep; });   // tai (giật đuổi ruồi)
-          for (const e of [-1, 1]) { const eye = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 8), cowDark); eye.position.set(0.44, 0.15, e * 0.22); hg.add(eye); }  // mắt
-          for (const e of [-1, 1]) { const horn = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.22, 8), cowHorn); horn.position.set(0.16, 0.42, e * 0.18); horn.rotation.x = -e * 0.4; hg.add(horn); }   // sừng
+          P(hg, 0.6, 0.6, 0.6, cowWhite, 0.25, 0, 0);
+          const muzzle = P(hg, 0.42, 0.3, 0.46, cowPink, 0.62, 0, 0);
+          const jaw = new THREE.Group(); jaw.position.set(0.41, -0.15, 0); hg.add(jaw); P(jaw, 0.38, 0.1, 0.4, cowPink, 0.19, -0.05, 0, false);
+          const ears = [-1, 1].map(e => { const ep = new THREE.Group(); ep.position.set(0.05, 0.28, e * 0.2); hg.add(ep); P(ep, 0.16, 0.12, 0.3, cowDark, 0, 0, e * 0.15, false); return ep; });
+          for (const e of [-1, 1]) { const eye = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 8), cowDark); eye.position.set(0.44, 0.15, e * 0.22); hg.add(eye); }
+          for (const e of [-1, 1]) { const horn = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.22, 8), cowHorn); horn.position.set(0.16, 0.42, e * 0.18); horn.rotation.x = -e * 0.4; hg.add(horn); }
           const legs = [];
-          const legDefs = [[0.6, 0.32], [0.6, -0.32], [-0.62, 0.32], [-0.62, -0.32]];   // trước-T, trước-P, sau-T, sau-P (trái = +z)
+          const legDefs = [[0.6, 0.32], [0.6, -0.32], [-0.62, 0.32], [-0.62, -0.32]];
           for (const lp of legDefs) {
             const hip = new THREE.Group(); hip.position.set(lp[0], COW_PIV, lp[1]); torso.add(hip);
-            P(hip, 0.28, 0.3, 0.28, cowWhite, 0, -0.15 - COW_PIV, 0);          // đùi trên
-            P(hip, 0.22, 0.22, 0.22, cowWhite, 0, -0.38 - COW_PIV, 0, false);   // đùi dưới
+            P(hip, 0.28, 0.3, 0.28, cowWhite, 0, -0.15 - COW_PIV, 0);
+            P(hip, 0.22, 0.22, 0.22, cowWhite, 0, -0.38 - COW_PIV, 0, false);
             const knee = new THREE.Group(); knee.position.y = -0.5 - COW_PIV; hip.add(knee);
-            P(knee, 0.2, 0.16, 0.2, cowWhite, 0, -0.07, 0, false);    // gối
-            P(knee, 0.17, 0.26, 0.17, cowWhite, 0, -0.24, 0);        // ống chân
+            P(knee, 0.2, 0.16, 0.2, cowWhite, 0, -0.07, 0, false);
+            P(knee, 0.17, 0.26, 0.17, cowWhite, 0, -0.24, 0);
             const paw = new THREE.Group(); paw.position.y = -0.38; knee.add(paw);
             P(paw, 0.18, 0.085, 0.18, cowWhite, 0, -0.02, 0, false);
             { const h = new THREE.Mesh(COW_HOOF_GEO, cowHoof); h.castShadow = h.receiveShadow = true; paw.add(h); }
@@ -4388,16 +4388,16 @@
         }
         const cowCells = [[16, 5], [27, 6], [45, 5], [21, 8], [41, 6]];
         const x2gi = x => x / BLOCK + cx - 0.5, z2gj = z => z / BLOCK + cz - 0.5;
-        let cowHutRect = null;   // khung chuồng bò (đặt khi dựng chuồng): bò gặm cỏ tự do không đi xuyên vách
+        let cowHutRect = null;
         const cowOK = (x, z) => { const gi = Math.round(x2gi(x)), gj = Math.round(z2gj(z)); return gi > 4 && gi < GX - 4 && gj > 4 && gj < DAM_J + 6 && !isRiver(gi, gj) && padH(gi, gj) === null && damWalkAt(x, z) === null && !(cowHutRect && x > cowHutRect.x0 && x < cowHutRect.x1 && z > cowHutRect.z0 && z < cowHutRect.z1); };
-        const cowY = (x, z) => { const d = damDeckY(x, z); return d !== null ? d : surfaceY(Math.round(x2gi(x)), Math.round(z2gj(z))); };   // trên đập/dốc nối: cao độ mặt đường đập
+        const cowY = (x, z) => { const d = damDeckY(x, z); return d !== null ? d : surfaceY(Math.round(x2gi(x)), Math.round(z2gj(z))); };
         for (const c of cowCells) {
           const i = c[0] * S, j = c[1] * S; if (isRiver(i, j) || padH(i, j) !== null) continue;
           const m = cow((1.053 + Math.random() * 0.2835) * 0.9), x = wx(i), z = wz(j), ang = Math.random() * 6.28; m.position.set(x, surfaceY(i, j), z); m.rotation.y = -ang; scene.add(m);
           const _cs = ['graze', 'rest', 'walk'][Math.floor(Math.random() * 3)];
           const cw = { g: m, head: m.userData.head, legs: m.userData.legs, tail: m.userData.tail, x, z, ang, spd: 0.65 + Math.random() * 0.45, ph: Math.random() * 6, tmr: 2 + Math.random() * 5, state: _cs, restY: 0 };
           const Sc = m.scale.y;
-          cw.rig = quadRig(m, { legs: cw.legs, gaits: {   // đi bộ 4 phách trình tự bên (sau-T → trước-T → sau-P → trước-P), chạm đất ~65%; nước kiệu khi vội
+          cw.rig = quadRig(m, { legs: cw.legs, gaits: {
             walk: { off: [0.27, 0.77, 0, 0.5], duty: 0.65, stride: 1.15 * Sc, lift: 0.085, vRef: 1.0 },
             trot: { off: [0, 0.5, 0.5, 0], duty: 0.45, stride: 1.9 * Sc, lift: 0.12, vRef: 1.8 } },
             home: (L, out) => out.set(L.hip.position.x, 0, L.hip.position.z), ground: (x, z) => cowY(x, z), size: Sc, settleT: 0.45, settleLift: 0.07 });
@@ -4409,21 +4409,21 @@
           const hx = X0 + 54, hz = Z0 + 49, y0 = stationGround(hx, hz);
           const g = new THREE.Group(); g.position.set(hx, y0, hz); g.name = 'Chuồng bò (Cow Shed)';
           const tex = (w, h, draw, rx = 1, ry = 1) => { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, ry); t.anisotropy = 4; return t; };
-          const strawDraw = (x, w, h) => {   // rơm: nền vàng, nhiều cọng ngắn chéo nhau
+          const strawDraw = (x, w, h) => {
             x.fillStyle = '#c9a95a'; x.fillRect(0, 0, w, h);
             const cols = ['#e2c77a', '#b8954a', '#d8b866', '#a8843f', '#efd690'];
             for (let k = 0; k < 900; k++) { const px = Math.random() * w, py = Math.random() * h, a = (Math.random() - 0.5) * 1.4, l = 4 + Math.random() * 10; x.strokeStyle = cols[k % cols.length]; x.lineWidth = 0.8 + Math.random() * 0.8; x.beginPath(); x.moveTo(px, py); x.lineTo(px + Math.cos(a) * l, py + Math.sin(a) * l); x.stroke(); }
           };
-          const grainDraw = (x, w, h) => {   // vân gỗ sáng, nhân màu theo vật liệu
+          const grainDraw = (x, w, h) => {
             x.fillStyle = '#d9d2c4'; x.fillRect(0, 0, w, h);
             for (let k = 0; k < 60; k++) { const yy = Math.random() * h; x.strokeStyle = `rgba(90,70,50,${0.12 + Math.random() * 0.22})`; x.lineWidth = 0.6 + Math.random() * 1.4; x.beginPath(); x.moveTo(0, yy); x.bezierCurveTo(w * 0.3, yy + (Math.random() - 0.5) * 4, w * 0.7, yy + (Math.random() - 0.5) * 4, w, yy + (Math.random() - 0.5) * 3); x.stroke(); }
-            for (let k = 0; k < 4; k++) { const kx = Math.random() * w, ky = Math.random() * h; x.fillStyle = 'rgba(80,58,38,0.35)'; x.beginPath(); x.ellipse(kx, ky, 3 + Math.random() * 3, 1.5 + Math.random(), 0, 0, 7); x.fill(); }   // mắt gỗ
+            for (let k = 0; k < 4; k++) { const kx = Math.random() * w, ky = Math.random() * h; x.fillStyle = 'rgba(80,58,38,0.35)'; x.beginPath(); x.ellipse(kx, ky, 3 + Math.random() * 3, 1.5 + Math.random(), 0, 0, 7); x.fill(); }
           };
           const grain = tex(128, 32, grainDraw);
           const wood = [0x8a6a45, 0x7d5f3d, 0x94744e].map(c => new THREE.MeshLambertMaterial({ color: c, map: grain }));
           const postWood = new THREE.MeshLambertMaterial({ color: 0x6e5236, map: grain }), concrete = new THREE.MeshLambertMaterial({ color: 0x9a948a });
           const straw = new THREE.MeshLambertMaterial({ map: tex(128, 128, strawDraw, W / 1.3, D / 1.3) }), hay = new THREE.MeshLambertMaterial({ color: 0xd9dfa0, map: tex(128, 128, strawDraw) });
-          const tin = new THREE.MeshLambertMaterial({ map: tex(128, 64, (x, w, h) => {   // tôn sóng mạ kẽm, gỉ loang theo dốc
+          const tin = new THREE.MeshLambertMaterial({ map: tex(128, 64, (x, w, h) => {
             for (let px = 0; px < w; px++) { const v = Math.round(146 + 34 * Math.cos(px / w * Math.PI * 2 * 8)); x.fillStyle = `rgb(${v},${v - 1},${v - 6})`; x.fillRect(px, 0, 1, h); }
             for (let k = 0; k < 14; k++) { const px = Math.random() * w, l = 10 + Math.random() * 40; const gr = x.createLinearGradient(0, 0, 0, l); gr.addColorStop(0, 'rgba(138,87,51,0.55)'); gr.addColorStop(1, 'rgba(138,87,51,0)'); x.fillStyle = gr; x.fillRect(px, 0, 2 + Math.random() * 5, l); }
           }, (W + 0.9) / 1.6, 1) });
@@ -4435,10 +4435,10 @@
             const x = -W / 2 + k * SW;
             for (const [z, H] of [[D / 2, Hf], [-D / 2, Hb]]) { add(cyl(0.085, 0.1, H - 0.14, postWood, true, false, null, 8), x, 0.14 + (H - 0.14) / 2, z); add(bx(0.26, 0.12, 0.26, concrete, false, false), x, 0.2, z); }
           }
-          const EXT = 0.8, xW = -W / 2 - 0.35 - EXT - 0.06, xE = W / 2 + 0.2;   // mép tây xà = qua kèo mép mái 1 chút
-          add(bx(xE - xW, 0.16, 0.14, wood[1], true, true, lineDark), (xE + xW) / 2, Hf - 0.08, D / 2);    // xà đầu trước
-          add(bx(xE - xW, 0.16, 0.14, wood[1], true, true, lineDark), (xE + xW) / 2, Hb - 0.08, -D / 2);   // xà đầu sau
-          for (const [z, H] of [[D / 2, Hf], [-D / 2, Hb]]) {   // thanh chống góc: chân ở mặt tây cột góc (thấp hơn xà 0,95 m) → đầu đỡ dưới xà, cách cột 0,65 m
+          const EXT = 0.8, xW = -W / 2 - 0.35 - EXT - 0.06, xE = W / 2 + 0.2;
+          add(bx(xE - xW, 0.16, 0.14, wood[1], true, true, lineDark), (xE + xW) / 2, Hf - 0.08, D / 2);
+          add(bx(xE - xW, 0.16, 0.14, wood[1], true, true, lineDark), (xE + xW) / 2, Hb - 0.08, -D / 2);
+          for (const [z, H] of [[D / 2, Hf], [-D / 2, Hb]]) {
             const ax = -W / 2 - 0.09, ay = H - 0.95, bx2 = -W / 2 - 0.09 - 0.65, by = H - 0.16, br = add(bx(Math.hypot(bx2 - ax, by - ay), 0.07, 0.06, wood[1], true, false), (ax + bx2) / 2, (ay + by) / 2, z);
             br.rotation.z = Math.atan2(by - ay, bx2 - ax);
           }
@@ -4473,28 +4473,28 @@
           const handle = cyl(0.022, 0.022, 1.55, wood[0], true, false, null, 6); handle.position.y = 0.78; fork.add(handle);
           for (const o of [-0.07, 0, 0.07]) { const tine = cyl(0.008, 0.012, 0.32, iron, true, false, null, 5); tine.position.set(0, 1.68, o); fork.add(tine); }
           const forkBar = bx(0.02, 0.03, 0.16, iron, true, false); forkBar.position.y = 1.53; fork.add(forkBar);
-          const CORD = 0.3, LS = 1.1;   // bóng to hơn thật ~10% cho dễ thấy
+          const CORD = 0.3, LS = 1.1;
           const lamp = new THREE.Group(); lamp.name = 'Đèn sợi đốt chuồng bò'; lamp.userData.noBake = true; lamp.position.set(0.75, Hf - 0.16, D / 2); g.add(lamp);
           const bake = new THREE.MeshLambertMaterial({ color: 0x2b2420 }), metal = new THREE.MeshLambertMaterial({ color: 0xc8b98e });
-          lamp.add(cyl(0.028, 0.028, 0.025, bake, true, false, null, 10));   // đế treo bắt dưới xà
+          lamp.add(cyl(0.028, 0.028, 0.025, bake, true, false, null, 10));
           const cord = cyl(0.0045, 0.0045, CORD, bake, true, false, null, 5); cord.position.y = -CORD / 2; lamp.add(cord);
-          const bulbG = new THREE.Group(); bulbG.position.y = -CORD - 0.046 * LS; bulbG.rotation.x = Math.PI; bulbG.scale.setScalar(LS); lamp.add(bulbG);   // dựng đứng (đui dưới) rồi lật: đui trên, bầu kính chúc xuống
+          const bulbG = new THREE.Group(); bulbG.position.y = -CORD - 0.046 * LS; bulbG.rotation.x = Math.PI; bulbG.scale.setScalar(LS); lamp.add(bulbG);
           const sock = cyl(0.024, 0.026, 0.056, bake, true, false, null, 12); sock.position.y = -0.016; bulbG.add(sock);
-          { const p = []; for (let k = 0; k <= 12; k++) p.push(new THREE.Vector2(k % 2 ? 0.0186 : 0.0208, 0.012 + k * 0.0018)); bulbG.add(new THREE.Mesh(new THREE.LatheGeometry(p, 12), metal)); }   // ren E27
+          { const p = []; for (let k = 0; k <= 12; k++) p.push(new THREE.Vector2(k % 2 ? 0.0186 : 0.0208, 0.012 + k * 0.0018)); bulbG.add(new THREE.Mesh(new THREE.LatheGeometry(p, 12), metal)); }
           const glassM = new THREE.MeshLambertMaterial({ color: 0xf2efe6, transparent: true, opacity: 0.3, depthWrite: false, side: THREE.DoubleSide });
           const glass = new THREE.Mesh(new THREE.LatheGeometry([[0.021, 0.031], [0.022, 0.045], [0.026, 0.058], [0.034, 0.072], [0.042, 0.088], [0.046, 0.104], [0.046, 0.118], [0.042, 0.132], [0.032, 0.145], [0.018, 0.151], [0, 0.153]].map(([r, y]) => new THREE.Vector2(r, y)), 16), glassM); glass.renderOrder = 2; bulbG.add(glass);
           const stemM = new THREE.MeshLambertMaterial({ color: 0xe9e6dc, transparent: true, opacity: 0.55, depthWrite: false }), wireM = new THREE.MeshLambertMaterial({ color: 0x55504a });
           const stem = cyl(0.004, 0.008, 0.05, stemM, false, false, null, 8); stem.position.y = 0.056; bulbG.add(stem);
-          for (const sx of [-1, 1]) rodBetween(bulbG, new THREE.Vector3(sx * 0.004, 0.075, 0), new THREE.Vector3(sx * 0.016, 0.101, 0), 0.0009, wireM, 3, false);   // 2 dây đỡ
+          for (const sx of [-1, 1]) rodBetween(bulbG, new THREE.Vector3(sx * 0.004, 0.075, 0), new THREE.Vector3(sx * 0.016, 0.101, 0), 0.0009, wireM, 3, false);
           const filM = new THREE.MeshBasicMaterial({ color: 0x4a4744 });
-          bulbG.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.QuadraticBezierCurve3(new THREE.Vector3(-0.016, 0.101, 0), new THREE.Vector3(0, 0.096, 0), new THREE.Vector3(0.016, 0.101, 0)), 8, 0.0016, 4), filM));   // sợi tóc
+          bulbG.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.QuadraticBezierCurve3(new THREE.Vector3(-0.016, 0.101, 0), new THREE.Vector3(0, 0.096, 0), new THREE.Vector3(0.016, 0.101, 0)), 8, 0.0016, 4), filM));
           const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'), gr = x.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,214,150,1)'); gr.addColorStop(0.25, 'rgba(255,170,90,0.45)'); gr.addColorStop(1, 'rgba(255,150,70,0)'); x.fillStyle = gr; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })(), color: 0xffc27a, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
           halo.position.y = 0.1; halo.scale.setScalar(0.8 / LS); halo.visible = false; bulbG.add(halo);
           const light = new THREE.PointLight(0xffc58a, 0, 9, 2); light.position.y = 0.1; bulbG.add(light);
           lamp.traverse(o => { o.userData.noBatch = true; });
           const lsw = { x: 0, z: 0, vx: 0, vz: 0 }, _lw = new THREE.Vector3(), lampW = new THREE.Vector3();
-          const lampTick = (dt, n) => {   // n = độ tối (0 ngày → 1 đêm) · con lắc dây 0,4 m (ω₀ ≈ 5 rad/s), gió dưới mái yếu đi còn ~40%
-            filM.color.setRGB(0.29 + 0.71 * n, 0.28 + 0.45 * n, 0.27 + 0.1 * n); glassM.emissive.setRGB(0.48 * n, 0.29 * n, 0.13 * n); glassM.opacity = 0.3 + 0.2 * n;   // G 15/10: sáng giảm 50%
+          const lampTick = (dt, n) => {
+            filM.color.setRGB(0.29 + 0.71 * n, 0.28 + 0.45 * n, 0.27 + 0.1 * n); glassM.emissive.setRGB(0.48 * n, 0.29 * n, 0.13 * n); glassM.opacity = 0.3 + 0.2 * n;
             halo.visible = n > 0.02; halo.material.opacity = 0.4 * n;
             if (!lampW.lengthSq()) lamp.getWorldPosition(lampW);
             windAt(lampW.x, lampW.y, lampW.z, 2.6, _lw); const ex = 0.012 * Math.abs(_lw.x) * _lw.x, ez = 0.012 * Math.abs(_lw.z) * _lw.z;
@@ -4510,39 +4510,39 @@
           return { g, x: hx, z: hz, y: y0, W, D, Hf, Hb, stalls, light, lampTick, door: { x: hx, z: hz + D / 2 + 2.2 } };
         })();
         cows.forEach((c, k) => { c.stall = k; c.mode = 'free'; c.leg = ''; c.sub = 'stand'; });
-        const cowHutWanted = () => { const h = liveWeather.localHour; return liveWeather.state.raining || h >= 17.9 || h < 6.2; };   // chiều tối hoặc mưa → về chuồng
-        let hutField = null;   // trường dòng chảy về cửa chuồng (dựng sau khi lưới cấm sẵn sàng); mỗi con có thêm c.homeField về bãi quen
+        const cowHutWanted = () => { const h = liveWeather.localHour; return liveWeather.state.raining || h >= 17.9 || h < 6.2; };
+        let hutField = null;
         const COW_SLIDE = [0, 0.35, -0.35, 0.7, -0.7, 1.1, -1.1];
-        function cowSteer(c, tx, tz, dt, field) {   // đi về (tx,tz): xa thì theo trường dòng chảy (vòng qua nước, chuồng), gần thì đi thẳng
+        function cowSteer(c, tx, tz, dt, field) {
           const dx = tx - c.x, dz = tz - c.z, dist = Math.hypot(dx, dz);
           if (dist < 0.1) return true;
           let ux = dx / dist, uz = dz / dist;
           if (field && dist > 3) { const f = ffDir(field, c.x, c.z); if (f) { ux = f.x; uz = f.z; } }
           let da = Math.atan2(uz, ux) - c.ang; da = Math.atan2(Math.sin(da), Math.cos(da));
-          const mt = 1.4 * dt; c.ang += Math.max(-mt, Math.min(mt, dist < 1 ? da : da * Math.min(1, dt * 3)));   // quay đầu mượt (bò quay chậm, ≤ 80°/giây), sát đích thì nhắm thẳng
-          c.vk = Math.min(1, (c.vk || 0) + dt / 0.9);   // nhấc bước tăng tốc dần ~0,9 s
-          const step = dist < 0.6 && Math.abs(da) > 0.8 ? 0 : Math.min(dist, c.spd * c.vk * dt * (Math.abs(da) > 1.2 ? 0.25 : Math.abs(da) > 0.5 ? 0.6 : 1));   // ngoặt gắt sát đích: quay tại chỗ trước
+          const mt = 1.4 * dt; c.ang += Math.max(-mt, Math.min(mt, dist < 1 ? da : da * Math.min(1, dt * 3)));
+          c.vk = Math.min(1, (c.vk || 0) + dt / 0.9);
+          const step = dist < 0.6 && Math.abs(da) > 0.8 ? 0 : Math.min(dist, c.spd * c.vk * dt * (Math.abs(da) > 1.2 ? 0.25 : Math.abs(da) > 0.5 ? 0.6 : 1));
           const freeHere = !cowBlocked[Math.round(x2gi(c.x)) + Math.round(z2gj(c.z)) * GX];
           for (const off of COW_SLIDE) {
             const a = c.ang + off, nx = c.x + Math.cos(a) * step, nz = c.z + Math.sin(a) * step, ni = Math.round(x2gi(nx)), nj = Math.round(z2gj(nz));
-            if (isWater(ni, nj) && damDeckY(nx, nz) === null) continue;                      // không bao giờ lội sông: chỉ qua bằng mặt đập
-            if (field && dist > 3 && freeHere && cowBlocked[ni + nj * GX]) continue;      // không cắt góc xuyên lan can / vách
+            if (isWater(ni, nj) && damDeckY(nx, nz) === null) continue;
+            if (field && dist > 3 && freeHere && cowBlocked[ni + nj * GX]) continue;
             c.x = nx; c.z = nz; if (off) c.ang += off * Math.min(1, dt * 4); break;
           }
           return false;
         }
-        function cowHome(c, dt, t, want) {   // true = bò đang trong lộ trình chuồng (tự lo vị trí + dáng), false = để hành vi gặm cỏ cũ chạy
+        function cowHome(c, dt, t, want) {
           if (want && c.mode !== 'home') { c.mode = 'home'; c.leg = c.leg === 'back' ? 'stall' : 'door'; }
           else if (!want && c.mode === 'home') { if (c.leg === 'door') c.mode = 'free'; else { c.mode = 'leave'; c.leg = 'back'; } }
           if (c.mode === 'free') return false;
           const st = cowHut.stalls[c.stall % cowHut.stalls.length];
-          let gait = 0;   // 1 bước tới · -1 lùi · 0 đứng yên
-          const rising = c.restY > 0.02;   // đang nằm → đứng dậy xong mới đi
+          let gait = 0;
+          const rising = c.restY > 0.02;
           if (c.mode === 'home') {
             if (c.leg === 'door') { if (!rising) { gait = 1; if (cowSteer(c, st.ex, st.ez, dt, hutField)) c.leg = 'stall'; } }
             else if (c.leg === 'stall') { if (!rising) { gait = 1; if (cowSteer(c, st.x, st.z, dt, null)) { c.leg = 'in'; c.sub = 'stand'; c.tmr = 2 + Math.random() * 3; } } }
             else {
-              let da = -Math.PI / 2 - c.ang; da = Math.atan2(Math.sin(da), Math.cos(da)); c.ang += da * Math.min(1, dt * 2);   // quay đầu vào máng
+              let da = -Math.PI / 2 - c.ang; da = Math.atan2(Math.sin(da), Math.cos(da)); c.ang += da * Math.min(1, dt * 2);
               c.tmr -= dt;
               if (c.tmr <= 0) {
                 const night = !liveWeather.wildlifeAwake, r = Math.random();
@@ -4550,9 +4550,9 @@
                 c.tmr = c.sub === 'rest' ? 40 + Math.random() * 60 : 10 + Math.random() * 16;
               }
             }
-          } else if (c.leg === 'back') {   // lùi thẳng ra khỏi ô, mặt vẫn hướng máng
+          } else if (c.leg === 'back') {
             if (!rising) { gait = -1; c.vk = Math.min(1, (c.vk || 0) + dt / 0.9); const ez = st.ez - 0.3; c.z = Math.min(ez, c.z + c.spd * 0.45 * c.vk * dt); c.x += (st.x - c.x) * Math.min(1, dt * 2); if (c.z >= ez - 1e-3) c.leg = 'pasture'; }
-          } else {   // về bãi gặm quen của từng con theo trường dòng chảy riêng (vòng qua chuồng, sông), tới nơi thì thả tự do
+          } else {
             gait = 1;
             if (cowSteer(c, c.homeX, c.homeZ, dt, c.homeField) || Math.hypot(c.homeX - c.x, c.homeZ - c.z) < 2.5) { c.mode = 'free'; c.leg = ''; c.state = 'graze'; c.tmr = 4 + Math.random() * 6; }
           }
@@ -4561,21 +4561,21 @@
           if (!gait) c.vk = 0;
           c.chew = 0;
           if (gait) { c.hz = -0.18; c.hx = 0; }
-          else if (lie) { c.hz = -0.24 + Math.sin(t * 0.7 + c.ph) * 0.05; c.hx = Math.sin(t * 0.45 + c.ph) * 0.04; c.chew = (t + c.ph * 9) % 55 < 52.5 ? 1 : 0; }   // nằm nhai lại
-          else if (c.sub === 'eat' && c.leg === 'in') { c.hz = -0.42 + Math.sin(t * 2.5 + c.ph) * 0.1; c.hx = 0.1 * Math.sin(t * 0.7 + c.ph); c.chew = 0.7; c.reachY = cowHut.y + st.hay + 0.01; }   // dúi mõm vào máng cỏ khô
+          else if (lie) { c.hz = -0.24 + Math.sin(t * 0.7 + c.ph) * 0.05; c.hx = Math.sin(t * 0.45 + c.ph) * 0.04; c.chew = (t + c.ph * 9) % 55 < 52.5 ? 1 : 0; }
+          else if (c.sub === 'eat' && c.leg === 'in') { c.hz = -0.42 + Math.sin(t * 2.5 + c.ph) * 0.1; c.hx = 0.1 * Math.sin(t * 0.7 + c.ph); c.chew = 0.7; c.reachY = cowHut.y + st.hay + 0.01; }
           else { c.hz = -0.2 + Math.sin(t * 0.9 + c.ph) * 0.06; c.hx = Math.sin(t * 0.5 + c.ph) * 0.12; c.chew = 0.5; }
           return true;
         }
-        const cowGrazeDrive = h => h < 9.5 ? 0.85 : h < 11 ? 0.5 : h < 14.5 ? 0.1 : h < 16 ? 0.45 : 0.85;   // mức muốn gặm theo giờ (sáng / chiều cao, trưa thấp)
+        const cowGrazeDrive = h => h < 9.5 ? 0.85 : h < 11 ? 0.5 : h < 14.5 ? 0.1 : h < 16 ? 0.45 : 0.85;
         const _cwT = new THREE.Vector3(), _cwM = new THREE.Vector3();
         function cowNear(c) { let best = null, bd = 1e9; for (const o of cows) { if (o === c || o.mode !== 'free') continue; const d = Math.hypot(o.x - c.x, o.z - c.z); if (d < bd) { bd = d; best = o; } } return [best, bd]; }
-        function cowThreat(c) {   // người / chó tới gần (vùng bỏ chạy ~3,5 m)
+        function cowThreat(c) {
           const e = engObj && !engObj.inVan && engObj.g.parent === scene ? engObj.g.position : null;
           if (e && Math.hypot(e.x - c.x, e.z - c.z) < 3.5) return e;
           if (!dogRain.st && Math.hypot(dogObj.position.x - c.x, dogObj.position.z - c.z) < 3.5) return dogObj.position;
           return null;
         }
-        function cowShadeSpot(c) {   // bóng cây gần nhất (≤ 15 m), phía khuất nắng của thân cây
+        function cowShadeSpot(c) {
           let best = null, bd = 15; const sx = sun.position.x - sun.target.position.x, sz = sun.position.z - sun.target.position.z, sl = Math.hypot(sx, sz) || 1;
           for (const tc of treeCoords) { const d = Math.hypot(tc.x - c.x, tc.z - c.z); if (d < bd) { const x = tc.x - sx / sl * 1.6, z = tc.z - sz / sl * 1.6; if (cowOK(x, z)) { bd = d; best = { x, z }; } } }
           return best;
@@ -4605,7 +4605,7 @@
           const h = liveWeather.localHour, G = cowGrazeDrive(h), hot = (liveWeather.state.temperature ?? 24) >= 28 && sunElevSin > 0.55;
           if ((c.thirst || 0) > 1) return 'drink';
           const w = { graze: G, rest: (1 - G) * 0.7, stand: (1 - G) * 0.3, walk: 0.12 }, [nb, nd] = cowNear(c);
-          if (nb && nd < 7) { if (nb.state === 'rest' || nb.state === 'shade') w.rest += 0.4 * (1.3 - G); else if (nb.state === 'graze') w.graze += 0.4 * (G + 0.3); }   // bắt chước con gần — mạnh hay yếu theo nhịp giờ (nhịp giờ vẫn thắng về lâu)
+          if (nb && nd < 7) { if (nb.state === 'rest' || nb.state === 'shade') w.rest += 0.4 * (1.3 - G); else if (nb.state === 'graze') w.graze += 0.4 * (G + 0.3); }
           if (hot) { w.rest += 0.4; w.graze *= 0.5; }
           let r = Math.random() * (w.graze + w.rest + w.stand + w.walk), pick = 'walk';
           for (const k of ['graze', 'rest', 'stand', 'walk']) { if ((r -= w[k]) <= 0) { pick = k; break; } }
@@ -4613,25 +4613,25 @@
           return pick;
         }
         function cowFreeTick(c, dt, t) {
-          c.thirst = (c.thirst ?? Math.random() * 0.9) + dt / 14400;   // cữ uống ~4 giờ thả bãi ⇒ 2–3 lần/ngày (OSU: 2–5 lần)
+          c.thirst = (c.thirst ?? Math.random() * 0.9) + dt / 14400;
           const thr = cowThreat(c);
           if (thr && c.state !== 'flee') { c.state = 'flee'; c.tmr = 4 + Math.random() * 2; c.angT = Math.atan2(c.z - thr.z, c.x - thr.x); }
           c.tmr -= dt;
           if (c.tmr <= 0 && !(c.state === 'drink' || c.state === 'shade') || (c.state === 'shade' && c.tmr <= 0 && c.sub2 === 'do')) {
             c.state = cowChoose(c); c.sub2 = 'go'; c.lieIn = 3;
             c.tmr = { graze: 40 + Math.random() * 80, rest: 60 + Math.random() * 120, stand: 25 + Math.random() * 35, walk: 4 + Math.random() * 6, drink: 999, shade: 999 }[c.state];
-            if (c.state === 'walk') {   // đi tiếp tới chỗ khác — lạc xa bầy (> 9 m) thì đi về phía tâm bầy
+            if (c.state === 'walk') {
               let mx = 0, mz = 0, n = 0; for (const o of cows) if (o.mode === 'free') { mx += o.x; mz += o.z; n++; }
               c.angT = n > 1 && Math.hypot(mx / n - c.x, mz / n - c.z) > 9 ? Math.atan2(mz / n - c.z, mx / n - c.x) + (Math.random() - 0.5) * 0.6 : c.ang + (Math.random() - 0.5) * 1.7;
             }
           }
           c.chew = 0;
-          const up = () => { c.restY = Math.max(0, c.restY - dt * 0.5); return c.restY <= 0; };   // đang nằm thì đứng dậy xong mới đi
-          const rum = (lying) => {   // nhai lại: ~55 s mỗi viên, 2,5 s cuối ngừng nhai, cổ vươn nhẹ (nuốt – ợ viên mới)
+          const up = () => { c.restY = Math.max(0, c.restY - dt * 0.5); return c.restY <= 0; };
+          const rum = (lying) => {
             const b = (t + c.ph * 9) % 55, swallow = b > 52.5; c.chew = swallow ? 0 : 1;
             c.hz = (lying ? -0.24 : -0.16) + (swallow ? 0.14 * Math.sin(Math.PI * (b - 52.5) / 2.5) : 0) + Math.sin(t * 0.7 + c.ph) * 0.03; c.hx = Math.sin(t * 0.45 + c.ph) * 0.05;
           };
-          if (c.watch > 0 && c.state !== 'flee') {   // có người zoom cận: ngẩng đầu quay mặt về phía người xem (đứng thì xoay dần cả thân cho cổ với tới), vẫn nhai
+          if (c.watch > 0 && c.state !== 'flee') {
             c.watch -= dt; c.vk = 0;
             camera.getWorldDirection(_cwV); let d = Math.atan2(-_cwV.z, -_cwV.x) - c.ang; d = Math.atan2(Math.sin(d), Math.cos(d));
             if (c.restY < 0.05 && Math.abs(d) > 0.9) c.ang += Math.sign(d) * Math.min(Math.abs(d) - 0.9, 0.7 * dt);
@@ -4641,12 +4641,12 @@
             return;
           }
           switch (c.state) {
-            case 'rest': {   // cúi đánh hơi, quét đầu vài giây → quỳ, nằm (cowPose) → nhai lại
+            case 'rest': {
               if ((c.lieIn -= dt) > 0) { up(); c.vk = 0; c.hz = -0.15; c.reach = 0.08; c.hx = 0.3 * Math.sin(t * 1.4 + c.ph); break; }
               c.restY = Math.min(1, c.restY + dt * 0.38); c.vk = 0; rum(true); break;
             }
-            case 'stand': up(); c.vk = 0; rum(false); break;   // đứng nhai lại, đổi chân
-            case 'graze': {   // ô ăn: đầu quét trái–phải, giật cắn ~0,85 lần/s; nhích 1–2 bước sang búi kế; ~30–50 s ngẩng canh chừng + nhai
+            case 'stand': up(); c.vk = 0; rum(false); break;
+            case 'graze': {
               if (!up()) { c.vk = 0; break; }
               c.look = (c.look ?? 30 + Math.random() * 20) - dt;
               if (c.look < 0) { c.hz = -0.12; c.hx = 0.25 * Math.sin(t * 0.8 + c.ph); c.chew = 1; c.vk = 0; if (c.look < -(3 + Math.random() * 2)) c.look = 30 + Math.random() * 20; break; }
@@ -4656,27 +4656,27 @@
               break;
             }
             case 'flee': if (up()) cowWander(c, dt, c.spd * 1.3); else c.vk = 0; c.hz = -0.1; c.hx = 0; break;
-            case 'drink': case 'shade': {   // đi tới máng nước (đứng phía đông máng, mặt quay vào) / bóng cây
+            case 'drink': case 'shade': {
               const tgt = c.state === 'drink' ? _cwT.set(cowHut.x + cowHut.W / 2 + 0.95 + 1.45 * c.g.scale.y, 0, cowHut.z + 0.75) : c.goal;
               if (c.sub2 === 'go') {
                 c.hz = -0.18; c.hx = 0;
-                const far = c.state === 'drink' && Math.hypot(tgt.x - c.x, tgt.z - c.z) > 7;   // xa máng: theo trường về cửa chuồng (vòng qua sông, vách) rồi mới đi thẳng
+                const far = c.state === 'drink' && Math.hypot(tgt.x - c.x, tgt.z - c.z) > 7;
                 if (up() && cowSteer(c, tgt.x, tgt.z, dt, far ? hutField : null)) { c.sub2 = 'do'; c.tmr = c.state === 'drink' ? 60 + Math.random() * 90 : 120 + Math.random() * 120; c.lieIn = 3; }
-                else if (c.tmr < 999 - 240) { c.state = 'stand'; c.tmr = 5; c.thirst = Math.min(c.thirst, 0.6); }   // 4 phút chưa tới (kẹt) → thôi, lát nữa khát lại
+                else if (c.tmr < 999 - 240) { c.state = 'stand'; c.tmr = 5; c.thirst = Math.min(c.thirst, 0.6); }
               }
-              else if (c.state === 'drink') {   // uống từng đợt hút 15–25 s, giữa các đợt ngẩng lên nhìn quanh ~2,5 s; cả lần 1–2,5 phút
+              else if (c.state === 'drink') {
                 c.vk = 0; let da = Math.PI - c.ang; da = Math.atan2(Math.sin(da), Math.cos(da)); c.ang += da * Math.min(1, dt * 2);
                 c.sip = (c.sip ?? 15 + Math.random() * 10) - dt;
                 if (c.sip < 0) { c.hz = -0.1; c.hx = 0.3 * Math.sin(t * 0.9 + c.ph); if (c.sip < -2.5) c.sip = 15 + Math.random() * 10; }
-                else { c.hz = -0.32 + 0.04 * Math.sin(t * 3.2); c.hx = 0; c.chew = 0.3; c.reachY = cowHut.y + 0.39; }   // mõm ngập ~3 cm, hút từng ngụm
-                if (c.tmr <= 0) { c.thirst = 0; c.state = 'stand'; c.mode = 'leave'; c.leg = 'pasture'; }   // uống xong: theo trường dòng chảy về bãi gặm quen (cowHome)
+                else { c.hz = -0.32 + 0.04 * Math.sin(t * 3.2); c.hx = 0; c.chew = 0.3; c.reachY = cowHut.y + 0.39; }
+                if (c.tmr <= 0) { c.thirst = 0; c.state = 'stand'; c.mode = 'leave'; c.leg = 'pasture'; }
               } else { if ((c.lieIn -= dt) > 0) { c.vk = 0; c.hz = -0.15; c.reach = 0.08; c.hx = 0.3 * Math.sin(t * 1.4 + c.ph); } else { c.restY = Math.min(1, c.restY + dt * 0.38); c.vk = 0; rum(true); } }
               break;
             }
             default: if (up()) cowWander(c, dt, c.spd); else c.vk = 0; c.hz = -0.18; c.hx = 0;
           }
         }
-        function cowWander(c, dt, sp) {   // đi theo hướng c.angT (quay dần ≤ 1,2 rad/s); vướng (nước, chuồng, mép bãi) thì quay sang hướng khác; né con khác (cách ≥ 1,8 m)
+        function cowWander(c, dt, sp) {
           if (c.angT === undefined) c.angT = c.ang;
           for (const o of cows) { if (o === c) continue; const dx = o.x - c.x, dz = o.z - c.z, d = Math.hypot(dx, dz); if (d < 1.8 && dx * Math.cos(c.ang) + dz * Math.sin(c.ang) > 0) { c.angT = c.ang + (dx * Math.sin(c.ang) - dz * Math.cos(c.ang) > 0 ? 0.6 : -0.6); break; } }
           let da = c.angT - c.ang; da = Math.atan2(Math.sin(da), Math.cos(da));
@@ -4690,7 +4690,7 @@
         function cowPose(c, dt, t) {
           const g = c.g, U = g.userData, S = g.scale.y, rig = c.rig;
           g.position.x = c.x; g.position.z = c.z; g.rotation.y = -c.ang;
-          if (!c.ps) {   // lần đầu: đặt 4 chân tại chỗ
+          if (!c.ps) {
             g.position.y = cowY(c.x, c.z); g.updateMatrixWorld(true); rig.plant(cowY);
             c.ps = { y: { x: g.position.y, v: 0 }, p: { x: 0, v: 0 }, hz: { x: c.hz ?? -0.2, v: 0 }, hx: { x: 0, v: 0 }, nk: 0, v: 0, px: c.x, pz: c.z, r0: c.restY, up: false, swat: 2 + Math.random() * 6, side: 1, lieSide: Math.random() < 0.5 ? -1 : 1 };
           }
@@ -4705,11 +4705,11 @@
           g.position.y = cowDamp(P.y, (yF + yH) / 2, 7, dt);
           cowDamp(P.p, Math.max(-0.42, Math.min(0.42, Math.atan2(yF - yH, COW_SPAN * S))), 6, dt);
           const psi = rig.psi, walkA = Math.min(1, sp / 0.35) * (1 - Math.max(fF, fH));
-          const bF = 0.03 * walkA * Math.cos(4 * Math.PI * (psi - 0.06)), bH = 0.03 * walkA * Math.cos(4 * Math.PI * (psi - 0.33));   // con lắc ngược: vai cao lúc chân trước giữa pha trụ, hông cao lúc chân sau giữa pha trụ
+          const bF = 0.03 * walkA * Math.cos(4 * Math.PI * (psi - 0.06)), bH = 0.03 * walkA * Math.cos(4 * Math.PI * (psi - 0.33));
           const dF = 0.86 * fF, dH = 0.86 * fH, h = COW_H0 + (bF + bH - dF - dH) / 2, pitch = P.p.x + Math.atan2((bF - dF) - (bH - dH), COW_SPAN);
           U.torso.position.y = h; U.torso.rotation.z = pitch;
-          for (let i = 0; i < 4; i++) {   // quỳ / nằm: khớp vai/hông lùi vào gần giữa thân, ngang mặt bụng; góc khớp gập sẵn hoà với IK
-            const fr = i < 2, L = c.legs[i], w = fr ? fF : fH, K = rig.fk[i] || (rig.fk[i] = { a: 0, b: 0, p: 0, w: 0 });   // trước: gối ló trước ngực, cẳng gập ra sau · sau: khuỷu ló sau mông, móng thu dưới bụng
+          for (let i = 0; i < 4; i++) {
+            const fr = i < 2, L = c.legs[i], w = fr ? fF : fH, K = rig.fk[i] || (rig.fk[i] = { a: 0, b: 0, p: 0, w: 0 });
             L.hip.position.x = L.x0 + ((fr ? 0.25 : -0.3) - L.x0) * w; L.hip.position.y = COW_PIV * (1 - w);
             K.a = fr ? 1.45 : -1.45; K.b = fr ? -2.9 : 2.9; K.p = 0; K.w = w;
           }
@@ -4721,8 +4721,8 @@
           P.nk = tgtY === null ? Math.max(0, P.nk - dt * 1.6) : Math.max(0, Math.min(1, P.nk + Math.max(-1.2, Math.min(1.2, (mz.y - tgtY) * 4)) * dt));
           c.reach = c.reachY = null;
           U.neck.rotation.z = -1.19 * P.nk; U.neck.rotation.y = 0.9 * P.hx.x;
-          U.head.rotation.z = P.hz.x - 0.07 * walkA * Math.cos(4 * Math.PI * (psi - 0.28)) - 0.6 * pitch + 1.1 * Math.max(0, fF - fH) + 0.09 * (c.bite || 0); U.head.rotation.x = 0.35 * P.hx.x;   // đang quỳ (trước thấp, sau cao): ngóc đầu giữ thăng bằng
-          c.bite = 0;   // giật cắn (dứt cỏ) đi thẳng, không qua lò xo — hành vi đặt lại mỗi khung
+          U.head.rotation.z = P.hz.x - 0.07 * walkA * Math.cos(4 * Math.PI * (psi - 0.28)) - 0.6 * pitch + 1.1 * Math.max(0, fF - fH) + 0.09 * (c.bite || 0); U.head.rotation.x = 0.35 * P.hx.x;
+          c.bite = 0;
           P.cw = (P.cw || 0) + ((c.chew || 0) - (P.cw || 0)) * Math.min(1, dt * 3); const ch = 2 * Math.PI * 1.1 * t + c.ph;
           U.jaw.rotation.z = -P.cw * 0.13 * (0.5 - 0.5 * Math.cos(ch)); U.jaw.position.z = P.cw * 0.022 * Math.sin(ch);
           const fly = Math.max(0, Math.min(1, ((liveWeather.state.temperature ?? 24) - 18) / 12)) * Math.max(0, sunElevSin);
@@ -4734,7 +4734,7 @@
           }
           updateSoftTail(c.tail, dt, 0, 0);
         }
-        const STAG_PIV = 0.2, STAG_H0 = 1.17;   // khớp chân cao hơn mặt bụng · mặt bụng khi đứng (thấp hơn chân duỗi thẳng ~6% ⇒ chân với tới khi bước dài)
+        const STAG_PIV = 0.2, STAG_H0 = 1.17;
         function createStag() {
           const g = new THREE.Group();
           const deerMat = new THREE.MeshLambertMaterial({ color: 0x9b6e43 });
@@ -4744,7 +4744,7 @@
             const m = bx(w, h, d, mat, true, true); m.position.set(x, y, z); m.rotation.set(rx, ry, rz); par.add(m); return m;
           };
           const torso = new THREE.Group(); torso.position.y = STAG_H0; g.add(torso);
-          const body = new THREE.Group(); body.position.y = -1.25; torso.add(body);   // khối thân giữ toạ độ cũ (mặt bụng ở 1,25)
+          const body = new THREE.Group(); body.position.y = -1.25; torso.add(body);
           P(body, 1.4, 0.72, 0.64, deerMat, 0, 1.6, 0);
           P(body, 1.0, 0.12, 0.44, bellyMat, 0, 1.25, 0);
           const neckG = new THREE.Group(); neckG.position.set(0.65, 1.85, 0); neckG.rotation.z = -0.42; body.add(neckG);
@@ -4763,18 +4763,18 @@
             P(baseHorn, 0.06, 0.25, 0.06, hornMat, -0.08, 0.24, -sz * 0.04, -0.2 * sz, 0, -0.4);
           }
           const legs = [], hoofMat = new THREE.MeshLambertMaterial({ color: 0x222222 });
-          const legDefs = [[0.45, 0.22], [0.45, -0.22], [-0.48, 0.22], [-0.48, -0.22]];   // trước-T, trước-P, sau-T, sau-P (trái = +z)
+          const legDefs = [[0.45, 0.22], [0.45, -0.22], [-0.48, 0.22], [-0.48, -0.22]];
           for (const lp of legDefs) {
             const hip = new THREE.Group(); hip.position.set(lp[0], STAG_PIV, lp[1]); torso.add(hip);
-            P(hip, 0.18, 0.55 + STAG_PIV * 0.6, 0.18, deerMat, 0, -0.275 - STAG_PIV * 0.3, 0);   // đùi kéo dài lên trong thân
+            P(hip, 0.18, 0.55 + STAG_PIV * 0.6, 0.18, deerMat, 0, -0.275 - STAG_PIV * 0.3, 0);
             const knee = new THREE.Group(); knee.position.y = -0.55 - STAG_PIV; hip.add(knee);
             P(knee, 0.14, 0.6, 0.14, deerMat, 0, -0.3, 0);
             const paw = new THREE.Group(); paw.position.y = -0.6; knee.add(paw);
-            P(paw, 0.16, 0.08, 0.16, hoofMat, 0, -0.04, 0);   // móng: đế ở −0,08 dưới cổ chân
+            P(paw, 0.16, 0.08, 0.16, hoofMat, 0, -0.04, 0);
             legs.push({ hip, knee, paw, front: lp[0] > 0, side: Math.sign(lp[1]), L1: 0.55 + STAG_PIV, L2: 0.6, ankleH: 0.08, bend: lp[0] > 0 ? 1 : -1 });
           }
           const tailG = new THREE.Group(); tailG.position.set(-0.7, 1.9, 0); body.add(tailG);
-          P(tailG, 0.12, 0.35, 0.12, deerMat, -0.02, -0.08, 0, 0, 0, -0.55);   // đuôi (phẩy lên khi đi)
+          P(tailG, 0.12, 0.35, 0.12, deerMat, -0.02, -0.08, 0, 0, 0, -0.55);
           g.userData = { neck: neckG, head: headG, legs, torso, body, tail: tailG };
           return g;
         }
@@ -4782,7 +4782,7 @@
         {
           const m = createStag(); m.scale.multiplyScalar(NATURE_SCALE);
           const x = X0 + 176, z = Z0 + 171;
-          m.position.set(x, cowY(x, z), z);   // bám mặt địa hình thay vì y cứng 4.0
+          m.position.set(x, cowY(x, z), z);
           m.rotation.y = -0.8;
           m.name = 'Chú hươu có sừng (Stag)';
           scene.add(m);
@@ -4797,7 +4797,7 @@
             targetX: x, targetZ: z, v: 0
           };
           const Ss = m.scale.y;
-          stag.rig = quadRig(m, { legs: stag.legs, gaits: {   // đi bộ 4 phách trình tự bên, chạm đất ~60% (thú móng guốc) · nước kiệu khi vội
+          stag.rig = quadRig(m, { legs: stag.legs, gaits: {
             walk: { off: [0.27, 0.77, 0, 0.5], duty: 0.6, stride: 1.3 * Ss, lift: 0.11, vRef: 1.1 },
             trot: { off: [0, 0.5, 0.5, 0], duty: 0.42, stride: 1.9 * Ss, lift: 0.16, vRef: 2.0 } },
             home: (L, out) => out.set(L.hip.position.x, 0, L.hip.position.z), ground: (x, z) => cowY(x, z), size: 1.2 * Ss, settleT: 0.38, settleLift: 0.08 });
@@ -4812,36 +4812,36 @@
           if (s.state === 'walk') {
             const dx = s.targetX - s.x, dz = s.targetZ - s.z, dist = Math.hypot(dx, dz);
             if (dist < 0.6 || s.tmr <= 0) { s.state = 'eat'; s.tmr = 30.0; }
-            else {   // xoay trước (≤ 80°/giây) · lệch nhiều thì chỉ nhích chậm, gần đúng hướng mới bước đều
+            else {
               let dturn = Math.atan2(-dz, dx) - g.rotation.y; dturn = Math.atan2(Math.sin(dturn), Math.cos(dturn));
               g.rotation.y += Math.sign(dturn) * Math.min(Math.abs(dturn), 1.4 * dt); s.ang = g.rotation.y;
               want = 1.1 * Math.max(0.15, Math.cos(Math.min(1.5, Math.abs(dturn)))) * Math.min(1, 0.4 + dist / 1.2);
             }
-          } else if (s.state === 'eat') {   // vươn cao cổ gặm lá, nhai
+          } else if (s.state === 'eat') {
             neckT = 0.18;
             if (s.neck.children[1]) s.neck.children[1].rotation.z = Math.sin(t * 8.0) * 0.08;
             if (s.tmr <= 0) {
               s.state = 'walk'; s.tmr = 15.0;
-              const candidates = typeof treeCoords !== 'undefined' ? treeCoords.filter(tc => Math.hypot(tc.x - (X0 + 176), tc.z - (Z0 + 171)) < 25.0) : [];   // một cây gần đồi của hươu
+              const candidates = typeof treeCoords !== 'undefined' ? treeCoords.filter(tc => Math.hypot(tc.x - (X0 + 176), tc.z - (Z0 + 171)) < 25.0) : [];
               if (candidates.length > 0) { const tt = candidates[Math.floor(Math.random() * candidates.length)], a = Math.random() * 6.28; s.targetX = tt.x + Math.cos(a) * 1.15; s.targetZ = tt.z + Math.sin(a) * 1.15; }
               else { s.targetX = X0 + 176 + (Math.random() - 0.5) * 16.0; s.targetZ = Z0 + 171 + (Math.random() - 0.5) * 16.0; }
             }
           }
-          s.v += Math.max(-1.6 * dt, Math.min(1.0 * dt, want - s.v));   // tăng tốc êm, phanh nhanh hơn
+          s.v += Math.max(-1.6 * dt, Math.min(1.0 * dt, want - s.v));
           const d = s.v * dt; s.x += Math.cos(g.rotation.y) * d; s.z -= Math.sin(g.rotation.y) * d;
           g.position.x = s.x; g.position.z = s.z;
           const rig = s.rig, yF = (rig.support(0) + rig.support(1)) / 2, yH = (rig.support(2) + rig.support(3)) / 2;
           g.position.y = stagDamp(P.y, (yF + yH) / 2, 7, dt);
           stagDamp(P.p, Math.max(-0.42, Math.min(0.42, Math.atan2(yF - yH, 0.93 * Sc))), 6, dt);
           const psi = rig.psi, walkA = Math.min(1, s.v / 0.35), gait = s.v > 1.7 ? 'trot' : 'walk';
-          const bF = 0.03 * walkA * Math.cos(4 * Math.PI * (psi - 0.03)), bH = 0.03 * walkA * Math.cos(4 * Math.PI * (psi - 0.3));   // con lắc ngược: vai / hông cao nhất giữa pha trụ của chân trước / sau
+          const bF = 0.03 * walkA * Math.cos(4 * Math.PI * (psi - 0.03)), bH = 0.03 * walkA * Math.cos(4 * Math.PI * (psi - 0.3));
           const h = STAG_H0 + (bF + bH) / 2, pitch = P.p.x + (bF - bH) / 0.93;
           U.torso.position.y = h; U.torso.rotation.z = pitch;
           rig.step(dt, d, s.v, gait, h, pitch, false);
-          U.body.rotation.x = 0.03 * walkA * Math.sin(2 * Math.PI * (psi + 0.05));   // thân lắc nhẹ về phía 2 chân cùng bên đang trụ
+          U.body.rotation.x = 0.03 * walkA * Math.sin(2 * Math.PI * (psi + 0.05));
           stagDamp(P.nk, neckT, 4, dt);
-          s.neck.rotation.z = P.nk.x - 0.06 * walkA * Math.cos(4 * Math.PI * (psi - 0.25)) - 0.5 * pitch;   // cổ gật theo chân trước, bù chúc/ngóc của thân
-          U.tail.rotation.z = 0.25 * walkA + 0.12 * Math.sin(t * 2.3) * Math.max(0.3, walkA) + (Math.sin(t * 0.7) > 0.93 ? 0.4 * Math.sin(t * 14) : 0);   // đuôi phẩy
+          s.neck.rotation.z = P.nk.x - 0.06 * walkA * Math.cos(4 * Math.PI * (psi - 0.25)) - 0.5 * pitch;
+          U.tail.rotation.z = 0.25 * walkA + 0.12 * Math.sin(t * 2.3) * Math.max(0.3, walkA) + (Math.sin(t * 0.7) > 0.93 ? 0.4 * Math.sin(t * 14) : 0);
         }
 
         function createCrab() {
@@ -4898,14 +4898,14 @@
           cbx.font = '28px Outfit, sans-serif'; cbx.textAlign = 'center'; cbx.textBaseline = 'middle';
           cbx.shadowColor = 'rgba(20,28,36,0.7)'; cbx.shadowBlur = 4;
           cbx.fillStyle = '#ffe9b8'; cbx.fillText('^^! hello world', 128, 32);
-          const crabSay = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cbc), transparent: true, depthWrite: false, depthTest: false }));   // depthTest false → không bị mặt nước che
+          const crabSay = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cbc), transparent: true, depthWrite: false, depthTest: false }));
           crabSay.scale.set(2.6, 0.65, 1); crabSay.position.set(0, 0.85, 0);
           m.add(crabSay);
         }
 
         const bunnies = [];
-        const digMarks = [];   // dấu vết ụ đất vĩnh viễn thỏ để lại: tối đa 10 hố, tự mờ sau 20 phút
-        let _digTick = -1;     // throttle kiểm tra fade ~1 lần/giây
+        const digMarks = [];
+        let _digTick = -1;
         const digMarkGeo = new THREE.SphereGeometry(0.18, 8, 6);
         extraGeometries.add(digMarkGeo);
         const dropDigMark = (e) => { scene.remove(e.m); e.m.material.dispose(); };
@@ -4946,7 +4946,7 @@
         const bunnyCarrotMat = new THREE.MeshLambertMaterial({ color: 0xe8762c }), bunnyLeafMat = new THREE.MeshLambertMaterial({ color: 0x4f8a3d }), bunnyMoundMat = new THREE.MeshLambertMaterial({ color: 0x6e5744 });
         (function () {
           const bx0 = X0 + 31, bz0 = Z0 + 110, g = bunny();
-          g.scale.setScalar(0.8 * 0.8 * NATURE_SCALE); // nhỏ đi thêm 20%
+          g.scale.setScalar(0.8 * 0.8 * NATURE_SCALE);
           g.position.set(bx0, cowY(bx0, bz0), bz0); g.rotation.y = Math.random() * 6.28; scene.add(g);
           bunnies.push({ g, ears: g.userData.ears, head: g.userData.head, paws: g.userData.paws, carrot: g.userData.carrot, mound: g.userData.mound, x: bx0, z: bz0, ang: Math.random() * 6.28, spd: 2.4, state: 'sniff', tmr: 1 + Math.random() * 2, ph: Math.random() * 6, hop: 0, digTmr: 60 });
         })();
@@ -4957,47 +4957,47 @@
           const gY = surfaceY(Math.round(x2gi(cX)), Math.round(z2gj(cZ)));
           const g = new THREE.Group(); g.position.set(cX, gY, cZ); g.scale.setScalar(ARCHITECTURE_SCALE); g.name = 'Nhà kho mái pin mặt trời (Solar Warehouse)'; scene.add(g);
           const eaveH = 3.4, ridgeH = 3.0, halfW = W / 2, slope = halfW, slabLen = Math.hypot(slope, ridgeH), ang = Math.atan2(ridgeH, slope);
-          const roofHAt = (x) => eaveH + ridgeH * (1 - Math.abs(x) / halfW);   // cao độ đáy mái tại vị trí x (giữa = nóc, mép = diềm)
-          const base = bx(W + 0.4, 0.3, L + 0.4, concreteMat); base.position.y = 0.15; g.add(base);                    // nền bê-tông
+          const roofHAt = (x) => eaveH + ridgeH * (1 - Math.abs(x) / halfW);
+          const base = bx(W + 0.4, 0.3, L + 0.4, concreteMat); base.position.y = 0.15; g.add(base);
 
           const kneeH = 1.6;
-          for (const sx of [-1, 1]) { const w = bx(0.28, kneeH, L, wallMat, true, true, lineDark); w.position.set(sx * halfW, kneeH / 2, 0); g.add(w); }       // 2 tường dọc (giữ lại)
-          for (const sx of [-1, 1]) { const s2 = bx(0.28, 0.18, L + 0.2, concreteDark); s2.position.set(sx * halfW, kneeH, 0); g.add(s2); }                     // giằng đỉnh tường dọc
+          for (const sx of [-1, 1]) { const w = bx(0.28, kneeH, L, wallMat, true, true, lineDark); w.position.set(sx * halfW, kneeH / 2, 0); g.add(w); }
+          for (const sx of [-1, 1]) { const s2 = bx(0.28, 0.18, L + 0.2, concreteDark); s2.position.set(sx * halfW, kneeH, 0); g.add(s2); }
 
           const nCol = 11, colXf = [-0.92, 0, 0.92];
           for (let c = 0; c <= nCol; c++) { const cz = -L / 2 + (L / nCol) * c; for (const f of colXf) { const fx = f * halfW, h = roofHAt(fx); const col = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, h, 10), legMat); col.castShadow = true; col.position.set(fx, h / 2, cz); g.add(col); } }
 
           for (let c = 0; c <= nCol; c++) {
             const cz = -L / 2 + (L / nCol) * c;
-            const tie = bx(W * 0.97, 0.16, 0.14, metalMat, true, false); tie.position.set(0, eaveH, cz); g.add(tie);                                            // thanh giằng ngang
-            for (const sx of [-1, 1]) { const raf = bx(slabLen * 0.97, 0.12, 0.12, metalMat, true, false); raf.rotation.z = -sx * ang; raf.position.set(sx * slope / 2, eaveH + ridgeH / 2, cz); g.add(raf); }   // 2 kèo nghiêng
-            const kp = bx(0.12, ridgeH, 0.12, metalMat, true, false); kp.position.set(0, eaveH + ridgeH / 2, cz); g.add(kp);                                    // king post
-            for (const sx of [-1, 1]) { const qp = bx(0.1, ridgeH * 0.5, 0.1, metalMat, true, false); qp.position.set(sx * halfW * 0.5, eaveH + ridgeH * 0.25, cz); g.add(qp); }   // queen posts
+            const tie = bx(W * 0.97, 0.16, 0.14, metalMat, true, false); tie.position.set(0, eaveH, cz); g.add(tie);
+            for (const sx of [-1, 1]) { const raf = bx(slabLen * 0.97, 0.12, 0.12, metalMat, true, false); raf.rotation.z = -sx * ang; raf.position.set(sx * slope / 2, eaveH + ridgeH / 2, cz); g.add(raf); }
+            const kp = bx(0.12, ridgeH, 0.12, metalMat, true, false); kp.position.set(0, eaveH + ridgeH / 2, cz); g.add(kp);
+            for (const sx of [-1, 1]) { const qp = bx(0.1, ridgeH * 0.5, 0.1, metalMat, true, false); qp.position.set(sx * halfW * 0.5, eaveH + ridgeH * 0.25, cz); g.add(qp); }
           }
           for (const sx of [-1, 1]) for (const t of [0.34, 0.67]) { const px = sx * halfW * (1 - t), py = eaveH + ridgeH * t; const pur = bx(0.1, 0.1, L * 0.99, metalMat, true, false); pur.position.set(px, py - 0.12, 0); g.add(pur); }
           const ridgeBeam = bx(0.14, 0.14, L * 0.99, metalMat, true, false); ridgeBeam.position.set(0, eaveH + ridgeH - 0.12, 0); g.add(ridgeBeam);
 
           const pvMat = glassMat.clone(); pvMat.map = cellRep.clone(); pvMat.map.repeat.set(6, Math.round(L / 2.4)); pvMat.map.needsUpdate = true;
           for (const sx of [-1, 1]) {
-            const roof = bx(slabLen, 0.16, L, roofMat, true, true, lineDark); roof.rotation.z = -sx * ang; roof.position.set(sx * slope / 2, eaveH + ridgeH / 2, 0); g.add(roof);   // mặt mái dốc
-            const pv = new THREE.Mesh(new THREE.BoxGeometry(slabLen * 0.97, 0.08, L * 0.98), pvMat); pv.castShadow = true; pv.rotation.z = -sx * ang; pv.position.set(sx * slope / 2, eaveH + ridgeH / 2 + 0.14, 0); g.add(pv);   // pin áp mái phủ kín toàn mái (share pvMat → bake gộp 2 mái thành 1)
+            const roof = bx(slabLen, 0.16, L, roofMat, true, true, lineDark); roof.rotation.z = -sx * ang; roof.position.set(sx * slope / 2, eaveH + ridgeH / 2, 0); g.add(roof);
+            const pv = new THREE.Mesh(new THREE.BoxGeometry(slabLen * 0.97, 0.08, L * 0.98), pvMat); pv.castShadow = true; pv.rotation.z = -sx * ang; pv.position.set(sx * slope / 2, eaveH + ridgeH / 2 + 0.14, 0); g.add(pv);
           }
-          const cap = bx(0.4, 0.25, L, concreteDark); cap.position.set(0, eaveH + ridgeH, 0); g.add(cap);              // nóc mái (ridge)
-          for (let z = -L / 2 + 6; z <= L / 2 - 6; z += 12) obstacleCoords.push({ x: cX, y: gY, z: cZ + z * ARCHITECTURE_SCALE, r: (W / 2 + 1.5) * ARCHITECTURE_SCALE, h: (eaveH + ridgeH + 1.0) * ARCHITECTURE_SCALE });   // nhà kho DÀI → capsule vài vòng dọc trục Z để ong/bướm né trọn
+          const cap = bx(0.4, 0.25, L, concreteDark); cap.position.set(0, eaveH + ridgeH, 0); g.add(cap);
+          for (let z = -L / 2 + 6; z <= L / 2 - 6; z += 12) obstacleCoords.push({ x: cX, y: gY, z: cZ + z * ARCHITECTURE_SCALE, r: (W / 2 + 1.5) * ARCHITECTURE_SCALE, h: (eaveH + ridgeH + 1.0) * ARCHITECTURE_SCALE });
           bakeStatic(g);
         })();
 
         (function waterTank() {
           const g = new THREE.Group(); g.position.set(X0 + 192, 7, Z0 + 80); g.scale.setScalar(ARCHITECTURE_SCALE); g.name = 'Bồn nước nông thôn (Rural Water Tank)'; scene.add(g);
           const R = 2.6, bodyH = 3.2, baseTop = 0.8;
-          const tankMat = new THREE.MeshLambertMaterial({ color: 0xE2D6C0 });   // kem
+          const tankMat = new THREE.MeshLambertMaterial({ color: 0xE2D6C0 });
           const stoneMat = new THREE.MeshLambertMaterial({ color: 0x9a8f7e });
-          const stone = new THREE.Mesh(new THREE.CylinderGeometry(R + 0.9, R + 1.15, baseTop, 22), stoneMat); stone.position.y = baseTop / 2; stone.castShadow = true; stone.receiveShadow = true; g.add(stone);   // bệ đá
-          const bodyGeo = new THREE.CylinderGeometry(R, R, bodyH, 30); const body = new THREE.Mesh(bodyGeo, tankMat); body.position.y = baseTop + bodyH / 2; body.castShadow = true; body.receiveShadow = true; g.add(body); edge(body, bodyGeo);   // thân bồn
-          const nRib = 9; for (let r = 0; r < nRib; r++) { const ry = baseTop + (bodyH / nRib) * (r + 0.5); const rib = new THREE.Mesh(new THREE.TorusGeometry(R + 0.04, 0.075, 6, 30), tankMat); rib.rotation.x = Math.PI / 2; rib.position.y = ry; rib.castShadow = true; g.add(rib); }   // gân lượn sóng
-          const roofGeo = new THREE.ConeGeometry(R + 0.1, 0.95, 30); const roof = new THREE.Mesh(roofGeo, tankMat); roof.position.y = baseTop + bodyH + 0.47; roof.castShadow = true; g.add(roof); edge(roof, roofGeo);   // mái chóp thấp
-          const vent = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.32, 10), tankMat); vent.position.y = baseTop + bodyH + 0.95; g.add(vent);   // nắp/ống thông hơi
-          const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, bodyH + 0.5, 8), new THREE.MeshLambertMaterial({ color: 0x6b6b66 })); pipe.position.set(R + 0.14, baseTop + bodyH / 2 - 0.1, 0.4); pipe.castShadow = true; g.add(pipe);   // ống dẫn bên hông
+          const stone = new THREE.Mesh(new THREE.CylinderGeometry(R + 0.9, R + 1.15, baseTop, 22), stoneMat); stone.position.y = baseTop / 2; stone.castShadow = true; stone.receiveShadow = true; g.add(stone);
+          const bodyGeo = new THREE.CylinderGeometry(R, R, bodyH, 30); const body = new THREE.Mesh(bodyGeo, tankMat); body.position.y = baseTop + bodyH / 2; body.castShadow = true; body.receiveShadow = true; g.add(body); edge(body, bodyGeo);
+          const nRib = 9; for (let r = 0; r < nRib; r++) { const ry = baseTop + (bodyH / nRib) * (r + 0.5); const rib = new THREE.Mesh(new THREE.TorusGeometry(R + 0.04, 0.075, 6, 30), tankMat); rib.rotation.x = Math.PI / 2; rib.position.y = ry; rib.castShadow = true; g.add(rib); }
+          const roofGeo = new THREE.ConeGeometry(R + 0.1, 0.95, 30); const roof = new THREE.Mesh(roofGeo, tankMat); roof.position.y = baseTop + bodyH + 0.47; roof.castShadow = true; g.add(roof); edge(roof, roofGeo);
+          const vent = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.32, 10), tankMat); vent.position.y = baseTop + bodyH + 0.95; g.add(vent);
+          const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, bodyH + 0.5, 8), new THREE.MeshLambertMaterial({ color: 0x6b6b66 })); pipe.position.set(R + 0.14, baseTop + bodyH / 2 - 0.1, 0.4); pipe.castShadow = true; g.add(pipe);
           bakeStatic(g);
         })();
 
@@ -5006,14 +5006,14 @@
           const bU = u => 0.156 * Math.pow(Math.sin(Math.PI * u), 0.7), ysU = u => 0.128 + 0.037 * Math.pow(Math.abs(2 * u - 1), 6), ykU = u => -0.026 + 0.14 * Math.pow(Math.abs(2 * u - 1), 2.4);
           const cv = document.createElement('canvas'); cv.width = 512; cv.height = 256; const c = cv.getContext('2d');
           c.fillStyle = '#5b4632'; c.fillRect(0, 0, 512, 256);
-          for (let k = 0; k < 900; k++) { const y = Math.random() * 256, x = Math.random() * 512, l = 20 + Math.random() * 80; c.strokeStyle = `rgba(${Math.random() < 0.5 ? '40,28,18' : '120,96,70'},${0.15 + Math.random() * 0.2})`; c.lineWidth = 0.6 + Math.random(); c.beginPath(); c.moveTo(x, y); c.lineTo(x + l, y + (Math.random() - 0.5) * 2); c.stroke(); }   // vân gỗ dọc ván
-          for (let k = 0; k < 26; k++) { const g = c.createRadialGradient(0, 0, 0, 0, 0, 1); g.addColorStop(0, 'rgba(150,140,125,0.35)'); g.addColorStop(1, 'rgba(150,140,125,0)'); c.save(); c.translate(Math.random() * 512, Math.random() * 256); c.scale(30 + Math.random() * 70, 10 + Math.random() * 20); c.fillStyle = g; c.beginPath(); c.arc(0, 0, 1, 0, 7); c.fill(); c.restore(); }   // phong hoá
-          for (let s = 1; s < 6; s++) {   // mạch ván + đinh
+          for (let k = 0; k < 900; k++) { const y = Math.random() * 256, x = Math.random() * 512, l = 20 + Math.random() * 80; c.strokeStyle = `rgba(${Math.random() < 0.5 ? '40,28,18' : '120,96,70'},${0.15 + Math.random() * 0.2})`; c.lineWidth = 0.6 + Math.random(); c.beginPath(); c.moveTo(x, y); c.lineTo(x + l, y + (Math.random() - 0.5) * 2); c.stroke(); }
+          for (let k = 0; k < 26; k++) { const g = c.createRadialGradient(0, 0, 0, 0, 0, 1); g.addColorStop(0, 'rgba(150,140,125,0.35)'); g.addColorStop(1, 'rgba(150,140,125,0)'); c.save(); c.translate(Math.random() * 512, Math.random() * 256); c.scale(30 + Math.random() * 70, 10 + Math.random() * 20); c.fillStyle = g; c.beginPath(); c.arc(0, 0, 1, 0, 7); c.fill(); c.restore(); }
+          for (let s = 1; s < 6; s++) {
             const y = 256 - s * 256 / 6; c.fillStyle = 'rgba(25,17,10,0.85)'; c.fillRect(0, y - 1.5, 512, 3); c.fillStyle = 'rgba(160,150,140,0.55)'; c.fillRect(0, y + 1.5, 512, 1);
             c.fillStyle = 'rgba(30,26,24,0.9)'; for (let x = 6; x < 512; x += 22) { c.beginPath(); c.arc(x, y + 4, 1.4, 0, 7); c.fill(); }
           }
-          const gb = c.createLinearGradient(0, 256, 0, 190); gb.addColorStop(0, 'rgba(35,40,22,0.75)'); gb.addColorStop(1, 'rgba(35,40,22,0)'); c.fillStyle = gb; c.fillRect(0, 190, 512, 66);   // rêu, nước ngấm sát đáy
-          c.fillStyle = 'rgba(20,14,9,0.9)'; c.fillRect(0, 248, 512, 8);   // sống đáy
+          const gb = c.createLinearGradient(0, 256, 0, 190); gb.addColorStop(0, 'rgba(35,40,22,0.75)'); gb.addColorStop(1, 'rgba(35,40,22,0)'); c.fillStyle = gb; c.fillRect(0, 190, 512, 66);
+          c.fillStyle = 'rgba(20,14,9,0.9)'; c.fillRect(0, 248, 512, 8);
           const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
           const hullM = new THREE.MeshLambertMaterial({ map: tex, side: THREE.DoubleSide }), woodM = new THREE.MeshLambertMaterial({ color: 0x6b5238 }), darkM = new THREE.MeshLambertMaterial({ color: 0x3e2f22 });
           const NU = 28, NT = 9, pos = [], uv = [], idx = [], W = 2 * NT - 1;
@@ -5022,7 +5022,7 @@
             for (let j = 0; j < W; j++) {
               const t = Math.abs(j - (NT - 1)) / (NT - 1), sd = j < NT - 1 ? -1 : 1;
               pos.push((u - 0.5) * L, (yk + (ys - yk) * Math.pow(1 - Math.cos(Math.PI / 2 * t), 0.85)) * L, sd * b * Math.sin(Math.PI / 2 * t) * L);
-              uv.push(u * 2.2, t);   // CanvasTexture lật dọc: t = 0 sống đáy (đáy canvas) → 1 mạn
+              uv.push(u * 2.2, t);
             }
           }
           for (let i = 0; i < NU; i++) for (let j = 0; j < W - 1; j++) { const a = i * W + j, b = a + W; idx.push(a, b, a + 1, a + 1, b, b + 1); }
@@ -5039,13 +5039,13 @@
           const fl = new THREE.Mesh(new THREE.BoxGeometry(0.5 * L, 0.025, 0.11 * L), woodM); fl.position.set(0, (ykU(0.5) + 0.06) * L, 0); fl.receiveShadow = true; boat.add(fl);
           for (const u of [0.3, 0.5, 0.72]) { const th = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.04, 2 * bU(u) * L * 0.9), woodM); th.position.set((u - 0.5) * L, 0.1 * L, 0); th.castShadow = th.receiveShadow = true; boat.add(th); }
           for (const sd of [-1, 1]) for (const dx of [-0.07, 0.07]) { const pin = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.014, 0.12, 5), darkM); pin.position.set(0.05 + dx, ysU(0.52) * L + 0.07, sd * bU(0.52) * L); boat.add(pin); }
-          for (const sd of [-1, 1]) {   // 2 mái chèo để nằm dọc trong xuồng, gác lên băng ngồi
+          for (const sd of [-1, 1]) {
             const oar = new THREE.Group(); oar.position.set(-0.05, 0.1 * L + 0.04, sd * 0.13); oar.rotation.set(sd * 0.05, sd * 0.06, 0.04); boat.add(oar);
             const sh = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.026, 2.1, 6), woodM); sh.rotation.z = Math.PI / 2; sh.castShadow = true; oar.add(sh);
             const bl = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.018, 0.13), woodM); bl.position.x = 1.15; bl.castShadow = true; oar.add(bl);
           }
           let bx = 0, bz = 0; for (let a = 0; a < 16; a++) { const ang = a / 16 * TAU, px = X + Math.cos(ang) * 2.5, pz = Z + Math.sin(ang) * 2.5; if (!isWater(Math.round(x2gi(px)), Math.round(z2gj(pz)))) { bx += Math.cos(ang); bz += Math.sin(ang); } }
-          const yaw = Math.atan2(-bz, bx), fx = Math.cos(yaw), fz = -Math.sin(yaw);   // +x cục bộ (mũi u = 1) chĩa về phía đất
+          const yaw = Math.atan2(-bz, bx), fx = Math.cos(yaw), fz = -Math.sin(yaw);
           const sup = d => { const x = X + fx * d, z = Z + fz * d, gi = Math.round(x2gi(x)), gj = Math.round(z2gj(z)); return isWater(gi, gj) ? waterSurfaceY(x, z) - 0.05 : cowY(x, z) - 0.02; };
           const yB = sup(0.32 * L), yS = sup(-0.32 * L), pitch = Math.atan2(yB - yS, 0.64 * L);
           boat.position.set(X, (yB + yS) / 2 - ykU(0.5) * L, Z); boat.rotation.order = 'YZX'; boat.rotation.set(0.04, yaw, pitch);
@@ -5058,15 +5058,15 @@
         }
         (function stoneRing() {
           const g = new THREE.Group(); g.position.set(X0 + 89, 7.0, Z0 + 117); scene.add(g); flightRoots.push(g);
-          const dirtMatRound = new THREE.MeshLambertMaterial({ color: 0x3d3024 });   // đất bùn đậm quanh gốc
-          const rockMat = new THREE.MeshLambertMaterial({ color: 0x827b72, flatShading: true });   // đá ấm đa giác góc cạnh
+          const dirtMatRound = new THREE.MeshLambertMaterial({ color: 0x3d3024 });
+          const rockMat = new THREE.MeshLambertMaterial({ color: 0x827b72, flatShading: true });
           const dirtDisc = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.5, 0.12, 16), dirtMatRound);
           dirtDisc.position.y = 0.06; dirtDisc.receiveShadow = true; g.add(dirtDisc);
           const geo = new THREE.DodecahedronGeometry(0.85, 0);
           const stones = [
-            { pos: [0.3, 0.42, 1.25], sc: [1.45, 0.95, 1.3], rot: [0.4, 0.8, -0.2] },      // 1 LỚN (Big)
-            { pos: [1.5, 0.34, -0.4], sc: [1.0, 0.7, 0.9], rot: [-0.3, 1.4, 0.5] },       // 1 VỪA (Medium)
-            { pos: [-1.35, 0.26, 0.5], sc: [0.62, 0.45, 0.58], rot: [0.6, -0.7, 0.2] }     // 1 NHỎ (Small)
+            { pos: [0.3, 0.42, 1.25], sc: [1.45, 0.95, 1.3], rot: [0.4, 0.8, -0.2] },
+            { pos: [1.5, 0.34, -0.4], sc: [1.0, 0.7, 0.9], rot: [-0.3, 1.4, 0.5] },
+            { pos: [-1.35, 0.26, 0.5], sc: [0.62, 0.45, 0.58], rot: [0.6, -0.7, 0.2] }
           ];
           for (const s of stones) {
             const m = new THREE.Mesh(geo, rockMat); m.position.set(...s.pos); m.scale.set(...s.sc); m.rotation.set(...s.rot);
@@ -5077,7 +5077,7 @@
 
         let oldTreeGroup;
         (function oldTree() {
-          const g = new THREE.Group(); g.position.set(X0 + 89, 7, Z0 + 117); g.scale.setScalar(2.76); g.rotation.set(0, 0, 0.62); g.name = 'Cây cổ thụ (Old Tree)'; scene.add(g);   // ngả thân về phía dòng sông (-x)
+          const g = new THREE.Group(); g.position.set(X0 + 89, 7, Z0 + 117); g.scale.setScalar(2.76); g.rotation.set(0, 0, 0.62); g.name = 'Cây cổ thụ (Old Tree)'; scene.add(g);
           oldTreeGroup = g;
           const TOP = 0.85;
           const barkMat = new THREE.MeshLambertMaterial({ color: 0x4a3420, transparent: true, opacity: TOP }), deadMat = new THREE.MeshLambertMaterial({ color: 0xE2D6C0, transparent: true, opacity: TOP });
@@ -5147,21 +5147,21 @@
           });
 
           branches.forEach((br, bIdx) => {
-            const scale = (bIdx === 0) ? 0.248 : 0.75; // Nhánh sông ngắn thêm 20% (0.31 * 0.8 = 0.248)
+            const scale = (bIdx === 0) ? 0.248 : 0.75;
             for (let i = 1; i < br.length; i++) {
               const vec = br[i].clone().sub(br[i - 1]);
               vec.multiplyScalar(scale);
-              if (bIdx === 0) vec.y += 0.32;   // Uốn ngóc đầu lên sông nhiều hơn
+              if (bIdx === 0) vec.y += 0.32;
               br[i] = br[i - 1].clone().add(vec);
             }
           });
 
-          g.userData.mainBranches = branches.map(br => br.map(v => v.clone()));   // đường tâm 5 cành chính (toạ độ cục bộ) — chỗ bướm đậu trú mưa
+          g.userData.mainBranches = branches.map(br => br.map(v => v.clone()));
           function sprout(a, dir, len, r, depth, bIdx, isSide = false) {
             const pieceStart = g.children.length;
             const b = a.clone().addScaledVector(dir, len);
             b.x += (rnd() - 0.5) * len * 0.3; b.z += (rnd() - 0.5) * len * 0.3;
-            crookedLimb(a, b, r, r * 0.54, barkMat); // Đường kính nhỏ hơn 10% (0.6 * 0.9 = 0.54)
+            crookedLimb(a, b, r, r * 0.54, barkMat);
             const js = new THREE.Mesh(new THREE.SphereGeometry(r * 0.54, 6, 6), barkMat);
             js.position.copy(b);
             g.add(js);
@@ -5169,8 +5169,8 @@
             const n = 2 + ((rnd() * 2) | 0);
             for (let k = 0; k < n; k++) {
               const nd = dir.clone().add(V((rnd() - 0.5) * 1.5, (rnd() - 0.4) * 0.6, (rnd() - 0.5) * 1.5)).normalize();
-              if (nd.y > 0.5 || nd.y < 0) { nd.y = Math.max(0, Math.min(0.5, nd.y)); nd.normalize(); }   // không chúc xuống (cành sông khỏi chọc nước) · không vọt cao
-              sprout(b, nd, len * 0.875 * (0.75 + rnd() * 0.5), r * 0.54, depth + 1, bIdx, isSide); // 25% longer (0.7 * 1.25 = 0.875)
+              if (nd.y > 0.5 || nd.y < 0) { nd.y = Math.max(0, Math.min(0.5, nd.y)); nd.normalize(); }
+              sprout(b, nd, len * 0.875 * (0.75 + rnd() * 0.5), r * 0.54, depth + 1, bIdx, isSide);
             }
           }
           for (let bIdx = 0; bIdx < branches.length; bIdx++) {
@@ -5191,7 +5191,7 @@
               rb *= 0.78; rbs.push(rb);
             }
             const e = br[br.length - 1], d0 = e.clone().sub(br[br.length - 2]).normalize();
-            sprout(e, d0, 0.62 * 1.25, rb * 0.9, 0, bIdx, false); // 25% longer, 10% thinner
+            sprout(e, d0, 0.62 * 1.25, rb * 0.9, 0, bIdx, false);
 
             if (bIdx !== 0 && br.length >= 3) {
               const jointsToSprout = br.length > 3 ? [1, 2] : [1];
@@ -5201,7 +5201,7 @@
                 const numSprouts = idx === 1 ? 2 : 3;
                 for (let k = 0; k < numSprouts; k++) {
                   const sideDir = d_mid.clone().add(V((rnd() - 0.5) * 2.2, 0.2 + rnd() * 0.4, (rnd() - 0.5) * 2.2)).normalize();
-                  sprout(midPt, sideDir, 0.42 * (0.8 + rnd() * 0.4) * 1.25, rbs[idx] * 0.55 * 0.9, 1, bIdx, true); // 25% longer, 10% thinner
+                  sprout(midPt, sideDir, 0.42 * (0.8 + rnd() * 0.4) * 1.25, rbs[idx] * 0.55 * 0.9, 1, bIdx, true);
                 }
               }
             }
@@ -5268,29 +5268,29 @@
             for (const piece of tp.pieces) { g.remove(piece); piece.geometry.dispose(); }
             const twig = new THREE.Mesh(geometry, tp.material);
             twig.name = 'Cành ngọn ngắn'; twig.castShadow = twig.receiveShadow = true; g.add(twig);
-            tp.pos.copy(end); // Leaf clusters and falling-leaf origins follow the shorter twig.
+            tp.pos.copy(end);
           }
           for (const tp of tips) refineTerminalTwig(tp);
           for (const tp of deadTips) refineTerminalTwig(tp);
           const pts = [];
           for (const tp of tips) {
             const isRiver = (tp.bIdx === 0);
-            const radius = isRiver ? 1.1 : 1.62;   // các cành còn lại tăng phủ 30% (1.25 * 1.3 ≈ 1.62)
-            let count = isRiver ? 70 : 140;       // cành sông giảm mật độ lá 50% (140 * 0.5 = 70)
+            const radius = isRiver ? 1.1 : 1.62;
+            let count = isRiver ? 70 : 140;
             if (tp.isSide) {
-              count = Math.round(count * 0.8);  // Giảm 20% mật độ lá quanh các nhánh phụ mới đệ quy
+              count = Math.round(count * 0.8);
             }
             cloudPts(rnd, tp.pos.x, tp.pos.y + 0.08, tp.pos.z, radius, count, pts);
           }
-          tuftInstanced(g, rnd, pts, leafHexGeo(0.05), leafCols, 0.76, 0.7, tw, 0.04);   // lá cây cổ thụ trong suốt hơn 10% (0.85 * 0.9 = 0.76)
-          g.userData.leafPts = pts;   // lá vàng rụng sinh từ chính các chùm lá (toạ độ cục bộ)
+          tuftInstanced(g, rnd, pts, leafHexGeo(0.05), leafCols, 0.76, 0.7, tw, 0.04);
+          g.userData.leafPts = pts;
 
           bakeStatic(g);
         })();
 
         (function smallSubTree() {
           const g = new THREE.Group(); g.name = 'Cây con (Small Sub-Tree)';
-          g.position.set(X0 + 91, 7.0, Z0 + 117); g.scale.set(1.705, 1.86, 1.705); g.rotation.set(0.1, 0, 0.35); // Gốc to 10% (1.55*1.1=1.705), cao thêm 20% (1.55*1.2=1.86)
+          g.position.set(X0 + 91, 7.0, Z0 + 117); g.scale.set(1.705, 1.86, 1.705); g.rotation.set(0.1, 0, 0.35);
           if (oldTreeGroup) {
             oldTreeGroup.attach(g);
           } else {
@@ -5327,7 +5327,7 @@
           };
 
           const trunk = [V(0, 0, 0), V(0.15, 0.7, 0.1), V(-0.1, 1.4, 0.2), V(0.2, 2.1, 0.15)];
-          let r = 0.21;   // đường kính thân nhỏ đi 50% (0.42 → 0.21)
+          let r = 0.21;
           for (let i = 0; i < trunk.length - 1; i++) {
             crookedLimb(trunk[i], trunk[i + 1], r, r * 0.82);
             const js = new THREE.Mesh(new THREE.SphereGeometry(r * 0.82, 8, 8), barkMat);
@@ -5350,7 +5350,7 @@
             const n = 2 + ((rnd() * 2) | 0);
             for (let k = 0; k < n; k++) {
               const nd = dir.clone().add(V((rnd() - 0.5) * 1.4, (rnd() - 0.25) * 0.7, (rnd() - 0.5) * 1.4)).normalize();
-              if (nd.y < 0) { nd.y = 0; nd.normalize(); }   // không chúc xuống đất
+              if (nd.y < 0) { nd.y = 0; nd.normalize(); }
               sSprout(b, nd, len * 0.7 * (0.75 + rnd() * 0.4), rr * 0.7, depth + 1);
             }
           }
@@ -5360,7 +5360,7 @@
           sSprout(trunk[2], tBranchDir2, 0.38, 0.08, 0);
 
           for (const br of sBranches) {
-            let rb = 0.11;   // cành nhỏ theo thân (nhỏ đi 50%: 0.22 → 0.11)
+            let rb = 0.11;
             const startSphere = new THREE.Mesh(new THREE.SphereGeometry(rb * 1.1, 8, 8), barkMat);
             startSphere.position.copy(br[0]);
             g.add(startSphere);
@@ -5381,10 +5381,10 @@
               rb *= 0.76;
             }
             const e = br[br.length - 1], d0 = e.clone().sub(br[br.length - 2]).normalize();
-            sSprout(e, d0, 0.5, rb, 0);   // nối nhánh đệ quy theo hướng cành chính
+            sSprout(e, d0, 0.5, rb, 0);
           }
           const sLeafPts = [];
-          const perTip = Math.max(20, Math.round(810 / sTips.length));   // tổng ~810 điểm lá = gấp 3 lần trước (3 cụm × 90 = 270)
+          const perTip = Math.max(20, Math.round(810 / sTips.length));
           for (const tp of sTips) cloudPts(rnd, tp.x, tp.y + 0.05, tp.z, 0.55, perTip, sLeafPts);
           tuftInstanced(g, rnd, sLeafPts, leafHexGeo(0.05), leafCols, 0.85);
           const hiveAnchor = new THREE.Object3D(); hiveAnchor.position.set(-3.4425, 3.5108, 0.3995); g.add(hiveAnchor); g.userData.hiveAnchor = hiveAnchor;
@@ -5397,9 +5397,9 @@
           const subtree = oldTreeGroup.getObjectByName('Cây con (Small Sub-Tree)');
           if (subtree && subtree.parent === oldTreeGroup) subtree.position.multiplyScalar(1 / NATURE_SCALE);
           oldTreeGroup.updateMatrixWorld(true);
-          oldTreeWind = oldTreeGroup.userData.treeWind; finalizeTreeWind(oldTreeWind, oldTreeGroup);   // gốc/chiều cao/tán đo SAU khi thu theo NATURE_SCALE
+          oldTreeWind = oldTreeGroup.userData.treeWind; finalizeTreeWind(oldTreeWind, oldTreeGroup);
           oldTreeLeafCtl = makeLeafFall({ name: 'Lá cây cổ thụ rụng theo gió', group: oldTreeGroup, pts: oldTreeGroup.userData.leafPts, n: 16,
-            geo: new THREE.CylinderGeometry(0.045 * 2.3, 0.045 * 2.3, 0.0015 * 2.3, 6), opacity: 0.76, color: () => Math.random() < 0.85 ? 0xe5b82c : 0x5e8c44,   // 85% lá vàng, 15% lá xanh
+            geo: new THREE.CylinderGeometry(0.045 * 2.3, 0.045 * 2.3, 0.0015 * 2.3, 6), opacity: 0.76, color: () => Math.random() < 0.85 ? 0xe5b82c : 0x5e8c44,
             scale: NATURE_SCALE, tw: oldTreeWind, g: 3.5, vTerm: 0.7, flutA: 0.7, flutW: [2.2, 3.2], tumble: 0.35, tumbleW: [6, 10], slideU: 0.6, rate0: 0.05, rateK: 3.0, shake0: 0.012, restLife: [12, 24], floatLife: [30, 55], sinkP: 0.35, sinkV: [0.06, 0.1], leeway: 0.03 });
         }
 
@@ -5407,26 +5407,26 @@
           engSkin = new THREE.MeshLambertMaterial({ color: 0xe0ac80 }), engHelm = new THREE.MeshLambertMaterial({ color: 0xf4f2ec }),
           engBoot = new THREE.MeshLambertMaterial({ color: 0x2a2622 }), engPad = new THREE.MeshLambertMaterial({ color: 0xE2D6C0 }),
           rodMat = new THREE.MeshLambertMaterial({ color: 0x5a4632 });
-        const LEGO_YELLOW = 0xf5cd2f;   // màu da vàng kinh điển của nhân vật LEGO
-        const CAMP_SCALE = 0.90, ENGINEER_SIZE = 0.95 * 0.95, ENGINEER_BASE_SCALE = 1.026 * ENGINEER_SIZE;   // kỹ sư nhỏ đi 5% hai lần (ghế, bàn, giường giữ nguyên)
+        const LEGO_YELLOW = 0xf5cd2f;
+        const CAMP_SCALE = 0.90, ENGINEER_SIZE = 0.95 * 0.95, ENGINEER_BASE_SCALE = 1.026 * ENGINEER_SIZE;
         const ENG_FEET = 0.30 * ENGINEER_BASE_SCALE * CAMP_SCALE, ENG_SIT_LIFT = 1.06 * 1.026 * (1 - ENGINEER_SIZE) * CAMP_SCALE;
-        const engSitDrop = (k, seatDrop = 0.53 * CAMP_SCALE) => ENG_FEET * (1 - k) + (seatDrop - ENG_SIT_LIFT) * k;   // k: 0 đứng → 1 ngồi hẳn
+        const engSitDrop = (k, seatDrop = 0.53 * CAMP_SCALE) => ENG_FEET * (1 - k) + (seatDrop - ENG_SIT_LIFT) * k;
         const ROD_K = 3.1 / 114, ROD_R = ROD_K * 1.4;
         let rodMats = null;
         const ROD_CUTS = [25.2, 41.4, 60.5, 77.4, 91.9, 101.9, 114], ROD_RADS = [0.54, 0.47, 0.33, 0.26, 0.18, 0.1, 0.06];
-        const ROD_EI0 = 290;   // độ cứng uốn gốc thân cần (N·đv², đv cục bộ của cần): lực ngang 10 N ở ngọn → ngọn lệch ~45° (cỡ cần phao cacbon), 14 N (ngưỡng phanh) cong hình chữ C
+        const ROD_EI0 = 290;
         function fishingRod(opts = {}) {
           if (!rodMats) rodMats = { cork: new THREE.MeshLambertMaterial({ color: 0x8b6341 }), blank: new THREE.MeshLambertMaterial({ color: 0x1d1c1b }), seat: new THREE.MeshLambertMaterial({ color: 0x868482 }), reel: new THREE.MeshLambertMaterial({ color: 0x2c2824 }), guide: new THREE.MeshLambertMaterial({ color: 0xb8bcc0 }) };
           const M = rodMats, g = new THREE.Group(); g.name = 'Cần câu (Fishing Rod)';
-          const Y = v => -0.4 + v * ROD_K;   // vị trí dọc cần theo số đo mẫu (0 = nắp chuôi, 114 = ngọn); chuôi nhô 0,4 ra sau tay nắm
-          const lathe = (pts, mat, seg = 10, par = g, base = null) => {   // base ≠ null: toạ độ cục bộ của 1 đoạn cần bắt đầu ở mốc base
+          const Y = v => -0.4 + v * ROD_K;
+          const lathe = (pts, mat, seg = 10, par = g, base = null) => {
             const m = new THREE.Mesh(new THREE.LatheGeometry(pts.map(([r, y]) => new THREE.Vector2(r * ROD_R, base === null ? Y(y) : (y - base) * ROD_K)), seg), mat); m.castShadow = true; par.add(m); return m;
           };
-          lathe([[0, 0], [0.71, 0], [0.87, 0.2], [0.93, 1.2], [0.93, 11.6], [0.87, 12.3], [0.74, 12.7], [0, 12.7]], M.cork);            // chuôi sau bằng bần + nắp đuôi
-          lathe([[0, 12.6], [0.8, 12.6], [0.82, 15.7], [0.8, 21], [0.9, 21.2], [0.9, 21.6], [0, 21.6]], M.seat);                      // ống gắn máy + vòng chặn
-          lathe([[0, 21.5], [0.84, 21.5], [0.75, 22], [0.72, 25.1], [0.55, 25.3], [0, 25.3]], M.cork);                                // chuôi trước ngắn
+          lathe([[0, 0], [0.71, 0], [0.87, 0.2], [0.93, 1.2], [0.93, 11.6], [0.87, 12.3], [0.74, 12.7], [0, 12.7]], M.cork);
+          lathe([[0, 12.6], [0.8, 12.6], [0.82, 15.7], [0.8, 21], [0.9, 21.2], [0.9, 21.6], [0, 21.6]], M.seat);
+          lathe([[0, 21.5], [0.84, 21.5], [0.75, 22], [0.72, 25.1], [0.55, 25.3], [0, 25.3]], M.cork);
           const guides = [];
-          const addGuide = (par, base, gy, gr, gc) => {   // khoen nằm vuông góc trục cần, dây luồn qua + chân khoen bám thân
+          const addGuide = (par, base, gy, gr, gc) => {
             const y = base === null ? Y(gy) : (gy - base) * ROD_K;
             const ring = new THREE.Mesh(new THREE.TorusGeometry(gr * ROD_R, 0.12 * ROD_R, 5, 12), M.guide); ring.rotation.x = Math.PI / 2; ring.position.set(0, y, gc * ROD_R); par.add(ring);
             const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.08 * ROD_R, 0.1 * ROD_R, (gc - gr) * ROD_R, 4), M.guide); foot.rotation.x = Math.PI / 2; foot.position.set(0, y, (gc - gr) * ROD_R / 2); par.add(foot);
@@ -5435,7 +5435,7 @@
           const GUIDES = [[41.6, 0.62, 1.54], [60.7, 0.5, 1.07], [77.2, 0.46, 0.94], [92.1, 0.42, 0.87], [102, 0.36, 0.62], [113.9, 0.24, 0.4]];
           const tip = new THREE.Object3D();
           if (!opts.flex) {
-            lathe([[0, 25.2], [0.54, 25.2], [0.47, 41.4], [0.33, 60.5], [0.26, 77.4], [0.18, 91.9], [0.1, 101.9], [0.06, 113.9], [0, 114]], M.blank, 8);   // thân cần thon dần
+            lathe([[0, 25.2], [0.54, 25.2], [0.47, 41.4], [0.33, 60.5], [0.26, 77.4], [0.18, 91.9], [0.1, 101.9], [0.06, 113.9], [0, 114]], M.blank, 8);
             for (const gd of GUIDES) addGuide(g, null, ...gd);
             tip.position.y = Y(113.9); g.add(tip);
           } else {
@@ -5448,33 +5448,33 @@
               const len = (ROD_CUTS[k + 1] - ROD_CUTS[k]) * ROD_K, rm = (ROD_RADS[k] + ROD_RADS[k + 1]) / 2, m = rm * rm * len;
               segs.push({ g: sg, len, ei: ROD_EI0 * Math.pow(Math.max(0.15, rm) / 0.54, 3), m }); mSum += m; par = sg;
             }
-            for (const s of segs) s.m *= 0.11 / mSum;   // thân cần cacbon ~110 g
+            for (const s of segs) s.m *= 0.11 / mSum;
             for (const gd of GUIDES) { const k = Math.max(0, ROD_CUTS.findIndex((c, i) => i < 6 && gd[0] >= c && gd[0] < ROD_CUTS[i + 1])); addGuide(segs[k].g, ROD_CUTS[k], ...gd); }
             tip.position.y = (113.9 - ROD_CUTS[5]) * ROD_K; segs[5].g.add(tip);
             g.userData.flex = { segs, th: new Float32Array(12), vel: new Float32Array(12), pm: segs.map(() => [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()]), acc: segs.map(() => new THREE.Vector3()), n: 0, F: new THREE.Vector3() };
           }
-          const reel = new THREE.Group(); reel.position.y = Y(18.5); g.add(reel);   // máy câu đứng: chân · hộp số · lô dây (trục song song cần) · càng gạt · tay quay bên hông
+          const reel = new THREE.Group(); reel.position.y = Y(18.5); g.add(reel);
           const part = (geo, mat, x, y, z, rx = 0, rz = 0, p = reel) => { const m = new THREE.Mesh(geo, mat); m.position.set(x * ROD_R, y * ROD_R, z * ROD_R); m.rotation.set(rx, 0, rz); m.castShadow = true; p.add(m); return m; };
           part(new THREE.BoxGeometry(0.35 * ROD_R, 1.6 * ROD_R, 2.1 * ROD_R), M.reel, 0, 0, 1.55);
           part(new THREE.SphereGeometry(1.3 * ROD_R, 10, 8), M.reel, 0, -0.3, 3.45).scale.set(1, 1.05, 0.85);
           part(new THREE.CylinderGeometry(1.15 * ROD_R, 1.3 * ROD_R, 1.4 * ROD_R, 14), M.seat, 0, 1.6, 3.45);
           part(new THREE.TorusGeometry(1.35 * ROD_R, 0.1 * ROD_R, 4, 16, Math.PI), M.guide, 0, 2.35, 3.45, Math.PI / 2);
           part(new THREE.CylinderGeometry(0.22 * ROD_R, 0.22 * ROD_R, 2.6 * ROD_R, 6), M.seat, 2.2, -0.3, 3.45, 0, Math.PI / 2);
-          const crank = new THREE.Group(); crank.position.set(3.5 * ROD_R, -0.3 * ROD_R, 3.45 * ROD_R); reel.add(crank);   // tay quay xoay quanh trục ngang
+          const crank = new THREE.Group(); crank.position.set(3.5 * ROD_R, -0.3 * ROD_R, 3.45 * ROD_R); reel.add(crank);
           part(new THREE.BoxGeometry(0.3 * ROD_R, 2.2 * ROD_R, 0.3 * ROD_R), M.reel, 0, -1.0, 0, 0, 0, crank);
           const knob = part(new THREE.SphereGeometry(0.55 * ROD_R, 8, 6), M.reel, 0.35, -2.05, 0, 0, 0, crank);
-          const spool = new THREE.Object3D(); spool.position.set(0, 2.3 * ROD_R, 3.45 * ROD_R); reel.add(spool);   // mép lô dây: dây đi lên khoen đầu tiên
+          const spool = new THREE.Object3D(); spool.position.set(0, 2.3 * ROD_R, 3.45 * ROD_R); reel.add(spool);
           const butt = new THREE.Object3D(); butt.position.y = Y(0.6); g.add(butt);
-          g.userData.tip = tip; g.userData.guides = guides; g.userData.crank = crank; g.userData.knob = knob; g.userData.spool = spool; g.userData.butt = butt;   // ngọn cần: dây câu xuất phát từ đây
+          g.userData.tip = tip; g.userData.guides = guides; g.userData.crank = crank; g.userData.knob = knob; g.userData.spool = spool; g.userData.butt = butt;
           return g;
         }
-        function metalBucket() {   // xô tôn nhỏ (rỗng) theo "Metal Bucket (Empty)": đáy Ø1,95 · miệng loe Ø2,4 · cao 2,6 đv gốc · gờ cuộn miệng · 2 tai + quai dây thép buông dọc thân
+        function metalBucket() {
           const g = new THREE.Group(); g.name = 'Xô nhỏ (Metal Bucket)';
           const c = document.createElement('canvas'); c.width = 128; c.height = 128; const x = c.getContext('2d');
           x.fillStyle = '#5c5a55'; x.fillRect(0, 0, 128, 128);
-          for (let k = 0; k < 260; k++) { const v = 70 + Math.random() * 40 | 0; x.fillStyle = `rgba(${v},${v - 2},${v - 6},0.35)`; x.fillRect(Math.random() * 128, Math.random() * 128, 2 + Math.random() * 6, 2 + Math.random() * 4); }   // tôn kẽm loang lổ
-          for (let k = 0; k < 26; k++) { const px = Math.random() * 128, l = 20 + Math.random() * 70, gr = x.createLinearGradient(0, 0, 0, l); gr.addColorStop(0, 'rgba(66,74,56,0.65)'); gr.addColorStop(1, 'rgba(66,74,56,0)'); x.fillStyle = gr; x.fillRect(px, 0, 1.5 + Math.random() * 3, l); }   // vệt rêu ố chảy từ miệng xuống
-          x.fillStyle = 'rgba(40,40,36,0.35)'; for (const yy of [40, 86]) x.fillRect(0, yy, 128, 2);   // 2 gân dập quanh thân
+          for (let k = 0; k < 260; k++) { const v = 70 + Math.random() * 40 | 0; x.fillStyle = `rgba(${v},${v - 2},${v - 6},0.35)`; x.fillRect(Math.random() * 128, Math.random() * 128, 2 + Math.random() * 6, 2 + Math.random() * 4); }
+          for (let k = 0; k < 26; k++) { const px = Math.random() * 128, l = 20 + Math.random() * 70, gr = x.createLinearGradient(0, 0, 0, l); gr.addColorStop(0, 'rgba(66,74,56,0.65)'); gr.addColorStop(1, 'rgba(66,74,56,0)'); x.fillStyle = gr; x.fillRect(px, 0, 1.5 + Math.random() * 3, l); }
+          x.fillStyle = 'rgba(40,40,36,0.35)'; for (const yy of [40, 86]) x.fillRect(0, yy, 128, 2);
           const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = THREE.RepeatWrapping; tex.anisotropy = 4;
           const tin = new THREE.MeshLambertMaterial({ map: tex, side: THREE.DoubleSide }), wire = new THREE.MeshLambertMaterial({ color: 0x8a8c8e });
           const prof = [[0, 0], [0.9, 0], [0.97, 0.03], [0.985, 0.2], [0.99, 0.22], [1.2, 2.55], [1.23, 2.6], [1.18, 2.6], [1.16, 2.5], [0.95, 0.26], [0, 0.26]];
@@ -5482,7 +5482,7 @@
           const rim = new THREE.Mesh(new THREE.TorusGeometry(1.215, 0.045, 6, 24), wire); rim.rotation.x = Math.PI / 2; rim.position.y = 2.6; g.add(rim);
           for (const sx of [-1, 1]) { const ear = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.36, 0.22), tin); ear.position.set(sx * 1.2, 2.36, 0); ear.rotation.z = sx * 0.09; g.add(ear); }
           const bailPath = new THREE.CatmullRomCurve3([[-1.26, 2.33, 0], [-1.12, 1.75, 0.62], [-0.6, 1.4, 1.08], [0, 1.3, 1.25], [0.6, 1.4, 1.08], [1.12, 1.75, 0.62], [1.26, 2.33, 0]].map(p => new THREE.Vector3(...p)));
-          const bail = new THREE.Mesh(new THREE.TubeGeometry(bailPath, 32, 0.035, 5, false), wire); bail.castShadow = true; g.add(bail);   // quai buông xuôi một bên như mẫu
+          const bail = new THREE.Mesh(new THREE.TubeGeometry(bailPath, 32, 0.035, 5, false), wire); bail.castShadow = true; g.add(bail);
           return g;
         }
         let narutoTex = null, steamGeo = null;
@@ -5491,19 +5491,19 @@
           const ceramic = new THREE.MeshLambertMaterial({ color: 0xf2efe8, side: THREE.DoubleSide });
           const shell = new THREE.Mesh(new THREE.LatheGeometry([[0, 0], [0.035, 0], [0.038, 0.006], [0.08, 0.05], [0.088, 0.072], [0.083, 0.073], [0.074, 0.05], [0.033, 0.01], [0, 0.01]].map(([r, y]) => new THREE.Vector2(r, y)), 20), ceramic);
           shell.castShadow = true; g.add(shell);
-          const rim = new THREE.Mesh(new THREE.TorusGeometry(0.0855, 0.0035, 4, 24), new THREE.MeshLambertMaterial({ color: 0x2f4f7c })); rim.rotation.x = Math.PI / 2; rim.position.y = 0.067; g.add(rim);   // viền men xanh
+          const rim = new THREE.Mesh(new THREE.TorusGeometry(0.0855, 0.0035, 4, 24), new THREE.MeshLambertMaterial({ color: 0x2f4f7c })); rim.rotation.x = Math.PI / 2; rim.position.y = 0.067; g.add(rim);
           const food = new THREE.Group(); food.name = 'Udon trong bát'; food.position.y = 0.058; g.add(food); g.userData.food = food;
-          steamGeo = steamGeo || new THREE.IcosahedronGeometry(0.026, 1);   // hơi nóng (G 15/10): 4 cụm nhỏ, cập nhật ở engineer/cooking.js (udonSteam)
+          steamGeo = steamGeo || new THREE.IcosahedronGeometry(0.026, 1);
           g.userData.steam = [0, 1, 2, 3].map(i => { const m = new THREE.Mesh(steamGeo, new THREE.MeshBasicMaterial({ color: 0xf4f6f8, transparent: true, opacity: 0, depthWrite: false })); m.visible = false; m.userData.noBatch = true; m.raycast = () => {}; m.renderOrder = 3; g.add(m); return { m, ph: i / 4 }; });
           const broth = new THREE.Mesh(new THREE.CircleGeometry(0.077, 20), new THREE.MeshLambertMaterial({ color: 0xc89a5c })); broth.rotation.x = -Math.PI / 2; food.add(broth);
           const noodleM = new THREE.MeshLambertMaterial({ color: 0xf4ecd4 });
-          for (let k = 0; k < 9; k++) {   // sợi udon to, cuộn lỏng nằm nổi trên nước dùng
+          for (let k = 0; k < 9; k++) {
             const n = new THREE.Mesh(new THREE.TorusGeometry(0.022 + (k % 3) * 0.012, 0.0075, 4, 10, 2.2 + (k % 4) * 0.6), noodleM);
             n.rotation.set(-Math.PI / 2 + 0.15 * Math.sin(k), 0, k * 1.9); n.position.set(Math.cos(k * 2.3) * 0.02, 0.004 + (k % 3) * 0.003, Math.sin(k * 2.3) * 0.02); food.add(n);
           }
           const greenM = new THREE.MeshLambertMaterial({ color: 0x5fb04a });
           for (let k = 0; k < 12; k++) { const s = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.005, 0.008, 6), greenM); s.position.set(Math.cos(k * 2.6) * (0.015 + (k % 4) * 0.012), 0.014, Math.sin(k * 2.6) * (0.015 + (k % 4) * 0.012)); s.rotation.x = Math.PI / 2; food.add(s); }
-          if (!narutoTex) {   // chả cá narutomaki: trắng, xoắn ốc hồng
+          if (!narutoTex) {
             const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d');
             x.fillStyle = '#fbf7f2'; x.beginPath(); x.arc(32, 32, 31, 0, Math.PI * 2); x.fill();
             x.strokeStyle = '#e45d8c'; x.lineWidth = 4; x.beginPath(); for (let a = 0; a < 14; a += 0.2) { const r = 2 + a * 1.9; x.lineTo(32 + Math.cos(a) * r, 32 + Math.sin(a) * r); } x.stroke();
@@ -5512,7 +5512,7 @@
           for (const [nx, nz] of [[0.032, -0.018], [-0.026, 0.03]]) { const d = new THREE.Mesh(new THREE.CircleGeometry(0.017, 16), new THREE.MeshLambertMaterial({ map: narutoTex })); d.rotation.x = -Math.PI / 2; d.position.set(nx, 0.016, nz); food.add(d); }
           return g;
         }
-        function fryPan() {   // chảo rán Ø17 cm, cán gỗ dọc +x; con 'food' = cơm chiên trứng (ẩn sẵn)
+        function fryPan() {
           const g = new THREE.Group(); g.name = 'Chảo rán';
           const iron = new THREE.MeshLambertMaterial({ color: 0x2c2d31 }), inner = new THREE.MeshLambertMaterial({ color: 0x4a4c50 });
           const lathe = (pts, mat) => { const m = new THREE.Mesh(new THREE.LatheGeometry(pts.map(([r, y]) => new THREE.Vector2(r, y)), 20), mat); m.castShadow = true; g.add(m); return m; };
@@ -5522,7 +5522,7 @@
           const grip = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.016, 0.024), new THREE.MeshLambertMaterial({ color: 0x6b4426 })); grip.position.set(0.175, 0.045, 0); g.add(grip);
           const food = new THREE.Group(); food.name = 'Cơm chiên trứng'; food.visible = false; g.add(food); g.userData.food = food;
           const rice = new THREE.Mesh(new THREE.SphereGeometry(0.068, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshLambertMaterial({ color: 0xead592 })); rice.scale.y = 0.38; rice.position.y = 0.01; food.add(rice);
-          const bitM = [new THREE.MeshLambertMaterial({ color: 0xf2c230 }), new THREE.MeshLambertMaterial({ color: 0x5fb04a }), new THREE.MeshLambertMaterial({ color: 0xd9632f })];   // trứng · hành · cà rốt
+          const bitM = [new THREE.MeshLambertMaterial({ color: 0xf2c230 }), new THREE.MeshLambertMaterial({ color: 0x5fb04a }), new THREE.MeshLambertMaterial({ color: 0xd9632f })];
           for (let k = 0; k < 16; k++) { const a = k * 2.4, r = 0.012 + (k % 5) * 0.011, b = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.006, 0.01), bitM[k % 3]); b.position.set(Math.cos(a) * r, 0.03 - r * 0.25, Math.sin(a) * r); b.rotation.y = a; food.add(b); }
           return g;
         }
@@ -5535,7 +5535,7 @@
           for (const sx of [-1, 1]) { const pad = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.05, 14), padM); pad.rotation.z = Math.PI / 2; pad.position.set(sx * 0.215, 0.0, 0); h.add(pad); }
           return h;
         }
-        const ENG_ARM_L1 = 0.28, ENG_ARM_L2 = 0.40;   // cánh tay trên · cẳng tay tới tâm bàn tay (đv cục bộ kỹ sư)
+        const ENG_ARM_L1 = 0.28, ENG_ARM_L2 = 0.40;
         function engineer() {
           const g = new THREE.Group();
           const P = (par, w, h, d, mat, x, y, z, o) => { const m = bx(w, h, d, mat, true, o !== false, lineDark); m.position.set(x, y, z); par.add(m); return m; };
@@ -5546,11 +5546,11 @@
             x.fillStyle = '#f08c00'; x.fillRect(0, 0, 256, 256);
             const refl = (rx, ry, w, h) => { x.fillStyle = '#c9ced2'; x.fillRect(rx, ry, w, h); x.fillStyle = 'rgba(255,255,255,0.55)'; x.fillRect(rx + 2, ry + 2, w - 4, Math.max(2, h * 0.25)); };
             if (front) {
-              x.fillStyle = '#9cc3e6'; x.beginPath(); x.moveTo(84, 0); x.lineTo(128, 70); x.lineTo(172, 0); x.fill();   // cổ áo sơ mi xanh nhạt chữ V
+              x.fillStyle = '#9cc3e6'; x.beginPath(); x.moveTo(84, 0); x.lineTo(128, 70); x.lineTo(172, 0); x.fill();
               x.fillStyle = '#ffffff'; x.beginPath(); x.moveTo(84, 0); x.lineTo(110, 34); x.lineTo(104, 0); x.fill(); x.beginPath(); x.moveTo(172, 0); x.lineTo(146, 34); x.lineTo(152, 0); x.fill();
-              x.strokeStyle = '#5a3d1e'; x.lineWidth = 4; x.beginPath(); x.moveTo(128, 70); x.lineTo(128, 256); x.stroke();   // khoá kéo
-              refl(58, 0, 22, 256); refl(176, 0, 22, 256); refl(0, 172, 256, 22);   // 2 dải dọc + 1 dải ngang phản quang
-              x.fillStyle = '#d97a00'; x.fillRect(146, 98, 28, 32); x.fillStyle = '#2f5d7c'; x.fillRect(165, 86, 5, 22);   // túi ngực + bút
+              x.strokeStyle = '#5a3d1e'; x.lineWidth = 4; x.beginPath(); x.moveTo(128, 70); x.lineTo(128, 256); x.stroke();
+              refl(58, 0, 22, 256); refl(176, 0, 22, 256); refl(0, 172, 256, 22);
+              x.fillStyle = '#d97a00'; x.fillRect(146, 98, 28, 32); x.fillStyle = '#2f5d7c'; x.fillRect(165, 86, 5, 22);
               x.fillStyle = '#ffffff'; x.font = 'bold 20px Arial, sans-serif'; x.textAlign = 'center'; x.fillText('GHC', 104, 120);
             } else {
               refl(58, 0, 22, 256); refl(176, 0, 22, 256); refl(0, 150, 256, 22);
@@ -5558,68 +5558,68 @@
             }
           });
           const torsoGeo = new THREE.BoxGeometry(0.54, 0.62, 0.3), tp = torsoGeo.attributes.position;
-          for (let i = 0; i < tp.count; i++) if (tp.getY(i) > 0) tp.setX(i, tp.getX(i) * 0.42 / 0.54);   // vai hẹp hơn hông
+          for (let i = 0; i < tp.count; i++) if (tp.getY(i) > 0) tp.setX(i, tp.getX(i) * 0.42 / 0.54);
           torsoGeo.computeVertexNormals();
           const torso = new THREE.Mesh(torsoGeo, [vestM, vestM, vestM, vestM, plastic(0xffffff, { map: vestPrint(true) }), plastic(0xffffff, { map: vestPrint(false) })]);
           torso.position.y = 1.55; torso.castShadow = true; torso.name = 'Thân (áo gilê)'; edge(torso, torsoGeo, lineDark); g.add(torso);
           const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.05, 14), legoYellow); neck.position.y = 1.875; g.add(neck);
-          P(g, 0.55, 0.05, 0.31, beltM, 0, 1.255, 0, false);                                    // thắt lưng
-          P(g, 0.07, 0.04, 0.02, metalMat, 0, 1.255, 0.16, false);                               // khoá thắt lưng
-          P(g, 0.12, 0.15, 0.1, metalMat, 0.22, 1.17, 0.16, false);                              // túi đồ nghề
-          const hips = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.16, 0.27), pantsM); hips.position.y = 1.18; hips.castShadow = true; edge(hips, hips.geometry, lineDark); g.add(hips);   // khối hông
+          P(g, 0.55, 0.05, 0.31, beltM, 0, 1.255, 0, false);
+          P(g, 0.07, 0.04, 0.02, metalMat, 0, 1.255, 0.16, false);
+          P(g, 0.12, 0.15, 0.1, metalMat, 0.22, 1.17, 0.16, false);
+          const hips = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.16, 0.27), pantsM); hips.position.y = 1.18; hips.castShadow = true; edge(hips, hips.geometry, lineDark); g.add(hips);
           const headG = new THREE.Group(); headG.position.y = 2.06; g.add(headG);
           const face = canvasTex(512, 128, x => {
             x.fillStyle = '#' + new THREE.Color(LEGO_YELLOW).getHexString(); x.fillRect(0, 0, 512, 128);
             x.fillStyle = '#1b1b1b'; for (const ex of [228, 284]) { x.beginPath(); x.ellipse(ex, 60, 7, 9, 0, 0, Math.PI * 2); x.fill(); }
             x.fillStyle = '#ffffff'; for (const ex of [230, 286]) { x.beginPath(); x.arc(ex, 56, 2.4, 0, Math.PI * 2); x.fill(); }
             x.strokeStyle = '#3a2a1f'; x.lineWidth = 4; x.lineCap = 'round'; for (const ex of [228, 284]) { x.beginPath(); x.moveTo(ex - 10, 40); x.quadraticCurveTo(ex, 34, ex + 10, 39); x.stroke(); }
-            x.strokeStyle = '#1b1b1b'; x.beginPath(); x.ellipse(256, 74, 24, 18, 0, 0.15 * Math.PI, 0.85 * Math.PI); x.stroke();   // miệng cười
+            x.strokeStyle = '#1b1b1b'; x.beginPath(); x.ellipse(256, 74, 24, 18, 0, 0.15 * Math.PI, 0.85 * Math.PI); x.stroke();
           });
           const head = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.26, 28, 1, true, Math.PI), plastic(0xffffff, { map: face })); head.castShadow = true; headG.add(head);
           const capGeo = new THREE.LatheGeometry([[0.2, 0], [0.196, 0.022], [0.182, 0.036], [0, 0.04]].map(([r, y]) => new THREE.Vector2(r, y)), 28);
           const capTop = new THREE.Mesh(capGeo, legoYellow); capTop.position.y = 0.13; headG.add(capTop);
           const capBot = new THREE.Mesh(capGeo, legoYellow); capBot.rotation.x = Math.PI; capBot.position.y = -0.13; headG.add(capBot);
           const stud = new THREE.Mesh(new THREE.CylinderGeometry(0.095, 0.095, 0.06, 16), legoYellow); stud.position.y = 0.2; headG.add(stud);
-          const helmet = legoHelmet(plastic(0xf4f2ec), plastic(0x5b6168)); helmet.name = 'Mũ bảo hộ'; headG.add(helmet);   // tháo ra khi tắm, khi ngủ
-          const hairM = plastic(0x4a3423, { side: THREE.DoubleSide }), hair = new THREE.Group(); hair.name = 'Tóc'; hair.visible = false; headG.add(hair);   // tóc rời kiểu LEGO, chỉ thấy khi bỏ mũ
-          const hairTop = new THREE.Mesh(new THREE.SphereGeometry(0.232, 18, 10, 0, Math.PI * 2, 0, 1.38), hairM); hairTop.position.y = 0.04; hair.add(hairTop);   // trùm kín núm đầu
+          const helmet = legoHelmet(plastic(0xf4f2ec), plastic(0x5b6168)); helmet.name = 'Mũ bảo hộ'; headG.add(helmet);
+          const hairM = plastic(0x4a3423, { side: THREE.DoubleSide }), hair = new THREE.Group(); hair.name = 'Tóc'; hair.visible = false; headG.add(hair);
+          const hairTop = new THREE.Mesh(new THREE.SphereGeometry(0.232, 18, 10, 0, Math.PI * 2, 0, 1.38), hairM); hairTop.position.y = 0.04; hair.add(hairTop);
           const hairBack = new THREE.Mesh(new THREE.CylinderGeometry(0.226, 0.226, 0.2, 18, 1, true, Math.PI / 2, Math.PI), hairM); hairBack.position.y = -0.01; hair.add(hairBack);
-          const handGeo = new THREE.TorusGeometry(0.068, 0.034, 8, 16, 1.62 * Math.PI); handGeo.rotateZ(-2.2); handGeo.rotateY(Math.PI / 2);   // miệng chữ C quay ra trước, hơi chúc
+          const handGeo = new THREE.TorusGeometry(0.068, 0.034, 8, 16, 1.62 * Math.PI); handGeo.rotateZ(-2.2); handGeo.rotateY(Math.PI / 2);
           const arms = [], elbows = [], wrists = [], armCore = [];
           for (const s of [-1, 1]) {
             const piv = new THREE.Group(); piv.position.set(s * 0.34, 1.86, 0); g.add(piv);
             const shoulder = new THREE.Mesh(new THREE.SphereGeometry(0.085, 12, 8), vestM); shoulder.position.y = -0.04; piv.add(shoulder);
             const upper = new THREE.Mesh(new THREE.CylinderGeometry(0.078, 0.073, 0.26, 12), vestM); upper.position.y = -0.15; upper.castShadow = true; piv.add(upper);
-            const elbow = new THREE.Group(); elbow.position.y = -ENG_ARM_L1; piv.add(elbow);   // KHỚP KHUỶU — gập quanh trục ngang (chỉ gập về trước)
+            const elbow = new THREE.Group(); elbow.position.y = -ENG_ARM_L1; piv.add(elbow);
             const eJoint = new THREE.Mesh(new THREE.SphereGeometry(0.074, 12, 8), vestM); elbow.add(eJoint);
             const fore = new THREE.Mesh(new THREE.CylinderGeometry(0.073, 0.066, 0.28, 12), vestM); fore.position.y = -0.14; fore.castShadow = true; elbow.add(fore);
-            const cuff = new THREE.Mesh(new THREE.CylinderGeometry(0.071, 0.069, 0.04, 12), plastic(0xd8dcdf)); cuff.position.y = -0.21; elbow.add(cuff);   // dải phản quang cổ tay áo
-            const wrist = new THREE.Group(); wrist.position.y = -ENG_ARM_L2; elbow.add(wrist);   // KHỚP CỔ TAY (gốc = tâm bàn tay) — mọi đồ cầm tay gắn ở đây
+            const cuff = new THREE.Mesh(new THREE.CylinderGeometry(0.071, 0.069, 0.04, 12), plastic(0xd8dcdf)); cuff.position.y = -0.21; elbow.add(cuff);
+            const wrist = new THREE.Group(); wrist.position.y = -ENG_ARM_L2; elbow.add(wrist);
             const wCyl = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.07, 10), legoYellow); wCyl.position.y = 0.09; wrist.add(wCyl);
             const hand = new THREE.Mesh(handGeo, legoYellow); hand.castShadow = true; wrist.add(hand);
             arms.push(piv); elbows.push(elbow); wrists.push(wrist); armCore.push(new Set([shoulder, upper, elbow]));
           }
           const clip = bx(0.28, 0.36, 0.04, engPad, true, true, lineDark); clip.position.set(0, -0.58, 0.16); arms[1].add(clip);
-          P(clip, 0.2, 0.05, 0.05, metalMat, 0, 0.14, 0.02, false);  // kẹp clipboard (con của bảng ⇒ ẩn cùng bảng, trước đây treo lơ lửng khi cất bảng)
+          P(clip, 0.2, 0.05, 0.05, metalMat, 0, 0.14, 0.02, false);
           const legs = [], knees = [], ankles = [];
           const thighGeo = new THREE.BoxGeometry(0.26, 0.44, 0.27), shinGeo = new THREE.BoxGeometry(0.26, 0.34, 0.27), footGeo = new THREE.BoxGeometry(0.26, 0.13, 0.36);
           for (const s of [-1, 1]) {
-            const piv = new THREE.Group(); piv.position.set(s * 0.15, 1.18, 0); piv.rotation.order = 'XZY'; g.add(piv);   // XZY: xoay trong/ngoài quanh trục chân trước, rồi dạng/khép, rồi vung trước–sau
+            const piv = new THREE.Group(); piv.position.set(s * 0.15, 1.18, 0); piv.rotation.order = 'XZY'; g.add(piv);
             const thigh = new THREE.Mesh(thighGeo, pantsM); thigh.position.y = -0.21; thigh.castShadow = true; edge(thigh, thighGeo, lineDark); piv.add(thigh);
-            const knee = new THREE.Group(); knee.position.set(0, -0.42, 0); piv.add(knee);   // KHỚP GỐI — cẳng chân gập độc lập với đùi
+            const knee = new THREE.Group(); knee.position.set(0, -0.42, 0); piv.add(knee);
             const shin = new THREE.Mesh(shinGeo, pantsM); shin.position.y = -0.17; shin.castShadow = true; edge(shin, shinGeo, lineDark); knee.add(shin);
-            const ankle = new THREE.Group(); ankle.position.set(0, -0.36, 0); knee.add(ankle);   // KHỚP CỔ CHÂN — IK giữ đế giày phẳng trên mặt đất
-            const foot = new THREE.Mesh(footGeo, bootM); foot.position.set(0, -0.035, 0.045); foot.castShadow = true; edge(foot, footGeo, lineDark); ankle.add(foot);   // đế ở −0,1 như cũ
+            const ankle = new THREE.Group(); ankle.position.set(0, -0.36, 0); knee.add(ankle);
+            const foot = new THREE.Mesh(footGeo, bootM); foot.position.set(0, -0.035, 0.045); foot.castShadow = true; edge(foot, footGeo, lineDark); ankle.add(foot);
             legs.push(piv); knees.push(knee); ankles.push(ankle);
           }
-          const rodGrp = new THREE.Group(); rodGrp.position.set(0, -0.66, 0.02); rodGrp.rotation.order = 'YXZ'; rodGrp.rotation.x = 1.02;   // YXZ: xoay ngang cần quanh trục cẳng tay (sấp/ngửa cổ tay)
+          const rodGrp = new THREE.Group(); rodGrp.position.set(0, -0.66, 0.02); rodGrp.rotation.order = 'YXZ'; rodGrp.rotation.x = 1.02;
           rodGrp.visible = false; arms[1].add(rodGrp);
           const rodTilt = new THREE.Group(); rodTilt.rotation.x = 0.95; rodGrp.add(rodTilt);
-          const rod = fishingRod({ flex: true }); rodTilt.add(rod); const rodTip = rod.userData.tip;   // tay nắm ống gắn máy, chuôi sau tì dưới cẳng tay; máy câu + khoen quay xuống dưới
+          const rod = fishingRod({ flex: true }); rodTilt.add(rod); const rodTip = rod.userData.tip;
           const spoon = new THREE.Group(); spoon.position.set(0, -0.7, 0.04); spoon.visible = false; arms[0].add(spoon);
           P(spoon, 0.03, 0.025, 0.24, metalMat, 0, 0, 0.1, false);
           const spoonBowl = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), metalMat); spoonBowl.scale.set(1, 0.4, 1.3); spoonBowl.position.set(0, 0.01, 0.24); spoon.add(spoonBowl);
-          const bottle = new THREE.Group(); bottle.position.set(0, -0.6, 0.13); bottle.visible = false; arms[0].add(bottle);   // thân chai song song cẳng tay, nắp quay về phía mặt
+          const bottle = new THREE.Group(); bottle.position.set(0, -0.6, 0.13); bottle.visible = false; arms[0].add(bottle);
           const bottleBody = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.065, 0.3, 10), new THREE.MeshLambertMaterial({ color: 0x8cc4e0, transparent: true, opacity: 0.8 })); bottle.add(bottleBody);
           const bottleCap = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.04, 0.05, 8), new THREE.MeshLambertMaterial({ color: 0x2f5f8f })); bottleCap.position.y = 0.17; bottle.add(bottleCap);
           const cup = new THREE.Group(); cup.position.set(0, -0.74, 0.08); cup.visible = false; arms[1].add(cup);
@@ -5636,7 +5636,7 @@
           const leafM = new THREE.Mesh(new THREE.PlaneGeometry(0.15, 0.22), new THREE.MeshLambertMaterial({ color: 0xfbf8ee, side: THREE.DoubleSide }));
           leafM.rotation.x = -Math.PI / 2; leafM.position.set(0.075, 0.023, 0); bookLeaf.add(leafM);
           const chip = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.008, 10), new THREE.MeshLambertMaterial({ color: 0xe8c25a }));
-          chip.scale.z = 0.75; chip.position.set(0, -0.67, 0.11); chip.rotation.x = 0.4;   // kẹp ở đầu ngón, trước nắm tay chip.visible = false; arms[1].add(chip);
+          chip.scale.z = 0.75; chip.position.set(0, -0.67, 0.11); chip.rotation.x = 0.4;
           const towel = new THREE.Group(); towel.name = 'Khăn vắt cổ'; towel.visible = false; g.add(towel);
           const towelMat = new THREE.MeshLambertMaterial({ color: 0xd98c6a });
           P(towel, 0.42, 0.05, 0.14, towelMat, 0, 1.9, -0.08, false);
@@ -5657,16 +5657,16 @@
           for (const o of [torso, neck, headG, towel, ...arms]) { g.remove(o); o.position.y -= 1.255; spine.add(o); }
           g.userData = { elbows, wrists, spine, legs, knees, ankles, arms, head: headG, helmet, hair, towel, rodGrp, rodTilt, rodTip, rod, clip, props: { spoon, bottle, cup, book, bookLeaf, chip, chopsticks, knife, spatula, handBowl, handPan } }; g.scale.setScalar(ENGINEER_BASE_SCALE * CAMP_SCALE); return g;
         }
-        const _ofI = x2gi(X0 + 74) / S - 27.3, _ofJ = z2gj(Z0 + 103) / S - 30.5;   // offset cell so với ghế gốc → cụm ở (74, _, 103)
-        const _rot = 35 * Math.PI / 180;   // xoay cụm ngược chiều kim đồng hồ 35°, lấy ghế làm tâm
+        const _ofI = x2gi(X0 + 74) / S - 27.3, _ofJ = z2gj(Z0 + 103) / S - 30.5;
+        const _rot = 35 * Math.PI / 180;
         const _rc = (oi, oj) => { const di = oi - 27.3, dj = oj - 30.5, c = Math.cos(_rot), s = Math.sin(_rot); return [27.3 + di * c - dj * s + _ofI, 30.5 + di * s + dj * c + _ofJ]; };
         const CHAIR_CELL = _rc(27.3, 30.5), CARAVAN_CELL = _rc(23, 33);
-        const _bc = _rc(29.4, 30.2); const bobberBase = worldCell(_bc[0], _bc[1]); bobberBase.y = lakeY + 0.05;   // phao nổi giữa mặt hồ, trước mặt kỹ sư
+        const _bc = _rc(29.4, 30.2); const bobberBase = worldCell(_bc[0], _bc[1]); bobberBase.y = lakeY + 0.05;
         const engObj = (() => {
           const g = engineer();
-          const wp = [_rc(20, 32), _rc(24, 30.5), _rc(26.4, 29.7), CHAIR_CELL, _rc(22, 29)].map(c => worldCell(c[0], c[1]));  // [2]=cột khí tượng · [3]=ghế câu cá
+          const wp = [_rc(20, 32), _rc(24, 30.5), _rc(26.4, 29.7), CHAIR_CELL, _rc(22, 29)].map(c => worldCell(c[0], c[1]));
           obstacleCoords.push({ x: wp[2].x, y: wp[2].y, z: wp[2].z, r: 2.0, h: 12 });
-          g.position.copy(wp[0]); g.position.y -= ENG_FEET; g.name = 'Kỹ sư (Engineer)'; g.rotation.order = 'YXZ'; scene.add(g);   // YXZ: quay hướng trước, nghiêng người theo thân sau
+          g.position.copy(wp[0]); g.position.y -= ENG_FEET; g.name = 'Kỹ sư (Engineer)'; g.rotation.order = 'YXZ'; scene.add(g);
           const chairW = wp[3], faceWater = Math.atan2(bobberBase.x - chairW.x, bobberBase.z - chairW.z);
           return {
             g, elbows: g.userData.elbows, wrists: g.userData.wrists, spine: g.userData.spine, legs: g.userData.legs, knees: g.userData.knees, ankles: g.userData.ankles, arms: g.userData.arms, head: g.userData.head,
@@ -5675,36 +5675,36 @@
             wp, phase: 'toFish', timer: 0, wanderTgt: null, wanderTmr: 0, spd: 1.1, groundY: chairW.y, faceWater
           };
         })();
-        function engGait(e, dist) {   // nhịp chân theo QUÃNG ĐƯỜNG thật (1 chu kỳ 2 bước = sải 0,65–1,15 đv theo tốc độ); góc chân FK (dự phòng khi IK tắt) + tay vung ngược chân
+        function engGait(e, dist) {
           const k = Math.min(1, (e.vel || 0) / 1.1), amp = 0.52 * (0.35 + 0.65 * k), kneeAmp = 0.58 * (0.4 + 0.6 * k);
-          e.gStride = 1.05 * Math.min(1.1, Math.max(0.62, 0.5 + 0.5 * k));   // sải ~1,6 lần chiều dài chân, dài theo tốc độ (đi chậm bước ngắn) — bàn chân trụ cố định dùng đúng sải này
+          e.gStride = 1.05 * Math.min(1.1, Math.max(0.62, 0.5 + 0.5 * k));
           e.gait = ((e.gait || 0) + dist * (Math.PI * 2 / e.gStride)) % (Math.PI * 2000);
           const sw = Math.sin(e.gait) * amp, kb = Math.cos(e.gait);
           e.legs[0].rotation.x = sw; e.legs[1].rotation.x = -sw;
-          e.knees[0].rotation.x = Math.max(0, kb) * kneeAmp; e.knees[1].rotation.x = Math.max(0, -kb) * kneeAmp;   // gối gập khi chân vung tới trước
+          e.knees[0].rotation.x = Math.max(0, kb) * kneeAmp; e.knees[1].rotation.x = Math.max(0, -kb) * kneeAmp;
           e.arms[0].rotation.x = -sw * 0.65; e.arms[1].rotation.x = sw * 0.65; e.head.rotation.x = 0.03 * k;
-          return 0;   // nảy / lắc / xoay chậu hông theo đúng pha chân trụ: engFootIK (engWalkFeet)
+          return 0;
         }
-        const ENG_JOINT_W = 12, ENG_YAW_W = 7, ENG_POS_W = 10, ENG_LEAN_W = 8;   // tần số riêng (rad/s) của lò xo giảm chấn tới hạn: khớp · hướng · vị trí · nghiêng
-        function engSpring(x, v, target, w, dt) {   // lò xo giảm chấn tới hạn (dạng SmoothDamp): bám đích không vọt quá, vận tốc liên tục → khởi động/dừng mềm
+        const ENG_JOINT_W = 12, ENG_YAW_W = 7, ENG_POS_W = 10, ENG_LEAN_W = 8;
+        function engSpring(x, v, target, w, dt) {
           const k = w * dt, ex = 1 / (1 + k + 0.48 * k * k + 0.235 * k * k * k), c = x - target, tmp = (v + w * c) * dt;
           engSpring.v = (v - w * tmp) * ex; return target + (c + tmp) * ex;
         }
-        function engPoseBegin(e) {   // đầu frame: trả mọi thứ về giá trị ĐÍCH của frame trước (pha nào không ghi lại thì giữ đích cũ)
-          e.walking = false; e.lean = 0; e.bank = 0; e.seatCtl = false; e.noFootIK = false;   // noFootIK: pha tự hạ người (ngồi xổm hái táo)   // seatCtl: bộ điều khiển ghế (ngồi xuống / đang ngồi / đứng dậy) tự tính chính xác thân + chân
+        function engPoseBegin(e) {
+          e.walking = false; e.lean = 0; e.bank = 0; e.seatCtl = false; e.noFootIK = false;
           const P = e.pose; if (!P) return;
           for (let i = 0; i < P.joints.length; i++) P.joints[i].rotation.x = P.raw[i];
           e.g.position.copy(P.rawPos); e.g.rotation.set(P.rawRX, P.rawYaw, P.rawRZ);
         }
-        function engPoseEnd(e, dt, t) {   // cuối frame: lưu đích, hiển thị bản đã qua lò xo
+        function engPoseEnd(e, dt, t) {
           const g = e.g;
           if (!e.pose) { const joints = [e.legs[0], e.legs[1], e.knees[0], e.knees[1], e.arms[0], e.arms[1], e.head];
             e.pose = { joints, raw: joints.map(o => o.rotation.x), shown: joints.map(o => o.rotation.x), jv: joints.map(() => 0), rawPos: g.position.clone(), pos: g.position.clone(), pv: [0, 0, 0],
               rawYaw: g.rotation.y, yaw: g.rotation.y, yv: 0, rawRX: g.rotation.x, rawRZ: g.rotation.z, lean: 0, lv: 0, bank: 0, bv: 0, parent: g.parent }; }
           const P = e.pose;
           P.rawPos.copy(g.position); P.rawYaw = g.rotation.y; P.rawRX = g.rotation.x; P.rawRZ = g.rotation.z;
-          const jump = g.parent !== P.parent || P.rawPos.distanceTo(P.pos) > 1.5; P.parent = g.parent;   // vào/ra xe ngủ, dịch chuyển xa → hiện ngay
-          const direct = !jump && !!e.seatCtl, idt = 1 / Math.max(dt, 1e-3);   // bộ điều khiển ghế đã tính quỹ đạo mượt + IK chính xác: hiện nguyên, chỉ ghi vận tốc
+          const jump = g.parent !== P.parent || P.rawPos.distanceTo(P.pos) > 1.5; P.parent = g.parent;
+          const direct = !jump && !!e.seatCtl, idt = 1 / Math.max(dt, 1e-3);
           for (let i = 0; i < P.joints.length; i++) {
             const raw = P.joints[i].rotation.x; P.raw[i] = raw;
             if (jump) { P.shown[i] = raw; P.jv[i] = 0; }
@@ -5719,7 +5719,7 @@
             P.pv[0] = (P.rawPos.x - P.pos.x) * idt; P.pv[1] = (P.rawPos.y - P.pos.y) * idt; P.pv[2] = (P.rawPos.z - P.pos.z) * idt; P.pos.copy(P.rawPos);
           }
           else {
-            let dy = P.rawYaw - P.yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy));   // đi đường vòng ngắn nhất
+            let dy = P.rawYaw - P.yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
             P.yaw = engSpring(P.yaw, P.yv, P.yaw + dy, ENG_YAW_W, dt); P.yv = engSpring.v;
             for (const [i, ax] of [[0, 'x'], [1, 'y'], [2, 'z']]) { P.pos[ax] = engSpring(P.pos[ax], P.pv[i], P.rawPos[ax], ENG_POS_W, dt); P.pv[i] = engSpring.v; }
           }
@@ -5729,20 +5729,20 @@
           g.position.copy(P.pos); g.rotation.set(P.rawRX + whole, P.yaw, P.rawRZ + P.bank);
           let yr = P.yaw - prevYaw; yr = Math.abs(Math.atan2(Math.sin(yr), Math.cos(yr))) / Math.max(dt, 1e-3);
           const shufWant = (!direct && !e.walking && Math.abs(P.raw[0]) < 0.3 && Math.abs(P.raw[1]) < 0.3 && Math.abs(P.raw[2]) < 0.3 && yr > 0.6) ? Math.min(0.2, (yr - 0.6) * 0.12) : 0;
-          P.shuf = (P.shuf || 0) + (shufWant - (P.shuf || 0)) * (1 - Math.exp(-dt * 8));   // biên độ nhích chân lên/xuống dần, không bật tắt đột ngột
+          P.shuf = (P.shuf || 0) + (shufWant - (P.shuf || 0)) * (1 - Math.exp(-dt * 8));
           if (direct) P.shuf = 0;
           else if (P.shuf > 0.002) { const sh = P.shuf * Math.sin(t * 11); P.joints[0].rotation.x += sh; P.joints[1].rotation.x -= sh; }
         }
         const ENG_L1 = 0.42, ENG_L2 = 0.36, ENG_SOLE = 0.10, ENG_HIP_Y = 1.18, _ikW = new THREE.Vector3(), _ikQ = new THREE.Quaternion(), _ikM = new THREE.Matrix4(), _ikA = new THREE.Vector3(), _ikB = new THREE.Vector3(), _ikC = new THREE.Vector3(), _ikP = new THREE.Vector3();
         const ikSmooth = (a, b, x) => { const k = Math.max(0, Math.min(1, (x - a) / (b - a))); return k * k * (3 - 2 * k); };
         const ENG_HEEL = 0.135, ENG_BALL = 0.13, ENG_FP_STRIKE = -0.22, ENG_FP_OFF = 0.55, _wkH = new THREE.Vector3(), _wkT = new THREE.Vector3();
-        function engAnkleAt(p, fx, fz, fp, S, out) {   // cổ chân (thế giới) của bàn chân đặt tại p (điểm đất dưới cổ chân khi phẳng), mũi hướng (fx, fz), góc bàn fp (+ = nhón gót, − = hếch mũi)
+        function engAnkleAt(p, fx, fz, fp, S, out) {
           const c = Math.cos(fp), s = Math.sin(fp);
-          if (fp >= 0) { const f = (ENG_BALL - ENG_BALL * c + ENG_SOLE * s) * S; return out.set(p.x + fx * f, p.y + (ENG_BALL * s + ENG_SOLE * c) * S, p.z + fz * f); }   // xoay quanh khớp ngón (mũi bàn)
-          const f = (-ENG_HEEL + ENG_HEEL * c + ENG_SOLE * s) * S; return out.set(p.x + fx * f, p.y + (-ENG_HEEL * s + ENG_SOLE * c) * S, p.z + fz * f);   // xoay quanh gót
+          if (fp >= 0) { const f = (ENG_BALL - ENG_BALL * c + ENG_SOLE * s) * S; return out.set(p.x + fx * f, p.y + (ENG_BALL * s + ENG_SOLE * c) * S, p.z + fz * f); }
+          const f = (-ENG_HEEL + ENG_HEEL * c + ENG_SOLE * s) * S; return out.set(p.x + fx * f, p.y + (-ENG_HEEL * s + ENG_SOLE * c) * S, p.z + fz * f);
         }
         function engWalkReset(e) { if (e.wk) e.wk.on = false; e.walkW = 0; e.pelvisYaw = e.pelvisList = 0; }
-        function engWalkFeet(e, dt, onFoot) {   // trạng thái 2 bàn chân khi đi; trả về e.wk (đang dùng) hoặc null
+        function engWalkFeet(e, dt, onFoot) {
           const g = e.g, S = g.scale.y, walking = onFoot && e.walking;
           const K = e.wk || (e.wk = { on: false, feet: [0, 1].map(() => ({ w: new THREE.Vector3(), s0: new THREE.Vector3(), tg: new THREE.Vector3(), a: new THREE.Vector3(), fx: 0, fz: 1, sw: false, mode: '', u: 0, fp: 0, fp0: 0 })) });
           const yaw = g.rotation.y, fx = Math.sin(yaw), fz = Math.cos(yaw), rx = Math.cos(yaw), rz = -Math.sin(yaw);
@@ -5757,7 +5757,7 @@
           let swinging = K.feet.reduce((n, F) => n + (F.sw ? 1 : 0), 0), settled = 0;
           K.feet.forEach((F, i) => {
             home(i, _wkH);
-            if (F.sw && F.mode === 'gait' && !moving) { F.mode = 'settle'; F.u = 0; F.s0.copy(F.a); F.fp0 = F.fp; }   // dừng giữa bước: đưa chân về chỗ đứng
+            if (F.sw && F.mode === 'gait' && !moving) { F.mode = 'settle'; F.u = 0; F.s0.copy(F.a); F.fp0 = F.fp; }
             if (F.sw && F.mode === 'settle') {
               F.u += dt / 0.32; const u = Math.min(1, F.u);
               engAnkleAt(_wkH, fx, fz, 0, S, _wkT); F.a.lerpVectors(F.s0, _wkT, ease(u)); F.a.y += Math.sin(Math.PI * u) * 0.05 * S; F.fp = F.fp0 * (1 - ease(u));
@@ -5770,37 +5770,37 @@
                 F.tg.set(_wkH.x + fx * ahead, 0, _wkH.z + fz * ahead); F.tg.y = cowY(F.tg.x, F.tg.z);
                 engAnkleAt(F.tg, fx, fz, ENG_FP_STRIKE, S, _wkT);
                 const dy = _wkT.y - F.s0.y, eu = ease(u);
-                F.a.lerpVectors(F.s0, _wkT, eu); F.a.y = F.s0.y + dy * (dy > 0 ? ease(u * 1.7) : ease(u * 1.7 - 0.7)) + Math.sin(Math.PI * Math.pow(u, 0.8)) * 0.075 * S;   // nhấc gót sớm, đáp thấp; lên bậc: nhấc trước rồi mới đưa tới
-                F.fp = F.fp0 * (1 - u) * (1 - u) + ENG_FP_STRIKE * u * u;   // vừa nhấc mũi còn chúc → giữa bước bàn chân ngang → hếch mũi đón gót chạm
+                F.a.lerpVectors(F.s0, _wkT, eu); F.a.y = F.s0.y + dy * (dy > 0 ? ease(u * 1.7) : ease(u * 1.7 - 0.7)) + Math.sin(Math.PI * Math.pow(u, 0.8)) * 0.075 * S;
+                F.fp = F.fp0 * (1 - u) * (1 - u) + ENG_FP_STRIKE * u * u;
                 if (!inSwing) { F.sw = false; F.w.copy(F.tg); F.fx = fx; F.fz = fz; swinging--; }
               }
-              if (!F.sw) {   // pha trụ: gót chạm → cả bàn → nhón gót
+              if (!F.sw) {
                 const s = (ph % 1) / duty; F.fp = s < 0.12 ? ENG_FP_STRIKE * (1 - s / 0.12) : s > 0.62 ? ENG_FP_OFF * Math.pow(Math.min(1, (s - 0.62) / 0.38), 2) : 0;
                 engAnkleAt(F.w, F.fx, F.fz, F.fp, S, F.a);
                 if (swinging < 1 && (Math.hypot(F.w.x - _wkH.x, F.w.z - _wkH.z) > 0.75 * stride || Math.abs((F.w.x - _wkH.x) * fz - (F.w.z - _wkH.z) * fx) > 0.2 * S)) { F.sw = true; F.mode = 'settle'; F.u = 0; F.s0.copy(F.a); F.fp0 = F.fp; swinging++; }
               }
-            } else if (!F.sw) {   // đứng: bàn chân phẳng dần; lệch chỗ thì nhích từng chân
+            } else if (!F.sw) {
               F.fp *= Math.max(0, 1 - dt * 10); engAnkleAt(F.w, F.fx, F.fz, F.fp, S, F.a);
               const d = Math.hypot(F.w.x - _wkH.x, F.w.z - _wkH.z) + Math.abs(F.fx * fz - F.fz * fx) * 0.3;
               if (d > 0.07 * S && swinging < 1) { F.sw = true; F.mode = 'settle'; F.u = 0; F.s0.copy(F.a); F.fp0 = F.fp; swinging++; }
               else if (d < 0.02 && Math.abs(F.fp) < 0.01) settled++;
             }
           });
-          if (!walking && settled === 2) { K.on = false; e.walkW = Math.max(0, (e.walkW || 0) - dt * 8); return e.walkW > 0 ? K : null; }   // 2 chân đã về chỗ đứng ⇒ trả lại cho dáng đứng (FK)
+          if (!walking && settled === 2) { K.on = false; e.walkW = Math.max(0, (e.walkW || 0) - dt * 8); return e.walkW > 0 ? K : null; }
           e.walkW = Math.min(1, (e.walkW || 0) + dt * 8);
           const m = Math.min(1, (e.vel || 0) / 0.6) * (moving ? 1 : 0), mid = duty * 0.5;
-          K.bob = (0.021 * Math.cos(4 * Math.PI * (phi - mid)) - 0.03) * m; K.lat = -0.018 * m * Math.cos(2 * Math.PI * (phi - mid));   // + = về phía chân phải (+x)
+          K.bob = (0.021 * Math.cos(4 * Math.PI * (phi - mid)) - 0.03) * m; K.lat = -0.018 * m * Math.cos(2 * Math.PI * (phi - mid));
           K.yaw = 0.07 * m * Math.cos(2 * Math.PI * phi); K.list = -0.045 * m * Math.cos(2 * Math.PI * (phi - mid));
           return K;
         }
         function engFootIK(e, dt) {
           const g = e.g, P = e.pose;
-          if (e.seatCtl) { e.ikW = 0; e.ikPelvis = 0; engWalkReset(e); if (e.abdOn) { e.legs[0].rotation.y = e.legs[1].rotation.y = e.ankles[0].rotation.z = e.ankles[1].rotation.z = 0; e.abdOn = false; } return; }   // ngồi / đứng dậy: bộ điều khiển ghế tự giải IK bàn chân bám đất
+          if (e.seatCtl) { e.ikW = 0; e.ikPelvis = 0; engWalkReset(e); if (e.abdOn) { e.legs[0].rotation.y = e.legs[1].rotation.y = e.ankles[0].rotation.z = e.ankles[1].rotation.z = 0; e.abdOn = false; } return; }
           const onFoot = !!P && !e.noFootIK && g.parent === scene && !e.inVan && e.phase !== 'van' && e.phase !== 'pet' && Math.abs(e.legs[0].rotation.x) < 0.95 && Math.abs(e.legs[1].rotation.x) < 0.95 && e.knees[0].rotation.x < 1.15 && e.knees[1].rotation.x < 1.15;
           e.ikW = (e.ikW || 0) + ((onFoot ? 1 : 0) - (e.ikW || 0)) * (1 - Math.exp(-dt * 6));
           if (e.ikW < 0.01) { e.ankles[0].rotation.x = e.ankles[1].rotation.x = 0; e.ikPelvis = 0; engWalkReset(e); if (e.abdOn) { for (let i = 0; i < 2; i++) e.legs[i].rotation.z = e.legs[i].rotation.y = e.ankles[i].rotation.z = 0; e.abdOn = false; } return; }
-          const S = g.scale.y, K = engWalkFeet(e, dt, onFoot), ww = K ? (e.walkW || 0) : 0, w = Math.max(e.ikW, ww);   // đang đi: IK bàn chân trụ đủ trọng số ngay (không chờ IK địa hình hoà vào)
-          if (ww > 0) {   // chậu hông theo nhịp bước (chỉ phần hiển thị)
+          const S = g.scale.y, K = engWalkFeet(e, dt, onFoot), ww = K ? (e.walkW || 0) : 0, w = Math.max(e.ikW, ww);
+          if (ww > 0) {
             g.position.y += K.bob * ww; g.position.x += Math.cos(g.rotation.y) * K.lat * ww; g.position.z -= Math.sin(g.rotation.y) * K.lat * ww;
             g.rotation.y += K.yaw * ww; g.rotation.z += K.list * ww;
           }
@@ -5808,21 +5808,21 @@
           g.updateMatrixWorld(true);
           const plane = g.position.y + ENG_FEET, fk = [];
           let reach = 0;
-          for (let i = 0; i < 2; i++) {   // vị trí cổ chân FK (mặt phẳng y–z cục bộ) → thế giới → độ chênh mặt đất dưới bàn chân
+          for (let i = 0; i < 2; i++) {
             const a = e.legs[i].rotation.x, b = e.knees[i].rotation.x;
             const ky = ENG_HIP_Y - ENG_L1 * Math.cos(a), kz = -ENG_L1 * Math.sin(a), ay = ky - ENG_L2 * Math.cos(a + b), az = kz - ENG_L2 * Math.sin(a + b);
             g.localToWorld(_ikW.set(i ? 0.15 : -0.15, ay, az));
-            const lift = Math.max(0, (_ikW.y - ENG_SOLE * S) - plane);   // độ nhấc chân của nhịp bước (đv thế giới)
+            const lift = Math.max(0, (_ikW.y - ENG_SOLE * S) - plane);
             const f = { a, b, ay, az, lift, delta: cowY(_ikW.x, _ikW.z) - plane, py: 0, pz: 0, ab: 0 };
-            if (ww > 0) {   // bàn chân trụ cố định (cục bộ) · dạng/khép chân cho độ lệch ngang (chậu lắc, xoay, nghiêng) · hụt tầm với
+            if (ww > 0) {
               g.worldToLocal(_ikP.copy(K.feet[i].a)); const dx = _ikP.x - (i ? 0.15 : -0.15), dy = _ikP.y - ENG_HIP_Y;
               f.ab = Math.max(-0.3, Math.min(0.3, Math.atan2(dx, -dy))); f.py = ENG_HIP_Y - Math.hypot(dy, dx) * Math.cos(Math.atan2(dx, -dy) - f.ab); f.pz = _ikP.z;
               reach = Math.max(reach, Math.hypot(f.py - ENG_HIP_Y, f.pz) - (ENG_L1 + ENG_L2 - 0.012));
             }
             fk.push(f);
           }
-          const po = Math.max(-0.42, Math.min(0.25, Math.min(fk[0].delta, fk[1].delta)));   // hạ hông tối đa ~0,5 m: bậc voxel cao hơn thì chân thấp hơi hổng
-          const pT = po * (1 - ww) + Math.max(-0.42, -Math.max(0, reach) * S) * ww;   // khi đi: chỉ hạ hông nếu chân trụ / chân đáp ngoài tầm với
+          const po = Math.max(-0.42, Math.min(0.25, Math.min(fk[0].delta, fk[1].delta)));
+          const pT = po * (1 - ww) + Math.max(-0.42, -Math.max(0, reach) * S) * ww;
           e.ikPelvis = (e.ikPelvis || 0) + (pT - (e.ikPelvis || 0)) * (1 - Math.exp(-dt * 10));
           g.position.y += e.ikPelvis * w;
           for (let i = 0; i < 2; i++) {
@@ -5831,17 +5831,17 @@
             if (ww > 0) { ty += (f.py - e.ikPelvis * w / S - ty) * ww; tz += (f.pz - tz) * ww; }
             const vy = ty - ENG_HIP_Y, vz = tz, d = Math.min(ENG_L1 + ENG_L2 - 1e-4, Math.max(0.08, Math.hypot(vy, vz)));
             const kneeIK = Math.PI - Math.acos(Math.max(-1, Math.min(1, (ENG_L1 * ENG_L1 + ENG_L2 * ENG_L2 - d * d) / (2 * ENG_L1 * ENG_L2))));
-            const hipIK = -(Math.atan2(vz, -vy) + Math.acos(Math.max(-1, Math.min(1, (ENG_L1 * ENG_L1 + d * d - ENG_L2 * ENG_L2) / (2 * ENG_L1 * d)))));   // gối luôn chĩa ra trước
+            const hipIK = -(Math.atan2(vz, -vy) + Math.acos(Math.max(-1, Math.min(1, (ENG_L1 * ENG_L1 + d * d - ENG_L2 * ENG_L2) / (2 * ENG_L1 * d)))));
             const a = f.a + (hipIK - f.a) * w, b = f.b + (kneeIK - f.b) * w;
             e.legs[i].rotation.x = a; e.knees[i].rotation.x = b;
-            if (ww > 0 || e.abdOn) {   // dạng chân · xoay trong/ngoài để bàn chân trụ giữ đúng hướng lúc đặt (chậu xoay, người ngoặt) — rời IK đi bộ thì về 0
+            if (ww > 0 || e.abdOn) {
               const F = K && K.feet[i]; let tw = 0;
               if (F) { tw = F.sw ? 0 : Math.max(-0.45, Math.min(0.45, Math.atan2(Math.sin(Math.atan2(F.fx, F.fz) - g.rotation.y), Math.cos(Math.atan2(F.fx, F.fz) - g.rotation.y)))); F.tw = (F.tw || 0) + (tw - (F.tw || 0)) * Math.min(1, dt * (F.sw ? 8 : 30)); tw = F.tw; }
               e.legs[i].rotation.z = f.ab * ww; e.legs[i].rotation.y = tw * ww; e.ankles[i].rotation.z = -f.ab * ww;
             }
-            const plant = 1 - ikSmooth(0.03, 0.15, f.lift);   // chân trụ: đế phẳng theo mặt đất · chân đang vung: để mũi giày buông tự nhiên
+            const plant = 1 - ikSmooth(0.03, 0.15, f.lift);
             const fpk = ww > 0 ? K.feet[i].fp : 0;
-            e.ankles[i].rotation.x = -(g.rotation.x + a + b) * (plant * (w - ww) + ww) + fpk * ww;   // khi đi: góc bàn chân theo gót–bàn–mũi
+            e.ankles[i].rotation.x = -(g.rotation.x + a + b) * (plant * (w - ww) + ww) + fpk * ww;
           }
           e.abdOn = ww > 0;
         }
@@ -5849,12 +5849,12 @@
         function engArmSolve(e, i, dt) {
           const S = e.armDone || (e.armDone = [0, 0, 0]), L1 = ENG_ARM_L1, L2 = ENG_ARM_L2, kf = 1 - Math.exp(-dt * 6), sp = e.spine;
           const RT = e.reachT, RW = e.reachW || (e.reachW = [0, 0]), RL = e.reachL || (e.reachL = [new THREE.Vector3(), new THREE.Vector3()]);
-          if (!S[2]) {   // eo + nhịp vung tay: 1 lần/khung
+          if (!S[2]) {
             S[2] = 1;
             e.armWalk = (e.armWalk || 0) + ((e.walking ? Math.min(1, (e.vel || 0) / 1.1) : 0) - (e.armWalk || 0)) * kf;
             const st = e.spineT || { x: 0, y: 0 }, sv = e.spineV || (e.spineV = { x: 0, y: 0 });
             sv.x += (st.x - sv.x) * kf; sv.y += (st.y - sv.y) * kf;
-            const pw = Math.min(1, e.walkW || 0);   // ngực vặn + nghiêng NGƯỢC chậu hông (đầu, vai giữ yên); IK chân tắt thì vặn theo nhịp cũ
+            const pw = Math.min(1, e.walkW || 0);
             sp.rotation.set(sv.x + (e.waistBend || 0), sv.y - 1.6 * (e.pelvisYaw || 0) + 0.07 * Math.sin(e.gait || 0) * e.armWalk * (1 - pw), -0.9 * (e.pelvisList || 0));
             e.spineT = null;
             if ((RT && (RT[0] || RT[1])) || RW[0] > 1e-3 || RW[1] > 1e-3) { e.g.updateMatrixWorld(true); }
@@ -5862,7 +5862,7 @@
           if (S[i]) return; S[i] = 1;
           const fx = e.elbowFlex || (e.elbowFlex = [0, 0]), ft = e.elbowFlexT || [0, 0];
           fx[i] += (ft[i] - fx[i]) * kf;
-          const A = e.arms[i]; A.rotation.y = 0; let th = A.rotation.x;   // (xoắn trục y chỉ do IK chính xác đặt ở khung trước)
+          const A = e.arms[i]; A.rotation.y = 0; let th = A.rotation.x;
           const fwd = Math.max(0, Math.min(1, -th / 0.45)) * e.armWalk;
           let D = Math.max(0.3, Math.min(L1 + L2 - 1e-3, ENG_ARM_D - 0.04 * fwd - fx[i]));
           const tgt = RT && RT[i]; if (tgt) RL[i].copy(tgt);
@@ -5875,14 +5875,14 @@
           }
           const phi = Math.PI - Math.acos(Math.max(-1, Math.min(1, (L1 * L1 + L2 * L2 - D * D) / (2 * L1 * L2))));
           const al = Math.acos(Math.max(-1, Math.min(1, (L1 * L1 + D * D - L2 * L2) / (2 * L1 * D))));
-          if (RW[i] > 1e-3) {   // có đích với tay: IK CHÍNH XÁC (hệ eo) — khuỷu theo vectơ cực chĩa xuống–ra ngoài, cánh tay trên xoay đúng mặt phẳng vai–khuỷu–tay
-            const cg = Math.cos(A.rotation.z), u = _ikP.set(Math.sin(A.rotation.z), -cg * Math.cos(th), -cg * Math.sin(th));   // hướng vai→tay đã hoà (thứ tự XYZ)
+          if (RW[i] > 1e-3) {
+            const cg = Math.cos(A.rotation.z), u = _ikP.set(Math.sin(A.rotation.z), -cg * Math.cos(th), -cg * Math.sin(th));
             const a = (L1 * L1 - L2 * L2 + D * D) / (2 * D), hh = Math.sqrt(Math.max(0, L1 * L1 - a * a));
-            const pole = e.elbowPole && e.elbowPole[i] ? _ikA.copy(e.elbowPole[i]) : _ikA.set(i ? 0.6 : -0.6, -1, -0.15); pole.addScaledVector(u, -pole.dot(u)).normalize();   // e.elbowPole: pha tự chọn hướng khuỷu (ăn: khép sát thân)
-            const E = _ikB.copy(u).multiplyScalar(a).addScaledVector(pole, hh);                       // khuỷu (so với vai)
-            const yA = _ikW.copy(E).negate().normalize(), f = _ikC.copy(u).multiplyScalar(D).sub(E).normalize();   // trục +y cánh tay trên · hướng cẳng tay
-            (e.foreW || (e.foreW = [new THREE.Vector3(), new THREE.Vector3()]))[i].copy(f).transformDirection(sp.matrixWorld);   // hướng cẳng tay thế giới (khuỷu → tay) cho pha khung sau: cổ tay thẳng
-            const zA = f.addScaledVector(yA, -f.dot(yA)).normalize(), xA = _ikA.crossVectors(yA, zA);   // cẳng tay gập về +z cục bộ
+            const pole = e.elbowPole && e.elbowPole[i] ? _ikA.copy(e.elbowPole[i]) : _ikA.set(i ? 0.6 : -0.6, -1, -0.15); pole.addScaledVector(u, -pole.dot(u)).normalize();
+            const E = _ikB.copy(u).multiplyScalar(a).addScaledVector(pole, hh);
+            const yA = _ikW.copy(E).negate().normalize(), f = _ikC.copy(u).multiplyScalar(D).sub(E).normalize();
+            (e.foreW || (e.foreW = [new THREE.Vector3(), new THREE.Vector3()]))[i].copy(f).transformDirection(sp.matrixWorld);
+            const zA = f.addScaledVector(yA, -f.dot(yA)).normalize(), xA = _ikA.crossVectors(yA, zA);
             A.quaternion.setFromRotationMatrix(_ikM.makeBasis(xA, yA, zA)); e.elbows[i].rotation.x = -phi; e.wrists[i].rotation.x = phi - al;
           } else { A.rotation.x = th + al; e.elbows[i].rotation.x = -phi; e.wrists[i].rotation.x = phi - al; }
           const hq = e.handQ && e.handQ[i], HW = e.handQW || (e.handQW = [0, 0]), HL = e.handQL || (e.handQL = [new THREE.Quaternion(), new THREE.Quaternion()]);
@@ -5897,16 +5897,16 @@
           if (e.elbowFlexT) e.elbowFlexT[0] = e.elbowFlexT[1] = 0;
           e.reachT = null; e.handQ = null; e.elbowPole = null; e.armDone.fill(0);
         }
-        function engSitLean(e, k) { e.lean = Math.max(e.lean, 1.15 * k * (1 - k)); }   // ngồi xuống / đứng dậy: dồn trọng tâm, cúi người về trước giữa chừng
+        function engSitLean(e, k) { e.lean = Math.max(e.lean, 1.15 * k * (1 - k)); }
         function engStep(e, tgt, dt, t, avoidPt, avoidR, field) {
           const dx = tgt.x - e.g.position.x, dz = tgt.z - e.g.position.z, dist = Math.hypot(dx, dz);
-          const arrive = () => { e.vel = 0; e.legs[0].rotation.x = e.legs[1].rotation.x = 0; e.knees[0].rotation.x = e.knees[1].rotation.x = 0; e.arms[0].rotation.x = e.arms[1].rotation.x = 0; return true; };   // tới nơi: đứng thẳng (lớp tư thế khép chân dần, không đơ giữa bước)
+          const arrive = () => { e.vel = 0; e.legs[0].rotation.x = e.legs[1].rotation.x = 0; e.knees[0].rotation.x = e.knees[1].rotation.x = 0; e.arms[0].rotation.x = e.arms[1].rotation.x = 0; return true; };
           if (dist < 0.25) return arrive();
           let ux = dx / dist, uz = dz / dist;
           const fdir = (field && dist > 1.5) ? ffDir(field, e.g.position.x, e.g.position.z) : null;
-          if (fdir) {                                                                                  // bảng DP dẫn đường: đường ngắn nhất, né mọi vật cản từ xa — hết kẹt loop
+          if (fdir) {
             ux = fdir.x; uz = fdir.z; const gx0 = ux, gz0 = uz;
-            for (const ob of ENG_PROPS) {   // vật nhỏ lọt giữa các ô lưới 0,6 m (cọc đèn lồng, xô, ghế, bàn trà): đẩy ra + trượt vòng qua
+            for (const ob of ENG_PROPS) {
               const fx = e.g.position.x - ob.x, fz = e.g.position.z - ob.z, fd = Math.hypot(fx, fz), rr = ob.r + 0.32;
               if (fd >= rr || fd < 1e-4) continue;
               const push = (rr - fd) / rr, nx2 = fx / fd, nz2 = fz / fd, s = (gx0 * -nz2 + gz0 * nx2) >= 0 ? 1 : -1;
@@ -5914,23 +5914,23 @@
             }
             const ul = Math.hypot(ux, uz) || 1; ux /= ul; uz /= ul;
           }
-          else {                                                                                       // sát đích / không có bảng → né cục bộ bằng lực đẩy như cũ
-            const gx0 = ux, gz0 = uz;                                                                    // hướng đích GỐC — dùng chọn phía vòng tránh
+          else {
+            const gx0 = ux, gz0 = uz;
             const repel = (ox, oz, rr) => {
               const fx = e.g.position.x - ox, fz = e.g.position.z - oz, fd = Math.hypot(fx, fz);
               if (fd >= rr || fd < 1e-4) return;
               const push = (rr - fd) / rr, nx2 = fx / fd, nz2 = fz / fd;
-              ux += nx2 * push * 3.4; uz += nz2 * push * 3.4;                                            // lực ĐẨY RA: giữ khoảng cách với vật cản
-              const dotT = gx0 * -nz2 + gz0 * nx2;                                                       // đích lệch về phía nào? → vòng theo phía đó
-              let s; if (Math.abs(dotT) < 0.15) s = e.avoidSide || 1; else { s = dotT >= 0 ? 1 : -1; e.avoidSide = s; }   // hysteresis: đích thẳng tâm thì giữ phía cũ, không rung lắc đổi chiều
-              ux += -nz2 * s * push * 2.6; uz += nx2 * s * push * 2.6;                                   // lực TIẾP TUYẾN: trượt VÒNG QUANH vật cản — triệt tiêu điểm cân bằng chết gây kẹt
+              ux += nx2 * push * 3.4; uz += nz2 * push * 3.4;
+              const dotT = gx0 * -nz2 + gz0 * nx2;
+              let s; if (Math.abs(dotT) < 0.15) s = e.avoidSide || 1; else { s = dotT >= 0 ? 1 : -1; e.avoidSide = s; }
+              ux += -nz2 * s * push * 2.6; uz += nx2 * s * push * 2.6;
             };
-            if (avoidPt) repel(avoidPt.x, avoidPt.z, avoidR);                                            // bếp lửa
-            for (const ob of obstacleCoords) {                                                           // xe van · cột đèn · tua-bin · trạm...
-              if (Math.hypot(tgt.x - ob.x, tgt.z - ob.z) < ob.r + 0.6) continue;                         // đích nằm sát/vào vật cản này → chủ đích tới đó, không đẩy (vd: đi tới cột khí tượng)
+            if (avoidPt) repel(avoidPt.x, avoidPt.z, avoidR);
+            for (const ob of obstacleCoords) {
+              if (Math.hypot(tgt.x - ob.x, tgt.z - ob.z) < ob.r + 0.6) continue;
               repel(ob.x, ob.z, ob.r + 0.35);
             }
-            for (const ob of ENG_PROPS) repel(ob.x, ob.z, ob.r + 0.32);   // ghế · xô · cọc đèn · bàn trà: không bao giờ là đích đi bộ thường ⇒ luôn đẩy
+            for (const ob of ENG_PROPS) repel(ob.x, ob.z, ob.r + 0.32);
             const ul = Math.hypot(ux, uz) || 1; ux /= ul; uz /= ul;
           }
           const want = Math.atan2(ux, uz); let dturn = want - e.g.rotation.y; dturn = Math.atan2(Math.sin(dturn), Math.cos(dturn));
@@ -5942,12 +5942,12 @@
           const step = Math.min(e.vel * dt, dist);
           const nx = e.g.position.x + mx * step, nz = e.g.position.z + mz * step;
           const gi = Math.round(x2gi(nx)), gj = Math.round(z2gj(nz));
-          if (isWater(gi, gj)) { e.vel = 0; return arrive(); }   // chạm mép nước → coi như đã tới, không lội xuống
+          if (isWater(gi, gj)) { e.vel = 0; return arrive(); }
           e.g.position.x = nx; e.g.position.z = nz;
           const bob = engGait(e, step);
-          e.g.position.y = cowY(nx, nz) - ENG_FEET + bob * CAMP_SCALE;   // bậc địa hình được lớp tư thế làm êm (bước lên/xuống, không giật thẳng)
-          e.lean = Math.max(-0.05, Math.min(0.1, e.vel * 0.05 + (e.vel - v0) / Math.max(dt, 1e-3) * 0.02));   // ngả trước khi đi nhanh / tăng tốc, ngửa nhẹ khi phanh
-          e.bank = Math.max(-0.08, Math.min(0.08, -turn / Math.max(dt, 1e-3) * 0.025));                     // nghiêng vào trong khúc cua
+          e.g.position.y = cowY(nx, nz) - ENG_FEET + bob * CAMP_SCALE;
+          e.lean = Math.max(-0.05, Math.min(0.1, e.vel * 0.05 + (e.vel - v0) / Math.max(dt, 1e-3) * 0.02));
+          e.bank = Math.max(-0.08, Math.min(0.08, -turn / Math.max(dt, 1e-3) * 0.025));
           e.walking = true;
           return false;
         }
@@ -5958,10 +5958,10 @@
         const checkBubbleTex = new THREE.CanvasTexture(checkBubbleCanvas); checkBubbleTex.colorSpace = THREE.SRGBColorSpace;
         const checkBubbleSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: checkBubbleTex, transparent: true, opacity: 0.97, depthWrite: false, depthTest: false }));
         checkBubbleSprite.name = 'Nhãn kỹ sư · câu cá và đám mây suy nghĩ';
-        const BUBBLE_K = 0.65;   // cả nhãn (chữ + đám mây) nhỏ lại 35%
-        checkBubbleSprite.scale.set(8.5 * BUBBLE_K / ENGINEER_SIZE, 4.675 * BUBBLE_K / ENGINEER_SIZE, 1.0); checkBubbleSprite.center.set(0.5, 0);   // chia ENGINEER_SIZE: không nhỏ thêm theo người
+        const BUBBLE_K = 0.65;
+        checkBubbleSprite.scale.set(8.5 * BUBBLE_K / ENGINEER_SIZE, 4.675 * BUBBLE_K / ENGINEER_SIZE, 1.0); checkBubbleSprite.center.set(0.5, 0);
         checkBubbleSprite.position.set(0, 2.9, 0); checkBubbleSprite.visible = false; engObj.g.add(checkBubbleSprite);
-        function wrapText(ctx, text, maxW) {   // ngắt dòng theo từ cho tiếng Việt (khoảng trắng)
+        function wrapText(ctx, text, maxW) {
           const words = text.split(' '), lines = []; let line = '';
           for (const w of words) { const test = line ? line + ' ' + w : w; if (ctx.measureText(test).width > maxW && line) { lines.push(line); line = w; } else line = test; }
           if (line) lines.push(line); return lines;
@@ -5975,11 +5975,11 @@
           const x0 = BUBBLE_W / 2 - w / 2, x1 = x0 + w, y1 = bottom, y0 = y1 - h;
           const lobes = [];
           const nTop = Math.max(3, Math.round(w / 78));
-          for (let k = 0; k < nTop; k++) { const u = (k + 0.5) / nTop, r = 27 + ((k * 7) % 3) * 4; lobes.push([x0 + 18 + u * (w - 36), y0 + 6, r]); }          // múi trên
-          for (let k = 0; k < nTop - 1; k++) { const u = (k + 0.5) / (nTop - 1), r = 22 + ((k * 5) % 3) * 4; lobes.push([x0 + 30 + u * (w - 60), y1 - 4, r]); }  // múi dưới (nhỏ hơn)
+          for (let k = 0; k < nTop; k++) { const u = (k + 0.5) / nTop, r = 27 + ((k * 7) % 3) * 4; lobes.push([x0 + 18 + u * (w - 36), y0 + 6, r]); }
+          for (let k = 0; k < nTop - 1; k++) { const u = (k + 0.5) / (nTop - 1), r = 22 + ((k * 5) % 3) * 4; lobes.push([x0 + 30 + u * (w - 60), y1 - 4, r]); }
           for (const [sx, xx] of [[-1, x0], [1, x1]]) { const r = Math.min(46, h * 0.42); lobes.push([xx - sx * 10, (y0 + y1) / 2, r]); lobes.push([xx - sx * 22, y0 + h * 0.22, r * 0.72]); lobes.push([xx - sx * 22, y1 - h * 0.2, r * 0.66]); }
-          const tail = [[BUBBLE_W / 2 - 34, y1 + 26, 11], [BUBBLE_W / 2 - 56, y1 + 46, 6.5]];   // bong bóng nhỏ dẫn xuống đầu kỹ sư
-          const path = (grow) => {   // hợp các hình (chữ nhật bo + múi + bong bóng đuôi) thành 1 path
+          const tail = [[BUBBLE_W / 2 - 34, y1 + 26, 11], [BUBBLE_W / 2 - 56, y1 + 46, 6.5]];
+          const path = (grow) => {
             ctx.beginPath(); ctx.roundRect(x0 - grow, y0 - grow, w + grow * 2, h + grow * 2, 24 + grow);
             for (const [x, y, r] of lobes.concat(tail)) { ctx.moveTo(x + r + grow, y); ctx.arc(x, y, r + grow, 0, Math.PI * 2); }
           };
@@ -6016,7 +6016,7 @@
           const rows = [];
           let cloud = null;
           if (showThought) { cloud = drawThoughtCloud(cbCtx, thought.header, thought.message, 294); rows.push({ type: 'weather', text: thought.header, y: cloud.y0 + 17 }, ...cloud.lines.map((l, i) => ({ type: 'thought', text: l, y: 0 }))); }
-          if (fishing) {   // đếm ngược + trạng thái cá: phía trên đám mây (hoặc sát đầu nếu không có suy nghĩ)
+          if (fishing) {
             const top = cloud ? Math.max(30, cloud.y0 - 82) : 260;
             for (const [type, text, y, size, color] of [['countdown', '🎣 ' + fmtCountdown(seconds), top, 34, '#ffd34a'], ['fish', fishingStatusText(), top + 46, 34, '#65b3ff']]) {
               let s = size; cbCtx.font = s + 'px Arial, sans-serif';
@@ -6029,7 +6029,7 @@
           checkBubbleTex.needsUpdate = true;
         }
 
-        const ENG_SLOTS = [   // [từ giờ, mã, tên, biểu tượng]
+        const ENG_SLOTS = [
           [0, 'night', 'Đêm khuya', '🌙'], [5, 'dawn', 'Rạng sáng', '🌄'], [7, 'morning', 'Buổi sáng', '🌤'], [11, 'noon', 'Ban trưa', '☀️'],
           [14, 'afternoon', 'Buổi chiều', '🌥'], [17, 'dusk', 'Chiều tà', '🌇'], [19, 'evening', 'Buổi tối', '🌙'], [22, 'night', 'Đêm khuya', '🌙']
         ];
@@ -6264,7 +6264,7 @@
           'general|sun<0|wind>=11||Trời tối rồi, giờ chỉ còn tua-bin với thủy điện phát điện.',
           'general|sun<0|calm||Tối lặng gió, cả nhà máy trông vào thủy điện.'
         ].map(compileThought);
-        function compileThought(s) {   // tách sẵn điều kiện để lúc chọn câu chỉ so sánh, không phân tích chuỗi
+        function compileThought(s) {
           const p = s.split('|'), act = p[0], times = p[1], wx = p[2], need = p.length > 4 ? p[3] : '', text = p[p.length - 1];
           const tw = [], tc = [], wo = [], wc = [], nd = [];
           for (const tk of times ? times.split(',') : []) {
@@ -6279,13 +6279,13 @@
           return { act, text, tw, tc, wo, wc, nd, ev: nd.some(([, n]) => n.startsWith('ev')), w: 1 + (tw.length || tc.length ? 3 : 0) + (wo.length || wc.length ? 5 : 0) + (nd.length ? 4 : 0) };
         }
         const _thoughtCmp = (v, op, x) => op === '<' ? v < x : op === '<=' ? v <= x : op === '>' ? v > x : v >= x;
-        const THOUGHT_NEED = {   // trạng thái cảnh & việc đang làm
+        const THOUGHT_NEED = {
           caught: () => angling.catches > 0, noCatch: () => angling.catches === 0, waiting: () => angling.stage === 'wait' || angling.stage === 'approach',
           storks: () => storksAwake(), bees: () => liveWeather.wildlifeAwake && !liveWeather.state.raining,
           dogFire: () => dogPettable(), dogVan: () => !!dogRain.st && dogRain.st !== 'toFire',
           cowsHome: () => cowHutWanted(), cowsOut: () => !cowHutWanted(), cowsGoingHome: () => cowHutWanted() && cows.some(c => !(c.mode === 'home' && c.leg === 'in')),
           toFish: () => engObj.phase === 'toFish', toMast: () => engObj.phase === 'toMast',
-          headwind: () => { const y = engObj.g.rotation.y; return Math.sin(y) * sceneWind.dir.x + Math.cos(y) * sceneWind.dir.y < -0.5; },   // đi ngược hướng gió thổi
+          headwind: () => { const y = engObj.g.rotation.y; return Math.sin(y) * sceneWind.dir.x + Math.cos(y) * sceneWind.dir.y < -0.5; },
           rainLong: ctx => ctx.rainLong,
           tomorrowRain: ctx => !!ctx.tmr && (ctx.tmr.code >= 51 || ctx.tmr.pop >= 60),
           tomorrowCloudy: ctx => !!ctx.tmr && ctx.tmr.code < 51 && ctx.tmr.pop < 60 && (ctx.tmr.code === 3 || ctx.tmr.code === 45 || ctx.tmr.code === 48),
@@ -6316,16 +6316,16 @@
           if (st.thunder) tags.add('thunder').add('rain');
           else if (st.raining) tags.add('rain');
           else {
-            if (now - lastRainSeenAt < 45 * 60000) tags.add('afterRain');               // tạnh chưa quá 45 phút
+            if (now - lastRainSeenAt < 45 * 60000) tags.add('afterRain');
             if (cur && (cur.weather_code === 45 || cur.weather_code === 48)) tags.add('fog');
             if (cloud !== null) tags.add(cloud >= 70 ? 'cloudy' : cloud <= 35 ? 'clear' : 'partly');
           }
           if (Number.isFinite(wind) && wind >= 25) tags.add('wind');
-          if (Number.isFinite(wind) && wind < 8) tags.add('calm');                       // dưới ~2 m/s: tua-bin chưa tới tốc độ khởi động
+          if (Number.isFinite(wind) && wind < 8) tags.add('calm');
           if (Number.isFinite(temp) && temp >= 31) tags.add('hot');
           if (Number.isFinite(temp) && temp <= 18) tags.add('cold');
-          if (rh !== null && rh >= 90) tags.add('humid');                                 // đủ ẩm để sương phủ mặt hồ
-          const sun = Math.asin(Math.max(-1, Math.min(1, sunElevSin))) * 180 / Math.PI;    // độ cao mặt trời trên bầu trời cảnh (°)
+          if (rh !== null && rh >= 90) tags.add('humid');
+          const sun = Math.asin(Math.max(-1, Math.min(1, sunElevSin))) * 180 / Math.PI;
           let rad = null; const hourly = cur ? st.data?.hourly : null;
           if (cur && Array.isArray(hourly?.time)) { const i = hourly.time.findIndex(x => x.slice(0, 13) === cur.time.slice(0, 13)); const v = i >= 0 ? hourly.shortwave_radiation?.[i] : null; if (Number.isFinite(v)) rad = v; }
           if (rad === null) rad = Math.max(0, 910 * Math.max(0, sunElevSin) - 30) * (1 - 0.75 * Math.pow((cloud ?? 50) / 100, 3.4));
@@ -6340,9 +6340,9 @@
           const fits = l => thoughtFits(l, act, ctx);
           let pool = ENG_THOUGHT_LINES.filter(l => fits(l) && !recent.includes(l.text));
           if (!pool.length) { recent.length = 0; pool = ENG_THOUGHT_LINES.filter(fits); }
-          if (ctx.event) { const evPool = pool.filter(l => l.ev); if (evPool.length) pool = evPool; }   // vừa có sự việc khi câu: nói đúng chuyện đó
+          if (ctx.event) { const evPool = pool.filter(l => l.ev); if (evPool.length) pool = evPool; }
           if (!pool.length) return null;
-          let r = Math.random() * pool.reduce((s, l) => s + l.w, 0), pick = pool[0];   // câu đúng giờ + đúng thời tiết + đúng việc được ưu tiên rõ rệt
+          let r = Math.random() * pool.reduce((s, l) => s + l.w, 0), pick = pool[0];
           for (const l of pool) { r -= l.w; if (r <= 0) { pick = l; break; } }
           recent.push(pick.text); if (recent.length > 6) recent.shift();
           return pick.text;
@@ -6379,8 +6379,8 @@
         function updateEngineerIdleThought(now = Date.now()) {
           if (now < idleThoughtAt || now < thoughtUntil) return;
           const e = engObj; let act, label;
-          if (e.phase === 'check') return;   // đang đứng xem trạm: tin thời tiết đã hiện
-          if (e.act === 'toilet' || e.act === 'sleep' || e.phase === 'nap') { idleThoughtAt = now + 20000; return; }   // đang ở buồng WC / đang ngủ: không nảy ý
+          if (e.phase === 'check') return;
+          if (e.act === 'toilet' || e.act === 'sleep' || e.phase === 'nap') { idleThoughtAt = now + 20000; return; }
           const ctx = engContext(now);
           ctx.event = angling.event && now - angling.eventAt < 6000 ? angling.event : null;
           const atStation = !!e.inVan && !!e.van && !!e.van.station;
@@ -6406,7 +6406,7 @@
           else if (e.phase === 'wander') { act = 'wander'; label = 'Dạo quanh trại'; }
           else if (e.phase === 'apple') { act = 'apple'; label = 'Hái táo'; }
           else { act = 'walk'; label = 'Đang đi'; }
-          if (act === 'fish' && !ctx.event && !['wait', 'approach', 'settle', 'rig', 'done'].includes(angling.stage)) { idleThoughtAt = now + 4000; return; }   // đang giật/dìu/thả/thay mồi: tập trung, chưa nghĩ vẩn vơ
+          if (act === 'fish' && !ctx.event && !['wait', 'approach', 'settle', 'rig', 'done'].includes(angling.stage)) { idleThoughtAt = now + 4000; return; }
           if (act !== 'fish') ctx.event = null;
           if (!ctx.event && ['fish', 'tea', 'wander', 'walk', 'research'].includes(act) && Math.random() < 0.2) act = 'general';
           const text = pickThought(act, ctx); if (ctx.event) angling.event = null; if (!text) { idleThoughtAt = now + 30000; return; }
@@ -6421,11 +6421,11 @@
           tyreMat = new THREE.MeshLambertMaterial({ color: 0x2b2925 }), rimMat = new THREE.MeshLambertMaterial({ color: 0xb9b3a6 }),
           awningMat = new THREE.MeshLambertMaterial({ color: 0xE2D6C0 }), chairFrame = new THREE.MeshLambertMaterial({ color: 0x8b9197 }),
           chairFabric = new THREE.MeshLambertMaterial({ color: 0xE2D6C0 }),
-          campFabricYellow = new THREE.MeshLambertMaterial({ color: 0xf5e2a3 }), // vàng nhạt
-          campFrameWood = new THREE.MeshLambertMaterial({ color: 0x8b6f47 }); // màu gỗ (cùng tông cọc gỗ)
+          campFabricYellow = new THREE.MeshLambertMaterial({ color: 0xf5e2a3 }),
+          campFrameWood = new THREE.MeshLambertMaterial({ color: 0x8b6f47 });
         const CAB = { xc: -3.22, xr: -1.32, floorY: 0.956, axleF: -2.096956, axleR: 1.888478, wheelY: 0.50561 };
         function motorhomeCab(parent) {
-          const C = CAB, V3 = (x, y, z) => new THREE.Vector3(x, y, z), T = .04;   // T: vỏ 2 lớp dày 40 mm ⇒ đậm như tôn thật dù vật liệu bán trong suốt
+          const C = CAB, V3 = (x, y, z) => new THREE.Vector3(x, y, z), T = .04;
           const lam = (color, o = {}) => new THREE.MeshLambertMaterial({ color, ...o }), two = { side: THREE.DoubleSide };
           const M = {
             body: lam(0xE2D6C0, { transparent: true, opacity: 0.5, depthWrite: false, side: THREE.DoubleSide }),
@@ -6458,9 +6458,9 @@
             const p = [];
             for (const poly of polys) for (let i = 1; i < poly.length - 1; i++) p.push(...poly[0], ...poly[i], ...poly[i + 1]);
             const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(p, 3));
-            geo.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(p.length / 3 * 2), 2)); geo.computeVertexNormals(); return geo;   // uv rỗng để gộp được với hình khác
+            geo.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(p.length / 3 * 2), 2)); geo.computeVertexNormals(); return geo;
           };
-          const mirrorZ = polys => [...polys, ...polys.map(poly => poly.map(([x, y, z]) => [x, y, -z]).reverse())];   // lật z thì đảo thứ tự đỉnh để giữ chiều pháp tuyến
+          const mirrorZ = polys => [...polys, ...polys.map(poly => poly.map(([x, y, z]) => [x, y, -z]).reverse())];
           const onPlane = (geo, o, u, v) => geo.applyMatrix4(new THREE.Matrix4().makeBasis(u, v, new THREE.Vector3().crossVectors(u, v)).setPosition(o));
           const shapeOf = pts => new THREE.Shape(pts.map(p => new THREE.Vector2(...p)));
           const roundRect = (x0, y0, x1, y1, r) => { const s = new THREE.Shape(); s.moveTo(x0 + r, y0); s.lineTo(x1 - r, y0); s.quadraticCurveTo(x1, y0, x1, y0 + r); s.lineTo(x1, y1 - r); s.quadraticCurveTo(x1, y1, x1 - r, y1); s.lineTo(x0 + r, y1); s.quadraticCurveTo(x0, y1, x0, y1 - r); s.lineTo(x0, y0 + r); s.quadraticCurveTo(x0, y0, x0 + r, y0); return s; };
@@ -6468,7 +6468,7 @@
           const seam = [], seamLine = pts => { for (let i = 0; i < pts.length - 1; i++) seam.push(...pts[i], ...pts[i + 1]); };
 
           const SIDE = [[.60, 1.22], [.95, 1.29], [1.15, 1.335], [1.78, 1.335], [1.92, 1.30], [2.03, 1.24], [2.10, 1.22], [2.84, 1.06]];
-          const sideZ = y => lerpTab(SIDE, y), xWin = y => C.xc + (y - 2.10) / .74 * .56;   // mép trước dải kính hông (chân trụ A → nóc)
+          const sideZ = y => lerpTab(SIDE, y), xWin = y => C.xc + (y - 2.10) / .74 * .56;
           const WS = [[2.03, -3.62, 1.12, .24], [2.25, -3.41, 1.10, .20], [2.50, -3.235, 1.05, .15], [2.70, -3.04, .99, .09], [2.88, -2.78, .93, .03]];
           const wsRow = y => { let i = 1; while (i < WS.length - 1 && y > WS[i][0]) i++; const a = WS[i - 1], b = WS[i], k = (y - a[0]) / (b[0] - a[0]); return a.map((v, j) => v + (b[j] - v) * k); };
           const wsX = (y, z) => { const [, c, w, e] = wsRow(y); return c + e * Math.pow(Math.min(1, Math.abs(z) / w), 3.2); };
@@ -6480,14 +6480,14 @@
             [1.92, [[0, -3.71], [.45, -3.70], [.75, -3.68], [.92, -3.58], [1.06, -3.47], [1.17, -3.38], [1.25, -3.30], [1.30, C.xc]]],
             [2.03, [...[0, .45, .75, .92, 1.06, 1.12].map(z => [z, wsX(2.03, z)]), [1.19, -3.287], [1.24, C.xc]]]
           ];
-          const GRILLE = [1.21, 1.62], GJ = 4;   // ô ga-lăng: khoét các đoạn mặt bằng 0…3 (|z| ≤ 1,06) giữa 2 mức này
-          const noseX = (y, z) => {   // x mặt mũi xe tại độ cao y, bề ngang z (nội suy giữa các mức) — để đồ bên trong không đâm xuyên vỏ
+          const GRILLE = [1.21, 1.62], GJ = 4;
+          const noseX = (y, z) => {
             const at = plan => lerpTab(plan, Math.abs(z));
             for (let i = 1; i < NOSE.length; i++) if (y <= NOSE[i][0]) { const [ya, pa] = NOSE[i - 1], [yb, pb] = NOSE[i], k = Math.max(0, (y - ya) / (yb - ya)); return at(pa) * (1 - k) + at(pb) * k; }
             return at(NOSE[NOSE.length - 1][1]);
           };
           const behindNose = (geo, gap = T + .01) => { const p = geo.attributes.position; for (let i = 0; i < p.count; i++) { const lim = noseX(p.getY(i), p.getZ(i)) + gap; if (p.getX(i) < lim) p.setX(i, lim); } geo.computeVertexNormals(); return geo; };
-          const inset = (plan, d) => plan.map((p, j) => {   // lùi mặt bằng vào trong d (pháp tuyến trong mặt phẳng z–x)
+          const inset = (plan, d) => plan.map((p, j) => {
             const a = plan[Math.max(0, j - 1)], b = plan[Math.min(plan.length - 1, j + 1)], tz = b[0] - a[0], tx = b[1] - a[1], l = Math.hypot(tz, tx);
             return [Math.max(0, p[0] - tx / l * d), p[1] + tz / l * d];
           });
@@ -6527,7 +6527,7 @@
             mesh(onPlane(new THREE.ShapeGeometry(winS, 8), o, u, v), M.body, shell, 'Dải kính hông', lineDark);
             mesh(onPlane(new THREE.ShapeGeometry(winS, 8), o.clone().addScaledVector(nOut, -T), u, v), M.body, shell, 'Dải kính hông');
             for (const hole of [vent, main]) {
-              mesh(onPlane(new THREE.ShapeGeometry(new THREE.Shape(hole.getPoints(6)), 6), o.clone().addScaledVector(nOut, -.012), u, v), M.glass, shell, 'Kính cửa cabin');   // kính lùi vào 12 mm
+              mesh(onPlane(new THREE.ShapeGeometry(new THREE.Shape(hole.getPoints(6)), 6), o.clone().addScaledVector(nOut, -.012), u, v), M.glass, shell, 'Kính cửa cabin');
               const pts = hole.getPoints(3).map(p => o.clone().addScaledVector(u, p.x).addScaledVector(v, p.y));
               for (let i = 0; i < pts.length; i++) { const q = pts[(i + 1) % pts.length]; if (q.distanceTo(pts[i]) > .005) bar(shell, 'Khung kính cửa', pts[i], q, .03, M.matte); }
             }
@@ -6584,8 +6584,8 @@
           for (const [y0, y1] of [[gTop, 1.625], [1.205, gBot]]) for (let j = 0; j < GJ; j++)
             rails.push([[railPlan[j][1], y0, railPlan[j][0]], [railPlan[j + 1][1], y0, railPlan[j + 1][0]], [railPlan[j + 1][1], y1, railPlan[j + 1][0]], [railPlan[j][1], y1, railPlan[j][0]]]);
           mesh(facets(mirrorZ(rails)), M.matte, shell, 'Khung ga-lăng', lineDark);
-          const curve = [...PLAN_MID.slice(1, GJ + 1).reverse().map(([z]) => -z), ...PLAN_MID.slice(0, GJ + 1).map(([z]) => z)];   // −1,06 … 1,06
-          const tunnel = shapeOf([...curve.map(z => [xMid(z), z]), [xLp, zDiv], [xGr, zDiv], [xGr, -zDiv], [xLp, -zDiv]]);   // mặt bằng lòng ga-lăng (x, z)
+          const curve = [...PLAN_MID.slice(1, GJ + 1).reverse().map(([z]) => -z), ...PLAN_MID.slice(0, GJ + 1).map(([z]) => z)];
+          const tunnel = shapeOf([...curve.map(z => [xMid(z), z]), [xLp, zDiv], [xGr, zDiv], [xGr, -zDiv], [xLp, -zDiv]]);
           for (const y of [gTop, gBot]) mesh(new THREE.ShapeGeometry(tunnel).rotateX(Math.PI / 2).translate(0, y, 0), M.matte, shell, 'Lòng ga-lăng');
           const facePlane = (w, h, x, y, z, mat, name) => { const p = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat); p.rotation.y = -Math.PI / 2; p.position.set(x, y, z); p.name = name; shell.add(p); return p; };
           const gMid = (gTop + gBot) / 2, gH = gTop - gBot;
@@ -6599,7 +6599,7 @@
               const ring = new THREE.Mesh(new THREE.TorusGeometry(r, .009, 5, 18), M.handle); ring.rotation.y = Math.PI / 2; ring.position.copy(lens.position); shell.add(ring);
             }
           }
-          const BUMP = [   // [z ngoài, x mép trên, x mép dưới, z trong, x trong]
+          const BUMP = [
             [0, -3.88, -3.80, 0, -3.68], [.50, -3.84, -3.72, .50, -3.64], [.80, -3.80, -3.68, .78, -3.61], [.92, -3.79, -3.62, .88, -3.57],
             [1.00, -3.70, -3.53, .96, -3.50], [1.12, -3.56, -3.42, 1.06, -3.42], [1.20, -3.47, -3.37, 1.15, -3.34], [1.26, -3.40, -3.34, 1.22, -3.28],
             [1.33, -3.31, -3.28, 1.29, -3.18], [1.364, -3.18, -3.18, 1.305, -3.08], [1.364, -2.66, -2.66, 1.305, -2.66]];
@@ -6623,10 +6623,10 @@
             box(shell, 'Tấm che nắng', .16, .019, .637, -2.691, 2.8415, s * .5595, M.dashTrim);
           }
 
-          box(inner, 'Tấm sàn gầm', 1.30, .01, 1.90, -1.97, .535, 0, M.under);   // tấm mỏng dưới ghế, nằm lọt giữa 2 bánh trước
-          const trayPlan = inset(NOSE[0][1], T), tray = [...trayPlan.map(([z, x]) => [x, z]), [-2.72, trayPlan[trayPlan.length - 1][0]], [-2.72, -trayPlan[trayPlan.length - 1][0]], ...trayPlan.slice(1).reverse().map(([z, x]) => [x, -z])];   // đáy mũi (+z) → góc sau → đáy mũi (−z)
+          box(inner, 'Tấm sàn gầm', 1.30, .01, 1.90, -1.97, .535, 0, M.under);
+          const trayPlan = inset(NOSE[0][1], T), tray = [...trayPlan.map(([z, x]) => [x, z]), [-2.72, trayPlan[trayPlan.length - 1][0]], [-2.72, -trayPlan[trayPlan.length - 1][0]], ...trayPlan.slice(1).reverse().map(([z, x]) => [x, -z])];
           mesh(new THREE.ExtrudeGeometry(shapeOf(tray), { depth: .045, bevelEnabled: false }).rotateX(Math.PI / 2).translate(0, .60, 0), M.under, inner, 'Khay gầm trước');
-          box(inner, 'Tấm ốp sàn sau cabin', .086, .01, 2.844, -1.265, .529, 0, M.under);   // nẹp sàn chỗ cabin nối thân ở, nhô 8 cm mỗi bên
+          box(inner, 'Tấm ốp sàn sau cabin', .086, .01, 2.844, -1.265, .529, 0, M.under);
           box(inner, 'Thảm sàn', 1.85, .029, 1.12, -2.294, .9415, 0, M.mat);
           for (const s of [-1, 1]) {
             box(inner, 'Thảm sàn', .584, .029, .69, -2.927, .9415, s * .905, M.mat);
@@ -6638,19 +6638,19 @@
           const shaped = (w, h, d, segs, fn) => { const g = new THREE.BoxGeometry(w, h, d, ...segs), p = g.attributes.position, v = new THREE.Vector3(); for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i); fn(v); p.setXYZ(i, v.x, v.y, v.z); } g.computeVertexNormals(); return g; };
           const roundCorner = (v, a, b, ca, cb, r) => { const da = v[a] * Math.sign(ca) - Math.abs(ca), db = v[b] * Math.sign(cb) - Math.abs(cb); if (da > 0 && db > 0) { const l = Math.hypot(da, db); if (l > r * .999) { v[a] = Math.sign(ca) * (Math.abs(ca) + da / l * r); v[b] = Math.sign(cb) * (Math.abs(cb) + db / l * r); } } };
           const cushionGeo = shaped(.90, .304, .96, [12, 4, 12], v => {
-            roundCorner(v, 'x', 'y', -(.45 - .08), .152 - .08, .08);   // mép trên phía trước bo tròn
-            const k = Math.min(1, Math.max(0, (v.y - .06) / .09)); v.y -= .032 * k * Math.max(0, 1 - (v.z / .38) ** 2);   // lõm giữa, 2 má ghế nhô
+            roundCorner(v, 'x', 'y', -(.45 - .08), .152 - .08, .08);
+            const k = Math.min(1, Math.max(0, (v.y - .06) / .09)); v.y -= .032 * k * Math.max(0, 1 - (v.z / .38) ** 2);
           });
           const backGeo = shaped(.16, .96, .96, [2, 10, 12], v => {
             for (const s of [-1, 1]) roundCorner(v, 'z', 'y', s * (.48 - .12), .48 - .12, .12);
-            if (v.x < 0) v.x += .04 * Math.max(0, 1 - (v.z / .40) ** 2);   // mặt tựa lõm, 2 má ôm lưng
+            if (v.x < 0) v.x += .04 * Math.max(0, 1 - (v.z / .40) ** 2);
           });
           const gear = new THREE.Shape(); for (let i = 0; i <= 28; i++) { const t = i / 28 * Math.PI * 2, r = i % 2 ? .085 : .098; i ? gear.lineTo(Math.cos(t) * r, Math.sin(t) * r) : gear.moveTo(r, 0); }
           const gearGeo = new THREE.ExtrudeGeometry(gear, { depth: .06, bevelEnabled: false }).translate(0, 0, -.03);
           for (const s of [-1, 1]) {
             const zc = s * .64;
             mesh(cushionGeo, M.seat, inner, 'Đệm ngồi', lineDark).position.set(-2.15, 1.368, zc);
-            box(inner, 'Hộp sau ghế', .378, .444, 1.104, -1.725, 1.361, s * .696, M.dashTrim);   // hộp che chân tựa lưng, nối đệm với sàn
+            box(inner, 'Hộp sau ghế', .378, .444, 1.104, -1.725, 1.361, s * .696, M.dashTrim);
             const back = mesh(backGeo, M.seat, inner, 'Tựa lưng', lineDark); back.position.set(-1.65, 1.985, zc); back.rotation.z = -.272;
             const band = box(back, 'Đai tựa lưng', .18, .07, .98, 0, -.40, 0, M.seatBand); band.castShadow = false;
             mesh(gearGeo, M.seatDark, inner, 'Núm chỉnh tựa', lineDark).position.set(-1.77, 1.385, s * 1.15);
@@ -6705,7 +6705,7 @@
           const rimGeo = lathe([[.316, .152], [.30, .157], [.28, .150], [.25, .12]]), dishGeo = lathe([[.25, .12], [.20, .12]]);
           const bossGeo = lathe([[.20, .12], [.196, .165], [.07, .17]]), capGeo = lathe([[.07, .17], [.06, .185], [0, .188]], 16);
           const backDisc = new THREE.CircleGeometry(.315, 24);
-          for (const g of [tyreGeo, rimGeo, dishGeo, bossGeo, capGeo]) g.rotateX(Math.PI / 2);   // trục tiện (y) → trục bánh (z); phía +z là mặt ngoài
+          for (const g of [tyreGeo, rimGeo, dishGeo, bossGeo, capGeo]) g.rotateX(Math.PI / 2);
           const nutGeo = new THREE.CylinderGeometry(.017, .017, .022, 6); nutGeo.rotateX(Math.PI / 2);
           function roadWheel(x, z, outward, name) {
             const w = new THREE.Group(); w.name = name; w.position.set(x, C.wheelY, z); if (outward < 0) w.rotation.y = Math.PI;
@@ -6721,15 +6721,15 @@
           }
 
           const galley = new THREE.Group(); galley.name = 'Bếp dọc vách cửa hông'; galley.userData.xray = 'keep'; galley.userData.noBake = true;
-          galley.rotation.y = -Math.PI / 2; galley.position.set(1.92, 0, -1.57);   // xoay quanh tâm mặt bếp (1,92; 1,1): mặt cánh tủ hướng ra lối đi
+          galley.rotation.y = -Math.PI / 2; galley.position.set(1.92, 0, -1.57);
           const cabinets = new THREE.Group(); cabinets.name = 'Thân tủ & cánh tủ';
           box(cabinets, 'Thân tủ bếp', .51, .725, 1.82, 2.665, 1.4325, 0, M.cabinet, true);
           for (const [name, h, d, y, z] of [['Cánh tủ chậu', .505, .398, 1.3325, -.69], ['Cánh tủ giữa', .65, .68, 1.405, -.11], ['Cửa lò nướng', .5, .52, 1.37, .59], ['Ngăn kéo', .13, .35, 1.685, -.677]])
             box(cabinets, name, .012, h, d, 2.403, y, z, M.front, true);
           box(cabinets, 'Ô kính cửa lò', .006, .2, .34, 2.396, 1.42, .59, M.matte);
-          for (const z of [-.53, .19, .8]) box(cabinets, 'Tay nắm tủ', .018, .11, .05, 2.39, 1.42, z, M.trim);   // tay nắm dọc sát mép phải mỗi cánh
+          for (const z of [-.53, .19, .8]) box(cabinets, 'Tay nắm tủ', .018, .11, .05, 2.39, 1.42, z, M.trim);
           box(cabinets, 'Khe tách khối bếp', .58, .76, .014, 2.68, 1.45, .263, M.matte);
-          for (let i = 0; i < 4; i++) {   // 4 núm vặn ga trên mặt trước khối bếp
+          for (let i = 0; i < 4; i++) {
             const k = cyl(.027, .027, .03, M.matte, true, false, null, 12); k.rotation.z = Math.PI / 2; k.position.set(2.386, 1.722, .395 + i * .13); cabinets.add(k);
             const ring = cyl(.036, .036, .006, M.trim, false, false, null, 12); ring.rotation.z = Math.PI / 2; ring.position.set(2.398, 1.722, .395 + i * .13); cabinets.add(ring);
           }
@@ -6749,13 +6749,13 @@
           const add = (geo, mat, x, y, z, name) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.name = name; m.castShadow = m.receiveShadow = true; lamp.add(m); return m; };
           const H = WORK_LAMP_HEAD, armZ = -.079, armY = .4085;
           const disc = new THREE.Shape(), nh = .013, a0 = Math.asin(nh / .1);
-          disc.absarc(0, 0, .1, -Math.PI / 2 + a0, Math.PI * 1.5 - a0, false); disc.lineTo(-nh, -.088); disc.lineTo(nh, -.088); disc.closePath();   // khe ở phía −z (dưới chân tay đèn)
+          disc.absarc(0, 0, .1, -Math.PI / 2 + a0, Math.PI * 1.5 - a0, false); disc.lineTo(-nh, -.088); disc.lineTo(nh, -.088); disc.closePath();
           add(new THREE.ExtrudeGeometry(disc, { depth: .013, bevelEnabled: false, curveSegments: 40 }).rotateX(Math.PI / 2).translate(0, .021, 0), wood, 0, 0, 0, 'Đế gỗ');
           add(new THREE.LatheGeometry([[0, .002], [.094, .002], [.1, .008], [0, .008]].map(p => new THREE.Vector2(...p)), 36), wood, 0, 0, 0, 'Vát đáy đế');
           const pad = new THREE.Shape(), arc = (t0, t1) => { for (let i = 0; i <= 6; i++) { const t = t0 + (t1 - t0) * i / 6; pad.lineTo(.098 * Math.cos(t), .098 * Math.sin(t)); } };
           pad.moveTo(.025, -.08); arc(Math.atan2(-.08, Math.sqrt(.098 ** 2 - .08 ** 2)), Math.atan2(-.0431, .088)); pad.lineTo(.088, .0431); arc(Math.atan2(.0431, .088), Math.atan2(.08, Math.sqrt(.098 ** 2 - .08 ** 2))); pad.lineTo(.025, .08); pad.closePath();
           const padGeo = new THREE.ExtrudeGeometry(pad, { depth: .002, bevelEnabled: false }).rotateX(Math.PI / 2).translate(0, .002, 0);
-          add(padGeo, wood, 0, 0, 0, 'Chân đế'); add(padGeo.clone().rotateY(Math.PI), wood, 0, 0, 0, 'Chân đế');   // xoay 180° (đệm đối xứng theo z) để giữ chiều mặt
+          add(padGeo, wood, 0, 0, 0, 'Chân đế'); add(padGeo.clone().rotateY(Math.PI), wood, 0, 0, 0, 'Chân đế');
           add(new THREE.BoxGeometry(.024, .052, .024), body, .001, .032, armZ, 'Chân khớp');
           for (const y of [.058, .407]) add(new THREE.CylinderGeometry(.013, .013, .026, 14).rotateZ(Math.PI / 2), body, 0, y, armZ, 'Khớp xoay');
           add(new THREE.CylinderGeometry(.0062, .0062, .33, 10), body, .001, .236, armZ, 'Tay đứng');
@@ -6771,8 +6771,8 @@
           const lathe = pts => new THREE.LatheGeometry(pts.map(([r, y]) => new THREE.Vector2(r, y)), 32, Math.PI, Math.PI * 2);
           const W = 512, Hc = 256, c = document.createElement('canvas'); c.width = W; c.height = Hc; const k = c.getContext('2d');
           k.fillStyle = '#c3202b'; k.fillRect(0, 0, W, Hc);
-          k.fillStyle = '#e8e2d6'; k.fillRect(0, 0, W, 14); k.fillRect(0, Hc - 14, W, 14);   // 2 viền nhôm trơn trên/dưới
-          k.fillStyle = '#f6f1e7'; k.beginPath(); k.moveTo(0, 168);   // dải lượn trắng chạy quanh lon (tuần hoàn để không lộ đường nối)
+          k.fillStyle = '#e8e2d6'; k.fillRect(0, 0, W, 14); k.fillRect(0, Hc - 14, W, 14);
+          k.fillStyle = '#f6f1e7'; k.beginPath(); k.moveTo(0, 168);
           for (let x = 0; x <= W; x += 8) k.lineTo(x, 160 + Math.sin(x / W * Math.PI * 4) * 22);
           for (let x = W; x >= 0; x -= 8) k.lineTo(x, 182 + Math.sin(x / W * Math.PI * 4 + .6) * 22);
           k.fill();
@@ -6784,7 +6784,7 @@
           const label = new THREE.CanvasTexture(c); label.colorSpace = THREE.SRGBColorSpace; label.anisotropy = 4;
           const body = [[.0331, .0095], [.0331, .1035], [.031, .1085], [.0275, .1135], [.0272, .1148]];
           const bodyGeo = lathe(body), uv = bodyGeo.attributes.uv, pos = bodyGeo.attributes.position;
-          for (let i = 0; i < uv.count; i++) uv.setY(i, (pos.getY(i) - .0095) / (.1148 - .0095));   // v theo chiều cao (nhãn phủ từ đáy thẳng tới cổ)
+          for (let i = 0; i < uv.count; i++) uv.setY(i, (pos.getY(i) - .0095) / (.1148 - .0095));
           const metal = new THREE.MeshLambertMaterial({ color: 0xb9bcbf });
           const parts = [[bodyGeo, new THREE.MeshLambertMaterial({ map: label }), 'Thân lon'],
             [lathe([[.0272, .1148], [.0278, .1156], [.0268, .1159], [.0255, .1151], [0, .1149]]), metal, 'Nắp lon'],
@@ -6810,20 +6810,20 @@
               for (const x of [128, 384]) {
                 text(k, 'SỮA TƯƠI', x, 50, '800 34px Arial, sans-serif', '#2f6fa8'); text(k, 'Gia Lai · 500 ml', x, 88, '600 18px Arial, sans-serif', '#4b5d6b');
               }
-              k.fillStyle = '#3b3a37'; for (const [x, y, r] of [[250, 40, 9], [262, 78, 7], [12, 70, 8], [500, 46, 7]]) { k.beginPath(); k.ellipse(x, y, r * 1.4, r, .4, 0, Math.PI * 2); k.fill(); }   // đốm bò sữa
+              k.fillStyle = '#3b3a37'; for (const [x, y, r] of [[250, 40, 9], [262, 78, 7], [12, 70, 8], [500, 46, 7]]) { k.beginPath(); k.ellipse(x, y, r * 1.4, r, .4, 0, Math.PI * 2); k.fill(); }
             });
             const band = new THREE.Mesh(new THREE.CylinderGeometry(.0449, .0449, .075, 28, 1, true), lam({ map: tex })); band.position.y = .095; band.rotation.y = Math.PI; g.add(band);
             const cap = cyl(.0305, .0305, .016, lam({ color: 0x4a7fb5 }), true, false, null, 20); cap.position.y = .226; g.add(cap);
             g.traverse(o => { if (o.isMesh) o.castShadow = o.receiveShadow = true; });
             return g;
           }
-          const cereal = key === 'cereal', PX = 1650;   // ~1650 px/m cho mặt nhãn
+          const cereal = key === 'cereal', PX = 1650;
           const frontTex = breakfastLabel(Math.round(w * PX), Math.round(h * PX), (k, W, H) => {
             if (cereal) {
               const bg = k.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#f6e7bd'); bg.addColorStop(1, '#ecc97c'); k.fillStyle = bg; k.fillRect(0, 0, W, H);
               k.strokeStyle = 'rgba(232,150,60,.35)'; k.lineWidth = 6; for (let i = 0; i < 11; i++) { const t = Math.PI * (1.05 + i * .09); k.beginPath(); k.moveTo(W / 2, H * .72); k.lineTo(W / 2 + Math.cos(t) * H, H * .72 + Math.sin(t) * H); k.stroke(); }
               text(k, 'NGŨ CỐC', W / 2, H * .13, '900 40px Arial, sans-serif', '#7a3b12'); text(k, 'Cao Nguyên', W / 2, H * .23, 'italic 700 22px Georgia, serif', '#a0521d');
-              k.fillStyle = '#eef1f2'; k.beginPath(); k.ellipse(W / 2, H * .64, W * .34, H * .05, 0, 0, Math.PI * 2); k.fill();   // bát
+              k.fillStyle = '#eef1f2'; k.beginPath(); k.ellipse(W / 2, H * .64, W * .34, H * .05, 0, 0, Math.PI * 2); k.fill();
               k.fillStyle = '#d9e2e6'; k.beginPath(); k.moveTo(W / 2 - W * .34, H * .64); k.quadraticCurveTo(W / 2, H * .86, W / 2 + W * .34, H * .64); k.fill();
               const cols = ['#e8a33c', '#d9822b', '#f2c65a', '#c8562f']; for (let i = 0; i < 26; i++) { k.fillStyle = cols[i % 4]; k.beginPath(); k.arc(W / 2 + (Math.sin(i * 7.3) * .3) * W, H * .62 - Math.abs(Math.cos(i * 3.1)) * H * .05, 7, 0, Math.PI * 2); k.fill(); }
               k.fillStyle = '#6f9a5b'; k.fillRect(0, H * .86, W, H * .14); text(k, 'Bữa sáng · 375 g', W / 2, H * .93, '700 17px Arial, sans-serif', '#ffffff');
@@ -6831,8 +6831,8 @@
               const bg = k.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#4a2c1b'); bg.addColorStop(1, '#2a170d'); k.fillStyle = bg; k.fillRect(0, 0, W, H);
               k.fillStyle = '#e8d6b5'; k.fillRect(0, 0, W, H * .09); text(k, 'PLEIKU', W / 2, H * .047, '800 18px Arial, sans-serif', '#4a2c1b');
               text(k, 'CÀ PHÊ', W / 2, H * .22, '900 40px Arial, sans-serif', '#f1e3c6'); text(k, 'rang xay', W / 2, H * .3, 'italic 600 20px Georgia, serif', '#d9b98a');
-              k.fillStyle = '#f4efe6'; k.beginPath(); k.ellipse(W / 2, H * .72, W * .34, H * .025, 0, 0, Math.PI * 2); k.fill();   // đĩa lót
-              k.beginPath(); k.moveTo(W * .28, H * .52); k.lineTo(W * .72, H * .52); k.quadraticCurveTo(W * .7, H * .7, W / 2, H * .71); k.quadraticCurveTo(W * .3, H * .7, W * .28, H * .52); k.fill();   // tách
+              k.fillStyle = '#f4efe6'; k.beginPath(); k.ellipse(W / 2, H * .72, W * .34, H * .025, 0, 0, Math.PI * 2); k.fill();
+              k.beginPath(); k.moveTo(W * .28, H * .52); k.lineTo(W * .72, H * .52); k.quadraticCurveTo(W * .7, H * .7, W / 2, H * .71); k.quadraticCurveTo(W * .3, H * .7, W * .28, H * .52); k.fill();
               k.strokeStyle = '#f4efe6'; k.lineWidth = 6; k.beginPath(); k.arc(W * .74, H * .59, 14, -1.3, 1.3); k.stroke();
               k.fillStyle = '#5a3420'; k.beginPath(); k.ellipse(W / 2, H * .52, W * .22, H * .012, 0, 0, Math.PI * 2); k.fill();
               k.strokeStyle = 'rgba(241,227,198,.6)'; k.lineWidth = 3; for (const dx of [-14, 0, 14]) { k.beginPath(); k.moveTo(W / 2 + dx, H * .49); k.bezierCurveTo(W / 2 + dx - 10, H * .45, W / 2 + dx + 10, H * .42, W / 2 + dx, H * .38); k.stroke(); }
@@ -6885,12 +6885,12 @@
           box(S, 0.56, 0.03, 0.63, 2.67, 1.835, 0.59, M.dark, true);
           box(S, 0.012, 0.016, 0.63, 2.392, 1.857, 0.59, M.steel); box(S, 0.012, 0.016, 0.63, 2.948, 1.857, 0.59, M.steel);
           for (const z of [0.278, 0.902]) box(S, 0.56, 0.016, 0.012, 2.67, 1.857, z, M.steel);
-          const BURN = [[2.55, 0.43], [2.79, 0.43], [2.55, 0.75], [2.79, 0.75]];   // [x, z]: trước–trái, sau–trái, trước–phải, sau–phải
+          const BURN = [[2.55, 0.43], [2.79, 0.43], [2.55, 0.75], [2.79, 0.75]];
           for (const [x, z] of BURN) {
             const r = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.048, 0.012, 16), M.steel); r.position.set(x, 1.856, z); S.add(r);
             const c = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.012, 14), M.cap); c.position.set(x, 1.866, z); S.add(c);
           }
-          for (const zc of [0.43, 0.75]) {   // vỉ gang: khung chữ nhật + nan toả vào 2 họng lửa + chân
+          for (const zc of [0.43, 0.75]) {
             const z0 = zc - 0.145, z1 = zc + 0.145, x0 = 2.42, x1 = 2.92, y = 1.888;
             box(S, x1 - x0, 0.012, 0.012, (x0 + x1) / 2, y, z0, M.iron); box(S, x1 - x0, 0.012, 0.012, (x0 + x1) / 2, y, z1, M.iron);
             box(S, 0.012, 0.012, z1 - z0, x0, y, zc, M.iron); box(S, 0.012, 0.012, z1 - z0, x1, y, zc, M.iron); box(S, 0.012, 0.012, z1 - z0, 2.67, y, zc, M.iron);
@@ -6908,14 +6908,14 @@
           box(S, 0.33, 0.1, 0.6, 2.79, 2.35 + HY, 0.59, M.steel, true);
           const lip = box(S, 0.05, 0.12, 0.6, 2.62, 2.34 + HY, 0.59, M.steel, true); lip.rotation.z = 0.35;
           box(S, 0.27, 0.006, 0.52, 2.8, 2.297 + HY, 0.59, M.dark);
-          for (let k = 0; k < 7; k++) box(S, 0.27, 0.004, 0.006, 2.8, 2.293 + HY, 0.37 + k * 0.073, M.steel);   // nan lưới lọc
-          box(S, 0.12, 1.16 - HY, 0.12, 2.79, 2.98 + HY / 2, 0.47, M.steel, true);   // ống gió lên trần (2,98 → 3,56)
-          box(S, 0.16, 0.025, 0.16, 2.79, 3.545, 0.47, M.steel);   // mặt bích trần
+          for (let k = 0; k < 7; k++) box(S, 0.27, 0.004, 0.006, 2.8, 2.293 + HY, 0.37 + k * 0.073, M.steel);
+          box(S, 0.12, 1.16 - HY, 0.12, 2.79, 2.98 + HY / 2, 0.47, M.steel, true);
+          box(S, 0.16, 0.025, 0.16, 2.79, 3.545, 0.47, M.steel);
           box(S, 0.014, 0.045, 0.6, 2.384, 1.812, 0.59, M.dark, true);
           bakeStatic(S); galley.add(S);
 
           galley.add(P);
-          const flames = BURN.map(([x, z], i) => {   // ngọn lửa ga: vành xanh + lõi sáng, nhảy nhẹ
+          const flames = BURN.map(([x, z], i) => {
             const f = new THREE.Group(); f.position.set(x, 1.873, z); f.visible = false; f.name = 'Lửa họng ' + (i + 1); P.add(f);
             const outer = new THREE.Mesh(new THREE.TorusGeometry(0.035, 0.008, 5, 18), new THREE.MeshBasicMaterial({ color: 0x4f9dff, transparent: true, opacity: 0.85, depthWrite: false })); outer.rotation.x = Math.PI / 2; f.add(outer);
             const inner = new THREE.Mesh(new THREE.TorusGeometry(0.033, 0.004, 4, 18), new THREE.MeshBasicMaterial({ color: 0xbfe0ff, transparent: true, opacity: 0.9, depthWrite: false })); inner.rotation.x = Math.PI / 2; inner.position.y = 0.004; f.add(inner);
@@ -6925,7 +6925,7 @@
           const knobs = KNOB_Z.map(z => {
             const k = new THREE.Group(); k.position.set(2.372, 1.812, z); k.rotation.order = 'ZYX'; P.add(k);
             const c = new THREE.Mesh(new THREE.CylinderGeometry(0.017, 0.019, 0.022, 12), M.iron); c.rotation.z = Math.PI / 2; k.add(c);
-            const nb = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.026, 0.006), M.steel); nb.position.x = -0.012; k.add(nb);   // gờ chỉ vạch
+            const nb = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.026, 0.006), M.steel); nb.position.x = -0.012; k.add(nb);
             return k;
           });
           const hoodLamp = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.006, 0.04), new THREE.MeshBasicMaterial({ color: 0x8a8578 })); hoodLamp.position.set(2.7, 2.292 + 0.58, 0.59); P.add(hoodLamp);
@@ -6939,12 +6939,12 @@
           for (let k = 0; k < 10; k++) { const n = new THREE.Mesh(new THREE.TorusGeometry(0.025 + (k % 3) * 0.013, 0.0075, 4, 10, 2.4 + (k % 4) * 0.6), new THREE.MeshLambertMaterial({ color: 0xf4ecd4 })); n.rotation.set(-Math.PI / 2, 0, k * 1.9); n.position.set(Math.cos(k * 2.3) * 0.02, (k % 3) * 0.003, Math.sin(k * 2.3) * 0.02); potNoodles.add(n); }
           const potSteam = [0, 1, 2, 3].map(i => { const m = new THREE.Mesh(new THREE.IcosahedronGeometry(0.03, 1), new THREE.MeshBasicMaterial({ color: 0xf4f6f8, transparent: true, opacity: 0, depthWrite: false })); m.visible = false; pot.add(m); return { m, ph: i / 4 }; });
           const pegPan = fryPan(); pegPan.rotation.z = Math.PI / 2; pegPan.position.set(2.926, 2.215 - 0.215, 0.12); P.add(pegPan);
-          const stovePan = fryPan(); stovePan.rotation.y = Math.PI; stovePan.position.set(BURN[0][0], 1.894, BURN[0][1]); stovePan.visible = false; P.add(stovePan);   // họng trước–trái: tay trái nắm cán (quay ra lối đi), tay phải cầm xẻng
+          const stovePan = fryPan(); stovePan.rotation.y = Math.PI; stovePan.position.set(BURN[0][0], 1.894, BURN[0][1]); stovePan.visible = false; P.add(stovePan);
           const pegKnife = new THREE.Group(); pegKnife.position.set(2.916, 2.205, -0.19); P.add(pegKnife);
           box(pegKnife, 0.022, 0.075, 0.024, 0, -0.04, 0, M.wood); box(pegKnife, 0.006, 0.15, 0.036, 0, -0.15, 0.004, M.blade);
           const scallions = [];
           for (let k = 0; k < 26; k++) { const s = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.01, 6), lam(k % 4 ? 0x5fb04a : 0xdfeec4)); s.rotation.z = Math.PI / 2; s.position.set(2.6 + Math.sin(k * 1.7) * 0.05, TOP + 0.027, -0.02 + Math.cos(k * 2.3) * 0.06); s.visible = false; P.add(s); scallions.push(s); }
-          const counterBowl = udonBowl(); counterBowl.position.set(2.6, TOP, 0.17); counterBowl.scale.setScalar(1.2); counterBowl.visible = false; P.add(counterBowl);   // tô udon to thêm 20% (G 15/10)
+          const counterBowl = udonBowl(); counterBowl.position.set(2.6, TOP, 0.17); counterBowl.scale.setScalar(1.2); counterBowl.visible = false; P.add(counterBowl);
           const tapWater = new THREE.Mesh(new THREE.CylinderGeometry(0.007, 0.01, 0.2, 6), new THREE.MeshLambertMaterial({ color: 0xbfe2ff, transparent: true, opacity: 0.7, depthWrite: false }));
           tapWater.position.set(2.775, 1.94, -0.68); tapWater.visible = false; P.add(tapWater);
           return { flames, knobs, hoodLamp, pot, potWater, potNoodles, potSteam, pegPan, stovePan, pegKnife, scallions, counterBowl, tapWater, burners: BURN, steam: 0, TOP };
@@ -7020,7 +7020,7 @@
           }
           for (let i = 1; i < profile.length; i++) {
             const a = profile[i], b = profile[(i + 1) % profile.length];
-            if (i === 2) continue; // Open connection to the living compartment.
+            if (i === 2) continue;
             quad(a, b, -dz, dz, i === 1 ? topMat : slopeBody, 'Vỏ mui liền mạch');
           }
           const a0 = profile[0], b0 = profile[1], lerp = t => [a0[0] + (b0[0] - a0[0]) * t, a0[1] + (b0[1] - a0[1]) * t];
@@ -7031,8 +7031,8 @@
         }
 
         const studyDeskLighting = { light: null, bulb: null, on: null };
-        const studyLaptop = { hinge: null, screen: null, light: null, open: 0, target: 0 };   // laptop bàn học: nắp mở/đóng + màn hình sáng khi kỹ sư làm việc
-        const studyChairRig = { obj: null, home: 0, off: 0 };   // ghế bàn học: kéo ra / đẩy vào dọc trục trước–sau (đv xe)
+        const studyLaptop = { hinge: null, screen: null, light: null, open: 0, target: 0 };
+        const studyChairRig = { obj: null, home: 0, off: 0 };
         function updateStudyLamp() {
           const hh = liveWeather.localHour, on = hh >= 18.5 || hh < 6;
           if (!studyDeskLighting.light || on === studyDeskLighting.on) return;
@@ -7040,19 +7040,19 @@
           studyDeskLighting.light.intensity = on ? 1.35 : 0;
           studyDeskLighting.bulb.emissiveIntensity = on ? 1.6 : 0;
         }
-        function engHelmetProp() {   // mũ bảo hộ rời (đv xe = cỡ mũ đang đội: ×ENGINEER_BASE_SCALE); gốc ở đáy 2 ốp tai (mũ đặt xuống thì tì trên ốp tai)
+        function engHelmetProp() {
           const g = new THREE.Group(); g.name = 'Mũ bảo hộ (đã tháo)'; g.userData.noBake = true;
-          const h = legoHelmet(engHelm, caravanDark); h.position.y = 0.07; g.add(h);   // cùng hình mũ đang đội; tì trên 2 ốp tai
+          const h = legoHelmet(engHelm, caravanDark); h.position.y = 0.07; g.add(h);
           g.scale.setScalar(ENGINEER_BASE_SCALE); return g;
         }
         function caravan() {
           const g = new THREE.Group();
           const base = 0.95, Dc = 3.0, dz = Dc / 2;
-          const x0 = -1.2, x1 = 3.0, bLen = x1 - x0, bcx = (x0 + x1) / 2, Hc = 2.7, yRoof = base + Hc, yIn = base + 0.12, bthLen = 1.05;   // bthLen: phòng tắm nối sau đuôi (mặt sau xe = x1 + bthLen)
+          const x0 = -1.2, x1 = 3.0, bLen = x1 - x0, bcx = (x0 + x1) / 2, Hc = 2.7, yRoof = base + Hc, yIn = base + 0.12, bthLen = 1.05;
           const floorMat = new THREE.MeshLambertMaterial({ color: 0xb99c73 }), woodMat = new THREE.MeshLambertMaterial({ color: 0x9c7b4f }),
             cushMat = new THREE.MeshLambertMaterial({ color: 0xc94f3d }), kitMat = new THREE.MeshLambertMaterial({ color: 0x86663f }),
             litMat = new THREE.MeshLambertMaterial({ color: 0xfff3c4 }),
-            vanGlass = new THREE.MeshLambertMaterial({ color: 0x8fc1e3, transparent: true, opacity: 0.25 });  // kính xe trong suốt 75%
+            vanGlass = new THREE.MeshLambertMaterial({ color: 0x8fc1e3, transparent: true, opacity: 0.25 });
           const chassis = bx(bLen + 0.1, 0.22, Dc * 0.7, caravanDark, true, true, lineDark); chassis.position.set(bcx, base - 0.17, 0); g.add(chassis);
           const dX0 = -0.15, dX1 = 0.81, doorW = dX1 - dX0, doorH = 2.12;
           const floor = bx(bLen - 0.1, 0.12, Dc - 0.16, floorMat); floor.position.set(bcx, base + 0.06, 0); floor.receiveShadow = true; g.add(floor);
@@ -7097,31 +7097,31 @@
           }
           entrySteps.userData.treads = stepTreads;
           g.add(entrySteps);
-          const bedLen = bLen * 0.62, bedW = 0.98, bedCx = x0 + bedLen / 2 + .08, bedZ = -dz + 0.62; // 8 cm clearance at the front wall (screen right).
+          const bedLen = bLen * 0.62, bedW = 0.98, bedCx = x0 + bedLen / 2 + .08, bedZ = -dz + 0.62;
           const bed = new THREE.Group(); bed.name = 'Giường dọc vách đối diện';
           const flexaWhite = new THREE.MeshLambertMaterial({ color: 0xe6e4de }), flexaBlack = new THREE.MeshLambertMaterial({ color: 0x1f2022 });
           const mattGrey = new THREE.MeshLambertMaterial({ color: 0x8c8e90 });
           const bedH = 0.45, pt = 0.02, frontZ = bedZ + bedW / 2, backZ = bedZ - bedW / 2, mattTop = bedH + 0.04;
           const bedPart = (w, h, d, x, y, z, mat, outlined = true) => { const m = bx(w, h, d, mat, true, outlined, lineDark); m.position.set(x, yIn + y, z); bed.add(m); return m; };
-          bedPart(bedLen, bedH, pt, bedCx, bedH / 2, backZ + pt / 2, flexaWhite);                                                   // vách lưng
-          for (const sx of [-1, 1]) bedPart(pt, bedH, bedW, bedCx + sx * (bedLen / 2 - pt / 2), bedH / 2, bedZ, flexaWhite);   // 2 đầu giường
-          bedPart(bedLen, 0.12, pt, bedCx, bedH - 0.06, frontZ - pt / 2, flexaWhite);                                          // thanh trên mặt trước
-          bedPart(bedLen, 0.07, pt, bedCx, 0.035, frontZ - pt / 2, flexaWhite);                                                // chân đế mặt trước
-          bedPart(0.03, 0.26, pt, bedCx, 0.2, frontZ - pt / 2, flexaWhite);                                                    // trụ giữa 2 ngăn kéo
-          bedPart(bedLen - 2 * pt, 0.02, bedW - 2 * pt, bedCx, bedH - 0.08, bedZ, flexaWhite, false);                         // mặt đỡ đệm
-          for (const sx of [-1, 1]) {                                                                                          // 2 ngăn kéo đen + khe tay nắm trắng
+          bedPart(bedLen, bedH, pt, bedCx, bedH / 2, backZ + pt / 2, flexaWhite);
+          for (const sx of [-1, 1]) bedPart(pt, bedH, bedW, bedCx + sx * (bedLen / 2 - pt / 2), bedH / 2, bedZ, flexaWhite);
+          bedPart(bedLen, 0.12, pt, bedCx, bedH - 0.06, frontZ - pt / 2, flexaWhite);
+          bedPart(bedLen, 0.07, pt, bedCx, 0.035, frontZ - pt / 2, flexaWhite);
+          bedPart(0.03, 0.26, pt, bedCx, 0.2, frontZ - pt / 2, flexaWhite);
+          bedPart(bedLen - 2 * pt, 0.02, bedW - 2 * pt, bedCx, bedH - 0.08, bedZ, flexaWhite, false);
+          for (const sx of [-1, 1]) {
             const dx = bedCx + sx * bedLen / 4;
             bedPart(bedLen / 2 - 0.05, 0.25, 0.03, dx, 0.2, frontZ - 0.03, flexaBlack);
             bedPart(0.2, 0.025, 0.006, dx, 0.31, frontZ - 0.012, flexaWhite, false);
           }
-          bedPart(bedLen - 0.05, 0.146, bedW - 0.05, bedCx, mattTop - 0.073, bedZ, mattGrey);                                  // đệm
-          const duvet = bx(bedLen * 0.5, 0.06, bedW - 0.02, cushMat); duvet.position.set(bedCx - bedLen * 0.22, yIn + mattTop + 0.03, bedZ + 0.01); bed.add(duvet);   // chăn đỏ gấp cuối giường
+          bedPart(bedLen - 0.05, 0.146, bedW - 0.05, bedCx, mattTop - 0.073, bedZ, mattGrey);
+          const duvet = bx(bedLen * 0.5, 0.06, bedW - 0.02, cushMat); duvet.position.set(bedCx - bedLen * 0.22, yIn + mattTop + 0.03, bedZ + 0.01); bed.add(duvet);
           function flexaPillow(w, h, t, fabric, trim, dent = 0) {
             const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d');
             x.fillStyle = '#' + new THREE.Color(fabric).getHexString(); x.fillRect(0, 0, 128, 128);
             x.strokeStyle = x.fillStyle = '#' + new THREE.Color(trim).getHexString(); x.lineWidth = 2.5;
-            for (let k = -128; k <= 128; k += 32) { x.beginPath(); x.moveTo(k, 0); x.lineTo(k + 128, 128); x.moveTo(k + 128, 0); x.lineTo(k, 128); x.stroke(); }   // lưới quả trám
-            for (let i = 0; i <= 8; i++) for (let j = 0; j <= 8; j++) if ((i + j) % 2 === 0) { x.beginPath(); x.arc(i * 16, j * 16, 3, 0, 7); x.fill(); }   // nút chần ở giao điểm
+            for (let k = -128; k <= 128; k += 32) { x.beginPath(); x.moveTo(k, 0); x.lineTo(k + 128, 128); x.moveTo(k + 128, 0); x.lineTo(k, 128); x.stroke(); }
+            for (let i = 0; i <= 8; i++) for (let j = 0; j <= 8; j++) if ((i + j) % 2 === 0) { x.beginPath(); x.arc(i * 16, j * 16, 3, 0, 7); x.fill(); }
             const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(w / 0.3, h / 0.3);
             const edgeX = (u, v) => u * w / 2 * (1 - 0.05 * (1 - v * v)), edgeY = (u, v) => v * h / 2 * (1 - 0.05 * (1 - u * u));
             const geo = new THREE.BoxGeometry(1, 1, 1, 18, 14, 2), p = geo.attributes.position;
@@ -7145,7 +7145,7 @@
           const backPillow = flexaPillow(0.46, 0.44, 0.15, 0x6b6d6f, 0x8f9193);
           backPillow.position.set(bedCx + 0.42, yIn + mattTop + 0.21, backZ + 0.12); backPillow.rotation.x = -0.28; bed.add(backPillow);
           const headPillow = flexaPillow(0.6, 0.4, 0.12, 0xd2cfc6, 0xa8a499, 0.035);
-          headPillow.rotation.set(-Math.PI / 2, 0, Math.PI / 2); headPillow.position.set(bedCx + 0.82, yIn + mattTop + 0.045, bedZ); bed.add(headPillow);   // ngay dưới đầu kỹ sư khi ngủ
+          headPillow.rotation.set(-Math.PI / 2, 0, Math.PI / 2); headPillow.position.set(bedCx + 0.82, yIn + mattTop + 0.045, bedZ); bed.add(headPillow);
           bakeStatic(bed); bed.userData.noBake = true; g.add(bed);
           const study = new THREE.Group(); study.name = 'Góc học tập trong xe'; study.userData.noBake = true;
           const desk = new THREE.Group(); desk.name = 'Bàn học nhỏ';
@@ -7165,14 +7165,14 @@
           studyBox(desk, 'Thanh đỡ sau bàn', .93, .07, .035, deskX, yIn + .61, deskZ - .2, metalMat);
           studyBox(desk, 'Ngăn kéo nhỏ', .28, .11, .4, deskX + .31, yIn + .645, deskZ + .015, caravanRoofM, true);
           studyBox(desk, 'Tay nắm ngăn kéo', .115, .017, .025, deskX + .31, yIn + .645, deskZ + .227, metalMat);
-          studyBox(desk, 'Sổ trên bàn', .27, .014, .2, deskX - .34, yIn + deskHeight + .01, deskZ - .09, caravanDark);   // sổ dời sang trái, nhường giữa bàn cho laptop
+          studyBox(desk, 'Sổ trên bàn', .27, .014, .2, deskX - .34, yIn + deskHeight + .01, deskZ - .09, caravanDark);
           studyBox(desk, 'Giấy trong sổ', .253, .009, .185, deskX - .34, yIn + deskHeight + .019, deskZ - .09, caravanRoofM);
           bakeStudyFurniture(desk); study.add(desk);
           const DESK_K = 1.2; desk.scale.setScalar(DESK_K); desk.position.set(2.88 * (1 - DESK_K), yIn * (1 - DESK_K), -1.37 * (1 - DESK_K));
-          const dX = 2.88 - (2.88 - deskX) * DESK_K, dZ = -1.37 + (deskZ + 1.37) * DESK_K, dH = deskHeight * DESK_K;   // tâm + chiều cao mới
+          const dX = 2.88 - (2.88 - deskX) * DESK_K, dZ = -1.37 + (deskZ + 1.37) * DESK_K, dH = deskHeight * DESK_K;
 
           const studyChair = new THREE.Group(); studyChair.name = 'Ghế bàn học';
-          const chairX = dX - .02, chairZ = -.38;   // ghế theo bàn: vẫn cách mép bàn 17,5 cm
+          const chairX = dX - .02, chairZ = -.38;
           studyBox(studyChair, 'Đệm ghế học', .43, .065, .43, chairX, yIn + .455, chairZ, caravanRoofM, true);
           for (const sx of [-1, 1]) for (const sz of [-1, 1])
             studyBox(studyChair, 'Chân ghế học', .035, .425, .035, chairX + sx * .17, yIn + .2125, chairZ + sz * .17, metalMat);
@@ -7190,13 +7190,13 @@
           studyLight.name = 'Ánh sáng bàn học'; studyLight.position.set(lampHead.x, lampHead.ledY - .05, lampHead.z);
           studyLight.castShadow = false; lamp.add(studyLight);
           studyDeskLighting.light = studyLight; studyDeskLighting.bulb = bulbMat;
-          const coke = sodaCan(); coke.scale.setScalar(1.155); coke.position.set(dX - .37 * DESK_K, yIn + dH + .001, dZ + .09 * DESK_K); coke.rotation.y = -.6; coke.name = 'Lon coke trên bàn học'; study.add(coke);   // lon to thêm 5% rồi thêm 10% (G 15/10), gốc ở tâm đáy nên vẫn đứng sát mặt bàn
+          const coke = sodaCan(); coke.scale.setScalar(1.155); coke.position.set(dX - .37 * DESK_K, yIn + dH + .001, dZ + .09 * DESK_K); coke.rotation.y = -.6; coke.name = 'Lon coke trên bàn học'; study.add(coke);
           {
-            const lap = new THREE.Group(); lap.name = 'Laptop'; lap.position.set(dX - .01, yIn + dH + .001, dZ + .05 * DESK_K); lap.scale.setScalar(1.2); study.add(lap);   // G 15/10: to thêm 20% (gốc ở đáy giữa ⇒ vẫn nằm trên mặt bàn, cách sổ 4 cm)
+            const lap = new THREE.Group(); lap.name = 'Laptop'; lap.position.set(dX - .01, yIn + dH + .001, dZ + .05 * DESK_K); lap.scale.setScalar(1.2); study.add(lap);
             const alu = new THREE.MeshLambertMaterial({ color: 0x3d4046 });
             const kc = document.createElement('canvas'); kc.width = 128; kc.height = 48; const kx = kc.getContext('2d');
             kx.fillStyle = '#1e2024'; kx.fillRect(0, 0, 128, 48); kx.fillStyle = '#3a3e45';
-            for (let r = 0; r < 4; r++) for (let k = 0; k < 13; k++) kx.fillRect(3 + k * 9.6, 3 + r * 11, 8, 9);   // phím
+            for (let r = 0; r < 4; r++) for (let k = 0; k < 13; k++) kx.fillRect(3 + k * 9.6, 3 + r * 11, 8, 9);
             kx.fillRect(30, 3 + 4 * 11 - 1, 66, 4);
             const keyTex = new THREE.CanvasTexture(kc); keyTex.colorSpace = THREE.SRGBColorSpace;
             const base = bx(.33, .016, .23, alu, true, true, lineDark); base.position.y = .008; lap.add(base);
@@ -7204,11 +7204,11 @@
             const pad = new THREE.Mesh(new THREE.PlaneGeometry(.095, .06), new THREE.MeshLambertMaterial({ color: 0x55595f })); pad.rotation.x = -Math.PI / 2; pad.position.set(0, .0166, .068); lap.add(pad);
             const hinge = new THREE.Group(); hinge.position.set(0, .016, -.115); lap.add(hinge);
             const lid = bx(.33, .01, .22, alu, true, true, lineDark); lid.position.set(0, .005, .11); hinge.add(lid);
-            const sc = document.createElement('canvas'); sc.width = 256; sc.height = 160; const sx2 = sc.getContext('2d');   // màn hình: bảng vận hành chạy / trình phát nhạc (vẽ mỗi khung ở engineer/routine-fx.js)
+            const sc = document.createElement('canvas'); sc.width = 256; sc.height = 160; const sx2 = sc.getContext('2d');
             sx2.fillStyle = '#0f1a26'; sx2.fillRect(0, 0, 256, 160);
             const scrTex = new THREE.CanvasTexture(sc); scrTex.colorSpace = THREE.SRGBColorSpace;
             const screenMat = new THREE.MeshBasicMaterial({ map: scrTex, color: 0x101214 });
-            const scr = new THREE.Mesh(new THREE.PlaneGeometry(.29, .18), screenMat); scr.rotation.x = Math.PI / 2; scr.position.set(0, -.0006, .112); hinge.add(scr);   // mặt trong nắp: quay xuống khi đóng, quay về người dùng khi mở
+            const scr = new THREE.Mesh(new THREE.PlaneGeometry(.29, .18), screenMat); scr.rotation.x = Math.PI / 2; scr.position.set(0, -.0006, .112); hinge.add(scr);
             const glow = new THREE.PointLight(0x9fc8ff, 0, 1.4 * CAMP_SCALE, 2); glow.position.set(0, .14, .02); lap.add(glow);
             lap.traverse(o => { o.userData.noBake = true; });
             Object.assign(studyLaptop, { hinge, screen: screenMat, light: glow, group: lap, canvas: sc, ctx: sx2, tex: scrTex, mode: 'dash', drawnAt: -1 });
@@ -7221,7 +7221,7 @@
           const tTop = bx(0.62, 0.08, 0.62, woodMat, true, true, lineDark); tTop.name = 'Bàn vuông'; tTop.userData.noBake = true; tTop.position.set(-0.65, yIn + 0.78, 0.8); tTop.castShadow = true; g.add(tTop);
           const tLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.78, 8), metalMat); tLeg.position.set(-0.65, yIn + 0.39, 0.8); g.add(tLeg);
           const breakfast = new THREE.Group(); breakfast.name = 'Đồ ăn sáng trên bàn vuông'; breakfast.userData.noBake = true; breakfast.position.set(-0.65, yIn + 0.821, 0.8); g.add(breakfast);
-          const BOOK_K = 1.1;   // 2 hộp "sách" to thêm 10%
+          const BOOK_K = 1.1;
           const layFlat = (item, cx, cz, yaw) => {
             const ext = BREAKFAST_SIZE[item.name], h = ext[1] * BOOK_K, t = ext[2] * BOOK_K;
             item.scale.setScalar(BOOK_K); item.rotation.order = 'YXZ'; item.rotation.set(-Math.PI / 2, yaw, 0);
@@ -7231,7 +7231,7 @@
           const cereal = breakfastItem('cereal'); layFlat(cereal, -0.15, 0.12, 0.14); cereal.name = 'Hộp ngũ cốc'; breakfast.add(cereal);
           const coffee = breakfastItem('coffee'); layFlat(coffee, 0.11, 0.1, -0.2); coffee.name = 'Hộp cà phê'; breakfast.add(coffee);
           const milk = breakfastItem('milk'); milk.name = 'Chai sữa'; milk.position.set(0.22, 0, -0.13); breakfast.add(milk);
-          {   // bát sứ trắng: ngũ cốc vàng nổi trên sữa
+          {
             const bowl = cerealBowl = new THREE.Group(); bowl.name = 'Bát ngũ cốc'; bowl.position.set(-0.04, 0, -0.16); bowl.visible = false; breakfast.add(bowl);
             const food = new THREE.Group(); food.name = 'Ngũ cốc + sữa'; bowl.add(food); bowl.userData.food = food;
             const ceramic = new THREE.MeshLambertMaterial({ color: 0xf2efe8, side: THREE.DoubleSide });
@@ -7241,7 +7241,7 @@
             const flakeM = new THREE.MeshLambertMaterial({ color: 0xd9a64a });
             for (let k = 0; k < 14; k++) { const a = k * 2.4, r = 0.012 + (k % 5) * 0.011, f = new THREE.Mesh(new THREE.BoxGeometry(0.016, 0.005, 0.013), flakeM); f.position.set(Math.cos(a) * r, 0.046, Math.sin(a) * r); f.rotation.set(0.3 * Math.sin(k), a, 0.25 * Math.cos(k * 1.7)); food.add(f); }
           }
-          const tableUdon = udonBowl(); tableUdon.position.set(-0.04, 0, -0.16); tableUdon.scale.setScalar(1.2); tableUdon.visible = false; breakfast.add(tableUdon);   // bữa trưa: bát udon đúng chỗ bát ngũ cốc
+          const tableUdon = udonBowl(); tableUdon.position.set(-0.04, 0, -0.16); tableUdon.scale.setScalar(1.2); tableUdon.visible = false; breakfast.add(tableUdon);
           const stool = new THREE.Group(); stool.name = 'Ghế đẩu bàn ăn'; stool.userData.noBake = true; stool.position.set(0, 0, 0); g.add(stool);
           { const sx0 = -0.65, sz0 = -0.04;
             const top = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.162, 0.05, 18), woodMat); top.position.set(sx0, yIn + 0.455, sz0); top.castShadow = true; stool.add(top);
@@ -7249,12 +7249,12 @@
               leg.position.set(sx0 + Math.cos(a) * 0.12, yIn + 0.215, sz0 + Math.sin(a) * 0.12); leg.rotation.set(Math.sin(a) * 0.12, 0, -Math.cos(a) * 0.12); leg.castShadow = true; stool.add(leg); }
             const ring = new THREE.Mesh(new THREE.TorusGeometry(0.135, 0.009, 4, 18), metalMat); ring.rotation.x = Math.PI / 2; ring.position.set(sx0, yIn + 0.15, sz0); stool.add(ring); }
           const bedHelmet = engHelmetProp(); bedHelmet.position.set(bedCx - bedLen / 2 + 0.3, yIn + mattTop - 0.02, bedZ + 0.18); bedHelmet.rotation.y = 0.6; bedHelmet.visible = false; g.add(bedHelmet);
-          const kitchen = motorhomeKitchen(galley);   // bếp theo mẫu: chậu, bàn sơ chế, bảng treo đồ, bếp 4 họng lửa + lò nướng
+          const kitchen = motorhomeKitchen(galley);
           const cup = bx(bLen * 0.62, 0.44, 0.4, caravanRoofM); cup.position.set(bcx - .55, yRoof - 0.45, -dz + 0.32); g.add(cup);
           const cabH = 1.85, cabLen = 2.0, cabX = x0 - cabLen / 2, cabDz = Dc * 0.9, wsX = cabX - cabLen / 2;
           const awFront = 1.1 - 1.75, awRear = x1 + bthLen, awLen = awRear - awFront, awC = (awFront + awRear) / 2;
           const aw = bx(awLen, 0.04, 2.4, awningMat, true, true, lineDark); aw.position.set(awC, yRoof - 0.02, dz + 1.2); aw.rotation.x = -0.16; g.add(aw);
-          for (const px of [awFront + 0.1, awRear - 0.1]) { const pTop = base + Hc + 0.33, pBot = -1.4, pH = pTop - pBot; const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, pH, 6), chairFrame); pole.castShadow = true; pole.position.set(px, (pTop + pBot) / 2, dz + 2.3); g.add(pole); const cap = new THREE.Mesh(new THREE.SphereGeometry(0.035, 8, 6), chairFrame); cap.position.set(px, pTop, dz + 2.3); cap.castShadow = true; g.add(cap); }   // 2 cột dài: vươn cao + cắm sâu hẳn xuống đất, có chỏm bịt đầu
+          for (const px of [awFront + 0.1, awRear - 0.1]) { const pTop = base + Hc + 0.33, pBot = -1.4, pH = pTop - pBot; const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, pH, 6), chairFrame); pole.castShadow = true; pole.position.set(px, (pTop + pBot) / 2, dz + 2.3); g.add(pole); const cap = new THREE.Mesh(new THREE.SphereGeometry(0.035, 8, 6), chairFrame); cap.position.set(px, pTop, dz + 2.3); cap.castShadow = true; g.add(cap); }
           const roofDetails = new THREE.Group(); roofDetails.name = 'Thiết bị mái xe chi tiết';
           roofDetails.userData.noBake = true; g.add(roofDetails);
           function roofBox(w, h, d, x, y, z, mat, outlined = false) {
@@ -7282,13 +7282,13 @@
             }
           }
           roofVent(x1 - .45, -.55, .66, .21);
-          {   // ống khói bếp (thông máy hút mùi): tấm bích kín nước + ống inox Ø9 cm cao 32 cm + chụp nón che mưa trên 3 chân — ngay trên bếp, cạnh giàn pin
+          {
             const cx = 1.45, cz = 1.22, y = yRoof + .1, pipe = new THREE.MeshLambertMaterial({ color: 0xa7b0b3 });
             roofBox(.18, .02, .18, cx, y + .01, cz, metalMat);
             const tube = new THREE.Mesh(new THREE.CylinderGeometry(.045, .048, .32, 14), pipe); tube.position.set(cx, y + .17, cz); tube.castShadow = true; roofDetails.add(tube);
             const cap = new THREE.Mesh(new THREE.ConeGeometry(.095, .07, 16), pipe); cap.position.set(cx, y + .395, cz); cap.castShadow = true; roofDetails.add(cap);
             for (let k = 0; k < 3; k++) { const a = k * 2.094, leg = new THREE.Mesh(new THREE.BoxGeometry(.008, .06, .008), pipe); leg.position.set(cx + Math.cos(a) * .04, y + .345, cz + Math.sin(a) * .04); roofDetails.add(leg); }
-            g.userData.chimneyTop = new THREE.Vector3(cx, y + .35, cz);   // miệng thoát khói (toạ độ xe)
+            g.userData.chimneyTop = new THREE.Vector3(cx, y + .35, cz);
           }
           const acX = x0 + .35, acBottom = yRoof + .1;
           roofBox(1.01, .055, .86, acX, acBottom + .0275, 0, caravanDark);
@@ -7301,10 +7301,10 @@
           }
           roofBox(.49, .012, .32, acX - .13, acBottom + .272, 0, caravanRoofM);
           for (const x of [-.26, .26]) for (const z of [-.16, .16]) roofBox(.026, .013, .026, acX - .13 + x, acBottom + .275, z, metalMat);
-          const bthW = Dc - 0.06, bthH = Hc;        // Short wet-room extension (bthLen), keeping the shell flush with the living body.
-          const bthCX = x1 + bthLen / 2;                          // pod centre, just behind rear wall (x1)
-          const bthBackX = bthCX + bthLen / 2;                    // outer rear wall plane
-          const bthZ = -bthW * 0.24, snkZ = bthW * 0.29;            // toilet on −Z half · sink on +Z half
+          const bthW = Dc - 0.06, bthH = Hc;
+          const bthCX = x1 + bthLen / 2;
+          const bthBackX = bthCX + bthLen / 2;
+          const bthZ = -bthW * 0.24, snkZ = bthW * 0.29;
           const bthWallM = new THREE.MeshLambertMaterial({ color: 0xE2D6C0, transparent: true, opacity: 0.42, depthWrite: false });
           const twcM = new THREE.MeshLambertMaterial({ color: 0xE2D6C0 }), tileM = new THREE.MeshLambertMaterial({ color: 0xE2D6C0 }),
             mirrorM = new THREE.MeshLambertMaterial({ color: 0xbfe0e8 }), towelM = new THREE.MeshLambertMaterial({ color: 0xd98c6a });
@@ -7322,8 +7322,8 @@
           const twcX = bthBackX - 0.42;
           const toilet = new THREE.Group(); toilet.name = 'Bồn cầu hướng cửa hông';
           const twcBowl = bx(0.5, 0.5, 0.46, twcM, true, true, lineDark); twcBowl.position.set(twcX, base + 0.31, bthZ); toilet.add(twcBowl);
-          const twcPed = bx(0.22, 0.32, 0.22, twcM, true, true, lineDark); twcPed.position.set(twcX, base + 0.16, bthZ); toilet.add(twcPed);   // pedestal base
-          const twcTank = bx(0.16, 0.42, 0.46, twcM, true, true, lineDark); twcTank.position.set(bthBackX - 0.17, base + 0.82, bthZ); toilet.add(twcTank);  // flush against rear wall
+          const twcPed = bx(0.22, 0.32, 0.22, twcM, true, true, lineDark); twcPed.position.set(twcX, base + 0.16, bthZ); toilet.add(twcPed);
+          const twcTank = bx(0.16, 0.42, 0.46, twcM, true, true, lineDark); twcTank.position.set(bthBackX - 0.17, base + 0.82, bthZ); toilet.add(twcTank);
           const twcLidHinge = new THREE.Group(); twcLidHinge.name = 'Bản lề nắp bồn cầu'; twcLidHinge.userData.noBake = true; twcLidHinge.position.set(twcX + 0.15, base + 0.5925, bthZ); toilet.add(twcLidHinge);
           const twcLid = bx(0.4, 0.055, 0.44, twcM, true, true, lineDark); twcLid.position.set(-0.2, -0.0275, 0); twcLidHinge.add(twcLid);
           const twcSeat = new THREE.Mesh(new THREE.TorusGeometry(0.18, 0.045, 6, 16), twcM); twcSeat.rotation.x = Math.PI / 2; twcSeat.scale.x = 1.3; twcSeat.position.set(twcX, base + 0.535, bthZ); twcSeat.castShadow = true; toilet.add(twcSeat);
@@ -7331,20 +7331,20 @@
           for (const fixture of toilet.children) { fixture.position.x -= twcX; fixture.position.z -= bthZ; }
           toilet.rotation.y = Math.PI / 2; toilet.position.set(twcX, 0, -bthW / 2 + 0.4);
           toilet.userData.noBake = true; bakeStatic(toilet); bath.add(toilet);
-          const flY = base + 0.1, ceilY = yRoof - 0.1, inBack = bthBackX - 0.1;   // mặt sàn · trần · mặt trong vách sau
-          const wcZ = -0.42, wcDoor = [x1 + 0.03, x1 + 0.55], doorTop = base + 2.14;   // vách WC · khe cửa lùa WC (x) · đỉnh khung cửa
+          const flY = base + 0.1, ceilY = yRoof - 0.1, inBack = bthBackX - 0.1;
+          const wcZ = -0.42, wcDoor = [x1 + 0.03, x1 + 0.55], doorTop = base + 2.14;
           const doorM = new THREE.MeshLambertMaterial({ color: 0xd9e3e6, transparent: true, opacity: 0.55, depthWrite: false });
           const panel = (x0p, x1p, y0, y1, z0, z1, mat = bthWallM) => { const m = bx(x1p - x0p, y1 - y0, z1 - z0, mat, mat !== doorM, true, lineDark); m.position.set((x0p + x1p) / 2, (y0 + y1) / 2, (z0 + z1) / 2); bath.add(m); return m; };
           panel(wcDoor[1], inBack, flY, ceilY, wcZ - 0.025, wcZ + 0.025);
           panel(x1, wcDoor[0], flY, ceilY, wcZ - 0.025, wcZ + 0.025);
           panel(wcDoor[0], wcDoor[1], doorTop, ceilY, wcZ - 0.025, wcZ + 0.025);
-          const wcDoorG = new THREE.Group(); wcDoorG.name = 'Cửa lùa buồng WC'; wcDoorG.userData.noBake = true; bath.add(wcDoorG);   // trượt về +x khi mở
+          const wcDoorG = new THREE.Group(); wcDoorG.name = 'Cửa lùa buồng WC'; wcDoorG.userData.noBake = true; bath.add(wcDoorG);
           wcDoorG.add(panel(wcDoor[0], wcDoor[1] + 0.03, flY + 0.01, doorTop - 0.01, wcZ + 0.03, wcZ + 0.055, doorM));
           const wcHandle = bx(0.03, 0.16, 0.03, caravanDark, false, false); wcHandle.position.set(wcDoor[0] + 0.06, base + 1.05, wcZ + 0.07); wcDoorG.add(wcHandle);
           const entry = [wcZ + 0.025, 0.25], pierZ = 0.64;
           panel(x1 - 0.1, x1, base, doorTop, -pierZ, wcZ + 0.025);
           panel(x1 - 0.1, x1, base, doorTop, entry[1], pierZ);
-          const entryDoorG = new THREE.Group(); entryDoorG.name = 'Cửa lùa phòng tắm'; entryDoorG.userData.noBake = true; bath.add(entryDoorG);   // trượt về +z khi mở
+          const entryDoorG = new THREE.Group(); entryDoorG.name = 'Cửa lùa phòng tắm'; entryDoorG.userData.noBake = true; bath.add(entryDoorG);
           entryDoorG.add(panel(x1 - 0.13, x1 - 0.1, base + 0.13, doorTop - 0.01, entry[0], entry[1] + 0.03, doorM));
           const entryHandle = bx(0.03, 0.16, 0.03, caravanDark, false, false); entryHandle.position.set(x1 - 0.16, base + 1.05, entry[1] - 0.06); entryDoorG.add(entryHandle);
           const spX = x1 + 0.03, spZ = -1.15;
@@ -7387,7 +7387,7 @@
           bath.userData.noBake = true;
           bakeStatic(bath); g.add(bath);
 
-          const solarMat = new THREE.MeshLambertMaterial({ color: 0x163a5c });   // tấm pin mặt trời xanh đậm
+          const solarMat = new THREE.MeshLambertMaterial({ color: 0x163a5c });
           const chrome = rimMat, amber = warningMat, redLamp = cushMat, stripeM = caravanStripe;
 
           for (const mz of [-0.9, -0.45, 0, 0.45, 0.9]) {
@@ -7429,8 +7429,8 @@
           const slX = x1 - 1.12, slZ = 0.95;
           const slBase = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.13, 0.05, 12), caravanDark); slBase.position.set(slX, yRoof + 0.04, slZ); g.add(slBase);
           const slPole = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.032, 0.34, 8), metalMat); slPole.position.set(slX, yRoof + 0.21, slZ); slPole.castShadow = true; g.add(slPole);
-          const slBack = bx(0.42, 0.04, 0.36, caravanDark, true, false); slBack.position.set(slX - 0.045, yRoof + 0.37, slZ); slBack.rotation.z = 0.44; g.add(slBack);     // lưng đĩa xám
-          const slDish = bx(0.46, 0.035, 0.4, wallMat, true, true, lineDark); slDish.position.set(slX - 0.085, yRoof + 0.39, slZ); slDish.rotation.z = 0.44; g.add(slDish);    // mặt đĩa trắng nghiêng
+          const slBack = bx(0.42, 0.04, 0.36, caravanDark, true, false); slBack.position.set(slX - 0.045, yRoof + 0.37, slZ); slBack.rotation.z = 0.44; g.add(slBack);
+          const slDish = bx(0.46, 0.035, 0.4, wallMat, true, true, lineDark); slDish.position.set(slX - 0.085, yRoof + 0.39, slZ); slDish.rotation.z = 0.44; g.add(slDish);
 
           const wifiShapes = [], dotY = -0.08;
           for (const radius of [0.08, 0.135, 0.19]) {
@@ -7465,8 +7465,8 @@
 
           const grab = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.92, 6), metalMat); grab.position.set(dX1 + 0.08, base + doorH * 0.5, dz + 0.17); grab.castShadow = true; g.add(grab);
           for (const gy of [base + 0.55, base + doorH - 0.12]) { const mt = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.16, 6), metalMat); mt.rotation.x = Math.PI / 2; mt.position.set(dX1 + 0.08, gy, dz + 0.1); g.add(mt); }
-          const awX = 1.1; // Preserve the awning and lantern campsite anchors.
-          for (let k = 0; k < 4; k++) { const band = bx(0.34, 0.045, 2.42, stripeM, false, false); band.position.set(awC + (k - 1.5) * 1.15, yRoof - 0.015, dz + 1.2); band.rotation.x = -0.16; g.add(band); }   // 4 sọc đều trên bạt dài
+          const awX = 1.1;
+          for (let k = 0; k < 4; k++) { const band = bx(0.34, 0.045, 2.42, stripeM, false, false); band.position.set(awC + (k - 1.5) * 1.15, yRoof - 0.015, dz + 1.2); band.rotation.x = -0.16; g.add(band); }
           const roll = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, awLen + 0.1, 8), chrome); roll.rotation.z = Math.PI / 2; roll.position.set(awC, yRoof + 0.12, dz + 2.36); roll.castShadow = true; g.add(roll);
           const valance = bx(awLen + 0.1, 0.22, 0.03, stripeM, false, true, lineDark); valance.position.set(awC, yRoof, dz + 2.37); valance.rotation.x = -0.16; g.add(valance);
 
@@ -7481,9 +7481,9 @@
           const etip = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.16, 8), chrome); etip.rotation.z = Math.PI / 2; etip.position.set(1.85, base - 0.34, -dz + 0.45); g.add(etip);
           for (const jx of [x0 + 0.4, x1 - 0.2]) for (const sz of [-1, 1]) { const jack = bx(0.08, 0.42, 0.08, metalMat, true, false); jack.position.set(jx, base - 0.42, sz * (dz - 0.25)); g.add(jack); }
 
-          const wIn = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.05, 10), chrome); wIn.rotation.x = Math.PI / 2; wIn.position.set(2.55, base + 0.74, -dz - 0.02); g.add(wIn);   // họng nạp nước sạch (city water)
-          const shore = bx(0.24, 0.3, 0.05, caravanDark, false, true, lineDark); shore.position.set(2.18, base + 0.7, -dz - 0.03); g.add(shore);                                             // hộp cắm điện bờ (shore power)
-          for (const sz of [-1, 1]) { const refl = bx(0.03, 0.09, 0.18, redLamp, false, false); refl.position.set(x1 - 0.35, base + 0.14, sz * (dz + 0.01)); g.add(refl); }                  // phản quang đỏ thấp hông
+          const wIn = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.05, 10), chrome); wIn.rotation.x = Math.PI / 2; wIn.position.set(2.55, base + 0.74, -dz - 0.02); g.add(wIn);
+          const shore = bx(0.24, 0.3, 0.05, caravanDark, false, true, lineDark); shore.position.set(2.18, base + 0.7, -dz - 0.03); g.add(shore);
+          for (const sz of [-1, 1]) { const refl = bx(0.03, 0.09, 0.18, redLamp, false, false); refl.position.set(x1 - 0.35, base + 0.14, sz * (dz + 0.01)); g.add(refl); }
           const dhdl = bx(0.05, 0.32, 0.06, caravanDark, false, false); dhdl.position.set(dX1 + 0.12, base + doorH * 0.5, dz + 0.18); g.add(dhdl);
 
           const rcam = bx(0.09, 0.09, 0.15, caravanDark, false, true, lineDark); rcam.position.set(bthBackX + 0.05, base + bthH - 0.34, 0); g.add(rcam);
@@ -7497,7 +7497,7 @@
             bed: { center: [bedCx, bedZ], size: [bedLen, bedW] },
             table: { center: [-0.65, 0.8], size: [0.62, 0.62] },
             study: study.userData.layout,
-            sleepPosition: [bedCx - 1.35 + 2.06 * (1.026 - ENGINEER_BASE_SCALE), yIn + 0.49 + 0.05, bedZ], sleepHead: [bedCx + 1.1, 4, bedZ],   // người nhỏ đi: dời gốc về phía gối để đầu vẫn gác đúng gối
+            sleepPosition: [bedCx - 1.35 + 2.06 * (1.026 - ENGINEER_BASE_SCALE), yIn + 0.49 + 0.05, bedZ], sleepHead: [bedCx + 1.1, 4, bedZ],
             stool: { obj: stool, rest: -0.04 }, bath: bathRig, bedHelmet, kitchen, cerealBowl, tableUdon, studyCoke: coke
           };
           g.userData.xray = 'shell';
@@ -7507,7 +7507,7 @@
         let awLight, awLan;
         const caravanObj = caravan(); caravanObj.scale.multiplyScalar(CAMP_SCALE); caravanObj.name = 'Xe Caravan (Motorhome)'; {
           const p = worldCell(CARAVAN_CELL[0], CARAVAN_CELL[1]); caravanObj.position.copy(p); caravanObj.rotation.y = Math.atan2(bobberBase.x - p.x, bobberBase.z - p.z); scene.add(caravanObj);
-          const vc = Math.cos(caravanObj.rotation.y), vs = -Math.sin(caravanObj.rotation.y);   // local +x → world (cos ry, −sin ry)
+          const vc = Math.cos(caravanObj.rotation.y), vs = -Math.sin(caravanObj.rotation.y);
           for (const [lx, rr] of [[-2.4, 2.5], [0.6, 2.6], [3.525, 2.15]])
             obstacleCoords.push({ x: p.x + lx * vc * CAMP_SCALE, y: p.y, z: p.z + lx * vs * CAMP_SCALE, r: rr * CAMP_SCALE, h: 3.5 * CAMP_SCALE });
         }
@@ -7529,35 +7529,35 @@
         const sleepSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: sleepTex, transparent: true, opacity: 0.92, depthWrite: false, depthTest: false }));
         sleepSprite.scale.set(7.5, 1.87, 1.0); sleepSprite.position.set(caravanObj.userData.interior.bed.center[0] - 0.15, 4.4, caravanObj.userData.interior.bed.center[1]); sleepSprite.visible = false;
         caravanObj.add(sleepSprite);
-        let lastSleepStr = '';   // chỉ vẽ lại canvas khi chuỗi giờ đổi (1 lần/giây thay vì mỗi frame)
+        let lastSleepStr = '';
 
         function campChair(fabricMat = chairFabric, frameMat = chairFrame) {
           const g = new THREE.Group(), W = 0.92, FZ = 0.33, BZ = -0.43, SY = 0.62;
           const hemMat = new THREE.MeshLambertMaterial({ color: fabricMat.color.clone().multiplyScalar(0.62) });
           const capMat = new THREE.MeshLambertMaterial({ color: 0x1e1f22 }), ringMat = new THREE.MeshLambertMaterial({ color: 0x3a3d42 });
           const put = (m) => { m.castShadow = true; m.receiveShadow = true; g.add(m); return m; };
-          const bar = (a, b, w, d, mat) => {   // thanh gỗ vuông nối điểm a → b
+          const bar = (a, b, w, d, mat) => {
             const len = a.distanceTo(b), m = new THREE.Mesh(new THREE.BoxGeometry(w, d, len), mat);
             m.position.copy(a).add(b).multiplyScalar(0.5); m.lookAt(b); return put(m);
           };
           const dowel = (y, z, r, mat) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, W + 0.03, 10), mat); m.rotation.z = Math.PI / 2; m.position.set(0, y, z); return put(m); };
           const V = (x, y, z) => new THREE.Vector3(x, y, z);
-          const sling = (w, h, sag, mat, curveAxis) => {   // tấm vải võng: uốn parabol theo bề ngang
+          const sling = (w, h, sag, mat, curveAxis) => {
             const geo = new THREE.BoxGeometry(w, h, 0.014, 12, 6, 1), pos = geo.attributes.position;
             for (let i = 0; i < pos.count; i++) { const u = pos.getX(i) / (w / 2), v = pos.getY(i) / (h / 2), k = (1 - u * u) * (curveAxis ? 1 : (1 - 0.35 * v * v)); pos.setZ(i, pos.getZ(i) - sag * k); }
             geo.computeVertexNormals(); return new THREE.Mesh(geo, mat);
           };
           for (const sx of [-1, 1]) {
             const x = sx * W / 2;
-            bar(V(x, 0, FZ), V(x, 0.9, FZ), 0.042, 0.042, frameMat);                         // cột trước
-            bar(V(x, 0, BZ), V(x, 1.42, BZ - 0.06), 0.042, 0.042, frameMat);                 // cột sau nghiêng ra sau
-            bar(V(x, SY, FZ), V(x, SY, BZ - 0.035), 0.04, 0.05, frameMat);                   // thanh dọc đỡ vải ngồi
-            bar(V(x * 1.0, 0.04, FZ - 0.02), V(x, SY - 0.03, BZ + 0.03), 0.032, 0.032, frameMat).position.x += sx * 0.03;   // chéo X ngoài
-            bar(V(x, 0.04, BZ + 0.02), V(x, SY - 0.03, FZ - 0.03), 0.032, 0.032, frameMat).position.x -= sx * 0.005;       // chéo X trong
-            const pin = put(new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.09, 8), ringMat)); pin.rotation.z = Math.PI / 2; pin.position.set(x + sx * 0.012, SY * 0.5 + 0.015, (FZ + BZ) / 2);   // chốt bản lề X
+            bar(V(x, 0, FZ), V(x, 0.9, FZ), 0.042, 0.042, frameMat);
+            bar(V(x, 0, BZ), V(x, 1.42, BZ - 0.06), 0.042, 0.042, frameMat);
+            bar(V(x, SY, FZ), V(x, SY, BZ - 0.035), 0.04, 0.05, frameMat);
+            bar(V(x * 1.0, 0.04, FZ - 0.02), V(x, SY - 0.03, BZ + 0.03), 0.032, 0.032, frameMat).position.x += sx * 0.03;
+            bar(V(x, 0.04, BZ + 0.02), V(x, SY - 0.03, FZ - 0.03), 0.032, 0.032, frameMat).position.x -= sx * 0.005;
+            const pin = put(new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.09, 8), ringMat)); pin.rotation.z = Math.PI / 2; pin.position.set(x + sx * 0.012, SY * 0.5 + 0.015, (FZ + BZ) / 2);
             const arm = put(new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.03, 0.74), frameMat)); arm.position.set(x + sx * 0.012, 0.915, -0.03);
             const armTip = put(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.03, 14, 1, false, -Math.PI / 2, Math.PI), frameMat)); armTip.position.set(x + sx * 0.012, 0.915, 0.34);
-            for (const z of [FZ, BZ]) { const cap = put(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.032, 0.035, 8), capMat)); cap.position.set(x, 0.017, z); }   // nút chân nhựa
+            for (const z of [FZ, BZ]) { const cap = put(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.032, 0.035, 8), capMat)); cap.position.set(x, 0.017, z); }
           }
           dowel(SY, FZ - 0.01, 0.022, frameMat); dowel(SY, BZ + 0.0, 0.022, frameMat);
           const seat = sling(W - 0.03, 0.74, 0.045, fabricMat, true); seat.rotation.x = -Math.PI / 2; seat.position.set(0, SY + 0.012, -0.05); put(seat);
@@ -7574,12 +7574,12 @@
         {
           const ch = scene.getObjectByName('Ghế câu cá (Fishing Chair)'); ch.updateMatrixWorld(true);
           const onGround = (lx, lz) => { const v = ch.localToWorld(new THREE.Vector3(lx, 0, lz)); v.y = cowY(v.x, v.z); return v; };
-          const bucket = metalBucket(); bucket.scale.setScalar(0.095); bucket.position.copy(onGround(-0.9, -0.05)); bucket.rotation.y = engObj.faceWater + 0.6; scene.add(bucket);   // cao ~0,25 m
+          const bucket = metalBucket(); bucket.scale.setScalar(0.095); bucket.position.copy(onGround(-0.9, -0.05)); bucket.rotation.y = engObj.faceWater + 0.6; scene.add(bucket);
           const k = ENGINEER_BASE_SCALE * CAMP_SCALE, butt = onGround(0.85, 0.25), far = onGround(1.45, -2.85);
           const d = far.clone().sub(butt).setY(0).normalize(), side = new THREE.Vector3(d.z, 0, -d.x), chairX = new THREE.Vector3(Math.cos(ch.rotation.y), 0, -Math.sin(ch.rotation.y));
-          if (side.dot(chairX) < 0) side.negate();   // máy câu chĩa ra ngoài, không đâm vào chân ghế
+          if (side.dot(chairX) < 0) side.negate();
           groundRod.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3().crossVectors(d, side), d, side));
-          groundRod.scale.setScalar(k); groundRod.position.copy(butt).addScaledVector(d, 0.4 * k); groundRod.position.y = butt.y + 1.4 * ROD_R * k;   // nằm nghiêng một bên, máy câu tì đất
+          groundRod.scale.setScalar(k); groundRod.position.copy(butt).addScaledVector(d, 0.4 * k); groundRod.position.y = butt.y + 1.4 * ROD_R * k;
           scene.add(groundRod);
         }
 
@@ -7610,16 +7610,16 @@
           const W = 128, H = 256, rnd = (a, b) => a + Math.random() * (b - a);
           const bark = document.createElement('canvas'); bark.width = W; bark.height = H; const bx2 = bark.getContext('2d');
           bx2.fillStyle = '#2b2420'; bx2.fillRect(0, 0, W, H);
-          for (let n = 0; n < 140; n++) {   // thớ dọc chạy theo chiều dài khúc củi (v)
+          for (let n = 0; n < 140; n++) {
             const x = rnd(0, W), shade = Math.round(rnd(30, 80)), warm = Math.round(rnd(0, 12));
             bx2.strokeStyle = `rgba(${shade + warm},${shade},${shade - 6},${rnd(0.35, 0.8)})`; bx2.lineWidth = rnd(0.6, 2.2);
             const y0 = rnd(-20, H), len = rnd(25, 120); bx2.beginPath(); bx2.moveTo(x, y0); bx2.lineTo(x + rnd(-3, 3), y0 + len); bx2.stroke();
           }
-          for (let n = 0; n < 18; n++) { bx2.fillStyle = `rgba(150,146,138,${rnd(0.12, 0.3)})`; bx2.beginPath(); bx2.ellipse(rnd(0, W), rnd(H * 0.3, H * 0.7), rnd(4, 12), rnd(6, 18), 0, 0, 7); bx2.fill(); }   // tro bám giữa thân
+          for (let n = 0; n < 18; n++) { bx2.fillStyle = `rgba(150,146,138,${rnd(0.12, 0.3)})`; bx2.beginPath(); bx2.ellipse(rnd(0, W), rnd(H * 0.3, H * 0.7), rnd(4, 12), rnd(6, 18), 0, 0, 7); bx2.fill(); }
           const glow = document.createElement('canvas'); glow.width = W; glow.height = H; const gx = glow.getContext('2d');
           gx.fillStyle = '#000'; gx.fillRect(0, 0, W, H);
-          gx.shadowColor = 'rgba(255,40,0,0.9)'; gx.shadowBlur = 6;   // quầng đỏ quanh vết nứt
-          for (let n = 0; n < 60; n++) {   // vết nứt than hồng: nét gãy khúc nóng đỏ, đậm ở giữa khúc củi, nhạt dần ra hai đầu
+          gx.shadowColor = 'rgba(255,40,0,0.9)'; gx.shadowBlur = 6;
+          for (let n = 0; n < 60; n++) {
             const yc = H / 2 + rnd(-1, 1) * rnd(0, H * 0.36), heat = 1 - Math.abs(yc - H / 2) / (H * 0.46);
             gx.strokeStyle = `rgba(255,${Math.round(rnd(30, 95))},${Math.round(rnd(0, 18))},${Math.max(0.3, heat)})`; gx.lineWidth = rnd(1.5, 4.2);
             let x = rnd(0, W), y = yc; gx.beginPath(); gx.moveTo(x, y);
@@ -7627,10 +7627,10 @@
             gx.stroke();
           }
           const tex = (c) => { const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4; return t; };
-          return new THREE.MeshLambertMaterial({ map: tex(bark), emissive: 0xff5a2a, emissiveMap: tex(glow), emissiveIntensity: 1.6 });   // nứt nóng đỏ
+          return new THREE.MeshLambertMaterial({ map: tex(bark), emissive: 0xff5a2a, emissiveMap: tex(glow), emissiveIntensity: 1.6 });
         }
         const campfireLevel = h => (h >= 7 && h < 19) ? 0.05 : 1 - 0.95 * (((h - 19 + 24) % 24) / 12);
-        const CAMP_FLAME = 0.5;   // cỡ ngọn lửa trại so với bản đầu (tia lửa, sức nóng cột khói, tầm chiếu sáng theo cùng)
+        const CAMP_FLAME = 0.5;
         function campfire() {
           const g = new THREE.Group();
           const ash = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.72, 0.08, 14), fireAsh); ash.position.y = 0.04; ash.receiveShadow = true; g.add(ash);
@@ -7669,7 +7669,7 @@
           }
           bakeStatic(fireDetails); g.add(fireDetails);
           const smoke = [];
-          for (let n = 0; n < 10; n++) { const sm = new THREE.Mesh(new THREE.IcosahedronGeometry(0.21, 1), new THREE.MeshLambertMaterial({ color: 0x8d8880, transparent: true, opacity: 0, depthWrite: false })); sm.position.y = 0.9; g.add(sm); smoke.push({ m: sm, ph: n / 10 }); }   // 10 cụm khói lệch tuổi đều nhau → luồng khói liền
+          for (let n = 0; n < 10; n++) { const sm = new THREE.Mesh(new THREE.IcosahedronGeometry(0.21, 1), new THREE.MeshLambertMaterial({ color: 0x8d8880, transparent: true, opacity: 0, depthWrite: false })); sm.position.y = 0.9; g.add(sm); smoke.push({ m: sm, ph: n / 10 }); }
           const sparkGeo = new THREE.SphereGeometry(0.028, 6, 6);
           const sparks = [];
           for (let n = 0; n < 10; n++) {
@@ -7678,7 +7678,7 @@
             g.add(sp); sparks.push({ m: sp, ph: Math.random() * 6.28, spd: 0.9 + Math.random() * 0.7 });
           }
 
-          const fsg = new THREE.Group(); fsg.position.set(0.85, 0.02, 1.05); fsg.rotation.set(-0.32, 0, 0.32); fsg.scale.setScalar(1.44); g.add(fsg);   // cá nướng ×1.44 (đã giảm 20% rồi thêm 10%), ngả nghiêng về phía lửa
+          const fsg = new THREE.Group(); fsg.position.set(0.85, 0.02, 1.05); fsg.rotation.set(-0.32, 0, 0.32); fsg.scale.setScalar(1.44); g.add(fsg);
           const sk = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 1.2, 6), new THREE.MeshLambertMaterial({ color: 0xcca070 })); sk.position.y = 0.6; sk.castShadow = true; fsg.add(sk);
           const fg = new THREE.Group(); fg.position.set(0, 0.78, 0); fg.rotation.y = 1.2; fsg.add(fg);
           fg.name = 'Cá nướng nguyên con';
@@ -7708,7 +7708,7 @@
             for (let i = 0; i < 6; i++) { const j = k + i * 2; markIndices.push(j, j + 1, j + 3, j, j + 3, j + 2); }
           }
           const marksGeo = new THREE.BufferGeometry(); marksGeo.setAttribute('position', new THREE.Float32BufferAttribute(marks, 3)); marksGeo.setIndex(markIndices); marksGeo.computeVertexNormals(); dMat.side = THREE.DoubleSide;
-          const marksM = new THREE.Mesh(marksGeo, dMat); fg.add(marksM);   // không gộp tĩnh: cá đổi màu sống → chín, bị cắn dần, được cầm / xiên / cắm lại (engineer/meal-read.js)
+          const marksM = new THREE.Mesh(marksGeo, dMat); fg.add(marksM);
 
           const glowC = document.createElement('canvas'); glowC.width = glowC.height = 128; const gc = glowC.getContext('2d');
           const grad = gc.createRadialGradient(64, 64, 4, 64, 64, 64);
@@ -7730,7 +7730,7 @@
           const light = new THREE.PointLight(0xff7a2a, 0.6, 11, 2); light.position.y = 0.7; g.add(light);
           return { g, flames, smoke, sparks, light, logMat, cutMat, emberMat, glowMat, hotMat, dimMat, fish: { stick: fsg, rod: sk, fg, body: fBody, fMat, finMat, marks: marksM } };
         }
-        const campObj = campfire(); campObj.g.scale.multiplyScalar(CAMP_SCALE); // Grilled fish, stones, logs and flame children inherit this once.
+        const campObj = campfire(); campObj.g.scale.multiplyScalar(CAMP_SCALE);
         { const p = worldCell(FIRE_CELL[0], FIRE_CELL[1]); campObj.g.position.copy(p); campObj.g.name = 'Bếp lửa trại (Campfire)'; scene.add(campObj.g); }
         const campRain = { heat: 1, quench: 0, flameK: 1, emberK: 1, smolder: 1, init: false }, _wetCoal = new THREE.Color(0.07, 0.065, 0.06);
         function campRainTick(dt) {
@@ -7739,12 +7739,12 @@
           if (rainK > 0.05) R.heat -= R.heat * rainK / 60 * dt;
           else if (sceneWet < 0.6) R.heat += (1 - R.heat) / 240 * dt;
           R.flameK = sm(R.heat, 0.45, 0.9); R.emberK = sm(R.heat, 0.03, 0.55); R.quench = rainK * sm(R.heat, 0.02, 0.35);
-          R.smolder = Math.max(R.heat, R.smolder * Math.exp(-dt / 1200));   // gỗ ướt âm ỉ: khói còn ~20 phút sau khi tắt
+          R.smolder = Math.max(R.heat, R.smolder * Math.exp(-dt / 1200));
           return R;
         }
 
         const pf = worldCell(FIRE_CELL[0], FIRE_CELL[1]);
-        function kettleTexture(prof) {   // tô theo tham số biên dạng (v = chỉ số điểm tiện), nhiễu tuần hoàn theo u để không lộ đường nối
+        function kettleTexture(prof) {
           const Wt = 256, Ht = 256, cv = document.createElement('canvas'); cv.width = Wt; cv.height = Ht;
           const ctx = cv.getContext('2d'), img = ctx.createImageData(Wt, Ht), D = img.data, N = prof.length;
           const hash = (i, j) => { let h = (Math.imul(i, 374761393) + Math.imul(j, 668265263)) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
@@ -7760,11 +7760,11 @@
             for (let q = 0; q < Wt; q++) {
               const u = (q + 0.5) / Wt, n1 = fbm(u * 8, y * 9, 8), n2 = fbm(u * 16 + 3, y * 21, 16);
               let col;
-              if (jf >= lidJ) { col = mix(LID, LIDDK, Math.max(0, (n1 - 0.52) * 2.2)); if (jf < lidJ + 0.7) col = mix(col, LIDDK, 0.65); }   // nắp thép mờ + ron nắp sẫm
+              if (jf >= lidJ) { col = mix(LID, LIDDK, Math.max(0, (n1 - 0.52) * 2.2)); if (jf < lidJ + 0.7) col = mix(col, LIDDK, 0.65); }
               else {
-                const soot = 1 - sm((y - 0.2 - (n1 - 0.5) * 0.4) / 0.28), heat = 1 - sm((y - 0.5 - (n2 - 0.5) * 0.22) / 0.24);   // ranh muội gợn lưỡi lửa
+                const soot = 1 - sm((y - 0.2 - (n1 - 0.5) * 0.4) / 0.28), heat = 1 - sm((y - 0.5 - (n2 - 0.5) * 0.22) / 0.24);
                 col = mix(STEEL, HEAT, heat); col = mix(col, RUST, Math.max(0, (n2 - 0.6) * 2.4) * heat * (1 - soot)); col = mix(col, mix(SOOT, SOOT2, n2), soot);
-                if (y > 0.58) col = mix(col, SHINE, Math.max(0, (n1 - 0.6) * 1.9));   // mảng thép còn sáng trên vai
+                if (y > 0.58) col = mix(col, SHINE, Math.max(0, (n1 - 0.6) * 1.9));
               }
               const o = (r * Wt + q) * 4; D[o] = col[0]; D[o + 1] = col[1]; D[o + 2] = col[2]; D[o + 3] = 255;
             }
@@ -7779,72 +7779,72 @@
           body.castShadow = true; body.receiveShadow = true; g.add(body);
           const steel = new THREE.MeshLambertMaterial({ color: 0x66655a }), plastic = new THREE.MeshLambertMaterial({ color: 0x2a2826 }), bronze = new THREE.MeshLambertMaterial({ color: 0x534d43 }), hole = new THREE.MeshBasicMaterial({ color: 0x0b0b0b });
           const add = (m, cast = true) => { m.castShadow = cast; m.receiveShadow = true; g.add(m); return m; };
-          add(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.045, 0.03, 10), steel)).position.y = 0.948;   // chân khoen
-          add(new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.018, 8, 20), steel)).position.y = 1.058;           // khoen nắp đứng
+          add(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.045, 0.03, 10), steel)).position.y = 0.948;
+          add(new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.018, 8, 20), steel)).position.y = 1.058;
           const bailPath = new THREE.CatmullRomCurve3([[-0.47, 0.8], [-0.505, 1.0], [-0.51, 1.25], [-0.49, 1.45], [-0.4, 1.65], [-0.22, 1.8], [0, 1.86], [0.22, 1.8], [0.4, 1.65], [0.49, 1.45], [0.51, 1.25], [0.505, 1.0], [0.47, 0.8]].map(p => new THREE.Vector3(p[0], p[1], 0)));
           const bail = add(new THREE.Mesh(new THREE.TubeGeometry(bailPath, 56, 0.022, 6, false), steel)); bail.scale.z = 2.2;
-          for (const sx of [-1, 1]) { const lug = add(new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.12, 0.13), steel)); lug.position.set(sx * 0.455, 0.8, 0); lug.rotation.z = -sx * 0.75; }   // tai quai tán đinh trên vai
+          for (const sx of [-1, 1]) { const lug = add(new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.12, 0.13), steel)); lug.position.set(sx * 0.455, 0.8, 0); lug.rotation.z = -sx * 0.75; }
           const sd = new THREE.Vector3(0.77, 0.64, 0).normalize(), sq = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), sd), o0 = new THREE.Vector3(0.5, 0.66, 0.07);
           const along = (m, t) => { m.quaternion.copy(sq); m.position.copy(o0).addScaledVector(sd, t); return add(m); };
           along(new THREE.Mesh(new THREE.CylinderGeometry(0.115, 0.15, 0.26, 16), bronze), 0.13);
           along(new THREE.Mesh(new THREE.CylinderGeometry(0.118, 0.118, 0.18, 16), plastic), 0.35);
           along(new THREE.Mesh(new THREE.SphereGeometry(0.118, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), plastic), 0.44);
-          along(new THREE.Mesh(new THREE.CircleGeometry(0.034, 12), hole), 0.44 + 0.117).rotateX(-Math.PI / 2);   // lỗ còi nhìn theo hướng vòi
-          const lever = along(new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.2, 0.026), plastic), 0.36); lever.position.addScaledVector(new THREE.Vector3(-sd.y, sd.x, 0), 0.13); lever.rotateZ(-0.35);   // cần gạt mở còi
+          along(new THREE.Mesh(new THREE.CircleGeometry(0.034, 12), hole), 0.44 + 0.117).rotateX(-Math.PI / 2);
+          const lever = along(new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.2, 0.026), plastic), 0.36); lever.position.addScaledVector(new THREE.Vector3(-sd.y, sd.x, 0), 0.13); lever.rotateZ(-0.35);
           return g;
         }
-        const kettleSteam = [];   // hơi còi ấm reo (cập nhật trong vòng lặp theo cỡ lửa)
+        const kettleSteam = [];
         {
           const rg = new THREE.Group();
-          const rackDarkGray = new THREE.MeshLambertMaterial({ color: 0x404346 });                 // xám đen
-          const potIron = new THREE.MeshLambertMaterial({ color: 0x2e2b28, flatShading: true });  // gang đen facet
-          for (const sx of [-1, 1]) for (const sz of [-1, 1]) {                                   // 4 chân — 2 khung chữ A hai bên lửa
+          const rackDarkGray = new THREE.MeshLambertMaterial({ color: 0x404346 });
+          const potIron = new THREE.MeshLambertMaterial({ color: 0x2e2b28, flatShading: true });
+          for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
             const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.0175, 0.0225, 2.1, 7), rackDarkGray);
-            leg.position.set(sx * 1.05, 0.93, sz * 0.21); leg.rotation.x = -sz * 0.29; leg.castShadow = true; rg.add(leg);   // xòe chân DƯỚI · hai đầu BẮT CHÉO qua tâm (X) tạo hõm đỡ thanh ngang; ngọn nhô lên trên như kiềng cắm trại
+            leg.position.set(sx * 1.05, 0.93, sz * 0.21); leg.rotation.x = -sz * 0.29; leg.castShadow = true; rg.add(leg);
           }
-          const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 2.75, 7), rackDarkGray);  // thanh ngang gác lên 2 chạc chữ A
+          const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 2.75, 7), rackDarkGray);
           bar.rotation.z = Math.PI / 2; bar.position.y = 1.66; bar.castShadow = true; rg.add(bar);
-          const hook = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.1, 6), potIron); hook.position.y = 1.61; rg.add(hook);            // móc sắt ngắn
-          const curl = new THREE.Mesh(new THREE.TorusGeometry(0.03, 0.009, 6, 14, Math.PI * 1.35), potIron); curl.position.y = 1.545; curl.rotation.z = Math.PI * 1.08; rg.add(curl);   // đầu móc cong đỡ đỉnh quai ấm
-          const kettle = campKettle(); kettle.scale.setScalar(0.4); kettle.position.y = 0.786; kettle.rotation.y = 0.92; rg.add(kettle);   // đỉnh quai (y 1,86 × 0,4) gác đúng đáy móc ở 1,53; vòi quay ngang tầm nhìn mặc định
+          const hook = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.1, 6), potIron); hook.position.y = 1.61; rg.add(hook);
+          const curl = new THREE.Mesh(new THREE.TorusGeometry(0.03, 0.009, 6, 14, Math.PI * 1.35), potIron); curl.position.y = 1.545; curl.rotation.z = Math.PI * 1.08; rg.add(curl);
+          const kettle = campKettle(); kettle.scale.setScalar(0.4); kettle.position.y = 0.786; kettle.rotation.y = 0.92; rg.add(kettle);
           kettle.updateMatrix(); const tip = new THREE.Vector3(0.93, 1.03, 0.07).applyMatrix4(kettle.matrix), spoutDir = new THREE.Vector3(0.77, 0, 0).applyQuaternion(kettle.quaternion);
           const kSteam = new THREE.Group(); kSteam.userData.noBake = true; kSteam.position.copy(tip); rg.add(kSteam);
           for (let n = 0; n < 7; n++) {
             const puff = new THREE.Mesh(new THREE.IcosahedronGeometry(0.03, 1), new THREE.MeshBasicMaterial({ color: 0xf2efe8, transparent: true, opacity: 0, depthWrite: false }));
             kSteam.add(puff); kettleSteam.push({ m: puff, ph: n / 7, dir: spoutDir });
           }
-          bakeStatic(rg); rg.scale.multiplyScalar(CAMP_SCALE); rg.position.copy(pf); rg.rotation.y = -0.2; rg.name = 'Giá treo nồi (Pot Hanger)'; scene.add(rg);   // xoay nhẹ để chân né xiên cá nướng
+          bakeStatic(rg); rg.scale.multiplyScalar(CAMP_SCALE); rg.position.copy(pf); rg.rotation.y = -0.2; rg.name = 'Giá treo nồi (Pot Hanger)'; scene.add(rg);
         }
-        const woodEndM = new THREE.MeshLambertMaterial({ color: 0xc8a878 });   // mặt cắt gỗ nhạt
-        const campCupSteam = []; let campPanRig = null;   // chảo trên bàn trà: chỉ hiện khi bữa tối được mang ra
+        const woodEndM = new THREE.MeshLambertMaterial({ color: 0xc8a878 });
+        const campCupSteam = []; let campPanRig = null;
         function campTable() {
           const g = new THREE.Group();
           const L = 0.66, W = 0.48, H = 0.45, beech = new THREE.MeshLambertMaterial({ color: 0xd9b98a }), beech2 = new THREE.MeshLambertMaterial({ color: 0xcaa774 });
           const ironBlack = new THREE.MeshLambertMaterial({ color: 0x1e1f21 });
           const slatN = 9, slatW = (W - (slatN - 1) * 0.006) / slatN;
-          for (let i = 0; i < slatN; i++) { const s2 = bx(L, 0.018, slatW, i % 2 ? beech2 : beech, true, true, lineDark); s2.position.set(0, H - 0.009, -W / 2 + slatW / 2 + i * (slatW + 0.006)); g.add(s2); }   // nan mặt bàn
-          for (const sz of [-1, 1]) { const rail = bx(L - 0.04, 0.045, 0.022, beech2, true, true, lineDark); rail.position.set(0, H - 0.04, sz * (W / 2 - 0.03)); g.add(rail); }   // khung đỡ dọc
-          for (const sx of [-1, 1]) {   // chân chữ X ở 2 đầu + bát sắt đen ở giao điểm và đỉnh chân
+          for (let i = 0; i < slatN; i++) { const s2 = bx(L, 0.018, slatW, i % 2 ? beech2 : beech, true, true, lineDark); s2.position.set(0, H - 0.009, -W / 2 + slatW / 2 + i * (slatW + 0.006)); g.add(s2); }
+          for (const sz of [-1, 1]) { const rail = bx(L - 0.04, 0.045, 0.022, beech2, true, true, lineDark); rail.position.set(0, H - 0.04, sz * (W / 2 - 0.03)); g.add(rail); }
+          for (const sx of [-1, 1]) {
             const ex = sx * (L / 2 - 0.08), span = W / 2 - 0.02, legH = H - 0.06, len = Math.hypot(2 * span, legH), tilt = Math.atan2(2 * span, legH);
             for (const dir of [-1, 1]) { const leg = bx(0.028, len, 0.034, beech, true, true, lineDark); leg.position.set(ex, legH / 2, 0); leg.rotation.x = dir * tilt; g.add(leg); }
             const hub = bx(0.04, 0.05, 0.05, ironBlack, true, false); hub.position.set(ex, legH / 2, 0); hub.rotation.x = Math.PI / 4; g.add(hub);
             for (const sz of [-1, 1]) { const br = bx(0.034, 0.05, 0.05, ironBlack, true, false); br.position.set(ex, H - 0.05, sz * span); g.add(br); }
-            const cross = bx(0.03, 0.03, W - 0.06, beech2, true, true, lineDark); cross.position.set(ex, H - 0.045, 0); g.add(cross);   // thanh ngang đầu bàn
+            const cross = bx(0.03, 0.03, W - 0.06, beech2, true, true, lineDark); cross.position.set(ex, H - 0.045, 0); g.add(cross);
           }
-          const pot = new THREE.MeshLambertMaterial({ color: 0x2c2d31 }), potIn = new THREE.MeshLambertMaterial({ color: 0x4a4c50 });   // lòng nồi: biên dạng đi xuống-vào nên pháp tuyến đã hướng vào trong
+          const pot = new THREE.MeshLambertMaterial({ color: 0x2c2d31 }), potIn = new THREE.MeshLambertMaterial({ color: 0x4a4c50 });
           const wire = (pts, r = 0.0035) => new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(...p))), 24, r, 5, false), pot);
           const lathe = (pts, mat) => { const m = new THREE.Mesh(new THREE.LatheGeometry(pts.map(([r, y]) => new THREE.Vector2(r, y)), 20), mat); m.castShadow = true; return m; };
           const cup = new THREE.Group(); cup.position.set(0.16, H, 0.07); g.add(cup);
           cup.add(lathe([[0, 0], [0.043, 0], [0.045, 0.006], [0.045, 0.108], [0.047, 0.11]], pot));
           cup.add(lathe([[0.047, 0.11], [0.042, 0.106], [0.042, 0.008], [0, 0.008]], potIn));
-          const tea = new THREE.Mesh(new THREE.CircleGeometry(0.041, 18), new THREE.MeshLambertMaterial({ color: 0x5a3a1c })); tea.rotation.x = -Math.PI / 2; tea.position.y = 0.09; cup.add(tea);   // nước trà nóng
+          const tea = new THREE.Mesh(new THREE.CircleGeometry(0.041, 18), new THREE.MeshLambertMaterial({ color: 0x5a3a1c })); tea.rotation.x = -Math.PI / 2; tea.position.y = 0.09; cup.add(tea);
           const spout = bx(0.018, 0.012, 0.02, pot, false, false); spout.position.set(0, 0.108, 0.048); spout.rotation.x = -0.5; cup.add(spout);
           cup.add(wire([[-0.045, 0.085, 0], [-0.085, 0.085, 0], [-0.1, 0.06, 0], [-0.085, 0.035, 0], [-0.045, 0.035, 0]]));
           const pan = new THREE.Group(); pan.position.set(-0.13, H, -0.06); pan.rotation.y = 0.5; pan.userData.noBake = true; pan.visible = false; pan.name = 'Chảo cơm chiên'; g.add(pan);
           pan.add(lathe([[0, 0], [0.075, 0], [0.08, 0.008], [0.086, 0.04], [0.088, 0.042]], pot));
           pan.add(lathe([[0.088, 0.042], [0.083, 0.039], [0.077, 0.01], [0, 0.01]], potIn));
           pan.add(wire([[0.086, 0.035, 0.02], [0.2, 0.05, 0.016], [0.215, 0.05, 0], [0.2, 0.05, -0.016], [0.086, 0.035, -0.02]], 0.004));
-          { const food = fryPan().userData.food; food.visible = true; pan.add(food); campPanRig = { pan, food }; }   // cơm chiên trứng, vơi dần khi ăn
+          { const food = fryPan().userData.food; food.visible = true; pan.add(food); campPanRig = { pan, food }; }
           const steam = new THREE.Group(); steam.userData.noBake = true; steam.position.set(cup.position.x, H + 0.1, cup.position.z); g.add(steam);
           for (let n = 0; n < 5; n++) {
             const puff = new THREE.Mesh(new THREE.IcosahedronGeometry(0.018, 1), new THREE.MeshBasicMaterial({ color: 0xf2efe8, transparent: true, opacity: 0, depthWrite: false }));
@@ -7852,7 +7852,7 @@
           }
           return bakeStatic(g);
         }
-        function woodCamp() {   // đống củi xếp tháp + cọc gỗ đóng đất
+        function woodCamp() {
           const g = new THREE.Group();
           const canvasTex = (w, h, draw) => { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4; return t; };
           const barkM = new THREE.MeshLambertMaterial({ map: canvasTex(64, 128, (x, w, h) => {
@@ -7862,16 +7862,16 @@
           const ringM = new THREE.MeshLambertMaterial({ map: canvasTex(128, 128, (x, w) => {
             const c = w / 2; x.fillStyle = '#3e2a1d'; x.fillRect(0, 0, w, w);
             for (let r = c * 0.9; r > 2; r -= 3 + Math.random() * 3) { const v = Math.random(); x.fillStyle = v > 0.5 ? '#b78a58' : '#a07548'; x.beginPath(); x.arc(c + Math.random() - 0.5, c + Math.random() - 0.5, r, 0, 7); x.fill(); x.strokeStyle = 'rgba(110,72,40,0.55)'; x.lineWidth = 1; x.stroke(); }
-            x.fillStyle = '#6b4526'; x.beginPath(); x.arc(c, c, 4, 0, 7); x.fill();   // lõi sẫm
+            x.fillStyle = '#6b4526'; x.beginPath(); x.arc(c, c, 4, 0, 7); x.fill();
             x.strokeStyle = 'rgba(60,36,20,0.85)'; x.lineWidth = 1.6;
-            for (let k = 0; k < 3; k++) { const a = Math.random() * 6.28; x.beginPath(); x.moveTo(c + Math.cos(a) * 6, c + Math.sin(a) * 6); x.lineTo(c + Math.cos(a + 0.1) * c * 0.75, c + Math.sin(a + 0.1) * c * 0.75); x.stroke(); }   // vết nứt toả
-            x.strokeStyle = '#3a2618'; x.lineWidth = c * 0.18; x.beginPath(); x.arc(c, c, c * 0.92, 0, 7); x.stroke();   // viền vỏ
+            for (let k = 0; k < 3; k++) { const a = Math.random() * 6.28; x.beginPath(); x.moveTo(c + Math.cos(a) * 6, c + Math.sin(a) * 6); x.lineTo(c + Math.cos(a + 0.1) * c * 0.75, c + Math.sin(a + 0.1) * c * 0.75); x.stroke(); }
+            x.strokeStyle = '#3a2618'; x.lineWidth = c * 0.18; x.beginPath(); x.arc(c, c, c * 0.92, 0, 7); x.stroke();
           }) });
           const splitM = new THREE.MeshLambertMaterial({ map: canvasTex(128, 32, (x, w, h) => {
             x.fillStyle = '#c29b68'; x.fillRect(0, 0, w, h);
             for (let n = 0; n < 40; n++) { x.strokeStyle = `rgba(140,98,58,${0.3 + Math.random() * 0.4})`; x.lineWidth = 0.6 + Math.random(); const yy = Math.random() * h; x.beginPath(); x.moveTo(0, yy); x.bezierCurveTo(w * 0.3, yy + (Math.random() - 0.5) * 6, w * 0.7, yy + (Math.random() - 0.5) * 6, w, yy + (Math.random() - 0.5) * 4); x.stroke(); }
           }) });
-          function firewood(r, len, half) {   // khúc củi nằm dọc trục +X; half = khúc chẻ đôi (mặt chẻ hướng +Y trước khi xoay)
+          function firewood(r, len, half) {
             const piece = new THREE.Group(), theta = half ? Math.PI : Math.PI * 2;
             const side = new THREE.CylinderGeometry(r, r, len, 12, 1, true, 0, theta); side.rotateZ(-Math.PI / 2);
             const add = (geo, mat) => { const m = new THREE.Mesh(geo, mat); m.castShadow = true; m.receiveShadow = true; piece.add(m); };
@@ -7899,13 +7899,13 @@
         const placeFire = (obj, ox, oz, ry) => { const X = pf.x + ox, Z = pf.z + oz; obj.position.set(X, cowY(X, Z), Z); if (ry != null) obj.rotation.y = ry; scene.add(obj); };
         const restCX = X0 + 66, restCZ = Z0 + 101;
         const campChairPos = new THREE.Vector3(restCX - 0.85, 0, restCZ - 0.15); campChairPos.y = cowY(campChairPos.x, campChairPos.z);
-        const campChairFaceY = Math.atan2(restCX - campChairPos.x, restCZ - campChairPos.z);   // ghế quay mặt vào bàn
+        const campChairFaceY = Math.atan2(restCX - campChairPos.x, restCZ - campChairPos.z);
         const FIRE_AVOID_R = 1.9 * CAMP_SCALE;
-        obstacleCoords.push({ x: pf.x, y: pf.y, z: pf.z, r: FIRE_AVOID_R, h: 2.2 * CAMP_SCALE });   // bếp lửa vào danh sách vật cản → flow field & repel & côn trùng đều né
+        obstacleCoords.push({ x: pf.x, y: pf.y, z: pf.z, r: FIRE_AVOID_R, h: 2.2 * CAMP_SCALE });
         const woodCampY = cowY(X0 + 68, Z0 + 100);
-        obstacleCoords.push({ x: X0 + 68, y: woodCampY, z: Z0 + 100, r: 0.8, h: 1.0 });                 // đống củi mới vào danh sách vật cản (world coordinates)
-        { const ch = campChair(campFabricYellow, campFrameWood); ch.position.copy(campChairPos); ch.rotation.y = campChairFaceY; ch.name = 'Ghế cắm trại (Camp Chair)'; scene.add(ch); }   // ghế dã ngoại dạng gấp tương tự ghế câu cá
-        { const tb = campTable(); tb.position.set(X0 + 65, cowY(X0 + 65, Z0 + 99.85), Z0 + 99.85);   // toạ độ hover (65, _, 100), lùi 15 cm khỏi tay ghế cắm trại cho khỏi chạm; xa cột chống bạt ~1,4 m
+        obstacleCoords.push({ x: X0 + 68, y: woodCampY, z: Z0 + 100, r: 0.8, h: 1.0 });
+        { const ch = campChair(campFabricYellow, campFrameWood); ch.position.copy(campChairPos); ch.rotation.y = campChairFaceY; ch.name = 'Ghế cắm trại (Camp Chair)'; scene.add(ch); }
+        { const tb = campTable(); tb.position.set(X0 + 65, cowY(X0 + 65, Z0 + 99.85), Z0 + 99.85);
            tb.rotation.y = Math.PI * 0.15; tb.name = 'Bàn trà (Camp Table)'; scene.add(tb); }
         let campTeaCup = null;
         { const ch = scene.getObjectByName('Ghế cắm trại (Camp Chair)'), c = new THREE.Group(), wM = new THREE.MeshLambertMaterial({ color: 0xece8de, side: THREE.DoubleSide }), H = 0.09;
@@ -7923,9 +7923,9 @@
         const campSmoke = fluids.addSmoke({ NR: 30, NZ: 90, H: 0.08, NP: 900, NS: 140, NT: 14, buoy: 4, kNu: 0.03, nu0: 0.002, tauT: 6, iters: 36, dens: 0.8 },
           { name: 'Khói bếp lửa (sợi khói Navier–Stokes)', opacity: 0.6 });
         const chiminea = (() => {
-          const W = 0.52, D = 0.5, H = 0.42, YB = 0.3, TK = 0.014, OW = 0.36, OH = 0.28, RB = 0.063;   // buồng đốt rộng (x) · sâu (z) · cao · đáy cách đất · dày thép · ô cửa · đố dưới
+          const W = 0.52, D = 0.5, H = 0.42, YB = 0.3, TK = 0.014, OW = 0.36, OH = 0.28, RB = 0.063;
           const g = new THREE.Group(); g.name = 'Lò sưởi chiminea (Chiminea)';
-          const X = X0 + 67, Z = Z0 + 100; g.position.set(X, cowY(X, Z), Z); g.rotation.y = Math.atan2(campChairPos.x - X, campChairPos.z - Z); g.scale.setScalar(CAMP_SCALE);   // mặt cửa (+z cục bộ) nhìn về ghế cắm trại · G 15/10: dời (67, 99) → (67, 100)
+          const X = X0 + 67, Z = Z0 + 100; g.position.set(X, cowY(X, Z), Z); g.rotation.y = Math.atan2(campChairPos.x - X, campChairPos.z - Z); g.scale.setScalar(CAMP_SCALE);
           const hc = document.createElement('canvas'); hc.width = hc.height = 128; const hx = hc.getContext('2d'), hr = mulberry32(6799);
           hx.fillStyle = '#2b2a28'; hx.fillRect(0, 0, 128, 128);
           for (let n = 0; n < 420; n++) {
@@ -7942,7 +7942,7 @@
           B(W, TK, D, iron, 0, YB + TK / 2, 0); B(W, TK, D, iron, 0, YB + H - TK / 2, 0);
           for (const s of [-1, 1]) B((W - OW) / 2, H, TK, iron, s * (OW / 2 + (W - OW) / 4), yc, zf);
           const RT = H - OH - RB; B(OW, RT, TK, iron, 0, YB + H - RT / 2, zf); B(OW, RB, TK, iron, 0, YB + RB / 2, zf);
-          add(new THREE.Mesh(new THREE.BoxGeometry(W - 2.4 * TK, H - 2.4 * TK, D - 2.4 * TK), soot), 0, yc, 0);   // lòng lò (mặt trong): nhìn qua ô cửa thấy vách muội
+          add(new THREE.Mesh(new THREE.BoxGeometry(W - 2.4 * TK, H - 2.4 * TK, D - 2.4 * TK), soot), 0, yc, 0);
           for (const sx of [-1, 1]) for (const sz of [-1, 1]) B(0.028, H + 0.012, 0.028, bronze, sx * W / 2, yc, sz * D / 2);
           const rivet = new THREE.SphereGeometry(0.0075, 6, 4), RV = (x, y, z) => add(new THREE.Mesh(rivet, bronze), x, y, z);
           for (const y of [YB + 0.014, YB + H - 0.014]) {
@@ -7954,7 +7954,7 @@
           for (const s of [-1, 1]) { B(OW + 0.04, 0.02, 0.012, bronze, 0, oy + s * (OH / 2 + 0.01), fz); B(0.02, OH + 0.04, 0.012, bronze, s * (OW / 2 + 0.01), oy, fz); }
           for (let k = 0; k <= 5; k++) for (const s of [-1, 1]) RV(s * (OW / 2 + 0.01), YB + RB - 0.01 + k * (OH + 0.02) / 5, fz + 0.007);
           const roofTop = YB + H + 0.075;
-          const rg = new THREE.CylinderGeometry(0.16, W / 2 * Math.SQRT2, 0.075, 4, 1); rg.rotateY(Math.PI / 4); rg.scale(1, 1, D / W);   // chóp 4 mặt khớp đúng miệng hộp W × D
+          const rg = new THREE.CylinderGeometry(0.16, W / 2 * Math.SQRT2, 0.075, 4, 1); rg.rotateY(Math.PI / 4); rg.scale(1, 1, D / W);
           add(new THREE.Mesh(rg, ironFlat), 0, YB + H + 0.0375, 0);
           add(new THREE.Mesh(new THREE.CylinderGeometry(0.128, 0.15, 0.06, 24), iron), 0, roofTop + 0.03, 0);
           const PIPE = 1.32, pipeTop = roofTop + 0.06 + PIPE;
@@ -7962,7 +7962,7 @@
           const ring = add(new THREE.Mesh(new THREE.TorusGeometry(0.112, 0.008, 6, 24), bronze), 0, pipeTop - 0.006, 0); ring.rotation.x = Math.PI / 2;
           for (let k = 0; k < 3; k++) { const a = k / 3 * 6.283; add(new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.036, 5), iron), Math.cos(a) * 0.1, pipeTop + 0.018, Math.sin(a) * 0.1); }
           add(new THREE.Mesh(new THREE.ConeGeometry(0.19, 0.05, 24, 1, true), ironDS), 0, pipeTop + 0.036 + 0.025, 0);
-          add(new THREE.Mesh(new THREE.TorusGeometry(0.055, 0.008, 6, 14, Math.PI), iron), 0, pipeTop + 0.07, 0);   // quai: 2 chân cắm vào mặt nón
+          add(new THREE.Mesh(new THREE.TorusGeometry(0.055, 0.008, 6, 14, Math.PI), iron), 0, pipeTop + 0.07, 0);
           const _up = new THREE.Vector3(0, 1, 0), _d = new THREE.Vector3();
           for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
             const ax = sx * (W / 2 - 0.05), az = sz * (D / 2 - 0.05), fx = sx * 0.34, fzz = sz * 0.33;
@@ -7991,20 +7991,20 @@
           });
           const light = new THREE.PointLight(0xff7a2a, 0, 6, 2); light.position.set(0, YB + 0.2, D / 2 + 0.1); g.add(light);
           scene.add(bakeStatic(g));
-          obstacleCoords.push({ x: X, y: g.position.y, z: Z, r: 0.45, h: 2.3 });   // người, chó, côn trùng đi vòng
+          obstacleCoords.push({ x: X, y: g.position.y, z: Z, r: 0.45, h: 2.3 });
           const SC = CAMP_SCALE, smoke = fluids.addSmoke({ NR: 36, NZ: 110, H: 0.032, NP: 600, NS: 0, NT: 14, buoy: 4, kNu: 0.03, nu0: 0.002, tauT: 6, iters: 30, dens: 0.8,
             inlet: { r: 0.11 * SC }, lid: { r: 0.19 * SC, z0: 0.036 * SC, z1: 0.086 * SC } }, { name: 'Khói ống khói lò chiminea (sợi khói Navier–Stokes)', opacity: 0.6 });
           smoke.on = false;
           let L = 0, init = false;
           return { g, update(dt, t) {
             const want = rainK > 0.05 ? Math.max(0.55, campfireLevel(liveWeather.localHour)) : 0;
-            if (!init && liveWeather.state.data) { init = true; L = want; }   // mở trang giữa cơn mưa: lò đang cháy sẵn
+            if (!init && liveWeather.state.data) { init = true; L = want; }
             L += (want - L) * (1 - Math.exp(-dt / (want > L ? 40 : 150)));
             const on = L > 0.02, fl = 0.85 + 0.15 * Math.sin(t * 9.3) + 0.08 * Math.sin(t * 17.1), e = THREE.MathUtils.smoothstep(L, 0, 0.5) * (0.88 + 0.12 * Math.sin(t * 2.3));
             flames.forEach((m, k) => { m.visible = on; if (!on) return; const s = 0.85 + 0.4 * L; m.scale.set(s, L * (1.05 + 0.35 * Math.sin(t * (7 + k) + k * 1.7)), s); m.material.opacity = 0.7 + 0.25 * Math.sin(t * 12 + k); });
             light.intensity = 2.4 * L * fl;
             emberMat.color.setRGB(0.12 + 0.85 * e, 0.08 + 0.3 * e, 0.05 + 0.04 * e); logMat.emissiveIntensity = 1.4 * e; soot.emissiveIntensity = 0.7 * L * fl;
-            smoke.on = L > 0.02;   // khói ống khói theo cỡ lửa: nhiệt, lượng khói, sức hút ống (khí phụt lên khỏi miệng ống)
+            smoke.on = L > 0.02;
             if (smoke.on) { g.localToWorld(smoke.base.set(0, pipeTop, 0)); smoke.heat = 0.5 + 0.7 * L; smoke.smoke = 0.5 + 1.5 * L; smoke.rate = 0.15 + 0.7 * L; smoke.draft = 0.6 + 0.9 * L; plumeLight(smoke, PLUME_COL.smoke, PLUME_COL.steam, _plumeGlow.setRGB(0, 0, 0)); }
           } };
         })();
@@ -8024,7 +8024,7 @@
           for (const sz of [-1, 1]) { const eye = bx(0.015 * s, 0.03 * s, 0.03 * s, black, false, false); eye.position.set(0.1 * s, 0.03 * s, sz * 0.055 * s); head.add(eye); }
           const ears = [];
           for (const sz of [-1, 1]) { const ep = new THREE.Group(); ep.position.set(-0.02 * s, 0.09 * s, sz * 0.1 * s); head.add(ep); const ear = bx(0.07 * s, 0.14 * s, 0.035 * s, dark, true, false); ear.position.y = -0.06 * s; ep.add(ear); ears.push(ep); }
-          const legs = [];   // thứ tự: trước-trái, trước-phải, sau-trái, sau-phải (trái = +z)
+          const legs = [];
           for (const [fx, sz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
             const hip = new THREE.Group(); hip.position.set(fx > 0 ? 0.17 * s : -0.2 * s, -0.08 * s, sz * 0.09 * s); torso.add(hip);
             const up = bx(0.075 * s, 0.13 * s, 0.075 * s, fur, true, false); up.position.y = -0.06 * s; hip.add(up);
@@ -8034,7 +8034,7 @@
             const paw = bx(0.09 * s, 0.035 * s, 0.07 * s, furL, true, false); paw.position.x = 0.015 * s; pawG.add(paw);
             legs.push({ hip, knee, paw: pawG, front: fx > 0, side: sz });
           }
-          const tail = bx(0.18 * s, 0.06 * s, 0.06 * s, dark, true, false); tail.position.set(-0.3 * s, 0.08 * s, 0); tail.visible = false; torso.add(tail);   // giữ "lệnh vẫy" (rotation.y) cho đuôi mềm đọc
+          const tail = bx(0.18 * s, 0.06 * s, 0.06 * s, dark, true, false); tail.position.set(-0.3 * s, 0.08 * s, 0); tail.visible = false; torso.add(tail);
           g.userData = { torso, neck, head, ears, legs, tail, body: chest, s, L1: 0.12 * s, L2: 0.1225 * s, H0: 0.32 * s };
           return g;
         }
@@ -8042,7 +8042,7 @@
         const dogP = worldCell(FIRE_CELL[0], FIRE_CELL[1]).add(new THREE.Vector3(0.9, 0, 0.3));
         dogObj.position.copy(dogP); dogObj.rotation.y = Math.atan2(-0.3, -0.9); scene.add(dogObj);
         const _stA = new THREE.Vector3(), _stB = new THREE.Vector3(), _stD = new THREE.Vector3(), _stX = new THREE.Vector3(1, 0, 0), _stW = new THREE.Vector3(), _stE = new THREE.Euler();
-        function makeSoftTail(host, o) {   // o: base (cục bộ), dir (hướng nghỉ cục bộ, đơn vị), n đoạn, len (dài mỗi đoạn, cục bộ), w (bề dày), mat, stiff [gốc, ngọn]
+        function makeSoftTail(host, o) {
           const segs = [], P = [], Q = [], R = [];
           for (let i = 0; i < o.n; i++) { const k = 1 - 0.35 * i / o.n, m = bx(o.len * 1.2, o.w * k, o.w * k, o.mat, true, false); m.castShadow = true; host.add(m); segs.push(m); }
           for (let i = 0; i <= o.n; i++) { P.push(new THREE.Vector3()); Q.push(new THREE.Vector3()); R.push(new THREE.Vector3()); }
@@ -8051,7 +8051,7 @@
         function updateSoftTail(T, dt, wag, curl) {
           const o = T.o, M = T.host.matrixWorld; T.host.updateMatrixWorld(true);
           const S = new THREE.Vector3().setFromMatrixScale(M).x, segW = o.len * S;
-          for (let i = 0; i <= o.n; i++) {   // dáng nghỉ (thế giới): hướng nghỉ quay theo lệnh vẫy (quanh trục đứng) + cuộn dần về một bên khi ngủ
+          for (let i = 0; i <= o.n; i++) {
             _stE.set(0, wag + curl * 0.45 * i, -curl * 0.35 * i * 0.5); _stD.copy(o.dir).applyEuler(_stE);
             if (i === 0) T.R[0].copy(o.base); else T.R[i].copy(T.R[i - 1]).sub(T.R[0]).add(o.base).addScaledVector(_stD, o.len);
           }
@@ -8059,24 +8059,24 @@
           if (!T.init || T.R[0].distanceTo(T.last) > 0.8) { for (let i = 0; i <= o.n; i++) { T.P[i].copy(T.R[i]); T.Q[i].copy(T.R[i]); } T.init = true; }
           T.last.copy(T.R[0]);
           windAt(T.R[0].x, T.R[0].y, T.R[0].z, 0.4, _stW);
-          const al = fixedSteps(T, dt, 1 / 240, (h) => {   // bước cố định 240 Hz (core/fixed-step.js) = đúng nhịp cũ ở 60 hình/giây × 4 bước con, giờ như nhau ở mọi tốc độ khung
-            if (T.kick) { for (let i = 1; i <= o.n; i++) T.Q[i].addScaledVector(T.kick, -h * i / o.n); T.kick = null; }   // cú hất (vd bò phẩy ruồi): cộng vận tốc, ngọn nhiều hơn gốc
-            for (let i = 1; i <= o.n; i++) {   // Verlet: quán tính (tắt dần nhẹ) + trọng lực + kéo theo gió
+          const al = fixedSteps(T, dt, 1 / 240, (h) => {
+            if (T.kick) { for (let i = 1; i <= o.n; i++) T.Q[i].addScaledVector(T.kick, -h * i / o.n); T.kick = null; }
+            for (let i = 1; i <= o.n; i++) {
               const p = T.P[i], q = T.Q[i];
               _stA.copy(p).sub(q).multiplyScalar(0.985); q.copy(p);
               p.add(_stA); p.y -= 2.5 * h * h; p.addScaledVector(_stW, 0.02 * h);
             }
-            T.P[0].copy(T.R[0]); T.Q[0].copy(T.R[0]);   // gốc gắn chặt vào thân
-            for (let i = 1; i <= o.n; i++) {   // kéo mềm về dáng nghỉ (gốc cứng hơn ngọn)
+            T.P[0].copy(T.R[0]); T.Q[0].copy(T.R[0]);
+            for (let i = 1; i <= o.n; i++) {
               const k = o.stiff[0] + (o.stiff[1] - o.stiff[0]) * (i - 1) / Math.max(1, o.n - 1);
               T.P[i].lerp(T.R[i], k);
             }
-            for (let it = 0; it < 2; it++) for (let i = 1; i <= o.n; i++) {   // giữ đúng độ dài từng đoạn (hạt gốc khối lượng vô hạn)
+            for (let it = 0; it < 2; it++) for (let i = 1; i <= o.n; i++) {
               _stA.copy(T.P[i]).sub(T.P[i - 1]); const L = _stA.length() || 1e-6, c = (L - segW) / L;
               if (i === 1) T.P[i].addScaledVector(_stA, -c); else { T.P[i].addScaledVector(_stA, -c * 0.5); T.P[i - 1].addScaledVector(_stA, c * 0.5); }
             }
           });
-          for (let i = 0; i < o.n; i++) {   // vẽ: hạt nội suy bước trước (Q) → bước mới (P); mỗi đoạn là hộp nối 2 hạt (về hệ cục bộ của thân)
+          for (let i = 0; i < o.n; i++) {
             const m = T.segs[i]; T.host.worldToLocal(i ? _stA.copy(T.Q[i]).lerp(T.P[i], al) : _stA.copy(T.P[0])); T.host.worldToLocal(_stB.copy(T.Q[i + 1]).lerp(T.P[i + 1], al));
             m.position.copy(_stA).add(_stB).multiplyScalar(0.5); _stD.copy(_stB).sub(_stA).normalize(); m.quaternion.setFromUnitVectors(_stX, _stD);
           }
@@ -8089,39 +8089,39 @@
           const dark = new THREE.MeshLambertMaterial({ color: 0x2d2f33, flatShading: true }), white = new THREE.MeshLambertMaterial({ color: 0xe2d6c0, flatShading: true });
           const vc = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }), C = new THREE.Color();
           const blob = (rx, ry, rz, f, w = 9, h = 7) => { const geo = new THREE.SphereGeometry(1, w, h); geo.scale(rx * s, ry * s, rz * s); const p = geo.attributes.position, c = []; for (let i = 0; i < p.count; i++) { C.setHex(f(p.getX(i) / s, p.getY(i) / s, p.getZ(i) / s)); c.push(C.r, C.g, C.b); } geo.setAttribute('color', new THREE.Float32BufferAttribute(c, 3)); const m = new THREE.Mesh(geo, vc); m.castShadow = true; return m; };
-          const fur = (x, y) => y > 0.05 ? 0x6c7077 : y < -0.04 ? 0xb4b4ae : 0x8f939a;   // lưng sẫm hoa râm · sườn xám · bụng nhạt
+          const fur = (x, y) => y > 0.05 ? 0x6c7077 : y < -0.04 ? 0xb4b4ae : 0x8f939a;
           const torso = new THREE.Group(); torso.position.y = 0.2 * s; rc.add(torso);
-          const fore = new THREE.Group(), aft = new THREE.Group(); fore.position.y = aft.position.y = 0.02 * s; torso.add(fore, aft);   // 2 nửa thân gập quanh giữa lưng
+          const fore = new THREE.Group(), aft = new THREE.Group(); fore.position.y = aft.position.y = 0.02 * s; torso.add(fore, aft);
           const chest = blob(0.12, 0.092, 0.105, fur); chest.position.set(0.09 * s, -0.025 * s, 0); fore.add(chest);
-          const rump = blob(0.155, 0.125, 0.13, fur); rump.position.set(-0.1 * s, 0.005 * s, 0); aft.add(rump);   // mông to + cao ⇒ lưng gù
+          const rump = blob(0.155, 0.125, 0.13, fur); rump.position.set(-0.1 * s, 0.005 * s, 0); aft.add(rump);
           const neck = new THREE.Group(); neck.position.set(0.18 * s, 0.03 * s, 0); torso.add(neck);
           const head = new THREE.Group(); head.position.set(0.07 * s, 0.05 * s, 0); neck.add(head);
-          head.add(blob(0.072, 0.062, 0.078, (x, y) => y > 0.035 ? 0x7a7e85 : 0x9a9ea4));   // sọ tròn
-          const mz = new THREE.Mesh(new THREE.ConeGeometry(0.038 * s, 0.085 * s, 7), white); mz.rotation.z = -Math.PI / 2; mz.position.set(0.09 * s, -0.022 * s, 0); head.add(mz);   // mõm nhọn trắng
+          head.add(blob(0.072, 0.062, 0.078, (x, y) => y > 0.035 ? 0x7a7e85 : 0x9a9ea4));
+          const mz = new THREE.Mesh(new THREE.ConeGeometry(0.038 * s, 0.085 * s, 7), white); mz.rotation.z = -Math.PI / 2; mz.position.set(0.09 * s, -0.022 * s, 0); head.add(mz);
           const nose = new THREE.Mesh(new THREE.SphereGeometry(0.014 * s, 6, 5), dark); nose.position.set(0.133 * s, -0.022 * s, 0); head.add(nose);
           for (const sz of [-1, 1]) {
-            const mask = blob(0.026, 0.02, 0.034, () => 0x26282c, 7, 5); mask.position.set(0.052 * s, 0.006 * s, sz * 0.036 * s); mask.rotation.y = sz * 0.5; head.add(mask);   // mặt nạ đen quanh mắt
-            const brow = blob(0.02, 0.008, 0.03, () => 0xeee6d6, 6, 4); brow.position.set(0.05 * s, 0.032 * s, sz * 0.034 * s); head.add(brow);   // mày trắng
-            const cheek = blob(0.03, 0.022, 0.026, () => 0xe2d6c0, 6, 4); cheek.position.set(0.045 * s, -0.03 * s, sz * 0.045 * s); head.add(cheek);   // má trắng
+            const mask = blob(0.026, 0.02, 0.034, () => 0x26282c, 7, 5); mask.position.set(0.052 * s, 0.006 * s, sz * 0.036 * s); mask.rotation.y = sz * 0.5; head.add(mask);
+            const brow = blob(0.02, 0.008, 0.03, () => 0xeee6d6, 6, 4); brow.position.set(0.05 * s, 0.032 * s, sz * 0.034 * s); head.add(brow);
+            const cheek = blob(0.03, 0.022, 0.026, () => 0xe2d6c0, 6, 4); cheek.position.set(0.045 * s, -0.03 * s, sz * 0.045 * s); head.add(cheek);
           }
-          const eyeM = new THREE.MeshBasicMaterial({ color: 0xd9f2a2 }), eyes = [];   // mắt phản quang (chỉ hiện khi trời tối)
+          const eyeM = new THREE.MeshBasicMaterial({ color: 0xd9f2a2 }), eyes = [];
           for (const sz of [-1, 1]) { const e = new THREE.Mesh(new THREE.SphereGeometry(0.011 * s, 6, 4), eyeM); e.position.set(0.075 * s, 0.008 * s, sz * 0.038 * s); e.visible = false; head.add(e); eyes.push(e); }
           const ears = [];
           for (const sz of [-1, 1]) {
             const ep = new THREE.Group(); ep.position.set(-0.025 * s, 0.055 * s, sz * 0.05 * s); head.add(ep);
-            const rim = new THREE.Mesh(new THREE.ConeGeometry(0.03 * s, 0.05 * s, 6), white); rim.position.y = 0.022 * s; ep.add(rim);   // viền tai trắng
+            const rim = new THREE.Mesh(new THREE.ConeGeometry(0.03 * s, 0.05 * s, 6), white); rim.position.y = 0.022 * s; ep.add(rim);
             const ear = new THREE.Mesh(new THREE.ConeGeometry(0.024 * s, 0.044 * s, 6), greyD); ear.position.set(-0.006 * s, 0.022 * s, 0); ep.add(ear);
             ep.rotation.x = -sz * 0.22; ears.push(ep);
           }
-          const legs = [];   // trước-T, trước-P, sau-T, sau-P (trái = +z) · chân trước ngắn (0,08 + 0,075), chân sau dài (0,1 + 0,1)
+          const legs = [];
           for (const [fx, sz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
             const fr = fx > 0, l1 = (fr ? 0.08 : 0.1) * s, l2 = (fr ? 0.075 : 0.1) * s;
             const hip = new THREE.Group(); hip.position.set(fr ? 0.12 * s : -0.15 * s, fr ? -0.06 * s : -0.04 * s, sz * (fr ? 0.075 : 0.085) * s); torso.add(hip);
-            const up = new THREE.Mesh(new THREE.CylinderGeometry((fr ? 0.026 : 0.034) * s, (fr ? 0.034 : 0.044) * s, l1 * 1.15, 7), grey); up.position.y = -l1 / 2; up.castShadow = true; hip.add(up);   // đùi / cánh tay to ở gốc
+            const up = new THREE.Mesh(new THREE.CylinderGeometry((fr ? 0.026 : 0.034) * s, (fr ? 0.034 : 0.044) * s, l1 * 1.15, 7), grey); up.position.y = -l1 / 2; up.castShadow = true; hip.add(up);
             const knee = new THREE.Group(); knee.position.y = -l1; hip.add(knee);
-            const lo = new THREE.Mesh(new THREE.CylinderGeometry(0.02 * s, 0.024 * s, l2 * 0.95, 6), greyD); lo.position.y = -l2 * 0.45; lo.castShadow = true; knee.add(lo);   // cẳng sẫm
+            const lo = new THREE.Mesh(new THREE.CylinderGeometry(0.02 * s, 0.024 * s, l2 * 0.95, 6), greyD); lo.position.y = -l2 * 0.45; lo.castShadow = true; knee.add(lo);
             const pawG = new THREE.Group(); pawG.position.y = -l2 + 0.012 * s; knee.add(pawG);
-            const paw = new THREE.Mesh(new THREE.SphereGeometry(1, 7, 4, 0, TAU, 0, Math.PI / 2), dark); paw.scale.set((fr ? 0.034 : 0.055) * s, 0.02 * s, 0.03 * s); paw.position.set((fr ? 0.012 : 0.028) * s, -0.012 * s, 0); pawG.add(paw);   // bàn đen, chân sau dài (đi cả bàn)
+            const paw = new THREE.Mesh(new THREE.SphereGeometry(1, 7, 4, 0, TAU, 0, Math.PI / 2), dark); paw.scale.set((fr ? 0.034 : 0.055) * s, 0.02 * s, 0.03 * s); paw.position.set((fr ? 0.012 : 0.028) * s, -0.012 * s, 0); pawG.add(paw);
             legs.push({ hip, knee, paw: pawG, front: fr, side: sz, L1: l1, L2: l2 });
           }
           const tailHost = new THREE.Group(); tailHost.position.set(-0.22 * s, 0.05 * s, 0); torso.add(tailHost);
@@ -8135,7 +8135,7 @@
         const racMouth = { x: X0 + 102, y: 7.15, z: Z0 + 102 }, racInside = { x: X0 + 100, y: 7.55, z: Z0 + 108 };
         const racApproach = { x: X0 + 103, z: Z0 + 98 }, racHome = { x: X0 + 101, z: Z0 + 105 };
         const rac = { state: 'exit', tmr: 5, x: racInside.x, z: racInside.z, ang: 0, wob: 0, want: 0, stopTmr: 0, jumpTmr: 0, jumpCount: 0, wasChasing: false, roamState: 'walk', roamTmr: 3.0 };
-        function racAvoidLog(px, pz) {   // đẩy 1 điểm ra khỏi trục khúc gỗ (bán kính 1.0) — trước đây logic này bị chép đôi 2 lần
+        function racAvoidLog(px, pz) {
           const k = 1 / Math.sqrt(40), dxd = 2 * k, dzd = -6 * k;
           const tp = THREE.MathUtils.clamp((px - racHome.x) * dxd + (pz - racHome.z) * dzd, -3.8, 3.8);
           const cx2 = racHome.x + tp * dxd, cz2 = racHome.z + tp * dzd;
@@ -8150,16 +8150,16 @@
            Chỉ áp cho agent CÓ ĐÍCH (kỹ sư · gấu mèo); thú wander (bò · thỏ · cá · bướm) giữ né cục bộ như cũ. ===== */
         const FF_N = GX * GZ, ffBlocked = new Uint8Array(FF_N);
         for (let j = 0; j < GZ; j++) for (let i = 0; i < GX; i++) ffBlocked[i + j * GX] = (isWater(i, j) || padH(i, j) !== null) ? 1 : 0;
-        for (const ob of obstacleCoords) {   // rasterize vòng tròn vật cản vào lưới cấm
+        for (const ob of obstacleCoords) {
           const rr = ob.r + 0.3, i0 = Math.max(0, Math.floor(x2gi(ob.x - rr))), i1 = Math.min(GX - 1, Math.ceil(x2gi(ob.x + rr)));
           const j0 = Math.max(0, Math.floor(z2gj(ob.z - rr))), j1 = Math.min(GZ - 1, Math.ceil(z2gj(ob.z + rr)));
           for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) if (Math.hypot(wx(i) - ob.x, wz(j) - ob.z) < rr) ffBlocked[i + j * GX] = 1;
         }
         { const r = cowHutRect, i0 = Math.max(0, Math.floor(x2gi(r.x0))), i1 = Math.min(GX - 1, Math.ceil(x2gi(r.x1))), j0 = Math.max(0, Math.floor(z2gj(r.z0))), j1 = Math.min(GZ - 1, Math.ceil(z2gj(r.z1)));
-          for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) ffBlocked[i + j * GX] = 1; }   // chuồng bò: không ai đi xuyên vách (bò vào ô đi thẳng từ cửa)
-        function buildFlowField(tx, tz, blocked = ffBlocked) {   // BFS 8 hướng loang từ đích: dist[ô] = số bước ngắn nhất tới đích (65535 = không tới được)
+          for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) ffBlocked[i + j * GX] = 1; }
+        function buildFlowField(tx, tz, blocked = ffBlocked) {
           const dist = new Uint16Array(FF_N).fill(65535), q = new Int32Array(FF_N); let qh = 0, qt = 0;
-          let unblockR = 0.9;   // quanh đích luôn mở 1 vòng nhỏ (đích có thể nằm trong vòng cấm của chính nó, vd cột khí tượng)
+          let unblockR = 0.9;
           for (const ob of obstacleCoords) { const d = Math.hypot(tx - ob.x, tz - ob.z); if (d < ob.r + 0.3) unblockR = Math.max(unblockR, ob.r + 0.45); }
           const s0 = Math.round(x2gi(tx)) + Math.round(z2gj(tz)) * GX; dist[s0] = 0; q[qt++] = s0;
           while (qh < qt) {
@@ -8177,11 +8177,11 @@
           return dist;
         }
         const _ffV = new THREE.Vector3();
-        function ffDir(field, x, z) {   // gradient dốc-xuống của bảng DP tại (x,z): so 8 ô quanh mình, cộng vector về các ô rẻ hơn
+        function ffDir(field, x, z) {
           const gi = Math.round(x2gi(x)), gj = Math.round(z2gj(z));
           if (gi < 1 || gj < 1 || gi >= GX - 1 || gj >= GZ - 1) return null;
           const here = field[gi + gj * GX];
-          if (here >= 65535) {   // lỡ cắt góc vào ô cấm (hoặc đang đứng trong chuồng): hướng về ô đi được gần nhất có giá rẻ nhất
+          if (here >= 65535) {
             let best = 65535, bi = 0, bj = 0;
             for (let dj = -2; dj <= 2; dj++) for (let di = -2; di <= 2; di++) { const ni = gi + di, nj = gj + dj; if (ni < 0 || nj < 0 || ni >= GX || nj >= GZ) continue; const v = field[ni + nj * GX]; if (v < best) { best = v; bi = di; bj = dj; } }
             if (best >= 65535) return null; const L = Math.hypot(bi, bj); return _ffV.set(bi / L, 0, bj / L);
@@ -8198,18 +8198,18 @@
           return _ffV.set(vx / L, 0, vz / L);
         }
         const SEAT_S = ENGINEER_BASE_SCALE * CAMP_SCALE, SEAT_HIP = ENG_HIP_Y * SEAT_S - ENG_FEET, SEAT_ANK = ENG_SOLE * SEAT_S, SEAT_LEGX = 0.15 * SEAT_S;
-        const SEAT_T_SIT = 2.3, SEAT_T_RISE = 2.2;   // giây: ngồi xuống (với tay vịn → hạ người → chạm ghế → nhích lùi) · đứng dậy (nhích ra mép → dồn đà → duỗi → ổn định)
+        const SEAT_T_SIT = 2.3, SEAT_T_RISE = 2.2;
         const minJerk = s => { s = Math.max(0, Math.min(1, s)); return s * s * s * (10 + s * (6 * s - 15)); };
         const segK = (u, a, b) => Math.max(0, Math.min(1, (u - a) / (b - a)));
         const _sp = new THREE.Vector3(), _sa = new THREE.Vector3(), _sb = new THREE.Vector3(), _sw = new THREE.Vector3();
         const seatW = (C, lx, lz, out = new THREE.Vector3()) => out.set(C.pos.x + C.xx * lx + C.fx * lz, C.pos.y, C.pos.z + C.xz * lx + C.fz * lz);
         const seatL = (C, x, z) => { const dx = x - C.pos.x, dz = z - C.pos.z; return [dx * C.xx + dz * C.xz, dx * C.fx + dz * C.fz]; };
-        function makeSeat(o) {   // mô tả ghế: hông khi ngồi (seatZ), chỗ đứng trước mặt ghế (standZ), tay vịn, vùng cấm quanh ghế, làn tiếp cận (điểm cuối = chỗ quay người)
+        function makeSeat(o) {
           const C = Object.assign({ seatZ: 0.144, standZ: 0.50, seatDrop: 0.53 * CAMP_SCALE, legs: [-1.48, -1.42], knees: [1.32, 1.25],
             arm: { x: 0.436, y: 0.83, z0: -0.32, z1: 0.30 }, keep: [0.74, -0.70, 0.56], lane: [], props: [], ground: (x, z) => cowY(x, z) }, o);
           C.fx = Math.sin(C.yaw); C.fz = Math.cos(C.yaw); C.xx = Math.cos(C.yaw); C.xz = -Math.sin(C.yaw);
-          C.hipSeat = ENG_HIP_Y * SEAT_S - engSitDrop(1, C.seatDrop);   // khớp hông trên mặt đất khi đã ngồi hẳn
-          if (C.contactZ === undefined) C.contactZ = C.seatZ + 0.12;      // mông chạm nửa trước mặt ghế rồi mới nhích lùi
+          C.hipSeat = ENG_HIP_Y * SEAT_S - engSitDrop(1, C.seatDrop);
+          if (C.contactZ === undefined) C.contactZ = C.seatZ + 0.12;
           C.laneW = C.lane.map(([lx, lz]) => seatW(C, lx, lz));
           C.laneLen = C.lane.slice(1).map((p, i) => Math.hypot(p[0] - C.lane[i][0], p[1] - C.lane[i][1]));
           C.turn = C.lane.length ? C.lane[C.lane.length - 1] : [0, C.standZ + 0.2];
@@ -8219,12 +8219,12 @@
           lane: [[-1.35, -0.45], [-1.30, 0.28], [-0.65, 0.72], [0, 0.62]] });
         const CAMP_SEAT = makeSeat({ name: 'camp', outdoor: true, pos: campChairPos.clone(), yaw: campChairFaceY,
           lane: [[0.35, 1.30], [0, 0.75]] });
-        const ENG_PROPS = [];   // vật nhỏ quanh 2 ghế: đi thường (lang thang, ra cột khí tượng, tới chó) cũng phải vòng tránh
+        const ENG_PROPS = [];
         {
           const push = (C, w, r) => { ENG_PROPS.push({ x: w.x, z: w.z, r }); const [lx, lz] = seatL(C, w.x, w.z); C.props.push([lx, lz, r]); };
-          for (const C of [FISH_SEAT, CAMP_SEAT]) ENG_PROPS.push(Object.assign({ r: 0.75 }, (({ x, z }) => ({ x, z }))(seatW(C, 0, -0.03))));   // vòng đẩy phủ cả 4 góc ghế (tay vịn, chân sau)
-          push(FISH_SEAT, seatW(FISH_SEAT, -0.83, -0.05), 0.15);                         // xô tôn
-          if (lanternObj) push(FISH_SEAT, lanternObj.g.position, 0.22);                  // cọc đèn lồng
+          for (const C of [FISH_SEAT, CAMP_SEAT]) ENG_PROPS.push(Object.assign({ r: 0.75 }, (({ x, z }) => ({ x, z }))(seatW(C, 0, -0.03))));
+          push(FISH_SEAT, seatW(FISH_SEAT, -0.83, -0.05), 0.15);
+          if (lanternObj) push(FISH_SEAT, lanternObj.g.position, 0.22);
           const table = scene.getObjectByName('Bàn trà (Camp Table)'); if (table) push(CAMP_SEAT, table.position, 0.6);
           for (const C of [FISH_SEAT, CAMP_SEAT]) {
             const i0 = Math.max(0, Math.floor(x2gi(C.pos.x - 1.2))), i1 = Math.min(GX - 1, Math.ceil(x2gi(C.pos.x + 1.2)));
@@ -8233,14 +8233,14 @@
               const [lx, lz] = seatL(C, wx(i), wz(j)); if (Math.abs(lx) < 0.73 && lz > -0.69 && lz < 0.47) ffBlocked[i + j * GX] = 1;
             }
           }
-          for (const o of ENG_PROPS.slice(2)) {   // xô, cọc đèn lồng, bàn trà: ô chứa tâm + các ô trong bán kính vào lưới cấm (bảng DP không dẫn xuyên qua)
+          for (const o of ENG_PROPS.slice(2)) {
             const rr = o.r + 0.15, ic = Math.round(x2gi(o.x)), jc = Math.round(z2gj(o.z)); ffBlocked[ic + jc * GX] = 1;
             for (let j = Math.max(0, jc - 2); j <= Math.min(GZ - 1, jc + 2); j++) for (let i = Math.max(0, ic - 2); i <= Math.min(GX - 1, ic + 2); i++) if (Math.hypot(wx(i) - o.x, wz(j) - o.z) < rr) ffBlocked[i + j * GX] = 1;
           }
-          FISH_SEAT.field = buildFlowField(FISH_SEAT.laneW[0].x, FISH_SEAT.laneW[0].z);   // bảng DP tới cửa vào làn
+          FISH_SEAT.field = buildFlowField(FISH_SEAT.laneW[0].x, FISH_SEAT.laneW[0].z);
           CAMP_SEAT.field = buildFlowField(CAMP_SEAT.laneW[0].x, CAMP_SEAT.laneW[0].z);
         }
-        function seatSegClear(C, ax, az, bx, bz, maxLen = 1.6) {   // đoạn a→b (cục bộ ghế) đi được: ngoài vùng cấm quanh ghế, cách vật nhỏ, đất liền cùng mặt bằng
+        function seatSegClear(C, ax, az, bx, bz, maxLen = 1.6) {
           let dx = bx - ax, dz = bz - az; const L = Math.hypot(dx, dz); if (L < 1e-4) return true;
           const len = Math.min(L, maxLen); dx /= L; dz /= L;
           for (let s = 0.06; s <= len + 1e-6; s += 0.06) {
@@ -8251,14 +8251,14 @@
           }
           return true;
         }
-        function engLineClearOfSeats(x0, z0, x1, z1) {   // đường thẳng (thế giới) không cắt vùng cấm quanh 2 ghế ngoài trời
+        function engLineClearOfSeats(x0, z0, x1, z1) {
           for (const C of [FISH_SEAT, CAMP_SEAT]) {
             const [ax, az] = seatL(C, x0, z0), [bx, bz] = seatL(C, x1, z1), L = Math.hypot(bx - ax, bz - az);
             for (let d = 0; d <= L; d += 0.1) { const k = L > 1e-3 ? d / L : 0, lx = ax + (bx - ax) * k, lz = az + (bz - az) * k; if (Math.abs(lx) < C.keep[0] && lz > C.keep[1] && lz < C.keep[2]) return false; }
           }
           return true;
         }
-        function seatJoin(C, x, z) {   // nhập làn ở điểm cho tổng quãng ngắn nhất mà đoạn nối tới nó thông thoáng (−1: chưa nhập được)
+        function seatJoin(C, x, z) {
           const [lx, lz] = seatL(C, x, z); if (Math.hypot(lx, lz) > 2.8) return -1;
           let best = -1, bestD = 1e9, tail = 0;
           for (let i = C.lane.length - 1; i >= 0; i--) {
@@ -8269,12 +8269,12 @@
           return best;
         }
         function engGroupMatrix(g) { g.updateMatrix(); if (g.parent) g.matrixWorld.multiplyMatrices(g.parent.matrixWorld, g.matrix); else g.matrixWorld.copy(g.matrix); }
-        function engPlaceHip(e, H, lam, yaw) {   // gốc nhóm = H − R·(0, hông, 0): gập/ngả thân quay quanh KHỚP HÔNG (không quanh gốc dưới gót giày)
+        function engPlaceHip(e, H, lam, yaw) {
           const g = e.g, h = ENG_HIP_Y * g.scale.y, sl = Math.sin(lam);
           g.rotation.set(lam, yaw, 0);
           g.position.set(H.x - Math.sin(yaw) * h * sl, H.y - h * Math.cos(lam), H.z - Math.cos(yaw) * h * sl);
         }
-        function engLegIK(e, ankW) {   // IK 2 khớp (định lý cos) tới cổ chân cho trước (thế giới) → [hông, gối] cục bộ; gối luôn chĩa ra trước
+        function engLegIK(e, ankW) {
           const p = e.g.worldToLocal(_sb.copy(ankW)), vy = p.y - ENG_HIP_Y, vz = p.z;
           const d = Math.min(ENG_L1 + ENG_L2 - 1e-4, Math.max(0.1, Math.hypot(vy, vz)));
           const knee = Math.PI - Math.acos(Math.max(-1, Math.min(1, (ENG_L1 * ENG_L1 + ENG_L2 * ENG_L2 - d * d) / (2 * ENG_L1 * ENG_L2))));
@@ -8285,13 +8285,13 @@
           engPlaceHip(e, _sp, lam, C.yaw);
           if (wp > 0.001) engGroupMatrix(e.g);
           for (let i = 0; i < 2; i++) {
-            let a = C.legs[i] - lam, b = C.knees[i] + swing * Math.sin(t * 2.3 + i * 2.2);   // đùi giữ hướng thế giới khi thân gập · cẳng chân buông đung đưa nhẹ
+            let a = C.legs[i] - lam, b = C.knees[i] + swing * Math.sin(t * 2.3 + i * 2.2);
             if (wp > 0.001) { const ik = engLegIK(e, feet[i]); a += (ik[0] - a) * wp; b += (ik[1] - b) * wp; }
             e.legs[i].rotation.x = a; e.knees[i].rotation.x = b;
-            e.ankles[i].rotation.x = -(lam + a + b) + 0.18 * (1 - wp);   // đế phẳng khi chạm đất · mũi giày chúc nhẹ khi buông thõng
+            e.ankles[i].rotation.x = -(lam + a + b) + 0.18 * (1 - wp);
           }
         }
-        function engArmSupport(e, C, w) {   // với tay ra sau nắm tay vịn (găng tì đúng mặt trên tay vịn, sau vai) · ghế không tay vịn: chống tay hai bên mặt ghế
+        function engArmSupport(e, C, w) {
           const rt = e.armRollT || (e.armRollT = [0, 0]);
           if (w < 0.002) { e.arms[0].rotation.x = e.arms[1].rotation.x = 0; return; }
           if (!C.arm) { for (let i = 0; i < 2; i++) { e.arms[i].rotation.x = 0.3 * w; rt[i] = (i ? 1 : -1) * 0.2 * w; } return; }
@@ -8302,48 +8302,48 @@
             const hz = Math.max(C.arm.z0, Math.min(C.arm.z1, lz - Math.sqrt(Math.max(0, L * L - dxA * dxA - dyA * dyA))));
             const hand = seatW(C, s * C.arm.x, hz, _sb); hand.y = C.pos.y + hy;
             const d = g.worldToLocal(hand).sub(_sa.set(s * 0.34, 1.86, 0)).normalize();
-            e.arms[i].rotation.x = Math.atan2(-d.z, -d.y) * w;                 // gập vai ra sau
-            rt[i] = Math.asin(Math.max(-1, Math.min(1, d.x))) * w;             // dang tay ra tới tay vịn
+            e.arms[i].rotation.x = Math.atan2(-d.z, -d.y) * w;
+            rt[i] = Math.asin(Math.max(-1, Math.min(1, d.x))) * w;
           }
         }
         function engSeatFeet(C, z) { return [-1, 1].map(s => { const p = seatW(C, s * SEAT_LEGX, z); p.y = C.ground(p.x, p.z) + SEAT_ANK; return p; }); }
         function engSeatStartSit(e, C, s) { const [lx, lz] = seatL(C, e.g.position.x, e.g.position.z); Object.assign(s, { st: 'sit', k: 0, x0: lx, z0: lz, feet: engSeatFeet(C, lz) }); }
-        function engSeatStartRise(e, C, s) { Object.assign(s, { st: 'rise', k: 0, lam0: s.lam || 0, feet: engSeatFeet(C, C.standZ - 0.04) }); }   // bàn chân đặt lùi ~4 cm sau chỗ đứng cũ
-        function engSitStep(e, C, s, dt, t) {   // stand-to-sit: với tay vịn → hạ người có kiểm soát (gập thân, đẩy hông ra sau) → chạm ghế, lún vải → nhích lùi, chân rời đất
+        function engSeatStartRise(e, C, s) { Object.assign(s, { st: 'rise', k: 0, lam0: s.lam || 0, feet: engSeatFeet(C, C.standZ - 0.04) }); }
+        function engSitStep(e, C, s, dt, t) {
           s.k = Math.min(1, s.k + dt / SEAT_T_SIT); const u = s.k;
           const a = segK(u, 0.16, 0.64), b = segK(u, 0.64, 0.73), sc = segK(u, 0.73, 1), yC = C.hipSeat + 0.022, sa = Math.sin(Math.PI * a), ss = Math.sin(Math.PI * sc);
-          const hz = s.z0 + (C.contactZ - s.z0) * minJerk(Math.pow(a, 0.8)) + (C.seatZ - C.contactZ) * minJerk(sc);   // hông lùi đi trước, hạ theo sau
+          const hz = s.z0 + (C.contactZ - s.z0) * minJerk(Math.pow(a, 0.8)) + (C.seatZ - C.contactZ) * minJerk(sc);
           const hy = SEAT_HIP - 0.012 * minJerk(segK(u, 0, 0.16)) + (yC - SEAT_HIP + 0.012) * minJerk(a) - 0.012 * minJerk(b) + (C.hipSeat - yC + 0.012) * minJerk(sc);
-          const lam = 0.08 * minJerk(segK(u, 0, 0.16)) + 0.40 * sa * sa - 0.02 * minJerk(b) - 0.06 * minJerk(sc) - 0.03 * ss * ss;   // gập thân cực đại ~27° giữa pha hạ, ngả nhẹ khi nhích lùi
+          const lam = 0.08 * minJerk(segK(u, 0, 0.16)) + 0.40 * sa * sa - 0.02 * minJerk(b) - 0.06 * minJerk(sc) - 0.03 * ss * ss;
           engSeatPose(e, C, s.x0 * (1 - minJerk(a)), hz, hy, lam, 1 - minJerk(segK(u, 0.74, 0.93)), s.feet);
           engArmSupport(e, C, minJerk(segK(u, 0.02, 0.2)) * (1 - minJerk(segK(u, 0.8, 0.98))));
-          e.head.rotation.x = 0.16 - 0.45 * lam + 0.05 * minJerk(sc);   // nhìn xuống sàn trước mặt khi hạ người
+          e.head.rotation.x = 0.16 - 0.45 * lam + 0.05 * minJerk(sc);
           s.lam = 0; return u >= 1;
         }
-        function engRiseStep(e, C, s, dt, t) {   // sit-to-stand 4 pha: nhích ra mép + đặt chân → dồn đà gập thân → rời ghế, duỗi gối–hông → ổn định
+        function engRiseStep(e, C, s, dt, t) {
           s.k = Math.min(1, s.k + dt / SEAT_T_RISE); const u = s.k;
           const p0 = segK(u, 0, 0.27), p1 = segK(u, 0.27, 0.48), p2 = segK(u, 0.46, 0.84), p3 = segK(u, 0.84, 1);
           const zC = C.contactZ + 0.01, yC = C.hipSeat + 0.02, zR = C.standZ - 0.04, s3 = Math.sin(Math.PI * p3);
-          const hz = C.seatZ + (zC - C.seatZ) * minJerk(p0) + 0.02 * minJerk(p1) + (zR - zC - 0.02) * minJerk(Math.pow(p2, 0.8));   // hông tiến ra trước trên bàn chân
-          const hy = C.hipSeat + (yC - C.hipSeat) * minJerk(p0) + (SEAT_HIP - yC) * minJerk(segK(p2, 0.08, 1));                  // rồi mới nâng (rời ghế ngay sau đỉnh gập thân)
-          const lam = s.lam0 * (1 - minJerk(p0)) + 0.12 * minJerk(p0) + 0.50 * minJerk(p1) - 0.62 * minJerk(segK(p2, 0.12, 0.95)) - 0.025 * s3 * s3;   // đỉnh gập ~36° lúc rời ghế
+          const hz = C.seatZ + (zC - C.seatZ) * minJerk(p0) + 0.02 * minJerk(p1) + (zR - zC - 0.02) * minJerk(Math.pow(p2, 0.8));
+          const hy = C.hipSeat + (yC - C.hipSeat) * minJerk(p0) + (SEAT_HIP - yC) * minJerk(segK(p2, 0.08, 1));
+          const lam = s.lam0 * (1 - minJerk(p0)) + 0.12 * minJerk(p0) + 0.50 * minJerk(p1) - 0.62 * minJerk(segK(p2, 0.12, 0.95)) - 0.025 * s3 * s3;
           engSeatPose(e, C, 0, hz, hy, lam, minJerk(segK(u, 0.04, 0.26)), s.feet);
-          engArmSupport(e, C, minJerk(segK(u, 0.02, 0.2)) * (1 - minJerk(segK(u, 0.56, 0.8))));   // tay đẩy tay vịn tới hết pha rời ghế
+          engArmSupport(e, C, minJerk(segK(u, 0.02, 0.2)) * (1 - minJerk(segK(u, 0.56, 0.8))));
           e.head.rotation.x = 0.14 - 0.4 * lam;
           return u >= 1;
         }
-        function engSeatHold(e, C, s, dt, t) {   // đang ngồi: hông trong lòng ghế, đùi trên mặt ghế, cẳng chân buông; việc đang làm đặt e.seatLean / e.seatSwing
+        function engSeatHold(e, C, s, dt, t) {
           s.lam += ((e.seatLean || 0) - s.lam) * (1 - Math.exp(-dt * 3));
           s.sw = (s.sw || 0) + ((e.seatSwing || 0) - (s.sw || 0)) * (1 - Math.exp(-dt * 1.5));
           engSeatPose(e, C, 0, C.seatZ, C.hipSeat, s.lam, 0, null, s.sw, t);
         }
         function engStandStill(e) { e.legs[0].rotation.x = e.legs[1].rotation.x = 0; e.knees[0].rotation.x = e.knees[1].rotation.x = 0; e.arms[0].rotation.x = e.arms[1].rotation.x = 0; }
-        function engPoseSettled(e, yaw) {   // lớp tư thế đã bắt kịp đích (đứng yên, thẳng chân, đúng hướng) → chuyển sang điều khiển trực tiếp không giật
+        function engPoseSettled(e, yaw) {
           const P = e.pose; if (!P) return true;
           const dy = Math.atan2(Math.sin(yaw - P.yaw), Math.cos(yaw - P.yaw));
           return Math.abs(dy) < 0.025 && P.pos.distanceTo(P.rawPos) < 0.006 && Math.abs(P.shown[0]) + Math.abs(P.shown[1]) + Math.abs(P.shown[2]) + Math.abs(P.shown[3]) < 0.06 && (P.shuf || 0) < 0.01;
         }
-        function engSeatWalk(e, pts, s, dt, stopAtEnd, ground) {   // đi thẳng qua các điểm đã kiểm tra; điểm cuối: phanh đều dừng đúng chỗ, hoặc đi tiếp không dừng
+        function engSeatWalk(e, pts, s, dt, stopAtEnd, ground) {
           const g = e.g; let P = pts[s.li], dx = P.x - g.position.x, dz = P.z - g.position.z, d = Math.hypot(dx, dz);
           while (s.li < pts.length - 1 && d < 0.18) { s.li++; P = pts[s.li]; dx = P.x - g.position.x; dz = P.z - g.position.z; d = Math.hypot(dx, dz); }
           const last = s.li === pts.length - 1;
@@ -8354,21 +8354,21 @@
           let rem = d; for (let k = s.li + 1; k < pts.length; k++) rem += Math.hypot(pts[k].x - pts[k - 1].x, pts[k].z - pts[k - 1].z);
           const dy = Math.atan2(Math.sin(Math.atan2(dx, dz) - g.rotation.y), Math.cos(Math.atan2(dx, dz) - g.rotation.y));
           g.rotation.y += Math.max(-3.6 * dt, Math.min(3.6 * dt, dy * Math.min(1, dt * 9)));
-          const vWant = (stopAtEnd ? Math.min(0.8, Math.sqrt(2 * 0.9 * rem) + 0.08) : 0.8) * Math.max(0.35, Math.cos(dy));   // giảm tốc đều (~0,9 m/s²) để dừng đúng điểm quay
+          const vWant = (stopAtEnd ? Math.min(0.8, Math.sqrt(2 * 0.9 * rem) + 0.08) : 0.8) * Math.max(0.35, Math.cos(dy));
           const v0 = e.vel || 0; e.vel = v0 + Math.max(-2.6 * dt, Math.min(1.8 * dt, vWant - v0));
           const st = Math.min(d, e.vel * dt); g.position.x += dx / d * st; g.position.z += dz / d * st;
           g.position.y = ground(g.position.x, g.position.z) - ENG_FEET + engGait(e, st) * CAMP_SCALE;
           e.lean = Math.max(-0.04, Math.min(0.08, e.vel * 0.05 + (e.vel - v0) / Math.max(dt, 1e-3) * 0.02));
           e.walking = true; return false;
         }
-        function engSeatTurn(e, yaw, dt, ground) {   // quay tại chỗ về hướng ghế: đầu dẫn trước, thân theo (giới hạn ~2,4 rad/s), lớp tư thế tự nhích chân
+        function engSeatTurn(e, yaw, dt, ground) {
           const g = e.g, d = Math.atan2(Math.sin(yaw - g.rotation.y), Math.cos(yaw - g.rotation.y));
           g.rotation.y += Math.sign(d) * Math.min(Math.abs(d), Math.min(2.4, 0.5 + Math.abs(d) * 2.6) * dt);
           g.position.y = ground(g.position.x, g.position.z) - ENG_FEET; engStandStill(e); e.vel = 0;
           e.headYawT = Math.max(-0.55, Math.min(0.55, d * 0.7));
           return Math.abs(d) < 0.01 && engPoseSettled(e, yaw);
         }
-        function engSeatBack(e, C, s, dt) {   // lùi nửa bước tới khi bắp chân chạm mép ghế, liếc qua vai nhìn ghế
+        function engSeatBack(e, C, s, dt) {
           const g = e.g;
           if (s.k < 1) {
             s.k = Math.min(1, s.k + dt / s.dur); const m = minJerk(s.k), x = s.b0.x + (s.b1.x - s.b0.x) * m, z = s.b0.z + (s.b1.z - s.b0.z) * m;
@@ -8379,12 +8379,12 @@
           e.headYawT = 0.6 * Math.sin(Math.PI * Math.min(1, s.k * 1.25)) * s.side; e.head.rotation.x = 0.22 * Math.sin(Math.PI * s.k);
           return s.k >= 1 && engPoseSettled(e, C.yaw);
         }
-        function engUseSeat(e, C, dt, t) {   // tới ghế C theo làn → quay lưng → lùi chạm mép ghế → ngồi xuống; true khi đã ngồi hẳn (giữ dáng ngồi)
+        function engUseSeat(e, C, dt, t) {
           let s = e.seat;
           if (!s || s.C !== C) { s = e.seat = { C, st: 'go', k: 0, li: 0, lam: 0, sw: 0 }; e.seatLean = 0; e.seatSwing = 0; }
           const g = e.g;
           if (s.st === 'leave') s.st = 'go';
-          if (s.st === 'stood') engSeatStartSit(e, C, s);   // vừa đứng lên mà lịch lại cần ngồi ghế này: ngồi lại luôn
+          if (s.st === 'stood') engSeatStartSit(e, C, s);
           if (s.st === 'go') {
             const j = seatJoin(C, g.position.x, g.position.z);
             if (j < 0) { engStep(e, C.laneW[0], dt, t, pf, FIRE_AVOID_R, C.field); return false; }
@@ -8402,49 +8402,49 @@
           if (s.st === 'rise') { e.seatCtl = true; if (engRiseStep(e, C, s, dt, t)) engSeatStartSit(e, C, s); return false; }
           e.seatCtl = true; engSeatHold(e, C, s, dt, t); return true;
         }
-        function engSeatStartLeave(e, C, s, goal) {   // rời ghế: bước thẳng tới chỗ quay rồi đi ngược làn tới khi hướng về đích không còn vướng ghế/xô/đèn
+        function engSeatStartLeave(e, C, s, goal) {
           const [lx, lz] = seatL(C, e.g.position.x, e.g.position.z), [gx, gz] = goal ? seatL(C, goal.x, goal.z) : [lx, lz + 3], pts = [];
           let cur = [lx, lz];
           if (Math.abs(lx) < C.keep[0] && lz < C.keep[2] + 0.05) { cur = C.turn; pts.push(cur); }
           for (let k = C.lane.length - 2; k >= 0 && !seatSegClear(C, cur[0], cur[1], gx, gz); k--) { cur = C.lane[k]; pts.push(cur); }
           s.pts = pts.length ? pts.map(([x, z]) => seatW(C, x, z)) : [e.g.position.clone()]; s.li = 0; s.st = 'leave';
         }
-        function engSeatGuard(e, want, goal, dt, t) {   // đang ngồi / đứng sát một ghế mà lịch đã sang việc khác → đứng dậy (nếu đang ngồi) rồi rời ghế theo làn
+        function engSeatGuard(e, want, goal, dt, t) {
           const s = e.seat; if (!s || s.C === want || s.C.indoor) return false;
           const C = s.C;
           if (s.st === 'go') { e.seat = null; return false; }
-          if (s.st === 'sit') { e.seatCtl = true; if (engSitStep(e, C, s, dt, t)) s.st = 'seated'; return true; }   // đang hạ người: ngồi hẳn rồi mới đứng dậy
+          if (s.st === 'sit') { e.seatCtl = true; if (engSitStep(e, C, s, dt, t)) s.st = 'seated'; return true; }
           if (s.st === 'seated') engSeatStartRise(e, C, s);
           if (s.st === 'rise') { e.seatCtl = true; if (engRiseStep(e, C, s, dt, t)) s.st = 'stood'; return true; }
           if (s.st !== 'leave') {
             const [lx, lz] = seatL(C, e.g.position.x, e.g.position.z);
-            if (s.st === 'path' && Math.hypot(lx, lz) > 1.5) { e.seat = null; return false; }   // còn xa ghế: bỏ dở, làm việc mới luôn
+            if (s.st === 'path' && Math.hypot(lx, lz) > 1.5) { e.seat = null; return false; }
             engSeatStartLeave(e, C, s, goal);
           }
           if (engSeatWalk(e, s.pts, s, dt, false, C.ground)) { e.seat = null; return false; }
           return true;
         }
         const engPhaseSeat = ph => (ph === 'toFish' || ph === 'fish') ? FISH_SEAT : (ph === 'toChair' || ph === 'eat' || ph === 'eatFish' || ph === 'tossFish' || ph === 'tea' || ph === 'read' || ph === 'nap' || ph === 'toShelter' || ph === 'shelter') ? CAMP_SEAT : null;
-        function engPhaseGoal(e, want) {   // hướng sẽ đi sau khi rời ghế (chọn lối ra phía đó)
+        function engPhaseGoal(e, want) {
           if (want) return want.laneW[0];
           if (e.phase === 'toMast' || e.phase === 'check') return e.wp[2];
           if ((e.phase === 'toDog' || e.phase === 'pet') && dogObj) return dogObj.position;
           return pf;
         }
-        function engSeatPost(e, dt) {   // sau lớp tư thế: dang tay (tay vịn) · đầu quay dẫn hướng · giữ đám mây suy nghĩ thẳng đứng trên hông khi cúi/ngả người
+        function engSeatPost(e, dt) {
           const ar = e.armRoll || (e.armRoll = [0, 0]), rt = e.armRollT || (e.armRollT = [0, 0]), k = 1 - Math.exp(-dt * 10);
           for (let i = 0; i < 2; i++) { ar[i] += (rt[i] - ar[i]) * k; if (!rt[i] && Math.abs(ar[i]) < 1e-4) ar[i] = 0; e.arms[i].rotation.z = ar[i]; rt[i] = 0; }
           const lz = e.legZT || (e.legZT = [0, 0]);
-          for (let i = 0; i < 2; i++) { const z = e.legs[i].rotation.z + (lz[i] - e.legs[i].rotation.z) * k; e.legs[i].rotation.z = !lz[i] && Math.abs(z) < 1e-4 ? 0 : z; lz[i] = 0; }   // bước ngang: dạng / khép chân
+          for (let i = 0; i < 2; i++) { const z = e.legs[i].rotation.z + (lz[i] - e.legs[i].rotation.z) * k; e.legs[i].rotation.z = !lz[i] && Math.abs(z) < 1e-4 ? 0 : z; lz[i] = 0; }
           e.headRoll = (e.headRoll || 0) + ((e.headRollT || 0) - (e.headRoll || 0)) * (1 - Math.exp(-dt * 4)); if (Math.abs(e.headRoll) < 1e-4 && !e.headRollT) e.headRoll = 0;
-          e.head.rotation.z = e.headRoll;   // nghiêng đầu: ngủ gật trên ghế, lắc theo nhạc, lau tóc
+          e.head.rotation.z = e.headRoll;
           e.headYaw = (e.headYaw || 0) + ((e.headYawT || 0) - (e.headYaw || 0)) * (1 - Math.exp(-dt * 6)); if (!e.headYawT && Math.abs(e.headYaw) < 1e-4) e.headYaw = 0;
           e.head.rotation.y = e.headYaw; e.headYawT = 0;
           const lam = e.g.rotation.x, pv = e.seatCtl ? ENG_HIP_Y : 0, y = checkBubbleSprite.position.y - pv;
           checkBubbleSprite.position.set(0, pv + y * Math.cos(lam), -y * Math.sin(lam));
         }
-        const mastField = buildFlowField(engObj.wp[2].x, engObj.wp[2].z);    // → cột khí tượng
-        const racField = buildFlowField(racApproach.x, racApproach.z);       // → điểm về hang gấu mèo
+        const mastField = buildFlowField(engObj.wp[2].x, engObj.wp[2].z);
+        const racField = buildFlowField(racApproach.x, racApproach.z);
         caravanObj.updateMatrixWorld(true);
         const vanPt = (x, y, z) => caravanObj.localToWorld(new THREE.Vector3(x, y, z)), vanOut = new THREE.Vector3(Math.sin(caravanObj.rotation.y), 0, Math.cos(caravanObj.rotation.y));
         const bunnyShelter = vanPt(2.25, 0, 1.95), bunnyField = buildFlowField(bunnyShelter.x, bunnyShelter.z), bunnyShelterAng = Math.atan2(vanOut.z, vanOut.x);
@@ -8457,16 +8457,16 @@
           E.px = p.x; E.py = p.y; E.pz = p.z; E.vx = vx; E.vy = vy; E.vz = vz;
           const fwd = Math.max(-40, Math.min(40, ax * Math.cos(b.ang) + az * Math.sin(b.ang))), up = Math.max(-60, Math.min(60, ay));
           const tp = E.tp || (E.tp = [E.th[0], E.th[1]]);
-          const al = fixedSteps(E, dt, PHYS_H, (hh) => {   // con lắc tai: bước cố định 120 Hz (gia tốc thân giữ nguyên trong khung), vẽ nội suy
+          const al = fixedSteps(E, dt, PHYS_H, (hh) => {
             for (let i = 0; i < 2; i++) {
-              const om = TAU * (i ? 2.4 : 2.0), rest = 0.1 + Math.sin(t * 4 + b.ph + i * 2.1) * 0.06;   // hơi ngả sau + khẽ ngoe nguẩy
+              const om = TAU * (i ? 2.4 : 2.0), rest = 0.1 + Math.sin(t * 4 + b.ph + i * 2.1) * 0.06;
               const acc = -om * om * (E.th[i] - rest) - 2 * 0.25 * om * E.w[i] + 0.15 * (fwd * Math.cos(E.th[i]) + up * Math.sin(E.th[i])) / 0.26;
               tp[i] = E.th[i]; E.w[i] += acc * hh; E.th[i] = Math.max(-0.6, Math.min(0.9, E.th[i] + E.w[i] * hh));
             }
           });
           for (let i = 0; i < 2; i++) b.ears[i].rotation.z = tp[i] + (E.th[i] - tp[i]) * al;
         }
-        function bunnyRain(b, dt, t, rain) {   // true = thỏ đang đi trú / ngồi trú (tự lo dáng)
+        function bunnyRain(b, dt, t, rain) {
           if (rain && !b.shelter) {
             b.shelter = 'go'; b.carrot.visible = b.mound.visible = false; b.carrot.position.y = -0.1; b.paws[0].rotation.z = b.paws[1].rotation.z = 0; b.head.rotation.z = 0;
             if (b.state === 'dig' || b.state === 'eatCarrot') { b.state = 'sniff'; b.digTmr = 30; }
@@ -8484,7 +8484,7 @@
               b.g.position.set(b.x, cowY(b.x, b.z) + lift, b.z); b.g.rotation.y = -b.ang;
               b.paws[0].rotation.z = b.paws[1].rotation.z = -0.45 - lift * 0.4; b.head.rotation.z = 0;
             }
-          } else {   // ngồi thu lu dưới hiên, quay mặt ra phía mưa, mũi khụt khịt
+          } else {
             let da = bunnyShelterAng - b.ang; da = Math.atan2(Math.sin(da), Math.cos(da)); b.ang += da * Math.min(1, dt * 3);
             b.g.position.set(b.x, cowY(b.x, b.z), b.z); b.g.rotation.y = -b.ang;
             b.paws[0].rotation.z = b.paws[1].rotation.z = 0; b.head.rotation.z = -0.08 + Math.sin(t * 11 + b.ph) * 0.025;
@@ -8496,7 +8496,7 @@
         const dogLie = campObj.g.position.clone().add(new THREE.Vector3(Math.cos(-0.5) * 1.55, 0, Math.sin(-0.5) * 1.55));
         const dogDoorField = buildFlowField(dogDoorFar.x, dogDoorFar.z), dogFireField = buildFlowField(dogLie.x, dogLie.z);
         const dogRain = { st: null, t: 0, yaw: 0 };
-        let engPetting = false; const _petTgt = new THREE.Vector3();   // kỹ sư đang vuốt chó → chó vẫy đuôi
+        let engPetting = false; const _petTgt = new THREE.Vector3();
         const dogZzzGroup = new THREE.Group(); dogZzzGroup.visible = false; dogZzzGroup.name = 'Zzz của chó'; scene.add(dogZzzGroup);
         const dogZzz = [], _dogHead = new THREE.Vector3();
         {
@@ -8505,10 +8505,10 @@
           const zTex = new THREE.CanvasTexture(c);
           for (let n = 0; n < 3; n++) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: zTex, transparent: true, opacity: 0, depthWrite: false })); dogZzzGroup.add(sp); dogZzz.push({ m: sp, ph: n / 3 }); }
         }
-        if (!liveWeather.wildlifeAwake) {   // mở trang lúc tối: chó đã nằm ngủ sẵn trong xe
+        if (!liveWeather.wildlifeAwake) {
           dogRain.st = 'in'; dogObj.position.set(dogBed.x, dogInside.y + 0.02 * CAMP_SCALE, dogBed.z); dogObj.rotation.y = Math.atan2(-vanOut.z, vanOut.x);
         }
-        function quadRig(obj, o) {   // o: legs [{hip, knee, paw, front, L1, L2, bend?, ankleH?}] · gaits {tên: {off[4], duty, stride, lift, vRef?}} · home(L, out) · ground(x, z) · size?, settleT?, settleLift?
+        function quadRig(obj, o) {
           const feet = o.legs.map(L => ({ L, w: new THREE.Vector3(), s0: new THREE.Vector3(), tg: new THREE.Vector3(), sw: false, mode: '', u: 0 }));
           const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3(), _f = new THREE.Vector3(), last = new THREE.Vector3();
           const ease = k => { k = Math.max(0, Math.min(1, k)); return k * k * (3 - 2 * k); };
@@ -8518,11 +8518,11 @@
             feet, free: [null, null, null, null], fk: [null, null, null, null], get psi() { return psi; }, get stride() { return stride; },
             reset() { inited = false; },
             plant(groundY) { for (const F of feet) { o.home(F.L, F.w); obj.localToWorld(F.w); F.w.y = groundY(F.w.x, F.w.z); F.sw = false; } },
-            support(i) { const F = feet[i]; return F.sw && F.mode === 'gait' ? F.tg.y : F.w.y; },   // cao độ đất chân i đang / sắp đứng
+            support(i) { const F = feet[i]; return F.sw && F.mode === 'gait' ? F.tg.y : F.w.y; },
             step(dt, dist, v, gaitName, h, pitch, posed) {
               const G = o.gaits[gaitName], sp = Math.abs(v), dir = v < 0 ? -1 : 1, moving = sp > 0.06, S = obj.scale.y;
               obj.updateMatrixWorld(true);
-              _f.set(Math.cos(obj.rotation.y), 0, -Math.sin(obj.rotation.y));   // hướng mũi (+x cục bộ) trên mặt đất
+              _f.set(Math.cos(obj.rotation.y), 0, -Math.sin(obj.rotation.y));
               if (!inited || last.distanceTo(obj.position) > 4 * size) { R.plant(o.ground); inited = true; }
               last.copy(obj.position);
               stride = G.vRef ? G.stride * Math.min(1.25, Math.max(0.55, Math.sqrt(sp / G.vRef))) : G.stride;
@@ -8533,7 +8533,7 @@
                 const L = F.L;
                 o.home(L, _a); obj.localToWorld(_a); _a.y = o.ground(_a.x, _a.z);
                 if (R.free[i]) { F.sw = false; F.w.copy(_a); }
-                else if (F.sw && F.mode === 'settle') {   // đang nhích chân về chỗ "nhà" (kể cả khi vừa bắt đầu đi): làm nốt rồi mới vào nhịp — không bỏ quên chân giữa chừng
+                else if (F.sw && F.mode === 'settle') {
                   F.u += dt / settleT; const k = ease(F.u), dy = _a.y - F.s0.y;
                   F.w.lerpVectors(F.s0, _a, k); F.w.y = F.s0.y + dy * (dy > 0 ? ease(F.u * 1.7) : ease(F.u * 1.7 - 0.7)) + Math.sin(Math.PI * Math.min(1, F.u)) * settleLift * S;
                   if (F.u >= 1) { F.sw = false; F.w.copy(_a); swinging--; }
@@ -8541,7 +8541,7 @@
                 else if (moving) {
                   const ph = (psi + G.off[i]) % 1, inSwing = ph >= G.duty;
                   if (inSwing && !F.sw) { F.sw = true; F.s0.copy(F.w); F.mode = 'gait'; }
-                  else if (!F.sw && swinging < 2) {   // ngoặt gắt / xoay tại chỗ / bị đẩy ngang: chân trụ bị bỏ quá xa ⇒ bước bắt kịp ngay, không chờ tới lượt
+                  else if (!F.sw && swinging < 2) {
                     const ex = F.w.x - _a.x, ez = F.w.z - _a.z;
                     if (Math.hypot(ex, ez) > Math.max(0.6 * stride, 0.3 * size) || Math.abs(ex * _f.z - ez * _f.x) > 0.3 * size) { F.sw = true; F.mode = 'settle'; F.u = 0; F.s0.copy(F.w); swinging++; }
                   }
@@ -8559,14 +8559,14 @@
                   else if ((d > 0.13 * size || Math.abs(F.w.y - _a.y) > 0.3 * size) && swinging < 1) { F.sw = true; F.mode = 'settle'; F.u = 0; F.s0.copy(F.w); swinging++; }
                 }
                 L.hip.getWorldPosition(_c); obj.worldToLocal(_c); const hipX = _c.x, hipY = _c.y, roll = L.hip.parent === obj ? 0 : L.hip.parent.rotation.x;
-                if (R.free[i]) _b.copy(R.free[i]); else { obj.worldToLocal(_b.copy(F.w)); _b.y += L.ankleH || 0; }   // ankleH: khớp cổ chân cao hơn đế (bò) ⇒ đích IK là cổ chân, đế phẳng ngay dưới — móng không trượt khi cẳng nghiêng
+                if (R.free[i]) _b.copy(R.free[i]); else { obj.worldToLocal(_b.copy(F.w)); _b.y += L.ankleH || 0; }
                 const dzL = _b.z - _c.z, dyv = _b.y - hipY, ab = Math.max(-0.35, Math.min(0.35, Math.atan2(dzL, -dyv)));
                 const L1 = L.L1, L2 = L.L2, dx = _b.x - hipX, dy = -Math.hypot(dyv, dzL) * Math.cos(Math.atan2(dzL, -dyv) - ab), D = Math.max(0.15 * (L1 + L2), Math.min(L1 + L2 - 1e-4, Math.hypot(dx, dy))), th = Math.atan2(dx, -dy);
                 const al = Math.acos(Math.max(-1, Math.min(1, (L1 * L1 + D * D - L2 * L2) / (2 * L1 * D)))), be = Math.acos(Math.max(-1, Math.min(1, (L2 * L2 + D * D - L1 * L1) / (2 * L2 * D))));
                 const bend = L.bend !== undefined ? L.bend : (L.front ? -1 : 1);
                 let a = th + bend * al, b = -bend * (al + be), pw = R.free[i] ? -b * 0.5 : -(a + b);
                 const K = R.fk[i]; if (K && K.w > 0) { a += (K.a - a) * K.w; b += (K.b - b) * K.w; pw += (K.p - pw) * K.w; }
-                L.hip.rotation.z = a - pitch; L.hip.rotation.x = (-ab - roll) * (1 - (K && K.w > 0 ? K.w : 0)); L.knee.rotation.z = b; L.paw.rotation.z = pw;   // bù lắc ngang của thân: chân vẫn đúng mặt phẳng đã tính
+                L.hip.rotation.z = a - pitch; L.hip.rotation.x = (-ab - roll) * (1 - (K && K.w > 0 ? K.w : 0)); L.knee.rotation.z = b; L.paw.rotation.z = pw;
               });
             }
           };
@@ -8588,18 +8588,18 @@
           const drinkP = bowlP.clone(), toBowl = new THREE.Vector3(); { const vo = dogDoorFar.clone().sub(dogDoorStep).setY(0).normalize(); drinkP.addScaledVector(vo, 0.42); toBowl.copy(bowlP).sub(drinkP).setY(0).normalize(); }
           const P = { h: spr(0.12 * s), pitch: spr(0), hp: spr(0.1), hy: spr(0), fold: spr(1), sit: spr(0), bow: spr(0), roll: spr(0), ear: spr(0), wag: spr(0) };
           let v = 0, gait = 'walk', ground = (x, z) => cowY(x, z), turnRate = 0, prevYaw = 0;
-          const GAITS = {   // độ lệch pha 4 chân [trước-T, trước-P, sau-T, sau-P] · tỉ lệ chạm đất · sải (đv thế giới) · biên độ nhấc chân
+          const GAITS = {
             walk: { off: [0.25, 0.75, 0, 0.5], duty: 0.65, stride: 0.42, lift: 0.05 },
             trot: { off: [0, 0.5, 0.5, 0], duty: 0.45, stride: 0.72, lift: 0.07 },
             gallop: { off: [0.5, 0.6, 0, 0.1], duty: 0.32, stride: 1.15, lift: 0.09 }
           };
-          function homeLocal(L, out) {   // vị trí bàn chân "nhà" (toạ độ gốc chó) theo pha trộn dáng: đứng · nằm sấp · ngồi · cúi vươn vai
+          function homeLocal(L, out) {
             const hx = L.hip.position.x, hz = L.hip.position.z, f = P.fold.x, si = P.sit.x, bw = P.bow.x, st = Math.max(0, 1 - f - si - bw);
             let x = hx * st + (hx + (L.front ? 0.17 : 0.03) * s) * f + (hx + (L.front ? 0.02 : 0.1) * s) * si + (hx + (L.front ? 0.2 : 0) * s) * bw;
             let z = hz * st + hz * (L.front ? 1.05 : 1.55) * f + hz * (L.front ? 1 : 1.25) * si + hz * bw;
             return out.set(x, 0, z);
           }
-          function poseTargets(mode) {   // dáng đích (thân cao, chúc/ngóc) cho từng chế độ
+          function poseTargets(mode) {
             const T = { h: H0, pitch: 0, fold: 0, sit: 0, bow: 0 };
             if (mode === 'lie') { T.h = 0.12 * s; T.fold = 1; }
             else if (mode === 'sit') { T.h = 0.215 * s; T.pitch = 0.5; T.sit = 1; }
@@ -8624,10 +8624,10 @@
             const ul = Math.hypot(ux, uz) || 1; ux /= ul; uz /= ul;
             let dy = yawOf(ux, uz) - dogObj.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
             const maxTurn = (v < 0.4 ? 5 : 3.2) * dt; dogObj.rotation.y += Math.max(-maxTurn, Math.min(maxTurn, dy * Math.min(1, dt * 8)));
-            B.want = speed * Math.max(0.25, Math.cos(dy)) * Math.min(1, 0.3 + dd / 0.8);   // ngoặt gắt / sắp tới thì chậm lại
+            B.want = speed * Math.max(0.25, Math.cos(dy)) * Math.min(1, 0.3 + dd / 0.8);
             return false;
           }
-          function move(dt) {   // tích phân tốc độ + vị trí theo HƯỚNG THÂN (không trượt ngang); chặn bước xuống nước
+          function move(dt) {
             const acc = B.want > v ? 3.2 : 5; v += Math.max(-acc * dt, Math.min(acc * dt, B.want - v));
             if (v < 1e-3) { v = 0; return 0; }
             const f = fwdOf(dogObj.rotation.y), p = dogObj.position, nx = p.x + f.x * v * dt, nz = p.z + f.z * v * dt;
@@ -8641,18 +8641,18 @@
             damp(P.h, T.h + bob, 9, dt); damp(P.pitch, T.pitch + (gait === 'gallop' && v > 0.06 ? 0.12 * Math.cos(2 * Math.PI * psi) : 0), 9, dt);
             U.torso.position.y = P.h.x; U.torso.rotation.z = P.pitch.x;
             let yr = dogObj.rotation.y - prevYaw; yr = Math.atan2(Math.sin(yr), Math.cos(yr)); prevYaw = dogObj.rotation.y; turnRate += (yr / Math.max(dt, 1e-3) - turnRate) * Math.min(1, dt * 6);
-            damp(P.roll, Math.max(-0.14, Math.min(0.14, -turnRate * v * 0.05)), 8, dt); dogObj.rotation.x = P.roll.x;   // nghiêng vào khúc cua khi chạy
+            damp(P.roll, Math.max(-0.14, Math.min(0.14, -turnRate * v * 0.05)), 8, dt); dogObj.rotation.x = P.roll.x;
             let hp = B.headP != null ? B.headP : 0.1, hy = 0;
             if (B.look) { dogObj.worldToLocal(_b.copy(B.look)); const lx = _b.x - 0.3 * s, ly = _b.y - P.h.x - 0.2 * s; hy = Math.max(-0.9, Math.min(0.9, Math.atan2(-_b.z, Math.max(0.05, lx)))); if (B.headP == null) hp = Math.max(-0.5, Math.min(0.6, Math.atan2(ly, Math.hypot(lx, _b.z)))); }
             if (v > 0.06 && gait === 'walk') hp += 0.05 * c2;
-            hp -= P.pitch.x * 0.85;   // giữ đầu gần thẳng khi thân chúc/ngóc
+            hp -= P.pitch.x * 0.85;
             damp(P.hp, hp, 7, dt); damp(P.hy, hy + (B.sniff ? 0.25 * Math.sin(t * 5.3) : 0), 6, dt);
             U.neck.rotation.set(0, P.hy.x * 0.6, P.hp.x * 0.7); U.head.rotation.set(0, P.hy.x * 0.4, P.hp.x * 0.3);
             damp(P.ear, -bob / s * 6 - Math.min(0.7, v * 0.22), 14, dt);
             U.ears.forEach((ep, i) => { const sd = i ? 1 : -1; ep.rotation.set(sd * (0.12 + 0.12 * B.shake * Math.sin(t * 28)), 0, P.ear.x); });
             if (B.shake > 0) { U.torso.rotation.x = 0.35 * B.shake * Math.sin(t * 28); U.head.rotation.x = 0.6 * B.shake * Math.sin(t * 28 + 0.6); } else U.torso.rotation.x = 0;
             damp(P.wag, B.wagAmp, 4, dt); U.tail.rotation.y = P.wag.x * Math.sin(t * B.wagF * 6.2832);
-            U.body.scale.y = B.mode === 'lie' && B.doze ? 1 + 0.04 * Math.sin(t * 1.6) : 1;   // thở chậm khi lim dim
+            U.body.scale.y = B.mode === 'lie' && B.doze ? 1 + 0.04 * Math.sin(t * 1.6) : 1;
           }
           const restP = dogLie.clone();
           if (!dogRain.st) { dogObj.position.set(restP.x, cowY(restP.x, restP.z), restP.z); dogObj.rotation.y = yawOf(pf.x - restP.x, pf.z - restP.z) + 0.4; }
@@ -8667,7 +8667,7 @@
             if (r < 0.36 && (hh < 9 || hh > 16)) return setSt('zoom', 7 + Math.random() * 3);
             B.n = 3 + Math.floor(Math.random() * 4); setSt('sniff');
           }
-          function shelterTick(dt, t) {   // mưa / tối: vào xe nằm gầm bàn vuông (giữ nguyên lộ trình cũ: tới cửa → bậc → nhảy lên → giường)
+          function shelterTick(dt, t) {
             const D = dogRain, p = dogObj.position, rain = liveWeather.state.raining, night = !liveWeather.wildlifeAwake, want = rain || night;
             if (want && (!D.st || D.st === 'toFire')) D.st = 'toDoor';
             else if (!want && D.st) { if (D.st === 'toDoor') D.st = 'toFire'; else if (D.st === 'toBed' || D.st === 'in') D.st = 'toExit'; }
@@ -8676,7 +8676,7 @@
             const floorY = dogInside.y;
             if (D.st === 'toDoor') { B.inside = false; ground = cowY; if (steer(dogDoorFar.x, dogDoorFar.z, 1.5, dt, dogDoorField, 0.1)) D.st = 'toStep'; }
             else if (D.st === 'toStep') { if (steer(dogDoorStep.x, dogDoorStep.z, 0.8, dt, null, 0.06)) { D.st = 'hopIn'; D.t = 0; } }
-            else if (D.st === 'hopIn' || D.st === 'hopOut') {   // nhảy lên / xuống bậc cửa hông: co chân, bật, duỗi chân trước đáp
+            else if (D.st === 'hopIn' || D.st === 'hopOut') {
               D.t = Math.min(1, D.t + dt / 0.55); const inn = D.st === 'hopIn', A = inn ? dogDoorStep : dogInside, Bp = inn ? dogInside : dogDoorStep;
               const ya = inn ? cowY(A.x, A.z) : floorY, yb = inn ? floorY : cowY(Bp.x, Bp.z);
               p.x = A.x + (Bp.x - A.x) * D.t; p.z = A.z + (Bp.z - A.z) * D.t; p.y = ya + (yb - ya) * D.t + Math.sin(Math.PI * D.t) * 0.3;
@@ -8689,7 +8689,7 @@
             else if (D.st === 'toBed') { B.inside = true; ground = () => floorY; if (steer(dogBed.x, dogBed.z, 0.6, dt, null, 0.08)) D.st = 'in'; }
             else if (D.st === 'toExit') { B.inside = true; ground = () => floorY; if (steer(dogInside.x, dogInside.z, 0.6, dt, null, 0.08)) { D.st = 'hopOut'; D.t = 0; } }
             else if (D.st === 'toFire') { B.inside = false; ground = cowY; if (steer(dogLie.x, dogLie.z, 1.2, dt, dogFireField, 0.1)) { D.st = null; setSt('circle'); B.n = 1.2 + Math.random(); return false; } }
-            else {   // 'in': nằm gầm bàn vuông, mặt nhìn ra cửa; tối thì ngủ (gục mõm, thở chậm, Zzz)
+            else {
               B.inside = true; ground = () => floorY; B.want = 0; B.mode = 'lie';
               let dy = yawOf(dogInside.x - dogBed.x, dogInside.z - dogBed.z) - dogObj.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); dogObj.rotation.y += dy * Math.min(1, dt * 2);
             }
@@ -8704,7 +8704,7 @@
             const E = eng(), p = dogObj.position; B.k += dt; B.t -= dt; B.look = null; B.headP = null; B.sniff = 0; B.shake = Math.max(0, B.shake - dt * 1.2);
             const petting = engObj && (engObj.phase === 'toDog' || engObj.phase === 'pet');
             switch (B.st) {
-              case 'lie': {   // nằm sưởi cạnh bếp lửa: lúc ngẩng nhìn quanh / nhìn chủ, lúc gục mõm lim dim
+              case 'lie': {
                 B.mode = 'lie'; B.want = 0;
                 if ((B.doze -= dt) < -14 - Math.random() * 10) B.doze = 8 + Math.random() * 14;
                 const near = E && E.g.position.distanceTo(p) < 5;
@@ -8714,13 +8714,13 @@
                 if (B.t <= 0) setSt('getup');
                 break;
               }
-              case 'getup': {   // vươn vai kiểu cúi chào → đứng → (có khi) giũ lông
+              case 'getup': {
                 B.mode = B.k < 1.3 ? (B.k < 0.25 ? 'lie' : 'bow') : 'stand'; B.want = 0; B.wagAmp = 0.15; B.wagF = 1.5;
                 if (B.k > 1.6 && B.k < 1.65 && Math.random() < 0.6) B.shake = 1.2;
                 if (B.k > 2.8) chooseNext();
                 break;
               }
-              case 'sniff': {   // đánh hơi: đi chậm mũi sát đất tới chỗ có mùi, dừng hít, đi tiếp
+              case 'sniff': {
                 B.mode = 'stand'; B.sniff = 1; B.headP = -0.42; B.wagAmp = 0.2; B.wagF = 2.2;
                 if (!B.hasTgt) { B.tgt.copy(randPt(1.5, 6)); B.hasTgt = true; B.pause = 0; }
                 if (B.pause > 0) { B.pause -= dt; B.want = 0; B.headP = -0.75; if (B.pause <= 0) { B.hasTgt = false; if (--B.n <= 0) setSt('return'); } }
@@ -8728,7 +8728,7 @@
                 if (E && E.walking && E.g.position.distanceTo(p) < 4 && Math.random() < dt * 0.05) setSt('follow', 40 + Math.random() * 40);
                 break;
               }
-              case 'drink': {   // tới bát nước cạnh bậc cửa xe, cúi uống (liếm nước ~3 lần/giây)
+              case 'drink': {
                 B.mode = 'stand';
                 if (B.k < 60 && !B.atBowl) { if (steer(drinkP.x, drinkP.z, 1.0, dt, null, 0.08)) { B.atBowl = true; B.k = 0; } B.wagAmp = 0.15; B.wagF = 2; }
                 else {
@@ -8738,14 +8738,14 @@
                 }
                 break;
               }
-              case 'zoom': {   // chạy vòng hưng phấn quanh bếp lửa (phi nước đại), rồi thở dốc chạy chậm về chỗ nằm
+              case 'zoom': {
                 B.mode = 'stand'; B.wagAmp = 0.5; B.wagF = 3;
                 const a = Math.atan2(p.z - pf.z, p.x - pf.x) + 0.9, R = 2.4;
                 steer(pf.x + Math.cos(a) * R, pf.z + Math.sin(a) * R, 2.9, dt, null, 0.05);
                 if (B.t <= 0) setSt('return');
                 break;
               }
-              case 'follow': {   // đi theo chủ: giữ ~1,6 m phía sau–bên; xa thì chạy nước kiệu / phi; chủ đứng yên thì ngồi nhìn
+              case 'follow': {
                 if (!E || B.t <= 0) { setSt('return'); break; }
                 const ep = E.g.position, ey = E.g.rotation.y, fx = Math.sin(ey), fz = Math.cos(ey), d = Math.hypot(ep.x - p.x, ep.z - p.z);
                 const tx = ep.x - fx * 1.3 + fz * 0.55, tz = ep.z - fz * 1.3 - fx * 0.55;
@@ -8754,12 +8754,12 @@
                 else { B.want = 0; B.mode = E.seat ? 'lie' : 'sit'; let dy = yawOf(ep.x - p.x, ep.z - p.z) - dogObj.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); dogObj.rotation.y += dy * Math.min(1, dt * 3); }
                 break;
               }
-              case 'return': {   // về chỗ nằm cạnh bếp lửa
+              case 'return': {
                 B.mode = 'stand'; B.wagAmp = 0.15; B.wagF = 2;
                 if (steer(restP.x, restP.z, p.distanceTo(restP) > 3 ? 1.3 : 0.7, dt, p.distanceTo(restP) > 2 ? dogFireField : null, 0.12)) { setSt('circle'); B.n = 1 + Math.random() * 0.8; }
                 break;
               }
-              case 'circle': {   // xoay 1–2 vòng tại chỗ trước khi nằm (tập tính giẫm ổ)
+              case 'circle': {
                 B.mode = 'stand'; B.want = 0.25; const turn = 4.2 * dt; dogObj.rotation.y += turn; B.n -= turn / 6.2832; B.wagAmp = 0.1;
                 p.x += (restP.x - p.x) * Math.min(1, dt * 2); p.z += (restP.z - p.z) * Math.min(1, dt * 2);
                 if (B.n <= 0) { setSt('lie', 50 + Math.random() * 100); B.doze = 0; const toFire = yawOf(pf.x - p.x, pf.z - p.z); dogObj.rotation.y = toFire + Math.atan2(Math.sin(dogObj.rotation.y - toFire), Math.cos(dogObj.rotation.y - toFire)) * 0.3; }
@@ -8785,12 +8785,12 @@
         const dogPettable = () => dogBrain.pettable();
         const engStudyPts = (() => {
           const ch = caravanObj.userData.interior.study.chair.center, cx = ch[0], cz = ch[1];
-          return { cx, cz, aisle: vanPt(1.45, 1.07, 0.25), yaw: caravanObj.rotation.y + Math.PI };   // ghế quay về −Z cục bộ (mặt bàn)
+          return { cx, cz, aisle: vanPt(1.45, 1.07, 0.25), yaw: caravanObj.rotation.y + Math.PI };
         })();
         const STUDY_PULL = 0.45, STUDY_FZ = 0.37;
         const STUDY_SEAT = makeSeat({ name: 'study', indoor: true, pos: new THREE.Vector3(), yaw: engStudyPts.yaw, seatZ: 0, standZ: STUDY_FZ * CAMP_SCALE, contactZ: 0.09,
-          seatDrop: 0.56, legs: [-1.48, -1.44], knees: [0.98, 0.94], arm: null, ground: () => dogInside.y });   // ghế thấp hơn ghế xếp: cẳng chân chếch ra trước dưới gầm bàn
-        function studyChairAt(off) {   // dời ghế bàn học dọc trục trước–sau của nó (đv xe) + cập nhật mô tả ghế cho bộ điều khiển ngồi
+          seatDrop: 0.56, legs: [-1.48, -1.44], knees: [0.98, 0.94], arm: null, ground: () => dogInside.y });
+        function studyChairAt(off) {
           studyChairRig.off = off; if (studyChairRig.obj) studyChairRig.obj.position.z = studyChairRig.home + off;
           STUDY_SEAT.pos.copy(vanPt(engStudyPts.cx, 1.07, engStudyPts.cz + off));
         }
@@ -8812,10 +8812,10 @@
           const end = k + 1 < ENG_DAY.length ? ENG_DAY[k + 1][0] : 24, n = (k + 1) % ENG_DAY.length;
           return { act: ENG_DAY[k][1], end, left: (end - h) * 3600, next: ENG_DAY[n][1], nextEnd: n + 1 < ENG_DAY.length ? ENG_DAY[n + 1][0] : 24 };
         }
-        function engWantAct(e, hh) {   // việc cần làm lúc này (đặt e.actLeft = số giây còn lại của khung giờ)
+        function engWantAct(e, hh) {
           const s = engScheduleAt(hh); let act = s.act, left = s.left;
           if (ENG_ACTS[act].once) {
-            const key = act + '@' + s.end + '@' + new Date().toDateString();   // theo ngày: hôm sau vẫn đi vệ sinh, vẫn tắm
+            const key = act + '@' + s.end + '@' + new Date().toDateString();
             if (e.doneAct === key) { act = s.next; left = (s.nextEnd - hh) * 3600; }
             else if (e.onceKey !== key) { e.onceKey = key; e.onceEnd = s.end; }
           } else if (e.act && ENG_ACTS[e.act].once && e.onceKey && e.doneAct !== e.onceKey && e.onceKey.startsWith(e.act + '@') && hh < e.onceEnd + 0.2 && hh > e.onceEnd - 1) { act = e.act; left = 0; }
@@ -8823,29 +8823,29 @@
           e.actLeft = Math.max(0, left); return act;
         }
         const engPhaseFor = act => ENG_ACTS[act].van ? 'van' : act === 'dinner' && grill.st === 'ready' ? 'toGrill' : act === 'fish' ? 'toFish' : act === 'apples' ? 'apple' : act === 'outdoor' ? 'toMast' : act === 'shelter' ? 'toShelter' : 'toChair';
-        function engChairPhase(e, act) {   // đã ngồi ghế cắm trại: làm gì, bao lâu
-          if (act === 'dinner' && grill.st === 'held') { e.timer = e.eatLen = 76; return 'eatFish'; }   // cầm que cá nướng về: ăn cá trước (8 miếng), rồi mới ăn cơm chiên
+        function engChairPhase(e, act) {
+          if (act === 'dinner' && grill.st === 'held') { e.timer = e.eatLen = 76; return 'eatFish'; }
           if (act === 'lunch' || act === 'dinner') { e.timer = Math.max(60, Math.min(1200, e.actLeft - 900)); return 'eat'; }
           if (act === 'rest') { e.timer = Math.max(30, Math.min(720, e.actLeft - 1200)); return 'tea'; }
           if (act === 'read') return 'read';
           if (act === 'shelter') return 'shelter';
-          e.timer = 150; return 'tea';   // dạo trại: ngồi nghỉ chân uống trà
+          e.timer = 150; return 'tea';
         }
         function engSetAct(e, act) {
           e.act = act;
-          if (e.phase === 'fish') { e.timer = Math.min(e.timer, 0); return; }   // đang câu: thu dây, dìu cá xong mới đổi việc (nhánh câu tự chuyển)
+          if (e.phase === 'fish') { e.timer = Math.min(e.timer, 0); return; }
           e.phase = engPhaseFor(act); e.timer = 0; e.wanderTgt = null; e.wanderTmr = 0;
         }
 
         const VAN_FLOOR = dogInside.y, vanFloor = () => VAN_FLOOR, VYAW = caravanObj.rotation.y;
-        const VY = { pz: VYAW, nz: VYAW + Math.PI, px: VYAW + Math.PI / 2, nx: VYAW - Math.PI / 2 };   // hướng nhìn dọc các trục của xe
+        const VY = { pz: VYAW, nz: VYAW + Math.PI, px: VYAW + Math.PI / 2, nx: VYAW - Math.PI / 2 };
         const VN = {};
         for (const [k, x, z] of [['door', 0.33, 1.0], ['hall', 0.33, 0.12], ['tbl', 0.05, 0.33], ['bed', 0.62, -0.15], ['mid', 1.45, 0.25], ['rear', 2.5, 0.08],
           ['stove', 1.33, 0.5], ['board', 2.04, 0.5], ['ksink', 2.5, 0.5], ['bathOut', 2.6, -0.145], ['bathIn', 3.3, 0.0], ['sink', 3.475, 0.74], ['shelf', 3.45, 0.45], ['towel', 3.75, 0.08], ['wcOut', 3.255, -0.2], ['wcIn', 3.255, -0.64]]) { VN[k] = vanPt(x, 1.07, z); VN[k].node = k; }
         const VAN_EDGES = [['door', 'hall'], ['hall', 'tbl'], ['hall', 'bed'], ['hall', 'mid'], ['bed', 'mid'], ['mid', 'rear'], ['rear', 'bathOut'], ['bathOut', 'bathIn', 'entry'],
           ['bathIn', 'sink'], ['bathIn', 'shelf'], ['shelf', 'sink'], ['bathIn', 'towel'], ['bathIn', 'wcOut'], ['towel', 'wcOut'], ['wcOut', 'wcIn', 'wc'],
           ['mid', 'stove'], ['mid', 'board'], ['stove', 'board'], ['board', 'ksink'], ['ksink', 'rear']];
-        function vanRoute(a, b) {   // đường ngắn nhất giữa 2 nút (Dijkstra trên ~13 nút) → [{ p, door, node }] không gồm nút đầu
+        function vanRoute(a, b) {
           const dist = { [a]: 0 }, prev = {}, todo = new Set(Object.keys(VN));
           while (todo.size) {
             let u = null; for (const k of todo) if (dist[k] !== undefined && (u === null || dist[k] < dist[u])) u = k;
@@ -8859,11 +8859,11 @@
           return out;
         }
         const VBATH = caravanObj.userData.interior.bath, VSTOOL = caravanObj.userData.interior.stool;
-        const VAN_DOORS = {   // cửa lùa: tâm khe cửa khi mở (đv thế giới) — tới gần thì nghiêng vai, cúi đầu
+        const VAN_DOORS = {
           entry: { g: VBATH.entryDoor, axis: 'z', slide: 0.5, c: vanPt(2.935, 1.07, -0.145), k: 0, target: 0, shown: -1 },
           wc: { g: VBATH.wcDoor, axis: 'x', slide: 0.45, c: vanPt(3.255, 1.07, -0.42), k: 0, target: 0, shown: -1 }
         };
-        const LID = { k: 0, target: 0, shown: -1 };   // nắp bồn cầu: 0 đậy · 1 dựng vào két
+        const LID = { k: 0, target: 0, shown: -1 };
         function vanDoorsTick(dt) {
           for (const d of Object.values(VAN_DOORS)) {
             d.k += Math.sign(d.target - d.k) * Math.min(Math.abs(d.target - d.k), dt / 0.9);
@@ -8872,14 +8872,14 @@
           LID.k += Math.sign(LID.target - LID.k) * Math.min(Math.abs(LID.target - LID.k), dt / 0.7);
           if (LID.k !== LID.shown) { LID.shown = LID.k; VBATH.lid.rotation.z = -1.62 * minJerk(LID.k); }
         }
-        function vanDoorsAuto(e, V) {   // cửa đã mở để đi qua: ra khỏi khe cửa (và không còn đi qua nó nữa) thì kéo đóng lại
+        function vanDoorsAuto(e, V) {
           for (const D of V.opened) {
             const onPath = !!V.path && V.path.slice(V.pi, V.pi + 2).some(q => q.door && VAN_DOORS[q.door] === D);
             if (!onPath && Math.hypot(e.g.position.x - D.c.x, e.g.position.z - D.c.z) > 0.3) { D.target = 0; V.opened.delete(D); }
           }
         }
         const vanSqueeze = e => { let s = 0; for (const d of Object.values(VAN_DOORS)) s = Math.max(s, 1 - segK(Math.hypot(e.g.position.x - d.c.x, e.g.position.z - d.c.z), 0.18, 0.55)); return s; };
-        function engSideGait(e, dist, k) {   // bước ngang (lách khe hẹp): dạng một chân rồi khép chân kia, gối chùng nhẹ; trả về độ nhún
+        function engSideGait(e, dist, k) {
           e.sgait = ((e.sgait || 0) + dist * (Math.PI * 2 / 0.6)) % (Math.PI * 2000);
           const s = Math.sin(e.sgait), a = Math.max(0, s), b = Math.max(0, -s), T = e.legZT || (e.legZT = [0, 0]);
           T[0] = -0.2 * a * k; T[1] = 0.2 * b * k;
@@ -8887,14 +8887,14 @@
           e.arms[0].rotation.x = e.arms[1].rotation.x = 0;
           return Math.abs(s) * 0.015 * k;
         }
-        function vanPathStep(e, V, dt) {   // đi theo V.path, không dừng ở nút giữa, phanh đều về nút cuối · đoạn có cửa: mở trước, chờ mở hẳn, lách vai + cúi đầu qua khung
+        function vanPathStep(e, V, dt) {
           const g = e.g, path = V.path;
           let q = path[V.pi], dx = q.p.x - g.position.x, dz = q.p.z - g.position.z, d = Math.hypot(dx, dz);
           while (V.pi < path.length - 1 && d < 0.1) { V.node = q.node; V.pi++; q = path[V.pi]; dx = q.p.x - g.position.x; dz = q.p.z - g.position.z; d = Math.hypot(dx, dz); }
           V.segDoor = q.door;
           for (let k = V.pi; k < Math.min(path.length, V.pi + 2); k++) if (path[k].door) { const D = VAN_DOORS[path[k].door]; D.target = 1; V.opened.add(D); }
           const D = q.door && VAN_DOORS[q.door];
-          if (D && D.k < 0.92 && Math.hypot(g.position.x - D.c.x, g.position.z - D.c.z) < 0.5) {   // cửa chưa mở hẳn: đứng chờ
+          if (D && D.k < 0.92 && Math.hypot(g.position.x - D.c.x, g.position.z - D.c.z) < 0.5) {
             e.vel = 0; engStandStill(e); g.position.y = VAN_FLOOR - ENG_FEET; return false;
           }
           if (V.pi === path.length - 1 && d < 0.012) { e.vel = 0; g.position.x = q.p.x; g.position.z = q.p.z; g.position.y = VAN_FLOOR - ENG_FEET; engStandStill(e); V.node = q.node; return true; }
@@ -8902,16 +8902,16 @@
           const sq = vanSqueeze(e), head = Math.atan2(dx, dz), want = head + 1.3 * sq;
           const dy = Math.atan2(Math.sin(want - g.rotation.y), Math.cos(want - g.rotation.y));
           g.rotation.y += Math.max(-3.4 * dt, Math.min(3.4 * dt, dy * Math.min(1, dt * 9)));
-          const off = Math.abs(Math.atan2(Math.sin(head - g.rotation.y), Math.cos(head - g.rotation.y)));   // thân lệch hướng đi bao nhiêu
+          const off = Math.abs(Math.atan2(Math.sin(head - g.rotation.y), Math.cos(head - g.rotation.y)));
           const vWant = Math.min(0.75 * (1 - 0.55 * sq), Math.sqrt(2 * 0.9 * rem) + 0.06) * (off > 0.6 ? 1 : Math.max(0.35, Math.cos(dy)));
           const v0 = e.vel || 0; e.vel = v0 + Math.max(-2.6 * dt, Math.min(1.8 * dt, vWant - v0));
           const st = Math.min(d, e.vel * dt); g.position.x += dx / d * st; g.position.z += dz / d * st;
           const bob = off > 0.6 ? engSideGait(e, st, Math.min(1, (off - 0.6) / 0.5)) : engGait(e, st);
           g.position.y = VAN_FLOOR - ENG_FEET + (bob - 0.05 * sq) * CAMP_SCALE;
-          e.lean = Math.max(e.lean, 0.13 * sq); e.head.rotation.x = Math.max(e.head.rotation.x, 0.32 * sq);   // khung cửa phòng tắm thấp hơn đỉnh mũ: cúi đầu
+          e.lean = Math.max(e.lean, 0.13 * sq); e.head.rotation.x = Math.max(e.head.rotation.x, 0.32 * sq);
           e.walking = true; return false;
         }
-        function vanGoTo(e, V, node, dt) {   // tới nút trong xe theo đồ thị (đổi đích giữa chừng: quay lại nút vừa qua rồi đi đường mới)
+        function vanGoTo(e, V, node, dt) {
           if (!V.path || V.goal !== node) {
             const back = V.path ? [{ p: VN[V.node], door: V.segDoor, node: V.node }] : [];
             V.path = [...back, ...vanRoute(V.node, node)]; V.pi = 0; V.goal = node;
@@ -8920,7 +8920,7 @@
           if (!vanPathStep(e, V, dt)) return false;
           V.path = null; V.node = node; return true;
         }
-        function vanWalkTo(e, Q, dt, spd = 0.5) {   // bước thẳng vài tấc trong buồng hẹp, dừng đúng điểm
+        function vanWalkTo(e, Q, dt, spd = 0.5) {
           const g = e.g, dx = Q.x - g.position.x, dz = Q.z - g.position.z, dd = Math.hypot(dx, dz);
           if (dd < 0.012) { g.position.x = Q.x; g.position.z = Q.z; g.position.y = VAN_FLOOR - ENG_FEET; engStandStill(e); e.vel = 0; return true; }
           e.vel = Math.min(spd, (e.vel || 0) + 2.0 * dt, Math.sqrt(2 * 0.9 * dd) + 0.04);
@@ -8928,7 +8928,7 @@
           let d = Math.atan2(dx, dz) - g.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); g.rotation.y += Math.max(-3 * dt, Math.min(3 * dt, d * Math.min(1, dt * 8)));
           g.position.y = VAN_FLOOR - ENG_FEET + engGait(e, st) * CAMP_SCALE; e.walking = true; return false;
         }
-        function vanSideStep(e, Q, yaw, dt) {   // bước ngang tới Q, thân giữ hướng yaw (lách giữa ghế đẩu và mép bàn)
+        function vanSideStep(e, Q, yaw, dt) {
           const g = e.g, dx = Q.x - g.position.x, dz = Q.z - g.position.z, d = Math.hypot(dx, dz);
           const dy = Math.atan2(Math.sin(yaw - g.rotation.y), Math.cos(yaw - g.rotation.y)); g.rotation.y += dy * Math.min(1, dt * 8);
           if (d < 0.01) { g.position.x = Q.x; g.position.z = Q.z; g.position.y = VAN_FLOOR - ENG_FEET; engStandStill(e); e.vel = 0; return engPoseSettled(e, yaw); }
@@ -8937,17 +8937,17 @@
           g.position.y = VAN_FLOOR - ENG_FEET + engSideGait(e, st, 1) * CAMP_SCALE; e.walking = true; return false;
         }
         const indoorSeat = (name, x, z, yaw, o = {}) => makeSeat(Object.assign({ name, indoor: true, pos: vanPt(x, 1.07, z), yaw, seatZ: 0, standZ: STUDY_FZ * CAMP_SCALE, contactZ: 0.09,
-          seatDrop: 0.56, legs: [-1.48, -1.44], knees: [0.98, 0.94], arm: null, ground: vanFloor }, o));   // ghế trong xe cao ~0,48 m như ghế bàn học
+          seatDrop: 0.56, legs: [-1.48, -1.44], knees: [0.98, 0.94], arm: null, ground: vanFloor }, o));
         const STOOL_IN = 0.2, STOOL_SEAT = indoorSeat('stool', -0.65, VSTOOL.rest, VY.pz), TABLE_STAND = vanPt(-0.65, 1.07, VSTOOL.rest + STUDY_FZ);
         function stoolAt(z) { VSTOOL.obj.position.z = z - VSTOOL.rest; STOOL_SEAT.pos.copy(vanPt(-0.65, 1.07, z)); }
-        const BED_SEAT = indoorSeat('bed', 0.62, -0.52, VY.pz);                                   // mép đệm, đệm cao 0,49 m
-        const TOILET_SEAT = indoorSeat('toilet', 3.58, -1.07, VY.pz, { standZ: 0.4 * CAMP_SCALE }); // lệch 5 cm về phía cửa cho vai không chạm vách sau
+        const BED_SEAT = indoorSeat('bed', 0.62, -0.52, VY.pz);
+        const TOILET_SEAT = indoorSeat('toilet', 3.58, -1.07, VY.pz, { standZ: 0.4 * CAMP_SCALE });
         const TOILET_STAND = seatW(TOILET_SEAT, 0, TOILET_SEAT.standZ), SHOWER_SPOT = vanPt(3.36, 1.07, -0.6);
-        function engHelmet(e, where) {   // mũ bảo hộ: trên đầu · trên kệ phòng tắm · cuối giường
+        function engHelmet(e, where) {
           e.helmet.visible = where === 'head'; e.hair.visible = where !== 'head';
           VBATH.shelfHelmet.visible = where === 'shelf'; caravanObj.userData.interior.bedHelmet.visible = where === 'bed';
         }
-        function engScootPose(e, C, s, k, dt, t) {   // nhích cả ghế: 3 lần nhổm nhẹ, hai tay nắm hai bên mặt ghế
+        function engScootPose(e, C, s, k, dt, t) {
           s.lam += (0.1 - s.lam) * (1 - Math.exp(-dt * 4)); e.seatCtl = true;
           engSeatPose(e, C, 0, C.seatZ, C.hipSeat + 0.014 * Math.max(0, Math.sin(Math.PI * 3 * k)), s.lam, 0, null, 0, t);
           const rt = e.armRollT || (e.armRollT = [0, 0]); for (let i = 0; i < 2; i++) { e.arms[i].rotation.x = 0.12; rt[i] = (i ? 1 : -1) * 0.22; }
@@ -8955,10 +8955,10 @@
         }
         const engNewSeat = (C, st) => ({ C, st, k: st === 'seated' ? 1 : 0, li: 0, lam: 0, sw: 0 });
 
-        const stDesk = { node: 'mid', tick(e, V, dt, t, keep) {   // bàn học: nghiên cứu ban ngày · học bài nghe nhạc buổi tối
+        const stDesk = { node: 'mid', tick(e, V, dt, t, keep) {
           const g = e.g, P = engStudyPts, C = STUDY_SEAT, off = studyChairRig.off;
           const face = (dx, dz, k = 8) => { let d = Math.atan2(dx, dz) - g.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); g.rotation.y += d * Math.min(1, dt * k); };
-          const walkIn = (Q, spd = 0.85) => {   // đi trong xe: thẳng tới điểm
+          const walkIn = (Q, spd = 0.85) => {
             const dx = Q.x - g.position.x, dz = Q.z - g.position.z, dd = Math.hypot(dx, dz);
             if (dd < 0.03) { g.position.y = VAN_FLOOR - ENG_FEET; engStandStill(e); e.vel = 0; return true; }
             e.vel = Math.min(spd, (e.vel || 0) + 2.4 * dt, dd * 1.6 + 0.05);
@@ -8967,7 +8967,7 @@
           };
           const vp = (x, z) => vanPt(x, 1.07, z);
           const backPt = o => vp(P.cx, P.cz + o + 0.52), leftBack = o => vp(P.cx - 0.57, P.cz + o + 0.52), leftFront = o => vp(P.cx - 0.57, P.cz + o - STUDY_FZ), standPt = o => vp(P.cx, P.cz + o - STUDY_FZ);
-          const drag = (from, to, fwd) => {   // nắm đỉnh tựa lưng: kéo ghế ra (lùi bước) / đẩy ghế vào (tiến bước)
+          const drag = (from, to, fwd) => {
             V.k = Math.min(1, V.k + dt / 1.6);
             const o2 = from + (to - from) * minJerk(segK(V.k, 0.18, 0.92)), grip = minJerk(segK(V.k, 0, 0.2)) * (1 - minJerk(segK(V.k, 0.9, 1)));
             const tg = backPt(o2), st = Math.hypot(tg.x - g.position.x, tg.z - g.position.z);
@@ -8978,7 +8978,7 @@
             studyChairAt(o2); return V.k >= 1;
           };
           if (!V.st) V.st = off > 0.4 ? 'aroundL' : 'toBack';
-          if (!keep) {   // việc khác: chưa kịp ngồi thì quay ra (ghế đã kéo thì đẩy vào), đang ngồi thì nhích ghế ra rồi đứng dậy
+          if (!keep) {
             if (V.st === 'toBack') return 'released';
             if (V.st === 'aroundL' || V.st === 'aroundF') V.st = 'outB';
             else if (V.st === 'toStand' || V.st === 'turn') V.st = 'outF';
@@ -8987,12 +8987,12 @@
           if (V.st === 'toBack') { if (walkIn(backPt(off), 0.6)) { V.st = 'pull'; V.k = 0; V.dragFrom = off; } }
           else if (V.st === 'pull') { if (drag(V.dragFrom, STUDY_PULL, false)) V.st = keep ? 'aroundL' : 'push0'; }
           else if (V.st === 'push0') { V.st = 'push'; V.k = 0; V.dragFrom = off; }
-          else if (V.st === 'aroundL') { if (walkIn(leftBack(off), 0.6)) V.st = 'aroundF'; }   // vòng bên trái ghế (phía đuôi giường)
+          else if (V.st === 'aroundL') { if (walkIn(leftBack(off), 0.6)) V.st = 'aroundF'; }
           else if (V.st === 'aroundF') { if (walkIn(leftFront(off), 0.6)) V.st = 'toStand'; }
-          else if (V.st === 'toStand') { if (walkIn(standPt(off), 0.45)) V.st = 'turn'; }   // đi ngang vào khoảng trước mặt ghế
+          else if (V.st === 'toStand') { if (walkIn(standPt(off), 0.45)) V.st = 'turn'; }
           else if (V.st === 'turn') { if (engSeatTurn(e, P.yaw, dt, vanFloor)) { e.seat = engNewSeat(C, 'sit'); engSeatStartSit(e, C, e.seat); V.st = 'sit'; } }
           else if (V.st === 'sit') { e.seatCtl = true; if (engSitStep(e, C, e.seat, dt, t)) { e.seat.st = 'seated'; V.st = 'scoot'; V.k = 0; } }
-          else if (V.st === 'scoot' || V.st === 'unscoot') {   // nhích cả ghế vào sát bàn · hết giờ: nhích ra để còn chỗ đứng dậy
+          else if (V.st === 'scoot' || V.st === 'unscoot') {
             V.k = Math.min(1, V.k + dt / 2.2); const m = minJerk(V.k), into = V.st === 'scoot';
             studyChairAt(into ? STUDY_PULL * (1 - m) : 0.5 * m); engScootPose(e, C, e.seat, V.k, dt, t);
             if (V.k >= 1) { if (into) V.st = 'work'; else { engSeatStartRise(e, C, e.seat); V.st = 'rise'; } }
@@ -9000,14 +9000,14 @@
           else if (V.st === 'work') {
             e.seatCtl = true; engSeatHold(e, C, e.seat, dt, t);
             const rt = e.armRollT || (e.armRollT = [0, 0]), sipT = (t + V.ph * 3.1) % 190;
-            if (sipT < 7.4) engCokeSip(e, sipT, t, rt);   // ~3 phút một lần: uống coke
-            else if (e.act === 'music') {   // học bài với nhạc: gật gù theo nhịp ~87 bpm, lắc nhẹ đầu; mỗi 30 s ngả lưng gõ nhịp lên mép bàn
+            if (sipT < 7.4) engCokeSip(e, sipT, t, rt);
+            else if (e.act === 'music') {
               const beat = t * Math.PI * 2 * 1.45, cyc = (t + V.ph) % 30, rel = cyc > 21;
               e.seatLean = rel ? -0.07 : 0.09; e.headRollT = Math.sin(beat / 2) * 0.07;
               e.head.rotation.x = (rel ? 0.02 : 0.22) + Math.sin(beat) * 0.06;
               if (rel) { e.arms[0].rotation.x = -0.95 + Math.max(0, Math.sin(beat)) * 0.14; e.arms[1].rotation.x = -0.95 + Math.max(0, Math.sin(beat + Math.PI)) * 0.14; }
               else { const tap = (t % 6) < 3.8 ? 0.05 : 0; e.arms[0].rotation.x = -1.1 + Math.sin(t * 11) * tap; e.arms[1].rotation.x = -1.1 + Math.sin(t * 11 + 1.7) * tap; }
-            } else {   // nghiên cứu: gõ phím, thỉnh thoảng ngả lưng nhìn màn hình suy nghĩ; ~7 phút vươn vai 1 lần, ~1 phút đan tay sau gáy 1 lần
+            } else {
               const cyc = (t + V.ph) % 400, cyc2 = (t + V.ph * 0.7) % 63;
               if (cyc < 5.5) {
                 const k = Math.min(1, Math.sin(Math.PI * cyc / 5.5) * 1.6);
@@ -9032,7 +9032,7 @@
           else if (V.st === 'toAisle') { if (walkIn(P.aisle)) return 'released'; }
           return 'busy';
         } };
-        const stTable = { node: 'tbl', tick(e, V, dt, t, keep) {   // bàn vuông: lách vào giữa ghế đẩu và mép bàn → ngồi → nhích ghế vào → ăn (sáng: ngũ cốc + cà phê · trưa: udon) → ăn xong cầm bát đứng dậy
+        const stTable = { node: 'tbl', tick(e, V, dt, t, keep) {
           const C = STOOL_SEAT, s = e.seat, meal = e.act === 'lunch' ? 'udon' : 'cereal', H = e.hold;
           if (!V.st) V.st = 'face';
           if (V.st === 'face') { if (!keep) return 'released'; if (engSeatTurn(e, VY.pz, dt, vanFloor)) V.st = 'in'; }
@@ -9048,11 +9048,11 @@
             const into = V.st === 'scoot'; V.k = Math.min(1, V.k + dt / 2.0); const m = minJerk(V.k);
             stoolAt(into ? VSTOOL.rest + (STOOL_IN - VSTOOL.rest) * m : STOOL_IN + (VSTOOL.rest - STOOL_IN) * m); engScootPose(e, C, s, V.k, dt, t);
             if (V.k >= 1) {
-              if (into) {   // đặt bát lên bàn: bát udon bưng từ bếp sang · bữa sáng bày sẵn bát ngũ cốc
+              if (into) {
                 if (!e.dish || e.dish.kind !== meal) e.dish = { kind: meal, food: 1 };
                 e.dish.at = 'table'; V.st = 'eat'; V.t0 = clock.elapsedTime; V.f0 = e.dish.food || 1;
                 V.dur = Math.max(90, Math.min(meal === 'udon' ? 900 : 720, e.actLeft - 150));
-              } else { if (e.dish && e.dish.at === 'table') e.dish.at = 'hand'; engSeatStartRise(e, C, s); V.st = 'rise'; }   // cầm bát theo
+              } else { if (e.dish && e.dish.at === 'table') e.dish.at = 'hand'; engSeatStartRise(e, C, s); V.st = 'rise'; }
             }
           }
           else if (V.st === 'eat') {
@@ -9061,28 +9061,28 @@
             if (!keep || k >= 1) { V.st = 'unscoot'; V.k = 0; }
             else {
               e.seatCtl = true;
-              if (meal === 'udon') {   // ~22 s nâng bát hai tay húp nước dùng (giữ dáng cũ), còn lại gắp đũa bằng IK
+              if (meal === 'udon') {
                 const ct = (t + V.ph * 1.7) % 22, sip = ct < 3.3 ? Math.sin(Math.PI * ct / 3.3) : 0, rt = e.armRollT || (e.armRollT = [0, 0]);
                 if (sip > 0.05) { H.sip = true; H.chop = false; e.seatLean = 0.12; engSeatHold(e, C, s, dt, t); e.arms[0].rotation.x = e.arms[1].rotation.x = -0.75 - sip * 0.85; rt[0] = 0.3 * sip; rt[1] = -0.3 * sip; e.head.rotation.x = 0.1 - sip * 0.25; }
                 else { H.sip = false; engEatAtTable(e, t, V.ph, 'udon'); engSeatHold(e, C, s, dt, t); }
-              } else { engEatAtTable(e, t, V.ph, 'cereal'); engSeatHold(e, C, s, dt, t); }   // ngũ cốc: thìa + cốc cà phê, IK tay theo điểm thật (engineer/meal-read.js)
+              } else { engEatAtTable(e, t, V.ph, 'cereal'); engSeatHold(e, C, s, dt, t); }
             }
           }
           else if (V.st === 'rise') { e.seatCtl = true; if (engRiseStep(e, C, s, dt, t)) { e.seat = null; V.st = 'out'; } }
           return 'busy';
         } };
-        const stBed = { node: 'bed', tick(e, V, dt, t, keep) {   // mép giường: 20:57 ngồi tháo mũ chờ giờ ngủ · 06:00 vừa dậy ngồi vươn vai rồi đứng lên
+        const stBed = { node: 'bed', tick(e, V, dt, t, keep) {
           const C = BED_SEAT, s = e.seat;
           if (!V.st) V.st = 'face';
           if (V.st === 'face') { if (!keep) return 'released'; if (engSeatTurn(e, VY.pz, dt, vanFloor)) { e.seat = engNewSeat(C, 'sit'); engSeatStartSit(e, C, e.seat); V.st = 'sit'; } }
           else if (V.st === 'sit') { e.seatCtl = true; if (engSitStep(e, C, s, dt, t)) { s.st = 'seated'; V.st = 'seated'; V.k = 0; } }
           else if (V.st === 'seated') {
             V.k += dt; e.seatCtl = true; e.seatLean = 0.12; engSeatHold(e, C, s, dt, t);
-            if (V.k < 0) {   // vừa thức: vươn vai, ngáp
+            if (V.k < 0) {
               const k = Math.min(1, Math.sin(Math.PI * Math.min(1, (V.k + 6) / 4.5)) * 1.5);
               e.seatLean = 0.12 - 0.2 * k; e.arms[0].rotation.x = e.arms[1].rotation.x = -0.5 - 2.4 * k; e.head.rotation.x = 0.15 - 0.4 * k;
             } else {
-              const lift = segK(V.k, 0.6, 1.4) * (1 - segK(V.k, 1.9, 2.8));   // tháo mũ bảo hộ đặt cuối giường
+              const lift = segK(V.k, 0.6, 1.4) * (1 - segK(V.k, 1.9, 2.8));
               e.arms[0].rotation.x = e.arms[1].rotation.x = -0.55 - lift * 2.2; e.head.rotation.x = 0.2 - lift * 0.15;
               if (keep && V.k > 1.5 && e.helmet.visible) engHelmet(e, 'bed');
               if (!keep && V.k > 0) { if (!e.helmet.visible) engHelmet(e, 'head'); engSeatStartRise(e, C, s); V.st = 'rise'; }
@@ -9091,8 +9091,8 @@
           else if (V.st === 'rise') { e.seatCtl = true; if (engRiseStep(e, C, s, dt, t)) { e.seat = null; return 'released'; } }
           return 'busy';
         } };
-        const ENG_WC_SIT = 30, ENG_SHOWER_WASH = 45, ENG_TOWEL_DRY = 35;   // G 13/10: ngồi WC đúng 30 s · G 14/10: cả việc tắm (rửa chảo + tắm + lau + đội mũ) 3 phút ⇒ nước chảy 45 s, lau khô 35 s
-        const stWc = { node: 'wcIn', tick(e, V, dt, t, keep) {   // buồng WC: lật nắp → quay lưng → ngồi (khuỷu tì đùi) → đứng dậy → đậy nắp, bấm xả → ra
+        const ENG_WC_SIT = 30, ENG_SHOWER_WASH = 45, ENG_TOWEL_DRY = 35;
+        const stWc = { node: 'wcIn', tick(e, V, dt, t, keep) {
           const C = TOILET_SEAT, s = e.seat;
           if (!V.st) V.st = 'go';
           if (!keep && (V.st === 'go' || V.st === 'face')) { LID.target = 0; V.st = 'back'; }
@@ -9119,7 +9119,7 @@
           else if (V.st === 'back') { if (vanWalkTo(e, VN.wcIn, dt, 0.4)) return 'released'; }
           return 'busy';
         } };
-        const stSink = { node: 'sink', tick(e, V, dt, t, keep) {   // lavabo: mở vòi, xoa tay, tắt vòi, liếc gương, vẩy tay
+        const stSink = { node: 'sink', tick(e, V, dt, t, keep) {
           if (!V.st) V.st = 'face';
           if (V.st === 'face') { if (engSeatTurn(e, VY.pz, dt, vanFloor)) { V.st = 'wash'; V.k = 0; } }
           else {
@@ -9133,7 +9133,7 @@
           }
           return 'busy';
         } };
-        const stShelf = on => ({ node: 'shelf', tick(e, V, dt, t, keep) {   // kệ cạnh cửa phòng tắm: tháo mũ đặt lên kệ / lấy mũ trên kệ đội lại
+        const stShelf = on => ({ node: 'shelf', tick(e, V, dt, t, keep) {
           if (!V.st) V.st = 'face';
           if (V.st === 'face') { if (!keep && !on) return 'released'; if (engSeatTurn(e, VY.nx, dt, vanFloor)) { V.st = 'do'; V.k = 0; } }
           else {
@@ -9147,7 +9147,7 @@
           }
           return 'busy';
         } });
-        const stShower = { node: 'wcIn', tick(e, V, dt, t, keep) {   // vòi sen: mở nước → gội đầu, kỳ tay, ngửa mặt hứng nước → tắt nước, vẩy đầu → ra
+        const stShower = { node: 'wcIn', tick(e, V, dt, t, keep) {
           if (!V.st) V.st = 'go';
           if (!keep) { if (V.st === 'go' || V.st === 'face') V.st = 'back'; else if (V.st === 'wash') { V.st = 'tapOff'; V.k = 0; } }
           if (V.st === 'go') { if (vanWalkTo(e, SHOWER_SPOT, dt, 0.4)) V.st = 'face'; }
@@ -9173,7 +9173,7 @@
           else if (V.st === 'back') { if (vanWalkTo(e, VN.wcIn, dt, 0.4)) return 'released'; }
           return 'busy';
         } };
-        const stTowel = { node: 'towel', tick(e, V, dt, t, keep) {   // khăn trên vách WC: lấy khăn vắt cổ → lau tóc, lau mặt → treo khăn lại
+        const stTowel = { node: 'towel', tick(e, V, dt, t, keep) {
           if (!V.st) V.st = 'face';
           if (!keep && V.st === 'dry') { V.st = 'hang'; V.k = 0; }
           if (V.st === 'face') { if (!keep && !e.towel.visible) return 'released'; if (engSeatTurn(e, VY.nz, dt, vanFloor)) { V.st = e.towel.visible ? 'hang' : 'take'; V.k = 0; } }
@@ -9185,8 +9185,8 @@
           }
           else {
             V.k += dt;
-            if (V.k < ENG_TOWEL_DRY * 0.6) { e.arms[0].rotation.x = -2.55 + Math.sin(t * 8) * 0.18; e.arms[1].rotation.x = -2.55 - Math.sin(t * 8) * 0.18; e.head.rotation.x = 0.25; e.headRollT = Math.sin(t * 2.2) * 0.12; }   // lau tóc
-            else { e.arms[0].rotation.x = -1.9 + Math.sin(t * 6) * 0.15; e.arms[1].rotation.x = -1.6; e.head.rotation.x = -0.1; }   // lau mặt
+            if (V.k < ENG_TOWEL_DRY * 0.6) { e.arms[0].rotation.x = -2.55 + Math.sin(t * 8) * 0.18; e.arms[1].rotation.x = -2.55 - Math.sin(t * 8) * 0.18; e.head.rotation.x = 0.25; e.headRollT = Math.sin(t * 2.2) * 0.12; }
+            else { e.arms[0].rotation.x = -1.9 + Math.sin(t * 6) * 0.15; e.arms[1].rotation.x = -1.6; e.head.rotation.x = -0.1; }
             if (V.k > ENG_TOWEL_DRY) { V.st = 'hang'; V.k = 0; }
           }
           return 'busy';
@@ -9194,44 +9194,44 @@
         const VKIT = caravanObj.userData.interior.kitchen, VCEREAL = caravanObj.userData.interior.cerealBowl, VTUDON = caravanObj.userData.interior.tableUdon;
         VKIT.stovePan.userData.home = VKIT.stovePan.position.clone(); VKIT.pot.userData.home = VKIT.pot.position.clone();
         const _ckP = VKIT.pot.parent, _ckT = [new THREE.Vector3(), new THREE.Vector3()], _ckA = new THREE.Vector3(), _ckB = new THREE.Vector3(), _ckE = new THREE.Vector3(), _ckL = new THREE.Vector3();
-        const ckW = (x, y, z, out) => _ckP.localToWorld(out.set(x, y, z));   // toạ độ bếp (mặt tủ x≈2,40, vách 2,97, mặt đá y 1,865) → thế giới
+        const ckW = (x, y, z, out) => _ckP.localToWorld(out.set(x, y, z));
         const ckS = (u, a, b) => { const k = Math.max(0, Math.min(1, (u - a) / (b - a))); return k * k * (3 - 2 * k); };
-        function ckHand(e, i, p, w = 1) {   // tay i (0 phải, 1 trái) với tới p (thế giới); w < 1: đi dần từ chỗ buông cạnh hông
+        function ckHand(e, i, p, w = 1) {
           const R = e.reachT || (e.reachT = [null, null]);
           if (w <= 0.02) { R[i] = null; return; }
           if (w < 1) p = engBodyW(e, i ? 0.3 : -0.3, 1.2, 0.15, _ckA).lerp(p, w);
           R[i] = _ckT[i].copy(p);
         }
-        function ckLook(e, p, w = 1) {   // cúi / ngẩng đầu nhìn điểm p (trừ phần thân đã cúi)
+        function ckLook(e, p, w = 1) {
           e.head.getWorldPosition(_ckE); const want = Math.atan2(_ckE.y + 0.15 - p.y, Math.max(0.12, Math.hypot(p.x - _ckE.x, p.z - _ckE.z))) - (e.lean || 0) * 1.1;
           e.head.rotation.x += (Math.max(-0.35, Math.min(0.75, want)) - e.head.rotation.x) * w;
         }
-        function setFood(food, k, drop) {   // phần thức ăn vơi dần: thu nhỏ + hạ mặt nước dùng / sữa
+        function setFood(food, k, drop) {
           if (food.userData.y0 === undefined) food.userData.y0 = food.position.y;
           food.visible = k > 0.04; if (!food.visible) return;
           const s = 0.55 + 0.45 * k; food.scale.set(s, 0.5 + 0.5 * k, s); food.position.y = food.userData.y0 - (1 - k) * drop;
         }
-        function engCokeSip(e, k, t, rt) {   // k: giây trong lượt uống (0 → 7,4)
+        function engCokeSip(e, k, t, rt) {
           const ease = (a, b, q) => a + (b - a) * minJerk(Math.max(0, Math.min(1, q)));
           let ax, roll;
-          if (k < 1.0) { ax = ease(-1.1, -0.95, k); roll = ease(0, 0.35, k); }                        // với ra góc bàn
-          else if (k < 1.3) { ax = -0.95; roll = 0.35; }                                               // nắm lon
+          if (k < 1.0) { ax = ease(-1.1, -0.95, k); roll = ease(0, 0.35, k); }
+          else if (k < 1.3) { ax = -0.95; roll = 0.35; }
           else if (k < 2.4) { ax = ease(-0.95, -2.25, (k - 1.3) / 1.1); roll = ease(0.35, -0.2, (k - 1.3) / 1.1); }
-          else if (k < 5.2) { ax = -2.25 + Math.sin(t * 6) * 0.03; roll = -0.2; }                     // uống 2–3 ngụm
+          else if (k < 5.2) { ax = -2.25 + Math.sin(t * 6) * 0.03; roll = -0.2; }
           else if (k < 6.3) { ax = ease(-2.25, -0.95, (k - 5.2) / 1.1); roll = ease(-0.2, 0.35, (k - 5.2) / 1.1); }
-          else { ax = ease(-0.95, -1.1, (k - 6.3) / 1.1); roll = ease(0.35, 0, (k - 6.3) / 1.1); }     // tay về bàn phím
+          else { ax = ease(-0.95, -1.1, (k - 6.3) / 1.1); roll = ease(0.35, 0, (k - 6.3) / 1.1); }
           e.arms[1].rotation.x = ax; rt[1] = roll; e.arms[0].rotation.x = -1.05;
           const drink = k < 1.3 ? 0 : k < 2.4 ? (k - 1.3) / 1.1 : k < 5.2 ? 1 : k < 6.3 ? 1 - (k - 5.2) / 1.1 : 0;
           e.head.rotation.x = 0.15 - 0.5 * minJerk(drink) + (k > 2.4 && k < 5.2 ? Math.sin(t * 6) * 0.02 : 0);
           e.seatLean = 0.06 - 0.1 * minJerk(drink);
           e.hold.coke = k > 1.15 && k < 6.2;
         }
-        function engHandCoke(e) {   // lon coke cầm tay trái: tâm lon ở lòng bàn tay chữ C
+        function engHandCoke(e) {
           const holder = new THREE.Group(); holder.name = 'Lon coke cầm tay'; holder.position.set(0, -0.69, 0.05); holder.rotation.x = 0.95; holder.visible = false;
           const k = 1.155 / ENGINEER_BASE_SCALE, can = sodaCan(); can.scale.setScalar(k); can.position.y = -0.058 * k; holder.add(can);
           e.arms[1].add(holder); e.props.coke = holder; return holder;
         }
-        function engDishShow(e) {   // mỗi món chỉ hiện đúng một chỗ (bàn, mặt đá, bếp, bàn trà, trên tay)
+        function engDishShow(e) {
           const D = e.dish, H = e.hold || {}, at = D ? D.at : null, f = D ? D.food : 0, K = VKIT;
           VCEREAL.visible = at === 'table' && D.kind === 'cereal'; if (VCEREAL.visible) setFood(VCEREAL.userData.food, f, 0.012);
           VTUDON.visible = at === 'table' && D.kind === 'udon' && !H.sip; if (VTUDON.visible) setFood(VTUDON.userData.food, f, 0.022);
@@ -9241,13 +9241,13 @@
           if (campPanRig) { campPanRig.pan.visible = at === 'camp'; if (campPanRig.pan.visible) setFood(campPanRig.food, f, 0); }
         }
         const ventTop = new THREE.Vector3(), ventSmoke = (() => {
-          const vs = caravanObj.getWorldScale(new THREE.Vector3()).y;   // ống: r 4,5 cm · khe 3 cm · nón r 9,5 cm cao 7 cm (toạ độ xe × tỉ lệ xe)
+          const vs = caravanObj.getWorldScale(new THREE.Vector3()).y;
           const S = fluids.addSmoke({ NR: 40, NZ: 120, H: 0.02 * vs, NP: 400, NS: 0, NT: 14, buoy: 4, kNu: 0.03, nu0: 0.002, tauT: 5, iters: 30, dens: 1.3,
             inlet: { r: 0.045 * vs }, lid: { r: 0.095 * vs, z0: 0.03 * vs, z1: 0.1 * vs } }, { name: 'Khói ống bếp (sợi khói Navier–Stokes)', opacity: 0.75 });
           S.on = false; return S;
         })();
         let ventRun = 0; const _usA = new THREE.Vector3(), _usS = new THREE.Vector3();
-        function udonSteam(t, bowl, heat) {   // hơi nóng tô udon: 4 cụm nhỏ bốc THẲNG LÊN (trục đứng thế giới, kể cả lúc bát nghiêng trên tay), uốn lượn, nở to, nhạt dần; nguội dần khi ăn
+        function udonSteam(t, bowl, heat) {
           const S = bowl && bowl.userData.steam; if (!S) return; const on = bowl.visible && heat > 0.03;
           if (on) { bowl.updateWorldMatrix(true, false); bowl.getWorldScale(_usS); }
           for (const p of S) {
@@ -9257,9 +9257,9 @@
             p.m.position.copy(bowl.worldToLocal(_usA)); p.m.scale.setScalar(0.55 + k * 1.7); p.m.material.opacity = 0.2 * heat * Math.sin(Math.PI * k);
           }
         }
-        function kitchenTick(dt, t) {   // lửa ga nhảy nhẹ · hơi nước bốc từ nồi · quạt hút + khói ống khói
+        function kitchenTick(dt, t) {
           VKIT.flames.forEach((f, i) => { if (!f.visible) return; const k = 1 + Math.sin(t * 23 + i * 1.7) * 0.05 + Math.sin(t * 37 + i) * 0.04; f.scale.set(k, 1 + Math.sin(t * 29 + i * 2.3) * 0.35, k); });
-          const st = VKIT.steam, ud = engObj && engObj.dish && engObj.dish.kind === 'udon' ? 0.35 + 0.65 * engObj.dish.food : 1;   // tô càng vơi (ăn lâu) càng nguội, ít hơi
+          const st = VKIT.steam, ud = engObj && engObj.dish && engObj.dish.kind === 'udon' ? 0.35 + 0.65 * engObj.dish.food : 1;
           for (const b of [VKIT.counterBowl, VTUDON, engObj && engObj.props.handBowl]) udonSteam(t, b, ud);
           for (const p of VKIT.potSteam) {
             p.m.visible = st > 0.02; if (!p.m.visible) continue;
@@ -9269,19 +9269,19 @@
           const lit = VKIT.flames.some(f => f.visible), fry = lit && VKIT.stovePan.visible && VKIT.stovePan.userData.food.visible;
           ventRun = lit ? 25 : Math.max(0, ventRun - dt);
           VKIT.hoodLamp.material.color.setHex(ventRun > 0 ? 0xfff1c9 : 0x8a8578);
-          const heat = lit ? Math.max(0.35, st, fry ? 1 : 0) : 0.12 * ventRun / 25;   // còn hơi trong ống sau khi tắt lửa
-          const VS = ventSmoke; VS.on = heat > 0.01;   // khói ống bếp theo độ nóng: nhiệt, lượng khói, sức đẩy quạt hút; màu hơi trắng → khói dầu xám khi chiên
+          const heat = lit ? Math.max(0.35, st, fry ? 1 : 0) : 0.12 * ventRun / 25;
+          const VS = ventSmoke; VS.on = heat > 0.01;
           if (VS.on) { caravanObj.localToWorld(VS.base.copy(caravanObj.userData.chimneyTop)); VS.base.y -= 0.02 * caravanObj.getWorldScale(ventTop).y;
-            VS.heat = 0.8 + 0.5 * heat; VS.smoke = 1 + 0.5 * heat; VS.rate = 0.25 + 0.6 * heat;   // khí thải qua quạt hút còn nóng, đặc hơi + khói dầu VS.draft = 0.9 + 1.1 * Math.min(1, heat * 2);
+            VS.heat = 0.8 + 0.5 * heat; VS.smoke = 1 + 0.5 * heat; VS.rate = 0.25 + 0.6 * heat;
             plumeLight(VS, _plumeSmokeC.copy(PLUME_COL.steam).lerp(PLUME_COL.smoke, fry ? 0.6 : 0.1), PLUME_COL.steam, _plumeGlow.setRGB(0, 0, 0)); }
         }
-        function engSay(label, text) {   // nảy ý ngay khi có sự việc (múc xong udon…): dùng chung đám mây suy nghĩ
+        function engSay(label, text) {
           const now = Date.now(), ctx = engContext(now);
           const tp = Number.isFinite(ctx.temp) ? ' · ' + ctx.wxIcon + ' ' + ctx.temp.toLocaleString('vi-VN', { maximumFractionDigits: 0 }) + '°' : '';
           checkBubbleSprite.userData.thought = { header: ctx.slotIcon + ' ' + ctx.slotName + ' · ' + clockText(ctx.h) + ' · ' + label + tp, message: text, kind: 'event', slot: ctx.slot, tags: [...ctx.tags], revision: ++thoughtRevision };
           thoughtUntil = now + 14000; idleThoughtAt = Math.max(idleThoughtAt, now + 60000);
         }
-        function kitchenReset() {   // tắt lửa, đổ nước nồi, dao về móc (bỏ dở việc nấu / đi ngủ)
+        function kitchenReset() {
           for (const f of VKIT.flames) f.visible = false;
           for (const k of VKIT.knobs) k.rotation.x = 0;
           VKIT.potWater.visible = VKIT.potNoodles.visible = VKIT.tapWater.visible = false; VKIT.steam = 0; VKIT.pegKnife.visible = true;
@@ -9289,36 +9289,36 @@
           VKIT.pot.position.copy(VKIT.pot.userData.home); VKIT.pot.rotation.set(0, 0, 0);
           VKIT.stovePan.position.copy(VKIT.stovePan.userData.home); VKIT.stovePan.rotation.set(0, Math.PI, 0);
         }
-        const stStove = { node: 'stove', tick(e, V, dt, t, keep) {   // bếp ga: trưa luộc udon (nồi họng sau–trái, thái hành trên thớt) · chiều chiên cơm trứng (chảo họng trước–trái)
+        const stStove = { node: 'stove', tick(e, V, dt, t, keep) {
           const K = VKIT, H = e.hold, rt = e.armRollT || (e.armRollT = [0, 0]), now = clock.elapsedTime, POT = 1, PAN = 0, TOP = K.TOP;
           if (!V.st) {
             V.recipe = liveWeather.localHour < 14 ? 'udon' : 'rice';
             V.T = V.recipe === 'udon' ? Math.max(420, Math.min(1320, e.actLeft - 100)) : Math.max(300, Math.min(840, e.actLeft - 100));
             V.st = V.recipe === 'udon' ? 'face' : 'toPeg'; V.chopped = false;
           }
-          if (!keep && !['take', 'garnish'].includes(V.st)) {   // bỏ dở (nhảy giờ): tắt bếp, dọn, chảo về móc
+          if (!keep && !['take', 'garnish'].includes(V.st)) {
             kitchenReset(); if (e.dish && e.dish.kind === 'pan') e.dish = null; if (e.dish && e.dish.at === 'counter') e.dish = null; return 'released';
           }
-          if (!/^(to|back)|Face$|^face$/.test(V.st)) e.armsBusy = true;   // đi lại / quay người: tay để lớp dáng đi (bưng chảo nếu đang cầm)
-          const knob = (k, on, i) => {   // tay phải với xuống núm ga ở mép trước mặt bếp, vặn ¼ vòng (gập eo, cúi nhìn núm)
+          if (!/^(to|back)|Face$|^face$/.test(V.st)) e.armsBusy = true;
+          const knob = (k, on, i) => {
             const r = ckS(k, 0, 0.55) * (1 - ckS(k, 1.05, 1.5)), kn = K.knobs[i];
             ckHand(e, 0, ckW(2.315, 1.805, kn.position.z, _ckB), r); e.lean = 0.3 * r; ckLook(e, kn.getWorldPosition(_ckL), r);
             const turn = ckS(k, 0.55, 0.85); kn.rotation.x = -1.4 * (on ? turn : 1 - turn);
             if (k > 0.7) K.flames[i].visible = on;
           };
           const lookAt = x => ckLook(e, x === 'pan' ? K.stovePan.getWorldPosition(_ckL) : K.pot.getWorldPosition(_ckL), 1);
-          const brace = (what) => {   // chờ: hai tay chống mép mặt đá / viền bếp, cúi nhìn nồi (chảo)
+          const brace = (what) => {
             ckHand(e, 1, ckW(2.43, TOP + 0.035, 0.2, _ckB)); ckHand(e, 0, ckW(2.43, TOP + 0.035, 0.93, _ckA.clone()));
             e.lean = 0.1 + 0.05 * Math.max(0, Math.sin(t * 0.3)); lookAt(what);
           };
-          const reachPeg = (k, i, lx, ly, lz) => {   // với lên móc trên bảng đục lỗ (dao / chảo)
+          const reachPeg = (k, i, lx, ly, lz) => {
             const r = ckS(k, 0, 0.7) * (1 - ckS(k, 1.0, 1.5)), p = ckW(lx, ly, lz, _ckB);
             ckHand(e, i, p, r); ckLook(e, p, r); e.lean = -0.04 * r; return r;
           };
           switch (V.st) {
             case 'face': if (engSeatTurn(e, VY.pz, dt, vanFloor)) { V.st = 'on'; V.k = 0; } break;
             case 'on': V.k += dt; knob(V.k, true, POT); if (V.k > 0.7) { K.potWater.visible = true; K.potWater.material.color.set(0x9cc7d8); } if (V.k > 1.6) { V.st = 'boil'; V.t0 = now; V.boilDur = V.T * 0.4; } break;
-            case 'boil': {   // chờ nước sôi: tay chống mép bếp, nhìn nồi; giữa chừng sang thớt thái hành
+            case 'boil': {
               const p = (now - V.t0) / V.boilDur; K.steam = Math.min(1, p * 1.3); brace('pot');
               if (!V.chopped && p > 0.3) V.st = 'toBoard';
               else if (p >= 1) { V.st = 'noodles'; V.k = 0; }
@@ -9327,7 +9327,7 @@
             case 'toBoard': if (vanWalkTo(e, VN.board, dt, 0.45)) V.st = 'boardFace'; break;
             case 'boardFace': if (engSeatTurn(e, VY.pz, dt, vanFloor)) { V.st = 'knifeTake'; V.k = 0; } break;
             case 'knifeTake': V.k += dt; reachPeg(V.k, 0, 2.87, 2.165, -0.19); if (V.k > 0.75) K.pegKnife.visible = false; H.knife = V.k > 0.75; if (V.k > 1.4) { V.st = 'chop'; V.k = 0; } break;
-            case 'chop': {   // thái hành lá: tay trái giữ bó hành, lùi dần về phía dao; dao lên xuống ~3 nhát/giây ngay sát ngón
+            case 'chop': {
               V.k += dt; H.knife = true; const prog = Math.min(1, V.k / 40), n = Math.floor(prog * K.scallions.length), r = ckS(V.k, 0, 0.6);
               K.scallions.forEach((s, i) => { s.visible = i < n; });
               const cut = Math.max(0, Math.sin(t * 19));
@@ -9340,7 +9340,7 @@
             case 'knifeBack': V.k += dt; reachPeg(V.k, 0, 2.87, 2.165, -0.19); H.knife = V.k < 0.75; if (V.k > 0.75) K.pegKnife.visible = true; if (V.k > 1.4) { V.chopped = true; V.st = 'backStove'; } break;
             case 'backStove': if (vanWalkTo(e, VN.stove, dt, 0.45)) V.st = 'backFace'; break;
             case 'backFace': if (engSeatTurn(e, VY.pz, dt, vanFloor)) V.st = 'boil'; break;
-            case 'noodles': {   // hai tay đưa nắm udon tới trên miệng nồi, thả vào nước sôi
+            case 'noodles': {
               V.k += dt; const r = ckS(V.k, 0, 0.8) * (1 - ckS(V.k, 1.6, 2.4)), c = K.pot.getWorldPosition(_ckL);
               ckHand(e, 0, _ckB.copy(c).add(_ckA.set(0, 0.2, 0)).addScaledVector(ckW(0, 0, 1, _ckE).sub(ckW(0, 0, 0, _ckA)), 0.05), r);
               ckHand(e, 1, ckW(2.74, 2.09, 0.38, _ckA.clone()), r); e.lean = 0.2 * r; lookAt('pot');
@@ -9348,7 +9348,7 @@
               if (V.k > 2.5) { V.st = 'stir'; V.t0 = now; V.stirDur = V.T * 0.5; }
               break;
             }
-            case 'stir': {   // đũa dài đảo sợi vòng tròn trong nồi cho khỏi dính; ~30 s nghỉ tay một lần
+            case 'stir': {
               K.steam = 1; const rest = ((now - V.t0) % 30) > 22;
               if (rest) brace('pot');
               else {
@@ -9360,14 +9360,14 @@
               break;
             }
             case 'off': V.k += dt; knob(V.k, false, V.recipe === 'udon' ? POT : PAN); if (V.k > 1.6) { V.st = V.recipe === 'udon' ? 'bowl' : 'take'; V.k = 0; } break;
-            case 'bowl': {   // cúi (gập eo) lấy bát trong tủ dưới, đặt lên mặt đá cạnh bếp
+            case 'bowl': {
               V.k += dt; const d = ckS(V.k, 0, 0.8) * (1 - ckS(V.k, 1.2, 1.8)), up = ckS(V.k, 1.0, 1.7);
               ckHand(e, 1, ckW(2.36, 1.28 + (TOP + 0.05 - 1.28) * up, 0.17, _ckB), Math.max(d, up * (1 - ckS(V.k, 1.7, 1.95)))); e.lean = 0.5 * d; ckLook(e, _ckB, 0.8);
               if (V.k > 0.9 && !e.dish) e.dish = { kind: 'udon', at: 'counter', food: 0 };
               if (V.k > 1.9) { V.st = 'pour'; V.k = 0; }
               break;
             }
-            case 'pour': {   // hai tay nắm 2 quai nồi, nhấc lên, nghiêng đổ sợi + nước dùng vào bát
+            case 'pour': {
               V.k += dt; const k = V.k, up = ckS(k, 0, 0.8) * (1 - ckS(k, 2.3, 3.1)), tilt = ckS(k, 0.8, 1.4) * (1 - ckS(k, 1.9, 2.4)), home = K.pot.userData.home, grip = ckS(k, 0, 0.35) * (1 - ckS(k, 3.0, 3.3));
               K.pot.position.set(home.x - 0.04 * up, home.y + 0.12 * up, home.z - 0.16 * up); K.pot.rotation.x = -0.9 * tilt;
               K.pot.updateWorldMatrix(true, false);
@@ -9378,14 +9378,14 @@
               if (k > 3.2) { K.pot.position.copy(home); K.pot.rotation.set(0, 0, 0); V.st = 'garnish'; V.k = 0; }
               break;
             }
-            case 'garnish': {   // tay trái vốc hành lá trên thớt, đưa qua rắc lên bát
+            case 'garnish': {
               V.k += dt; const r = ckS(V.k, 0, 0.5) * (1 - ckS(V.k, 1.4, 1.9)), over = ckS(V.k, 0.6, 1.0);
               ckHand(e, 1, ckW(2.58, TOP + 0.03 + 0.12 * over + 0.015 * Math.sin(t * 14) * over, -0.02 + 0.19 * over, _ckB), r); e.lean = 0.15 * r; ckLook(e, _ckB, r);
               if (V.k > 1.0) for (const s of K.scallions) s.visible = false;
               if (V.k > 1.9) { V.st = 'take'; V.k = 0; }
               break;
             }
-            case 'take': {   // hai tay nâng bát (udon) / cán chảo (cơm chiên) lên
+            case 'take': {
               V.k += dt; const r = ckS(V.k, 0, 0.5);
               if (V.recipe === 'udon') { ckHand(e, 0, ckW(2.56, TOP + 0.05, 0.25, _ckB), r * (1 - ckS(V.k, 0.5, 0.6))); ckHand(e, 1, ckW(2.56, TOP + 0.05, 0.09, _ckA.clone()), r * (1 - ckS(V.k, 0.5, 0.6))); }
               else ckHand(e, 1, K.stovePan.localToWorld(_ckB.set(0.175, 0.045, 0)), r * (1 - ckS(V.k, 0.5, 0.6)));
@@ -9402,7 +9402,7 @@
             case 'takePan': V.k += dt; reachPeg(V.k, 1, 2.86, 2.17, 0.12); if (V.k > 0.8 && !e.dish) e.dish = { kind: 'pan', at: 'hand', food: 0 }; if (V.k > 1.5) V.st = 'toStove'; break;
             case 'toStove': if (vanWalkTo(e, VN.stove, dt, 0.45)) V.st = 'stoveFace'; break;
             case 'stoveFace': if (engSeatTurn(e, VY.pz, dt, vanFloor)) { V.st = 'place'; V.k = 0; } break;
-            case 'place': {   // tay trái đặt chảo lên họng trước–trái (cán quay ra lối đi)
+            case 'place': {
               V.k += dt; const r = ckS(V.k, 0, 0.6) * (1 - ckS(V.k, 0.9, 1.4)); ckHand(e, 1, ckW(2.375, 1.94, 0.43, _ckB), r); e.lean = 0.2 * r; ckLook(e, _ckB, r);
               if (V.k > 0.7 && e.dish) e.dish.at = 'stove';
               if (V.k > 1.5) { V.st = 'panOn'; V.k = 0; }
@@ -9410,7 +9410,7 @@
             }
             case 'panOn': V.k += dt; knob(V.k, true, PAN); if (V.k > 1.6) { V.st = 'heat'; V.k = 0; } break;
             case 'heat': V.k += dt; brace('pan'); if (V.k > 12) { V.st = 'add'; V.k = 0; } break;
-            case 'add': {   // hai tay đổ cơm, trứng, hành vào chảo nóng
+            case 'add': {
               V.k += dt; const r = ckS(V.k, 0, 0.7) * (1 - ckS(V.k, 1.5, 2.2)), c = K.stovePan.getWorldPosition(_ckL);
               ckHand(e, 0, _ckB.copy(c).add(_ckE.set(0, 0.17, 0)).addScaledVector(ckW(1, 0, 0, _ckA).sub(ckW(0, 0, 0, _ckE)), -0.08), r);
               ckHand(e, 1, ckW(2.42, 2.02, 0.36, _ckA.clone()), r); e.lean = 0.2 * r; lookAt('pan');
@@ -9418,7 +9418,7 @@
               if (V.k > 2.3) { V.st = 'fry'; V.t0 = now; V.fryDur = Math.max(120, V.T - 60); }
               break;
             }
-            case 'fry': {   // tay phải xẻng đảo đều trong lòng chảo; tay trái nắm cán, ~7 s hất chảo một lần (cơm bay lên rơi xuống)
+            case 'fry': {
               H.spatula = true; const ph = ((now - V.t0) % 7) / 0.9, home = K.stovePan.userData.home, food = K.stovePan.userData.food;
               if (ph < 1) {
                 const s = Math.sin(Math.PI * ph);
@@ -9435,7 +9435,7 @@
           }
           return 'busy';
         } };
-        const stDishes = { node: 'ksink', tick(e, V, dt, t, keep) {   // chậu bếp: rửa bát / chảo dưới vòi rồi cất (bát vào tủ dưới chậu, chảo treo lại lên bảng)
+        const stDishes = { node: 'ksink', tick(e, V, dt, t, keep) {
           const D = e.dish, rt = e.armRollT || (e.armRollT = [0, 0]);
           if (!D && V.st !== 'hang' && V.st !== 'stow') return 'released';
           if (!V.st) V.st = 'face';
@@ -9445,10 +9445,10 @@
             VKIT.tapWater.visible = on; if (on) VKIT.tapWater.scale.set(1 + Math.sin(t * 40) * 0.15, 1, 1 + Math.cos(t * 37) * 0.15);
             e.arms[1].rotation.x = -0.95 * reach + (on ? Math.sin(t * 2.2) * 0.08 : 0); e.arms[0].rotation.x = -1.0 * reach + (on ? Math.sin(t * 9) * 0.12 : 0);
             rt[0] = 0.25 * reach; rt[1] = -0.15 * reach; e.lean = 0.2 * reach; e.head.rotation.x = 0.4 * reach;
-            D.food = 0;   // phần thừa đổ đi, rửa sạch
+            D.food = 0;
             if (k > dur) { VKIT.tapWater.visible = false; V.st = D.kind === 'pan' ? 'toPeg' : 'stow'; V.k = 0; }
           }
-          else if (V.st === 'stow') {   // cúi cất bát vào tủ dưới chậu
+          else if (V.st === 'stow') {
             V.k += dt; e.armsBusy = true; const d = segK(V.k, 0, 0.8) * (1 - segK(V.k, 1.4, 2.2));
             e.lean = 0.35 * d; e.arms[0].rotation.x = e.arms[1].rotation.x = -0.5 * d; e.head.rotation.x = 0.4 * d;
             if (V.k > 1.0) e.dish = null;
@@ -9456,7 +9456,7 @@
           }
           else if (V.st === 'toPeg') { if (vanWalkTo(e, VN.board, dt, 0.45)) V.st = 'pegFace'; }
           else if (V.st === 'pegFace') { if (engSeatTurn(e, VY.pz, dt, vanFloor)) { V.st = 'hang'; V.k = 0; } }
-          else if (V.st === 'hang') {   // với tay treo chảo lên móc
+          else if (V.st === 'hang') {
             V.k += dt; e.armsBusy = true; const r = segK(V.k, 0, 0.8) * (1 - segK(V.k, 1.3, 2.0));
             e.arms[1].rotation.x = -1.7 * r; e.lean = 0.12 * r; e.head.rotation.x = -0.1 * r;
             if (V.k > 0.9) e.dish = null;
@@ -9466,9 +9466,9 @@
         } };
         const VAN_STATIONS = { desk: stDesk, table: stTable, bed: stBed, wc: stWc, sink: stSink, shelfOff: stShelf(false), shelfOn: stShelf(true), shower: stShower, towel: stTowel, stove: stStove, dishes: stDishes };
         const engVanNew = node => ({ node, path: null, pi: 0, goal: null, segDoor: null, station: null, st: null, k: 0, plan: [], idx: 0, act: null, opened: new Set(), ph: Math.random() * 100 });
-        function engVan(e, dt, t, act) {   // trong xe: làm lần lượt các trạm của việc; việc ngoài trời thì ra cửa hông bước xuống bậc
+        function engVan(e, dt, t, act) {
           const V = e.van, A = ENG_ACTS[act], g = e.g;
-          if (V.st === 'stepOut') {   // bước xuống bậc cửa hông, cúi đầu qua khung cửa
+          if (V.st === 'stepOut') {
             V.k = Math.min(1, V.k + dt / 0.8); const k = V.k, Pa = dogInside, Pb = dogDoorStep, ya = VAN_FLOOR - ENG_FEET, yb = cowY(Pb.x, Pb.z) - ENG_FEET;
             g.position.set(Pa.x + (Pb.x - Pa.x) * k, ya + (yb - ya) * k + Math.sin(Math.PI * k) * 0.06, Pa.z + (Pb.z - Pa.z) * k);
             let d = Math.atan2(Pb.x - Pa.x, Pb.z - Pa.z) - g.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); g.rotation.y += d * Math.min(1, dt * 8);
@@ -9478,7 +9478,7 @@
           }
           if (V.act !== act) {
             V.act = act; V.plan = A.van ? (A.plan || []) : ['exit']; V.idx = 0;
-            if (act !== 'shower') {   // tắm dở (nhảy giờ): treo khăn, đội mũ rồi mới làm việc khác
+            if (act !== 'shower') {
               const fix = []; if (e.towel.visible) fix.push('towel'); if (!e.helmet.visible && VBATH.shelfHelmet.visible && act !== 'bedtime') fix.push('shelfOn');
               if (fix.length) V.plan = [...fix, ...V.plan];
             }
@@ -9491,8 +9491,8 @@
             if (keep) V.idx++;
           }
           if (e.dish && e.dish.at === 'hand' && V.plan[V.idx] !== 'dishes' && (e.dish.food < 0.05 || !(act === 'cook' || act === 'lunch' || act === 'dinner')))
-            V.plan = [...V.plan.slice(0, V.idx), 'dishes', ...V.plan.slice(V.idx)];   // bát / chảo đã ăn xong (hoặc bỏ dở): rửa trước rồi mới làm việc khác
-          if (V.idx >= V.plan.length) {   // xong kế hoạch: việc có điểm dừng thì đánh dấu đã xong (lịch chuyển sang việc kế), không thì đứng chờ
+            V.plan = [...V.plan.slice(0, V.idx), 'dishes', ...V.plan.slice(V.idx)];
+          if (V.idx >= V.plan.length) {
             if (A.once && e.onceKey && e.onceKey.startsWith(act + '@')) e.doneAct = e.onceKey;
             g.position.y = VAN_FLOOR - ENG_FEET; engStandStill(e); e.vel = 0; return;
           }
@@ -9500,7 +9500,7 @@
           if (want === 'exit') { if (vanGoTo(e, V, 'door', dt)) { V.st = 'stepOut'; V.k = 0; } return; }
           if (vanGoTo(e, V, VAN_STATIONS[want].node, dt)) { V.station = want; V.st = null; V.k = 0; }
         }
-        function engEnterVan(e, dt, t) {   // vào xe: tới cửa hông theo trường dòng chảy → bước lên bậc (cúi đầu qua khung cửa)
+        function engEnterVan(e, dt, t) {
           if (!e.enter) e.enter = 'toDoor';
           if (e.enter === 'toDoor') { if (engStep(e, dogDoorFar, dt, t, pf, FIRE_AVOID_R, dogDoorField)) e.enter = 'toStep'; }
           else if (e.enter === 'toStep') { if (engStep(e, dogDoorStep, dt, t, null, 0, null)) { e.enter = 'stepIn'; e.timer = 0; } }
@@ -9512,13 +9512,13 @@
             if (k >= 1) { e.enter = null; e.inVan = true; e.van = engVanNew('door'); }
           }
         }
-        function engWake(e) {   // 06:00: từ tư thế nằm sang ngồi mép giường, đội mũ, vươn vai vài giây rồi đứng dậy
+        function engWake(e) {
           scene.add(e.g); e.g.scale.setScalar(ENGINEER_BASE_SCALE * CAMP_SCALE); e.g.rotation.set(0, VY.pz, 0);
           e.legs[0].rotation.set(0, 0, 0); e.legs[1].rotation.set(0, 0, 0);
           e.inVan = true; e.van = engVanNew('bed'); e.van.station = 'bed'; e.van.st = 'seated'; e.van.k = -6;
           e.seat = engNewSeat(BED_SEAT, 'seated'); e.phase = 'van'; e.enter = null; engHelmet(e, 'head');
         }
-        function engSpawn(e, act) {   // mở trang giữa chừng một việc: đặt kỹ sư sẵn ở chỗ đang làm
+        function engSpawn(e, act) {
           e.act = act; e.phase = engPhaseFor(act); e.timer = 0; e.enter = null;
           const A = ENG_ACTS[act];
           if (A.van) {
@@ -9556,11 +9556,11 @@
           const doorOp = VBATH.doorMat.opacity, wallOp = VBATH.wallMat.opacity;
           let live = 0, idle = false;
           const fx = { on: false, steam: 0, update(dt) {
-            if (!fx.on && !live && !fx.steam) { if (!idle) { idle = true; lines.visible = false; for (const p of puffs) p.s.visible = false; } return; }   // tắt nước, hết hơi: không tính gì
+            if (!fx.on && !live && !fx.steam) { if (!idle) { idle = true; lines.visible = false; for (const p of puffs) p.s.visible = false; } return; }
             idle = false;
             const h = Math.min(dt, 0.05);
             const st0 = fx.steam; fx.steam = Math.max(0, Math.min(1, fx.steam + (fx.on ? h / 40 : -h / 70)));
-            if (fx.steam !== st0) { VBATH.doorMat.opacity = doorOp + 0.3 * fx.steam; VBATH.wallMat.opacity = wallOp + 0.2 * fx.steam; }   // kính và vách mờ hơi nước
+            if (fx.steam !== st0) { VBATH.doorMat.opacity = doorOp + 0.3 * fx.steam; VBATH.wallMat.opacity = wallOp + 0.2 * fx.steam; }
             let any = false;
             for (let i = 0; i < N; i++) {
               const d = D[i];
@@ -9572,10 +9572,10 @@
               d.v.y -= 9.8 * h; d.p.addScaledVector(d.v, h);
               if (d.p.y < floorY) { d.live = false; pos.fill(0, i * 6, i * 6 + 6); continue; }
               any = true; pos[i * 6] = d.p.x; pos[i * 6 + 1] = d.p.y; pos[i * 6 + 2] = d.p.z;
-              pos[i * 6 + 3] = d.p.x - d.v.x * 0.04; pos[i * 6 + 4] = d.p.y - d.v.y * 0.04; pos[i * 6 + 5] = d.p.z - d.v.z * 0.04;   // vệt nước ngắn theo hướng rơi
+              pos[i * 6 + 3] = d.p.x - d.v.x * 0.04; pos[i * 6 + 4] = d.p.y - d.v.y * 0.04; pos[i * 6 + 5] = d.p.z - d.v.z * 0.04;
             }
             live = any ? 1 : 0; lines.visible = any; if (any) geo.attributes.position.needsUpdate = true;
-            for (const p of puffs) {   // đám hơi nước: sinh sát sàn buồng WC, bốc lên trần, nở ra rồi tan
+            for (const p of puffs) {
               p.t += h; if (p.t > 6) { p.t -= 6; p.x = 3.08 + Math.random() * 0.75; p.z = -1.35 + Math.random() * 0.8; }
               const k = p.t / 6; p.s.visible = fx.steam > 0.02 && p.x > 0;
               if (!p.s.visible) continue;
@@ -9584,15 +9584,15 @@
           } };
           return fx;
         })();
-        const musicFx = (() => {   // nốt nhạc (vẽ bằng nét, không phụ thuộc font) bay lên từ laptop, đung đưa, xuyên qua mái xe bay lên trời rồi mờ dần
+        const musicFx = (() => {
           const cols = ['#ffd34a', '#7fd1ff', '#ff8fb1', '#a6f08c'];
           const texs = [0, 1, 2, 3].map(i => {
             const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d');
             const draw = () => {
               x.beginPath();
-              if (i % 2 === 0) {   // ♪ nốt móc đơn
+              if (i % 2 === 0) {
                 x.ellipse(22, 46, 11, 8, -0.45, 0, Math.PI * 2); x.moveTo(31, 44); x.lineTo(31, 10); x.quadraticCurveTo(36, 22, 48, 26); x.quadraticCurveTo(40, 18, 33, 14);
-              } else {             // ♫ hai nốt nối gạch
+              } else {
                 x.ellipse(16, 48, 9, 7, -0.45, 0, Math.PI * 2); x.moveTo(23, 47); x.lineTo(23, 16);
                 x.moveTo(50, 42); x.ellipse(43, 43, 9, 7, -0.45, 0, Math.PI * 2); x.moveTo(50, 41); x.lineTo(50, 10);
               }
@@ -9625,7 +9625,7 @@
             }
           } };
         })();
-        const napFx = (() => {   // 3 chữ z nhỏ bay trên đầu khi ngủ trưa trên ghế
+        const napFx = (() => {
           const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d');
           x.font = 'bold 46px Outfit, sans-serif'; x.fillStyle = '#E2D6C0'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.shadowColor = '#243240'; x.shadowBlur = 6; x.fillText('z', 32, 34);
           const tex = new THREE.CanvasTexture(c), grp = new THREE.Group(); grp.name = 'Zzz ngủ trưa'; grp.visible = false; scene.add(grp);
@@ -9641,7 +9641,7 @@
             }
           } };
         })();
-        const chipsBag = (() => {   // gói khoai tây chiên mở miệng trên bàn trà, góc gần ghế cắm trại (chỉ hiện lúc đọc sách)
+        const chipsBag = (() => {
           const g = new THREE.Group(); g.name = 'Gói khoai tây chiên'; g.visible = false;
           const table = scene.getObjectByName('Bàn trà (Camp Table)'); if (!table) return g;
           const c = document.createElement('canvas'); c.width = 128; c.height = 160; const x = c.getContext('2d');
@@ -9652,7 +9652,7 @@
           x.fillStyle = '#9e1f19'; x.fillRect(0, 0, 128, 7); x.fillRect(0, 153, 128, 7);
           const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
           const geo = new THREE.BoxGeometry(0.12, 0.16, 0.05, 4, 6, 1), p = geo.attributes.position;
-          for (let i = 0; i < p.count; i++) {   // đáy gấp dẹt, thân phồng, miệng mở loe
+          for (let i = 0; i < p.count; i++) {
             const y = p.getY(i), u = y / 0.08; let z = p.getZ(i), xx = p.getX(i);
             if (u < -0.8) z *= 0.35; else if (u > 0.6) { z *= 1.3; xx *= 1.04; } else z *= 0.85 + 0.15 * Math.cos(u * 1.6);
             p.setXYZ(i, xx, y + 0.08, z);
@@ -9665,7 +9665,7 @@
           table.add(g); table.updateMatrixWorld(true);
           const chair = table.worldToLocal(campChairPos.clone()); let best = null, bd = 1e9;
           for (const s of [[0.17, -0.15], [0.18, 0.16], [-0.2, 0.16]]) { const d = Math.hypot(s[0] - chair.x, s[1] - chair.z); if (d < bd) { bd = d; best = s; } }
-          g.position.set(best[0], 0.45, best[1]); g.rotation.y = Math.atan2(chair.x - best[0], chair.z - best[1]);   // mặt nhãn quay về phía ghế
+          g.position.set(best[0], 0.45, best[1]); g.rotation.y = Math.atan2(chair.x - best[0], chair.z - best[1]);
           return g;
         })();
         const LAP_NOTE = ['Đối chiếu sản lượng thủy điện với mực hồ…', 'Tấm pin: −0,4%/°C khi nóng; kiểm nhiệt độ tấm', 'Tuabin: cắt vào 3 m/s, định mức 12 m/s', 'Pin lưu trữ san tải giờ cao điểm 17–20 h', 'Mai kiểm tra cánh tuabin #2'];
@@ -9687,10 +9687,10 @@
           });
           const note = LAP_NOTE[Math.floor(t / 9) % LAP_NOTE.length], typed = note.slice(0, Math.floor((t % 9) * 14));
           x.fillStyle = '#16283a'; x.fillRect(0, 142, 256, 18); x.fillStyle = '#9fe0b0'; x.font = '10px Arial, sans-serif'; x.fillText('> ' + typed, 6, 155);
-          if (t % 0.8 < 0.45) { x.fillStyle = '#9fe0b0'; x.fillRect(10 + x.measureText('> ' + typed).width - 4, 146, 5, 11); }   // con trỏ nhấp nháy
+          if (t % 0.8 < 0.45) { x.fillStyle = '#9fe0b0'; x.fillRect(10 + x.measureText('> ' + typed).width - 4, 146, 5, 11); }
           L.tex.needsUpdate = true;
         }
-        function laptopScreenTick(t, music) {   // màn hình laptop: bảng vận hành chạy (nghiên cứu) · trình phát nhạc có đĩa quay, sóng nhạc, thanh tiến độ (buổi tối)
+        function laptopScreenTick(t, music) {
           const L = studyLaptop; if (!L.ctx || L.open < 0.5) return;
           if (Math.abs(t - L.drawnAt) < (music ? 0.12 : 0.16)) return;
           if (!music) { L.mode = 'dash'; L.drawnAt = t; laptopDash(t); return; }
@@ -9699,7 +9699,7 @@
           const bg = x.createLinearGradient(0, 0, W, H); bg.addColorStop(0, '#1b1530'); bg.addColorStop(1, '#2c2048'); x.fillStyle = bg; x.fillRect(0, 0, W, H);
           const cg = x.createLinearGradient(12, 20, 84, 92); cg.addColorStop(0, '#ff9a5a'); cg.addColorStop(1, '#c2457a'); x.fillStyle = cg; x.fillRect(12, 20, 72, 72);
           x.fillStyle = 'rgba(20,16,30,0.88)'; x.beginPath(); x.arc(48, 56, 24, 0, Math.PI * 2); x.fill();
-          x.strokeStyle = 'rgba(255,255,255,0.28)'; x.lineWidth = 1.5; for (const r of [11, 17]) { const a = t * 3 + r; x.beginPath(); x.arc(48, 56, r, a, a + 1.3); x.stroke(); }   // rãnh đĩa quay
+          x.strokeStyle = 'rgba(255,255,255,0.28)'; x.lineWidth = 1.5; for (const r of [11, 17]) { const a = t * 3 + r; x.beginPath(); x.arc(48, 56, r, a, a + 1.3); x.stroke(); }
           x.fillStyle = '#ffd34a'; x.beginPath(); x.arc(48, 56, 5, 0, Math.PI * 2); x.fill();
           x.textAlign = 'left'; x.fillStyle = '#f3eaff'; x.font = 'bold 14px Arial, sans-serif'; x.fillText('Gió cao nguyên', 94, 36);
           x.fillStyle = '#b8a8d8'; x.font = '11px Arial, sans-serif'; x.fillText('lo-fi · nhạc nền học bài', 94, 53);
@@ -9710,72 +9710,72 @@
           const dur = 194, at = t % dur, px = 12 + 232 * at / dur;
           x.fillStyle = '#4a3f66'; x.fillRect(12, 112, 232, 4); x.fillStyle = '#ffd34a'; x.fillRect(12, 112, px - 12, 4); x.beginPath(); x.arc(px, 114, 4.5, 0, Math.PI * 2); x.fill();
           x.fillStyle = '#b8a8d8'; x.font = '10px Arial, sans-serif'; x.fillText(mm(at), 12, 132); x.textAlign = 'right'; x.fillText(mm(dur), 244, 132); x.textAlign = 'left';
-          x.fillStyle = '#f3eaff'; x.fillRect(119, 138, 5, 14); x.fillRect(129, 138, 5, 14);   // nút tạm dừng = đang phát
-          x.fillRect(90, 139, 2, 12); x.beginPath(); x.moveTo(92, 145); x.lineTo(101, 139); x.lineTo(101, 151); x.fill();       // bài trước
-          x.fillRect(161, 139, 2, 12); x.beginPath(); x.moveTo(161, 145); x.lineTo(152, 139); x.lineTo(152, 151); x.fill();   // bài sau
+          x.fillStyle = '#f3eaff'; x.fillRect(119, 138, 5, 14); x.fillRect(129, 138, 5, 14);
+          x.fillRect(90, 139, 2, 12); x.beginPath(); x.moveTo(92, 145); x.lineTo(101, 139); x.lineTo(101, 151); x.fill();
+          x.fillRect(161, 139, 2, 12); x.beginPath(); x.moveTo(161, 145); x.lineTo(152, 139); x.lineTo(152, 151); x.fill();
           L.tex.needsUpdate = true;
         }
         const _mrA = new THREE.Vector3(), _mrB = new THREE.Vector3(), _mrC = new THREE.Vector3(), _mrD = new THREE.Vector3(), _mrE = new THREE.Vector3(), _mrF = new THREE.Vector3();
         const _mrM = new THREE.Matrix4(), _mrQ = new THREE.Quaternion(), _mrQ2 = new THREE.Quaternion(), _mrUp = new THREE.Vector3(0, 1, 0);
-        const mrHand = [[new THREE.Vector3(), new THREE.Quaternion()], [new THREE.Vector3(), new THREE.Quaternion()]];   // đích tay (vị trí · hướng) cấp sẵn
+        const mrHand = [[new THREE.Vector3(), new THREE.Quaternion()], [new THREE.Vector3(), new THREE.Quaternion()]];
         function engMouthW(e, out) { e.head.updateWorldMatrix(true, false); return e.head.localToWorld(out.set(0, -0.03, 0.2)); }
-        function engBodyW(e, x, y, z, out) { e.spine.updateWorldMatrix(true, false); return e.spine.localToWorld(out.set(x, y - 1.255, z)); }   // toạ độ kỹ sư, theo eo
+        function engBodyW(e, x, y, z, out) { e.spine.updateWorldMatrix(true, false); return e.spine.localToWorld(out.set(x, y - 1.255, z)); }
         const _axR = new THREE.Vector3(), _axF = new THREE.Vector3(), _axM = new THREE.Matrix4(), _aqX = new THREE.Vector3(), _aqY = new THREE.Vector3(), _aqZ = new THREE.Vector3(), _aqM = new THREE.Matrix4();
-        function engAxesW(e) { e.spine.updateWorldMatrix(true, false); _axM.extractRotation(e.spine.matrixWorld); return { r: _axR.set(-1, 0, 0).applyMatrix4(_axM), f: _axF.set(0, 0, 1).applyMatrix4(_axM) }; }   // phải · trước (thế giới)
+        function engAxesW(e) { e.spine.updateWorldMatrix(true, false); _axM.extractRotation(e.spine.matrixWorld); return { r: _axR.set(-1, 0, 0).applyMatrix4(_axM), f: _axF.set(0, 0, 1).applyMatrix4(_axM) }; }
         const _wuA = new THREE.Vector3(), _wuB = new THREE.Vector3();
-        function engWristUp(e, i, dir) {   // "trục +y" cho khung cổ tay giữ CỔ TAY THẲNG: hướng tay → khuỷu (cẳng tay của lần giải IK trước), không phải trời —
+        function engWristUp(e, i, dir) {
           const f = e.foreW && e.foreW[i]; if (!f || f.lengthSq() < 0.5) return _mrUp;
-          _wuA.copy(f).negate(); if (_wuB.crossVectors(_wuA, dir).lengthSq() < 0.04) _wuA.lerp(_mrUp, 0.5).normalize();   // thìa gần song song cẳng tay: kéo về trời cho khỏi lật
+          _wuA.copy(f).negate(); if (_wuB.crossVectors(_wuA, dir).lengthSq() < 0.04) _wuA.lerp(_mrUp, 0.5).normalize();
           return _wuA;
         }
-        function aimQ(out, dir, up) {   // trục +z → dir, trục +y gần up nhất
+        function aimQ(out, dir, up) {
           const z = _aqZ.copy(dir).normalize(), x = _aqX.crossVectors(up, z); if (x.lengthSq() < 1e-8) x.set(1, 0, 0); x.normalize();
           return out.setFromRotationMatrix(_aqM.makeBasis(x, _aqY.crossVectors(z, x), z));
         }
-        function engHandSet(e, i, pos, q) {   // đặt đích tay i: vị trí thế giới của tâm bàn tay + hướng khung cổ tay
+        function engHandSet(e, i, pos, q) {
           const R = e.reachT || (e.reachT = [null, null]), Q = e.handQ || (e.handQ = [null, null]);
           R[i] = mrHand[i][0].copy(pos); Q[i] = mrHand[i][1].copy(q);
         }
-        function engHandFor(e, i, q, local, worldP) {   // tay i cầm vật có điểm `local` (khung cổ tay) phải nằm ở worldP, khung cổ tay hướng q
+        function engHandFor(e, i, q, local, worldP) {
           engHandSet(e, i, _mrC.copy(local).multiplyScalar(e.g.scale.y).applyQuaternion(q).negate().add(worldP), q);
         }
 
         const grill = (() => {
           const F = campObj.fish, S = F.stick, home = { p: S.position.clone(), q: S.quaternion.clone() }, fgP = F.fg.position.clone(), fgQ = F.fg.quaternion.clone();
           const cCook = F.fMat.color.clone(), cRaw = new THREE.Color(0x8b979c), finCook = F.finMat.color.clone(), finRaw = new THREE.Color(0x66767c), cBone = new THREE.Color(0xe2d5b5);
-          const W = 1.44 * CAMP_SCALE, GRIP = 0.5, TOP = 1.12, MID = 0.78;   // cỡ que thế giới · điểm cầm · đầu que (qua miệng cá) · tâm cá (đv que)
-          const qGrip = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, -Math.PI / 2));   // que (+y) luồn qua nắm tay chữ C (trục x cổ tay)
+          const W = 1.44 * CAMP_SCALE, GRIP = 0.5, TOP = 1.12, MID = 0.78;
+          const qGrip = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, -Math.PI / 2));
           const keep = { g: new THREE.Group(), wig: new THREE.Group(), mouth: new THREE.Vector3(0.25, 0, 0), keeper: true };
           keep.g.name = 'Cá rô cắn câu'; keep.g.visible = false; keep.g.scale.setScalar(W); keep.g.add(keep.wig); scene.add(keep.g);
-          const qSwim = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3(0, 0, 1), new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 1, 0)));   // đầu cá +x, lưng lên
+          const qSwim = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3(0, 0, 1), new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 1, 0)));
           keep.swim = (t, s) => { keep.wig.rotation.y = Math.sin(t * 9) * (0.08 + 0.3 * s); };
           const G = { st: 'ready', cook: 1, eat: 0, fly: null, kept: false, home, keep };
-          S.traverse(o => { o.userData.noBatch = true; });   // que + cá di chuyển, đổi cha lúc chạy: vẽ riêng, không gộp vào khối tĩnh của bếp (bị cắt khung theo bếp)
+          S.traverse(o => { o.userData.noBatch = true; });
           function paint() {
             const k = G.cook, b = G.eat;
             F.fMat.color.copy(cRaw).lerp(cCook, k).lerp(cBone, Math.max(0, (b - 0.75) / 0.25) * 0.85); F.finMat.color.copy(finRaw).lerp(finCook, k);
-            F.marks.visible = k > 0.55 && b < 0.6; F.body.scale.set(0.5 * (1 - 0.72 * b), 1, 1 - 0.25 * b);   // cắn dần: thân mỏng đi, cuối còn xương
+            F.marks.visible = k > 0.55 && b < 0.6; F.body.scale.set(0.5 * (1 - 0.72 * b), 1, 1 - 0.25 * b);
           }
           function put(o, parent, p, q, s) { parent.add(o); o.position.copy(p); o.quaternion.copy(q); o.scale.setScalar(s); }
           G.set = st => { G.st = st; S.visible = !['empty', 'swim', 'bucket', 'carried'].includes(st); F.fg.visible = !['empty', 'bucket'].includes(st); };
           G.atHome = () => { put(S, campObj.g, home.p, home.q, 1.44); put(F.fg, S, fgP, fgQ, 1); };
-          G.grab = (e, i) => { const s = W / e.g.scale.y; put(S, e.wrists[i], _mrA.set(0, -GRIP, 0).applyQuaternion(qGrip).multiplyScalar(s), qGrip, s); G.set('held'); };   // que trong tay i
-          G.handQ = (stickQ, out) => out.copy(stickQ).multiply(_mrQ2.copy(qGrip).invert());   // hướng cổ tay để que có hướng stickQ
-          G.point = (y, out) => S.localToWorld(out.set(0, y, 0));   // điểm trên que (đv que)
+          G.grab = (e, i) => { const s = W / e.g.scale.y; put(S, e.wrists[i], _mrA.set(0, -GRIP, 0).applyQuaternion(qGrip).multiplyScalar(s), qGrip, s); G.set('held'); };
+          G.handQ = (stickQ, out) => out.copy(stickQ).multiply(_mrQ2.copy(qGrip).invert());
+          G.point = (y, out) => S.localToWorld(out.set(0, y, 0));
           G.homeW = (y, out) => { campObj.g.updateWorldMatrix(true, false); return campObj.g.localToWorld(out.set(0, y * 1.44, 0).applyQuaternion(home.q).add(home.p)); };
           G.homeQ = out => { campObj.g.getWorldQuaternion(out); return out.multiply(home.q); };
-          G.stand = out => { G.homeW(0, out); const dx = out.x - pf.x, dz = out.z - pf.z, d = Math.hypot(dx, dz) || 1; out.x += dx / d * 0.52; out.z += dz / d * 0.52; out.y = 0; return out; };   // chỗ đứng lấy/cắm que (vẫn ngoài vòng tránh lửa)
+          G.stand = out => { G.homeW(0, out); const dx = out.x - pf.x, dz = out.z - pf.z, d = Math.hypot(dx, dz) || 1; out.x += dx / d * 0.52; out.z += dz / d * 0.52; out.y = 0; return out; };
           G.toss = (v) => { S.updateWorldMatrix(true, false); const p = new THREE.Vector3(), q = new THREE.Quaternion(); S.getWorldPosition(p); S.getWorldQuaternion(q); put(S, scene, p, q, W); G.fly = { v, t: 0, spin: 7 }; G.set('fly'); };
           G.toKeeper = () => { put(F.fg, keep.wig, _mrA.set(0, 0, 0), qSwim, 1); G.eat = 0; G.cook = 0; paint(); keep.g.visible = true; G.set('swim'); return keep; };
-          G.lost = () => { keep.g.visible = false; G.atHome(); G.set('empty'); };   // cá rô sổng lưỡi: lại không có cá nướng
+          G.lost = () => { keep.g.visible = false; G.atHome(); G.set('empty'); };
           G.toBucket = () => { keep.g.visible = false; G.set('bucket'); G.kept = true; };
           G.toHand = (e) => { const s = W / e.g.scale.y; put(F.fg, e.wrists[1], _mrA.set(0, -0.06, 0.12), _mrQ.setFromEuler(new THREE.Euler(Math.PI / 2, 0, 0)), s); G.set('carried'); };
           G.skewer = () => { put(F.fg, S, fgP, fgQ, 1); };
           G.update = (dt, h) => {
             const jump = G.lastH === undefined || Math.abs(((h - G.lastH + 36) % 24) - 12) > 0.5; G.lastH = h;
-            if (jump && !['held', 'fly', 'swim', 'bucket', 'carried', 'plant'].includes(G.st)) { G.keep.g.visible = false; G.atHome(); G.cook = 1; G.eat = 0; G.set(h >= 17.25 && h < 19.6 ? 'empty' : 'ready'); paint(); }   // mở trang / tua giờ: sau bữa tối tới lúc câu về thì que trống
-            if (G.st === 'cooking') { G.cook = Math.min(1, G.cook + dt / (17 * 60)); if (G.cook >= 1) G.set('ready'); paint(); }   // ~17 phút cạnh than thì chín vàng
-            if (G.fly) {   // que bay theo đường đạn vào lòng bếp (~0,7 s), chạm than thì cháy mất
+            if (jump && !['held', 'fly', 'swim', 'bucket', 'carried', 'plant'].includes(G.st)) { G.keep.g.visible = false; G.atHome(); G.cook = 1; G.eat = 0; G.set(h >= 17.25 && h < 19.6 ? 'empty' : 'ready'); paint(); }
+            if (G.st === 'cooking') { G.cook = Math.min(1, G.cook + dt / (17 * 60)); if (G.cook >= 1) G.set('ready'); paint(); }
+            if (G.fly) {
               const f = G.fly; f.t += dt; f.v.y -= 9.81 * dt; S.position.addScaledVector(f.v, dt); S.rotateX(f.spin * dt);
               if (f.t >= 0.7) { G.fly = null; G.atHome(); G.eat = 0; paint(); G.set('empty'); }
             }
@@ -9787,7 +9787,7 @@
         const SPOON_TIP = new THREE.Vector3(0, -0.03, 0.28), PAN_IN = new THREE.Vector3(0, 0.03, 0);
         function engEatRice(e, dt, t) {
           const H = e.hold, D = e.dish, P = e.props; H.spoon = true; e.armsBusy = true; e.elbowPole = EAT_POLE; if (D) D.at = 'hand';
-          const c = (t + (e.readPh || 0)) % 6.2, up = minJerk(segK(c, 1.4, 2.3)) * (1 - minJerk(segK(c, 2.8, 3.4))), chew = c > 2.6;   // 1 miếng ~6 s
+          const c = (t + (e.readPh || 0)) % 6.2, up = minJerk(segK(c, 1.4, 2.3)) * (1 - minJerk(segK(c, 2.8, 3.4))), chew = c > 2.6;
           const ax = engAxesW(e), right = _mrD.copy(ax.r), fwd = _mrF.copy(ax.f);
           const pan = engBodyW(e, 0.06, 1.42, 0.42, new THREE.Vector3()), hx = _mrA.copy(right).multiplyScalar(-0.85).addScaledVector(fwd, -0.5).normalize();
           const qPan = _mrQ.setFromRotationMatrix(_mrM.makeBasis(hx, _mrUp, _mrB.crossVectors(hx, _mrUp))), qL = new THREE.Quaternion().copy(qPan).multiply(_mrQ2.copy(P.handPan.quaternion).invert());
@@ -9797,17 +9797,17 @@
           const mouth = engMouthW(e, new THREE.Vector3()).addScaledVector(fwd, 0.02 * sc), tip = new THREE.Vector3().lerpVectors(inPan, mouth, up).addScaledVector(fwd, 0.12 * sc * Math.sin(Math.PI * up));
           tip.y += 0.06 * sc * Math.sin(Math.PI * up);
           const dIn = _mrA.subVectors(inPan, engBodyW(e, -0.34, 1.86, 0, _mrB)).add(_mrB.set(0, -0.35, 0)).normalize(), dMo = _mrB.copy(fwd).multiplyScalar(-0.9).addScaledVector(right, -0.35).add(_mrE.set(0, 0.15, 0)).normalize();
-          const dS = dIn.lerp(dMo, minJerk(Math.min(1, up * 1.6))).normalize();   // thìa quay về phía miệng sớm hơn quãng đưa lên (giữ lòng thìa ngang, không chúc theo chảo)
+          const dS = dIn.lerp(dMo, minJerk(Math.min(1, up * 1.6))).normalize();
           engHandFor(e, 0, aimQ(new THREE.Quaternion(), dS, engWristUp(e, 0, dS)), SPOON_TIP, tip);
-          e.seatLean = 0.06 + 0.12 * up; e.seatSwing = 0;   // đổ người đón thìa
-          e.head.rotation.x = 0.04 + 0.34 * (1 - up) + (chew ? Math.abs(Math.sin(t * 9)) * 0.04 : 0);   // xúc: cúi nhìn chảo · vào miệng: cổ thẳng · nhai gật gù
+          e.seatLean = 0.06 + 0.12 * up; e.seatSwing = 0;
+          e.head.rotation.x = 0.04 + 0.34 * (1 - up) + (chew ? Math.abs(Math.sin(t * 9)) * 0.04 : 0);
         }
 
         const CUP_BASE = new THREE.Vector3(0, -0.135, 0.08), CUP_LIP = new THREE.Vector3(0, -0.025, 0.142), CHOP_TIP = new THREE.Vector3(0, -0.06, 0.35);
         const _eA = new THREE.Vector3(), _eB = new THREE.Vector3(), _eC = new THREE.Vector3(), _eD = new THREE.Vector3(), _eQ = new THREE.Quaternion(), _eQ2 = new THREE.Quaternion();
         const hash01 = (n, k) => { const x = Math.sin(n * 12.9898 + k * 78.233) * 43758.5453; return x - Math.floor(x); };
-        const EAT_POLE = [new THREE.Vector3(-0.22, -1, 0.08), new THREE.Vector3(0.28, -1, 0.02)];   // khuỷu khép sát thân khi ăn (vai dạng ≤ 30° — PLoS ONE 2021), mặc định IK chĩa ra ngoài 0,6
-        function arcTo(a, b, k, up, fwd, hUp, hFwd, out) { const s = Math.sin(Math.PI * k); return out.lerpVectors(a, b, k).addScaledVector(up, hUp * s).addScaledVector(fwd, hFwd * s); }   // cung vồng (lên + ra trước) giữa 2 điểm
+        const EAT_POLE = [new THREE.Vector3(-0.22, -1, 0.08), new THREE.Vector3(0.28, -1, 0.02)];
+        function arcTo(a, b, k, up, fwd, hUp, hFwd, out) { const s = Math.sin(Math.PI * k); return out.lerpVectors(a, b, k).addScaledVector(up, hUp * s).addScaledVector(fwd, hFwd * s); }
         function engEatAtTable(e, t, ph, meal) {
           const H = e.hold, P = e.props, sc = e.g.scale.y, food = e.dish ? e.dish.food : 1; e.armsBusy = true; e.elbowPole = EAT_POLE;
           const ax = engAxesW(e), right = _mrD.copy(ax.r), fwd = _mrF.copy(ax.f), UP = _mrUp;
@@ -9820,9 +9820,9 @@
             const restCup = bowlC.clone().addScaledVector(right, -0.2 * sc).addScaledVector(dirF, 0.02 * sc), tilt = 0.25 + 0.55 * minJerk(segK(sp, 1.0, 2.3));
             const qUp = aimQ(_eQ, dirF, UP), qSip = aimQ(new THREE.Quaternion(), dirF, _eA.copy(UP).multiplyScalar(Math.cos(tilt)).addScaledVector(dirF, -Math.sin(tilt)));
             const lip = mouth.clone().addScaledVector(fwd, 0.015 * sc), qL = new THREE.Quaternion().slerpQuaternions(qUp, qSip, sipU);
-            const restLip = restCup.addScaledVector(UP, (CUP_LIP.y - CUP_BASE.y) * sc).addScaledVector(dirF, (CUP_LIP.z - CUP_BASE.z) * sc);   // vành cốc khi đáy cốc tựa mặt bàn
-            engHandFor(e, 1, qL, CUP_LIP, arcTo(restLip, lip, sipU, UP, fwd, 0.04 * sc, 0.03 * sc, _eB));   // 1 đường liền: vành cốc từ chỗ nghỉ → môi
-          } else { H.chop = true; const rim = bowl.localToWorld(new THREE.Vector3(0.1, 0.05, -0.012)); engHandSet(e, 1, rim, aimQ(_eQ, _eA.subVectors(bowlC, rim).setY(0).normalize(), UP)); }   // udon: tay trái giữ vành bát bên trái cho vững (ăn mì đũa)
+            const restLip = restCup.addScaledVector(UP, (CUP_LIP.y - CUP_BASE.y) * sc).addScaledVector(dirF, (CUP_LIP.z - CUP_BASE.z) * sc);
+            engHandFor(e, 1, qL, CUP_LIP, arcTo(restLip, lip, sipU, UP, fwd, 0.04 * sc, 0.03 * sc, _eB));
+          } else { H.chop = true; const rim = bowl.localToWorld(new THREE.Vector3(0.1, 0.05, -0.012)); engHandSet(e, 1, rim, aimQ(_eQ, _eA.subVectors(bowlC, rim).setY(0).normalize(), UP)); }
           const T = meal === 'udon' ? 4.4 : 5.6, n = Math.floor((t + ph) / T), c = sipping ? 9 : (t + ph) % T;
           const surf = meal === 'udon' ? 0.05 : 0.022 + 0.021 * food;
           const dip = bowl.localToWorld(new THREE.Vector3((hash01(n, 1) - 0.5) * 0.06, surf - 0.006, (hash01(n, 2) - 0.35) * 0.05)), near = bowl.localToWorld(new THREE.Vector3(0, surf + 0.01, -0.045));
@@ -9831,28 +9831,28 @@
           let tip, u, pitch = 0;
           if (meal !== 'udon') {
             if (c < 0.6) { const k = minJerk(c / 0.6); tip = arcTo(rest, dip, k, UP, fwd, 0.03 * sc, 0, _eB); u = 0; pitch = -0.3 * k; }
-            else if (c < 1.2) { const k = (c - 0.6) / 0.6; tip = _eB.lerpVectors(dip, near, k).addScaledVector(UP, 0.012 * sc * k); u = 0; pitch = -0.3 + 0.45 * k; }   // xúc: kéo về mép gần, lòng thìa ngửa dần
+            else if (c < 1.2) { const k = (c - 0.6) / 0.6; tip = _eB.lerpVectors(dip, near, k).addScaledVector(UP, 0.012 * sc * k); u = 0; pitch = -0.3 + 0.45 * k; }
             else if (c < 1.9) { const k = minJerk((c - 1.2) / 0.7); tip = arcTo(near, front, k, UP, fwd, 0.08 * sc, 0.07 * sc, _eB); u = k; pitch = 0.15 * (1 - k); }
             else if (c < 2.25) { tip = _eB.lerpVectors(front, inside, minJerk((c - 1.9) / 0.35)); u = 1; }
-            else if (c < 2.6) { const k = minJerk((c - 2.25) / 0.35); tip = _eB.lerpVectors(inside, out, k); u = 1; pitch = -0.25 * k; }   // rút ra: thìa chúc xuống
+            else if (c < 2.6) { const k = minJerk((c - 2.25) / 0.35); tip = _eB.lerpVectors(inside, out, k); u = 1; pitch = -0.25 * k; }
             else if (c < 3.4) { const k = minJerk((c - 2.6) / 0.8); tip = arcTo(out, rest, k, UP, fwd, 0.03 * sc, 0.03 * sc, _eB); u = 1 - k; pitch = -0.25 * (1 - k); }
-            else { tip = _eB.copy(rest).addScaledVector(right, 0.006 * sc * Math.sin(t * 1.3)); u = 0; }   // nhai: thìa nghỉ trên bát
-          } else {   // đũa: chấm gắp 2 lần → kéo sợi lên → tới miệng → húp → về
+            else { tip = _eB.copy(rest).addScaledVector(right, 0.006 * sc * Math.sin(t * 1.3)); u = 0; }
+          } else {
             if (c < 0.5) { tip = arcTo(rest, dip, minJerk(c / 0.5), UP, fwd, 0.04 * sc, 0, _eB); u = 0; }
             else if (c < 1.2) { const k = (c - 0.5) / 0.7; tip = _eB.copy(dip).addScaledVector(UP, (0.015 + 0.015 * Math.cos(k * TAU * 2)) * sc); u = 0; }
-            else if (c < 1.6) { const k = minJerk((c - 1.2) / 0.4); tip = _eB.copy(dip).addScaledVector(UP, (0.015 + 0.13 * k) * sc); u = 0.2 * k; }   // kéo sợi lên cao
+            else if (c < 1.6) { const k = minJerk((c - 1.2) / 0.4); tip = _eB.copy(dip).addScaledVector(UP, (0.015 + 0.13 * k) * sc); u = 0.2 * k; }
             else if (c < 2.2) { const a = _eA.copy(dip).addScaledVector(UP, 0.145 * sc); tip = arcTo(a, inside, minJerk((c - 1.6) / 0.6), UP, fwd, 0.03 * sc, 0.05 * sc, _eB); u = 0.2 + 0.8 * minJerk((c - 1.6) / 0.6); }
-            else if (c < 3.1) { tip = _eB.copy(inside).addScaledVector(UP, -0.006 * sc * Math.abs(Math.sin(t * 16))); u = 1; }   // húp sột soạt
+            else if (c < 3.1) { tip = _eB.copy(inside).addScaledVector(UP, -0.006 * sc * Math.abs(Math.sin(t * 16))); u = 1; }
             else if (c < 3.8) { const k = minJerk((c - 3.1) / 0.7); tip = arcTo(out, rest, k, UP, fwd, 0.03 * sc, 0, _eB); u = 1 - k; }
             else { tip = _eB.copy(rest); u = 0; }
           }
           if (sipping) { tip = _eB.copy(rest); u = 0; pitch = 0; }
           const dIn = _eA.subVectors(dip, shoulderR).add(_eC.set(0, -0.3 * sc, 0)).normalize(), dMo = _eC.copy(fwd).multiplyScalar(-0.9).addScaledVector(right, -0.35).addScaledVector(UP, 0.12).normalize();
           const dir = dIn.lerp(dMo, u).normalize(); dir.y += pitch; dir.normalize();
-          engHandFor(e, 0, aimQ(_eQ2, dir, engWristUp(e, 0, dir)), meal === 'udon' ? CHOP_TIP : SPOON_TIP, tip);   // cổ tay thẳng theo cẳng tay
+          engHandFor(e, 0, aimQ(_eQ2, dir, engWristUp(e, 0, dir)), meal === 'udon' ? CHOP_TIP : SPOON_TIP, tip);
           const chew = !sipping && c > (meal === 'udon' ? 3.8 : 2.4), slurp = meal === 'udon' && c >= 2.2 && c < 3.1 && !sipping;
-          const glance = chew ? Math.max(0, Math.sin(Math.PI * segK((t + ph * 2.3) % 13, 0, 3.5))) : 0;   // thỉnh thoảng liếc ra cửa sổ khi nhai
-          e.seatLean = 0.08 + 0.12 * u + (u === 0 && !chew ? 0.04 : 0);   // xúc: đổ nhẹ nhìn bát · đưa lên: đổ tới đón thìa
+          const glance = chew ? Math.max(0, Math.sin(Math.PI * segK((t + ph * 2.3) % 13, 0, 3.5))) : 0;
+          e.seatLean = 0.08 + 0.12 * u + (u === 0 && !chew ? 0.04 : 0);
           e.head.rotation.x = 0.36 * (1 - u) + 0.06 * u - 0.14 * sipU + (chew ? 0.025 * Math.sin(t * 8.8) : 0) + (slurp ? 0.03 * Math.sin(t * 15) : 0);
           e.head.rotation.y = 0.4 * glance;
         }
@@ -9941,7 +9941,7 @@
           return ph === 'rest' && !held;
         }
 
-        const BOOK_Q = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 0.6, -0.8), new THREE.Vector3(0, -0.8, -0.6)));   // mặt sách ngửa về phía mắt
+        const BOOK_Q = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 0.6, -0.8), new THREE.Vector3(0, -0.8, -0.6)));
         const CHIP_AT = new THREE.Vector3(0, -0.01, 0.11);
         function engRead(e, dt, t) {
           const H = e.hold, P = e.props, B = P.book; H.book = true; e.armsBusy = true;
@@ -9949,9 +9949,9 @@
           const tt = t + (e.readPh || 0) * 3;
           B.position.set(Math.sin(tt * 0.31) * 0.01, 0.42 + Math.sin(tt * 0.23) * 0.012, 0.5); B.quaternion.copy(BOOK_Q);
           B.updateWorldMatrix(true, true);
-          const bx = _mrA.set(1, 0, 0).transformDirection(B.matrixWorld).clone();   // trục ngang sách (thế giới, về phía mép phải người đọc)
+          const bx = _mrA.set(1, 0, 0).transformDirection(B.matrixWorld).clone();
           const edge = (s, out) => B.localToWorld(out.set(s * 0.15, 0.02, -0.02));
-          const qR = aimQ(new THREE.Quaternion(), bx.clone().negate(), _mrUp), qLh = aimQ(new THREE.Quaternion(), bx, _mrUp);   // miệng chữ C kẹp mép sách
+          const qR = aimQ(new THREE.Quaternion(), bx.clone().negate(), _mrUp), qLh = aimQ(new THREE.Quaternion(), bx, _mrUp);
           const pt = (tt + 10) % 40, pk = minJerk(segK(pt, 0.5, 1.4));
           P.bookLeaf.visible = pt > 0.4 && pt < 1.5; P.bookLeaf.rotation.z = 0.22 + (Math.PI - 0.44) * pk;
           const corner = P.bookLeaf.localToWorld(new THREE.Vector3(0.15, 0.03, 0)), rEdge = edge(1, new THREE.Vector3());
@@ -9961,17 +9961,17 @@
           const lEdge = edge(-1, new THREE.Vector3());
           let lp = lEdge, lq = qLh;
           if (reach > 0) { chipsBag.updateWorldMatrix(true, false); const bag = chipsBag.getWorldPosition(new THREE.Vector3()); bag.y += 0.12; lp = lEdge.clone().lerp(bag, reach); lq = qLh.clone().slerp(aimQ(_mrQ, _mrE.set(0, -1, 0), _mrB.copy(bx).negate()), reach); }
-          if (toM > 0) { const fwd = engAxesW(e).f, m = engMouthW(e, new THREE.Vector3()), qm = aimQ(new THREE.Quaternion(), _mrB.copy(fwd).negate().addScaledVector(bx, 0.45).normalize(), _mrUp);   // từ trước–trái hướng vào miệng
+          if (toM > 0) { const fwd = engAxesW(e).f, m = engMouthW(e, new THREE.Vector3()), qm = aimQ(new THREE.Quaternion(), _mrB.copy(fwd).negate().addScaledVector(bx, 0.45).normalize(), _mrUp);
             const hm = _mrC.copy(CHIP_AT).multiplyScalar(e.g.scale.y).applyQuaternion(qm).negate().add(m); lp = lp.clone().lerp(hm, toM); lq = lq.clone().slerp(qm, toM); }
           engHandSet(e, 1, lp, lq);
           H.chip = (reach > 0.6 && ct > 0.6) || (toM > 0.05 && ct < 2.85);
           const chew = ct > 2.2 && ct < 4.6;
-          e.seatLean = -0.05; e.seatSwing = 0.02;   // ngả lưng nhẹ: đỡ mỏi cổ khi đọc lâu
+          e.seatLean = -0.05; e.seatSwing = 0.02;
           e.head.rotation.x = 0.34 - toM * 0.2 + Math.sin(tt * 0.4) * 0.02 + (chew ? Math.abs(Math.sin(t * 10)) * 0.035 : 0); e.headYawT = 0.12 * toM;
         }
 
         const _grT = new THREE.Vector3();
-        function engGrillPhase(e, dt, t) {   // toGrill → grab → (toChair) · toPlant → plant → (toChair) — trả true khi xong
+        function engGrillPhase(e, dt, t) {
           const G = grill;
           if (e.phase === 'toGrill' || e.phase === 'toPlant') {
             if (engStep(e, G.stand(_grT), dt, t, pf, FIRE_AVOID_R, null)) { e.phase = e.phase === 'toGrill' ? 'grab' : 'plant'; e.timer = 0; }
@@ -9979,45 +9979,45 @@
           }
           e.timer += dt; const k = e.timer, base = G.homeW(0, _mrE), grip = G.homeW(0.5, _mrD);
           e.g.rotation.y = Math.atan2(base.x - e.g.position.x, base.z - e.g.position.z);
-          if (k < 0.7) { const dx = grip.x - e.g.position.x, dz = grip.z - e.g.position.z, d = Math.hypot(dx, dz), m = Math.min(0.5 * dt, Math.max(0, d - 0.42)); if (d > 1e-3) { e.g.position.x += dx / d * m; e.g.position.z += dz / d * m; } }   // nhích nửa bước tới que trước khi cúi
-          if (e.phase === 'grab') {   // cúi xuống nắm que (~2/5 thân que), rút lên, đứng thẳng dựng que trước ngực
+          if (k < 0.7) { const dx = grip.x - e.g.position.x, dz = grip.z - e.g.position.z, d = Math.hypot(dx, dz), m = Math.min(0.5 * dt, Math.max(0, d - 0.42)); if (d > 1e-3) { e.g.position.x += dx / d * m; e.g.position.z += dz / d * m; } }
+          if (e.phase === 'grab') {
             const bend = minJerk(segK(k, 0, 0.8)) * (1 - minJerk(segK(k, 1.3, 2.2)));
-            e.spineT = { x: 0.85 * bend, y: 0 }; e.lean = 0.04 * bend; e.head.rotation.x = 0.2 * bend + 0.1; engCrouch(e, 0.95 * bend);   // gập eo + khuỵu gối, không nghiêng cả người
+            e.spineT = { x: 0.85 * bend, y: 0 }; e.lean = 0.04 * bend; e.head.rotation.x = 0.2 * bend + 0.1; engCrouch(e, 0.95 * bend);
             if (k < 1.0) engHandSet(e, 0, G.homeW(0.5, _grT), G.handQ(G.homeQ(_mrQ), new THREE.Quaternion()));
             else { if (G.st !== 'held') G.grab(e, 0); engCarryFish(e, minJerk(segK(k, 1.0, 2.2))); }
             if (k >= 2.4) { e.phase = 'toChair'; e.timer = 0; }
-          } else {   // 'plant': que mới tay phải, cá tay trái → xiên cá vào que → cúi cắm que xiên xuống đất cạnh than
-            if (G.st === 'carried') { G.grab(e, 0); G.set('plant'); G.fishOnLeft = true; }   // que mới vào tay phải, cá vẫn ở tay trái
+          } else {
+            if (G.st === 'carried') { G.grab(e, 0); G.set('plant'); G.fishOnLeft = true; }
             const bend = minJerk(segK(k, 1.3, 2.1)) * (1 - minJerk(segK(k, 2.9, 3.6)));
             e.spineT = { x: 0.85 * bend, y: 0 }; e.lean = 0.04 * bend; e.head.rotation.x = 0.3 + 0.1 * bend; engCrouch(e, 0.95 * bend);
-            if (k < 1.4) {   // trước ngực: tay phải dựng que, tay trái đưa cá luồn vào đầu que
+            if (k < 1.4) {
               const ax = engAxesW(e), q = aimQ(new THREE.Quaternion(), ax.f, _mrUp);
               const sq = _mrQ2.setFromRotationMatrix(_mrM.makeBasis(_mrA.copy(ax.r).negate(), _mrUp, ax.f));
               engHandSet(e, 0, engBodyW(e, -0.2, 1.4, 0.45, _grT), G.handQ(sq, new THREE.Quaternion()));
               if (k > 0.3) { G.point(0.78 + 0.25 * (1 - minJerk(segK(k, 0.4, 1.3))), _mrC); engHandSet(e, 1, _mrC, q); }
               if (k >= 1.3 && G.fishOnLeft) { G.skewer(); G.fishOnLeft = false; }
-            } else if (k < 2.9) engHandSet(e, 0, G.homeW(0.5, _grT), G.handQ(G.homeQ(_mrQ), new THREE.Quaternion()));   // cúi cắm que đúng chỗ cũ, nghiêng về phía lửa
+            } else if (k < 2.9) engHandSet(e, 0, G.homeW(0.5, _grT), G.handQ(G.homeQ(_mrQ), new THREE.Quaternion()));
             else if (G.st === 'plant') { G.atHome(); G.cook = 0; G.eat = 0; G.paint(); G.set('cooking'); }
             if (k >= 3.6) { e.phase = engPhaseFor(e.act); if (e.phase === 'toPlant') e.phase = 'toChair'; e.timer = 0; }
           }
         }
-        function engCrouch(e, k) {   // khuỵu gối hạ người (như ngồi xổm vuốt chó, mức k)
+        function engCrouch(e, k) {
           e.g.position.y = cowY(e.g.position.x, e.g.position.z) - ENG_FEET - 0.28 * CAMP_SCALE * ENGINEER_SIZE * k;
           e.legs[0].rotation.x = -1.3 * k; e.legs[1].rotation.x = -1.2 * k; e.knees[0].rotation.x = 2.0 * k; e.knees[1].rotation.x = 1.9 * k;
         }
-        function engCarryFish(e, k = 1) {   // đi đường: tay phải cầm que dựng đứng trước ngực bên phải
+        function engCarryFish(e, k = 1) {
           const ax = engAxesW(e), sq = _mrQ.setFromRotationMatrix(_mrM.makeBasis(_mrA.copy(ax.r).negate(), _mrUp, ax.f));
           const p = engBodyW(e, -0.3, 1.45, 0.38, _grT); if (k < 1) p.lerp(grill.homeW(0.5, _mrC), 1 - k);
           engHandSet(e, 0, p, grill.handQ(sq, new THREE.Quaternion()));
         }
-        function engEatFish(e, dt, t) {   // ngồi ghế: 2 tay cầm que nằm ngang như bắp ngô, đưa sườn cá lên miệng cắn, giật nhẹ, nhai — 8 miếng
+        function engEatFish(e, dt, t) {
           const G = grill; e.timer -= dt; e.armsBusy = true; e.hold.fish = true;
           const n = 8, T = 9, el = Math.max(0, e.eatLen - e.timer), bite = Math.floor(el / T), c = el % T;
           const up = minJerk(segK(c, 0.2, 1.1)) * (1 - minJerk(segK(c, 1.9, 2.6))), pull = minJerk(segK(c, 1.4, 1.8)) * (1 - segK(c, 1.9, 2.6));
           G.eat = Math.min(1, (bite + segK(c, 1.1, 1.5)) / n); G.paint();
           const ax = engAxesW(e), right = _mrD.copy(ax.r), fwd = _mrF.copy(ax.f), sc = e.g.scale.y;
           const lap = engBodyW(e, 0.05, 1.55, 0.5, new THREE.Vector3()), m = engMouthW(e, new THREE.Vector3()).addScaledVector(fwd, (0.1 + 0.06 * pull) * sc);
-          const slide = ((bite % 4) - 1.5) * 0.06;   // mỗi miếng cắn một khúc khác dọc thân
+          const slide = ((bite % 4) - 1.5) * 0.06;
           const ctr = lap.lerp(m, up).addScaledVector(right, -slide * sc);
           const yq = _mrA.copy(right).negate(), xq = _mrB.copy(fwd).negate(), sq = _mrQ.setFromRotationMatrix(_mrM.makeBasis(xq, yq, _mrC.crossVectors(xq, yq)));
           const W = 1.44 * CAMP_SCALE, grip = ctr.clone().addScaledVector(yq, (0.5 - 0.78) * W), top = ctr.clone().addScaledVector(yq, (1.12 - 0.78) * W);
@@ -10027,18 +10027,18 @@
           e.head.rotation.x = 0.12 * (1 - up) - 0.05 * pull + (c > 2.6 ? Math.abs(Math.sin(t * 9)) * 0.045 : 0);
           if (e.timer <= 0 || bite >= n) { e.phase = 'tossFish'; e.timer = 0; }
         }
-        function engTossFish(e, dt, t) {   // vung tay phải quăng que + xương cá vào lòng bếp (đường đạn ~0,7 s)
+        function engTossFish(e, dt, t) {
           const G = grill; e.timer += dt; const k = e.timer; e.armsBusy = true;
           const ax = engAxesW(e), toFire = _mrC.set(pf.x - e.g.position.x, 0, pf.z - e.g.position.z).normalize();
           if (G.st === 'held') {
-            const back = minJerk(segK(k, 0, 0.5)), fw = minJerk(segK(k, 0.5, 0.75)), p = engBodyW(e, -0.32, 1.75, 0.25, _grT);   // vung ra sau–lên rồi phất tới về phía bếp
+            const back = minJerk(segK(k, 0, 0.5)), fw = minJerk(segK(k, 0.5, 0.75)), p = engBodyW(e, -0.32, 1.75, 0.25, _grT);
             p.addScaledVector(toFire, (fw * 1.2 - back * 0.7) * 0.4 * e.g.scale.y).y += (0.35 * back - 0.1 * fw) * e.g.scale.y;
             const sq = _mrQ.setFromRotationMatrix(_mrM.makeBasis(_mrA.copy(ax.r).negate(), _mrUp, ax.f));
             engHandSet(e, 0, p, G.handQ(sq, new THREE.Quaternion()));
             if (k >= 0.72) { const p0 = G.point(0.78, _mrD), T = 0.7, v = new THREE.Vector3(pf.x - p0.x, 0, pf.z - p0.z).divideScalar(T); v.y = (pf.y + 0.15 - p0.y) / T + 0.5 * 9.81 * T; G.toss(v); }
           }
           e.seatLean = 0.04; e.head.rotation.x = 0.1; e.headYawT = 0.25;
-          if (k >= 1.6) { e.phase = 'eat'; e.timer = Math.max(60, Math.min(900, e.actLeft - 900)); e.eatT0 = e.timer; }   // rồi ăn cơm chiên
+          if (k >= 1.6) { e.phase = 'eat'; e.timer = Math.max(60, Math.min(900, e.actLeft - 900)); e.eatT0 = e.timer; }
         }
         const applePick = (() => {
           const POLE_SEG = 1.8, EXT_MIN = 0.1, EXT_MAX = 1.7, GRIP_LO = 0.35, GRIP_HI = 0.85, GRIP_PLANT = 1.5, CUP_OFF = 0.08, N_PICK = 4;
@@ -10053,14 +10053,14 @@
           const head = new THREE.Group(); head.position.y = POLE_SEG; upper.add(head);
           const RIM = 0.17;
           { const rim = new THREE.Mesh(new THREE.TorusGeometry(RIM, 0.008, 6, 28), wire); rim.rotation.x = Math.PI / 2; rim.position.y = 0.06; head.add(rim);
-            for (let k = 0; k < 9; k++) {   // ngón cong ra ngoài; chừa khe chữ V ở hướng 0 (2 ngón cạnh khe thấp hơn để dẫn cuống vào)
+            for (let k = 0; k < 9; k++) {
               const a = (k + 0.5) / 9.5 * 6.2832 + 0.3, len = k === 0 || k === 8 ? 0.09 : 0.14, d = new THREE.Vector3(Math.cos(a) * 0.32, 1, Math.sin(a) * 0.32).normalize();
               const f = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.006, len, 4).translate(0, len / 2, 0), wire); f.position.set(Math.cos(a) * RIM, 0.06, Math.sin(a) * RIM); f.quaternion.setFromUnitVectors(UP, d); head.add(f);
             }
-            for (const a of [0.4, 2.5, 4.6]) { const s = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.19, 4), wire); s.position.set(Math.cos(a) * RIM * 0.5, 0.03, Math.sin(a) * RIM * 0.5); s.rotation.set(Math.sin(a) * 1.05, 0, -Math.cos(a) * 1.05); head.add(s); }   // 3 nan đỡ vành
-            const bag = new THREE.Mesh(new THREE.LatheGeometry([[RIM, 0.06], [0.16, -0.04], [0.12, -0.13], [0.05, -0.18], [0, -0.19]].map(([r, y]) => new THREE.Vector2(r, y)), 14), net); head.add(bag);   // túi lưới
+            for (const a of [0.4, 2.5, 4.6]) { const s = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.19, 4), wire); s.position.set(Math.cos(a) * RIM * 0.5, 0.03, Math.sin(a) * RIM * 0.5); s.rotation.set(Math.sin(a) * 1.05, 0, -Math.cos(a) * 1.05); head.add(s); }
+            const bag = new THREE.Mesh(new THREE.LatheGeometry([[RIM, 0.06], [0.16, -0.04], [0.12, -0.13], [0.05, -0.18], [0, -0.19]].map(([r, y]) => new THREE.Vector2(r, y)), 14), net); head.add(bag);
           }
-          function poleSet(B, H) {   // đặt sào theo 2 điểm thế giới: B = đầu dưới, H = gốc rổ; tự rút/kéo ống trên cho đúng chiều dài
+          function poleSet(B, H) {
             _a.subVectors(H, B); const L = _a.length(); _a.divideScalar(L || 1);
             pole.position.copy(B); pole.quaternion.setFromUnitVectors(UP, _a); upper.position.y = Math.max(EXT_MIN, Math.min(EXT_MAX, L - POLE_SEG));
           }
@@ -10071,19 +10071,19 @@
           const basket = new THREE.Group(); basket.name = 'Giỏ táo'; basket.userData.noBatch = true; scene.add(basket);
           { const c = document.createElement('canvas'); c.width = 64; c.height = 64; const x = c.getContext('2d');
             x.fillStyle = '#a77a43'; x.fillRect(0, 0, 64, 64);
-            for (let j = 0; j < 8; j++) for (let i = 0; i < 8; i++) { x.fillStyle = (i + j) % 2 ? '#8c6234' : '#bf9257'; x.fillRect(i * 8 + 1, j * 8 + 1, 6, 6); }   // nan đan nong mốt
+            for (let j = 0; j < 8; j++) for (let i = 0; i < 8; i++) { x.fillStyle = (i + j) % 2 ? '#8c6234' : '#bf9257'; x.fillRect(i * 8 + 1, j * 8 + 1, 6, 6); }
             const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(6, 2);
             const wick = new THREE.MeshLambertMaterial({ map: tex, side: THREE.DoubleSide }), rimM = new THREE.MeshLambertMaterial({ color: 0x7c5529 });
             const body = new THREE.Mesh(new THREE.LatheGeometry([[0, 0.005], [0.27, 0.005], [0.3, 0.09], [0.35, 0.27]].map(([r, y]) => new THREE.Vector2(r * BK, y * BK)), 20), wick); body.castShadow = true; basket.add(body);
             const rim = new THREE.Mesh(new THREE.TorusGeometry(0.35 * BK, 0.015, 6, 24), rimM); rim.rotation.x = Math.PI / 2; rim.position.y = 0.27 * BK; basket.add(rim);
-            const handle = new THREE.Mesh(new THREE.TorusGeometry(0.34 * BK, 0.014, 6, 20, Math.PI), rimM); handle.position.y = 0.27 * BK; handle.scale.y = 0.75; basket.add(handle);   // quai cong qua miệng giỏ
+            const handle = new THREE.Mesh(new THREE.TorusGeometry(0.34 * BK, 0.014, 6, 20, Math.PI), rimM); handle.position.y = 0.27 * BK; handle.scale.y = 0.75; basket.add(handle);
           }
-          const BASKET_TOP = 0.53 * BK;   // đỉnh quai (đv thế giới, tính từ đáy giỏ)
-          const SLOTS = [[0.115, 0.11, 0], [-0.058, 0.11, 0.1], [-0.058, 0.11, -0.1], [0.03, 0.27, 0.02], [-0.06, 0.31, -0.05]].map(p => new THREE.Vector3(...p));   // giỏ nhỏ: 3 quả đáy xếp tam giác chạm nhau, quả thứ 4 chồng lên khe giữa (ló khỏi miệng giỏ)
+          const BASKET_TOP = 0.53 * BK;
+          const SLOTS = [[0.115, 0.11, 0], [-0.058, 0.11, 0.1], [-0.058, 0.11, -0.1], [0.03, 0.27, 0.02], [-0.06, 0.31, -0.05]].map(p => new THREE.Vector3(...p));
           const trees = appleTrees.map(T => { T.updateMatrixWorld(true); return { T, base: T.getWorldPosition(new THREE.Vector3()), rA: T.userData.appleR * T.scale.x, apples: T.userData.apples }; });
           for (const tr of trees) for (const a of tr.apples) { a.tr = tr; a.st = 'tree'; a.world = a.g.getWorldPosition(new THREE.Vector3()); a.stemL = tr.rA * 1.1; }
           const yawTo = (from, to) => Math.atan2(to.x - from.x, to.z - from.z);
-          function reachable(S, A) {   // quả A có với tới bằng sào từ chỗ đứng S? (tay dưới trước ngực 0,3 · cao ≤ 1,2; sào nghiêng ≤ 30°)
+          function reachable(S, A) {
             const d = Math.hypot(A.x - S.x, A.z - S.z), h = A.y - S.y; if (d < 0.35 || d > 1.7) return false;
             const vx = d - 0.3, vy = h - 1.2 - CUP_OFF;
             return vy > 1.0 && Math.hypot(vx, vy) + GRIP_LO <= POLE_SEG + EXT_MAX - 0.05 && Math.atan2(Math.abs(vx), vy) < 0.52;
@@ -10094,19 +10094,19 @@
             for (const o of ENG_PROPS) if (Math.hypot(S.x - o.x, S.z - o.z) < o.r + 0.6) return false;
             return true;
           }
-          const plan = (() => {   // chỗ đứng cố định mỗi ngày: quanh gốc cây có nhiều quả với tới nhất
+          const plan = (() => {
             let best = null;
             for (const tr of trees) for (let k = 0; k < 16; k++) {
-              const a = k / 16 * 6.2832, S = new THREE.Vector3(tr.base.x + Math.cos(a) * 1.35, tr.base.y, tr.base.z + Math.sin(a) * 1.35);   // cách gốc 1,35 m: thân cây cong không chạm người
+              const a = k / 16 * 6.2832, S = new THREE.Vector3(tr.base.x + Math.cos(a) * 1.35, tr.base.y, tr.base.z + Math.sin(a) * 1.35);
               if (!standOK(S, tr)) continue;
               const n = tr.apples.filter(ap => reachable(S, ap.world)).length;
               if (!best || n > best.n) best = { tr, S, n };
             }
             if (!best) return null;
-            const { tr, S } = best, yaw = yawTo(S, tr.base), f = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw)), r = new THREE.Vector3(-f.z, 0, f.x);   // r = phía tay phải
+            const { tr, S } = best, yaw = yawTo(S, tr.base), f = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw)), r = new THREE.Vector3(-f.z, 0, f.x);
             const bk = S.clone().addScaledVector(r, 0.55).addScaledVector(f, 0.05); bk.y = cowY(bk.x, bk.z);
             const out = S.clone().sub(tr.base).setY(0).normalize(), gy = tr.base.y;
-            const stow = { B: tr.base.clone().addScaledVector(out, 0.5).addScaledVector(r, -0.25).setY(gy + 0.02), H: tr.base.clone().addScaledVector(out, 0.17).addScaledVector(r, -0.1).setY(gy + 1.86) };   // dựa vào thân cây
+            const stow = { B: tr.base.clone().addScaledVector(out, 0.5).addScaledVector(r, -0.25).setY(gy + 0.02), H: tr.base.clone().addScaledVector(out, 0.17).addScaledVector(r, -0.1).setY(gy + 1.86) };
             return { tr, S, yaw, f, r, basketHome: bk, stow };
           })();
           if (!plan) { pole.visible = basket.visible = false; return { update() {}, tick() {}, busy: false }; }
@@ -10115,7 +10115,7 @@
           const basketStand = basketDrop.clone().add(plan.S.clone().sub(basketDrop).setY(0).normalize().multiplyScalar(0.62)); basketStand.y = cowY(basketStand.x, basketStand.z);
           const St = { st: 'idle', k: 0, cfg: cfgNew(), c0: cfgNew(), c1: cfgNew(), cur: null, picked: 0, inBasket: [], basketAt: 'home', day: '', handApple: null, cupApple: null, swing: [] };
           const placeBasket = (p, yaw) => { basket.position.copy(p); basket.rotation.set(0, yaw, 0); basket.updateMatrixWorld(true); };
-          function resetDay() {   // sáng sớm: táo trên cây đủ lại, giỏ rỗng về gốc, sào dựa gốc
+          function resetDay() {
             for (const tr of trees) for (const a of tr.apples) { a.st = 'tree'; a.sw = a.sv = a.swy = a.svy = 0; a.g.position.copy(a.home); a.g.rotation.set(0, a.rot, 0); a.g.scale.setScalar(1); a.g.visible = true; }
             St.inBasket.length = 0; St.picked = 0; St.basketAt = 'home'; placeBasket(plan.basketHome, plan.yaw + 0.6);
             cfgCopy(St.cfg, plan.stow); poleSet(St.cfg.B, St.cfg.H);
@@ -10123,7 +10123,7 @@
           resetDay();
           const setAppleWorld = (a, p, rx = 0, rz = 0, spin = 0) => { a.g.position.copy(a.tr.T.worldToLocal(_d.copy(p))); a.g.rotation.set(rx, a.rot + spin, rz); };
           const nextApple = () => plan.tr.apples.filter(a => a.st === 'tree' && reachable(plan.S, a.world)).sort((p, q) => p.world.y - q.world.y)[0] || null;
-          function aimCfg(A, below, out) {   // sào nhắm quả A: tay dưới trước ngực, nâng tay khi quả cao; rổ ở dưới quả một đoạn 'below'
+          function aimCfg(A, below, out) {
             const f = plan.f, H = _b.copy(A).addScaledVector(UP, -(CUP_OFF + below));
             let hl = 1.0; const G = _c;
             for (let it = 0; it < 4; it++) {
@@ -10133,15 +10133,15 @@
             const dir = _a.subVectors(H, G).normalize(); out.B.copy(G).addScaledVector(dir, -GRIP_LO); out.H.copy(H); return out;
           }
           const readyCfg = out => { out.B.copy(plan.S).addScaledVector(plan.f, 0.32); out.B.y = plan.S.y + 0.62; out.H.copy(out.B); out.H.y += 1.92; return out; };
-          const plantCfg = out => { out.B.copy(plan.S).addScaledVector(plan.f, 1.35).addScaledVector(plan.r, -0.05); out.B.y = plan.S.y + 0.01; out.H.copy(out.B).addScaledVector(plan.f, -1.15); out.H.y += 1.5; return out; };   // chống chéo: rổ trước ngực, tay trái giữ sào ngay dưới rổ
-          function snapSwing(A) {   // cành bật lại: các quả cùng chùm đung đưa (vận tốc góc tỉ lệ độ gần)
+          const plantCfg = out => { out.B.copy(plan.S).addScaledVector(plan.f, 1.35).addScaledVector(plan.r, -0.05); out.B.y = plan.S.y + 0.01; out.H.copy(out.B).addScaledVector(plan.f, -1.15); out.H.y += 1.5; return out; };
+          function snapSwing(A) {
             for (const a of plan.tr.apples) {
               if (a.st !== 'tree' || a === A) continue; const d = a.world.distanceTo(A.world); if (d > 0.95) continue;
               const k = (1 - d / 0.95) * 1.6; a.sv += k * (Math.random() < 0.5 ? -1 : 1); a.svy += k * (Math.random() - 0.5);
             }
           }
           function go(st) { St.st = st; St.k = 0; cfgCopy(St.c0, St.cfg); }
-          function abort() {   // việc bị cắt ngang: cất sào, quả đang cầm vào giỏ, giỏ về cạnh bàn trà
+          function abort() {
             for (const a of [St.handApple, St.cupApple]) if (a) { a.st = 'basket'; St.inBasket.push(a); }
             St.handApple = St.cupApple = null; cfgCopy(St.cfg, plan.stow); poleSet(St.cfg.B, St.cfg.H);
             if (St.inBasket.length) { St.basketAt = 'table'; placeBasket(basketDrop, 0.4); } else { St.basketAt = 'home'; placeBasket(plan.basketHome, plan.yaw + 0.6); }
@@ -10153,45 +10153,45 @@
             const grips2 = () => { R[0] = onPole(St.cfg, GRIP_LO, new THREE.Vector3()); R[1] = onPole(St.cfg, GRIP_HI, new THREE.Vector3()); };
             const stand = () => { engStandStill(e); e.vel = 0; e.g.position.y = cowY(e.g.position.x, e.g.position.z) - ENG_FEET; e.g.rotation.y = plan.yaw; };
             if (St.st === 'idle') { St.picked = 0; go('walk'); }
-            if (St.st === 'walk') {   // tới chỗ đứng dưới tán (né thân cây, bếp lửa)
+            if (St.st === 'walk') {
               H.pole = false;
               if (engStep(e, plan.S, dt, t, pf, FIRE_AVOID_R)) { e.g.position.x = plan.S.x; e.g.position.z = plan.S.z; go('grab'); }
               return false;
             }
-            if (St.st === 'carry') {   // xách giỏ về cạnh bàn trà
+            if (St.st === 'carry') {
               H.pole = false;
               if (engStep(e, basketStand, dt, t, pf, FIRE_AVOID_R)) go('put');
-              else { e.arms[1].rotation.x = 0.04 + 0.04 * Math.sin(e.gait || 0); (e.armRollT || (e.armRollT = [0, 0]))[1] = 0.2; e.elbowFlexT = [0, -0.03]; }   // tay trái duỗi thẳng xách giỏ (vật nặng: khuỷu không gập), dang ra khỏi đùi, đung đưa ít
+              else { e.arms[1].rotation.x = 0.04 + 0.04 * Math.sin(e.gait || 0); (e.armRollT || (e.armRollT = [0, 0]))[1] = 0.2; e.elbowFlexT = [0, -0.03]; }
               return false;
             }
             stand();
             St.k += dt;
             const A = St.cur;
             switch (St.st) {
-              case 'grab': {   // với lấy sào đang dựa gốc cây, dựng thẳng trước ngực
+              case 'grab': {
                 const k = ease(St.k / 1.6); readyCfg(St.c1); cfgLerp(St.c0, St.c1, ease((St.k - 0.5) / 1.1), St.cfg); grips2(); lookAt(St.cfg.H);
                 e.spineT = { x: 0.12 * Math.sin(Math.PI * k), y: 0 };
                 if (St.k > 1.6) { St.cur = nextApple(); go(St.cur ? 'look' : 'stow'); }
                 break;
               }
-              case 'look': {   // ngước nhìn chọn quả chín (quả thấp nhất còn trên cành, trong tầm sào)
+              case 'look': {
                 grips2(); lookAt(A.world); e.spineT = { x: -0.06, y: 0 };
                 if (St.k > 1.0) go('aim');
                 break;
               }
-              case 'aim': {   // rút dài sào, đưa rổ tới ngay dưới quả 30 cm
+              case 'aim': {
                 aimCfg(A.world, 0.3, St.c1); cfgLerp(St.c0, St.c1, ease(St.k / 1.7), St.cfg); grips2(); lookAt(A.world); e.spineT = { x: -0.08, y: 0 };
                 if (St.k > 1.7) go('cup');
                 break;
               }
-              case 'cup': {   // nâng rổ lên: quả lọt vào lòng rổ, cuống vào khe chữ V; cuối cùng nâng nhẹ quả 3 cm (cuống chùng)
+              case 'cup': {
                 aimCfg(A.world, -0.03, St.c1); cfgLerp(St.c0, St.c1, ease(St.k / 0.9), St.cfg); grips2(); lookAt(A.world); e.spineT = { x: -0.08, y: 0 };
                 const c = Math.max(0, Math.min(1, (St.k - 0.55) / 0.35));
                 _a.subVectors(St.cfg.H, St.cfg.B).normalize(); _b.copy(St.cfg.H).addScaledVector(_a, CUP_OFF); _c.copy(A.world).lerp(_b, c); setAppleWorld(A, _c);
                 if (St.k > 0.9) { go('twist'); St.spin = 0; }
                 break;
               }
-              case 'twist': {   // VẶN sào + kéo lệch sang bên: cuống bị bẻ quanh mép khe; gập ≥ 0,7 rad (~40°) thì gãy ở tầng rời
+              case 'twist': {
                 aimCfg(A.world, -0.03, St.c1); St.c1.H.addScaledVector(plan.r, 0.16 * ease(St.k / 0.8)).addScaledVector(UP, -0.06 * ease(St.k / 0.8));
                 cfgCopy(St.cfg, St.c1); grips2(); lookAt(A.world); e.spineT = { x: -0.08, y: 0.06 * Math.sin(St.k * 9) };
                 St.spin = 1.4 * ease(St.k / 0.8); head.rotation.y = St.spin;
@@ -10199,24 +10199,24 @@
                 const anc = _c.copy(A.world).addScaledVector(UP, A.stemL), sx = _b.x - anc.x, sz = _b.z - anc.z, bend = Math.atan2(Math.hypot(sx, sz), anc.y - _b.y);
                 if (!St.cupApple) {
                   setAppleWorld(A, _b, Math.atan2(sz, A.stemL) * 0.8, -Math.atan2(sx, A.stemL) * 0.8, St.spin);
-                  if (bend > 0.7 || St.k > 1.0) { A.st = 'cup'; St.cupApple = A; snapSwing(A); }   // tách!
+                  if (bend > 0.7 || St.k > 1.0) { A.st = 'cup'; St.cupApple = A; snapSwing(A); }
                 }
                 if (St.cupApple && St.k > 1.05) go('retract');
                 break;
               }
-              case 'retract': {   // rút ngắn sào, hạ rổ (quả nằm trong túi lưới) về trước mặt
+              case 'retract': {
                 readyCfg(St.c1); St.c1.H.copy(St.c1.B).addScaledVector(plan.f, 0.25); St.c1.H.y += 1.9;
                 cfgLerp(St.c0, St.c1, ease(St.k / 1.4), St.cfg); grips2(); lookAt(St.cfg.H); head.rotation.y = St.spin * (1 - ease(St.k / 1.4));
                 if (St.k > 1.4) go('plant');
                 break;
               }
-              case 'plant': {   // chống đầu sào xuống đất, ngả sào vào người: rổ ngang vai — tay trái giữ sào, tay phải rảnh
+              case 'plant': {
                 plantCfg(St.c1); cfgLerp(St.c0, St.c1, ease(St.k / 1.0), St.cfg);
                 R[1] = onPole(St.cfg, lerp(GRIP_HI, GRIP_PLANT, ease(St.k / 1.0)), new THREE.Vector3()); R[0] = onPole(St.cfg, GRIP_LO, new THREE.Vector3()); lookAt(St.cfg.H);
                 if (St.k > 1.0) go('take');
                 break;
               }
-              case 'take': {   // tay phải lấy quả trong rổ
+              case 'take': {
                 plantCfg(St.cfg); R[1] = onPole(St.cfg, GRIP_PLANT, new THREE.Vector3());
                 const ap = St.cupApple || St.handApple; _a.subVectors(St.cfg.H, St.cfg.B).normalize(); const cupP = _b.copy(St.cfg.H).addScaledVector(_a, CUP_OFF).clone();
                 R[0] = St.k < 0.6 ? cupP : cupP.clone().addScaledVector(plan.f, -0.25 * ease((St.k - 0.6) / 0.5)).addScaledVector(UP, -0.25 * ease((St.k - 0.6) / 0.5));
@@ -10225,7 +10225,7 @@
                 if (St.k > 1.1) go('drop');
                 break;
               }
-              case 'drop': {   // ngồi xổm, đặt quả nhẹ vào giỏ bên phải (không thả rơi cho khỏi dập), đứng lên
+              case 'drop': {
                 plantCfg(St.cfg); R[1] = onPole(St.cfg, GRIP_PLANT, new THREE.Vector3());
                 const sq = Math.min(ease(St.k / 0.6), 1 - ease((St.k - 1.3) / 0.6));
                 e.noFootIK = true; e.g.position.y -= 0.24 * CAMP_SCALE * ENGINEER_SIZE * sq;
@@ -10237,18 +10237,18 @@
                 if (St.k > 1.9) { e.noFootIK = false; St.cur = St.picked < N_PICK ? nextApple() : null; go(St.cur ? 'lift' : 'stow'); }
                 break;
               }
-              case 'lift': {   // nhấc sào khỏi đất, hai tay nắm lại, dựng thẳng
+              case 'lift': {
                 readyCfg(St.c1); cfgLerp(St.c0, St.c1, ease(St.k / 1.0), St.cfg);
                 R[1] = onPole(St.cfg, lerp(GRIP_PLANT, GRIP_HI, ease(St.k / 1.0)), new THREE.Vector3()); R[0] = onPole(St.cfg, GRIP_LO, new THREE.Vector3()); lookAt(A ? A.world : St.cfg.H);
                 if (St.k > 1.0) go('look');
                 break;
               }
-              case 'stow': {   // dựa sào vào gốc cây
+              case 'stow': {
                 cfgLerp(St.c0, plan.stow, ease(St.k / 1.5), St.cfg); grips2(); lookAt(St.cfg.H);
                 if (St.k > 1.5) go('lift-b');
                 break;
               }
-              case 'lift-b': {   // cúi xách giỏ (tay trái)
+              case 'lift-b': {
                 const sq = Math.min(ease(St.k / 0.6), 1 - ease((St.k - 0.9) / 0.6));
                 e.noFootIK = true; e.g.position.y -= 0.2 * CAMP_SCALE * ENGINEER_SIZE * sq;
                 e.legs[0].rotation.x = e.legs[1].rotation.x = -0.9 * sq; e.knees[0].rotation.x = e.knees[1].rotation.x = 1.5 * sq; e.lean = 0.1 * sq; e.spineT = { x: 0.4 * sq, y: 0.25 * sq };
@@ -10257,7 +10257,7 @@
                 if (St.k > 1.5) { e.noFootIK = false; go('carry'); }
                 break;
               }
-              case 'put': {   // đặt giỏ xuống đất cạnh bàn trà
+              case 'put': {
                 H.pole = false; e.g.rotation.y = yawTo(e.g.position, basketDrop);
                 const sq = Math.min(ease(St.k / 0.6), 1 - ease((St.k - 0.9) / 0.6));
                 e.noFootIK = true; e.g.position.y -= 0.2 * CAMP_SCALE * ENGINEER_SIZE * sq;
@@ -10281,7 +10281,7 @@
             if (St.cupApple) { _a.subVectors(St.cfg.H, St.cfg.B).normalize(); setAppleWorld(St.cupApple, _b.copy(St.cfg.H).addScaledVector(_a, CUP_OFF + 0.02), 0, 0, St.spin || 0); }
             if (St.handApple) { e.wrists[0].localToWorld(_w.set(0, -0.02, 0.07)); setAppleWorld(St.handApple, _w); }
             St.inBasket.forEach((a, i) => setAppleWorld(a, basket.localToWorld(_w.copy(SLOTS[Math.min(i, SLOTS.length - 1)])), 0.2 * (i % 2), 0.15 * ((i + 1) % 2), i * 1.3));
-            const w0 = 12.6, z = 0.07, h = Math.min(dt, 1 / 30);   // con lắc cuống quả: ω ≈ 2π·2 Hz, tắt dần ζ 0,07
+            const w0 = 12.6, z = 0.07, h = Math.min(dt, 1 / 30);
             for (const tr of trees) for (const a of tr.apples) {
               if (a.st !== 'tree' || (Math.abs(a.sw) + Math.abs(a.sv) + Math.abs(a.swy) + Math.abs(a.svy) < 1e-3)) continue;
               a.sv += (-w0 * w0 * a.sw - 2 * z * w0 * a.sv) * h; a.sw += a.sv * h; a.svy += (-w0 * w0 * a.swy - 2 * z * w0 * a.svy) * h; a.swy += a.svy * h;
@@ -10299,7 +10299,7 @@
           function damp(S, target, w, dt) { const k = w * dt, ex = 1 / (1 + k + 0.48 * k * k + 0.235 * k * k * k), c = S.x - target, tmp = (S.v + w * c) * dt; S.v = (S.v - w * tmp) * ex; S.x = target + (c + tmp) * ex; return S.x; }
           const yawOf = (dx, dz) => Math.atan2(-dz, dx), fwd = () => _b.set(Math.cos(O.rotation.y), 0, -Math.sin(O.rotation.y));
           const GAITS = {
-            walk: { off: [0, 0.5, 0.08, 0.58], duty: 0.62, stride: 0.25, lift: 0.04, vRef: 0.6 },   // sải vừa tầm chân ngắn (chân trước 0,15): bước ngắn, nhanh — chân với tới, không trượt
+            walk: { off: [0, 0.5, 0.08, 0.58], duty: 0.62, stride: 0.25, lift: 0.04, vRef: 0.6 },
             trot: { off: [0, 0.5, 0.5, 0], duty: 0.45, stride: 0.42, lift: 0.05, vRef: 1.2 },
             gallop: { off: [0.5, 0.56, 0, 0.06], duty: 0.3, stride: 0.7, lift: 0.07, vRef: 2.4 }
           };
@@ -10311,7 +10311,7 @@
           }
           const rig = quadRig(O, { legs: U.legs, gaits: GAITS, home: homeLocal, ground: (x, z) => cowY(x, z), size: 0.2, settleT: 0.18, settleLift: 0.03 });
           const tail = makeSoftTail(U.tailHost, { base: new THREE.Vector3(0, 0, 0), dir: new THREE.Vector3(-1, -0.2, 0).normalize(), n: 7, len: 0.046 * s, w: 0.12 * s, mat: U.ringB, stiff: [0.3, 0.1] });
-          tail.segs.forEach((m, i) => { m.material = i % 2 || i === tail.segs.length - 1 ? U.ringA : U.ringB; });   // đuôi rậm 7 khoanh đen–xám, ngọn đen (theo mẫu)
+          tail.segs.forEach((m, i) => { m.material = i % 2 || i === tail.segs.length - 1 ? U.ringA : U.ringB; });
           const B = { st: 'den', t: 0, k: 0, v: 0, want: 0, gait: 'walk', tgt: new THREE.Vector3(), has: false, mode: 'walk', look: null, headP: null, dig: 0, apple: null, n: 0, ate: '' };
           const active = () => { const hh = liveWeather.localHour; return !liveWeather.state.raining && ((hh >= 16.5 && hh < 22.5) || (hh >= 4.5 && hh < 7)); };
           const set = (st, t) => { B.st = st; B.k = 0; B.t = t || 0; B.has = false; };
@@ -10326,7 +10326,7 @@
             rep(pf.x, pf.z, FIRE_AVOID_R * 0.7);
             const ul = Math.hypot(ux, uz) || 1; ux /= ul; uz /= ul;
             let dy = yawOf(ux, uz) - O.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
-            const mt = (B.v < 0.4 ? 2.6 : 2.2) * dt; O.rotation.y += Math.max(-mt, Math.min(mt, dy * Math.min(1, dt * 7)));   // quay ≤ 150°/giây: chân kịp bước theo
+            const mt = (B.v < 0.4 ? 2.6 : 2.2) * dt; O.rotation.y += Math.max(-mt, Math.min(mt, dy * Math.min(1, dt * 7)));
             B.want = speed * Math.max(0.25, Math.cos(dy)) * Math.min(1, 0.35 + dd / 0.6); return false;
           }
           function move(dt) {
@@ -10337,13 +10337,13 @@
             if (isWater(Math.round(x2gi(nx)), Math.round(z2gj(nz)))) { B.v = 0; return 0; }
             const d = Math.hypot(nx - p.x, nz - p.z); p.x = nx; p.z = nz; return d;
           }
-          function threat() {   // chó đang ở ngoài trong 4 m · người đi tới trong 2,8 m
+          function threat() {
             const p = O.position;
             if (!dogRain.st && dogObj.position.distanceTo(p) < 4) return dogObj.position;
             if (engObj && !engObj.inVan && engObj.g.parent === scene && engObj.g.position.distanceTo(p) < 2.8) return engObj.g.position;
             return null;
           }
-          function crawl(A, Bp, dur, dt, onGround) {   // trườn thẳng giữa 2 điểm theo kịch bản (trong lòng khúc gỗ / ra miệng gỗ)
+          function crawl(A, Bp, dur, dt, onGround) {
             B.k += dt; const f = Math.min(1, B.k / dur), p = O.position;
             p.x = A.x + (Bp.x - A.x) * f; p.z = A.z + (Bp.z - A.z) * f; p.y = onGround ? cowY(p.x, p.z) : A.y + (Bp.y - A.y) * f;
             O.rotation.y = yawOf(Bp.x - A.x, Bp.z - A.z); B.v = (Math.hypot(Bp.x - A.x, Bp.z - A.z) / dur); B.want = B.v;
@@ -10360,36 +10360,36 @@
               case 'out': { const A = { x: racMouth.x, z: racMouth.z }, Bp = { x: racApproach.x, z: racApproach.z }; if (crawl(A, Bp, 3, dt, true)) set('stand', 2.5); return B.v * dt; }
               case 'toMouth': { const A = { x: racApproach.x, z: racApproach.z }, Bp = { x: racMouth.x, z: racMouth.z }; if (crawl(A, Bp, 2.4, dt, true)) set('enter'); return B.v * dt; }
               case 'enter': if (crawl(racMouth, racInside, 4, dt, false)) set('den', active() ? 40 + Math.random() * 60 : 0); return B.v * dt;
-              case 'forage': {   // đi tà tà mũi sát đất; tới chỗ có mùi thì cào bới hoặc đứng lên nhìn quanh
+              case 'forage': {
                 B.headP = -0.4;
                 if (!B.has) { B.tgt.copy(randPt()); B.has = true; }
                 if (steer(B.tgt.x, B.tgt.z, 0.6, dt, null, 0.25)) { if (Math.random() < 0.3) set('stand', 2 + Math.random() * 1.5); else set('dig', 2 + Math.random() * 2.5); }
-                if (liveWeather.wildlifeAwake && t > (B.chaseCD || 0)) for (const bf of [...butterflies, ...bees]) if (bf.g.position.distanceTo(p) < 3 && bf.g.position.y - p.y < 1.2) { B.prey = bf; B.chaseCD = t + 25 + Math.random() * 15; set('chase', 3); break; }   // thỉnh thoảng vồ con bay thấp
+                if (liveWeather.wildlifeAwake && t > (B.chaseCD || 0)) for (const bf of [...butterflies, ...bees]) if (bf.g.position.distanceTo(p) < 3 && bf.g.position.y - p.y < 1.2) { B.prey = bf; B.chaseCD = t + 25 + Math.random() * 15; set('chase', 3); break; }
                 break;
               }
-              case 'dig': {   // 2 tay trước cào đất luân phiên, mũi dí sát
+              case 'dig': {
                 B.want = 0; B.mode = 'dig'; B.dig = 1; B.headP = -0.75;
-                if (B.t <= 0) { B.n++; set(Math.random() < 0.45 ? 'eat' : B.n % 4 === 0 ? 'stand' : 'forage', 3 + Math.random() * 2); }   // bới được mồi thì ngồi ăn
+                if (B.t <= 0) { B.n++; set(Math.random() < 0.45 ? 'eat' : B.n % 4 === 0 ? 'stand' : 'forage', 3 + Math.random() * 2); }
                 break;
               }
-              case 'stand': {   // đứng thẳng 2 chân sau, tay buông trước ngực, ngó quanh
+              case 'stand': {
                 B.want = 0; B.mode = 'stand'; B.headP = 0.1; B.look = engObj && !engObj.inVan ? _hp.copy(engObj.g.position).setY(engObj.g.position.y + 1) : null;
                 if (B.t <= 0) set('forage');
                 break;
               }
-              case 'chase': {   // vồ ong bướm bay thấp (ban ngày / chạng vạng còn sâu bọ)
+              case 'chase': {
                 const q = B.prey && B.prey.g.position; B.look = q;
                 if (!q || B.t <= 0) { set('forage'); break; }
                 steer(q.x, q.z, 1.5, dt, null, 0.3);
                 if (q.distanceTo(p) < 1.1 && t >= (B.prey.scaredUntil || 0)) { B.prey.scaredUntil = t + 8; if (B.prey.state === 'foraging') { cancelBeeNectar(B.prey); pickBeeFlowerTarget(B.prey.pos, B.prey.target); B.prey.hoverTmr = 0; } else if (typeof nextButterflyTarget === 'function' && butterflies.includes(B.prey)) nextButterflyTarget(B.prey); B.pounce = 0.5; }
                 break;
               }
-              case 'eat': {   // ngồi xổm, 2 tay đưa mồi lên miệng gặm, đầu gật nhẹ theo nhịp nhai
+              case 'eat': {
                 B.want = 0; B.mode = 'sit'; B.headP = -0.2 + 0.05 * Math.abs(Math.sin(t * 9));
                 if (B.t <= 0) set('forage');
                 break;
               }
-              case 'flee': {   // bỏ chạy (phi nhảy) về cửa hang rồi chui vào
+              case 'flee': {
                 if (steer(racApproach.x, racApproach.z, 2.6, dt, racField, 0.35)) set('toMouth');
                 break;
               }
@@ -10408,8 +10408,8 @@
               if (!O.visible) return;
               const sp = B.v;
               if (B.gait === 'walk' && sp > 0.95) B.gait = 'trot'; else if (B.gait === 'trot' && sp < 0.75) B.gait = 'walk'; else if (B.gait === 'trot' && sp > 2.1) B.gait = 'gallop'; else if (B.gait === 'gallop' && sp < 1.8) B.gait = 'trot';
-              if (!inLog) {   // thân theo chỗ chân đứng: đất TB dưới 2 chân trước / 2 chân sau → độ cao + chúc/ngóc (lên bậc: chân trước lên trước, thân ngóc dần) — không nhảy bậc
-                const yF = (rig.support(0) + rig.support(1)) / 2, yH = (rig.support(2) + rig.support(3)) / 2, ref = cowY(O.position.x, O.position.z), gy = Math.abs((yF + yH) / 2 - ref) < 1.5 ? (yF + yH) / 2 : ref;   // chân chưa đặt (vừa ra khỏi hang) ⇒ lấy đất tại chỗ
+              if (!inLog) {
+                const yF = (rig.support(0) + rig.support(1)) / 2, yH = (rig.support(2) + rig.support(3)) / 2, ref = cowY(O.position.x, O.position.z), gy = Math.abs((yF + yH) / 2 - ref) < 1.5 ? (yF + yH) / 2 : ref;
                 if (!P.gy || Math.abs(P.gy.x - gy) > 1.5) P.gy = spr(gy);
                 O.position.y = damp(P.gy, gy, 9, dt);
                 damp(P.tp, Math.max(-0.45, Math.min(0.45, Math.atan2(yF - yH, 0.27 * s * O.scale.y))), 7, dt);
@@ -10418,32 +10418,32 @@
               const stT = B.mode === 'stand' ? 1 : 0, siT = B.mode === 'sit' ? 1 : 0, psi = rig.psi;
               damp(P.stand, stT, 5, dt); damp(P.sit, siT, 5, dt);
               const pitchT = -0.16 * (1 - stT - siT) + 1.25 * stT + 0.95 * siT + (B.mode === 'dig' ? -0.18 : 0) + (B.gait === 'gallop' && sp > 0.1 ? 0.15 * Math.cos(2 * Math.PI * psi) : 0);
-              const crouch = (B.gait === 'walk' ? 0.016 : 0.026) * s * Math.min(1, sp / 0.3) * (1 - stT - siT);   // đi khom thấp (dáng gù của gấu mèo) ⇒ chân đủ với tới điểm đặt, bàn chân trụ không trượt
+              const crouch = (B.gait === 'walk' ? 0.016 : 0.026) * s * Math.min(1, sp / 0.3) * (1 - stT - siT);
               const hT = H0 * (1 - stT - siT) + 0.325 * s * stT + 0.205 * s * siT - (B.mode === 'dig' ? 0.03 * s : 0) - crouch + (sp > 0.1 && B.gait === 'gallop' ? 0.025 * s * Math.sin(2 * Math.PI * psi) : 0);
-              const bob = sp > 0.06 && B.gait !== 'gallop' ? 0.007 * s * Math.cos(4 * Math.PI * psi) : 0;   // nảy 2 lần/chu kỳ khi đi / kiệu (con lắc ngược)
+              const bob = sp > 0.06 && B.gait !== 'gallop' ? 0.007 * s * Math.cos(4 * Math.PI * psi) : 0;
               damp(P.pitch, pitchT + P.tp.x, 8, dt); damp(P.h, hT + bob, 8, dt);
               U.torso.position.y = P.h.x; U.torso.rotation.z = P.pitch.x;
-              const flex = B.gait === 'gallop' && sp > 0.1 ? 0.11 * Math.sin(2 * Math.PI * psi + 0.6) : 0; U.fore.rotation.z += (-flex - U.fore.rotation.z) * Math.min(1, dt * 14); U.aft.rotation.z = -U.fore.rotation.z;   // phi nhảy: lưng cong khi gom chân, duỗi khi vươn
-              damp(P.roll, sp > 0.05 && B.gait === 'walk' ? 0.07 * Math.sin(2 * Math.PI * psi) : 0, 12, dt);   // lắc ngang khi đi tà tà (2 chân cùng bên gần cùng nhịp)
+              const flex = B.gait === 'gallop' && sp > 0.1 ? 0.11 * Math.sin(2 * Math.PI * psi + 0.6) : 0; U.fore.rotation.z += (-flex - U.fore.rotation.z) * Math.min(1, dt * 14); U.aft.rotation.z = -U.fore.rotation.z;
+              damp(P.roll, sp > 0.05 && B.gait === 'walk' ? 0.07 * Math.sin(2 * Math.PI * psi) : 0, 12, dt);
               let yr = O.rotation.y - P.yaw0; yr = Math.atan2(Math.sin(yr), Math.cos(yr)); P.yaw0 = O.rotation.y; P.turn += (yr / Math.max(dt, 1e-3) - P.turn) * Math.min(1, dt * 6);
-              damp(P.bank, Math.max(-0.16, Math.min(0.16, -P.turn * sp * 0.06)), 8, dt); U.torso.rotation.x = P.roll.x + P.bank.x;   // nghiêng vào khúc cua khi chạy (như chó)
+              damp(P.bank, Math.max(-0.16, Math.min(0.16, -P.turn * sp * 0.06)), 8, dt); U.torso.rotation.x = P.roll.x + P.bank.x;
               const free = rig.free, hipF = U.legs[0].hip.position, pc = Math.cos(P.pitch.x), ps = Math.sin(P.pitch.x);
               const shX = hipF.x * pc - hipF.y * ps, shY = P.h.x + hipF.x * ps + hipF.y * pc;
               for (let i = 0; i < 2; i++) {
                 const sd = i ? -1 : 1;
                 if (B.mode === 'stand' && P.stand.x > 0.5) free[i] = (free[i] || new THREE.Vector3()).set(shX + 0.06 * s, shY - 0.11 * s, sd * 0.06 * s);
-                else if (B.mode === 'sit' && P.sit.x > 0.5) free[i] = (free[i] || new THREE.Vector3()).set(shX + 0.09 * s, shY + 0.02 * s + 0.012 * s * Math.sin(t * 9), sd * 0.03 * s);   // 2 tay ôm mồi trước miệng
+                else if (B.mode === 'sit' && P.sit.x > 0.5) free[i] = (free[i] || new THREE.Vector3()).set(shX + 0.09 * s, shY + 0.02 * s + 0.012 * s * Math.sin(t * 9), sd * 0.03 * s);
                 else if (B.mode === 'dig') { const ph = t * 9 + i * Math.PI; free[i] = (free[i] || new THREE.Vector3()).set(0.2 * s + 0.04 * s * Math.sin(ph), 0.015 * s + 0.03 * s * Math.max(0, Math.cos(ph)), sd * 0.07 * s); }
                 else free[i] = null;
               }
               let hp = B.headP != null ? B.headP : 0, hy = 0;
               if (B.look) { O.worldToLocal(_a.copy(B.look)); hy = Math.max(-0.9, Math.min(0.9, Math.atan2(-_a.z, Math.max(0.05, _a.x)))); }
-              if (sp > 0.06 && B.gait === 'walk') hp += 0.05 * Math.cos(4 * Math.PI * psi);   // đầu nhấp theo nhịp chân trước
+              if (sp > 0.06 && B.gait === 'walk') hp += 0.05 * Math.cos(4 * Math.PI * psi);
               hp -= P.pitch.x * 0.85; damp(P.hp, hp, 7, dt); damp(P.hy, hy + (B.mode === 'dig' ? 0.2 * Math.sin(t * 6) : 0), 6, dt);
               U.neck.rotation.set(0, P.hy.x * 0.6, P.hp.x * 0.7); U.head.rotation.set(0, P.hy.x * 0.4, P.hp.x * 0.3);
               U.ears.forEach((ep, i) => { ep.rotation.z = -Math.min(0.5, sp * 0.18); });
               rig.step(dt, dist, sp, B.gait, P.h.x, P.pitch.x, P.stand.x + P.sit.x > 0.05);
-              for (const e of U.eyes) e.visible = nightFactor > 0.7;   // mắt phản quang khi trời tối
+              for (const e of U.eyes) e.visible = nightFactor > 0.7;
               updateSoftTail(tail, dt, sp > 0.05 ? 0.12 * Math.sin(2 * Math.PI * psi) : 0, 0);
             },
             state: B, rig
@@ -10463,14 +10463,14 @@
             if (reach(hutField, c.x, c.z)) continue;
             for (let k = 0; k < 300; k++) { const a = Math.random() * Math.PI, r = 9 + Math.random() * 18, x = cowHut.x + Math.cos(a) * r, z = cowHut.z - Math.sin(a) * r; if (cowOK(x, z) && reach(hutField, x, z)) { c.x = x; c.z = z; c.g.position.set(x, cowY(x, z), z); break; } }
           }
-          for (const c of cows) { c.homeX = c.x; c.homeZ = c.z; c.homeField = buildFlowField(c.x, c.z, cowBlocked); }   // bãi gặm quen = chỗ xuất phát
-          if (cowHutWanted()) for (const c of cows) {   // mở trang lúc tối / mưa: bò đã nằm sẵn trong chuồng
+          for (const c of cows) { c.homeX = c.x; c.homeZ = c.z; c.homeField = buildFlowField(c.x, c.z, cowBlocked); }
+          if (cowHutWanted()) for (const c of cows) {
             const st = cowHut.stalls[c.stall % cowHut.stalls.length]; c.mode = 'home'; c.leg = 'in'; c.sub = 'rest'; c.tmr = 30 + Math.random() * 60; c.restY = 1;
             c.x = st.x; c.z = st.z; c.ang = -Math.PI / 2; c.g.position.set(c.x, cowY(c.x, c.z) - 0.8 * NATURE_SCALE, c.z); c.g.rotation.y = Math.PI / 2;
           } }
 
         const FISH_DROP = 0.42, FISH_HOOK = 0.32, FISH_SWING = 2.3, FLOAT_M = 0.012, BAIT_M = 0.006, LINE_PER_TURN = 0.62, FISH_DRAG = 14;
-        const FL_N = 26;   // đỉnh polyline dây: mép lô dây + 6 khoen + ngọn (8) · ngọn → phao (16) · phao → lưỡi (2)
+        const FL_N = 26;
         const fishLinePos = new Float32Array(FL_N * 3);
         const fishLineGeo = new THREE.BufferGeometry(); fishLineGeo.setAttribute('position', new THREE.BufferAttribute(fishLinePos, 3));
         const fishLine = new THREE.Line(fishLineGeo, new THREE.LineBasicMaterial({ color: 0x2a2622, transparent: true, opacity: 0.72 })); fishLine.frustumCulled = false; fishLine.visible = false; scene.add(fishLine);
@@ -10498,10 +10498,10 @@
         function anglingRandom() { anglingSeed = (Math.imul(1664525, anglingSeed) + 1013904223) >>> 0; return anglingSeed / 4294967296; }
         const _anglerFishStart = new THREE.Vector3(), _anglerMouth = new THREE.Vector3(), _anglerMouthOffset = new THREE.Vector3();
         const _fishReturnStart = new THREE.Vector3(), _fishReturnDir = new THREE.Vector3();
-        const _aTipR = new THREE.Vector3(), _dF = new THREE.Vector3(), _dB = new THREE.Vector3(), _dM = new THREE.Vector3();   // vị trí VẼ (nội suy) của ngọn, phao, mồi, miệng cá
+        const _aTipR = new THREE.Vector3(), _dF = new THREE.Vector3(), _dB = new THREE.Vector3(), _dM = new THREE.Vector3();
         const _aTip = new THREE.Vector3(), _aV = new THREE.Vector3(), _aV2 = new THREE.Vector3(), _aV3 = new THREE.Vector3(), _aQ = new THREE.Quaternion(), _aQ2 = new THREE.Quaternion(), _aS = new THREE.Vector3(), _aM = new THREE.Matrix4();
         let returningFishingFish = null, fishReturnTime = 0;
-        function lakeSurfaceY(x, z) { return lakeY + waveAt(x, z); }   // mặt hồ câu = mực tĩnh + sóng của mô phỏng nước nông (cùng số liệu shader)
+        function lakeSurfaceY(x, z) { return lakeY + waveAt(x, z); }
         const splashFx = (() => {
           const ringGeo = new THREE.RingGeometry(0.82, 1, 28); ringGeo.rotateX(-Math.PI / 2);
           const rings = [];
@@ -10513,7 +10513,7 @@
           let di = 0, live = 0;
           return {
             spawn(x, z, power) {
-              fluids?.splash(x, z, 0.4 + power * 0.6, 0.1 + power * 0.25);   // phao rơi, cá quẫy → sóng lan thật trên mặt hồ
+              fluids?.splash(x, z, 0.4 + power * 0.6, 0.1 + power * 0.25);
               const y = lakeSurfaceY(x, z) + 0.01, r = rings.find(o => o.t >= o.dur) || rings[0];
               Object.assign(r, { t: 0, dur: 0.9 + power * 0.6, size: 0.3 + power * 0.7 }); r.m.position.set(x, y, z); r.m.visible = true;
               for (let k = Math.round(3 + power * 9); k > 0; k--) { const d = D[di++ % N], a = anglingRandom() * 6.283, s = (0.4 + anglingRandom()) * power; d.p.set(x, y, z); d.v.set(Math.cos(a) * s, 0.9 + anglingRandom() * 1.6 * power, Math.sin(a) * s); d.on = true; }
@@ -10534,10 +10534,10 @@
           _anglerMouthOffset.copy(f.mouth).multiply(f.g.scale).applyQuaternion(f.g.quaternion);
           f.g.position.copy(mouthPoint).sub(_anglerMouthOffset);
         }
-        function releaseFishingFish(splash = false) {   // cá rời lưỡi: lấy lại thăng bằng rồi lặn ra xa bờ, sau đó bơi lang thang như cũ
+        function releaseFishingFish(splash = false) {
           const f = angling.fish;
           if (!f) return;
-          if (f.keeper) { grill.lost(); angling.fish = null; angFloat.bKin = false; return; }   // cá rô sổng (thôi câu giữa chừng): bếp vẫn trống cá
+          if (f.keeper) { grill.lost(); angling.fish = null; angFloat.bKin = false; return; }
           f.g.updateWorldMatrix(true, false); f.g.localToWorld(_fishReturnStart.copy(f.mouth));
           const a = Math.atan2(_fishReturnStart.z - _aTip.z, _fishReturnStart.x - _aTip.x) + (anglingRandom() - 0.5) * 1.2;
           _fishReturnDir.set(Math.cos(a), 0, Math.sin(a));
@@ -10547,7 +10547,7 @@
         }
         const bucketTop = (() => { let b = null; return out => { b = b || scene.getObjectByName('Xô nhỏ (Metal Bucket)'); if (!b) return out.copy(engObj.g.position); b.getWorldPosition(out); out.y += 0.24; return out; }; })();
         function beginFishingFish() {
-          if (grill.st === 'empty' && (!liveWeather.wildlifeAwake || anglingRandom() < 0.6)) {   // bếp chưa có cá nướng: con cắn câu là cá rô (~0,4 kg, nhấc lên bờ được) — giữ lại mang về nướng
+          if (grill.st === 'empty' && (!liveWeather.wildlifeAwake || anglingRandom() < 0.6)) {
             const kf = grill.toKeeper(), gp = engObj.g.position, a = Math.atan2(angFloat.B.z - gp.z, angFloat.B.x - gp.x) + (anglingRandom() - 0.5) * 1.2;
             kf.g.position.set(angFloat.B.x + Math.cos(a) * 2.4, lakeY - 0.55, angFloat.B.z + Math.sin(a) * 2.4); kf.g.rotation.set(0, 0, 0); kf.g.updateWorldMatrix(true, true);
             angling.fish = kf; kf.g.localToWorld(_anglerFishStart.copy(kf.mouth));
@@ -10568,7 +10568,7 @@
           anglingGo('approach'); return true;
         }
         function anglingGo(st) { angling.stage = st; angling.time = 0; }
-        function anglingEvent(kind, p) {   // việc vừa xảy ra khi câu → nảy ý nghĩ đúng việc đó ngay (theo xác suất cho đỡ lắm lời)
+        function anglingEvent(kind, p) {
           if (Math.random() >= p) return;
           angling.event = kind; angling.eventAt = Date.now();
           thoughtUntil = Math.min(thoughtUntil, Date.now()); idleThoughtAt = Math.min(idleThoughtAt, Date.now() + 600);
@@ -10601,7 +10601,7 @@
           return "><(((('>";
         }
         function fishingEase(p) { p = Math.min(1, Math.max(0, p)); return p * p * (3 - 2 * p); }
-        function anglingLean() {   // gập thân khi ngồi câu (đưa vào e.seatLean): chờ hơi đổ tới · thấy phao nhấp thì nhoài tới · giật/dìu thì ngồi thẳng · thả cá cúi nhìn xuống
+        function anglingLean() {
           const A = angling;
           switch (A.stage) {
             case 'bite': return 0.15;
@@ -10640,38 +10640,38 @@
           Mo.crossVectors(nodes[n], Ft); Fs.copy(Ft);
           for (let k = n - 1; k >= 0; k--) {
             const m = S[k].m;
-            _aV2.set(0, -9.81 * m, 0).addScaledVector(X.acc[k], -m).applyQuaternion(qInv);   // trọng lực + quán tính (thế giới → gốc)
+            _aV2.set(0, -9.81 * m, 0).addScaledVector(X.acc[k], -m).applyQuaternion(qInv);
             _aV3.copy(nodes[k]).add(nodes[k + 1]).multiplyScalar(0.5);
             Mo.add(_aS.crossVectors(_aV3, _aV2)); Fs.add(_aV2);
             const Mk = _aS.copy(Mo).sub(_aV3.crossVectors(nodes[k], Fs)).applyQuaternion(_aQ.copy(qs[k]).invert());
-            const c = S[k].len / S[k].ei;   // độ cứng đã hiệu chỉnh theo đv cục bộ của cần (cánh tay đòn cục bộ × lực N)
+            const c = S[k].len / S[k].ei;
             const tx = Math.max(-0.9, Math.min(0.9, Mk.x * c)), tz = Math.max(-0.9, Math.min(0.9, Mk.z * c));
             const w0 = 2 * Math.PI * 2.6, z0 = 0.14;
             X.vel[2 * k] += (w0 * w0 * (tx - X.th[2 * k]) - 2 * z0 * w0 * X.vel[2 * k]) * dt; X.th[2 * k] += X.vel[2 * k] * dt;
             X.vel[2 * k + 1] += (w0 * w0 * (tz - X.th[2 * k + 1]) - 2 * z0 * w0 * X.vel[2 * k + 1]) * dt; X.th[2 * k + 1] += X.vel[2 * k + 1] * dt;
           }
-          for (let k = 0; k < n; k++) S[k].g.rotation.set(X.th[2 * k], 0, X.th[2 * k + 1]);   // dáng vật lý (để đọc ngọn cho phao trong bước này)
+          for (let k = 0; k < n; k++) S[k].g.rotation.set(X.th[2 * k], 0, X.th[2 * k + 1]);
         }
-        function rodFlexPose(rod, al) {   // dáng VẼ: nội suy giữa bước trước và bước mới
+        function rodFlexPose(rod, al) {
           const X = rod.userData.flex; if (!X) return;
           const th = X.th, tp = X.thp || th;
           for (let k = 0; k < X.segs.length; k++) X.segs[k].g.rotation.set(tp[2 * k] + (th[2 * k] - tp[2 * k]) * al, 0, tp[2 * k + 1] + (th[2 * k + 1] - tp[2 * k + 1]) * al);
         }
-        function anglerAim(e, i, target, out) {   // góc gập + góc dang của cánh tay cứng để găng chỉ vào điểm đích (thế giới)
+        function anglerAim(e, i, target, out) {
           const d = e.g.worldToLocal(_aV.copy(target)).sub(_aV2.set(i ? 0.34 : -0.34, 1.86, 0)).normalize();
           out[0] = Math.atan2(-d.z, -d.y); out[1] = Math.asin(Math.max(-1, Math.min(1, d.x))); return out;
         }
         const _aimOut = [0, 0];
         function updateFishingBite(e, dt, t) {
           const A = angling, P = angFloat, rod = e.rod, U = rod.userData, g = e.g, X = U.flex;
-          if (!(dt > 0)) return;   // phao (vận tốc = Δx/dt) và lực dây (÷dt²) chia cho dt: dt = 0 ⇒ NaN
-          if (!Number.isFinite(A.T + P.F.x + P.B.x + X.th[0] + X.acc[0].x + A.head.p + A.head.pv + A.free.p + A.free.pv)) {   // NaN đã lọt vào thì trạng thái tích phân giữ NaN mãi (mất đầu, mất cần) ⇒ đặt lại cần, phao, đầu, khởi động lại buổi câu
+          if (!(dt > 0)) return;
+          if (!Number.isFinite(A.T + P.F.x + P.B.x + X.th[0] + X.acc[0].x + A.head.p + A.head.pv + A.free.p + A.free.pv)) {
             X.th.fill(0); X.vel.fill(0); if (X.thp) X.thp.fill(0); X.n = 0; A.ph = null; for (const a of X.acc) a.set(0, 0, 0); for (const s of X.segs) s.g.rotation.set(0, 0, 0);
             Object.assign(A, { active: false, T: 0 }); A.Tdir.set(0, -1, 0); Object.assign(A.head, { pv: 0, yv: 0 }); Object.assign(A.free, { pv: 0, r: -0.05, rv: 0 });
             e.head.rotation.set(0.3, 0, 0); e.arms[0].rotation.x = -0.15;
           }
           const lam = g.rotation.x, awake = liveWeather.wildlifeAwake;
-          if (!A.active) {   // vừa cầm cần: phao treo dưới ngọn, chọn điểm quăng (lệch ngẫu nhiên quanh điểm phao quen thuộc)
+          if (!A.active) {
             g.updateWorldMatrix(true, true); U.tip.getWorldPosition(_aTip);
             Object.assign(A, { active: true, stopReq: false, rebait: false, take: false, T: 0, beta: 1.08, betaV: 0, tau: 0, tauV: 0, arm: -1.15, armV: 0, crankRate: 0, wait: 10 + anglingRandom() * 14 });
             e.arms[1].rotation.x = -1.15; e.rodTilt.rotation.x = Math.PI / 2 - 1.08 - 1.02 + 1.15 - lam; engArmSolve(e, 1, dt); e.armDone[1] = 0; g.updateWorldMatrix(true, true); U.tip.getWorldPosition(_aTip);
@@ -10685,12 +10685,12 @@
           let betaT = 0.6, tauT = 0, armT = -1.02, free = 'knee', crank = 0, direct = false, gaze = P.F;
           const T0 = A.T;
           switch (A.stage) {
-            case 'rig': {   // phao treo ~40 cm dưới ngọn · tay phải mở càng, ngón giữ dây, rồi nắm chuôi cần — mắt nhìn điểm định quăng
+            case 'rig': {
               betaT = 1.08; armT = -1.15; free = k < 0.5 ? 'reel' : 'butt'; gaze = A.target; P.S = FISH_DROP;
               if (k >= 1.0) { if (A.stopReq) anglingGo('done'); else { pickCastTarget(); anglingGo('cast'); anglingEvent('cast', 0.2); } }
               break;
             }
-            case 'cast': {   // ra sau tới ~1 giờ (0,5 s) · dừng nạp cần 0,12 s · vụt tới: vai dẫn trước, cổ tay bật theo sau · nhả dây khi cần qua ~10 giờ 30
+            case 'cast': {
               const b1 = 2.06, a1 = -2.05;
               if (k < 0.5) { const m = minJerk(k / 0.5); betaT = 1.08 + (b1 - 1.08) * m; armT = -1.15 + (a1 + 1.15) * m; }
               else if (k < 0.62) { betaT = b1; armT = a1; }
@@ -10699,22 +10699,22 @@
               if (k >= 0.9) { castLaunch(); anglingGo('flight'); }
               break;
             }
-            case 'flight': {   // theo đà hạ ngọn chỉ về phao, dây ra tự do; tay phải về tay quay chờ đóng càng
+            case 'flight': {
               const m = minJerk(k / 0.55); betaT = 0.785 + (0.5 - 0.785) * m; armT = -1.45 + (-1.05 + 1.45) * m; direct = k < 0.55;
               free = 'reel'; gaze = P.F;
               if (P.mode === 'water') { anglingGo('settle'); A.land.copy(P.F); }
               else if (k > 4) { P.mode = 'water'; anglingGo('settle'); A.land.copy(P.F); }
               break;
             }
-            case 'settle': {   // đóng càng bằng tay (vòng quay đầu), thu dây chùng còn chút võng; phao nằm rồi dựng đứng khi mồi chìm
+            case 'settle': {
               betaT = 0.5; free = 'reel';
               const D = P.F.distanceTo(_aTip), want = D + 0.12;
               if (k > 0.25 && (k < 0.8 || P.S > want)) { crank = 1.4; if (P.S > want) P.S = Math.max(want, P.S - LINE_PER_TURN * A.crankRate * dt); }
               P.S = Math.max(P.S, D + 0.05);
-              if (k >= 1.8) { anglingGo('wait'); A.adjT = 5 + anglingRandom() * 5; A.land.copy(P.F); A.wait = 12 + anglingRandom() * 18; }   // mỗi lần quăng, cá tới mồi sau 12–30 s
+              if (k >= 1.8) { anglingGo('wait'); A.adjT = 5 + anglingRandom() * 5; A.land.copy(P.F); A.wait = 12 + anglingRandom() * 18; }
               break;
             }
-            case 'wait': case 'approach': {   // ngồi canh phao: thỉnh thoảng nâng cần nhè nhẹ rồi hạ, thu bớt dây chùng; phao trôi xa do gió thì quăng lại chỗ cũ
+            case 'wait': case 'approach': {
               A.adjT -= dt;
               const adj = A.adjT < 0 ? Math.sin(Math.min(1, -A.adjT / 2) * Math.PI) : 0;
               betaT = 0.52 + 0.1 * adj; free = adj > 0.05 ? 'reel' : 'knee'; crank = adj > 0.5 ? 0.35 : 0;
@@ -10722,42 +10722,42 @@
               const D = P.F.distanceTo(_aTip); if (crank) P.S = Math.max(D + 0.06, P.S - LINE_PER_TURN * A.crankRate * dt); P.S = Math.max(P.S, D + 0.04);
               if (A.stage === 'wait') {
                 A.wait -= dt;
-                const drift = Math.hypot(P.F.x - A.land.x, P.F.z - A.land.z);   // trôi so với chỗ phao đã đứng
+                const drift = Math.hypot(P.F.x - A.land.x, P.F.z - A.land.z);
                 if (A.stopReq) { A.rebait = false; anglingGo('retrieve'); }
-                else if (drift > 1.25) { A.rebait = false; anglingGo('retrieve'); anglingEvent('drift', 0.85); }   // "gió đẩy phao trôi dạt, phải quăng lại chỗ cũ"
-                else if (A.wait <= 0 && (awake || grill.st === 'empty') && e.timer > 24) beginFishingFish();   // cá rô kiếm ăn cả lúc chạng vạng
+                else if (drift > 1.25) { A.rebait = false; anglingGo('retrieve'); anglingEvent('drift', 0.85); }
+                else if (A.wait <= 0 && (awake || grill.st === 'empty') && e.timer > 24) beginFishingFish();
               } else if (k >= A.approachDuration) {
-                anglingGo('bite'); A.take = false; A.biteDur = 1.4 + anglingRandom() * 1.6; A.hooked = anglingRandom() < (A.fish && A.fish.keeper ? 0.8 : .42);   // cá rô đớp mồi mạnh, dễ dính lưỡi anglingEvent('bite', 0.55);
+                anglingGo('bite'); A.take = false; A.biteDur = 1.4 + anglingRandom() * 1.6; A.hooked = anglingRandom() < (A.fish && A.fish.keeper ? 0.8 : .42);
                 A.B0.copy(P.B); P.bKin = true;
                 _aV.set(P.B.x - _aTip.x, 0, P.B.z - _aTip.z).normalize(); A.takeDir.set(-_aV.z, 0, _aV.x).multiplyScalar(anglingRandom() < 0.5 ? 1 : -1).addScaledVector(_aV, 0.6).normalize();
               }
               if (A.stopReq && A.stage === 'approach') { releaseFishingFish(); A.rebait = false; anglingGo('retrieve'); }
               break;
             }
-            case 'bite': {   // cá rỉa: phao nhấp nhẹ 2–4 lần → cá ăn thật: phao trượt đi rồi chìm hẳn; người nhoài tới, tay lên tay quay, hạ ngọn bớt dây chùng
+            case 'bite': {
               betaT = 0.45; free = 'reel';
               const nib = Math.max(0, Math.sin(k * 7.3) * Math.sin(k * 2.9 + 1.1)), m = A.take ? minJerk((k - A.biteDur) / 0.7) : 0;
               if (!A.take && k >= A.biteDur) A.take = true;
-              P.B.copy(A.B0); P.B.y -= 0.07 * nib * nib + 0.32 * m; P.B.addScaledVector(A.takeDir, 0.34 * m);   // mồi bị kéo → phao bị kéo theo qua dây phao–lưỡi
-              if (A.take && k >= A.biteDur + 0.45) { anglingGo('strike'); A.sb0 = A.beta; A.sa0 = A.arm; }   // phản xạ ~0,3 s sau khi phao chìm
+              P.B.copy(A.B0); P.B.y -= 0.07 * nib * nib + 0.32 * m; P.B.addScaledVector(A.takeDir, 0.34 * m);
+              if (A.take && k >= A.biteDur + 0.45) { anglingGo('strike'); A.sb0 = A.beta; A.sa0 = A.arm; }
               if (A.stopReq && !A.take) { releaseFishingFish(); A.rebait = false; anglingGo('retrieve'); }
               break;
             }
-            case 'strike': {   // giật cần: 1 nhịp quét mượt lên + sang ngang (~0,3 s), không giật cục
+            case 'strike': {
               const m = minJerk(k / 0.3);
               betaT = A.sb0 + (1.12 - A.sb0) * m; tauT = -0.24 * m; armT = A.sa0 + (-1.3 - A.sa0) * m; direct = true; free = 'reel';
               if (!A.struck && k >= 0.1) {
                 A.struck = true;
-                if (A.hooked) {   // mắc câu: cá giật lại, lao đi lần đầu
+                if (A.hooked) {
                   angFish.M.copy(P.B); angFish.Mp.copy(P.B); angFish.V.set(A.takeDir.x * 0.8, -0.2, A.takeDir.z * 0.8); angFish.stam = A.fish.keeper ? 0.45 : 1; angFish.ext = 0; angFish.slip = false; angFish.head = A.heading;
                   fishMode('run'); P.S = Math.max(P.F.distanceTo(_aTip) - 0.05, 0.5); splashFx.spawn(P.F.x, P.F.z, 0.7);
-                } else { releaseFishingFish(true); A.T = 2.2; }   // hụt: cá nhả mồi, phao bật lên
+                } else { releaseFishingFish(true); A.T = 2.2; }
               }
               if (A.hooked && A.struck) A.T = Math.max(A.T, 11 * minJerk((k - 0.1) / 0.18));
               if (k >= 0.32) { A.struck = false; if (A.hooked && A.fish) { anglingGo('fight'); A.pump = 'hold'; A.pumpT = 0; anglingEvent('hook', 0.85); } else { A.lastOutcome = 'miss'; anglingGo('missed'); anglingEvent('miss', 0.8); } }
               break;
             }
-            case 'fight': {   // dìu cá: cần ~35–60°, nâng từ từ rồi hạ cần vừa quay máy; cá chạy thì giữ cần cao để phanh nhả dây; ngọn bám theo hướng cá
+            case 'fight': {
               const F = angFish; A.pumpT += dt; free = 'reel'; gaze = F.M;
               if (F.slip) { A.pump = 'hold'; A.pumpT = 0; }
               else if (A.pump === 'hold' && A.pumpT > 0.25) { A.pump = 'lift'; A.pumpT = 0; }
@@ -10766,27 +10766,27 @@
               if (A.pump === 'hold') betaT = 0.95;
               else if (A.pump === 'lift') betaT = 0.61 + 0.44 * minJerk(A.pumpT / 1.1);
               else { betaT = 1.05 - 0.44 * minJerk(A.pumpT / 0.8); crank = 1.8; P.S = Math.max(0.6, P.S - LINE_PER_TURN * A.crankRate * dt); }
-              _aV.copy(F.M); g.worldToLocal(_aV); tauT = Math.max(-0.38, Math.min(0.38, -Math.atan2(_aV.x, Math.max(0.5, _aV.z)) * 0.55));   // ngọn cần nghiêng theo hướng cá
+              _aV.copy(F.M); g.worldToLocal(_aV); tauT = Math.max(-0.38, Math.min(0.38, -Math.atan2(_aV.x, Math.max(0.5, _aV.z)) * 0.55));
               armT = -1.1 - 0.12 * (betaT - 0.61);
               const surf = lakeSurfaceY(F.M.x, F.M.z), hd = Math.hypot(F.M.x - _aTip.x, F.M.z - _aTip.z);
               if (F.stam < 0.3 && surf - F.M.y < 0.16 && hd < 3.4) anglingGo('release');
               if (k > 30) F.stam = Math.min(F.stam, 0.25);
               break;
             }
-            case 'land': {   // cá rô nhẹ: nâng cần nhấc cá khỏi mặt nước, đu lên bờ theo cung → tay phải nắm thân cá, gỡ lưỡi → bỏ vào xô bên trái ghế
+            case 'land': {
               const F = angFish, kf = A.fish; free = 'knee'; gaze = F.M; betaT = 1.25; crank = k < 1.4 ? 1.5 : 0;
               P.S = Math.max(FISH_DROP, P.S - LINE_PER_TURN * A.crankRate * dt);
               if (!A.land0) { A.land0 = F.M.clone(); splashFx.spawn(F.M.x, F.M.z, 0.6); }
               if (kf) {
-                const hold = g.localToWorld((A.rh || (A.rh = new THREE.Vector3())).set(-0.3, 1.55, 0.7)), R = e.reachT || (e.reachT = [null, null]);   // vector riêng: đích tay đọc ở engArmPost cuối khung
+                const hold = g.localToWorld((A.rh || (A.rh = new THREE.Vector3())).set(-0.3, 1.55, 0.7)), R = e.reachT || (e.reachT = [null, null]);
                 if (k < 1.5) { const u = fishingEase(k / 1.5); F.M.lerpVectors(A.land0, hold, u); F.M.y += Math.sin(u * Math.PI) * 0.9; if (k > 1.1) R[0] = F.M; }
-                else { R[0] = k < 2.5 ? hold : bucketTop(A.rb || (A.rb = new THREE.Vector3())); F.M.copy(e.handW[0]); F.M.y += 0.1; gaze = k < 2.5 ? F.M : R[0]; }   // nắm cá trong tay → bỏ xô
+                else { R[0] = k < 2.5 ? hold : bucketTop(A.rb || (A.rb = new THREE.Vector3())); F.M.copy(e.handW[0]); F.M.y += 0.1; gaze = k < 2.5 ? F.M : R[0]; }
                 if (k >= 3.3) { grill.toBucket(); A.fish = null; P.bKin = false; A.catches++; A.lastOutcome = 'catch'; anglingEvent('keep', 0.9); }
               }
               if (k >= 3.8) { A.land0 = null; A.rebait = true; anglingGo('retrieve'); }
               break;
             }
-            case 'release': {   // cá đuối nổi dưới chân bờ: hạ ngọn chùng dây, rung ngọn 2 nhịp cho lưỡi không ngạnh tuột — cá không rời nước
+            case 'release': {
               if (A.fish && A.fish.keeper) { anglingGo('land'); break; }
               free = 'knee'; gaze = A.fish ? angFish.M : P.F;
               const fl = (u) => Math.exp(-Math.pow((k - u) / 0.07, 2));
@@ -10796,19 +10796,19 @@
               if (k >= 2.6) { A.rebait = true; anglingGo('retrieve'); }
               break;
             }
-            case 'missed': {   // hụt: lắc đầu, phao nổi lại
+            case 'missed': {
               betaT = 0.72; free = 'knee'; A.shake = Math.sin(k * 12) * 0.22 * Math.max(0, 1 - k / 0.9);
               if (k >= 1.3) { A.rebait = anglingRandom() < 0.6; anglingGo('retrieve'); }
               break;
             }
-            case 'retrieve': {   // quay máy thu dây: phao lướt trên mặt nước về chân bờ rồi được kéo lên, đu dưới ngọn
+            case 'retrieve': {
               betaT = 0.78; free = 'reel'; crank = 2.2;
               const stop = A.rebait && !A.stopReq ? FISH_SWING : FISH_DROP;
               P.S = Math.max(stop, P.S - LINE_PER_TURN * A.crankRate * dt);
               if (P.S <= stop + 1e-3 && (P.mode === 'hang' || k > 9)) { crank = 0; if (A.stopReq) anglingGo('done'); else if (A.rebait) { anglingGo('rebait'); A.caught = false; anglingEvent('rebait', 0.35); } else anglingGo('rig'); }
               break;
             }
-            case 'rebait': {   // dựng cần cho cụm phao–mồi đu vào tay, tay phải bắt lấy mồi, thay mồi, thả ra rồi thu dây về đoạn treo để quăng
+            case 'rebait': {
               free = A.caught ? 'chest' : 'bait'; gaze = P.B;
               if (!A.caught) {
                 betaT = k < 0.8 ? 1.25 + 0.2 * minJerk(k / 0.8) : 1.45 + 0.17 * Math.sin(Math.min(1, (k - 0.8) / 0.6) * Math.PI * 0.5);
@@ -10816,13 +10816,13 @@
                 if (_aV2.distanceTo(P.B) < 0.2 || k > 2.6) { A.caught = true; A.catchT = k; P.bKin = true; }
               } else {
                 betaT = 1.32; const h = k - A.catchT;
-                _aV2.copy(e.handW[0]); P.B.lerp(_aV2, Math.min(1, dt * 14));   // mồi trong tay
+                _aV2.copy(e.handW[0]); P.B.lerp(_aV2, Math.min(1, dt * 14));
                 if (h > 0.4 && h < 1.6) gaze = _aV2;
                 if (h >= 1.7) { P.bKin = false; A.rebait = false; anglingGo('reel_in'); }
               }
               break;
             }
-            case 'reel_in': {   // thu đoạn dây về ~40 cm dưới ngọn, sẵn sàng quăng
+            case 'reel_in': {
               betaT = 1.1; free = 'reel'; crank = 1.6;
               P.S = Math.max(FISH_DROP, P.S - LINE_PER_TURN * A.crankRate * dt);
               if (P.S <= FISH_DROP + 1e-3) anglingGo(A.stopReq ? 'done' : 'rig');
@@ -10834,9 +10834,9 @@
           A.arm = engSpring(A.arm, A.armV, armT, direct ? 60 : 12, dt); A.armV = engSpring.v;
           A.tau = engSpring(A.tau, A.tauV, tauT, 10, dt); A.tauV = engSpring.v;
           e.arms[1].rotation.x = A.arm; e.arms[1].rotation.z = 0;
-          e.rodTilt.rotation.x = Math.PI / 2 - A.beta - 1.02 - A.arm - lam;   // cổ tay bù để ngọn đúng góc beta dù thân đang gập
+          e.rodTilt.rotation.x = Math.PI / 2 - A.beta - 1.02 - A.arm - lam;
           e.rodGrp.rotation.y = A.tau;
-          engArmSolve(e, 1, dt);   // giải khuỷu tay cầm cần NGAY: ngọn, khoen, tay quay đọc dưới đây đúng chỗ cần được vẽ (không thì dây lệch khỏi cần)
+          engArmSolve(e, 1, dt);
           A.crankRate += (crank - A.crankRate) * (1 - Math.exp(-dt * 10)); A.crankAng -= A.crankRate * Math.PI * 2 * dt; U.crank.rotation.x = A.crankAng;
           g.updateWorldMatrix(true, true); rodFlexAcc(rod, dt); A.tNow = t;
           if (A.stage === 'land' && A.fish) { P.B.copy(angFish.M); P.bKin = true; }
@@ -10851,20 +10851,20 @@
               placeFishingFish(f, _anglerMouth, A.heading, 0, t, .08 * Math.sin(t * 4));
             } else if (A.stage === 'bite' || A.stage === 'strike') {
               placeFishingFish(f, P.B, A.heading, A.take ? 0.15 : 0, t * (A.take ? 1.5 : 1), A.take ? 0.2 : 0.05);
-            } else if (A.stage === 'land') placeFishingFish(f, angFish.M, angFish.head, 1.45, t * 2.4, 0.55);   // treo dưới lưỡi, quẫy
+            } else if (A.stage === 'land') placeFishingFish(f, angFish.M, angFish.head, 1.45, t * 2.4, 0.55);
             else {
               const F = angFish, sp = Math.hypot(F.V.x, F.V.z);
               if (sp > 0.15) F.head += Math.atan2(Math.sin(Math.atan2(F.V.z, F.V.x) - F.head), Math.cos(Math.atan2(F.V.z, F.V.x) - F.head)) * Math.min(1, dt * 5);
               const depth = lakeSurfaceY(F.M.x, F.M.z) - F.M.y, tired = F.mode === 'tired' || A.stage === 'release';
               placeFishingFish(f, A.stage === 'fight' ? _dM.lerpVectors(F.Mp, F.M, al) : F.M, F.head, tired ? 0.35 : Math.max(-0.4, Math.min(0.4, F.V.y * 0.6)), t * (F.mode === 'run' ? 2 : 1.3), F.mode === 'shake' ? 0.45 : tired ? 0.15 + 0.1 * Math.sin(t * 9) : 0.25);
-              if (depth < 0.1 && (F.mode === 'shake' || F.mode === 'tired') && anglingRandom() < dt * (F.mode === 'shake' ? 3 : 0.8)) splashFx.spawn(F.M.x, F.M.z, F.mode === 'shake' ? 0.6 : 0.3);   // quẫy trên mặt nước
+              if (depth < 0.1 && (F.mode === 'shake' || F.mode === 'tired') && anglingRandom() < dt * (F.mode === 'shake' ? 3 : 0.8)) splashFx.spawn(F.M.x, F.M.z, F.mode === 'shake' ? 0.6 : 0.3);
             }
           }
           bobber.position.copy(_dF);
           _aV.subVectors(_dF, _dB); const lk = _aV.length();
           const upW = lk > FISH_HOOK * 0.85 ? 1 : lk / (FISH_HOOK * 0.85);
           if (lk > 1e-4) _aV.multiplyScalar(1 / lk); else _aV.set(0, 1, 0);
-          _aV.lerp(_aV2.set(0, 1, 0), (1 - upW) * (P.mode === 'water' ? 0 : 1)).normalize();   // phao nằm khi mồi chưa kéo căng (vừa rơi), dựng theo dây phao–lưỡi khi căng
+          _aV.lerp(_aV2.set(0, 1, 0), (1 - upW) * (P.mode === 'water' ? 0 : 1)).normalize();
           P.up.lerp(_aV, 1 - Math.exp(-dt * 8)).normalize(); bobber.quaternion.setFromUnitVectors(_aV2.set(0, 1, 0), P.up);
           fishingBait.position.copy(_dB); fishingBait.quaternion.copy(bobber.quaternion); fishingBait.visible = !(A.fish && (A.stage === 'fight' || A.stage === 'release' || A.stage === 'land'));
           drawFishLine(rod);
@@ -10873,7 +10873,7 @@
           if (free === 'reel') { U.knob.getWorldPosition(_aV3); anglerAim(e, 0, _aV3, _aimOut); fp = _aimOut[0]; frr = _aimOut[1]; }
           else if (free === 'butt') { U.butt.getWorldPosition(_aV3); anglerAim(e, 0, _aV3, _aimOut); fp = _aimOut[0]; frr = _aimOut[1]; }
           else if (free === 'bait') { anglerAim(e, 0, P.B, _aimOut); fp = Math.max(-2.4, _aimOut[0]); frr = _aimOut[1]; }
-          else if (free === 'chest') { _aV3.set(0.05, 1.5, 0.5); g.localToWorld(_aV3); anglerAim(e, 0, _aV3, _aimOut); fp = _aimOut[0] + Math.sin(t * 9) * 0.05; frr = _aimOut[1]; }   // xỏ mồi trước ngực, tay nhích nhẹ
+          else if (free === 'chest') { _aV3.set(0.05, 1.5, 0.5); g.localToWorld(_aV3); anglerAim(e, 0, _aV3, _aimOut); fp = _aimOut[0] + Math.sin(t * 9) * 0.05; frr = _aimOut[1]; }
           fr.p = engSpring(fr.p, fr.pv, fp, A.stage === 'cast' ? 30 : 14, dt); fr.pv = engSpring.v; fr.r = engSpring(fr.r, fr.rv, frr, 14, dt); fr.rv = engSpring.v;
           e.arms[0].rotation.x = fr.p; e.arms[0].rotation.z = fr.r;
           const hd = A.head, d = g.worldToLocal(_aV.copy(gaze)).sub(_aV2.set(0, 2.06, 0));
@@ -10884,11 +10884,11 @@
           const ar = e.armRoll || (e.armRoll = [0, 0]); ar[0] = e.arms[0].rotation.z; ar[1] = 0; e.headYaw = e.head.rotation.y;
           A.lean = anglingLean();
         }
-        function pickCastTarget() {   // điểm định quăng: quanh chỗ phao quen (lệch ±0,4 m ngang, ±0,5 m xa gần)
+        function pickCastTarget() {
           const fw = Math.sin(engObj.faceWater), fz = Math.cos(engObj.faceWater), r1 = anglingRandom() - 0.5, r2 = anglingRandom() - 0.5;
           angling.target.set(bobberBase.x + fz * 0.8 * r1 + fw * 1.0 * r2, lakeY, bobberBase.z - fw * 0.8 * r1 + fz * 1.0 * r2);
         }
-        function castLaunch() {   // nhả dây: phao bay theo quỹ đạo đạn đạo có cản khí tới điểm định quăng (~1,1 s); mồi + chì nặng hơn bay dẫn trước
+        function castLaunch() {
           const P = angFloat, A = angling, c = 0.35, Tf = 1.05 + anglingRandom() * 0.2, g = 9.81, e1 = 1 - Math.exp(-c * Tf);
           const vx = c * (A.target.x - P.F.x) / e1, vz = c * (A.target.z - P.F.z) / e1;
           const vy = (lakeY - P.F.y + g * Tf / c) * c / e1 - g / c;
@@ -10896,13 +10896,13 @@
           P.Fp.set(P.F.x - vx * dt, P.F.y - vy * dt, P.F.z - vz * dt); P.Bp.copy(P.B).sub(_aV.set(vx * dt * 1.05, vy * dt, vz * dt * 1.05));
           P.mode = 'fly'; P.fdt = dt;
         }
-        function floatStep(dt, onTipPull) {   // phao + mồi: Verlet + ràng buộc (ngọn–phao ≤ S, phao–mồi ≤ 0,32): trọng lực, lực nổi, cản, gió
+        function floatStep(dt, onTipPull) {
           const P = angFloat, F = P.F, Fp = P.Fp, B = P.B, Bp = P.Bp, A = angling;
-          const vdt = P.fdt || dt; P.fdt = 0;   // bước đầu sau khi nhả dây: vận tốc đã đặt theo dt chuẩn
+          const vdt = P.fdt || dt; P.fdt = 0;
           const surfF = lakeSurfaceY(F.x, F.z), depthF = surfF - F.y;
           const subm = Math.max(0, Math.min(1, (depthF + 0.07) / 0.14)), inW = subm > 0;
           let ax = 0, ay = -9.81 + subm * 15.6, az = 0;
-          if (inW) { ax += sceneWind.dir.x * sceneWind.ms * 0.1; az += sceneWind.dir.y * sceneWind.ms * 0.1; }   // gió mặt nước đẩy phao trôi (~3% tốc độ gió, mồi chìm ghìm lại)
+          if (inW) { ax += sceneWind.dir.x * sceneWind.ms * 0.1; az += sceneWind.dir.y * sceneWind.ms * 0.1; }
           const dF = inW ? 4.5 * subm + 0.3 : 0.35;
           const vxF = (F.x - Fp.x) / vdt, vyF = (F.y - Fp.y) / vdt, vzF = (F.z - Fp.z) / vdt;
           Fp.copy(F);
@@ -10917,7 +10917,7 @@
             B.x += vxB * kB * dt; B.y += (vyB * kB + gB * dt) * dt; B.z += vzB * kB * dt;
             if (P.mode === 'fly' && inB && Bp.y >= surfB) splashFx.spawn(B.x, B.z, 0.25);
           } else Bp.copy(B);
-          if (P.mode === 'fly') P.S = Math.max(P.S, F.distanceTo(_aTip)) + 0.35 * dt;   // dây ra tự do, lô dây xả dư chút → chạm nước thì dây chùng
+          if (P.mode === 'fly') P.S = Math.max(P.S, F.distanceTo(_aTip)) + 0.35 * dt;
           for (let it = 0; it < 4; it++) {
             _aV.subVectors(F, B); let L = _aV.length();
             if (L > FISH_HOOK) { const c = (L - FISH_HOOK) / L, wF = P.bKin ? 1 : BAIT_M / (BAIT_M + FLOAT_M), wB = P.bKin ? 0 : 1 - wF; F.addScaledVector(_aV, -c * wF); B.addScaledVector(_aV, c * wB); }
@@ -10925,15 +10925,15 @@
             if (L > P.S) { const c = (L - P.S) / L; F.addScaledVector(_aV, -c); onTipPull(L - P.S); if (P.bKin) { /* mồi bị cá giữ: phao nằm giữa 2 đầu */ } }
           }
           if (P.mode !== 'fly' && !P.bKin && F.y < surfF - 0.1 && A.stage !== 'bite') F.y = surfF - 0.1;
-          if (P.mode === 'water' && F.y > surfF + 0.25 && F.distanceTo(_aTip) >= P.S - 0.01) P.mode = 'hang';   // thu dây: phao rời mặt nước, đu dưới ngọn
+          if (P.mode === 'water' && F.y > surfF + 0.25 && F.distanceTo(_aTip) >= P.S - 0.01) P.mode = 'hang';
           if (P.mode === 'hang' && F.y <= surfF - 0.02) P.mode = 'water';
         }
-        function fishMode(m) {   // đổi kiểu bơi của cá mắc câu: chạy (ra xa bờ, lặn) · lắc đầu · bị kéo (yếu, chệch ngang) · đuối (nổi lên mặt nước)
+        function fishMode(m) {
           const F = angFish; F.mode = m; F.modeT = 0;
           F.dur = m === 'run' ? 1.0 + anglingRandom() * 1.6 * F.stam : m === 'shake' ? 0.6 + anglingRandom() * 0.6 : m === 'tow' ? 1.2 + anglingRandom() * 1.2 : 99;
           F.ang = m === 'run' ? (anglingRandom() - 0.5) * 2.0 : m === 'tow' || m === 'tired' ? (anglingRandom() < 0.5 ? 1.4 : -1.4) : 0;
         }
-        function fishFightStep(dt, t) {   // cá koi ~4,5 kg (+ khối nước kèm): sức bơi theo kiểu, lực dây (dây + cần đàn hồi, phanh nhả dây), cản nước bậc 2, sức bền giảm dần
+        function fishFightStep(dt, t) {
           const F = angFish, A = angling, P = angFloat;
           F.modeT += dt;
           if (F.modeT >= F.dur) { if (F.stam < 0.3) fishMode('tired'); else { const r = anglingRandom(); fishMode(r < 0.12 + 0.4 * F.stam ? 'run' : r < 0.72 ? 'shake' : 'tow'); } }
@@ -10942,7 +10942,7 @@
           if (F.mode === 'run') { th = 17 * F.stam; depthT = 0.85; }
           else if (F.mode === 'shake') { th = 3 * F.stam; depthT = 0.35; const s = Math.sin(t * 24); dirx += -dirz * s; dirz += dirx * s; }
           else if (F.mode === 'tow') { th = 4 * F.stam; depthT = 0.3; }
-          else { th = 0.4; depthT = 0.04; }   // đuối: chỉ vẫy nhẹ sang ngang, để dây dìu vào
+          else { th = 0.4; depthT = 0.04; }
           const dl = Math.hypot(dirx, dirz) || 1; dirx /= dl; dirz /= dl;
           const dx = _aTip.x - F.M.x, dy = _aTip.y - F.M.y, dz = _aTip.z - F.M.z, D = Math.hypot(dx, dy, dz) || 1;
           const vAway = -(F.V.x * dx + F.V.y * dy + F.V.z * dz) / D;
@@ -10957,41 +10957,41 @@
           F.V.y += ((T * dy / D) / m * 0.6 + (depth - depthT) * 5 - F.V.y * 3) * dt;
           const nx = F.M.x + F.V.x * dt, nz = F.M.z + F.V.z * dt;
           if (isWater(Math.round(x2gi(nx)), Math.round(z2gj(nz)))) { F.M.x = nx; F.M.z = nz; }
-          else { F.V.x *= -0.3; F.V.z *= -0.3; if (F.mode === 'run') { F.modeT = F.dur; } }   // chạm bờ: dội lại, đổi hướng
+          else { F.V.x *= -0.3; F.V.z *= -0.3; if (F.mode === 'run') { F.modeT = F.dur; } }
           F.M.y = Math.max(surf - 1.1, Math.min(surf - 0.03, F.M.y + F.V.y * dt));
           F.stam = Math.max(0.12, F.stam - dt * ((F.mode === 'run' ? 0.06 : F.mode === 'shake' ? 0.045 : 0.022) + 0.0035 * T));
           A.Tdir.set(-dx / D, -dy / D, -dz / D);
         }
         let _pull = 0; const _onPull = (p) => { _pull += p; };
-        function anglingPhysStep(h) {   // 1 bước vật lý 1/120 s của câu cá (gọi từ fixedSteps trong updateFishingBite)
+        function anglingPhysStep(h) {
           const A = angling, P = angFloat, rod = engObj.rod, U = rod.userData;
-          U.flex.F.copy(A.Tdir).multiplyScalar(A.T);   // lực dây kỳ trước → cần uốn
-          rodFlexStep(rod, h); rod.updateMatrixWorld(true); U.tip.getWorldPosition(_aTip);   // ngọn VẬT LÝ của bước này
+          U.flex.F.copy(A.Tdir).multiplyScalar(A.T);
+          rodFlexStep(rod, h); rod.updateMatrixWorld(true); U.tip.getWorldPosition(_aTip);
           if (A.stage === 'fight' && A.fish) { angFish.Mp.copy(angFish.M); fishFightStep(h, A.tNow); P.B.copy(angFish.M); P.bKin = true; }
           _pull = 0; floatStep(h, _onPull);
           if (A.stage === 'fight') A.T = angFish.T;
           else if (A.stage === 'strike') A.T *= Math.pow(0.85, h * 60);
           else A.T += (Math.min(6, FLOAT_M * _pull / (h * h)) + (P.mode === 'water' ? 0.05 : 0) - A.T) * (1 - Math.exp(-h * 12));
         }
-        function drawFishLine(rod) {   // dây: mép lô dây → 6 khoen → ngọn (theo cần đang cong) → võng tới phao (dây chùng) → lưỡi
+        function drawFishLine(rod) {
           const U = rod.userData, P = angFloat, A = angling, pos = fishLinePos;
           let j = 0;
           U.spool.getWorldPosition(_aV); pos[j++] = _aV.x; pos[j++] = _aV.y; pos[j++] = _aV.z;
           for (const gd of U.guides) { gd.getWorldPosition(_aV); pos[j++] = _aV.x; pos[j++] = _aV.y; pos[j++] = _aV.z; }
           pos[j++] = _aTipR.x; pos[j++] = _aTipR.y; pos[j++] = _aTipR.z;
           const D = _dF.distanceTo(_aTipR), slack = Math.max(0, P.S - D);
-          const sag = Math.min(D * 0.45, Math.sqrt(3 * D * slack / 8));   // võng parabol theo phần dây thừa
+          const sag = Math.min(D * 0.45, Math.sqrt(3 * D * slack / 8));
           _aV.subVectors(_dF, _aTipR); const len = _aV.length() || 1; _aV.multiplyScalar(1 / len);
-          _aV2.set(0, -1, 0).addScaledVector(_aV, _aV.y); const nl = _aV2.length(); if (nl > 1e-4) _aV2.multiplyScalar(1 / nl);   // phương trọng lực vuông góc dây
+          _aV2.set(0, -1, 0).addScaledVector(_aV, _aV.y); const nl = _aV2.length(); if (nl > 1e-4) _aV2.multiplyScalar(1 / nl);
           for (let i = 0; i < 16; i++) {
             const u = i / 15, s = 4 * u * (1 - u) * sag;
             pos[j++] = _aTipR.x + (_dF.x - _aTipR.x) * u + _aV2.x * s; pos[j++] = _aTipR.y + (_dF.y - _aTipR.y) * u + _aV2.y * s; pos[j++] = _aTipR.z + (_dF.z - _aTipR.z) * u + _aV2.z * s;
           }
           pos[j++] = _dF.x; pos[j++] = _dF.y; pos[j++] = _dF.z; pos[j++] = _dB.x; pos[j++] = _dB.y; pos[j++] = _dB.z;
           fishLineGeo.attributes.position.needsUpdate = true;
-          if (A.stage !== 'fight') A.Tdir.set(pos[27] - _aTipR.x, pos[28] - _aTipR.y, pos[29] - _aTipR.z).normalize();   // hướng lực ở ngọn = tiếp tuyến dây
+          if (A.stage !== 'fight') A.Tdir.set(pos[27] - _aTipR.x, pos[28] - _aTipR.y, pos[29] - _aTipR.z).normalize();
         }
-        function updateReturningFishingFish(f, dt, t) {   // cá được thả: ngoi lên lấy thăng bằng, quẫy đuôi lặn ra xa bờ rồi trả về bầy
+        function updateReturningFishingFish(f, dt, t) {
           fishReturnTime += dt;
           const u = fishReturnTime, sp = u < 0.45 ? 0.15 : 0.15 + 1.1 * Math.min(1, (u - 0.45) / 0.4) * Math.max(0.4, 1 - (u - 0.9) / 1.6);
           _fishReturnStart.addScaledVector(_fishReturnDir, sp * dt);
@@ -11009,7 +11009,7 @@
           const i = 3 + (Math.random() * (GX - 6) | 0), j = 3 + (Math.random() * (GZ - 6) | 0);
           if (!freeTree(i, j)) continue;
           const px = wx(i), py = surfaceY(i, j), pz = wz(j), rot = Math.random() * 6.28;
-          if (deadLogOut(px, pz, 0.2)) continue;   // không mọc xuyên khúc gỗ chết
+          if (deadLogOut(px, pz, 0.2)) continue;
           addFlower(px, py, pz, rot);
           n++;
         }
@@ -11028,8 +11028,8 @@
           for (let n = 0; n < grass; n++) { const px = cx + (Math.random() - 0.5) * spread, pz = cz + (Math.random() - 0.5) * spread; if (deadLogOut(px, pz, 0.2)) continue; addGrassTuft(px, yy(px, pz), pz, Math.random() * 6.283, 0.85 + Math.random() * 0.8); }
           for (let n = 0; n < flowers; n++) { const px = cx + (Math.random() - 0.5) * spread, pz = cz + (Math.random() - 0.5) * spread; if (deadLogOut(px, pz, 0.2)) continue; addFlower(px, yy(px, pz), pz, Math.random() * 6.283); }
         }
-        scatterPatch(X0 + 100, Z0 + 113, 6, 3, 1.5, 7.2);   // quanh khúc gỗ chết
-        scatterPatch(X0 + 116, Z0 + 54, 0, 5, 3, null);     // ven đường, chỉ hoa
+        scatterPatch(X0 + 100, Z0 + 113, 6, 3, 1.5, 7.2);
+        scatterPatch(X0 + 116, Z0 + 54, 0, 5, 3, null);
 
         addGrassTuft(-6.9, 1.2, 95.7, Math.random() * 6.283, 2.5);
         addGrassTuft(-7.2, 1.2, 95.9, Math.random() * 6.283, 2.2);
@@ -11053,7 +11053,7 @@
 
 
         for (const k in vegPools) buildVegPool(vegPools[k]);
-        _forestVariants.length = 0;   // dựng toàn bộ InstancedMesh cỏ/cây/hoa sau khi gom xong
+        _forestVariants.length = 0;
 
 
         const lotusPond = (() => {
@@ -11067,19 +11067,19 @@
             const g = x.createRadialGradient(R, R, 0, R, R, R);
             g.addColorStop(0, '#d6dc93'); g.addColorStop(0.05, '#a9c47c'); g.addColorStop(0.11, '#5f9867'); g.addColorStop(0.6, '#4f8b5c'); g.addColorStop(0.93, '#437d4f'); g.addColorStop(1, '#6f8c4a');
             x.fillStyle = g; x.fillRect(0, 0, N, N);
-            for (let i = 0; i < 320; i++) {   // lớp sáp xanh lơ loang lổ
+            for (let i = 0; i < 320; i++) {
               const a = r2() * 6.2832, r = Math.sqrt(r2()) * R * 0.96;
               x.fillStyle = `rgba(${(150 + r2() * 40) | 0},${(185 + r2() * 30) | 0},${(175 + r2() * 35) | 0},${(0.04 + r2() * 0.06).toFixed(3)})`;
               x.beginPath(); x.arc(R + Math.cos(a) * r, R + Math.sin(a) * r, 3 + r2() * 10, 0, 6.2832); x.fill();
             }
             x.lineCap = 'round';
             const seg = (a0, a1, r0, r1, w, c) => {
-              const am = (a0 + a1) / 2 + 0.02, rm = (r0 + r1) / 2;   // gân hơi cong
+              const am = (a0 + a1) / 2 + 0.02, rm = (r0 + r1) / 2;
               x.strokeStyle = c; x.lineWidth = w; x.beginPath(); x.moveTo(R + Math.cos(a0) * r0, R + Math.sin(a0) * r0);
               x.quadraticCurveTo(R + Math.cos(am) * rm, R + Math.sin(am) * rm, R + Math.cos(a1) * r1, R + Math.sin(a1) * r1); x.stroke();
             };
             const NV = 21, ang = Array.from({ length: NV }, (_, k) => (k + (r2() - 0.5) * 0.35) / NV * 6.2832);
-            for (const dark of [1, 0]) {   // rãnh gân sẫm (lệch 1 px) rồi gân sáng: gân chính → rẽ đôi ở 58% → rẽ đôi lần nữa sát mép
+            for (const dark of [1, 0]) {
               const c = dark ? 'rgba(38,78,44,0.28)' : 'rgba(205,226,165,0.42)', s = dark ? 1.4 : 0.85;
               x.save(); if (dark) x.translate(1.2, 1.2);
               for (const a of ang) {
@@ -11088,18 +11088,18 @@
               }
               x.restore();
             }
-            x.fillStyle = '#e4e2a4'; x.beginPath(); x.arc(R, R, R * 0.045, 0, 6.2832); x.fill();   // rốn lá (chỗ cuống đính bên dưới)
+            x.fillStyle = '#e4e2a4'; x.beginPath(); x.arc(R, R, R * 0.045, 0, 6.2832); x.fill();
             x.strokeStyle = 'rgba(70,110,60,0.5)'; x.lineWidth = 1.5; x.beginPath(); x.arc(R, R, R * 0.065, 0, 6.2832); x.stroke();
             const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
           })();
 
           const M = {
             leaf: new THREE.MeshLambertMaterial({ map: leafTex }),
-            under: new THREE.MeshLambertMaterial({ color: 0x8aa784, side: THREE.BackSide }),   // mặt dưới lá nhạt, xám xanh
+            under: new THREE.MeshLambertMaterial({ color: 0x8aa784, side: THREE.BackSide }),
             stem: new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true }),
             petal: new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true, side: THREE.DoubleSide }),
             core: new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true }),
-            bead: new THREE.MeshPhongMaterial({ color: 0xe4f4ea, specular: 0xffffff, shininess: 160, transparent: true }),   // giọt nước trên lá sáp: tròn như bi thuỷ tinh — lòng trong, viền tối, đốm phản chiếu trắng
+            bead: new THREE.MeshPhongMaterial({ color: 0xe4f4ea, specular: 0xffffff, shininess: 160, transparent: true }),
           };
           for (const k in M) M[k].name = 'sen: ' + k;
           M.bead.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <dithering_fragment>', `#include <dithering_fragment>
@@ -11107,7 +11107,7 @@
             vec3 dif = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse;
             gl_FragColor = vec4(mix(dif * 1.12, dif * 0.32, smoothstep(0.35, 0.9, fr)) + reflectedLight.directSpecular * 1.7 + reflectedLight.indirectSpecular, mix(0.4, 0.95, fr));`); };
 
-          function paint(geo, f) {   // màu đỉnh: f(x, y, z) → THREE.Color
+          function paint(geo, f) {
             const P = geo.attributes.position, a = new Float32Array(P.count * 3);
             for (let i = 0; i < P.count; i++) { const c = f(P.getX(i), P.getY(i), P.getZ(i)); a[i * 3] = c.r; a[i * 3 + 1] = c.g; a[i * 3 + 2] = c.b; }
             geo.setAttribute('color', new THREE.BufferAttribute(a, 3)); return geo;
@@ -11116,10 +11116,10 @@
           const at = (geo, x, y, z, rx = 0, ry = 0, rz = 0, sx = 1, sy = sx, sz = sx) => geo.applyMatrix4(_m4.compose(_v.set(x, y, z), _q.setFromEuler(_e.set(rx, ry, rz)), _s.set(sx, sy, sz)));
           const merge = list => { const g = mergeGeometries(list, false); for (const q of list) q.dispose(); return g; };
 
-          function leafGeo(R, aerial) {   // phiến khiên tròn: lưới cực 7 vòng × 44 tia · lá vươn lõm phễu + rủ 1 bên · mép lượn sóng
+          function leafGeo(R, aerial) {
             const RS = 7, AS = 44, pos = [0, 0, 0], uv = [0.5, 0.5], idx = [];
             const p1 = rnd() * 6.28, p2 = rnd() * 6.28, nw = 5 + ((rnd() * 4) | 0), wa = aerial ? 0.05 + rnd() * 0.04 : 0.014, tilt = rnd() * 6.28, droop = aerial ? 0.06 + rnd() * 0.12 : 0;
-            const hf = (f, th, lip = 1) => lip * (aerial ? R * 0.3 * Math.pow(f, 1.5) : R * 0.06 * Math.pow(f, 6))   // lòng phễu · lá nổi chỉ vểnh mép
+            const hf = (f, th, lip = 1) => lip * (aerial ? R * 0.3 * Math.pow(f, 1.5) : R * 0.06 * Math.pow(f, 6))
               + wa * R * Math.pow(f, 3) * (Math.sin(th * nw + p1) + 0.5 * Math.sin(th * (nw + 3) + p2)) - droop * R * Math.pow(f, 2.5) * Math.max(0, Math.cos(th - tilt));
             for (let r = 1; r <= RS; r++) {
               const f = r / RS;
@@ -11130,24 +11130,24 @@
             for (let r = 2; r <= RS; r++) for (let a = 0; a < AS; a++) idx.push(V(r - 1, a), V(r - 1, a + 1), V(r, a), V(r - 1, a + 1), V(r, a + 1), V(r, a));
             const g = new THREE.BufferGeometry();
             g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
-            g.userData.leaf = { tilt, h: (x, z, lip) => hf(Math.min(1, Math.hypot(x, z) / R), Math.atan2(z, x), lip) };   // độ cao mặt lá tại (x, z) hệ lá · hướng mép rủ
+            g.userData.leaf = { tilt, h: (x, z, lip) => hf(Math.min(1, Math.hypot(x, z) / R), Math.atan2(z, x), lip) };
             return g;
           }
 
           const cCream = col(0xf7f1d0), cBlush = col(0xf9d3df), cPink = col(0xf09bbd), cDeep = col(0xd8407f), cSep0 = col(0x8fae5a), cSep1 = col(0xb98a7a);
-          const petalStops = (t, e, c) => {   // gốc kem → hồng phấn → đầu hồng sen; mép đậm hơn lòng cánh
+          const petalStops = (t, e, c) => {
             if (t < 0.3) c.copy(cCream).lerp(cBlush, sm(0.04, 0.3, t)); else if (t < 0.7) c.copy(cBlush).lerp(cPink, sm(0.3, 0.7, t)); else c.copy(cPink).lerp(cDeep, sm(0.7, 1, t));
             c.lerp(cDeep, 0.22 * e * e * sm(0.35, 1, t));
           };
           const sepalStops = (t, e, c) => c.copy(cSep0).lerp(cSep1, sm(0.3, 1, t));
-          function petalGeo(inc, cup, stops) {   // dài 1 theo +y, rộng nhất ~55% chiều dài (trứng ngược), lòng thuyền + đầu cong vào phía tâm hoa (−z)
+          function petalGeo(inc, cup, stops) {
             const NL = 10, NW = 8, pos = [], cl = [], idx = [], c = new THREE.Color();
             for (let i = 0; i <= NL; i++) {
               const t = i / NL, hw = 0.3 * Math.pow(Math.sin(Math.PI * Math.pow(t, 1.15)), 0.62) + 0.05 * (1 - t);
               for (let j = 0; j <= NW; j++) {
                 const s = j / NW * 2 - 1, e = Math.abs(s);
                 pos.push(s * hw, t, -(cup * hw * s * s + inc * Math.pow(t, 2.5)));
-                stops(t, e, c); if (j % 2 === 0 && t > 0.15 && t < 0.95 && e < 0.85) c.multiplyScalar(0.94);   // gân dọc
+                stops(t, e, c); if (j % 2 === 0 && t > 0.15 && t < 0.95 && e < 0.85) c.multiplyScalar(0.94);
                 cl.push(c.r, c.g, c.b);
               }
             }
@@ -11156,7 +11156,7 @@
             g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(cl, 3)); g.setIndex(idx); g.computeVertexNormals();
             return g;
           }
-          function coreGeo(k, fresh) {   // gương sen: nón ngược, mặt phẳng + lá noãn chìm (fresh: vàng lúc hoa nở · không: gương xanh, hạt sẫm trong lỗ)
+          function coreGeo(k, fresh) {
             const side = fresh ? col(0xe6cd3e) : col(0x6f9a3e), top = fresh ? col(0xd9dc6a) : col(0x86ad4c), dot = fresh ? col(0xf2e88a) : col(0x3f4f22);
             const prof = [[0.02, 0], [0.03, 0.02], [0.055, 0.06], [0.08, 0.1], [0.092, 0.118], [0.088, 0.128], [0.07, 0.132], [0, 0.132]].map(([r, y]) => new THREE.Vector2(r * k, y * k));
             const parts = [paint(new THREE.LatheGeometry(prof, 18), (x, y) => y > 0.13 * k ? top : side)];
@@ -11166,7 +11166,7 @@
             }
             return merge(parts);
           }
-          function stamenGeo() {   // 40 nhị quanh chân đế: chỉ vàng mảnh ngả ra ngoài, bao phấn vàng cam, phần phụ hình chuỳ màu kem
+          function stamenGeo() {
             const fil = col(0xf3d055), anth = col(0xeeb23a), app = col(0xfaf3da), parts = [];
             for (let i = 0; i < 40; i++) {
               const a = i / 40 * 6.2832 + rnd() * 0.1, r0 = 0.05 + (i % 2) * 0.012, lean = 0.55 + rnd() * 0.25, L = 0.075 + rnd() * 0.02, x = Math.cos(a) * r0, z = Math.sin(a) * r0;
@@ -11179,17 +11179,17 @@
 
           const geoPetal = [petalGeo(0.08, 0.55, petalStops), petalGeo(0.16, 0.6, petalStops), petalGeo(0.26, 0.65, petalStops)], geoSepal = petalGeo(0.02, 0.4, sepalStops);
           const geoCore = coreGeo(0.78, true), geoPod = coreGeo(1.3, false), geoStamen = stamenGeo(), geoBead = new THREE.SphereGeometry(1, 12, 8);
-          const WHORL = [   // vòng: số cánh · bán kính chân · độ cao chân · dài · hệ số rộng · góc nghiêng khép (a0) / nở (a1)
-            { n: 3, r: 0.045, y: 0, L: 0.17, w: 0.85, a0: 0.9, a1: 2.0, g: geoSepal },   // đài ngoài: luôn ngả ra
+          const WHORL = [
+            { n: 3, r: 0.045, y: 0, L: 0.17, w: 0.85, a0: 0.9, a1: 2.0, g: geoSepal },
             { n: 6, r: 0.06, y: 0.005, L: 0.44, w: 1, a0: 0.13, a1: 1.32, g: geoPetal[0] },
             { n: 6, r: 0.05, y: 0.015, L: 0.42, w: 0.95, a0: 0.07, a1: 1.1, g: geoPetal[1] },
-            { n: 6, r: 0.04, y: 0.025, L: 0.36, w: 0.9, a0: 0.03, a1: 0.88, g: geoPetal[2] }   // nở hẳn: lộ gương sen + vòng nhị,
+            { n: 6, r: 0.04, y: 0.025, L: 0.36, w: 0.9, a0: 0.03, a1: 0.88, g: geoPetal[2] }
           ];
           const cStem = col(0x5d8c3c), cPrick = col(0x3d5a26);
 
-          const floats = [], stalks = [], flowers = [], pads = [];   // pads: lá hứng được giọt nước
+          const floats = [], stalks = [], flowers = [], pads = [];
           const inWater = (dx, dz, r) => { for (let k = 0; k <= 8; k++) { const a = k / 8 * 6.2832, rr = k ? r : 0, x = C0x + dx + Math.cos(a) * rr, z = C0z + dz + Math.sin(a) * rr; if (!waterCell(Math.round(x2gi(x)), Math.round(z2gj(z)))) return false; } return true; };
-          function stalk(dx, dz, H, r, lean, k) {   // cuống mọc từ bùn đáy: cong nhẹ, gai li ti (đốm sẫm), phần chìm thấy mờ qua nước; gốc lắc quanh mặt nước theo gió
+          function stalk(dx, dz, H, r, lean, k) {
             const g = new THREE.Group(); g.position.set(C0x + dx, lakeY, C0z + dz); pond.add(g);
             const la = rnd() * 6.2832, lx = Math.cos(la) * lean, lz = Math.sin(la) * lean;
             const top = new THREE.Vector3(lx, H, lz), pts = [new THREE.Vector3(-lx * 0.4, -0.6, -lz * 0.4), new THREE.Vector3(0, 0, 0), new THREE.Vector3(lx * 0.4, H * 0.55, lz * 0.4), top];
@@ -11197,11 +11197,11 @@
             const s = { g, H, k, sx: 0, sz: 0, f: 1.3 + rnd() * 0.9, ph: rnd() * 6.28 }; stalks.push(s);
             return { g, top, lx, lz };
           }
-          function flowerHead(kind) {   // 'bud' búp · 'flower' hoa · 'pod' gương sen
+          function flowerHead(kind) {
             const head = new THREE.Group(), petals = [];
             if (kind === 'pod') { const p = new THREE.Mesh(geoPod, M.core); p.castShadow = true; head.add(p); return { head, petals }; }
             WHORL.forEach((W, wi) => {
-              if (kind === 'bud' && wi === 3) return;   // búp: vòng trong khuất hẳn
+              if (kind === 'bud' && wi === 3) return;
               const off = wi * 0.52 + rnd() * 0.3;
               for (let i = 0; i < W.n; i++) {
                 const pv = new THREE.Group(), m = new THREE.Mesh(W.g, M.petal), L = W.L * (0.92 + rnd() * 0.16);
@@ -11220,16 +11220,16 @@
             const S = stalk(dx, dz, H, kind === 'pod' ? 0.021 : 0.026, kind === 'pod' ? 0.35 : 0.08 + rnd() * 0.14, 0.03), F = flowerHead(kind);
             F.head.position.copy(S.top); F.head.scale.setScalar(kind === 'bud' ? 0.72 : 0.9);
             F.head.rotation.set(S.lz / H * 0.6, 0, -S.lx / H * 0.6);
-            if (kind === 'pod') F.head.rotation.set(S.lz / H * 2.2, 0, -S.lx / H * 2.2);   // gương già nặng hạt: gục đầu theo hướng cuống ngả
+            if (kind === 'pod') F.head.rotation.set(S.lz / H * 2.2, 0, -S.lx / H * 2.2);
             S.g.add(F.head);
-            if (kind === 'flower' && age === 2) F.petals.splice(3 + ((rnd() * 6) | 0), 1)[0].m.visible = false;   // ngày 3: đã rụng 1 cánh vòng ngoài (sau 3 đài) (trôi trên mặt nước)
+            if (kind === 'flower' && age === 2) F.petals.splice(3 + ((rnd() * 6) | 0), 1)[0].m.visible = false;
             const fl = { ...F, kind, age, o: null }; flowers.push(fl); return fl;
           }
-          function plantLeaf(dx, dz, R, H) {   // H = 0: lá nổi · H > 0: lá vươn trên cuống
+          function plantLeaf(dx, dz, R, H) {
             if (!inWater(dx, dz, H ? 0.3 : R * 0.9)) return;
             const geo = leafGeo(R, H > 0), top = new THREE.Mesh(geo, M.leaf); top.rotation.y = rnd() * 6.28; top.receiveShadow = true;
-            if (!H) {   // nổi: theo mặt nước mô phỏng; cuống chìm cong xuống bùn
-              const g = new THREE.Group(); g.position.set(C0x + dx, lakeY, C0z + dz); pond.add(g); top.position.y = 0.03; g.add(top);   // cao hơn đỉnh gợn sóng của shader nước
+            if (!H) {
+              const g = new THREE.Group(); g.position.set(C0x + dx, lakeY, C0z + dz); pond.add(g); top.position.y = 0.03; g.add(top);
               const a = rnd() * 6.28, pts = [new THREE.Vector3(0, 0, 0), new THREE.Vector3(Math.cos(a) * 0.1, -0.3, Math.sin(a) * 0.1), new THREE.Vector3(Math.cos(a) * 0.3, -0.9, Math.sin(a) * 0.3)];
               g.add(new THREE.Mesh(paint(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 6, 0.02, 4, false), () => cStem), M.stem));
               floats.push({ g, ph: rnd() * 6.28 });
@@ -11239,11 +11239,11 @@
             L.position.copy(S.top).y += 0.025; L.rotation.set((rnd() - 0.5) * 0.5, 0, (rnd() - 0.5) * 0.5); S.g.add(L);
             top.castShadow = true; L.add(top); const un = new THREE.Mesh(geo, M.under); un.rotation.y = top.rotation.y; un.castShadow = true; L.add(un);
             const seed = [];
-            for (let i = 0; i < 1 + ((rnd() * 3) | 0); i++) {   // chỗ giọt sương / mưa còn đọng khi mở trang: giọt lớn ở rốn, giọt nhỏ quanh
+            for (let i = 0; i < 1 + ((rnd() * 3) | 0); i++) {
               const a = rnd() * 6.28, r = i ? R * (0.12 + rnd() * 0.25) : R * 0.03, s = i ? 0.012 + rnd() * 0.01 : 0.03 + rnd() * 0.012;
               seed.push([Math.cos(a) * r, Math.sin(a) * r, s]);
             }
-            const az = geo.userData.leaf.tilt - top.rotation.y;   // hướng mép rủ trong hệ nhóm lá L: phía lá nghiêng đổ nước
+            const az = geo.userData.leaf.tilt - top.rotation.y;
             pads.push({ top, R, L, rx0: L.rotation.x, rz0: L.rotation.z, dx: Math.cos(az), dz: Math.sin(az), h: geo.userData.leaf.h, beads: [], seed, Vd: Math.pow((0.06 + 0.02 * Math.random()) * Math.max(0.75, R / 0.8), 3), V: 0, bt: 0, bv: 0, dump: 0 });
           }
 
@@ -11252,7 +11252,7 @@
           for (const [dx, dz, H, age] of [[0.2, 0.9, 1.5, 1], [-1.8, 1, 1.3, 0], [2.1, 3.4, 1.35, 2], [-0.7, 3.4, 1.65, 1]]) plantFlower(dx, dz, H, 'flower', age);
           for (const [dx, dz, H] of [[1.6, 0.2, 1.25], [-3.3, 1.6, 1.05], [3.5, 4, 0.95]]) plantFlower(dx, dz, H, 'bud', 0);
           plantFlower(-1.4, 4.6, 1.35, 'pod', 0);
-          for (const [dx, dz] of [[2.6, 3.9], [1.7, 4.4], [2.9, 3.1]]) {   // cánh rụng nổi ngửa như con thuyền
+          for (const [dx, dz] of [[2.6, 3.9], [1.7, 4.4], [2.9, 3.1]]) {
             if (!inWater(dx, dz, 0.2)) continue;
             const g = new THREE.Group(); g.position.set(C0x + dx, lakeY, C0z + dz); pond.add(g);
             const m = new THREE.Mesh(geoPetal[0], M.petal), L = 0.38 + rnd() * 0.06; m.scale.set(L, L, L); m.rotation.set(Math.PI / 2 - 0.08, rnd() * 6.28, 0, 'YXZ'); m.position.y = 0.035; g.add(m);
@@ -11260,64 +11260,64 @@
           }
           scene.add(pond);
 
-          const BEAD_MAX = 700, PAD_MAX = 36, RAIN_R = 0.011, HMAX = 0.045, G7 = 9.81 * 5 / 7;   // cỡ giọt phóng to theo lá (lá trong cảnh ~3 lần lá thật)
+          const BEAD_MAX = 700, PAD_MAX = 36, RAIN_R = 0.011, HMAX = 0.045, G7 = 9.81 * 5 / 7;
           const dropMesh = (geo, n, name) => { const m = new THREE.InstancedMesh(geo, M.bead, n); m.count = 0; m.visible = false; m.frustumCulled = false; m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.name = name; m.userData.noBatch = m.userData.noRainOcc = true; pond.add(m); return m; };
-          const beadMesh = dropMesh(geoBead, BEAD_MAX, 'Giọt nước trên lá sen'), poolMesh = dropMesh(new THREE.SphereGeometry(1, 32, 14), 64, 'Vũng nước lòng lá sen');   // vũng lớn: lưới mịn cho mép tròn
+          const beadMesh = dropMesh(geoBead, BEAD_MAX, 'Giọt nước trên lá sen'), poolMesh = dropMesh(new THREE.SphereGeometry(1, 32, 14), 64, 'Vũng nước lòng lá sen');
           const falls = [], _inv = new THREE.Matrix4(), _rl = new THREE.Matrix3(), _rw = new THREE.Matrix3(), _mb = new THREE.Matrix4(), _qb = new THREE.Quaternion();
           const _gl = new THREE.Vector3(), _wl = new THREE.Vector3(), _n = new THREE.Vector3(), _p = new THREE.Vector3(), _sc = new THREE.Vector3(), _up = new THREE.Vector3(0, 1, 0);
-          const shape = b => { b.c = Math.min(b.r, HMAX / 2); b.a = Math.sqrt(b.r * b.r * b.r / b.c); };   // giữ thể tích: giọt lớn dẹt ra, bề dày chặn ở HMAX
+          const shape = b => { b.c = Math.min(b.r, HMAX / 2); b.a = Math.sqrt(b.r * b.r * b.r / b.c); };
           function addBead(P, x, z, r, vx = 0, vz = 0) {
             const B = P.beads;
             if (B.length >= PAD_MAX) { let q = B[0], d = 1e9; for (const b of B) { const e = (b.x - x) ** 2 + (b.z - z) ** 2; if (e < d) { d = e; q = b; } } q.r = Math.cbrt(q.r ** 3 + r ** 3); q.w = 1; shape(q); return; }
             const b = { x, z, vx, vz, r, w: 0.7, nx: 0, nz: 0, a: 0, c: 0 }; shape(b); B.push(b);
           }
-          function seedPad(P, wet) {   // gieo lại theo độ ướt hiện tại (lúc mở trang / tua giờ): giọt lớn ở rốn + vài giọt nhỏ
+          function seedPad(P, wet) {
             P.beads.length = 0; P.bt = P.bv = 0; P.dump = 0;
             if (wet > 0.15) for (const [x, z, s] of P.seed) addBead(P, x, z, s * Math.min(1, wet) * 0.75);
           }
-          function impact(P) {   // 1 hạt mưa rơi trúng lá
+          function impact(P) {
             const rr = P.R * 0.96 * Math.sqrt(Math.random()), th = Math.random() * 6.2832, x = Math.cos(th) * rr, z = Math.sin(th) * rr, r = RAIN_R * (0.8 + Math.random() * 0.4);
             const hit = P.beads.find(b => (b.x - x) ** 2 + (b.z - z) ** 2 < b.a * b.a);
             if (hit) { hit.r = Math.cbrt(hit.r ** 3 + r ** 3); shape(hit); hit.w = 1; hit.vx += (Math.random() - 0.5) * 0.25; hit.vz += (Math.random() - 0.5) * 0.25; return; }
             const n = Math.random() < 0.35 ? 3 : 1;
             for (let k = 0; k < n; k++) { const a = Math.random() * 6.2832, sp = n > 1 ? 0.2 + Math.random() * 0.3 : 0.03; addBead(P, x, z, n > 1 ? r * 0.7 : r, Math.cos(a) * sp, Math.sin(a) * sp); }
           }
-          function stepPad(P, dt, dtr, dew, dry) {   // dt: bước chuyển động (kẹp ≤ 0,05 s) · dtr: thời gian thật cho mưa / sương / bay hơi
-            const T = P.top, B = P.beads, e = 0.015, lip = P.L ? 1 : 0.3;   // lá nổi: mép vểnh ít cản giọt hơn (sóng đã làm lá chao)
+          function stepPad(P, dt, dtr, dew, dry) {
+            const T = P.top, B = P.beads, e = 0.015, lip = P.L ? 1 : 0.3;
             T.updateWorldMatrix(true, false); _inv.copy(T.matrixWorld).invert(); _rl.setFromMatrix4(_inv); _rw.setFromMatrix4(T.matrixWorld);
-            _gl.set(0, -1, 0).applyMatrix3(_rl);   // trọng lực trong hệ lá
+            _gl.set(0, -1, 0).applyMatrix3(_rl);
             T.getWorldPosition(_p); windAt(_p.x, _p.y, _p.z, 1, _wl); _wl.y = 0; _wl.applyMatrix3(_rl); const ws = _wl.length();
-            for (let lam = rainK * 12 * P.R * P.R * dtr; lam > 0; lam--) if (Math.random() < lam) impact(P);   // số hạt trúng lá ~ cường độ mưa × diện tích (Poisson)
-            const cond = dew > 0.5 && rainK < 0.05 && P.V < P.Vd * 0.35;   // sương ngưng (chỉ tới ~1/3 ngưỡng đổ: sương không đủ làm lá nghiêng)
+            for (let lam = rainK * 12 * P.R * P.R * dtr; lam > 0; lam--) if (Math.random() < lam) impact(P);
+            const cond = dew > 0.5 && rainK < 0.05 && P.V < P.Vd * 0.35;
             if (cond && Math.random() < dtr * 0.012 * dew * P.R * P.R) { const rr = P.R * 0.9 * Math.sqrt(Math.random()), th = Math.random() * 6.2832; addBead(P, Math.cos(th) * rr, Math.sin(th) * rr, 0.004 + Math.random() * 0.002); }
-            const dr = cond ? dtr * 1.2e-6 * dew : dew > 0.5 ? 0 : dry * dtr;   // sương làm giọt lớn dần · trời khô thì bay hơi
+            const dr = cond ? dtr * 1.2e-6 * dew : dew > 0.5 ? 0 : dry * dtr;
             for (let i = B.length - 1; i >= 0; i--) {
               const b = B[i];
               if (dr) { b.r += dr; if (b.r < 0.0022) { B.splice(i, 1); continue; } shape(b); }
               const hx = (P.h(b.x + e, b.z, lip) - P.h(b.x - e, b.z, lip)) / (2 * e), hz = (P.h(b.x, b.z + e, lip) - P.h(b.x, b.z - e, lip)) / (2 * e);
               _n.set(-hx, 1, -hz).normalize(); b.nx = _n.x; b.nz = _n.z;
               const gn = _gl.dot(_n), tx = _gl.x - gn * _n.x, tz = _gl.z - gn * _n.z, kw = 0.00025 * ws / b.r, sl = Math.min(0.6, 0.035 * (0.012 / b.r) ** 2);
-              if (tx * tx + tz * tz < sl * sl && b.vx * b.vx + b.vz * b.vz < 4e-4 && kw * ws < sl * G7) b.vx = b.vz = 0;   // dốc dưới góc trượt của cỡ giọt này: nằm yên
+              if (tx * tx + tz * tz < sl * sl && b.vx * b.vx + b.vz * b.vz < 4e-4 && kw * ws < sl * G7) b.vx = b.vz = 0;
               else { const d = Math.exp(-dt * 1.4); b.vx = (b.vx + (tx * G7 + kw * _wl.x) * dt) * d; b.vz = (b.vz + (tz * G7 + kw * _wl.z) * dt) * d; b.x += b.vx * dt; b.z += b.vz * dt; }
               b.w *= Math.exp(-dt * 4);
-              if (b.x * b.x + b.z * b.z > (P.R * 0.975) ** 2 && b.x * b.vx + b.z * b.vz > 0) {   // lăn qua mép lá → rơi tự do
+              if (b.x * b.x + b.z * b.z > (P.R * 0.975) ** 2 && b.x * b.vx + b.z * b.vz > 0) {
                 falls.push({ p: new THREE.Vector3(b.x, P.h(b.x, b.z, 1) + b.c, b.z).applyMatrix4(T.matrixWorld), v: new THREE.Vector3(b.vx, hx * b.vx + hz * b.vz, b.vz).applyMatrix3(_rw), r: b.r });
                 B.splice(i, 1);
               }
             }
-            for (let i = 0; i < B.length; i++) for (let j = B.length - 1; j > i; j--) {   // giọt chạm nhau thì gộp
+            for (let i = 0; i < B.length; i++) for (let j = B.length - 1; j > i; j--) {
               const p = B[i], q = B[j], dx = p.x - q.x, dz = p.z - q.z, s = (p.a + q.a) * 0.85;
               if (dx * dx + dz * dz > s * s) continue;
               const vp = p.r ** 3, vq = q.r ** 3, k = vq / (vp + vq);
               p.x += (q.x - p.x) * k; p.z += (q.z - p.z) * k; p.vx += (q.vx - p.vx) * k; p.vz += (q.vz - p.vz) * k; p.r = Math.cbrt(vp + vq); p.w = 1; shape(p); B.splice(j, 1);
             }
             let V = 0; for (const b of B) V += b.r * b.r * b.r; P.V = V;
-            if (P.L) {   // lá vươn trĩu theo lượng nước; quá ngưỡng thì nghiêng đổ, xong bật về nhún vài nhịp
+            if (P.L) {
               if (!P.dump && V > P.Vd) P.dump = 1e-3; else if (P.dump && ((P.dump += dt) > 3.5 || V < P.Vd * 0.12)) P.dump = 0;
-              const tgt = P.dump ? 0.5 : 0.14 * Math.min(1, V / P.Vd), k = P.dump ? 26 : 34, c = P.dump ? 7 : 3.6;   // đổ ~29° · bật về vọt ~25% rồi tắt
+              const tgt = P.dump ? 0.5 : 0.14 * Math.min(1, V / P.Vd), k = P.dump ? 26 : 34, c = P.dump ? 7 : 3.6;
               P.bv += (k * (tgt - P.bt) - c * P.bv) * dt; P.bt += P.bv * dt;
               P.L.rotation.x = P.rx0 + P.bt * P.dz; P.L.rotation.z = P.rz0 - P.bt * P.dx;
-            } else if (V > P.Vd && B.length) {   // lá nổi đầy: giọt lớn nhất trôi về phía thấp, tràn qua mép xuống nước
+            } else if (V > P.Vd && B.length) {
               let q = B[0]; for (const b of B) if (b.r > q.r) q = b;
               const gl = Math.hypot(_gl.x, _gl.z) || 1; q.vx += _gl.x / gl * 0.9 * dt; q.vz += _gl.z / gl * 0.9 * dt;
             }
@@ -11325,11 +11325,11 @@
           let lastH = null;
           function drops(dtr, t, h, dew) {
             const dt = Math.min(dtr, 0.05); dtr = Math.min(dtr, 2);
-            if (lastH === null || Math.abs(((h - lastH + 36) % 24) - 12) > 0.5) { const wet = Math.min(1, Math.max(dew, sceneWet * 1.5, rainK)); for (const P of pads) seedPad(P, P.L ? wet : wet * 0.4); falls.length = 0; }   // mở trang / tua giờ (tính vòng 24 h: qua nửa đêm không phải tua)
+            if (lastH === null || Math.abs(((h - lastH + 36) % 24) - 12) > 0.5) { const wet = Math.min(1, Math.max(dew, sceneWet * 1.5, rainK)); for (const P of pads) seedPad(P, P.L ? wet : wet * 0.4); falls.length = 0; }
             lastH = h;
-            const dry = rainK < 0.02 && dew < 0.35 ? -(5e-6 + 1.6e-5 * Math.max(0, sunElevSin)) : 0;   // tốc độ bay hơi (bán kính, đv/s)
+            const dry = rainK < 0.02 && dew < 0.35 ? -(5e-6 + 1.6e-5 * Math.max(0, sunElevSin)) : 0;
             for (const P of pads) stepPad(P, dt, dtr, dew, dry);
-            for (let i = falls.length - 1; i >= 0; i--) {   // giọt rơi: trọng lực → chạm mặt hồ thì tạo gợn (vũng lớn: vòng sóng thấy rõ)
+            for (let i = falls.length - 1; i >= 0; i--) {
               const f = falls[i]; f.v.y -= 9.81 * dt; f.p.addScaledVector(f.v, dt);
               const wy = waterSurfaceY(f.p.x, f.p.z);
               if (f.p.y - f.r > wy && f.p.y > lakeY - 1) continue;
@@ -11337,12 +11337,12 @@
               falls.splice(i, 1);
             }
             let n = 0, np = 0;
-            if (renderer.domElement.height * camera.zoom / (camera.top - camera.bottom) > 40) {   // xa quá thì giọt nhỏ hơn 1 điểm ảnh: khỏi dựng
+            if (renderer.domElement.height * camera.zoom / (camera.top - camera.bottom) > 40) {
               for (const P of pads) {
                 const T = P.top; _rw.setFromMatrix4(T.matrixWorld);
                 for (const b of P.beads) {
                   const big = b.a > 0.03 && np < 64; if (!big && n >= BEAD_MAX) continue;
-                  const wob = b.w * Math.sin(t * 26 + b.x * 40);   // rung sau va chạm / gộp
+                  const wob = b.w * Math.sin(t * 26 + b.x * 40);
                   _p.set(b.x, P.h(b.x, b.z, 1) + b.c * 0.92, b.z).applyMatrix4(T.matrixWorld);
                   _n.set(b.nx, Math.sqrt(Math.max(0, 1 - b.nx * b.nx - b.nz * b.nz)), b.nz).applyMatrix3(_rw).normalize();
                   _mb.compose(_p, _qb.setFromUnitVectors(_up, _n), _sc.set(b.a * (1 + 0.12 * wob), b.c * (1 - 0.2 * wob), b.a * (1 + 0.12 * wob)));
@@ -11354,25 +11354,25 @@
             for (const [m, c] of [[beadMesh, n], [poolMesh, np]]) { m.count = c; m.visible = c > 0; if (c) m.instanceMatrix.needsUpdate = true; }
           }
 
-          function lotusOpen(h, age) {   // độ nở theo giờ Pleiku: hé từ ~5 giờ, rộ nhất buổi sáng, khép dần sau trưa; ngày 3 không khép kín được nữa
+          function lotusOpen(h, age) {
             const day = sm(5.0, 7.8, h) * (1 - sm(13.5, 17.5, h)), lo = [0.04, 0.12, 0.7][age], hi = [0.6, 1, 1.3][age];
             return lo + (hi - lo) * day;
           }
           const _w = new THREE.Vector3();
           function update(dt, t) {
             const h = liveWeather.localHour, ks = 1 - Math.exp(-dt * 1.5);
-            for (const f of floats) {   // lá nổi + cánh rụng: nằm đúng mặt nước mô phỏng, nghiêng theo dốc sóng (cuống cắm đáy nên không trôi)
+            for (const f of floats) {
               const p = f.g.position, y = waterSurfaceY(p.x, p.z), gx = waterSurfaceY(p.x + 0.4, p.z) - y, gz = waterSurfaceY(p.x, p.z + 0.4) - y;
               p.y = y + Math.sin(t * 1.2 + f.ph) * 0.01;
               f.g.rotation.z = clampA(-gx * 2.5, 0.2) + Math.sin(t * 0.8 + f.ph) * 0.015; f.g.rotation.x = clampA(gz * 2.5, 0.2);
             }
-            for (const s of stalks) {   // cuống ngả theo gió tại ngọn (lọc mượt) + rung nhẹ theo cơn giật
+            for (const s of stalks) {
               const p = s.g.position; windAt(p.x, p.y + s.H, p.z, s.H + 0.3, _w);
               s.sx += (_w.z * s.k - s.sx) * ks; s.sz += (-_w.x * s.k - s.sz) * ks;
               const fl = Math.sin(t * s.f + s.ph) * (0.006 + 0.02 * Math.min(1, Math.hypot(_w.x, _w.z) / 6));
               s.g.rotation.set(clampA(s.sx + fl, 0.35), 0, clampA(s.sz + fl * 0.7, 0.35));
             }
-            for (const fl of flowers) {   // khép/mở chậm (~vài giây cảnh) cho mượt khi tua giờ
+            for (const fl of flowers) {
               if (fl.kind === 'pod') continue;
               const o = fl.kind === 'bud' ? 0 : lotusOpen(h, fl.age);
               if (fl.o !== null && Math.abs(o - fl.o) < 1e-4) continue;
@@ -11380,7 +11380,7 @@
               for (const p of fl.petals) p.m.rotation.x = p.a0 + (p.a1 - p.a0) * fl.o;
               if (fl.stamen) { const s = 0.55 + 0.45 * Math.min(1, fl.o); fl.stamen.scale.set(s, 0.9 + 0.1 * s, s); }
             }
-            drops(dt, t, h, h < 12 ? 1 - sm(8, 10.5, h) : sm(19, 23.5, h));   // giọt mưa / sương (độ sương: đêm–sáng sớm)
+            drops(dt, t, h, h < 12 ? 1 - sm(8, 10.5, h) : sm(19, 23.5, h));
           }
           return { group: pond, flowers, pads, update };
         })();
@@ -11389,16 +11389,16 @@
           const DX = 2.4, SLICE = 4, x0 = wx(-MX) - BLOCK / 2, z0 = wz(-MZ) - BLOCK / 2;
           const nx = Math.ceil((GX + 2 * MX) * BLOCK / DX), nz = Math.ceil((GZ + 2 * MZ) * BLOCK / DX), N = nx * nz;
           const drag = new Float32Array(N), expo = new Float32Array(N), ground = new Float32Array(N), wet = new Uint8Array(N);
-          for (let b = 0; b < nz; b++) for (let a = 0; a < nx; a++) {   // mặt đất (mặt nước ở ô sông/hồ) tại tâm ô
+          for (let b = 0; b < nz; b++) for (let a = 0; a < nx; a++) {
             const c = b * nx + a, x = x0 + (a + 0.5) * DX, z = z0 + (b + 0.5) * DX, gi = Math.round(x2gi(x)), gj = Math.round(z2gj(z));
             wet[c] = waterCell(gi, gj) ? 1 : 0; ground[c] = wet[c] ? waterBaseY(gj) : cowY(x, z);
           }
           const box = new THREE.Box3();
-          const addBox = (bx, k) => {   // vật cản đặc: ô có tâm nằm trong hộp; cản theo phần chiều cao vật chạm lát cắt
+          const addBox = (bx, k) => {
             const a0 = Math.max(0, Math.floor((bx.min.x - x0) / DX)), a1 = Math.min(nx - 1, Math.floor((bx.max.x - x0) / DX)), b0 = Math.max(0, Math.floor((bx.min.z - z0) / DX)), b1 = Math.min(nz - 1, Math.floor((bx.max.z - z0) / DX));
             for (let b = b0; b <= b1; b++) for (let a = a0; a <= a1; a++) { const c = b * nx + a; drag[c] = Math.max(drag[c], k * Math.min(1, Math.max(0, (bx.max.y - ground[c]) / SLICE))); }
           };
-          const addDisc = (x, z, r, k) => {   // tán thưa: cản lớn ở giữa, nhạt dần ra mép
+          const addDisc = (x, z, r, k) => {
             const a0 = Math.max(0, Math.floor((x - r - x0) / DX)), a1 = Math.min(nx - 1, Math.floor((x + r - x0) / DX)), b0 = Math.max(0, Math.floor((z - r - z0) / DX)), b1 = Math.min(nz - 1, Math.floor((z + r - z0) / DX));
             for (let b = b0; b <= b1; b++) for (let a = a0; a <= a1; a++) {
               const d = Math.hypot(x0 + (a + 0.5) * DX - x, z0 + (b + 0.5) * DX - z) / Math.max(r, DX * 0.6);
@@ -11425,7 +11425,7 @@
           fluids.initWind({ x0, z0, nx, nz, dx: DX, drag, expo, lrec: 16, conf: 0.25, iters: 30, sliceH: SLICE, ux: sceneWind.dir.x, uz: sceneWind.dir.y });
           const NC = canopy.length / 4, _w = new THREE.Vector3(), _mm = new THREE.Vector3(), _cd = new THREE.Vector3(), best = new THREE.Vector4();
           let bestK = 0;
-          const nearView = () => {   // chọn ngẫu nhiên 1 điểm tán trong vùng đất đang thấy
+          const nearView = () => {
             const hx = (camera.right - camera.left) / 2 / camera.zoom, hy = (camera.top - camera.bottom) / 2 / camera.zoom;
             camera.getWorldDirection(_cd); const rv = Math.hypot(hx, hy / Math.max(0.12, -_cd.y));
             for (let t = 0; t < 24; t++) { const i = ((Math.random() * NC) | 0) * 4; if (Math.hypot(canopy[i] - target.x, canopy[i + 2] - target.z) < rv) return i; }
@@ -11434,22 +11434,22 @@
           const root = new THREE.Object3D(); root.updateMatrixWorld();
           forestLeafCtl = makeLeafFall({ name: 'Lá rừng rụng theo cơn giật', group: root, pts: [[0, -999, 0]], n: 60,
             geo: new THREE.CylinderGeometry(0.045 * 2.1, 0.045 * 2.1, 0.0015 * 2.1, 6), opacity: 0.78,
-            color: () => [0xd9a93a, 0xc08a2e, 0xa8742c, 0x6f9a4b, 0x5e8c44][(Math.random() * 5) | 0],   // lá già vàng nâu bứt trước, ít lá xanh
+            color: () => [0xd9a93a, 0xc08a2e, 0xa8742c, 0x6f9a4b, 0x5e8c44][(Math.random() * 5) | 0],
             scale: NATURE_SCALE, tw: null, g: 3.5, vTerm: 0.7, flutA: 0.6, flutW: [2.2, 3.4], tumble: 0.35, tumbleW: [6, 10], slideU: 0.6, rate0: 0, rateK: 0,
             restLife: [10, 20], floatLife: [25, 45], sinkP: 0.3, sinkV: [0.06, 0.1], leeway: 0.03,
-            rate: () => {   // số lá bứt ra mỗi giây (cộng dồn), chỉ tính các tán đang thấy
+            rate: () => {
               let sum = 0; bestK = 0;
               for (let k = 0; k < 4; k++) {
                 const i = nearView(); if (i < 0) continue;
                 const x = canopy[i], y = canopy[i + 1], z = canopy[i + 2], zu = Math.max(1, y - cowY(x, z));
                 windAt(x, y, z, zu, _w); windMapSample(x, z, _mm);
                 const mean = Math.max(0.05, Math.hypot(_mm.x, _mm.y) * sceneWind.U * windProfile(zu)), sp = Math.hypot(_w.x, _w.z);
-                const kk = Math.pow(sp / WIND_SREF, 2.6) * Math.pow(Math.max(0, sp / mean - 1.25), 1.5);   // (lực gió)² × độ "giật" so với nền tại chỗ: gió nhẹ hầu như không bứt lá
+                const kk = Math.pow(sp / WIND_SREF, 2.6) * Math.pow(Math.max(0, sp / mean - 1.25), 1.5);
                 sum += kk; if (kk > bestK) { bestK = kk; best.set(x, y, z, canopy[i + 3]); }
               }
               return 5 * sum;
             },
-            pick: () => {   // bứt ra ở điểm tán bị giật mạnh nhất vừa thử, trên mặt khối tán
+            pick: () => {
               if (bestK <= 0) return null;
               const a = Math.random() * TAU, r = best.w * 0.8;
               return [best.x + Math.cos(a) * r, best.y - Math.random() * r * 0.5, best.z + Math.sin(a) * r];
@@ -11470,19 +11470,19 @@
           for (let j = 4; j < GZ - 4; j++) for (let i = 4; i < GX - 4; i++) {
             if (isWater(i, j)) continue; land++;
             const x = wx(i), z = wz(j), onPad = padH(i, j) !== null, Lw = lawnAt(i, j, x, z);
-            if (onPad && !Lw) continue;   // nền san phẳng: cỏ mềm không mọc, riêng vùng thảm ngắn thì có (bãi khúc gỗ nằm trên nền san phẳng)
+            if (onPad && !Lw) continue;
             const moist = Math.exp(-wd[i + j * GX] / 9);
-            if (roadContains(x, z, 0.3) || obstacleCoords.some(o => Math.hypot(x - o.x, z - o.z) < o.r * 0.85)) continue;   // không mọc trên đường nhựa, chân thân cây / xe / bếp / đồ đạc
+            if (roadContains(x, z, 0.3) || obstacleCoords.some(o => Math.hypot(x - o.x, z - o.z) < o.r * 0.85)) continue;
             if (onPad) { lawnPad.push([0, i, j, moist, Lw]); continue; }
             let sc = 0.62 * vnoise(i * 0.045, j * 0.045) + 0.38 * vnoise(i * 0.14 + 17, j * 0.14 + 5) + 0.28 * moist;
             for (const [cx, cz, r] of camps) { const d = Math.hypot(x - cx, z - cz); if (d < r) sc -= 0.8 * (1 - d / r); }
-            { const d = Math.hypot(x - pf.x, z - pf.z); if (d > 3.2 && d < 16) sc += 0.32 * Math.min(1, (d - 3.2) / 2) * Math.min(1, (16 - d) / 4); }   // vườn quanh trại: cỏ dày bao quanh (ngoài vòng đất nện)
+            { const d = Math.hypot(x - pf.x, z - pf.z); if (d > 3.2 && d < 16) sc += 0.32 * Math.min(1, (d - 3.2) / 2) * Math.min(1, (16 - d) / 4); }
             cand.push([sc, i, j, moist, Lw]);
           }
           const want = Math.round(0.45 * land), sorted = cand.map(c => c[0]).sort((a, b) => a - b);
           const thr = cand.length > want ? sorted[cand.length - want] : -1e9, top = sorted[sorted.length - 1] || 1;
-          const cells = cand.filter(c => c[0] >= thr), lawn = [...lawnPad, ...cand.filter(c => c[4] > 0 && c[0] < thr)];   // ô cỏ mềm sẵn có trong vùng vẫn giữ lá cao (bụi cỏ giữa thảm)
-          const texMean = new THREE.Color(0xd9d6c8);   // (Color(hex) đã tự đổi sRGB → tuyến tính; đổi thêm lần nữa làm gốc lá tối gấp 2,3)
+          const cells = cand.filter(c => c[0] >= thr), lawn = [...lawnPad, ...cand.filter(c => c[4] > 0 && c[0] < thr)];
+          const texMean = new THREE.Color(0xd9d6c8);
           const tops = new Map(), _m = new THREE.Matrix4(), _p = new THREE.Vector3(), _c = new THREE.Color();
           for (const im of terrainMeshes) {
             if (!im.isInstancedMesh || !im.instanceColor || (im.material !== grassMat && im.material !== shoreMat)) continue;
@@ -11493,13 +11493,13 @@
           for (const [sc, i, j, moist, L] of [...cells, ...lawn]) {
             const t = tops.get(i + j * GX); if (!t) continue;
             const lush = L ? 0.75 : lushOf(i, j, moist), dens = L ? 0.6 : Math.min(1, (sc - thr) / Math.max(1e-3, top - thr));
-            t[0].getColorAt(t[1], _c); _c.multiplyScalar(1.015 + 0.05 * dens).lerp(_c.clone().offsetHSL(0.012 * (lush - 0.5), 0.04, 0), 0.6);   // mặt đất dưới mảng cỏ: tươi hơn chút
-            if (L) { const e = Math.min(1, L / 0.3); _c.lerp(_cL.copy(_c).multiply(_lawnTint), 0.85 * e); }   // thảm ngắn: nền xanh đậm như cỏ mượt, loang dần ra mép
+            t[0].getColorAt(t[1], _c); _c.multiplyScalar(1.015 + 0.05 * dens).lerp(_c.clone().offsetHSL(0.012 * (lush - 0.5), 0.04, 0), 0.6);
+            if (L) { const e = Math.min(1, L / 0.3); _c.lerp(_cL.copy(_c).multiply(_lawnTint), 0.85 * e); }
             for (let q = 0; q < t.length; q += 2) { t[q].setColorAt(t[q + 1], _c); dirty.add(t[q]); }
           }
           for (const im of dirty) im.instanceColor.needsUpdate = true;
           const chunks = new Map();
-          for (const c of [...cells, ...lawn, ...lawn, ...lawn]) { const key = ((c[1] / CH) | 0) + ',' + ((c[2] / CH) | 0); if (!chunks.has(key)) chunks.set(key, []); chunks.get(key).push(c); }   // thảm ngắn: 3 bản/ô
+          for (const c of [...cells, ...lawn, ...lawn, ...lawn]) { const key = ((c[1] / CH) | 0) + ',' + ((c[2] / CH) | 0); if (!chunks.has(key)) chunks.set(key, []); chunks.get(key).push(c); }
           const nC = cells.length + 3 * lawn.length, R = new Float32Array(nC * 3), C4 = new Float32Array(nC * 4), BC = new Float32Array(nC * 3), parts = [];
           let n = 0;
           for (const list of chunks.values()) {
@@ -11507,12 +11507,12 @@
             for (const [sc, i, j, moist, L] of list) {
               const x = wx(i), z = wz(j), y = surfaceY(i, j);
               R[n * 3] = x; R[n * 3 + 1] = y; R[n * 3 + 2] = z;
-              if (L && sc < thr) {   // thảm ngắn (ô cỏ mềm sẵn có trong vùng: sc ≥ thr, giữ lá cao): lá 9–15 cm (thấp dần ra mép), độ tươi mã hoá +2 (shader nhận ra để vẽ lá mảnh), hoa li ti trắng / vàng ~2,5%
+              if (L && sc < thr) {
                 C4[n * 4] = (0.09 + 0.06 * lrnd()) * (0.45 + 0.55 * Math.min(1, L / 0.25)); C4[n * 4 + 1] = lrnd(); C4[n * 4 + 2] = 2.75 + 0.12 * (lrnd() - 0.5); C4[n * 4 + 3] = lrnd() < 0.025 ? 1 + ((lrnd() * 2) | 0) : 0;
               } else {
                 const dens = Math.min(1, (sc - thr) / Math.max(1e-3, top - thr)), edge = Math.min(1, (sc - thr) / 0.09);
                 const lush = lushOf(i, j, moist), h = (0.15 + 0.17 * Math.pow(dens, 0.7) + 0.07 * moist) * (0.88 + 0.24 * rnd()) * (0.4 + 0.6 * edge);
-                C4[n * 4] = h; C4[n * 4 + 1] = rnd(); C4[n * 4 + 2] = lush; C4[n * 4 + 3] = rnd() < 0.06 ? 1 + ((rnd() * 4) | 0) : 0;   // chiều cao · hạt giống · độ tươi · hoa dại (0 = không, 1–4 = màu)
+                C4[n * 4] = h; C4[n * 4 + 1] = rnd(); C4[n * 4 + 2] = lush; C4[n * 4 + 3] = rnd() < 0.06 ? 1 + ((rnd() * 4) | 0) : 0;
               }
               const t = tops.get(i + j * GX); if (t) { t[0].getColorAt(t[1], _c); _c.multiply(texMean); } else _c.setRGB(0.3, 0.42, 0.18);
               BC[n * 3] = _c.r; BC[n * 3 + 1] = _c.g; BC[n * 3 + 2] = _c.b;
@@ -11540,7 +11540,7 @@
           const aRoot = new THREE.InstancedBufferAttribute(new Float32Array(nC * 3), 3).setUsage(THREE.DynamicDrawUsage);
           const aCell = new THREE.InstancedBufferAttribute(new Float32Array(nC * 4), 4).setUsage(THREE.DynamicDrawUsage);
           const aBase = new THREE.InstancedBufferAttribute(new Float32Array(nC * 3), 3).setUsage(THREE.DynamicDrawUsage);
-          const LODS = [[patchGeo(5, 2), 10], [patchGeo(8, 3), 24], [patchGeo(20, 4), 60]];   // [hình ô, từ bao nhiêu điểm ảnh / đv] — xa · vừa · gần (≤ ~0,8 triệu đỉnh ở mọi mức phóng)
+          const LODS = [[patchGeo(5, 2), 10], [patchGeo(8, 3), 24], [patchGeo(20, 4), 60]];
           for (const [g] of LODS) { g.setAttribute('aRoot', aRoot); g.setAttribute('aCell', aCell); g.setAttribute('aBase', aBase); g.instanceCount = 0; }
           const U = { uFade: { value: 0 }, uDensity: { value: 1 }, uMTime: { value: 0 }, uCamRight: { value: new THREE.Vector3(1, 0, 0) }, uGlow: { value: new THREE.Color(0, 0, 0) },
             uPush: { value: [new THREE.Vector4(0, 0, 1, 0), new THREE.Vector4(0, 0, 1, 0), new THREE.Vector4(0, 0, 1, 0)] } };
@@ -11604,9 +11604,9 @@
           }
           const _cr = new THREE.Vector3(), _cd = new THREE.Vector3(), _sd = new THREE.Vector3();
           return {
-            cells: nC, land, frac: nC / land, cellAt: k => [R[k * 3], R[k * 3 + 1], R[k * 3 + 2]],   // (đo kiểm)
+            cells: nC, land, frac: nC / land, cellAt: k => [R[k * 3], R[k * 3 + 1], R[k * 3 + 2]],
             update(dt, t) {
-              const ppu = renderer.domElement.height / ((camera.top - camera.bottom) / camera.zoom);   // điểm ảnh / đv
+              const ppu = renderer.domElement.height / ((camera.top - camera.bottom) / camera.zoom);
               const fade = Math.max(0, Math.min(1, (ppu - 9) / 8));
               U.uFade.value = fade * fade * (3 - 2 * fade);
               const on = fade > 0.001; let lod = 0; for (let i = 1; i < LODS.length; i++) if (ppu >= LODS[i][1]) lod = i;
@@ -11629,7 +11629,7 @@
             }
           };
         })();
-        const beeWeatherOK = () => { const h = liveWeather.localHour, w = liveWeather.state; return !w.raining && h >= 6.33 && h < 18 && (w.windSpeed ?? 0) < 24 && (w.temperature ?? 25) >= 12; };   // ong mật ra khỏi tổ: khô ráo, ban ngày, gió < 24 km/h (15 mph), ≥ 12 °C (UMaine Extension)
+        const beeWeatherOK = () => { const h = liveWeather.localHour, w = liveWeather.state; return !w.raining && h >= 6.33 && h < 18 && (w.windSpeed ?? 0) < 24 && (w.temperature ?? 25) >= 12; };
         const beehive = (() => {
           const H = 1.0, NC = 13, ROPE = 0.22;
           const st = scene.getObjectByName('Cây con (Small Sub-Tree)'), A = new THREE.Vector3(-25.5, 9.9, 19.713);
@@ -11655,16 +11655,16 @@
           const stickM = new THREE.MeshLambertMaterial({ color: 0x8a6a45 });
           for (const [y, ax] of [[0.38, 'x'], [0.6, 'z']]) { const L = 2 * env(y) * H + 0.08, s = cyl(0.012, 0.012, L, stickM, true, false, null, 6); s.position.y = y * H; if (ax === 'x') s.rotation.z = Math.PI / 2; else s.rotation.x = Math.PI / 2; g.add(s); }
           const rIn = y => Math.max(0, env(y) - 0.035), CR = 0.026, cells = [], combs = [], combEdges = [];
-          const midM = new THREE.MeshLambertMaterial({ color: 0x8a5a1e, side: THREE.DoubleSide, transparent: true, opacity: 0.75, depthWrite: false });   // G 15/10: cấu trúc trong tổ trong 50% → rõ hơn 50% (đục 75%)
+          const midM = new THREE.MeshLambertMaterial({ color: 0x8a5a1e, side: THREE.DoubleSide, transparent: true, opacity: 0.75, depthWrite: false });
           for (let k = 0; k < 5; k++) {
-            const zc = (k - 2) * 0.12, bot = x => 0.17 + (Math.abs(k - 2) * 0.05) + 0.42 * x * x;   // mép dưới: giữa thấp, 2 bên cao; bánh ngoài ngắn hơn
+            const zc = (k - 2) * 0.12, bot = x => 0.17 + (Math.abs(k - 2) * 0.05) + 0.42 * x * x;
             const half = y => { const r = rIn(y); return r > Math.abs(zc) ? Math.sqrt(r * r - zc * zc) - 0.012 : 0; };
             const inside = (x, y) => y <= 0.94 && Math.abs(x) <= half(y) && y >= bot(x);
             const sh = new THREE.Shape(), pts = [];
-            for (let y = 0.94; y >= 0.1; y -= 0.02) { const w = half(y); if (w > 0 && y >= bot(w)) pts.push([w, y]); }   // vách phải đi xuống
+            for (let y = 0.94; y >= 0.1; y -= 0.02) { const w = half(y); if (w > 0 && y >= bot(w)) pts.push([w, y]); }
             const xr = pts.length ? pts[pts.length - 1][0] : 0.1;
-            for (let i = 0; i <= 16; i++) { const x = xr - 2 * xr * i / 16; pts.push([x, bot(x)]); }   // mép dưới phải → trái
-            for (let i = pts.length - 18; i >= 0; i--) pts.push([-pts[i][0], pts[i][1]]);   // vách trái đi lên (gương)
+            for (let i = 0; i <= 16; i++) { const x = xr - 2 * xr * i / 16; pts.push([x, bot(x)]); }
+            for (let i = pts.length - 18; i >= 0; i--) pts.push([-pts[i][0], pts[i][1]]);
             pts.forEach(([x, y], i) => i ? sh.lineTo(x * H, y * H) : sh.moveTo(x * H, y * H));
             const cg = new THREE.ShapeGeometry(sh); cg.translate(0, 0, zc * H);
             const comb = new THREE.Mesh(cg, midM); g.add(comb); combs.push({ zc, inside });
@@ -11673,19 +11673,19 @@
               const x = (col + (row & 1) * 0.5) * CR * Math.sqrt(3), y = 0.1 + row * CR * 1.5;
               if (!inside(x, y) || !inside(x + CR, y) || !inside(x - CR, y) || !inside(x, y - CR) || !inside(x, y + CR)) continue;
               const db = Math.hypot(x / 0.3, (y - 0.42) / 0.26), outer = Math.abs(k - 2) === 2, r = Math.random();
-              let c;   // màu nắp / ruột ô theo vùng thật của bánh tổ
-              if (r < 0.07) c = 0x5b3a14;   // ô trống (sáp sẫm)
-              else if (!outer && db < 0.75) c = r < 0.72 ? 0xc89a58 : 0xf2ead8;   // nhộng: nắp nâu vàng · ấu trùng trắng
-              else if (!outer && db < 0.98) c = [0xe8901f, 0xf2c230, 0xc8452a, 0xe8b23a][(r * 40 | 0) & 3];   // phấn hoa
-              else c = r < 0.6 ? 0xf3e7b8 : 0xe8a21e;   // mật: nắp sáp trắng ngà · mật hở óng
+              let c;
+              if (r < 0.07) c = 0x5b3a14;
+              else if (!outer && db < 0.75) c = r < 0.72 ? 0xc89a58 : 0xf2ead8;
+              else if (!outer && db < 0.98) c = [0xe8901f, 0xf2c230, 0xc8452a, 0xe8b23a][(r * 40 | 0) & 3];
+              else c = r < 0.6 ? 0xf3e7b8 : 0xe8a21e;
               for (const sd of [-1, 1]) cells.push([x * H, y * H, (zc + sd * 0.014) * H, sd, c]);
             }
           }
           artLines(mergeGeometries(combEdges));
-          { const hp = [], r = CR * 0.86 * H;   // viền lục giác từng ô (đúng góc lăng trụ ô: đỉnh ở 0°, 60°, …) ở nắp ô MỘT mặt mỗi bánh (bánh trong 50% ⇒ vẫn thấy từ 2 phía; vẽ cả 2 mặt thì 2 lưới lệch nhau thành rối)
+          { const hp = [], r = CR * 0.86 * H;
             for (const [x, y, z, sd] of cells) if (sd > 0) for (let k = 0; k < 6; k++) { const a0 = k * Math.PI / 3, a1 = a0 + Math.PI / 3, zz = z + sd * 0.013 * H; hp.push(x + r * Math.cos(a0), y + r * Math.sin(a0), zz, x + r * Math.cos(a1), y + r * Math.sin(a1), zz); }
-            const hg = new THREE.BufferGeometry(); hg.setAttribute('position', new THREE.Float32BufferAttribute(hp, 3)); const wax = art.clone(); wax.color.setHex(0x4d2f0c); artLines(hg, wax); }   // vách ô nâu sáp đậm: rõ mà vẫn ấm (xanh đen của nét viền chung làm 5 bánh chồng nhau xám, rối)
-          const cellGeo = new THREE.CylinderGeometry(CR * 0.86 * H, CR * 0.86 * H, 0.026 * H, 6, 1, false); cellGeo.rotateX(Math.PI / 2); cellGeo.rotateZ(Math.PI / 6);   // lăng trụ lục giác dọc trục z (mặt đầu = nắp ô)
+            const hg = new THREE.BufferGeometry(); hg.setAttribute('position', new THREE.Float32BufferAttribute(hp, 3)); const wax = art.clone(); wax.color.setHex(0x4d2f0c); artLines(hg, wax); }
+          const cellGeo = new THREE.CylinderGeometry(CR * 0.86 * H, CR * 0.86 * H, 0.026 * H, 6, 1, false); cellGeo.rotateX(Math.PI / 2); cellGeo.rotateZ(Math.PI / 6);
           const cellM = new THREE.MeshPhongMaterial({ shininess: 40, specular: 0x5a4a30, transparent: true, opacity: 0.75, depthWrite: false });
           const cellIM = new THREE.InstancedMesh(cellGeo, cellM, cells.length), _m = new THREE.Matrix4(), _c = new THREE.Color();
           cells.forEach(([x, y, z, sd, c], i) => { _m.makeTranslation(x, y, z); cellIM.setMatrixAt(i, _m); cellIM.setColorAt(i, _c.setHex(c)); });
@@ -11696,25 +11696,25 @@
             const th = new THREE.SphereGeometry(0.5, 7, 5); th.scale(0.011, 0.01, 0.011); add(th, () => 0x8a6a30);
             const hd = new THREE.SphereGeometry(0.5, 7, 5); hd.scale(0.009, 0.008, 0.008); hd.translate(0, 0, 0.01); add(hd, () => 0x1e1812);
             for (const s of [-1, 1]) { const w = new THREE.PlaneGeometry(0.008, 0.016); w.rotateX(-Math.PI / 2); w.rotateY(s * 0.35); w.translate(s * 0.005, 0.006, -0.008); add(w, () => 0xd8dde0); }
-            const m = mergeGeometries(parts); m.scale(H * 1.8, H * 1.8, H * 1.8); return m;   // ong trong tổ to thêm 20% (G 15/10)
+            const m = mergeGeometries(parts); m.scale(H * 1.8, H * 1.8, H * 1.8); return m;
           })();
           const NB = 22, beeIM = new THREE.InstancedMesh(beeGeo, new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }), NB);
           const crawl = [];
           for (let i = 0; i < NB; i++) {
-            { const k = i % 5, C = combs[k]; let x = 0, y = 0.5; for (let t = 0; t < 30; t++) { x = (Math.random() - 0.5) * 0.6; y = 0.2 + Math.random() * 0.7; if (C.inside(x, y)) break; } crawl.push({ k, sd: Math.random() < 0.5 ? -1 : 1, x, y, a: Math.random() * TAU, v: 0.02 + Math.random() * 0.03, turn: 0, dance: k === 2 && i < 13 ? { o: i * 0.7, cx: (i - 7) * 0.07, cy: 0.52 } : null }); }   // 3 con trên bánh giữa nhảy lắc đuôi
+            { const k = i % 5, C = combs[k]; let x = 0, y = 0.5; for (let t = 0; t < 30; t++) { x = (Math.random() - 0.5) * 0.6; y = 0.2 + Math.random() * 0.7; if (C.inside(x, y)) break; } crawl.push({ k, sd: Math.random() < 0.5 ? -1 : 1, x, y, a: Math.random() * TAU, v: 0.02 + Math.random() * 0.03, turn: 0, dance: k === 2 && i < 13 ? { o: i * 0.7, cx: (i - 7) * 0.07, cy: 0.52 } : null }); }
           }
           g.add(beeIM);
           const _x = new THREE.Vector3(), _y = new THREE.Vector3(), _z = new THREE.Vector3(), _p = new THREE.Vector3();
-          const surf = (a, y, out, n) => { const r = (env(y) + 0.013) * H, dr = (env(Math.min(1, y + 0.01)) - env(Math.max(0, y - 0.01))) / 0.02; if (n) n.set(Math.cos(a), -dr, Math.sin(a)).normalize(); return out.set(Math.cos(a) * r, y * H, Math.sin(a) * r); };   // điểm + pháp tuyến ngoài trên vỏ giỏ
+          const surf = (a, y, out, n) => { const r = (env(y) + 0.013) * H, dr = (env(Math.min(1, y + 0.01)) - env(Math.max(0, y - 0.01))) / 0.02; if (n) n.set(Math.cos(a), -dr, Math.sin(a)).normalize(); return out.set(Math.cos(a) * r, y * H, Math.sin(a) * r); };
           const flap = (f, t) => { f.wingL.rotation.set(0, 0, 0.25 + Math.sin(t * 95 + f.ph) * 0.55); f.wingR.rotation.set(0, 0, -f.wingL.rotation.z); };
           const fold = f => { f.wingL.rotation.set(0, 0.9, -0.08); f.wingR.rotation.set(0, -0.9, 0.08); };
           const FLY = Array.from({ length: 6 }, (_, i) => {
-            const b = createBee(); b.g.scale.setScalar(0.27); g.add(b.g);   // cỡ như ong trong tổ
+            const b = createBee(); b.g.scale.setScalar(0.27); g.add(b.g);
             return { ...b, st: 'orbit', ang: i / 6 * TAU, w: (i % 2 ? -1 : 1) * (0.45 + Math.random() * 0.45), r0: 0.52 + Math.random() * 0.3, ph: Math.random() * TAU, T: 2 + Math.random() * 7, look: i % 3 !== 2, to: new THREE.Vector3(), n: new THREE.Vector3(), a: 0, y: 0, k: 0, fan: false };
           });
           g.traverse(o => { o.userData.noBatch = true; });
           const mouth = new THREE.Vector3(g.position.x, g.position.y, g.position.z);
-          let danceA = 0, danceAt = -9;   // góc nhảy: hướng đồng hoa trừ hướng mặt trời (ong báo đường: "lên" trên mặt bánh = phía mặt trời)
+          let danceA = 0, danceAt = -9;
           return {
             g, mouth, cells: cells.length, rimR: (env(0) - 0.02) * H,
             update(dt, t) {
@@ -11722,33 +11722,33 @@
               for (const f of FLY) {
                 const G = f.g;
                 if (f.st === 'in') { if (ok && (f.k -= dt) <= 0) { f.a = Math.random() * TAU; surf(f.a, 0.03, G.position, f.n); f.to.copy(G.position).addScaledVector(f.n, 0.25); G.visible = true; f.st = 'takeoff'; f.k = 0; } continue; }
-                if (f.st === 'orbit') {   // lượn vòng cung; con "định hướng" quay đầu nhìn tổ, con khác bay xuôi đường
+                if (f.st === 'orbit') {
                   flap(f, t); f.ang += f.w * dt;
                   const r = (f.r0 + 0.12 * Math.sin(t * 1.3 + f.ph * 2)) * H; _p.set(Math.cos(f.ang) * r, (0.32 + 0.22 * Math.sin(t * 0.9 + f.ph)) * H, Math.sin(f.ang) * r);
                   G.position.lerp(_p, 1 - Math.exp(-dt / 0.25));
                   const s = Math.sign(f.w); G.rotation.set(-0.15, f.look ? Math.atan2(-G.position.x, -G.position.z) : Math.atan2(-Math.sin(f.ang) * s, Math.cos(f.ang) * s), 0.15 * Math.sin(t * 2 + f.ph));
-                  if ((f.T -= dt) <= 0 || !ok) { f.a = f.ang + (Math.random() - 0.5) * 0.6; f.y = ok ? 0.08 + Math.random() * 0.62 : 0.03; surf(f.a, f.y, f.to, f.n); f.st = 'land'; f.k = 0; }   // chọn chỗ đáp trên vỏ (trở trời: sát miệng giỏ)
+                  if ((f.T -= dt) <= 0 || !ok) { f.a = f.ang + (Math.random() - 0.5) * 0.6; f.y = ok ? 0.08 + Math.random() * 0.62 : 0.03; surf(f.a, f.y, f.to, f.n); f.st = 'land'; f.k = 0; }
                   continue;
                 }
-                if (f.st === 'land') {   // giảm tốc theo khoảng cách còn lại (τ 0,3 s), đầu hướng về chỗ đáp
+                if (f.st === 'land') {
                   flap(f, t); const L = G.position.distanceTo(f.to); if (L > 0.01) G.rotation.set(-0.45, Math.atan2(f.to.x - G.position.x, f.to.z - G.position.z), 0);
                   G.position.lerp(f.to, 1 - Math.exp(-dt / 0.3));
                   if (L < 0.004 || (f.k += dt) > 3) { G.position.copy(f.to); f.fan = Math.random() < 0.35; if (ok) { f.st = 'perch'; f.k = 3 + Math.random() * 5; } else { f.st = 'in'; f.k = 3 + Math.random() * 6; G.visible = false; } }
                   continue;
                 }
-                if (f.st === 'perch') {   // đậu vỏ giỏ: bò vài bước hoặc đứng quạt cánh; lưng theo pháp tuyến vỏ, đầu hướng lên dốc
+                if (f.st === 'perch') {
                   if (f.fan) flap(f, t); else { fold(f); f.a += 0.25 * Math.sin(t * 0.8 + f.ph) * dt / Math.max(0.2, env(f.y)); f.y = Math.min(0.75, Math.max(0.05, f.y + 0.04 * Math.cos(t * 0.6 + f.ph) * dt)); }
                   surf(f.a, f.y, G.position, f.n); _z.set(0, 1, 0).addScaledVector(f.n, -f.n.y).normalize();
                   G.quaternion.setFromRotationMatrix(_m.makeBasis(_x.crossVectors(f.n, _z), f.n, _z));
                   if ((f.k -= dt) <= 0 || !ok) { f.st = 'takeoff'; f.k = 0; f.to.copy(G.position).addScaledVector(f.n, 0.25); }
                   continue;
                 }
-                flap(f, t); G.position.lerp(f.to, 1 - Math.exp(-dt / 0.25)); G.rotation.set(-0.3, Math.atan2(f.n.x, f.n.z), 0);   // cất cánh: bật ra theo pháp tuyến rồi vào vòng lượn
+                flap(f, t); G.position.lerp(f.to, 1 - Math.exp(-dt / 0.25)); G.rotation.set(-0.3, Math.atan2(f.n.x, f.n.z), 0);
                 if ((f.k += dt) > 0.8) { f.st = 'orbit'; f.T = 4 + Math.random() * 8; f.ang = Math.atan2(G.position.z, G.position.x); }
               }
               if (t - danceAt > 5 && safeFlowerCoords) { danceAt = t; let fx = 0, fz = 0; for (const f of safeFlowerCoords) { fx += f.x - g.position.x; fz += f.z - g.position.z; } danceA = Math.atan2(fx, fz) - Math.atan2(sun.position.x - sun.target.position.x, sun.position.z - sun.target.position.z); }
               crawl.forEach((b, i) => {
-                if (b.dance) {   // NHẢY LẮC ĐUÔI (von Frisch): chạy thẳng lắc bụng ~13 Hz theo góc báo đường, vòng nửa tròn về điểm đầu, lần lượt trái / phải
+                if (b.dance) {
                   const D = b.dance, T = 1.9, q = (t + D.o) % (2 * T), side = q < T ? 1 : -1, u = (q % T) / T, dx = Math.sin(danceA), dy = Math.cos(danceA), R = 0.0375, C = combs[b.k];
                   let x, y, hx, hy;
                   if (u < 0.4) { const s = u / 0.4, w = 0.5 * Math.sin(t * 82); x = D.cx + dx * (s - 0.5) * 2 * R; y = D.cy + dy * (s - 0.5) * 2 * R; hx = dx * Math.cos(w) - dy * Math.sin(w); hy = dx * Math.sin(w) + dy * Math.cos(w); }
@@ -11758,7 +11758,7 @@
                 const C = combs[b.k]; if ((b.turn -= dt) <= 0) { b.turn = 0.5 + Math.random() * 1.5; b.da = (Math.random() - 0.5) * 2.4; }
                 b.a += b.da * dt; const nx = b.x + Math.cos(b.a) * b.v * dt, ny = b.y + Math.sin(b.a) * b.v * dt;
                 if (C.inside(nx, ny) && C.inside(nx + 0.03 * Math.cos(b.a), ny + 0.03 * Math.sin(b.a))) { b.x = nx; b.y = ny; } else b.a += Math.PI * (0.6 + Math.random() * 0.8);
-                const c = Math.cos(b.a), s = Math.sin(b.a);   // lưng = pháp tuyến mặt bánh (0, 0, sd), đầu theo hướng bò trong mặt bánh
+                const c = Math.cos(b.a), s = Math.sin(b.a);
                 beeIM.setMatrixAt(i, _m.makeBasis(_x.set(-b.sd * s, b.sd * c, 0), _y.set(0, 0, b.sd), _z.set(c, s, 0)).setPosition(b.x * H, b.y * H, (C.zc + b.sd * 0.03) * H));
               });
               beeIM.instanceMatrix.needsUpdate = true;
@@ -11771,40 +11771,40 @@
         function createFirefly() {
           const g = new THREE.Group(), dark = new THREE.MeshLambertMaterial({ color: 0x1f1913, flatShading: true }), vc = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
           const paint = (geo, f) => { const p = geo.attributes.position, c = []; for (let i = 0; i < p.count; i++) { const k = new THREE.Color(f(p.getX(i), p.getY(i), p.getZ(i))); c.push(k.r, k.g, k.b); } geo.setAttribute('color', new THREE.Float32BufferAttribute(c, 3)); return geo; };
-          const ab = new THREE.SphereGeometry(1, 10, 6); ab.scale(0.034, 0.02, 0.072); ab.translate(0, -0.004, -0.045); g.add(new THREE.Mesh(paint(ab, (x, y, z) => (Math.floor((z + 0.12) / 0.018) & 1) ? 0x3a2c1c : 0x2a2016), vc));   // bụng đốt
+          const ab = new THREE.SphereGeometry(1, 10, 6); ab.scale(0.034, 0.02, 0.072); ab.translate(0, -0.004, -0.045); g.add(new THREE.Mesh(paint(ab, (x, y, z) => (Math.floor((z + 0.12) / 0.018) & 1) ? 0x3a2c1c : 0x2a2016), vc));
           const lampM = new THREE.MeshBasicMaterial({ color: 0xd9d2a8 });
-          const lamp = new THREE.Mesh(new THREE.SphereGeometry(1, 10, 6), lampM); lamp.scale.set(0.031, 0.018, 0.034); lamp.position.set(0, -0.007, -0.098); g.add(lamp);   // 2 đốt đèn cuối bụng
+          const lamp = new THREE.Mesh(new THREE.SphereGeometry(1, 10, 6), lampM); lamp.scale.set(0.031, 0.018, 0.034); lamp.position.set(0, -0.007, -0.098); g.add(lamp);
           const pr = new THREE.SphereGeometry(1, 10, 5, 0, TAU, 0, Math.PI / 2); pr.scale(0.04, 0.017, 0.036); pr.translate(0, 0.004, 0.058);
-          g.add(new THREE.Mesh(paint(pr, (x, y, z) => Math.hypot(x / 0.4, (z - 0.06) / 0.5) < 0.03 ? 0x2a1d14 : 0xe8823a), vc));   // khiên ngực cam, đốm sẫm giữa
+          g.add(new THREE.Mesh(paint(pr, (x, y, z) => Math.hypot(x / 0.4, (z - 0.06) / 0.5) < 0.03 ? 0x2a1d14 : 0xe8823a), vc));
           const hd = new THREE.Mesh(new THREE.SphereGeometry(0.017, 7, 5), dark); hd.position.set(0, -0.004, 0.092); g.add(hd);
           const eyeM = new THREE.MeshPhongMaterial({ color: 0xc8902c, shininess: 90, specular: 0x887755 });
           for (const sx of [-1, 1]) {
-            const e = new THREE.Mesh(new THREE.SphereGeometry(0.011, 7, 5), eyeM); e.position.set(sx * 0.015, -0.002, 0.097); g.add(e);   // mắt hổ phách
+            const e = new THREE.Mesh(new THREE.SphereGeometry(0.011, 7, 5), eyeM); e.position.set(sx * 0.015, -0.002, 0.097); g.add(e);
             rodBetween(g, new THREE.Vector3(sx * 0.007, 0.002, 0.108), new THREE.Vector3(sx * 0.026, 0.024, 0.15), 0.0028, dark, 4, false);
-            rodBetween(g, new THREE.Vector3(sx * 0.026, 0.024, 0.15), new THREE.Vector3(sx * 0.04, 0.03, 0.2), 0.0022, dark, 4, false);   // râu
-            for (const z of [0.06, 0.035, 0.01]) { const k = new THREE.Vector3(sx * 0.05, -0.022, z - 0.008); rodBetween(g, new THREE.Vector3(sx * 0.015, -0.012, z), k, 0.0032, dark, 3, false); rodBetween(g, k, new THREE.Vector3(sx * 0.06, -0.05, z - 0.03), 0.0024, dark, 3, false); }   // 6 chân
+            rodBetween(g, new THREE.Vector3(sx * 0.026, 0.024, 0.15), new THREE.Vector3(sx * 0.04, 0.03, 0.2), 0.0022, dark, 4, false);
+            for (const z of [0.06, 0.035, 0.01]) { const k = new THREE.Vector3(sx * 0.05, -0.022, z - 0.008); rodBetween(g, new THREE.Vector3(sx * 0.015, -0.012, z), k, 0.0032, dark, 3, false); rodBetween(g, k, new THREE.Vector3(sx * 0.06, -0.05, z - 0.03), 0.0024, dark, 3, false); }
           }
-          const elyG = new THREE.SphereGeometry(1, 8, 5, 0, TAU, 0, Math.PI / 2); elyG.scale(0.022, 0.011, 0.082); elyG.translate(0.02, 0, -0.072);   // cánh cứng: vỏ nửa elip, khớp ở gốc (z = 0)
-          paint(elyG, (x) => { const u = (x - 0.002) / 0.04; return u > 0.86 || u < 0.05 ? 0xd9c27a : Math.abs(u - 0.35) < 0.05 || Math.abs(u - 0.62) < 0.05 ? 0xb07a3a : 0x2a2218; });   // viền vàng nhạt + 2 gân đồng
+          const elyG = new THREE.SphereGeometry(1, 8, 5, 0, TAU, 0, Math.PI / 2); elyG.scale(0.022, 0.011, 0.082); elyG.translate(0.02, 0, -0.072);
+          paint(elyG, (x) => { const u = (x - 0.002) / 0.04; return u > 0.86 || u < 0.05 ? 0xd9c27a : Math.abs(u - 0.35) < 0.05 || Math.abs(u - 0.62) < 0.05 ? 0xb07a3a : 0x2a2218; });
           const wingM = new THREE.MeshLambertMaterial({ color: 0xc8d0d6, transparent: true, opacity: 0.3, side: THREE.DoubleSide, depthWrite: false });
           const blade = (len, w) => { const sh = new THREE.Shape(); sh.moveTo(0, 0); sh.bezierCurveTo(len * 0.3, w, len * 0.9, w * 0.8, len, 0); sh.bezierCurveTo(len * 0.85, -w * 0.45, len * 0.3, -w * 0.4, 0, 0); const gg = new THREE.ShapeGeometry(sh, 6); gg.rotateX(Math.PI / 2); return gg; };
           const side = (sx) => { const s = new THREE.Group(); s.scale.x = sx; s.position.y = 0.014; g.add(s); return s; };
           const els = [], wings = [];
           for (const sx of [1, -1]) {
-            const S = side(sx), el = new THREE.Group(); el.position.set(0.004, 0, 0.03); S.add(el); el.add(new THREE.Mesh(elyG, vc)); els.push(el);   // nâng chếch khi bay
+            const S = side(sx), el = new THREE.Group(); el.position.set(0.004, 0, 0.03); S.add(el); el.add(new THREE.Mesh(elyG, vc)); els.push(el);
             const w = new THREE.Group(); w.position.set(0.01, 0, 0.012); S.add(w); const m = new THREE.Mesh(blade(0.13, 0.04), wingM); m.rotation.y = 0.55; w.add(m); wings.push(w);
           }
           const glowSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: ffMap, color: 0xe4ff88, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false }));
           glowSprite.scale.set(0.5, 0.5, 1); glowSprite.position.set(0, -0.01, -0.105); g.add(glowSprite);
           for (const o of [...els, ...wings, glowSprite, lamp]) o.userData.noBake = true;
-          bakeStatic(g);   // thân + khiên + chân + râu gộp; cánh cứng, cánh màng, đèn, quầng sáng giữ động
+          bakeStatic(g);
           g.scale.setScalar(0.62 * NATURE_SCALE); return { g, wingL: wings[0], wingR: wings[1], elL: els[0], elR: els[1], lampM, glowSprite };
         }
-        for (let n = 0; n < 9; n++) {   // 9 con rải 3 cụm trên bãi cỏ (trước chỉ 3)
+        for (let n = 0; n < 9; n++) {
           const ff = createFirefly(), i = (12 + (n % 3) * 9 + Math.random() * 3) * S, j = (32 + ((n / 3) | 0) * 3 + Math.random() * 2) * S, base = new THREE.Vector3(wx(i), surfaceY(i, j) + 1.2 + Math.random() * 1.2, wz(j));
           ff.g.position.copy(base); scene.add(ff.g);
           fireflies.push({ g: ff.g, wL: ff.wingL, wR: ff.wingR, elL: ff.elL, elR: ff.elR, lampM: ff.lampM, sp: ff.glowSprite, base: base.clone(), target: base.clone(), timer: 2.0 + Math.random() * 3.0, ph: Math.random() * 6.28, r: 1.7 + Math.random() * 1.3, spd: 0.35 + Math.random() * 0.3, state: 'moving', currentSpd: 0,
-            per: 2.0 + Math.random() * 0.6, fp: Math.random(), fl: 9 });   // chu kỳ gần nhau (2,0–2,6 s) ⇒ ghép xung đủ kéo các con gần nhau về cùng nhịp
+            per: 2.0 + Math.random() * 0.6, fp: Math.random(), fl: 9 });
         }
 
         const flightRootNames = new Set([
@@ -11900,12 +11900,12 @@
         }
         refreshFlightNavigation();
 
-        const BF_SP = [   // [tên, nền cánh trước, nền cánh sau, màu thân, nhịp vỗ Hz (G 15/10: chậm 50% — trước 7 · 6 · 8 · 11 · 5,5 · 8), lượn (s) | null]
+        const BF_SP = [
           ['lacewing', '#d9452c', '#e0562e', 0x3a2418, 3.5, [0.4, 1.0]], ['tiger', '#ee8a1d', '#f29a2e', 0x2b2018, 3, [0.5, 1.3]], ['bluebottle', '#1d2226', '#1d2226', 0x1a1d20, 4, [0.3, 0.8]],
           ['yellow', '#f2d82a', '#f4de3a', 0x5a4a1a, 5.5, null], ['bluetiger', '#2a2622', '#2a2622', 0x221e1a, 2.75, [0.6, 1.6]], ['bluebottle', '#1d2226', '#1d2226', 0x1a1d20, 4, [0.3, 0.8]]];
         const BF_FORE = [[0.01, 0.025], [0.12, 0.06], [0.24, 0.075], [0.31, 0.07], [0.3, 0.02], [0.25, -0.05], [0.18, -0.085], [0.06, -0.06], [0.01, -0.02]];
         const BF_HIND = [[0.01, -0.01], [0.1, -0.035], [0.19, -0.07], [0.21, -0.13], [0.17, -0.19], [0.1, -0.225], [0.04, -0.19], [0.01, -0.09]];
-        function bflyTex(sp) {   // 256²: toạ độ cánh (x 0…0,32 · z −0,24…0,08) ↔ ảnh; vẽ nền → hoa văn theo loài → gân → (gương 2 bên dùng chung)
+        function bflyTex(sp) {
           const c = document.createElement('canvas'); c.width = c.height = 256; const x = c.getContext('2d'), P = (u, z) => [u / 0.32 * 256, (0.25 - z / 0.32) * 256];
           const path = (pts) => { x.beginPath(); pts.forEach(([u, z], i) => { const [X, Y] = P(u, z); i ? x.lineTo(X, Y) : x.moveTo(X, Y); }); x.closePath(); };
           const dot = (u, z, r, col) => { const [X, Y] = P(u, z); x.fillStyle = col; x.beginPath(); x.arc(X, Y, r, 0, TAU); x.fill(); };
@@ -11913,23 +11913,23 @@
           for (const [pts, col] of [[BF_FORE, fc], [BF_HIND, hc]]) {
             x.save(); path(pts); x.clip(); x.fillStyle = col; x.fillRect(0, 0, 256, 256);
             const fore = pts === BF_FORE;
-            if (name === 'tiger' || name === 'lacewing') {   // mép đen chấm trắng; đỉnh cánh trước đen + dải trắng chéo
+            if (name === 'tiger' || name === 'lacewing') {
               x.lineWidth = 16; x.strokeStyle = '#1a1512'; path(pts); x.stroke();
               for (let k = 0; k < 9; k++) { const q = pts[1 + (k % (pts.length - 2))]; dot(q[0] * 0.94, q[1] * 0.94, 2.2, '#f4f0e6'); }
               if (fore) { x.fillStyle = '#1a1512'; path([[0.19, 0.08], [0.33, 0.08], [0.33, -0.03], [0.22, 0.0]]); x.fill(); for (const [u, z] of [[0.21, 0.035], [0.24, 0.045], [0.27, 0.045], [0.25, 0.015]]) dot(u, z, 4.5, '#f6f2ea'); }
               if (!fore && name === 'tiger') for (const [u, z] of [[0.1, -0.09], [0.13, -0.12], [0.08, -0.13]]) dot(u, z, 3, '#1a1512');
               if (name === 'lacewing') { x.strokeStyle = '#f4efe2'; x.lineWidth = 2; x.beginPath(); for (let k = 0; k <= 12; k++) { const [X, Y] = P((fore ? 0.2 : 0.15) + 0.012 * (k & 1), fore ? 0.06 - k * 0.011 : -0.05 - k * 0.013); k ? x.lineTo(X, Y) : x.moveTo(X, Y); } x.stroke(); }
-            } else if (name === 'yellow') {   // vàng chanh, mép ngoài cánh trước đen hình "mặt chó"
+            } else if (name === 'yellow') {
               if (fore) { x.fillStyle = '#211b12'; path([[0.2, 0.09], [0.34, 0.09], [0.34, -0.1], [0.21, -0.08], [0.25, -0.03], [0.24, 0.03]]); x.fill(); }
               else { x.lineWidth = 5; x.strokeStyle = '#211b12'; path(pts); x.stroke(); }
-            } else if (name === 'bluebottle') {   // nền đen nâu + dải xanh lam ngọc chạy từ đỉnh cánh trước xuống mép trong cánh sau
+            } else if (name === 'bluebottle') {
               x.fillStyle = '#41c2d4'; for (let k = 0; k < 8; k++) { const t = k / 7, u = fore ? 0.24 - t * 0.17 : 0.09 - t * 0.05, z = fore ? 0.03 - t * 0.07 : -0.05 - t * 0.13; const [X, Y] = P(u, z); x.beginPath(); x.ellipse(X, Y, 11 - 3 * t, 7, -0.6, 0, TAU); x.fill(); }
               if (!fore) for (const [u, z] of [[0.15, -0.17], [0.12, -0.2]]) dot(u, z, 2.5, '#d8342a');
-            } else {   // hổ xanh: vệt xanh nhạt toả giữa các gân + chấm mép
+            } else {
               x.fillStyle = '#bfe2f2'; for (let k = 0; k < 7; k++) { const a = (fore ? 0.55 : -0.2) - k * 0.24, L = fore ? 0.2 : 0.14; const [X0, Y0] = P(0.03 + Math.cos(a) * 0.03, Math.sin(a) * 0.03 + (fore ? 0 : -0.05)), [X1, Y1] = P(0.03 + Math.cos(a) * L, Math.sin(a) * L + (fore ? 0 : -0.05)); x.strokeStyle = '#bfe2f2'; x.lineWidth = 7; x.lineCap = 'round'; x.beginPath(); x.moveTo(X0, Y0); x.lineTo(X1, Y1); x.stroke(); }
               for (let k = 0; k < 8; k++) { const q = pts[1 + (k % (pts.length - 2))]; dot(q[0] * 0.9, q[1] * 0.9, 2.5, '#d6ecf6'); }
             }
-            x.strokeStyle = 'rgba(20,14,10,0.55)'; x.lineWidth = 1.2;   // gân cánh toả từ gốc
+            x.strokeStyle = 'rgba(20,14,10,0.55)'; x.lineWidth = 1.2;
             for (let k = 0; k < 9; k++) { const q = pts[1 + Math.floor(k / 9 * (pts.length - 2))], [X0, Y0] = P(0.015, fore ? 0.01 : -0.03), [X1, Y1] = P(q[0], q[1]); x.beginPath(); x.moveTo(X0, Y0); x.quadraticCurveTo((X0 + X1) / 2, (Y0 + Y1) / 2 - 6, X1, Y1); x.stroke(); }
             x.restore();
           }
@@ -11937,27 +11937,27 @@
         }
         function butterfly(sp) {
           const g = new THREE.Group(), body = new THREE.MeshLambertMaterial({ color: sp[3], flatShading: true });
-          const th = new THREE.Mesh(new THREE.SphereGeometry(1, 7, 5), body); th.scale.set(0.028, 0.026, 0.05); th.position.z = 0.03; g.add(th);   // ngực lông
-          const ab = new THREE.Mesh(new THREE.SphereGeometry(1, 7, 5), body); ab.scale.set(0.02, 0.019, 0.1); ab.position.set(0, -0.004, -0.085); g.add(ab);   // bụng dài
+          const th = new THREE.Mesh(new THREE.SphereGeometry(1, 7, 5), body); th.scale.set(0.028, 0.026, 0.05); th.position.z = 0.03; g.add(th);
+          const ab = new THREE.Mesh(new THREE.SphereGeometry(1, 7, 5), body); ab.scale.set(0.02, 0.019, 0.1); ab.position.set(0, -0.004, -0.085); g.add(ab);
           const hd = new THREE.Mesh(new THREE.SphereGeometry(0.022, 7, 5), body); hd.position.z = 0.09; g.add(hd);
           const eyeM = new THREE.MeshPhongMaterial({ color: 0x1a1612, shininess: 60 });
           for (const sx of [-1, 1]) {
             const e = new THREE.Mesh(new THREE.SphereGeometry(0.013, 6, 5), eyeM); e.position.set(sx * 0.016, 0.004, 0.095); g.add(e);
-            rodBetween(g, new THREE.Vector3(sx * 0.008, 0.016, 0.1), new THREE.Vector3(sx * 0.045, 0.07, 0.23), 0.003, body, 3, false);   // râu
-            const club = new THREE.Mesh(new THREE.SphereGeometry(0.008, 6, 4), body); club.scale.z = 1.8; club.position.set(sx * 0.046, 0.071, 0.235); g.add(club);   // dùi trống
+            rodBetween(g, new THREE.Vector3(sx * 0.008, 0.016, 0.1), new THREE.Vector3(sx * 0.045, 0.07, 0.23), 0.003, body, 3, false);
+            const club = new THREE.Mesh(new THREE.SphereGeometry(0.008, 6, 4), body); club.scale.z = 1.8; club.position.set(sx * 0.046, 0.071, 0.235); g.add(club);
           }
-          const prob = new THREE.Mesh(new THREE.TorusGeometry(0.012, 0.0025, 4, 8, 4.7), body); prob.position.set(0, -0.02, 0.105); prob.rotation.y = Math.PI / 2; g.add(prob);   // vòi cuộn
+          const prob = new THREE.Mesh(new THREE.TorusGeometry(0.012, 0.0025, 4, 8, 4.7), body); prob.position.set(0, -0.02, 0.105); prob.rotation.y = Math.PI / 2; g.add(prob);
           const tex = bflyTex(sp), wingM = new THREE.MeshLambertMaterial({ map: tex, side: THREE.DoubleSide, transparent: true, alphaTest: 0.5 });
           const shapeGeo = (pts) => { const sh = new THREE.Shape(); pts.forEach(([u, z], i) => i ? sh.lineTo(u, z) : sh.moveTo(u, z)); const gg = new THREE.ShapeGeometry(sh); gg.rotateX(Math.PI / 2); return gg; };
           const foreG = shapeGeo(BF_FORE), hindG = shapeGeo(BF_HIND);
-          const mkWing = (side) => {   // nhóm vai (gốc cánh trên lưng ngực); cánh trái = gương cánh phải (scale.x)
+          const mkWing = (side) => {
             const w = new THREE.Group(); w.position.set(side * 0.012, 0.022, 0.03); g.add(w);
             const inner = new THREE.Group(); inner.scale.x = side; w.add(inner);
             inner.add(new THREE.Mesh(foreG, wingM)); const hind = new THREE.Mesh(hindG, wingM); inner.add(hind);
             w.userData.hind = hind; return w;
           };
           const wingL = mkWing(1), wingR = mkWing(-1);
-          wingL.userData.noBake = wingR.userData.noBake = true; bakeStatic(g);   // thân + râu gộp, 2 cánh giữ động
+          wingL.userData.noBake = wingR.userData.noBake = true; bakeStatic(g);
           g.scale.setScalar(0.78 * NATURE_SCALE); return { g, wingL, wingR };
         }
         function pickBflyTarget(from = null, out = new THREE.Vector3()) {
@@ -11982,13 +11982,13 @@
           butterflies.push({ g: bt.g, wL: bt.wingL, wR: bt.wingR, pos: startP.clone(), target: pickBflyTarget(startP), spd: (1.6 + Math.random() * 0.9) * 0.9, ph: Math.random() * 6.28,
             hz: sp[4], glide: sp[5], fph: Math.random() * TAU, glideT: 0, nextGlide: TAU * (2 + Math.random() * 4), ang: 0.4 });
         }
-        function bflyFlap(bf, dt, k = 1) {   // vỗ – lượn; trả về độ nhấp nhô thân (vỗ xuống nâng thân) · k: hệ số nhịp (vội tránh mưa vỗ nhanh hơn)
-          if (bf.glideT > 0) { bf.glideT -= dt; bf.ang += (0.22 - bf.ang) * Math.min(1, dt * 9); }   // lượn: cánh phẳng hơi nâng
+        function bflyFlap(bf, dt, k = 1) {
+          if (bf.glideT > 0) { bf.glideT -= dt; bf.ang += (0.22 - bf.ang) * Math.min(1, dt * 9); }
           else {
             bf.fph += dt * bf.hz * k * TAU; bf.ang = 0.46 + 0.86 * Math.cos(bf.fph);
             if (bf.glide && bf.fph > bf.nextGlide && Math.cos(bf.fph) < 0.2) { bf.glideT = bf.glide[0] + Math.random() * (bf.glide[1] - bf.glide[0]); bf.nextGlide = bf.fph + TAU * (4 + Math.random() * 5); }
           }
-          const lag = bf.glideT > 0 ? 0 : 0.46 + 0.86 * Math.cos(bf.fph - 0.45) - bf.ang;   // cánh sau trễ pha cánh trước
+          const lag = bf.glideT > 0 ? 0 : 0.46 + 0.86 * Math.cos(bf.fph - 0.45) - bf.ang;
           bf.wL.rotation.z = bf.ang; bf.wR.rotation.z = -bf.ang; bf.wL.userData.hind.rotation.z = bf.wR.userData.hind.rotation.z = lag;
           return bf.glideT > 0 ? 0 : 0.045 * Math.sin(bf.fph);
         }
@@ -12000,29 +12000,29 @@
             const br = mb[1 + (k % 4)], f = 0.3 + 0.35 * ((k / 4) | 0) + 0.1 * (k % 2), sf = f * (br.length - 1), i0 = Math.min(br.length - 2, Math.floor(sf));
             const P = br[i0].clone().lerp(br[i0 + 1], sf - i0).applyMatrix4(oldTreeGroup.matrixWorld);
             ray.set(new THREE.Vector3(P.x, P.y + 2, P.z), down); ray.far = 3.5;
-            const hit = ray.intersectObjects(bark, false).find(h => Math.abs(h.point.y - P.y) < 1.2);   // bám đúng mặt trên vỏ cành
+            const hit = ray.intersectObjects(bark, false).find(h => Math.abs(h.point.y - P.y) < 1.2);
             bf.perch = hit ? hit.point.clone().setY(hit.point.y + 0.03) : P.setY(P.y + 0.35);
             bf.perchYaw = Math.random() * 6.28; bf.mode = 'nav'; bf.vis = new THREE.Vector3(); bf.back = new THREE.Vector3();
           });
         }
         const _bfSway = new THREE.Vector3();
-        function bflyShelter(bf, dt, t, rain) {   // true = đang trong lộ trình trú mưa (tự lo vị trí + cánh)
+        function bflyShelter(bf, dt, t, rain) {
           if (rain && bf.mode !== 'toPerch' && bf.mode !== 'perched') { if (bf.mode === 'nav') bf.vis.copy(bf.g.position); bf.mode = 'toPerch'; }
           else if (!rain && (bf.mode === 'toPerch' || bf.mode === 'perched')) bf.mode = 'fromPerch';
           if (bf.mode === 'nav') return false;
-          if (bf.mode === 'perched') {   // khép cánh dựng đứng, thỉnh thoảng hé cánh rũ nước
-            bf.g.position.copy(bf.perch).add(treeWindAt(oldTreeWind, bf.perch, _bfSway)); bf.g.rotation.y = bf.perchYaw;   // đậu trên cành: đung đưa theo cành
+          if (bf.mode === 'perched') {
+            bf.g.position.copy(bf.perch).add(treeWindAt(oldTreeWind, bf.perch, _bfSway)); bf.g.rotation.y = bf.perchYaw;
             const fold = 1.38 - Math.pow(Math.max(0, Math.sin(t * 0.5 + bf.ph)), 12) * 0.9; bf.wL.rotation.z = fold; bf.wR.rotation.z = -fold; bf.wL.userData.hind.rotation.z = bf.wR.userData.hind.rotation.z = 0;
             return true;
           }
-          const goal = bf.mode === 'toPerch' ? bf.perch : flightNav.visualPosition(bf.pos, insectOffset.set(0, 0, 0), bf.back);   // tạnh: bay về đúng điểm dẫn đường cũ
+          const goal = bf.mode === 'toPerch' ? bf.perch : flightNav.visualPosition(bf.pos, insectOffset.set(0, 0, 0), bf.back);
           const dx = goal.x - bf.vis.x, dy = goal.y - bf.vis.y, dz = goal.z - bf.vis.z, dd = Math.hypot(dx, dy, dz);
           if (dd < 0.03) { if (bf.mode === 'toPerch') bf.mode = 'perched'; else { bf.mode = 'nav'; nextButterflyTarget(bf); } return true; }
           const step = Math.min(dd, bf.spd * 1.4 * dt); bf.vis.x += dx / dd * step; bf.vis.y += dy / dd * step; bf.vis.z += dz / dd * step;
-          const wob = Math.min(1, dd * 0.8);   // lượn nhẹ khi còn xa, sát chỗ đậu thì vào thẳng
+          const wob = Math.min(1, dd * 0.8);
           bf.g.position.set(bf.vis.x + Math.cos(t * 2 + bf.ph) * 0.12 * wob, bf.vis.y + Math.sin(t * 3.5 + bf.ph) * 0.18 * wob, bf.vis.z);
           let turn = Math.atan2(dx, dz) - bf.g.rotation.y; turn = Math.atan2(Math.sin(turn), Math.cos(turn)); bf.g.rotation.y += turn * Math.min(1, dt * 5);
-          bflyFlap(bf, dt, 1.3);   // vỗ nhanh hơn khi vội tránh mưa
+          bflyFlap(bf, dt, 1.3);
           return true;
         }
 
@@ -12034,29 +12034,29 @@
           for (let i = 0; i < ap.count; i++) { const z = ap.getZ(i), k = z < 0 ? 1 - 0.55 * Math.pow(-z, 1.6) : 1; ap.setXYZ(i, ap.getX(i) * 0.058 * k, ap.getY(i) * 0.054 * k, z * 0.078 - 0.08); }
           ab.computeVertexNormals(); g.add(new THREE.Mesh(paint(ab, (x, y, z) => z < -0.142 ? 0x231b14 : (Math.floor((z + 0.158) / 0.0195) & 1) ? 0x231b14 : 0xf2b21e), vc));
           const sting = new THREE.Mesh(new THREE.ConeGeometry(0.008, 0.03, 5), dark); sting.rotation.x = -Math.PI / 2; sting.position.z = -0.168; g.add(sting);
-          const thx = new THREE.SphereGeometry(0.043, 9, 7); thx.translate(0, 0.004, 0.03); g.add(new THREE.Mesh(paint(thx, (x, y, z) => y > 0.03 && Math.abs(z - 0.03) < 0.018 ? 0x231b14 : 0xe0a02a), vc));   // ngực lông vàng, vạch đen trên lưng
-          const hd = new THREE.SphereGeometry(0.033, 8, 6); hd.scale(1, 0.95, 0.85); hd.translate(0, 0.002, 0.098); g.add(new THREE.Mesh(paint(hd, (x, y, z) => y < -0.005 && z > 0.11 ? 0xf2b21e : 0x2a2018), vc));   // đầu sẫm, mặt dưới vàng
+          const thx = new THREE.SphereGeometry(0.043, 9, 7); thx.translate(0, 0.004, 0.03); g.add(new THREE.Mesh(paint(thx, (x, y, z) => y > 0.03 && Math.abs(z - 0.03) < 0.018 ? 0x231b14 : 0xe0a02a), vc));
+          const hd = new THREE.SphereGeometry(0.033, 8, 6); hd.scale(1, 0.95, 0.85); hd.translate(0, 0.002, 0.098); g.add(new THREE.Mesh(paint(hd, (x, y, z) => y < -0.005 && z > 0.11 ? 0xf2b21e : 0x2a2018), vc));
           const eyeM = new THREE.MeshPhongMaterial({ color: 0x0c0a08, shininess: 90, specular: 0x666666 });
           for (const sx of [-1, 1]) {
-            const e = new THREE.Mesh(new THREE.SphereGeometry(0.02, 7, 5), eyeM); e.scale.set(0.5, 1, 0.8); e.position.set(sx * 0.026, 0.006, 0.104); g.add(e);   // mắt kép
-            rodBetween(g, new THREE.Vector3(sx * 0.01, 0.022, 0.122), new THREE.Vector3(sx * 0.02, 0.058, 0.142), 0.0035, dark, 4, false);   // râu: đốt gốc dựng
-            rodBetween(g, new THREE.Vector3(sx * 0.02, 0.058, 0.142), new THREE.Vector3(sx * 0.032, 0.062, 0.19), 0.003, dark, 4, false);   // gập khuỷu chĩa trước
-            for (const [z, dz] of [[0.05, -0.02], [0.03, -0.04], [0.008, -0.07]]) {   // 6 chân: đùi chĩa ra ngoài–xuống, ống chân buông ra sau
+            const e = new THREE.Mesh(new THREE.SphereGeometry(0.02, 7, 5), eyeM); e.scale.set(0.5, 1, 0.8); e.position.set(sx * 0.026, 0.006, 0.104); g.add(e);
+            rodBetween(g, new THREE.Vector3(sx * 0.01, 0.022, 0.122), new THREE.Vector3(sx * 0.02, 0.058, 0.142), 0.0035, dark, 4, false);
+            rodBetween(g, new THREE.Vector3(sx * 0.02, 0.058, 0.142), new THREE.Vector3(sx * 0.032, 0.062, 0.19), 0.003, dark, 4, false);
+            for (const [z, dz] of [[0.05, -0.02], [0.03, -0.04], [0.008, -0.07]]) {
               const k = new THREE.Vector3(sx * 0.062, -0.05, z + dz * 0.4);
               rodBetween(g, new THREE.Vector3(sx * 0.022, -0.028, z), k, 0.005, dark, 4, false); rodBetween(g, k, new THREE.Vector3(sx * 0.055, -0.1, z + dz), 0.0035, dark, 4, false);
             }
           }
           const wingM = new THREE.MeshLambertMaterial({ color: 0xe6ecef, transparent: true, opacity: 0.42, side: THREE.DoubleSide, depthWrite: false });
           const blade = (len, w) => { const sh = new THREE.Shape(); sh.moveTo(0, 0); sh.bezierCurveTo(len * 0.3, w, len * 0.9, w * 0.9, len, 0.1 * w); sh.bezierCurveTo(len * 0.9, -w * 0.5, len * 0.3, -w * 0.5, 0, 0); const gg = new THREE.ShapeGeometry(sh, 6); gg.rotateX(Math.PI / 2); return gg; };
-          const mkWing = (sx) => {   // nhóm vai ở gốc cánh (lưng ngực); cánh trước dài 0,16 xuôi chéo ra sau, cánh sau 0,1 ngay sau
+          const mkWing = (sx) => {
             const w = new THREE.Group(); w.position.set(sx * 0.018, 0.04, 0.04); w.scale.x = sx; g.add(w);
             const f = new THREE.Mesh(blade(0.16, 0.05), wingM); f.rotation.y = 0.5; w.add(f);
             const h = new THREE.Mesh(blade(0.1, 0.035), wingM); h.position.z = -0.03; h.rotation.y = 0.85; w.add(h);
             return w;
           };
           const wingL = mkWing(1), wingR = mkWing(-1);
-          const polM = new THREE.MeshLambertMaterial({ color: 0xf0a020 }), pollen = [-1, 1].map(sx => { const m = new THREE.Mesh(new THREE.SphereGeometry(0.016, 6, 4), polM); m.position.set(sx * 0.058, -0.077, -0.04); m.visible = false; m.userData.noBake = true; g.add(m); return m; });   // giỏ phấn (corbicula) ở ống chân sau
-          wingL.userData.noBake = wingR.userData.noBake = true; bakeStatic(g);   // thân + chân + râu gộp; 2 cặp cánh + giỏ phấn giữ động
+          const polM = new THREE.MeshLambertMaterial({ color: 0xf0a020 }), pollen = [-1, 1].map(sx => { const m = new THREE.Mesh(new THREE.SphereGeometry(0.016, 6, 4), polM); m.position.set(sx * 0.058, -0.077, -0.04); m.visible = false; m.userData.noBake = true; g.add(m); return m; });
+          wingL.userData.noBake = wingR.userData.noBake = true; bakeStatic(g);
           g.rotation.order = 'YXZ'; g.scale.setScalar(0.75 * NATURE_SCALE * 0.75); return { g, wingL, wingR, pollen };
         }
         function pickBeeFlowerTarget(from = null, out = new THREE.Vector3()) {
@@ -12082,8 +12082,8 @@
           out.nectarFlower = best || fallback;
           return out.copy(out.nectarFlower || from);
         }
-        const hiveWorldPos = beehive.mouth.clone(); hiveWorldPos.y -= flightNav.clearance + 0.08;   // ong đi / về ở miệng đáy giỏ rơm (animals/beehive.js)
-        for (let k = 0; k < 40 && !flightNav.pointClear(hiveWorldPos); k++) hiveWorldPos.y -= 0.05;   // điểm dẫn đường phải là ô trống (tán cây cổ thụ chặn sát tổ ⇒ trước đây ong kẹt, không về được tổ); đoạn cuối lên vành miệng giỏ do pha "đáp" lo
+        const hiveWorldPos = beehive.mouth.clone(); hiveWorldPos.y -= flightNav.clearance + 0.08;
+        for (let k = 0; k < 40 && !flightNav.pointClear(hiveWorldPos); k++) hiveWorldPos.y -= 0.05;
         let hiveHoneyPct = 0;
         let hiveSprite, hiveCanvas, hiveTex;
 
@@ -12092,7 +12092,7 @@
           hiveTex = new THREE.CanvasTexture(hiveCanvas);
           hiveSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: hiveTex, transparent: true, depthWrite: false, depthTest: true }));
           hiveSprite.scale.set(1.4, 0.35, 1.0).multiplyScalar(NATURE_SCALE);
-          hiveSprite.position.copy(hiveWorldPos).y -= 1.05 * NATURE_SCALE; // Hạ thanh bar xuống thêm một chút
+          hiveSprite.position.copy(hiveWorldPos).y -= 1.05 * NATURE_SCALE;
           hiveSprite.name = 'Hive Loading Bar';
           scene.add(hiveSprite);
           updateHiveLoadingBar();
@@ -12102,11 +12102,11 @@
           if (!hiveCanvas) return;
           const ctx = hiveCanvas.getContext('2d');
           ctx.clearRect(0, 0, 128, 32);
-          ctx.fillStyle = 'rgba(25, 20, 15, 0.7)'; ctx.fillRect(4, 10, 80, 12); // Vẽ nền phẳng đơn giản
-          ctx.fillStyle = '#ffd13b'; ctx.fillRect(4, 10, (hiveHoneyPct / 100) * 80, 12); // Vẽ thanh mật phẳng đơn giản
+          ctx.fillStyle = 'rgba(25, 20, 15, 0.7)'; ctx.fillRect(4, 10, 80, 12);
+          ctx.fillStyle = '#ffd13b'; ctx.fillRect(4, 10, (hiveHoneyPct / 100) * 80, 12);
           ctx.font = 'bold 13px Outfit, sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
           ctx.fillStyle = '#E2D6C0'; ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 3;
-          ctx.fillText(Math.floor(hiveHoneyPct) + '%', 88, 16); // % đặt cạnh bên
+          ctx.fillText(Math.floor(hiveHoneyPct) + '%', 88, 16);
           hiveTex.needsUpdate = true;
         }
 
@@ -12115,7 +12115,7 @@
           const c = document.createElement('canvas'); c.width = 64; c.height = 32;
           const tex = new THREE.CanvasTexture(c);
           const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
-          spr.scale.set(1.2, 0.6, 1); spr.position.set(0, 0.48, 0);   // ong còn 75% cỡ cũ ⇒ nhãn ×4/3 để giữ cỡ chữ cũ
+          spr.scale.set(1.2, 0.6, 1); spr.position.set(0, 0.48, 0);
           return { c, tex, spr };
         }
         function setBeePct(b, pctOverride) {
@@ -12152,16 +12152,16 @@
           agent.g.position.set(p.x, p.y, p.z);
         }
         const _bw = new THREE.Vector3(), _bp = new THREE.Vector3(), _bx = new THREE.Vector3(), _by = new THREE.Vector3(), _bz = new THREE.Vector3(), _bm = new THREE.Matrix4();
-        const beeFlap = (b, t) => { b.wL.rotation.set(0, 0, 0.25 + Math.sin(t * 95 + b.ph) * 0.55); b.wR.rotation.set(0, 0, -b.wL.rotation.z); };   // cánh ~200 Hz: ở 60 hình/giây chỉ còn rung loang
-        const beeFold = b => { b.wL.rotation.set(0, 0.9, -0.08); b.wR.rotation.set(0, -0.9, 0.08); };   // xếp cánh xuôi dọc lưng
+        const beeFlap = (b, t) => { b.wL.rotation.set(0, 0, 0.25 + Math.sin(t * 95 + b.ph) * 0.55); b.wR.rotation.set(0, 0, -b.wL.rotation.z); };
+        const beeFold = b => { b.wL.rotation.set(0, 0.9, -0.08); b.wR.rotation.set(0, -0.9, 0.08); };
         const beeTouch = (b, to, mode) => { b.ph2 = 'land'; b.mode2 = mode; b.to = to; b.k2 = 0; };
         function beeTick(b, dt, t, ok) {
           const g = b.g, P = b.ph2 || 'fly', pk = Math.min(1, b.flowersVisited / 10);
           for (const m of b.pollen) { m.visible = pk > 0 && g.visible; m.scale.setScalar(0.5 + 0.8 * pk); }
           if (P === 'fly') {
-            if (!ok && b.state !== 'returning') { cancelBeeNectar(b); b.hoverTmr = 0; b.state = 'returning'; b.target.copy(hiveWorldPos); setBeePct(b); }   // trở trời / chiều tối: về tổ
+            if (!ok && b.state !== 'returning') { cancelBeeNectar(b); b.hoverTmr = 0; b.state = 'returning'; b.target.copy(hiveWorldPos); setBeePct(b); }
             beeFlap(b, t);
-            if (b.state === 'foraging' && !b.target.nectarFlower) { if ((b.flowerRetryTmr -= dt) <= 0) { pickBeeFlowerTarget(b.pos, b.target); b.flowerRetryTmr = 1; } }   // hoa đều đang nghỉ: lượn chờ, 1 s thử lại
+            if (b.state === 'foraging' && !b.target.nectarFlower) { if ((b.flowerRetryTmr -= dt) <= 0) { pickBeeFlowerTarget(b.pos, b.target); b.flowerRetryTmr = 1; } }
             else if (animateInsectFlight(b, dt) === 'arrived') {
               if (b.state === 'returning') { const a = Math.random() * TAU, R = beehive.rimR; b.rimA = a; beeTouch(b, beehive.mouth.clone().add(_bp.set(Math.cos(a) * R, 0.004, Math.sin(a) * R)), 'hive'); }
               else if (reserveBeeNectar(b)) { const F = b.nectarFlower; beeTouch(b, new THREE.Vector3(F.x, (F.top ?? F.y) + 0.012, F.z), 'flower'); }
@@ -12172,12 +12172,12 @@
             setInsectVisualPosition(b, 0, Math.sin(t * 6 + b.ph) * 0.08); g.position.add(b.drift); g.rotation.x += (-0.12 - g.rotation.x) * Math.min(1, dt * 6);
             return;
           }
-          if (P === 'land') {   // tiếp cận chạm: khoảng cách còn lại giảm theo hàm mũ (τ 0,32 s — ong bay chậm 50%) ⇒ càng sát càng chậm
+          if (P === 'land') {
             beeFlap(b, t); const L = g.position.distanceTo(b.to); g.position.lerp(b.to, 1 - Math.exp(-dt / 0.32)); g.rotation.x += (-0.5 - g.rotation.x) * Math.min(1, dt * 8);
             if (L < 0.006 || (b.k2 += dt) > 3.2) { g.position.copy(b.to); b.k2 = 0; b.ph2 = b.mode2 === 'flower' ? 'feed' : 'crawlIn'; b.hoverTmr = 3.6; }
             return;
           }
-          if (P === 'feed') {   // đậu hoa: xếp cánh, bò vòng quanh nhuỵ, chúc đầu hút mật
+          if (P === 'feed') {
             beeFold(b); b.hoverTmr -= dt; b.k2 += dt; const a = b.k2 * 0.9 + b.ph;
             g.position.set(b.to.x + Math.cos(a) * 0.025, b.to.y, b.to.z + Math.sin(a) * 0.025); g.rotation.set(0.35 + 0.08 * Math.sin(t * 7), Math.atan2(-Math.sin(a), Math.cos(a)), 0);
             setBeePct(b, b.flowersVisited * 10 + (1 - b.hoverTmr / 3.6) * 10);
@@ -12188,25 +12188,25 @@
             }
             return;
           }
-          if (P === 'takeoff') {   // cất cánh: vỗ cánh, bốc lên về điểm dẫn đường rồi bay tiếp
+          if (P === 'takeoff') {
             beeFlap(b, t); const goal = flightNav.visualPosition(b.pos, insectOffset.set(0, 0, 0), _bp); g.position.lerp(goal, 1 - Math.exp(-dt / 0.28));
             if (g.position.distanceTo(goal) < 0.02 || (b.k2 += dt) > 2.4) b.ph2 = 'fly';
             return;
           }
-          if (P === 'crawlIn' || P === 'crawlOut') {   // bò qua vành miệng giỏ lên vách trong (lưng quay vào tâm, đầu hướng lên khi vào / xuống khi ra)
+          if (P === 'crawlIn' || P === 'crawlOut') {
             beeFold(b); b.k2 += dt; const u = Math.min(1, b.k2 / 1.1), s = P === 'crawlIn' ? u : 1 - u, a = b.rimA, R = beehive.rimR - 0.012 - 0.05 * s, m = beehive.mouth;
             g.position.set(m.x + Math.cos(a) * R, m.y + 0.004 + 0.13 * s, m.z + Math.sin(a) * R);
             _by.set(-Math.cos(a), 0, -Math.sin(a)); _bz.set(0, P === 'crawlIn' ? 1 : -1, 0); g.quaternion.setFromRotationMatrix(_bm.makeBasis(_bx.crossVectors(_by, _bz), _by, _bz));
             if (u < 1) return;
             if (P === 'crawlOut') { b.ph2 = 'takeoff'; b.k2 = 0; return; }
             g.visible = false; b.ph2 = 'inside'; b.k2 = 0; b.inT = 2.5 + Math.random() * 3;
-            if (b.flowersVisited > 0) { hiveHoneyPct = Math.min(100, hiveHoneyPct + 1); updateHiveLoadingBar(); }   // xả mật: mỗi lượt về +1% mật tổ
+            if (b.flowersVisited > 0) { hiveHoneyPct = Math.min(100, hiveHoneyPct + 1); updateHiveLoadingBar(); }
             b.flowersVisited = 0; setBeePct(b); return;
           }
-          if (P === 'inside' && ok && (b.k2 += dt) > b.inT) { g.visible = true; b.ph2 = 'crawlOut'; b.k2 = 0; b.state = 'foraging'; pickBeeFlowerTarget(b.pos, b.target); b.flowerRetryTmr = 0; }   // thời tiết thuận: bò ra đi kiếm mật
+          if (P === 'inside' && ok && (b.k2 += dt) > b.inT) { g.visible = true; b.ph2 = 'crawlOut'; b.k2 = 0; b.state = 'foraging'; pickBeeFlowerTarget(b.pos, b.target); b.flowerRetryTmr = 0; }
         }
         for (let n = 0; n < 8; n++) {
-          const bee = createBee(); bee.g.scale.multiplyScalar(0.85);   // G 15/10: ong đi hút mật nhỏ đi 15% (ong bay quanh tổ, ong trong tổ giữ cỡ)
+          const bee = createBee(); bee.g.scale.multiplyScalar(0.85);
           const startP = Math.random() < 0.3 ? hiveWorldPos.clone() : pickBeeFlowerTarget();
           bee.g.position.copy(startP); scene.add(bee.g);
           const bb = {
@@ -12216,25 +12216,25 @@
             pollen: bee.pollen,
             pos: startP.clone(),
             target: pickBeeFlowerTarget(startP),
-            spd: 0.6 + Math.random() * 0.3,   // G 15/10: bay chậm lại 50%
+            spd: 0.6 + Math.random() * 0.3,
             ph: Math.random() * 6.28,
             hoverTmr: 0, nectarFlower: null, flowerRetryTmr: 0,
-            state: 'foraging', // 'foraging', 'returning', 'depositing'
-            flowersVisited: 0, // mỗi lượt hút mật ở hoa tăng 10%; đủ 100% về tổ
+            state: 'foraging',
+            flowersVisited: 0,
             lbl: beeLabel(), lastPct: -1
           };
-          bb.lbl.spr.scale.multiplyScalar(1 / 0.85); bb.lbl.spr.position.y /= 0.85;   // nhãn % giữ nguyên cỡ chữ + độ cao trên đầu ong
+          bb.lbl.spr.scale.multiplyScalar(1 / 0.85); bb.lbl.spr.position.y /= 0.85;
           bb.g.add(bb.lbl.spr); setBeePct(bb); bees.push(bb);
         }
 
         const daytimeAnimals = new THREE.Group(), nighttimeFireflies = new THREE.Group();
         daytimeAnimals.name = 'Động vật ban ngày'; nighttimeFireflies.name = 'Đom đóm ban đêm';
         scene.add(daytimeAnimals, nighttimeFireflies);
-        for (const group of [fishies, bunnies, butterflies, bees]) for (const animal of group) daytimeAnimals.add(animal.g);   // bò không ẩn ban đêm: về ngủ trong chuồng
-        for (const animal of [stag?.g, crab?.g]) if (animal) daytimeAnimals.add(animal);   // gấu mèo hoạt động chạng vạng → đêm: tự ẩn/hiện (animals/raccoon-brain.js)   // chó không ẩn ban đêm: vào ngủ trong caravan
+        for (const group of [fishies, bunnies, butterflies, bees]) for (const animal of group) daytimeAnimals.add(animal.g);
+        for (const animal of [stag?.g, crab?.g]) if (animal) daytimeAnimals.add(animal);
         for (const firefly of fireflies) nighttimeFireflies.add(firefly.g);
         function updateAnimalVisibility() {
-          const isNight = !liveWeather.wildlifeAwake; // Animals return at 06:00 and rest at 18:30 in Pleiku.
+          const isNight = !liveWeather.wildlifeAwake;
           daytimeAnimals.visible = !isNight; nighttimeFireflies.visible = isNight;
         }
         updateAnimalVisibility();
@@ -12821,15 +12821,15 @@
               for (let c = 0; c < 3; c++) { const da = first ? deltas[a + i + c] : 0, db = second ? deltas[b2 + i + c] : 0; fp[i + c] = (base[i + c] + (da + (db - da) * blend) * flap) * .1; }
               const part = storkParts[i / 3];
               if (part === 0 || part === 2) {
-                if (roll) {   // xoay cánh quanh trục dọc thân tại vai: x > 0 cánh trái (cò hướng +Z), x < 0 cánh phải
+                if (roll) {
                   const x = fp[i], dy = fp[i + 1] - STORK_SHOULDER_Y, left = x > 0, cs = left ? cR : cL, sn = left ? sR : -sL;
                   fp[i] = x * cs - dy * sn; fp[i + 1] = STORK_SHOULDER_Y + x * sn + dy * cs;
                 }
-                if (swept) {  // xoay quanh trục đứng tại vai: sweep > 0 đầu cánh chìa ra trước, < 0 gập dọc thân
+                if (swept) {
                   const x = fp[i], dz = fp[i + 2] - STORK_SHOULDER_Z, sn = x > 0 ? sW : -sW;
                   fp[i] = x * cW - dz * sn; fp[i + 2] = STORK_SHOULDER_Z + x * sn + dz * cW;
                 }
-              } else if (legs && (part === 5 || part === 7 || part === 8)) {   // chân duỗi sau đuôi → buông thõng (π/2 = thẳng đứng như lúc đứng)
+              } else if (legs && (part === 5 || part === 7 || part === 8)) {
                 const y = fp[i + 1], dz = fp[i + 2] - STORK_HIP_Z;
                 fp[i + 1] = y * cG + dz * sG; fp[i + 2] = STORK_HIP_Z - y * sG + dz * cG;
               }
@@ -12917,15 +12917,15 @@
         }
         function storkRoostTarget(b) {
           storkScratch.copy(b.perch.localContact).applyMatrix4(oldTreeGroup.matrixWorld);
-          (b.perchFoot || (b.perchFoot = new THREE.Vector3())).copy(storkScratch);   // điểm chân chạm cành (thế giới) — nơi đo độ đung đưa của cành
+          (b.perchFoot || (b.perchFoot = new THREE.Vector3())).copy(storkScratch);
           const heading = b.m.rotation.y; b.m.rotation.y = b.perch.heading;
           storkBodyAtFoot(b, storkScratch, b.roostTarget); b.m.rotation.y = heading;
         }
-        const STORK_LEG = { hy: -6, hz: -14, L1: 31, L2: 31.3 };   // hông · đùi–cổ chân · cổ chân–bàn (thẳng: bàn chân ở −68,3 như cũ)
-        function storkLegSolve(ty, tz, out) {   // → góc 2 đoạn (từ thẳng đứng xuống, dương = về trước) + vị trí khớp, bàn chân thực
+        const STORK_LEG = { hy: -6, hz: -14, L1: 31, L2: 31.3 };
+        function storkLegSolve(ty, tz, out) {
           const { hy, hz, L1, L2 } = STORK_LEG, dy = ty - hy, dz = tz - hz, D = Math.max(8, Math.min(L1 + L2 - 1e-3, Math.hypot(dy, dz))), th = Math.atan2(dz, -dy);
           const al = Math.acos(Math.max(-1, Math.min(1, (L1 * L1 + D * D - L2 * L2) / (2 * L1 * D)))), be = Math.acos(Math.max(-1, Math.min(1, (L2 * L2 + D * D - L1 * L1) / (2 * L2 * D))));
-          const t1 = th - al, t2 = th + be;   // khớp nằm SAU đường hông–bàn chân
+          const t1 = th - al, t2 = th + be;
           out.c1 = Math.cos(t1); out.s1 = Math.sin(t1); out.c2 = Math.cos(t2); out.s2 = Math.sin(t2);
           out.jy = hy - L1 * out.c1; out.jz = hz + L1 * out.s1; out.fy = out.jy - L2 * out.c2; out.fz = out.jz + L2 * out.s2;
           return out;
@@ -12933,17 +12933,17 @@
         const _skLeg = [{}, {}];
         function poseStandingStork(b, peck = 0, sleep = 0, stride = 0, seconds = 0, force = false, wingSpread = 0, gaitSpeed = 8) {
           const tick = Math.floor(seconds * 30);
-          if (!force && !b.gw && b.poseTick === tick) return;   // đang đi (bàn chân trụ cố định): dựng lại mỗi khung, không chờ nhịp 30 Hz
+          if (!force && !b.gw && b.poseTick === tick) return;
           b.poseTick = tick; b.posePeck = peck; b.poseSleep = sleep; b.wingSpread = wingSpread;
-          const base = storkDefinition.points, p = b.standing.geometry.attributes.position.array, fp = b.flightPos;   // tư thế bay riêng của con này
+          const base = storkDefinition.points, p = b.standing.geometry.attributes.position.array, fp = b.flightPos;
           const c = Math.cos(peck), s = Math.sin(peck);
-          const crouch = b.crouch, feet = b.footMix >= 0 ? b.footMix : sleep;   // crouch: gối chùn khi chạm đất (bàn chân giữ nguyên, hông hạ)
+          const crouch = b.crouch, feet = b.footMix >= 0 ? b.footMix : sleep;
           const gw = b.gw || 0, hb = gw ? (b.hb || 0) : 0;
-          for (let side = 0; side < 2; side++) {   // điểm đặt 2 bàn chân (dáng cũ ↔ bàn chân trụ khi đi) → IK
+          for (let side = 0; side < 2; side++) {
             const phase = seconds * gaitSpeed + side * Math.PI;
             let ty = -68.3 + Math.max(0, Math.sin(phase)) * 7 * stride + b.perch.footOffsets[side] * feet + crouch, tz = STORK_FOOT_Z + Math.cos(phase) * 12 * stride;
             let dx = 0; if (gw > 0) { const g = b.gl[side]; ty += (g.y - ty) * gw; tz += (g.z - tz) * gw; dx = Math.max(-8, Math.min(8, g.x - STORK_SIDE_X[side])) * gw; }
-            storkLegSolve(ty, tz, _skLeg[side]).dx = dx;   // dx: bàn chân lệch ngang (xoay thân khi đang trụ) — chân nghiêng dần từ hông
+            storkLegSolve(ty, tz, _skLeg[side]).dx = dx;
           }
           const { hy, hz, L1 } = STORK_LEG, jy0 = hy - L1;
           for (let i = 0; i < storkParts.length; i++) {
@@ -12957,10 +12957,10 @@
               const oldY = y; y = z + 14; z = -14 - oldY;
               const K = _skLeg[part === 7 ? 1 : 0], dz = z - hz;
               let dy = y - hy;
-              const uz = hz + dz * K.c1 - dy * K.s1, uy = hy + dz * K.s1 + dy * K.c1;   // đoạn trên: xoay quanh hông
+              const uz = hz + dz * K.c1 - dy * K.s1, uy = hy + dz * K.s1 + dy * K.c1;
               dy = y - jy0;
-              const lz = K.jz + dz * K.c2 - dy * K.s2, ly = K.jy + dz * K.s2 + dy * K.c2;   // đoạn dưới: xoay quanh khớp mới
-              const w = storkSmooth((jy0 + 2.5 - y) / 5), top = storkSmooth((hy - y) / 6);   // hoà quanh khớp · lông đùi sát bụng giữ gần nguyên
+              const lz = K.jz + dz * K.c2 - dy * K.s2, ly = K.jy + dz * K.s2 + dy * K.c2;
+              const w = storkSmooth((jy0 + 2.5 - y) / 5), top = storkSmooth((hy - y) / 6);
               const nz = uz + (lz - uz) * w, ny = uy + (ly - uy) * w;
               x += K.dx * Math.max(0, Math.min(1, (hy - y) / (STORK_LEG.L1 + STORK_LEG.L2)));
               z += (nz - z) * top; y += (ny - y) * top;
@@ -12975,7 +12975,7 @@
                 tz = -10.8 - dy * Math.sin(tuck) - dz * Math.cos(tuck); tx = -x;
               }
               x += (tx - x) * sleep; y = sy + (ty - sy) * sleep; z = sz + (tz - sz) * sleep;
-              if (hb) z += hb * storkSmooth(rise / 26);   // gật đầu khi đi: đầu đứng yên trong không gian rồi vươn tới (cổ co–duỗi, gốc cổ giữ nguyên)
+              if (hb) z += hb * storkSmooth(rise / 26);
               if (peck) { const dy = y - 7, dz = z - 18; y = 7 + dy * c - dz * s; z = 18 + dy * s + dz * c; }
             }
             const mix = b.groundMix;
@@ -12986,7 +12986,7 @@
           b.standing.geometry.attributes.position.needsUpdate = true;
           b.torso.scale.setScalar(b.groundMix);
           b.foldedWings.scale.setScalar(b.groundMix * (1 - wingSpread));
-          for (let side = 0; side < 2; side++) {   // ngón chân ở bàn chân thực (sau IK); chân đang bước thì ngón cụp xuống
+          for (let side = 0; side < 2; side++) {
             const toe = b.toes[side], K = _skLeg[side];
             toe.position.set(STORK_SIDE_X[side] + K.dx, K.fy, K.fz); toe.rotation.x = gw ? (b.gc ? b.gc[side] : 0) : 0;
             toe.scale.setScalar(b.groundMix);
@@ -13015,7 +13015,7 @@
                 const u = inSwing ? (ph - duty) / (1 - duty) : 1, ahead = ((1 - u) * (1 - duty) + duty * 0.5) * stride;
                 F.tg.set(_swA.x + fx * ahead, _swA.y, _swA.z + fz * ahead);
                 F.w.lerpVectors(F.s0, F.tg, ease(u)); F.w.y += Math.sin(Math.PI * u) * lift; F.u = u;
-                if (!inSwing) { F.sw = false; F.w.copy(F.tg); fluids?.splash(F.w.x, F.w.z, run ? .55 : .5, run ? .1 : .07); }   // mỗi bước lội: bàn chân đặt xuống nước → gợn lan
+                if (!inSwing) { F.sw = false; F.w.copy(F.tg); fluids?.splash(F.w.x, F.w.z, run ? .55 : .5, run ? .1 : .07); }
               }
             } else {
               if (F.sw && F.mode === 'gait') { F.sw = false; F.w.y = _swA.y; swinging--; }
@@ -13034,12 +13034,12 @@
           b.gw = 1;
         }
         function storkWalkOff(b) { b.gw = 0; b.hb = 0; if (b.walk) b.walk.init = false; }
-        function storksAwake() { const hour = liveWeather.localHour; return hour >= 6 && hour < 19 && !liveWeather.state.raining; }   // mưa → bay về đậu cành cây cổ thụ như lúc tối
+        function storksAwake() { const hour = liveWeather.localHour; return hour >= 6 && hour < 19 && !liveWeather.state.raining; }
         function makeCodeStork(index) {
           const dayWalkingOnly = index === 2;
           const m = new THREE.Group(); m.name = 'Cò dựng bằng code ' + (index + 1); m.scale.setScalar(STORK_SCALE); m.rotation.order = 'YXZ';
           m.userData.structureSource = { asset: 'three.js r160 Stork.glb', sha256: '60ca9355daaddeab33d93d6856d99c12b7ed086f989bf1a1ba288f7e96e1559b', vertices: 358, triangles: 542, poses: 13 };
-          const flightPos = new Float32Array(storkPositions), flightGeo = new THREE.BufferGeometry();   // hình bay riêng: con lượn, con vỗ độc lập
+          const flightPos = new Float32Array(storkPositions), flightGeo = new THREE.BufferGeometry();
           flightGeo.setAttribute('position', new THREE.BufferAttribute(flightPos, 3).setUsage(THREE.DynamicDrawUsage));
           flightGeo.setAttribute('color', storkGeometry.attributes.color); flightGeo.setIndex(storkGeometry.index); flightGeo.boundingSphere = storkGeometry.boundingSphere.clone();
           const flight = new THREE.Mesh(flightGeo, storkMaterial); flight.castShadow = true;
@@ -13090,16 +13090,16 @@
           b.tripTotal = duration + (state === 'landing' || state === 'return' ? STORK_BRAKE_S * .5 : 0); b.flare = 0; b.settle = -1;
           if (state === 'return') {
             b.pathC1.y = Math.max(b.h, b.pathStart.y + 7);
-            b.pathC2.x -= 9; b.pathC2.y += 2.2; b.pathC2.z -= 3; // từ phía sông lướt vào cành gần như ngang (~13°), không bổ nhào từ trên xuống
+            b.pathC2.x -= 9; b.pathC2.y += 2.2; b.pathC2.z -= 3;
           } else if (state === 'takeoff') {
             b.pathC1.x -= 7; b.pathC1.y += 12; b.pathC1.z -= 4; b.pathC2.y = b.h + 4;
           } else {
             b.pathC1.y = Math.max(b.h, b.pathStart.y);
-            b.pathC2.copy(target); b.pathC2.y += 3.5; b.pathC2.z += 10;   // chặng cuối thoải (~19°) như cò lướt xuống bãi nước
+            b.pathC2.copy(target); b.pathC2.y += 3.5; b.pathC2.z += 10;
             if (state === 'landing' && isWater(Math.round(x2gi(b.foot.x)), Math.round(z2gj(b.foot.z)))) { b.pathEnd.y += STORK_WADE_DEPTH; b.pathC2.y += STORK_WADE_DEPTH; }
           }
         }
-        const STORK_BRAKE_S = 3.2, STORK_WADE_DEPTH = .6, _storkSway = new THREE.Vector3();   // mặt nước 6.6, bàn chân cò lội ở 6.0
+        const STORK_BRAKE_S = 3.2, STORK_WADE_DEPTH = .6, _storkSway = new THREE.Vector3();
         function storkTripQ(b) {
           const D = b.tripDuration;
           if (b.tripTotal <= D) return Math.min(1, b.elapsed / D);
@@ -13124,13 +13124,13 @@
           const t = b.settle, perched = b.state === 'return';
           const fold = storkSmooth((t - .45) / .9), tuck = perched ? storkSmooth((t - 1.6) / 1.4) : 0;
           if (perched) b.m.rotation.y += Math.atan2(Math.sin(b.perch.heading - b.m.rotation.y), Math.cos(b.perch.heading - b.m.rotation.y)) * Math.min(1, dt * 6);
-          b.m.rotation.x = b.settlePitch * (1 - storkSmooth(t / .7));   // thân đang ngửa đổ về trước, xoay quanh bàn chân
+          b.m.rotation.x = b.settlePitch * (1 - storkSmooth(t / .7));
           b.m.rotation.z *= Math.max(0, 1 - dt * 8);
-          b.crouch = 5.5 * Math.sin(Math.PI * Math.min(1, t / .6));    // gối chùn hấp thụ quán tính rồi đứng thẳng
-          b.settleFoot.lerp(b.contactFoot, Math.min(1, dt * 4));       // trên cành: sai số vài cm trượt êm về điểm đậu; dưới nước: chân lún từ mặt nước xuống đáy
+          b.crouch = 5.5 * Math.sin(Math.PI * Math.min(1, t / .6));
+          b.settleFoot.lerp(b.contactFoot, Math.min(1, dt * 4));
           b.m.position.set(0, -STORK_FOOT_Y * STORK_SCALE, -STORK_FOOT_Z * STORK_SCALE).applyEuler(b.m.rotation).add(b.settleFoot);
           b.m.position.y -= b.crouch * STORK_SCALE;
-          if (perched) b.m.position.addScaledVector(treeWindAt(oldTreeWind, b.contactFoot, _storkSway), storkSmooth(t / 0.5));   // đã đứng trên cành: theo cành đung đưa
+          if (perched) b.m.position.addScaledVector(treeWindAt(oldTreeWind, b.contactFoot, _storkSway), storkSmooth(t / 0.5));
           b.flapPhase = STORK_HOLD_PHASE * (1 - fold) + .035 * Math.sin(t * 15) * (1 - storkSmooth(t / .55));
           b.wingSweep = .25 * (1 - fold) - .85 * fold; b.legDrop = 0; b.flapAmp = 1 + .15 * (1 - storkSmooth(t / .5)); b.glide = 0; b.flare = 0;
           b.groundMix = 1; b.footMix = perched ? storkSmooth(t / .3) : -1;
@@ -13138,7 +13138,7 @@
           if (t >= (perched ? 3.0 : 1.4)) finishStorkLanding(b);
         }
         function startStorkDeparture(b, destination, seconds) {
-          if (b.settle >= 0) finishStorkLanding(b);   // đang xếp cánh sau khi đáp: hoàn tất rồi mới cất cánh lại
+          if (b.settle >= 0) finishStorkLanding(b);
           if (b.state === 'preflight' || b.state === 'runup' || b.state === 'climb') { b.launchDestination = destination; return; }
           if (b.state !== 'wade' && b.state !== 'sleep') {
             if (destination === 'return') { storkRoostTarget(b); beginStorkTrip(b, 'return', b.roostTarget, 24 + b.index * 3); }
@@ -13186,7 +13186,7 @@
             const q = Math.min(1, b.launchElapsed / .85), turn = Math.atan2(Math.sin(b.launchHeading - b.launchYaw), Math.cos(b.launchHeading - b.launchYaw));
             b.m.rotation.set(0, b.launchYaw + turn * storkSmooth(q), 0);
             storkBodyAtFoot(b, b.launchFoot, b.m.position); if (b.launchOnBranch) b.m.position.add(treeWindAt(oldTreeWind, b.launchFoot, _storkSway));
-            else storkWalk(b, dt, 0, 0, false, b.launchFoot);   // quay về hướng cất cánh: nhích chân tại chỗ
+            else storkWalk(b, dt, 0, 0, false, b.launchFoot);
             poseStandingStork(b, b.launchPeck * (1 - q), b.launchSleep * (1 - q), .15, seconds, false, .15 * storkSmooth(q), 12);
             if (q === 1) { b.state = 'runup'; b.launchElapsed = 0; }
           } else if (b.state === 'runup') {
@@ -13196,7 +13196,7 @@
             const runD = blocked ? 0 : Math.hypot(storkScratch.x - b.launchFoot.x, storkScratch.z - b.launchFoot.z);
             if (!blocked) b.launchFoot.copy(storkScratch);
             b.m.rotation.set(0, b.launchHeading, 0); storkBodyAtFoot(b, b.launchFoot, b.m.position); if (b.launchOnBranch) b.m.position.add(treeWindAt(oldTreeWind, b.launchFoot, _storkSway));
-            else storkWalk(b, dt, runD, runD / Math.max(dt, 1e-3), true, b.launchFoot);   // chạy lấy đà: sải dài, bàn chân đạp nước cố định
+            else storkWalk(b, dt, runD, runD / Math.max(dt, 1e-3), true, b.launchFoot);
             poseStandingStork(b, 0, 0, b.launchOnBranch ? .35 : 1.45, seconds, false, .15 + .85 * storkSmooth(q / .5), 17);
             if (q === 1 || blocked) {
               b.state = 'climb'; b.launchElapsed = 0;
@@ -13230,20 +13230,20 @@
           const awake = storksAwake();
           updateCodeStork(seconds);
           for (const b of birds) {
-            if (b.gw && !(b.state === 'wade' || ((b.state === 'preflight' || b.state === 'runup') && !b.launchOnBranch))) storkWalkOff(b);   // rời mặt nước / bay: chân về dáng cũ
+            if (b.gw && !(b.state === 'wade' || ((b.state === 'preflight' || b.state === 'runup') && !b.launchOnBranch))) storkWalkOff(b);
             if (awake !== b.awake) {
               b.awake = awake;
               if (awake) startStorkDeparture(b, b.dayWalkingOnly ? 'feeding' : 'orbit', seconds);
               else startStorkDeparture(b, 'return', seconds);
             }
-            if (b.state === 'sleep') { b.m.position.copy(b.roostTarget).add(treeWindAt(oldTreeWind, b.perchFoot, _storkSway)); continue; }   // ngủ trên cành: chỉ đung đưa theo cành, không tính lại dáng
+            if (b.state === 'sleep') { b.m.position.copy(b.roostTarget).add(treeWindAt(oldTreeWind, b.perchFoot, _storkSway)); continue; }
             if (b.state === 'preflight' || b.state === 'runup' || b.state === 'climb') {
               updateStorkDeparture(b, dt, seconds);
             } else if (b.state === 'fly') {
               b.ang -= b.sp * dt; b.flyRemaining -= dt;
               b.m.position.set(Math.cos(b.ang) * b.r, b.h + Math.sin(seconds * .6 + b.r) * 1.4, Math.sin(b.ang) * b.r);
-              const vyFly = 1.4 * 0.6 * Math.cos(seconds * .6 + b.r);   // tốc độ lên/xuống của quỹ đạo lượn sóng
-              b.wingBank = -(0.12 + 0.08 * b.glide);                   // vòng tròn rẽ trái đều: nghiêng thân vào tâm vòng
+              const vyFly = 1.4 * 0.6 * Math.cos(seconds * .6 + b.r);
+              b.wingBank = -(0.12 + 0.08 * b.glide);
               b.m.rotation.set(Math.max(-0.12, Math.min(0.12, -vyFly * 0.08)), Math.PI - b.ang, b.wingBank); b.groundMix = 0;
               if (b.flyRemaining <= 0) {
                 b.foot.copy(storkFishingCenter); b.foot.x += b.index === 0 ? -1.2 : 1.2; b.foot.z += b.index === 0 ? -.6 : .6;
@@ -13254,7 +13254,7 @@
               b.elapsed += dt;
               if (b.settle >= 0) settleStork(b, dt, seconds);
               else {
-                const arriving = b.state !== 'join', q = storkTripQ(b), iq = 1 - q, tau = b.tripTotal - b.elapsed;   // tau: số giây còn lại tới lúc chân chạm
+                const arriving = b.state !== 'join', q = storkTripQ(b), iq = 1 - q, tau = b.tripTotal - b.elapsed;
                 const x = b.pathStart.x * iq ** 3 + 3 * b.pathC1.x * iq * iq * q + 3 * b.pathC2.x * iq * q * q + b.pathEnd.x * q ** 3;
                 const y = b.pathStart.y * iq ** 3 + 3 * b.pathC1.y * iq * iq * q + 3 * b.pathC2.y * iq * q * q + b.pathEnd.y * q ** 3;
                 const z = b.pathStart.z * iq ** 3 + 3 * b.pathC1.z * iq * iq * q + 3 * b.pathC2.z * iq * q * q + b.pathEnd.z * q ** 3;
@@ -13262,30 +13262,30 @@
                 const ty = (b.pathC1.y - b.pathStart.y) * iq * iq + 2 * (b.pathC2.y - b.pathC1.y) * iq * q + (b.pathEnd.y - b.pathC2.y) * q * q;
                 const tz = (b.pathC1.z - b.pathStart.z) * iq * iq + 2 * (b.pathC2.z - b.pathC1.z) * iq * q + (b.pathEnd.z - b.pathC2.z) * q * q;
                 const flare = arriving ? storkSmooth((2.8 - tau) / 1.4) : 0;
-                const arrivalMix = arriving ? storkSmooth(1 - tau) : 0;   // cổ, chân, thân về dáng đứng trong 1 s cuối; cánh vẫn dang
+                const arrivalMix = arriving ? storkSmooth(1 - tau) : 0;
                 const departureMix = b.tripGround * (1 - storkSmooth(b.elapsed / 1.8));
                 b.groundMix = Math.max(arrivalMix, departureMix); b.flare = flare;
                 let heading = Math.atan2(tx, tz);
                 if (b.state === 'return') heading += Math.atan2(Math.sin(b.perch.heading - heading), Math.cos(b.perch.heading - heading)) * storkSmooth((3 - tau) / 3);
                 const turn = Math.atan2(Math.sin(heading - b.m.rotation.y), Math.cos(heading - b.m.rotation.y)); b.m.rotation.y += turn * Math.min(1, dt * 5);
                 const level = (1 - departureMix) * (b.state === 'join' ? 1 - storkSmooth((q - .8) / .2) : 1);
-                const slope = Math.max(-.55, Math.min(.55, -Math.atan2(ty, Math.hypot(tx, tz)))) * level * (1 - 0.65 * b.glide);   // lượn: thân gần như nằm ngang, không chúc mũi bổ nhào
-                const pitch = slope * (1 - flare) - .55 * flare * (1 - .45 * storkSmooth((.8 - tau) / .8));   // phanh: ngửa thân ~30°, mặt phẳng vỗ dựng gần đứng
-                const bank = Math.max(-.27, Math.min(.27, -turn * 6)) * level * (1 + 0.35 * b.glide) * (1 - flare); b.wingBank = bank;   // rẽ bằng nghiêng thân + kéo phanh cánh; vào phanh thì cân cánh
+                const slope = Math.max(-.55, Math.min(.55, -Math.atan2(ty, Math.hypot(tx, tz)))) * level * (1 - 0.65 * b.glide);
+                const pitch = slope * (1 - flare) - .55 * flare * (1 - .45 * storkSmooth((.8 - tau) / .8));
+                const bank = Math.max(-.27, Math.min(.27, -turn * 6)) * level * (1 + 0.35 * b.glide) * (1 - flare); b.wingBank = bank;
                 b.m.rotation.x += (pitch - b.m.rotation.x) * Math.min(1, dt * 5); b.m.rotation.z += (bank - b.m.rotation.z) * Math.min(1, dt * 5);
                 b.m.position.set(x, y, z);
                 if (arriving) {
                   const ease = Math.min(1, dt * 6);
-                  b.legDrop += (1.15 * storkSmooth((6.5 - tau) / 2.5) + .3 * flare - b.legDrop) * ease;   // thõng chân làm phanh gió, lúc phanh vươn chân ra trước
+                  b.legDrop += (1.15 * storkSmooth((6.5 - tau) / 2.5) + .3 * flare - b.legDrop) * ease;
                   b.wingSweep += (.25 * flare - b.wingSweep) * ease; b.flapAmp += (1 + .15 * flare - b.flapAmp) * ease;
-                  if (flare > 0) b.flapPhase = STORK_HOLD_PHASE - tau * 1.5 / 1.3;   // nhịp vỗ hãm 0,87 s; nhịp cuối dừng đúng lúc chạm, cánh nâng chữ V
-                  const w = storkSmooth((6 - tau) / 2);   // từ ~4 s trước khi chạm, đường bay là đường của BÀN CHÂN: thân ngửa ra sau chân, chân trượt êm tới đích
-                  if (w > 0) {   // (bù độ lệch do pitch/roll; lúc bật bù thân còn gần nằm ngang nên không giật)
+                  if (flare > 0) b.flapPhase = STORK_HOLD_PHASE - tau * 1.5 / 1.3;
+                  const w = storkSmooth((6 - tau) / 2);
+                  if (w > 0) {
                     storkFootTmp.set(0, -STORK_FOOT_Y * STORK_SCALE, -STORK_FOOT_Z * STORK_SCALE);
                     storkScratch.copy(storkFootTmp).applyAxisAngle(storkUp, b.m.rotation.y);
                     b.m.position.addScaledVector(storkFootTmp.applyEuler(b.m.rotation).sub(storkScratch), w);
                   }
-                  if (tau <= 0) {   // chạm chân: ghim bàn chân tại chỗ, chuyển sang pha giữ thăng bằng + xếp cánh
+                  if (tau <= 0) {
                     b.settle = 0; b.settlePitch = b.m.rotation.x; b.flare = 0;
                     b.settleFoot.set(0, -STORK_FOOT_Y * STORK_SCALE, -STORK_FOOT_Z * STORK_SCALE).applyEuler(b.m.rotation).negate().add(b.m.position);
                     if (b.state === 'return') b.contactFoot.copy(b.perch.localContact).applyMatrix4(oldTreeGroup.matrixWorld); else b.contactFoot.copy(b.foot);
@@ -13298,7 +13298,7 @@
               let stride = 0, peck = 0, moved = 0;
               if (b.peckElapsed >= 0) {
                 b.peckElapsed += dt;
-                if (b.peckElapsed >= .85 && b.peckElapsed - dt < .85) { const ry = b.m.rotation.y; fluids?.splash(b.foot.x + Math.sin(ry) * .6, b.foot.z + Math.cos(ry) * .6, .55, .14); }   // mỏ cắm xuống nước
+                if (b.peckElapsed >= .85 && b.peckElapsed - dt < .85) { const ry = b.m.rotation.y; fluids?.splash(b.foot.x + Math.sin(ry) * .6, b.foot.z + Math.cos(ry) * .6, .55, .14); }
                 if (b.peckElapsed <= 1.65) peck = 1.8 * Math.sin(Math.PI * b.peckElapsed / 1.65);
                 b.caughtFish.visible = b.peckSuccess && b.peckElapsed >= .9 && b.peckElapsed < 2.4;
                 if (b.peckElapsed >= 2.8) { b.peckElapsed = -1; b.caughtFish.visible = false; b.nextPeck = 6 + b.rng() * 4; }
@@ -13318,13 +13318,13 @@
               poseStandingStork(b, peck, 0, stride, seconds);
               if (!b.dayWalkingOnly && b.wadeRemaining <= 0 && b.peckElapsed < 0) storkTakeoff(b, seconds);
             }
-            {   // hạ độ cao → lượn (thôi vỗ), lấy lại độ cao → vỗ; cuối chặng đáp (hạ cánh / về cành) luôn giữ cánh lượn tới khi chạm chân
+            {
               const airborne = (b.state === 'fly' || b.state === 'landing' || b.state === 'return' || b.state === 'join') && !(b.settle >= 0);
               const vy = b.prevY === null ? 0 : (b.m.position.y - b.prevY) / Math.max(dt, 1e-3); b.prevY = b.m.position.y;
               let want = 0;
               if (airborne) { want = vy < -0.12 ? 1 : vy > 0.1 ? 0 : (b.glideWant || 0); if ((b.state === 'landing' || b.state === 'return') && b.elapsed > b.tripDuration * 0.55) want = 1; }
               b.glideWant = want; b.glide += (want - b.glide) * Math.min(1, dt * 1.6);
-              if (b.flare > 0) b.glide = Math.min(b.glide, 1 - b.flare);           // vào phanh: thôi lượn, vỗ hãm
+              if (b.flare > 0) b.glide = Math.min(b.glide, 1 - b.flare);
               const landingCtl = b.settle >= 0 || b.state === 'landing' || b.state === 'return';
               if (!(b.flare > 0) && !(b.settle >= 0)) b.flapPhase = (b.flapPhase + dt / 1.3) % 1;
               if (!landingCtl) { const k = Math.max(0, 1 - dt * 2); b.legDrop *= k; b.wingSweep *= k; b.flapAmp = 1 + (b.flapAmp - 1) * k; b.flare = 0; }
@@ -13335,13 +13335,34 @@
         }
         for (let index = 0; index < 3; index++) birds.push(makeCodeStork(index));
 
+        const _spT = new THREE.Vector3(), _spW = new THREE.Vector3(), SPA = { dogV: 0, engV: 0, dp: new THREE.Vector3(), ep: new THREE.Vector3(), init: false };
+        function sparrowAnimTick(dt) {
+          const k = 1 / Math.max(dt, 1e-3), e = engObj ? engObj.g.position : SPA.ep;
+          if (SPA.init) { SPA.dogV = SPA.dp.distanceTo(dogObj.position) * k; SPA.engV = SPA.ep.distanceTo(e) * k; }
+          SPA.dp.copy(dogObj.position); SPA.ep.copy(e); SPA.init = true;
+        }
+        function sparrowToy(p, r) {
+          let best = null, bd = r;
+          for (const L of [cherryCtl, forestLeafCtl, oldTreeLeafCtl]) if (L && L.o.group?.visible !== false) for (const q of L.parts) if (q.st === 1) { const d = q.p.distanceTo(p); if (d < bd) { bd = d; best = { at: () => q.st === 1 ? q.p : null }; } }
+          for (const bf of butterflies) if (bf.mode !== 'perched' && bf.g.visible) { const d = bf.pos.distanceTo(p); if (d < bd) { bd = d; best = { at: () => bf.mode !== 'perched' && bf.g.visible ? bf.pos : null }; } }
+          return best;
+        }
+        function sparrowFlush(p) {
+          const h = (q) => Math.hypot(q.x - p.x, q.z - p.z), R = sparrowFlush;
+          if (engObj && !engObj.inVan && engObj.g.parent === scene && h(engObj.g.position) < (SPA.engV > 0.3 ? 2 : 1)) { R.from = engObj.g.position; return 'fly'; }
+          if (!dogRain.st && h(dogObj.position) < (SPA.dogV > 1.5 ? 3.2 : 2.2)) { R.from = dogObj.position; return 'fly'; }
+          if (raccoonObj && raccoonObj.visible && h(raccoonObj.position) < 3) { R.from = raccoonObj.position; return 'fly'; }
+          for (const c of storksGroup.children) { c.getWorldPosition(_spT); if (Math.abs(_spT.y - p.y) < 1.5 && h(_spT) < 3) { R.from = _spT; return 'fly'; } }
+          for (const c of cows) if (h(c) < 0.9) { R.from = c; return 'hop'; }
+          return null;
+        }
         function makeSparrow(brain, size = 1) {
           const SC = 0.18 * size, up = new THREE.Vector3(0, 1, 0);
           const vc = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }), lam = c => new THREE.MeshLambertMaterial({ color: c, flatShading: true });
           const BROWN = new THREE.Color(0xa8754f), CREAM = new THREE.Color(0xf1e6cc), DARK = 0x4a3328;
           const paint = (geo, f) => { const p = geo.attributes.position, c = []; for (let i = 0; i < p.count; i++) { const k = f(p.getX(i), p.getY(i), p.getZ(i)); c.push(k.r, k.g, k.b); } geo.setAttribute('color', new THREE.Float32BufferAttribute(c, 3)); return geo; };
           const root = new THREE.Group(); root.name = 'Chim sẻ'; root.scale.setScalar(SC); scene.add(root);
-          const bodyP = new THREE.Group(); bodyP.position.y = 0.26; root.add(bodyP);   // gốc = điểm chân bám
+          const bodyP = new THREE.Group(); bodyP.position.y = 0.26; root.add(bodyP);
           const mesh = (geo, m, par, x = 0, y = 0, z = 0) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.castShadow = true; par.add(o); return o; };
           const bodyG = new THREE.SphereGeometry(0.5, 10, 7); bodyG.scale(0.34, 0.36, 0.56);
           mesh(paint(bodyG, (x, y, z) => y > -0.04 + 0.05 * z ? BROWN : CREAM), vc, bodyP);
@@ -13349,13 +13370,13 @@
           const headG = new THREE.SphereGeometry(0.5, 9, 7); headG.scale(0.29, 0.28, 0.31);
           mesh(paint(headG, (x, y, z) => y > 0.0 - 0.05 * z ? BROWN : CREAM), vc, head, 0, 0.06, 0.03);
           const beakG = new THREE.ConeGeometry(0.042, 0.11, 6); beakG.rotateX(Math.PI / 2); mesh(beakG, lam(0x4a4630), head, 0, 0.04, 0.22);
-          const food = mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.16, 5).rotateZ(Math.PI / 2), lam(0x7d9a3a), head, 0, 0.035, 0.27); food.visible = false;   // sâu ngậm ngang mỏ
+          const food = mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.16, 5).rotateZ(Math.PI / 2), lam(0x7d9a3a), head, 0, 0.035, 0.27); food.visible = false;
           const eyes = [-1, 1].map(s => mesh(new THREE.SphereGeometry(0.03, 6, 5), lam(0x0d0d0d), head, s * 0.12, 0.09, 0.1));
           const wingShape = (pts) => { const sh = new THREE.Shape(); pts.forEach(([x, z], i) => i ? sh.lineTo(x, z) : sh.moveTo(x, z)); const g = new THREE.ShapeGeometry(sh); g.rotateX(Math.PI / 2); return g; };
-          const armG = wingShape([[0, 0.07], [0.2, 0.06], [0.21, -0.14], [0.11, -0.17], [0, -0.15]]);   // cánh tay: vai → cổ tay 0,2
-          const handG = wingShape([[0, 0.06], [0.13, 0.045], [0.3, -0.005], [0.27, -0.055], [0.22, -0.075], [0.2, -0.1], [0.14, -0.12], [0.12, -0.14], [0, -0.14]]);   // bàn cánh: lông sơ cấp nhọn, mép sau so le
+          const armG = wingShape([[0, 0.07], [0.2, 0.06], [0.21, -0.14], [0.11, -0.17], [0, -0.15]]);
+          const handG = wingShape([[0, 0.06], [0.13, 0.045], [0.3, -0.005], [0.27, -0.055], [0.22, -0.075], [0.2, -0.1], [0.14, -0.12], [0.12, -0.14], [0, -0.14]]);
           const wingM = new THREE.MeshLambertMaterial({ color: 0x9c6c48, side: THREE.DoubleSide, flatShading: true }), handM = new THREE.MeshLambertMaterial({ color: DARK, side: THREE.DoubleSide, flatShading: true });
-          const wings = [-1, 1].map(s => {   // vai → cánh tay (nâu, vạch kem) → bàn cánh (lông sơ cấp nâu sẫm)
+          const wings = [-1, 1].map(s => {
             const side = new THREE.Group(); side.scale.x = s; bodyP.add(side);
             const sh = new THREE.Group(); sh.position.set(0.13, 0.1, 0.1); side.add(sh);
             mesh(armG, wingM, sh); mesh(new THREE.BoxGeometry(0.17, 0.004, 0.024), lam(0xefe4c8), sh, 0.1, 0.005, -0.03);
@@ -13366,14 +13387,13 @@
           const qOpen = new THREE.Quaternion(), _we = new THREE.Euler();
           const tail = new THREE.Group(); tail.position.set(0, 0.02, -0.26); bodyP.add(tail);
           mesh(wingShape([[-0.045, 0], [0.045, 0], [0.075, -0.3], [0, -0.33], [-0.075, -0.3]]), new THREE.MeshLambertMaterial({ color: 0x6b4a36, side: THREE.DoubleSide }), tail);
-          const legs = [-1, 1].map(s => {   // cẳng chân xám + 3 ngón trước 1 ngón sau (bám cành)
+          const legs = [-1, 1].map(s => {
             const lg = new THREE.Group(); lg.position.set(s * 0.055, -0.14, 0.03); bodyP.add(lg);
             const parts = [new THREE.CylinderGeometry(0.011, 0.013, 0.12, 5).translate(0, -0.06, 0)];
             for (const a of [-0.45, 0, 0.45]) parts.push(new THREE.BoxGeometry(0.012, 0.01, 0.075).translate(0, -0.12, 0.035).rotateY(a * 0.6));
             parts.push(new THREE.BoxGeometry(0.012, 0.01, 0.05).translate(0, -0.12, -0.025));
             mesh(mergeGeometries(parts), lam(0x4a4a4a), lg); return lg;
           });
-          root.traverse(o => { if (o.isMesh) o.userData.noBatch = true; });   // bay khắp nơi ⇒ không gộp lượt vẽ (lô bị loại theo khung nhìn ở chỗ cũ)
           const spr = x => ({ x, v: 0 }), damp = (S, tg, w, dt) => { const k = w * dt, ex = 1 / (1 + k + 0.48 * k * k + 0.235 * k * k * k), c = S.x - tg, tp = (S.v + w * c) * dt; S.v = (S.v - w * tp) * ex; S.x = tg + (c + tp) * ex; return S.x; };
           const P = { pitch: spr(-0.45), wing: spr(0), tailP: spr(0), tailS: spr(0), hy: spr(0), hp: spr(0), fluff: spr(1), tuck: spr(0), legs: spr(1), crouch: spr(0) };
           const B = { st: 'perch', at: null, T: 10, k: 0, hyT: 0, hpT: 0, hT: 0, flick: 3, preen: 0, flapPh: 0, A: new THREE.Vector3(), Bp: new THREE.Vector3(), c1: new THREE.Vector3(), c2: new THREE.Vector3(), dur: 1, yaw: 0, hop: null, peck: 0, nPeck: 0, scan: 0, carry: false };
@@ -13382,22 +13402,25 @@
             root, state: B,
             land(w) { B.at = w; root.position.copy(w.p); B.yaw = w.yaw; B.st = w.kind === 'ground' ? 'forage' : w.sleep ? 'sleep' : 'perch'; B.k = 0; B.T = w.T ?? 8; B.scan = 0.4; },
             flyTo(w) {
-              const air0 = B.at && B.at.kind === 'air';   // đang bay qua điểm trên không (đàn lượn): nối tiếp hướng bay, không cất cánh lại
+              const air0 = B.at && B.at.kind === 'air';
               B.fromAir = air0; B.st = 'fly'; B.k = 0; B.to = w; B.A.copy(root.position); B.Bp.copy(w.p);
               const d = B.A.distanceTo(B.Bp), dir = tmp.subVectors(B.Bp, B.A).setY(0).normalize();
-              B.dur = Math.max(0.9, d / 4.2 + 0.4);
+              B.dur = Math.max(1.3, d / 2.94 + 0.55);
               if (air0) B.c1.copy(B.A).addScaledVector(_q.subVectors(B.A, B.c2).normalize(), 0.33 * d); else B.c1.copy(B.A).addScaledVector(up, 0.3 + 0.1 * d).addScaledVector(dir, 0.25 * d);
               B.c2.copy(B.Bp).addScaledVector(up, (w.kind === 'air' ? 0.05 : 0.25) + 0.08 * d).addScaledVector(dir, -0.22 * d);
             },
-            hopTo(w, dur = 0.35) { B.st = 'shuffle'; B.k = 0; B.to = w; B.A.copy(root.position); B.dur = dur; B.yaw = Math.atan2(w.p.x - B.A.x, w.p.z - B.A.z); },   // nhảy ngắn (que đậu ↔ trong hộp tổ)
+            hopTo(w, dur = 0.35) { B.st = 'shuffle'; B.k = 0; B.to = w; B.A.copy(root.position); B.dur = dur; B.yaw = Math.atan2(w.p.x - B.A.x, w.p.z - B.A.z); },
             update(dt, t) {
               dt = Math.min(dt, 0.05); B.k += dt;
               let flap = 0, legsOut = 1, pitchT = -0.45, wingT = 0, tailST = 0, crouchT = 0, fluffT = 1, tuckT = 0;
               brain.tick(S, dt);
+              if ((B.windT = (B.windT ?? Math.random() * 0.5) - dt) <= 0) { B.windT = 0.5; const p = root.position; windAt(p.x, p.y, p.z, Math.max(0.3, p.y - cowY(p.x, p.z)), _spW); B.wx = _spW.x; B.wz = _spW.z; }
+              const wind = Math.hypot(B.wx || 0, B.wz || 0) * sceneWind.ms / Math.max(0.05, sceneWind.U);
               if (B.st === 'fly') {
                 const u = Math.min(1, B.k / B.dur), s = u * u * (3 - 2 * u), v = (x, o) => { const q = 1 - x; return o.copy(B.A).multiplyScalar(q * q * q).addScaledVector(B.c1, 3 * q * q * x).addScaledVector(B.c2, 3 * q * x * x).addScaledVector(B.Bp, x * x * x); };
                 v(s, _p); v(Math.min(1, s + 0.02), _q);
-                const ph = ((B.k + (S.ph || 0)) % 0.55) / 0.55, bounding = u > 0.18 && u < 0.78, flapping = !bounding || ph < 0.55, air1 = B.to.kind === 'air';   // vỗ – xếp cánh: 0,3 s vỗ rồi 0,25 s gập cánh
+                { const dr = 0.15 * Math.sin(Math.PI * u) * Math.min(1, B.dur / 2); _p.x += (B.wx || 0) * dr; _p.z += (B.wz || 0) * dr; _q.x += (B.wx || 0) * dr; _q.z += (B.wz || 0) * dr; }
+                const ph = ((B.k + (S.ph || 0)) % 0.55) / 0.55, bounding = u > 0.18 && u < 0.78 && wind < 9, flapping = !bounding || ph < 0.55, air1 = B.to.kind === 'air';
                 if (bounding) _p.y += 0.05 * Math.sin(ph * TAU - 0.6) * Math.min(1, (u - 0.18) / 0.1) * Math.min(1, (0.78 - u) / 0.1);
                 root.position.copy(_p);
                 const dx = _q.x - _p.x, dz = _q.z - _p.z, dh = Math.hypot(dx, dz);
@@ -13407,52 +13430,90 @@
                 wingT = flapping ? 1 : 0.15; flap = flapping ? (u < 0.15 ? 16 : u > 0.8 ? 9 : 13) : 0;
                 legsOut = u < 0.12 && !B.fromAir ? 1 - u / 0.12 : u > 0.82 && !air1 ? 1 : 0; tailST = Math.max(flare, u < 0.12 && !B.fromAir ? 0.6 : 0);
                 if (u >= 1) { S.land(B.to); P.crouch.x = 0.6; brain.landed?.(S); }
+              } else if (B.st === 'sally') {
+                const Z = B.sal, tp = Z.toy.at(); Z.k += dt;
+                if (!tp || Z.k > Z.T + 1.5 || (Z.play && Z.k - Z.play > Z.T)) S.flyTo(Z.home);
+                else {
+                  if (!Z.play && Z.k > 0.2 && tp.distanceTo(root.position) < 0.3) Z.play = Z.k;
+                  const a = Z.o + Z.k * 5, goal = _q.copy(tp).add(tmp.set(Math.cos(a) * 0.18, -0.04 + 0.05 * Math.sin(Z.k * 7), Math.sin(a) * 0.18)), d = goal.distanceTo(root.position);
+                  root.position.lerp(goal, Math.min(1, (Z.play ? 6 : 2.4 / Math.max(d, 0.05)) * dt));
+                  const gy = cowY(root.position.x, root.position.z) + 0.12; if (root.position.y < gy) root.position.y = gy;
+                  B.yaw = Math.atan2(tp.x - root.position.x, tp.z - root.position.z); pitchT = -0.35; wingT = 1; flap = 18; legsOut = 0.35; tailST = 0.7;
+                  B.hyT = 0; B.hpT = Math.sin(Z.k * 9) > 0.85 ? 0.9 : 0.1;
+                }
               } else if (B.st === 'shuffle') {
                 const u = Math.min(1, B.k / B.dur); root.position.lerpVectors(B.A, B.to.p, u); root.position.y += Math.sin(Math.PI * u) * 0.04; crouchT = 0.2;
                 if (u >= 1) { S.land(B.to); brain.landed?.(S); }
               } else if (B.st === 'perch' || B.st === 'sleep') {
-                if (B.st === 'sleep') { fluffT = 1.18; tuckT = 1; pitchT = -0.2; legsOut = 0.3; }
-                else {   // ngoái đầu giật cục · vẫy đuôi · thỉnh thoảng rỉa lông
+                if (B.st === 'sleep') {
+                  const h = liveWeather.localHour, wetDay = liveWeather.state.raining && h >= 5.75 && h < 19;
+                  fluffT = wetDay ? 1.15 : 1.18; tuckT = wetDay ? 0.25 : 1; pitchT = -0.2; legsOut = 0.3;
+                  if (wetDay) { if ((B.shakeT = (B.shakeT ?? 3) - dt) <= 0) { B.shakeT = 5 + Math.random() * 8; B.shk = 0.45; } if ((B.hT -= dt) <= 0) { B.hT = 1 + Math.random() * 2.5; B.hyT = (Math.random() - 0.5) * 1.4; B.hpT = -0.1; } }
+                }
+                else {
                   if ((B.hT -= dt) <= 0) { B.hT = 0.3 + Math.random() * 1.2; B.hyT = (Math.random() - 0.5) * 2.4; B.hpT = (Math.random() - 0.5) * 0.6; }
                   if ((B.flick -= dt) <= 0) { B.flick = 2 + Math.random() * 4; P.tailP.v -= 9; }
                   if ((B.preen -= dt) <= 0 && Math.random() < dt * 0.05) B.preen = 1.6;
                   if (B.preen > 0) { B.preen -= dt; B.hyT = 2.2 * Math.sign(B.hyT || 1); B.hpT = 0.5; }
-                  if (B.at && B.at.feed) { B.hyT = 0; B.hpT = 0.55 + 0.25 * Math.sin(t * 9); }   // trong tổ: cúi mớm mồi
+                  if (B.at && B.at.feed) { B.hyT = 0; B.hpT = 0.55 + 0.25 * Math.sin(t * 9); }
                   if (B.k > B.T) brain.next(S);
                 }
-              } else if (B.st === 'forage') {   // nhảy 2 chân · mổ 1–3 cú · ngẩng canh chừng
+              } else if (B.st === 'forage') {
                 pitchT = -0.15; const g = cowY(root.position.x, root.position.z);
-                if (B.hop) {
+                if (!B.bath && !liveWeather.state.raining && sceneWet > 0.3 && (B.bathCd = (B.bathCd ?? 4) - dt) <= 0 && Math.random() < dt * 0.1) { B.bath = 3 + Math.random() * 1.5; B.bathCd = 25 + Math.random() * 30; B.hop = null; B.nPeck = 0; }
+                if (B.bath > 0) {
+                  B.bath -= dt; crouchT = 0.75; pitchT = 0.35; wingT = 0.35; flap = 22; tailST = 0.5; B.hyT = 0; B.hpT = 0.8 + 0.3 * Math.sin(t * 18);
+                  if (B.bath <= 0) { B.bath = 0; B.shk = 0.5; B.scan = 0.6; }
+                } else if (B.hop) {
                   B.hop.k += dt; const q = Math.max(0, Math.min(1, B.hop.k / 0.15));
                   root.position.lerpVectors(B.hop.a, B.hop.b, q); root.position.y = B.hop.a.y + (B.hop.b.y - B.hop.a.y) * q + Math.sin(Math.PI * q) * 0.045;
                   legsOut = 1 - 0.5 * Math.sin(Math.PI * q);
                   if (q >= 1) { B.hop.n--; P.crouch.x = 0.35; if (B.hop.n > 0) { B.hop.a.copy(root.position); B.hop.b.copy(B.hop.a).add(tmp.set(Math.sin(B.yaw), 0, Math.cos(B.yaw)).multiplyScalar(0.07 + Math.random() * 0.06)); B.hop.b.y = cowY(B.hop.b.x, B.hop.b.z); B.hop.k = -0.06; } else { B.hop = null; B.nPeck = 1 + (Math.random() * 3 | 0); B.peck = 0; } }
-                } else if (B.nPeck > 0) {   // mổ: đầu chúc nhanh rồi ngóc
+                } else if (B.nPeck > 0) {
                   B.peck += dt; const q = (B.peck % 0.28) / 0.28; B.hpT = q < 0.3 ? 1.25 : 0.5; B.hyT = 0; pitchT = 0.15; crouchT = 0.25;
                   if (B.peck > 0.28 * B.nPeck) { B.nPeck = 0; B.scan = 0.4 + Math.random() * 1.0; }
-                } else if (B.scan > 0) {   // ngẩng đầu canh chừng, liếc 2 bên
+                } else if (B.scan > 0) {
                   B.scan -= dt; if ((B.hT -= dt) <= 0) { B.hT = 0.25 + Math.random() * 0.4; B.hyT = (Math.random() - 0.5) * 2; B.hpT = -0.2; }
                 } else {
                   B.yaw += (Math.random() - 0.5) * 1.6; const n = 1 + (Math.random() * 3 | 0), a = root.position.clone(), b = a.clone().add(tmp.set(Math.sin(B.yaw), 0, Math.cos(B.yaw)).multiplyScalar(0.08 + Math.random() * 0.06));
                   if (isWater(Math.round(x2gi(b.x)), Math.round(z2gj(b.z))) || cowHutRect && b.x > cowHutRect.x0 && b.x < cowHutRect.x1 && b.z > cowHutRect.z0 && b.z < cowHutRect.z1) B.yaw += Math.PI; else { b.y = cowY(b.x, b.z); B.hop = { a, b, k: -0.07, n }; }
                 }
                 if (!B.hop) root.position.y = g;
-                const e = engObj && !engObj.inVan && engObj.g.parent === scene ? engObj.g.position : null;
-                const near = (e && Math.hypot(e.x - root.position.x, e.z - root.position.z) < 1.3) || (!dogRain.st && Math.hypot(dogObj.position.x - root.position.x, dogObj.position.z - root.position.z) < 1.6);
+                const fl = B.bath ? null : sparrowFlush(root.position), near = fl === 'fly';
+                if (fl === 'hop' && !B.hop) {
+                  const f = sparrowFlush.from; B.yaw = Math.atan2(root.position.x - f.x, root.position.z - f.z); B.nPeck = 0;
+                  const a = root.position.clone(), b2 = a.clone().add(tmp.set(Math.sin(B.yaw), 0, Math.cos(B.yaw)).multiplyScalar(0.14)); b2.y = cowY(b2.x, b2.z); B.hop = { a, b: b2, k: 0, n: 2 };
+                }
                 if (near || B.k > B.T) brain.next(S, near);
+              }
+              if ((B.st === 'perch' || B.st === 'forage') && !B.carry && !B.bath && !(B.at && (B.at.kind === 'nest' || B.at.kind === 'peg' || B.at.kind === 'perchOut'))) {
+                if ((B.toyT = (B.toyT ?? Math.random() * 0.3) - dt) <= 0) { B.toyT = 0.3; B.toy = sparrowToy(root.position, 4); }
+                const tp = B.toy && B.toy.at();
+                if (tp) {
+                  const dx = tp.x - root.position.x, dz = tp.z - root.position.z, dh = Math.hypot(dx, dz); let ry = Math.atan2(dx, dz) - root.rotation.y; ry = Math.atan2(Math.sin(ry), Math.cos(ry));
+                  B.hyT = Math.max(-2.2, Math.min(2.2, ry)); B.hpT = Math.max(-0.7, Math.min(1, -Math.atan2(tp.y - root.position.y - 0.05, dh)));
+                  if (dh < 3 && Math.random() < dt * 0.45) { B.sal = { toy: B.toy, home: B.at, k: 0, T: 0.8 + Math.random() * 0.7, o: Math.random() * TAU, play: 0 }; B.st = 'sally'; B.k = 0; B.toy = null; }
+                }
+              }
+              if (wind > 2.5 && (B.st === 'perch' || B.st === 'sleep' || B.st === 'forage') && B.at && !B.at.local) {
+                const k = Math.min(1, (wind - 2.5) / 4.5), kc = Math.min(1, Math.max(0, (wind - 6) / 6)), wy = Math.atan2(-B.wx, -B.wz);
+                if (B.at.kind === 'wire' || B.at.kind === 'home') { const a = B.at.yaw; B.yaw = Math.abs(Math.atan2(Math.sin(wy - a), Math.cos(wy - a))) < Math.PI / 2 ? a : a + Math.PI; }
+                else if (!B.hop) { let d = wy - B.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); B.yaw += d * Math.min(1, dt * (0.4 + 2 * k)); }
+                crouchT = Math.max(crouchT, 0.35 * kc); fluffT = Math.min(fluffT, 1 - 0.07 * kc);
               }
               B.carry = B.carry && B.st !== 'sleep'; food.visible = B.carry;
               damp(P.pitch, pitchT, 10, dt); damp(P.wing, wingT, 18, dt); damp(P.tailS, tailST, 10, dt); damp(P.fluff, fluffT, 2, dt); damp(P.tuck, tuckT, 1.5, dt); damp(P.legs, legsOut, 12, dt); damp(P.crouch, crouchT, 14, dt);
               damp(P.tailP, 0, 22, dt); damp(P.hy, B.st === 'fly' ? 0 : B.hyT, 30, dt); damp(P.hp, B.st === 'fly' ? 0 : B.hpT, 26, dt);
               let dy = B.yaw - root.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); root.rotation.y += dy * Math.min(1, dt * (B.st === 'fly' ? 10 : 14));
-              bodyP.rotation.x = P.pitch.x; bodyP.position.y = 0.26 - 0.06 * P.crouch.x; bodyP.scale.setScalar(P.fluff.x);
-              const tk = P.tuck.x;   // ngủ: ngoái đầu ra sau, rúc mỏ vào lông vai, nhắm mắt
-              head.rotation.set(-P.pitch.x * 0.7 + P.hp.x * (1 - tk) + 0.35 * tk, P.hy.x * (1 - tk) + 2.7 * tk, 0.25 * Math.sin(t * 0.7) * (1 - tk) * (B.st === 'perch' ? 1 : 0));
+              const shk = B.shk > 0 ? (B.shk -= dt, Math.sin(B.shk * 70) * Math.min(1, B.shk / 0.12)) : 0;
+              bodyP.rotation.x = P.pitch.x; bodyP.rotation.z = 0.28 * shk; bodyP.position.y = 0.26 - 0.06 * P.crouch.x; bodyP.scale.setScalar(P.fluff.x);
+              const tk = P.tuck.x;
+              head.rotation.set(-P.pitch.x * 0.7 + P.hp.x * (1 - tk) + 0.35 * tk, P.hy.x * (1 - tk) + 2.7 * tk + 0.6 * shk, 0.25 * Math.sin(t * 0.7) * (1 - tk) * (B.st === 'perch' ? 1 : 0));
               head.position.set(0, 0.13 - 0.05 * tk, 0.25 - 0.12 * tk); for (const e of eyes) e.visible = tk < 0.5;
               if (flap > 0) B.flapPh += dt * flap * TAU;
               const w = P.wing.x, ph = B.flapPh, up = Math.max(0, -Math.sin(ph));
               qOpen.setFromEuler(_we.set(0, 0.12 + 0.25 * up, 0.17 + 1.2 * Math.cos(ph), 'ZYX'));
-              for (const W of wings) {   // xếp ⇄ xoè: nội suy cầu giữa 2 hướng vai (không đi qua thân)
+              for (const W of wings) {
                 W.sh.quaternion.slerpQuaternions(qFold, qOpen, w);
                 W.wr.rotation.set(0, 0.12 + (0.6 * up - 0.12) * w, -0.22 + (0.3 * Math.sin(ph) + 0.22) * w);
               }
@@ -13469,9 +13530,9 @@
           const W = {
             home: () => ({ p: LG.localToWorld(new THREE.Vector3(0, 2.525, 0.12 + Math.random() * 0.32)), yaw: LY + (Math.random() < 0.5 ? 1 : -1) * Math.PI / 2, kind: 'home', T: 12 + Math.random() * 18 }),
             apple: () => { tree.updateMatrixWorld(true); const A = tree.userData.apples, a = A[(Math.random() * A.length) | 0]; return { p: tree.localToWorld(a.home.clone().add(tmp.set(0, 0.28 * treeS + 0.02, 0))), yaw: Math.random() * TAU, kind: 'apple', T: 6 + Math.random() * 10 }; },
-            roost: () => { tree.updateMatrixWorld(true); return { p: tree.localToWorld(new THREE.Vector3(0.18 * treeS, 1.78 * treeS, 0.08 * treeS)), yaw: Math.random() * TAU, kind: 'roost', sleep: true }; },   // chạc cây sát thân, trong tán
+            roost: () => { tree.updateMatrixWorld(true); return { p: tree.localToWorld(new THREE.Vector3(0.18 * treeS, 1.78 * treeS, 0.08 * treeS)), yaw: Math.random() * TAU, kind: 'roost', sleep: true }; },
             roof: () => ({ p: caravanObj.localToWorld(new THREE.Vector3(2.2 + Math.random() * 0.3, 3.75, 0.95 + Math.random() * 0.2)), yaw: caravanObj.rotation.y + Math.PI + (Math.random() - 0.5), kind: 'roof', T: 6 + Math.random() * 10 }),
-            wire: () => {   // dây pha giữa nhịp cột 1 → cổng néo trạm (Bézier bậc 2 võng 0,3 như world/substation-bess.js)
+            wire: () => {
               const a = gridPoles[0], b = subTie.e, t = 0.35 + Math.random() * 0.3, m = a.clone().lerp(b, 0.5); m.y -= 0.3;
               const p = a.clone().multiplyScalar((1 - t) * (1 - t)).addScaledVector(m, 2 * t * (1 - t)).addScaledVector(b, t * t);
               return { p, yaw: Math.atan2(b.x - a.x, b.z - a.z) + (Math.random() < 0.5 ? 1 : -1) * Math.PI / 2, kind: 'wire', T: 8 + Math.random() * 10 };
@@ -13489,7 +13550,7 @@
           const ROUTE = ['home', 'ground', 'apple', 'roof', 'wire'];
           const bird = makeSparrow({
             tick(S, dt) { const B = S.state; if (!sparrowAwake() && B.st !== 'fly' && B.at && B.at.kind !== 'roost') S.flyTo(W.roost()); else if (sparrowAwake() && B.st === 'sleep') { B.st = 'perch'; B.T = 4 + Math.random() * 4; B.k = 0; } },
-            next(S) { const B = S.state; if (!sparrowAwake()) return; const kind = B.at.kind === 'roost' ? 'home' : ROUTE[(ROUTE.indexOf(B.at.kind) + 1) % ROUTE.length]; S.flyTo(W[kind === 'ground' && Math.random() < 0.4 ? 'apple' : kind]()); }   // "thỉnh thoảng" mới xuống cỏ
+            next(S) { const B = S.state; if (!sparrowAwake()) return; const kind = B.at.kind === 'roost' ? 'home' : ROUTE[(ROUTE.indexOf(B.at.kind) + 1) % ROUTE.length]; S.flyTo(W[kind === 'ground' && Math.random() < 0.4 ? 'apple' : kind]()); }
           });
           bird.land(sparrowAwake() ? W.home() : W.roost());
           return bird;
@@ -13498,24 +13559,24 @@
           const g = new THREE.Group(); g.name = 'Hộp tổ chim sẻ (Nest box)';
           const cv = document.createElement('canvas'); cv.width = cv.height = 128; const c = cv.getContext('2d');
           c.fillStyle = '#c8894b'; c.fillRect(0, 0, 128, 128);
-          for (let k = 0; k < 60; k++) { const x = Math.random() * 128; c.strokeStyle = `rgba(${Math.random() < 0.5 ? '120,70,30' : '230,180,120'},${0.25 + Math.random() * 0.3})`; c.lineWidth = 0.6 + Math.random() * 1.4; c.beginPath(); c.moveTo(x, 0); c.bezierCurveTo(x + 6, 40, x - 6, 90, x + (Math.random() - 0.5) * 8, 128); c.stroke(); }   // vân gỗ dọc ván
+          for (let k = 0; k < 60; k++) { const x = Math.random() * 128; c.strokeStyle = `rgba(${Math.random() < 0.5 ? '120,70,30' : '230,180,120'},${0.25 + Math.random() * 0.3})`; c.lineWidth = 0.6 + Math.random() * 1.4; c.beginPath(); c.moveTo(x, 0); c.bezierCurveTo(x + 6, 40, x - 6, 90, x + (Math.random() - 0.5) * 8, 128); c.stroke(); }
           const tx = new THREE.CanvasTexture(cv); tx.colorSpace = THREE.SRGBColorSpace;
           const wood = new THREE.MeshLambertMaterial({ map: tx, transparent: true, opacity: 0.5, depthWrite: false, side: THREE.DoubleSide });
           const tin = new THREE.MeshLambertMaterial({ color: 0x9aa1a5, transparent: true, opacity: 0.5, depthWrite: false, side: THREE.DoubleSide });
-          const Wd = 0.26, Dp = 0.26, Hh = 0.32, th = 0.02, DROP = 0.62;   // DROP: tâm cành → đáy hộp (hộp treo)
+          const Wd = 0.26, Dp = 0.26, Hh = 0.32, th = 0.02, DROP = 0.62;
           const pnl = (w, h, d, x, y, z, m = wood) => { const o = bx(w, h, d, m, false, true, lineDark); o.position.set(x, y, z); g.add(o); return o; };
-          pnl(Wd + 2 * th, th, Dp, 0, th / 2, 0);   // đáy
-          pnl(th, Hh, Dp, Wd / 2 + th / 2, Hh / 2, 0);   // vách sau
-          for (const s of [-1, 1]) pnl(Wd, Hh, th, 0, Hh / 2, s * (Dp / 2 - th / 2));   // 2 vách bên
-          {   // mặt trước có lỗ tròn Ø 7 cm ở 2/3 chiều cao, đỉnh hồi nhọn
+          pnl(Wd + 2 * th, th, Dp, 0, th / 2, 0);
+          pnl(th, Hh, Dp, Wd / 2 + th / 2, Hh / 2, 0);
+          for (const s of [-1, 1]) pnl(Wd, Hh, th, 0, Hh / 2, s * (Dp / 2 - th / 2));
+          {
             const sh = new THREE.Shape(); sh.moveTo(-Dp / 2, 0); sh.lineTo(Dp / 2, 0); sh.lineTo(Dp / 2, Hh + 0.04); sh.lineTo(0, Hh + 0.09); sh.lineTo(-Dp / 2, Hh + 0.04); sh.closePath();
             const hole = new THREE.Path(); hole.absarc(0, Hh * 0.68, 0.036, 0, TAU, true); sh.holes.push(hole);
             const fg = new THREE.ExtrudeGeometry(sh, { depth: th, bevelEnabled: false, curveSegments: 16 }); fg.rotateY(-Math.PI / 2); fg.translate(-Wd / 2, 0, 0);
             const f = new THREE.Mesh(fg, wood); edge(f, fg, lineDark); g.add(f);
           }
-          for (const s of [-1, 1]) { const r = pnl(Wd + 0.1, 0.012, Dp / 2 + 0.07, 0, Hh + 0.07, s * (Dp / 4 + 0.02), tin); r.rotation.x = s * 0.36; }   // mái tôn 2 mái chữ Λ (mép ngoài thấp, nóc giữa cao) — bản cũ lật dấu thành chữ V
-          const peg = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.08, 6), new THREE.MeshLambertMaterial({ color: 0x7a5232 })); peg.rotation.z = Math.PI / 2; peg.position.set(-Wd / 2 - 0.04, Hh * 0.68 - 0.06, 0); g.add(peg);   // que đậu dưới lỗ
-          const chicks = [-1, 1].map(s => {   // chim non: 2 cục lông xám, mỏ vàng há ra đòi ăn khi bố mẹ vào tổ
+          for (const s of [-1, 1]) { const r = pnl(Wd + 0.1, 0.012, Dp / 2 + 0.07, 0, Hh + 0.07, s * (Dp / 4 + 0.02), tin); r.rotation.x = s * 0.36; }
+          const peg = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.08, 6), new THREE.MeshLambertMaterial({ color: 0x7a5232 })); peg.rotation.z = Math.PI / 2; peg.position.set(-Wd / 2 - 0.04, Hh * 0.68 - 0.06, 0); g.add(peg);
+          const chicks = [-1, 1].map(s => {
             const c0 = new THREE.Group(); c0.position.set(0.065, th, s * 0.05); g.add(c0);
             const b0 = new THREE.Mesh(new THREE.SphereGeometry(0.038, 8, 6), new THREE.MeshLambertMaterial({ color: 0x8f877d })); b0.position.y = 0.035; c0.add(b0);
             const hd = new THREE.Group(); hd.position.set(-0.02, 0.07, 0); c0.add(hd);
@@ -13524,29 +13585,29 @@
             return { hd, bk };
           });
           const piv = new THREE.Group(); scene.add(piv); let YAW = 0;
-          if (hang) {   // điểm treo: cành ngang G khoanh — toạ độ cục bộ cây (−0,548; 5,038; 1,628), hướng cành theo đoạn (−0,52; 5,04; 1,59) → (−0,64; 5,02; 1,77)
+          if (hang) {
             const steel = new THREE.MeshLambertMaterial({ color: 0x6d7175 });
-            const eye = new THREE.Mesh(new THREE.TorusGeometry(0.014, 0.003, 4, 10), steel); eye.position.y = Hh + 0.135; g.add(eye);   // khoen nóc mái
+            const eye = new THREE.Mesh(new THREE.TorusGeometry(0.014, 0.003, 4, 10), steel); eye.position.y = Hh + 0.135; g.add(eye);
             const wire = new THREE.Mesh(new THREE.CylinderGeometry(0.0025, 0.0025, DROP - 0.04 - (Hh + 0.145), 4), steel); wire.position.y = (DROP - 0.04 + Hh + 0.145) / 2; g.add(wire);
             const tree = appleTrees[1] || appleTrees[0]; tree.updateMatrixWorld(true); piv.name = 'Móc treo hộp tổ'; tree.localToWorld(piv.position.set(-0.548, 5.038, 1.628));
             const bDir = tree.localToWorld(new THREE.Vector3(-0.64, 5.02, 1.77)).sub(tree.localToWorld(new THREE.Vector3(-0.52, 5.04, 1.59))).normalize();
             const hook = new THREE.Mesh(new THREE.TorusGeometry(0.038, 0.0035, 4, 14, 4.4), steel); hook.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), bDir); hook.rotateZ(-0.6); piv.add(hook);
-            YAW = 1.885; g.position.y = -DROP;   // lỗ tổ quay về hướng G nhìn
-          } else {   // bắt vách tây chuồng bò: lưng hộp tựa thanh giằng vách (x = −W/2 − 0,13), lỗ quay sang tây, đáy cao 1,85 m, lùi 0,55 m khỏi góc sau
-            pnl(0.02, Hh + 0.26, 0.12, Wd / 2 + th + 0.012, Hh / 2 + 0.06, 0, new THREE.MeshLambertMaterial({ color: 0x6e5236 }));   // ván lót lưng vít vào giằng vách
+            YAW = 1.885; g.position.y = -DROP;
+          } else {
+            pnl(0.02, Hh + 0.26, 0.12, Wd / 2 + th + 0.012, Hh / 2 + 0.06, 0, new THREE.MeshLambertMaterial({ color: 0x6e5236 }));
             piv.name = 'Hộp tổ vách chuồng bò'; piv.position.set(cowHut.x - cowHut.W / 2 - 0.13 - 0.035 - Wd / 2 - th, cowHut.y + 1.85, cowHut.z - cowHut.D / 2 + 0.55);
           }
           g.rotation.y = YAW; piv.add(g);
           piv.traverse(o => { if (o.isMesh || o.isLineSegments) o.userData.noBatch = true; });
           const sw = { x: 0, z: 0, vx: 0, vz: 0 }, _w = new THREE.Vector3(), base = piv.position.clone();
-          const fy = a => Math.atan2(Math.cos(YAW) * a, -Math.sin(YAW) * a);   // hướng chim nhìn theo trục x cục bộ hộp (±1)
+          const fy = a => Math.atan2(Math.cos(YAW) * a, -Math.sin(YAW) * a);
           const W = (lp, yaw, kind, o) => { piv.updateMatrixWorld(true); return { p: g.localToWorld(lp.clone()), local: lp, yaw, kind, ...o }; };
           return {
             g, piv, chicks, pos: base,
             peg: () => W(new THREE.Vector3(-Wd / 2 - 0.055, Hh * 0.68 - 0.055, 0), fy(1), 'peg', { T: 0.6 + Math.random() * 0.6 }),
             inside: (i, sleep) => W(new THREE.Vector3(-0.045, th, (i ? 1 : -1) * 0.06), fy(-1), 'nest', { feed: !sleep, sleep, T: 3 + Math.random() * 3 }),
             kick(v) { if (!hang) return; const a = Math.random() * TAU; sw.vx += v * Math.cos(a); sw.vz += v * Math.sin(a); },
-            update(dt) {   // hộp treo: con lắc 2 trục — dây + hộp ≈ 0,8 m tới trọng tâm (ω₀ ≈ 3,5 rad/s), tắt dần ζ 0,08; gió đẩy theo |u|·u
+            update(dt) {
               if (!hang) return;
               windAt(base.x, base.y, base.z, 4.5, _w);
               const w0 = 3.5, k = 0.03, ex = k * Math.abs(_w.x) * _w.x, ez = k * Math.abs(_w.z) * _w.z;
@@ -13566,13 +13627,13 @@
               if (!sparrowAwake()) { if (!B.at || B.at.kind === 'ground' || B.at.kind === 'perchOut') S.flyTo(box.peg()); else if (B.at.kind === 'peg') S.hopTo(box.inside(i, true)); else if (B.at.kind === 'nest' && !B.at.sleep) S.land(box.inside(i, true)); }
               else if (B.st === 'sleep') { B.st = 'perch'; B.at = box.inside(i, false); B.T = 2 + Math.random() * 6; B.k = 0; }
             },
-            landed(S) { if (S.state.at.kind === 'peg') box.kick(0.12); },   // chim đáp que đậu: hộp treo lắc nhẹ
+            landed(S) { if (S.state.at.kind === 'peg') box.kick(0.12); },
             next(S, flushed) {
               const B = S.state; if (!sparrowAwake()) return;
-              if (B.at.kind === 'ground') { if (!flushed || Math.random() < 0.5) B.carry = !flushed; S.flyTo(box.peg()); }   // kiếm được mồi → ngậm về tổ
+              if (B.at.kind === 'ground') { if (!flushed || Math.random() < 0.5) B.carry = !flushed; S.flyTo(box.peg()); }
               else if (B.at.kind === 'peg') S.hopTo(box.inside(i, false));
               else if (B.at.kind === 'nest') { B.carry = false; S.hopTo({ ...box.peg(), kind: 'perchOut', T: 0.4 }); }
-              else {   // từ que đậu bay ra bãi bò kiếm mồi (quanh 1 con bò, tránh chuồng và nước; cây táo cách bãi bò ~25–50 m — trong tầm kiếm ăn của chim sẻ)
+              else {
                 for (let k = 0; k < 20; k++) {
                   const cw = cows[(Math.random() * cows.length) | 0], a = Math.random() * TAU, r = 1.2 + Math.random() * 2.5, x = cw.x + Math.cos(a) * r, z = cw.z + Math.sin(a) * r;
                   if (isWater(Math.round(x2gi(x)), Math.round(z2gj(z))) || (cowHutRect && x > cowHutRect.x0 && x < cowHutRect.x1 && z > cowHutRect.z0 && z < cowHutRect.z1) || Math.hypot(x - box.pos.x, z - box.pos.z) > 70) continue;
@@ -13592,21 +13653,21 @@
           const okGround = (x, z) => { const i = Math.round(x2gi(x)), j = Math.round(z2gj(z)); return i > 3 && j > 3 && i < GX - 3 && j < GZ - 3 && !isWater(i, j) && !obstacleCoords.some(o => Math.hypot(x - o.x, z - o.z) < o.r + 0.5)
             && !(cowHutRect && x > cowHutRect.x0 - 1 && x < cowHutRect.x1 + 1 && z > cowHutRect.z0 - 1 && z < cowHutRect.z1 + 1) && !(engObj && Math.hypot(x - engObj.g.position.x, z - engObj.g.position.z) < 6); };
           const roostTree = treeCoords.reduce((a, t) => Math.hypot(t.x - pf.x, t.z - pf.z) < Math.hypot(a.x - pf.x, a.z - pf.z) ? t : a, treeCoords[0]);
-          const spots = (kind) => {   // 5 chỗ đáp cho cả đàn
+          const spots = (kind) => {
             if (kind === 'ground') {
-              const c = birds[0].root.position;
-              for (let k = 0; k < 40; k++) { const a = rnd() * TAU, r = 8 + rnd() * 30, x = c.x + Math.cos(a) * r, z = c.z + Math.sin(a) * r; if (!okGround(x, z)) continue;
+              const cw = rnd() < 0.3 && cows.length ? cows[(rnd() * cows.length) | 0] : null, c = cw ? _v.set(cw.x, 0, cw.z) : birds[0].root.position;
+              for (let k = 0; k < 40; k++) { const a = rnd() * TAU, r = cw ? 1.5 + rnd() * 2 : 8 + rnd() * 30, x = c.x + Math.cos(a) * r, z = c.z + Math.sin(a) * r; if (!okGround(x, z)) continue;
                 return birds.map((b, i) => { const aa = i * 1.26 + rnd() * 0.6, rr = 0.25 + 0.6 * rnd(), px = x + Math.cos(aa) * rr, pz = z + Math.sin(aa) * rr; return { p: new THREE.Vector3(px, cowY(px, pz), pz), yaw: rnd() * TAU, kind: 'ground', T: 1e9 }; }); }
               return spots('wire');
             }
-            if (kind === 'wire') {   // dây pha giữa nhịp cột 1 → cổng néo trạm (như con chim ở trại), cả đàn đậu thành hàng
+            if (kind === 'wire') {
               const a = gridPoles[0], b = subTie.e, m = a.clone().lerp(b, 0.5); m.y -= 0.3; const L = a.distanceTo(b), t0 = 0.3 + 0.4 * rnd();
               return birds.map((_, i) => { const t = t0 + (i - 2) * (0.2 + 0.04 * rnd()) / L; return { p: a.clone().multiplyScalar((1 - t) * (1 - t)).addScaledVector(m, 2 * t * (1 - t)).addScaledVector(b, t * t), yaw: Math.atan2(b.x - a.x, b.z - a.z) + Math.PI / 2 + (rnd() < 0.3 ? Math.PI : 0), kind: 'wire', T: 1e9 }; });
             }
-            const T = roostTree, ts = T.s || 2, H = ts * NATURE_SCALE * 3.7;   // ngủ trong tán, sát thân
+            const T = roostTree, ts = T.s || 2, H = ts * NATURE_SCALE * 3.7;
             return birds.map((_, i) => { const a = i * 1.26 + rnd(), r = 0.25 + 0.5 * rnd() * ts * NATURE_SCALE; return { p: new THREE.Vector3(T.x + Math.cos(a) * r, T.y + (0.62 + 0.2 * rnd()) * H, T.z + Math.sin(a) * r), yaw: rnd() * TAU, kind: 'roost', sleep: true }; });
           };
-          function depart(kind, play) {   // xếp lộ trình từng con: (vòng lượn chung) → chỗ đáp riêng; lệch giờ cất cánh
+          function depart(kind, play) {
             const S = spots(kind), loop = [];
             if (play) { const c = _v.copy(birds[0].root.position).lerp(S[2].p, 0.5), R = 5 + rnd() * 4, h = Math.max(c.y, S[2].p.y) + 3 + rnd() * 3, a0 = rnd() * TAU, n = 5 + ((rnd() * 3) | 0);
               for (let k = 0; k < n; k++) { const a = a0 + k / n * TAU * 1.1; loop.push([c.x + Math.cos(a) * R, h + Math.sin(k * 1.7) * 0.8, c.z + Math.sin(a) * R]); } }
@@ -13622,7 +13683,7 @@
             if (!busy) {
               F.T -= dt;
               if (!awake && !F.night) { F.night = true; depart('roost', false); }
-              else if (awake && (F.night || F.T <= 0)) {   // dậy / tới lúc đổi chỗ / bị hoảng: cả đàn đi
+              else if (awake && (F.night || F.T <= 0)) {
                 F.night = false; const g = F.stage++ % 2 === 0; depart(g ? 'wire' : 'ground', rnd() < 0.5); F.T = g ? 12 + rnd() * 13 : 20 + rnd() * 20;
               }
             }
@@ -13630,16 +13691,17 @@
           } };
         })();
         function updateSparrows(dt, t) {
+          sparrowAnimTick(dt);
           for (const box of nestBoxes) { box.update(dt); box.piv.updateMatrixWorld(true); }
           songbird.update(dt, t); flock.update(dt, t);
           nestPairs.forEach((pair, n) => {
             const box = nestBoxes[n];
             for (const b of pair) {
               b.update(dt, t); const B = b.state;
-              if (B.at && B.at.local && (B.st === 'perch' || B.st === 'sleep')) box.g.localToWorld(b.root.position.copy(B.at.local));   // đậu que / trong hộp: theo hộp đung đưa
+              if (B.at && B.at.local && (B.st === 'perch' || B.st === 'sleep')) box.g.localToWorld(b.root.position.copy(B.at.local));
             }
             const k = pair.some(b => b.state.at && b.state.at.kind === 'nest' && b.state.at.feed && b.state.st === 'perch') ? 1 : 0;
-            box.chicks.forEach((c, i) => {   // chim non: bố mẹ vào tổ thì ngóc đầu, há mỏ, lắc; bình thường thu lu lim dim
+            box.chicks.forEach((c, i) => {
               c.hd.position.y = 0.07 + 0.03 * k + 0.008 * k * Math.sin(t * 14 + i * 2 + n); c.hd.rotation.z = -0.5 * k + 0.12 * k * Math.sin(t * 11 + i + n);
               c.bk.scale.set(1, 1 + 0.6 * k, 1 + 0.6 * k);
             });
@@ -13647,7 +13709,7 @@
         }
         const labelGroup = new THREE.Group(); scene.add(labelGroup);
         function rr(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
-        const annotationLabelScale = 0.65; // Same text size as the Gia Lai weather label.
+        const annotationLabelScale = 0.65;
         function addLabel(text, dot, pos, to, dynamic = false, labelScale = annotationLabelScale) {
           const c = document.createElement('canvas'), f = '600 46px Inter, system-ui, Arial', pad = 92, h = 108, k = 0.052 * labelScale;
           const measure = c.getContext('2d'); measure.font = f;
@@ -13741,9 +13803,9 @@
         const rooftopLabelPosition = rooftopLabelTo.clone().add(new THREE.Vector3(0, 10 + 108 * 0.052 * annotationLabelScale / 2, 0));
         const rooftopLabel = addLabel('Điện mặt trời áp mái', '#c98a3a', rooftopLabelPosition, rooftopLabelTo);
 
-        const mastLabelTo = wmini.g.localToWorld(wmini.top.clone());   // nhãn khí tượng neo vào trạm mini
-        const mastLabelScale = annotationLabelScale * 0.5;   // thẻ khí tượng: chữ nhỏ còn 1/2
-        const mastLeaderLength = (20 - 108 * 0.052 / 2) * 0.25 * 0.5;   // đường dẫn ngắn còn 1/2
+        const mastLabelTo = wmini.g.localToWorld(wmini.top.clone());
+        const mastLabelScale = annotationLabelScale * 0.5;
+        const mastLeaderLength = (20 - 108 * 0.052 / 2) * 0.25 * 0.5;
         const mastLabelPosition = mastLabelTo.clone().add(new THREE.Vector3(0, mastLeaderLength + 118 * 0.052 * mastLabelScale / 2, 0));
         mastLabel = addMastWeatherCard(mastLabelPosition, mastLabelTo, mastLabelScale);
         const unsubscribeMastWeather = window.gardenWeather.subscribe(updateMastReadout);
@@ -13752,7 +13814,7 @@
         let theta = Math.PI * 0.27, phi = 0.9, tTheta = theta, tPhi = phi, radius = 400, autoRotate = true;
         const target = new THREE.Vector3(0, 5, 0);
         const keys = {};
-        listen(window, 'keydown', e => { if (e.target && (['INPUT', 'SELECT', 'TEXTAREA', 'BUTTON'].includes(e.target.tagName) || e.target.isContentEditable)) return; if (['w', 'a', 's', 'd', 'W', 'A', 'S', 'D', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) keys[e.key.toLowerCase()] = true; });   // đang gõ ô nhập X/Y/Z (panel Chọn) → không pan camera
+        listen(window, 'keydown', e => { if (e.target && (['INPUT', 'SELECT', 'TEXTAREA', 'BUTTON'].includes(e.target.tagName) || e.target.isContentEditable)) return; if (['w', 'a', 's', 'd', 'W', 'A', 'S', 'D', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) keys[e.key.toLowerCase()] = true; });
         listen(window, 'keyup', e => { if (['w', 'a', 's', 'd', 'W', 'A', 'S', 'D', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) keys[e.key.toLowerCase()] = false; });
         listen(document.getElementById('weather-city'), 'focus', () => { for (const key in keys) keys[key] = false; });
         const dom = renderer.domElement;
@@ -13820,11 +13882,11 @@
         const bP = document.getElementById('btnPick'), pickPanel = document.getElementById('pickPanel'), pickBody = document.getElementById('pickBody'), pickTitle = document.getElementById('pickTitle');
         const pickEditRow = document.getElementById('pickEditRow'), pickXIn = document.getElementById('pickX'), pickYIn = document.getElementById('pickY'), pickZIn = document.getElementById('pickZ');
         let pickMode = false, pickDownX = 0, pickDownY = 0, pickTarget = null;
-        const pickRay = new THREE.Raycaster(); pickRay.layers.enableAll();   // mảnh hình đã gộp vẽ nằm ở lớp ẩn HIDE_LAYER — vẫn chọn được
+        const pickRay = new THREE.Raycaster(); pickRay.layers.enableAll();
         const pickBox = new THREE.Box3Helper(new THREE.Box3(), 0xff2d55); pickBox.visible = false; pickBox.renderOrder = 30; scene.add(pickBox);
         function clearPickHighlight() { pickBox.visible = false; pickPanel.style.display = 'none'; pickEditRow.style.display = 'none'; pickTarget = null; }
         function fmtN(n) { return (Math.round(n * 1000) / 1000).toString(); }
-        function worldBoxOf(obj, instanceId) {   // Box3 thế giới của mesh (hoặc đúng 1 instance riêng) — dùng vẽ khung viền đỏ
+        function worldBoxOf(obj, instanceId) {
           const box = new THREE.Box3();
           if (obj.isInstancedMesh && instanceId != null) {
             if (!obj.geometry.boundingBox) obj.geometry.computeBoundingBox();
@@ -13919,7 +13981,7 @@
         const caravanRole = o => { for (let p = o; p && p !== scene; p = p.parent) if (p.userData.xray) return p.userData.xray; return ''; };
         const caravanShell = [];
         caravanObj.traverse(o => { if (o.isMesh && caravanRole(o) === 'shell') caravanShell.push(o); });
-        const shellHidden = new THREE.MeshBasicMaterial({ visible: false });   // ẩn mặt nhưng nét viền con vẫn vẽ, và vẫn bấm trúng được
+        const shellHidden = new THREE.MeshBasicMaterial({ visible: false });
         let caravanXray = false;
         function setCaravanXray(on) {
           if (on === caravanXray) return;
@@ -13936,7 +13998,7 @@
           setCaravanXray(pickRay.intersectObject(caravanObj, true).length > 0 ? !caravanXray : false);
         });
         const pickCopyBtn = document.getElementById('pickCopy'), pickCloseBtn = document.getElementById('pickClose');
-        function copyFallback(txt) {   // execCommand dự phòng khi Clipboard API bị chặn (mở file cục bộ file://, không có HTTPS)
+        function copyFallback(txt) {
           const ta = document.createElement('textarea'); ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta);
           ta.focus(); ta.select(); let ok = false; try { ok = document.execCommand('copy'); } catch (e) { ok = false; } document.body.removeChild(ta); return ok;
         }
@@ -13959,7 +14021,7 @@
           clock.stop();
         }
         function resumeScene() {
-          if (disposed || document.hidden || offscreen || !suspended) return;   // khung 3D bị cuộn khuất (nhúng Wix) thì giữ nghỉ
+          if (disposed || document.hidden || offscreen || !suspended) return;
           suspended = false;
           const elapsed = clock.elapsedTime; clock.start(); clock.elapsedTime = elapsed;
           frameId = requestAnimationFrame(loop);
@@ -13971,7 +14033,7 @@
           releaseScene();
         }
         listen(document, 'visibilitychange', () => document.hidden ? pauseScene() : resumeScene());
-        if ('IntersectionObserver' in window) {   // khung 3D ra khỏi màn hình (người xem cuộn trang) → dừng vẽ, tiết kiệm GPU/CPU; cuộn vào lại → chạy tiếp
+        if ('IntersectionObserver' in window) {
           viewObserver = new IntersectionObserver(entries => { offscreen = !entries[entries.length - 1].isIntersecting; if (offscreen) pauseScene(); else resumeScene(); }, { threshold: 0 });
           viewObserver.observe(container);
         }
@@ -13979,17 +14041,17 @@
         listen(window, 'pageshow', resumeScene);
         window.__disposeGarden = destroyGarden;
         let started = false;
-        window.__info = () => renderer.info.render;   // đầu dò hiệu năng: __info().calls = draw call/frame · .triangles
-        scene.add(sun.target);   // đích nắng di chuyển theo vùng nhìn → phải nằm trong cảnh để ma trận được cập nhật
+        window.__info = () => renderer.info.render;
+        scene.add(sun.target);
         const _cuX = new THREE.Vector3(), _cuY = new THREE.Vector3(), _cuZ = new THREE.Vector3(), _cuC = new THREE.Vector3(), _cuUp = new THREE.Vector3(0, 1, 0);
         let cuR = 116;
         function fitSunShadow() {
           const hx = (camera.right - camera.left) / 2 / camera.zoom, hy = (camera.top - camera.bottom) / 2 / camera.zoom;
-          camera.getWorldDirection(_cuX); const se = Math.max(0.12, -_cuX.y);   // vùng đất trong khung nhìn dài thêm 1/sin(góc chúc) theo hướng nhìn
-          const want = Math.min(116, Math.max(8, 1.15 * Math.hypot(hx, hy / se) + 3));   // + lề cho bóng của vật cao đứng ngoài khung
+          camera.getWorldDirection(_cuX); const se = Math.max(0.12, -_cuX.y);
+          const want = Math.min(116, Math.max(8, 1.15 * Math.hypot(hx, hy / se) + 3));
           const R = 116 / Math.pow(1.25, Math.floor(Math.log(116 / want) / Math.log(1.25)));
           _cuZ.copy(sun.position).sub(sun.target.position).normalize();
-          _cuX.crossVectors(_cuUp, _cuZ); if (_cuX.lengthSq() < 1e-8) _cuX.set(1, 0, 0); _cuX.normalize(); _cuY.crossVectors(_cuZ, _cuX);   // trục máy chụp bóng (như lookAt)
+          _cuX.crossVectors(_cuUp, _cuZ); if (_cuX.lengthSq() < 1e-8) _cuX.set(1, 0, 0); _cuX.normalize(); _cuY.crossVectors(_cuZ, _cuX);
           const tx = 2 * R / sun.shadow.mapSize.x, cx = target.dot(_cuX), cy = target.dot(_cuY);
           _cuC.copy(target).addScaledVector(_cuX, Math.round(cx / tx) * tx - cx).addScaledVector(_cuY, Math.round(cy / tx) * tx - cy);
           sun.target.position.copy(_cuC); sun.position.copy(_cuC).addScaledVector(_cuZ, 150);
@@ -13999,7 +14061,7 @@
           }
         }
         const closeLod = [];
-        function lodBuild(g, k) {   // dựng lại hình gốc với số cạnh ×k (k = 1: bản y hệt để kiểm tra hình còn nguyên như lúc tạo)
+        function lodBuild(g, k) {
           const P = g.parameters, s = n => k === 1 ? n : Math.min(48, Math.max(24, n * k));
           if (!P) return null;
           switch (g.type) {
@@ -14020,7 +14082,7 @@
             const ref = lodBuild(g, 1); if (!ref) return;
             const a = g.attributes.position, b = ref.attributes.position; let same = a.count === b.count && !!g.index === !!ref.index;
             for (let i = 0; same && i < a.array.length; i++) if (Math.abs(a.array[i] - b.array[i]) > 1e-5) same = false;
-            ref.dispose(); if (!same) return;   // hình đã bị xoay/dời/sửa đỉnh sau khi tạo → không dựng lại được đúng
+            ref.dispose(); if (!same) return;
             g.computeBoundingSphere(); closeLod.push({ o, lo: g, hi: null, r: g.boundingSphere.radius, on: false }); o.userData.lodHi = false;
           });
         }
@@ -14028,7 +14090,7 @@
         for (const o of scene.children) if (o.name && ['Ghế câu cá', 'Ghế cắm trại', 'Bếp lửa trại', 'Bàn trà', 'Giá treo nồi', 'Ấm reo', 'Cần câu để dưới đất', 'Xô nhỏ', 'Đống củi', 'Khúc gỗ đứng'].some(p => o.name.startsWith(p))) registerCloseLod(o);
         let lodPpu = -1;
         function updateCloseLod() {
-          const ppu = renderer.domElement.height * camera.zoom / (camera.top - camera.bottom);   // điểm ảnh / đv thế giới
+          const ppu = renderer.domElement.height * camera.zoom / (camera.top - camera.bottom);
           if (Math.abs(ppu - lodPpu) < 1e-3 * ppu) return; lodPpu = ppu;
           for (const L of closeLod) {
             const px = L.r * L.o.matrixWorld.getMaxScaleOnAxis() * ppu, on = L.on ? px > 9 : px > 13;
@@ -14038,13 +14100,13 @@
           }
         }
         const DRES = { max: renderer.getPixelRatio(), min: Math.max(0.6, renderer.getPixelRatio() * 0.5), last: 0, ema: 0, slow: 0, fast: 0, hold: 2, test: null };
-        function adaptResolution(ts) {   // ts: mốc thời gian rAF (khung do __dbg.frames() gọi thẳng thì không có → bỏ qua)
+        function adaptResolution(ts) {
           const D = DRES, ms = D.last ? ts - D.last : 0; D.last = ts;
-          if (window.__resLock || !(ms > 0) || ms > 250) return;   // khung đầu / vừa quay lại tab
+          if (window.__resLock || !(ms > 0) || ms > 250) return;
           D.ema = D.ema ? D.ema + (ms - D.ema) * 0.08 : ms;
           const s = ms / 1000; if (D.hold > 0) { D.hold -= s; return; }
           const pr = renderer.getPixelRatio();
-          if (D.test) {   // vừa hạ: phải nhanh lên ≥ 8% mới giữ
+          if (D.test) {
             if ((D.test.t -= s) > 0) return;
             if (D.ema > D.test.ema * 0.92) { renderer.setPixelRatio(D.test.pr); D.hold = 60; D.ema = 0; }
             D.test = null; return;
@@ -14069,7 +14131,7 @@
           if (!m || !m.visible || !m.color || m.onBeforeCompile !== _defBeforeCompile || (m.transparent && !isLine)) return false;
           if (isLine ? !m.isLineBasicMaterial || m.isLineDashedMaterial : !(m.isMeshLambertMaterial || m.isMeshPhongMaterial || m.isMeshStandardMaterial || m.isMeshBasicMaterial || m.isMeshToonMaterial)) return false;
           if (!isLine && m.wireframe) return false;
-          return !(m.emissive && m.emissive.r + m.emissive.g + m.emissive.b > 0);   // vật phát sáng (đèn, than hồng) thường đổi cường độ lúc chạy
+          return !(m.emissive && m.emissive.r + m.emissive.g + m.emissive.b > 0);
         }
         function batchable(o) {
           if (!(o.isMesh || o.isLine) || o.isInstancedMesh || o.isSkinnedMesh || o.isBatchedMesh || o.isLineLoop || o.isSprite) return false;
@@ -14087,7 +14149,7 @@
           if (!o.userData.batched && batchable(o)) out.push(o);
           for (const c of o.children) collectBatchParts(c, out);
         }
-        class SkinnedLines extends THREE.LineSegments {   // nét viền dùng chung cơ chế skinning của renderer (shader 'basic' đã có sẵn đoạn skinning)
+        class SkinnedLines extends THREE.LineSegments {
           constructor(geometry, material, skeleton) {
             super(geometry, material);
             this.isSkinnedMesh = true; this.skeleton = skeleton; this.bindMode = 'attached';
@@ -14096,8 +14158,8 @@
         }
         const _bIdentity = new THREE.Matrix4(), _bNrm = new THREE.Vector3(), _bPos = new THREE.Vector3(), _bBox = new THREE.Box3(), _bTmp = new THREE.Box3(), _bM = new THREE.Matrix4(), _bN3 = new THREE.Matrix3();
         const unorm16 = x => Math.round(Math.min(1, Math.max(0, x)) * 65535);
-        function freeAfterUpload() { this.array = null; }   // đã nằm trên GPU → bỏ bản sao trong RAM (dựng lại khi mất ngữ cảnh WebGL)
-        function buildBatchGeometry(recs, isLine, withUv, skeleton) {   // rec = 1 mảnh (hoặc 1 nhóm mặt của mảnh đa vật liệu) · xương dùng chung cả nhóm
+        function freeAfterUpload() { this.array = null; }
+        function buildBatchGeometry(recs, isLine, withUv, skeleton) {
           let nv = 0, ni = 0;
           for (const r of recs) {
             const g = r.o.geometry, n = g.attributes.position.count;
@@ -14115,7 +14177,7 @@
             let N = g.attributes.normal;
             if (!isLine && !N && !m.isMeshBasicMaterial) { const tmp = g.clone(); tmp.computeVertexNormals(); N = tmp.attributes.normal; }
             const C = m.vertexColors && g.attributes.color, U = withUv ? g.attributes.uv : null, cr = m.color.r, cg = m.color.g, cb = m.color.b;
-            for (let i = 0; i < n; i++) {   // cả bộ đỉnh của hình (nhóm mặt chỉ chọn tam giác) — đỉnh thừa không vẽ
+            for (let i = 0; i < n; i++) {
               const v = v0 + i;
               _bPos.fromBufferAttribute(P, i); if (L) _bPos.applyMatrix4(L);
               pos[v * 3] = _bPos.x; pos[v * 3 + 1] = _bPos.y; pos[v * 3 + 2] = _bPos.z;
@@ -14125,9 +14187,9 @@
               sIdx[v * 4] = sIdx[v * 4 + 1] = sIdx[v * 4 + 2] = sIdx[v * 4 + 3] = bi; sW[v * 4] = 255;
             }
             const I = g.index;
-            if (isLine && !o.isLineSegments) { for (let i = 0; i < n - 1; i++) { idx[k++] = v0 + i; idx[k++] = v0 + i + 1; } }   // dây Line liền → các đoạn rời
+            if (isLine && !o.isLineSegments) { for (let i = 0; i < n - 1; i++) { idx[k++] = v0 + i; idx[k++] = v0 + i + 1; } }
             else {
-              const flip = !isLine && m.side !== THREE.DoubleSide && o.matrixWorld.determinant() < 0;   // mảnh soi gương (scale âm) → đảo chiều tam giác
+              const flip = !isLine && m.side !== THREE.DoubleSide && o.matrixWorld.determinant() < 0;
               for (let i = r.start, e = r.start + r.count; i < e; i += isLine ? 2 : 3) {
                 const a = I ? I.getX(i) : i, b = I ? I.getX(i + 1) : i + 1;
                 if (isLine) { idx[k++] = v0 + a; idx[k++] = v0 + b; continue; }
@@ -14146,7 +14208,7 @@
           geo.setAttribute('skinIndex', new THREE.BufferAttribute(sIdx, 4));
           geo.setAttribute('skinWeight', new THREE.BufferAttribute(sW, 4, true));
           geo.setIndex(new THREE.BufferAttribute(k === ni ? idx : idx.slice(0, k), 1));
-          const sphere = _bBox.getBoundingSphere(new THREE.Sphere()); sphere.radius += 50;   // vật còn đi lại → nới rộng (chỉ dùng xếp thứ tự vẽ)
+          const sphere = _bBox.getBoundingSphere(new THREE.Sphere()); sphere.radius += 50;
           geo.boundingSphere = sphere; geo.boundingBox = _bBox.clone().expandByScalar(50);
           for (const a of Object.values(geo.attributes)) a.onUpload(freeAfterUpload);
           geo.index.onUpload(freeAfterUpload);
@@ -14166,32 +14228,32 @@
           mesh.userData.batchSrc = { recs, isLine, withUv, skeleton };
           return mesh;
         }
-        listen(renderer.domElement, 'webglcontextrestored', () => {   // GPU mất rồi có lại ngữ cảnh: dựng lại bộ đệm từ các mảnh gốc (bản RAM đã bỏ)
+        listen(renderer.domElement, 'webglcontextrestored', () => {
           for (const b of drawBatches) for (const m of b.meshes) { const S = m.userData.batchSrc, old = m.geometry; m.geometry = buildBatchGeometry(S.recs, S.isLine, S.withUv, S.skeleton); old.dispose(); }
         });
         function batchEject(c) { c.state = 2; c.o.layers.set(0); return 2; }
-        function batchCtlState(c) {   // trạng thái 1 mảnh gốc: 0 trong lô · 1 tạm tự vẽ · 2 tách hẳn
+        function batchCtlState(c) {
           if (c.state === 2) return 2;
           const o = c.o;
           let own = o.material !== c.mref;
-          if (o.geometry !== c.geo) { if (!o.userData.lodHi) return batchEject(c); own = true; }   // đang dùng bản nhiều cạnh cận cảnh (loop/close-up.js): tạm tự vẽ, lùi xa trả về lô
+          if (o.geometry !== c.geo) { if (!o.userData.lodHi) return batchEject(c); own = true; }
           else if (c.geo.attributes.position.version !== c.ver) return batchEject(c);
           for (let i = 0; i < c.mats.length; i++) {
             const m = c.mats[i], s = c.snap[i];
             if (m.version !== s.v || m.color.r !== s.r || m.color.g !== s.g || m.color.b !== s.b || m.opacity !== s.op) return batchEject(c);
-            if (m.transparent !== s.tr || m.visible !== s.vis) own = true;   // bật trong suốt / ẩn riêng 1 vật liệu → mảnh gốc tự vẽ cho đúng
+            if (m.transparent !== s.tr || m.visible !== s.vis) own = true;
           }
           if (own !== (c.state === 1)) { c.state = own ? 1 : 0; o.layers.set(own ? 0 : HIDE_LAYER); }
           return c.state;
         }
-        function batchSkeletonUpdate() {   // this = Skeleton dùng chung cả nhóm · renderer gọi 1 lần/khung SAU khi đã cập nhật ma trận thế giới
+        function batchSkeletonUpdate() {
           const bones = this.batchBones, M = this.boneMatrices; let dirty = false;
           for (let i = 0, n = bones.length; i < n; i++) {
             const B = bones[i], o = B.o, b = i * 16;
             let show = batchCtlState(B) === 0;
             if (show) for (let p = o; ; p = p.parent) { if (!p || !p.visible) { show = false; break; } if (p === scene) break; }
             if (show) {
-              const e = o.matrixWorld.elements, last = B.inv ? B.lw : M, base = B.inv ? 0 : b;   // mảnh đã nướng co giãn: so với ma trận thế giới lần trước
+              const e = o.matrixWorld.elements, last = B.inv ? B.lw : M, base = B.inv ? 0 : b;
               let ch = B.hid !== false;
               if (!ch) for (let q = 0; q < 16; q++) if (last[base + q] !== Math.fround(e[q])) { ch = true; break; }
               if (ch) {
@@ -14200,7 +14262,7 @@
                 B.hid = false; dirty = true;
               }
             } else if (B.hid !== true) {
-              M.fill(0, b, b + 16); M[b + 13] = -1e5; M[b + 15] = 1; B.hid = true; dirty = true;   // co về 1 điểm dưới đáy cảnh, ngoài khung nhìn
+              M.fill(0, b, b + 16); M[b + 13] = -1e5; M[b + 15] = 1; B.hid = true; dirty = true;
             }
           }
           if (dirty && this.boneTexture) this.boneTexture.needsUpdate = true;
@@ -14243,27 +14305,28 @@
           return out;
         }
         function rootShown(o) { for (let p = o; ; p = p.parent) { if (!p || !p.visible) return false; if (p === scene) return true; } }
-        function updateDrawBatches() {   // mỗi khung, trước khi vẽ: cả nhóm gốc đều ẩn (vd. thú ban ngày lúc đêm) → bỏ luôn lượt vẽ của lô
+        function updateDrawBatches() {
           for (const b of drawBatches) { const on = b.roots.some(rootShown); for (const m of b.meshes) m.visible = on; }
         }
 
         {
           const named = (...prefixes) => scene.children.filter(o => o.name && prefixes.some(p => o.name.startsWith(p)));
-          for (const o of [pin, axesGroup, pickBox, ...named('Ba con cò')]) o.userData.noBatch = true;   // công cụ giao diện + cò (thân biến dạng theo nhịp vỗ cánh)
-          if (engObj) engObj.g.userData.noBatch = true;   // kỹ sư tự vẽ từng mảnh: đổi cha (xe/ghế/giường), ẩn/hiện mũ-tóc liên tục — gộp từng làm mất đầu
+          for (const o of [pin, axesGroup, pickBox, ...named('Ba con cò')]) o.userData.noBatch = true;
+          if (engObj) engObj.g.userData.noBatch = true;
           batchDraws('Chó', [dogObj]);
           batchDraws('Đàn bò', cows.map(c => c.g));
           batchDraws('Động vật ban ngày', [daytimeAnimals]);
           batchDraws('Xe caravan', [caravanObj]);
           batchDraws('Khu cắm trại', named('Ghế câu cá', 'Ghế cắm trại', 'Bếp lửa trại', 'Bàn trà', 'Giá treo nồi', 'Cần câu để dưới đất', 'Xô nhỏ', 'Đống củi', 'Khúc gỗ đứng'));
           batchDraws('Tua-bin & khí tượng', [...named('Tua-bin gió #'), wmast?.g, wmini?.g]);
+          batchDraws('Chim sẻ', [songbird.root, ...flock.birds.map(b => b.root), ...nestPairs.flat().map(b => b.root)]);
           batchDraws('Cảnh tĩnh', scene.children.filter(o => !o.userData.batchRoot && !o.userData.noBatch && !o.isSkinnedMesh));
         }
-        const SHADER_TIME_LOOP = 1140 * Math.PI;              // ≈ 3581 s: ω = 3,0 · 2,2 · 7,5 (nước) và 3,5 (cỏ cây) đều quay số nguyên vòng
+        const SHADER_TIME_LOOP = 1140 * Math.PI;
         function loop(ts) {
           if (disposed || suspended) { frameId = 0; return; }
-          if (ts !== undefined) adaptResolution(ts);   // độ phân giải tự điều chỉnh (loop/close-up.js)
-          frameId = requestAnimationFrame(loop); const dt = Math.min(clock.getDelta(), 0.05) || 1 / 60;   // khung đầu: Clock.getDelta() trả 0 (mô phỏng chia cho dt sẽ ra NaN)
+          if (ts !== undefined) adaptResolution(ts);
+          frameId = requestAnimationFrame(loop); const dt = Math.min(clock.getDelta(), 0.05) || 1 / 60;
           const insectsAwake = liveWeather.wildlifeAwake;
           if (insectsAwake) flightNav.update();
           if (autoRotate) tTheta += 0.0008; theta += (tTheta - theta) * 0.08; phi += (tPhi - phi) * 0.08;
@@ -14274,17 +14337,17 @@
           if (keys['d'] || keys['arrowright']) { target.x -= Math.sin(theta) * panSpd; target.z += Math.cos(theta) * panSpd; autoRotate = false; }
           camera.position.set(target.x + radius * Math.sin(phi) * Math.cos(theta), target.y + radius * Math.cos(phi), target.z + radius * Math.sin(phi) * Math.sin(theta)); camera.lookAt(target);
           const t = clock.elapsedTime;
-          updateSceneWind(dt, t);   // hướng + tốc độ gió thật, cơn giật, lò xo thân cây (trước khi cây/lá/khói dùng)
+          updateSceneWind(dt, t);
           for (const u of windUniforms.values()) u.uTime.value = t % SHADER_TIME_LOOP;
           for (const r of rotors) {
             if (!r.hub) { r.hub = r.rotor.getWorldPosition(new THREE.Vector3()); r.hubZ = Math.max(2, r.hub.y - cowY(r.hub.x, r.hub.z)); r.w = r.sp * 0.5; }
             windAt(r.hub.x, r.hub.y, r.hub.z, r.hubZ, _rotW);
-            const V = sceneWind.ms * Math.hypot(_rotW.x, _rotW.z) / sceneWind.U;   // m/s tại trục
+            const V = sceneWind.ms * Math.hypot(_rotW.x, _rotW.z) / sceneWind.U;
             const g = V > 25 ? 0 : V < 2.5 ? 0.12 : 0.12 + 1.6 * Math.min(1, (V - 2.5) / 8.5);
             r.w += (r.sp * g - r.w) * (1 - Math.exp(-dt / 5)); r.rotor.rotation.z += r.w * dt;
           }
           const dox = damMist.length ? damMist[0].wx : 0, doz = damMist.length ? damMist[0].wz : 0;
-          for (const f of fallBlocks) {   // bọt/màn nước = instance: compose ma trận vào scratch rồi setMatrixAt (85 mesh lẻ → 4 draw call)
+          for (const f of fallBlocks) {
             const p = (t * 0.16 + f.ph) % 1;
             if (p < 0.62) {
               const k = p / 0.62, smK = k * k * (3 - 2 * k);
@@ -14292,21 +14355,21 @@
               _dmQ.setFromEuler(_dmE.set(0.55, 0, 0)); _dmS.set(1, 1 + smK * 0.25, 1);
             } else {
               const k = (p - 0.62) / 0.38, smK = Math.sin(k * Math.PI * 0.5);
-              windAt(dox + f.x, f.chuteBot + 2, doz + f.z0 + f.dz, 2, _plA);   // bọt văng khỏi mũi phóng: bay trong gió nên dạt theo chiều gió
+              windAt(dox + f.x, f.chuteBot + 2, doz + f.z0 + f.dz, 2, _plA);
               _dmP.set(f.x + _plA.x * k * 0.7, f.chuteBot + Math.sin(k * Math.PI * 0.75) * 2.2 - k * 0.8, f.z0 + f.dz + k * 4.2 + _plA.z * k * 0.7);
               _dmQ.setFromEuler(_dmE.set(-0.45 + k * 0.95, 0, 0)); _dmS.set(1 + smK * 0.2, 1 - smK * 0.25, 1 + smK * 0.2);
             }
             f.im.setMatrixAt(f.id, _dmM.compose(_dmP, _dmQ, _dmS));
           }
           _dmQ.identity();
-          for (const j of tailJets) { const p = (t * (j.sp * 0.5) + j.ph) % 1; windAt(dox + j.x, j.y, doz + j.z0 + p * j.len, 0.5, _plA); _dmP.set(j.x + Math.sin(t * 1.0 + j.ph * 6) * 0.5 + _plA.x * p * 1.2, j.y + Math.sin(p * 3.14159) * 0.25, j.z0 + p * j.len + _plA.z * p * 1.2); _dmS.setScalar(j.sc * Math.max(0.08, Math.sin(p * 3.14159))); j.im.setMatrixAt(j.id, _dmM.compose(_dmP, _dmQ, _dmS)); }   // nước xả hạ lưu chậm 1/2
+          for (const j of tailJets) { const p = (t * (j.sp * 0.5) + j.ph) % 1; windAt(dox + j.x, j.y, doz + j.z0 + p * j.len, 0.5, _plA); _dmP.set(j.x + Math.sin(t * 1.0 + j.ph * 6) * 0.5 + _plA.x * p * 1.2, j.y + Math.sin(p * 3.14159) * 0.25, j.z0 + p * j.len + _plA.z * p * 1.2); _dmS.setScalar(j.sc * Math.max(0.08, Math.sin(p * 3.14159))); j.im.setMatrixAt(j.id, _dmM.compose(_dmP, _dmQ, _dmS)); }
 
           for (const s of sprayBits) { const a = (t * (s.sp * 0.5) + s.ph) % 1, kk = Math.sin(a * 3.14159); windAt(dox + s.x, s.y0 + kk * s.h, doz + s.z, 1 + kk * s.h, _plA); _dmP.set(s.x + Math.sin(t * 1.2 + s.ph * 7) * 0.3 + _plA.x * a * 1.4, s.y0 + kk * s.h + _plA.y * a * 0.5, s.z + _plA.z * a * 1.4); _dmS.setScalar(s.r * (0.5 + 0.7 * kk)); s.im.setMatrixAt(s.id, _dmM.compose(_dmP, _dmQ, _dmS)); }
           for (const im of damIMs) im.instanceMatrix.needsUpdate = true;
           const cowWantHut = cowHutWanted();
-          cowWatch(dt);   // người xem zoom cận bò / máng nước (animals/cows-hut.js)
-          for (const c of cows) { if (!cowHome(c, dt, t, cowWantHut)) cowFreeTick(c, dt, t); cowPose(c, dt, t); }   // hành vi → dáng (animals/cows-hut.js)
-          if (stag) stagTick(dt, t);   // chú hươu: hành vi + bộ chân IK (animals/deer-crab-bunny.js)
+          cowWatch(dt);
+          for (const c of cows) { if (!cowHome(c, dt, t, cowWantHut)) cowFreeTick(c, dt, t); cowPose(c, dt, t); }
+          if (stag) stagTick(dt, t);
 
 
           if (crab) {
@@ -14349,17 +14412,17 @@
             }
           }
           lotusPond.update(dt, t);
-          meadow.update(dt, t);   // thảm cỏ: LOD theo mức phóng, cắt khung nhìn, gió, giẫm, ráng chiều   // đầm sen: lá nổi theo sóng, cuống ngả theo gió, hoa nở/khép theo giờ, giọt sương
-          if (cherryCtl) updateLeafFall(cherryCtl, dt, t);           // cánh hoa anh đào rụng theo gió, rơi xuống sông thì nổi, trôi, có chiếc chìm
+          meadow.update(dt, t);
+          if (cherryCtl) updateLeafFall(cherryCtl, dt, t);
           if (oldTreeLeafCtl) updateLeafFall(oldTreeLeafCtl, dt, t);
-          if (forestLeafCtl) updateLeafFall(forestLeafCtl, dt, t);   // lá rừng + cây táo bứt theo cơn giật trong vùng đang nhìn   // lá vàng cây cổ thụ
-          waterFx.update(dt, t);                                     // gợn nước nhỏ (lá chạm nước, cá đớp) + bọt khí
-          for (const lamp of streetLamps) {   // đèn đường: tắt ban ngày, sáng ấm ban đêm
+          if (forestLeafCtl) updateLeafFall(forestLeafCtl, dt, t);
+          waterFx.update(dt, t);
+          for (const lamp of streetLamps) {
             lamp.light.intensity = 60 * nightFactor; lamp.ledMat.color.setRGB(0.37 + 0.63 * nightFactor, 0.38 + 0.55 * nightFactor, 0.4 + 0.32 * nightFactor);
-            const lit = nightFactor > 0.05; lamp.beam.visible = lamp.pool.visible = lit;   // vệt sáng + chùm sáng chỉ khi trời tối
+            const lit = nightFactor > 0.05; lamp.beam.visible = lamp.pool.visible = lit;
             if (lit) { lamp.beamMat.uniforms.uOpacity.value = 0.14 * nightFactor; lamp.pool.userData.mat.uniforms.uOpacity.value = 0.34 * nightFactor; }
           }
-          cowHut.light.intensity = 15 * nightFactor; cowHut.lampTick(dt, nightFactor);   // đèn sợi đốt trước chuồng bò: sáng theo đêm + đung đưa theo gió
+          cowHut.light.intensity = 15 * nightFactor; cowHut.lampTick(dt, nightFactor);
           if (wmast) {
             const w = liveWeather.state;
             for (const [obj, k, cap] of [[wmast.prop, 1.6, 18], [wmini.anem, 1.0, 12]]) {
@@ -14371,12 +14434,12 @@
             wmast.prop.rotation.x += wmast.prop.userData.w * dt;
             wmini.anem.rotation.y += wmini.anem.userData.w * dt;
             if (w.fresh && w.windDirection !== null) wmast.vane.rotation.y = Math.PI / 2 - w.windDirection * Math.PI / 180;
-            wmast.setWindBadge(w.fresh && w.windDirection !== null ? w.windDirection : NaN, w.windSpeed);   // nhãn hướng gió (chỉ vẽ lại khi số đổi)
+            wmast.setWindBadge(w.fresh && w.windDirection !== null ? w.windDirection : NaN, w.windSpeed);
             wmast.light.visible = Math.sin(t * 4) > 0;
           }
           if (substationAnim) substationAnim.update(t);
           if (waterMat.userData.shader) { waterMat.userData.shader.uniforms.uTime.value = t % SHADER_TIME_LOOP; }
-          causticU.uCTime.value = t % SHADER_TIME_LOOP; updateWaterLook(rainK);   // mặt nước: trời phản chiếu, bọt, gió, mưa · vân đáy
+          causticU.uCTime.value = t % SHADER_TIME_LOOP; updateWaterLook(rainK);
           if (!waterFlowFilled) fillWaterFlow();
           if (rainbowMats.length && damRainbow) {
             const e = Math.asin(Math.max(-1, Math.min(1, sunElevSin))) * 180 / Math.PI, sm = (a, b, x) => { const k = Math.max(0, Math.min(1, (x - a) / (b - a))); return k * k * (3 - 2 * k); };
@@ -14388,31 +14451,31 @@
             damRainbow.position.y = damRainbow.userData.baseY - 5.6 * Math.max(0, e) / 42;
           }
           const cGrp = campCupSteam.length ? campCupSteam[0].m.parent : null; if (cGrp) cGrp.localToWorld(_plS.set(0, 0, 0));
-          for (const p of campCupSteam) {   // khói ca trà: luồng nổi rất yếu, dưới mái bạt nên gió chỉ ~½
+          for (const p of campCupSteam) {
             const k = (t * 0.22 + p.ph) % 1;
             plumeOffset(_plS, k / 0.22, CUP_PLUME, _plA); windInLocal(cGrp, _plA, _cupW);
             p.m.position.set(_cupW.x + Math.sin(t * 1.3 + p.ph * 9) * 0.02 * k, Math.max(_cupW.y, k * 0.05), _cupW.z + Math.cos(t * 1.1 + p.ph * 7) * 0.015 * k);
             p.m.scale.setScalar(0.6 + k * 2.2); p.m.material.opacity = 0.32 * Math.sin(k * Math.PI);
           }
           if (campObj) {
-            const CR = campRainTick(dt);   // mưa dập lửa: ngọn lửa tắt trước, than tàn sau, còn khói (camp/chairs-lantern-fire.js)
-            const fireScale = campfireLevel(liveWeather.localHour) * CR.flameK;   // 100% lúc 19:00 → 5% lúc 07:00, ban ngày 5%
-            const fireSize = fireScale * CAMP_FLAME;   // cỡ ngọn lửa thật (G thấy lửa trại cháy dữ quá ⇒ thu còn 50%)
-            const steamAmt = Math.min(1, Math.max(0, (fireScale - 0.2) / 0.55));   // lửa lớn → ấm sôi phụt hơi qua còi; lửa ngày 5% → không có hơi
+            const CR = campRainTick(dt);
+            const fireScale = campfireLevel(liveWeather.localHour) * CR.flameK;
+            const fireSize = fireScale * CAMP_FLAME;
+            const steamAmt = Math.min(1, Math.max(0, (fireScale - 0.2) / 0.55));
             const kGrp = kettleSteam.length ? kettleSteam[0].m.parent : null; if (kGrp) kGrp.localToWorld(_plS.set(0, 0, 0));
-            if (campSmoke) for (const p of kettleSteam) p.m.visible = false;   // hơi ấm reo = hạt hơi trong mô phỏng sợi khói
-            else for (const p of kettleSteam) {   // tia hơi phụt khỏi còi, chậm dần, rồi bốc lên (nổi yếu, trần thấp) và bị gió tại độ cao vòi cuốn đi
+            if (campSmoke) for (const p of kettleSteam) p.m.visible = false;
+            else for (const p of kettleSteam) {
               const k = (t * 0.45 + p.ph) % 1, a = k / 0.45, jet = 0.16 * (1 - Math.exp(-a * 4));
               plumeOffset(_plS, a, KETTLE_PLUME, _plA); windInLocal(kGrp, _plA, _steamW);
               p.m.position.set(p.dir.x * jet + _steamW.x, 0.02 + _steamW.y, p.dir.z * jet + _steamW.z);
               p.m.scale.setScalar(0.5 + k * 2.8); p.m.material.opacity = steamAmt * 0.4 * Math.sin(k * Math.PI);
             }
             for (const fl of campObj.flames) { fl.m.visible = fireSize > 0.002; fl.m.scale.y = fireSize * Math.max(0.6, 0.92 + 0.24 * Math.sin(t * 7 + fl.ph) + 0.12 * Math.sin(t * 13 + fl.ph * 1.6)); fl.m.scale.x = fl.m.scale.z = fireSize * (0.82 + 0.2 * Math.sin(t * 7 + fl.ph * 1.3)); fl.m.material.opacity = 0.72 + 0.26 * Math.sin(t * 12 + fl.ph); }
-            if (campSmoke) {   // khói + hơi = sợi khói: lửa cấp nhiệt & khói theo cỡ lửa, ấm reo phụt hơi theo hướng vòi
+            if (campSmoke) {
               for (const sm of campObj.smoke) sm.m.visible = false;
               const S = campSmoke, B = S.base; campObj.g.localToWorld(B.set(0, 0, 0)); campObj.g.localToWorld(_smokeTop.set(0, 0.75, 0));
-              S.zF = Math.max(0.3, _smokeTop.y - B.y); const lv = 0.3 + 0.7 * campfireLevel(liveWeather.localHour), q = CR.quench * lv, smk = CR.smolder * (1 - CR.flameK) * lv;   // hơi dập lửa + khói gỗ ướt âm ỉ theo cỡ đống lửa (ngày chỉ còn than 5% ⇒ ít)
-              S.heat = 0.45 + 1.05 * fireSize + 0.3 * q + 0.2 * smk; S.smoke = 0.5 + 2.5 * fireSize + 1.3 * q + 0.9 * smk; S.rate = 0.12 + 0.88 * fireSize + 0.4 * q + 0.25 * smk; S.steam = steamAmt;   // mưa rơi vào than nóng: hơi trắng dày
+              S.zF = Math.max(0.3, _smokeTop.y - B.y); const lv = 0.3 + 0.7 * campfireLevel(liveWeather.localHour), q = CR.quench * lv, smk = CR.smolder * (1 - CR.flameK) * lv;
+              S.heat = 0.45 + 1.05 * fireSize + 0.3 * q + 0.2 * smk; S.smoke = 0.5 + 2.5 * fireSize + 1.3 * q + 0.9 * smk; S.rate = 0.12 + 0.88 * fireSize + 0.4 * q + 0.25 * smk; S.steam = steamAmt;
               if (kGrp) {
                 kGrp.localToWorld(_smokeTop.set(0, 0, 0)).sub(B); _smokeJet.copy(kettleSteam[0].dir).applyQuaternion(kGrp.getWorldQuaternion(_plumeQ)).multiplyScalar(0.9);
                 S.spout[0] = _smokeTop.x; S.spout[1] = _smokeTop.y; S.spout[2] = _smokeTop.z; S.spout[3] = _smokeJet.x; S.spout[4] = _smokeJet.y + 0.3; S.spout[5] = _smokeJet.z;
@@ -14430,24 +14493,24 @@
             if (campObj.sparks) {
               for (const sp of campObj.sparks) {
                 sp.m.position.y += dt * sp.spd; if (sp.m.position.y > 0.4 + 1.8 * CAMP_FLAME) { sp.m.position.y = 0.4; sp.m.position.x = (Math.random() - 0.5) * 0.3 * CAMP_FLAME; sp.m.position.z = (Math.random() - 0.5) * 0.3 * CAMP_FLAME; }
-                const pr = (sp.m.position.y - 0.4) / (1.8 * CAMP_FLAME); sp.m.material.opacity = Math.sin((1 - pr) * 3.14159) * 0.95 * fireScale; sp.m.position.x += Math.sin(t * 3.5 + sp.ph) * 0.006;   // tia lửa mờ theo cỡ lửa ngày/đêm
+                const pr = (sp.m.position.y - 0.4) / (1.8 * CAMP_FLAME); sp.m.material.opacity = Math.sin((1 - pr) * 3.14159) * 0.95 * fireScale; sp.m.position.x += Math.sin(t * 3.5 + sp.ph) * 0.006;
               }
             }
             const flicker = 0.55 + 0.28 * Math.sin(t * 12) + 0.14 * Math.sin(t * 23.7);
-            campObj.light.intensity = 6.0 * flicker * (fireScale + 0.03 * CR.emberK * (1 - CR.flameK)) * (0.2 + 0.8 * CAMP_FLAME);   // lửa nhỏ đi một nửa ⇒ sáng còn ~60%
+            campObj.light.intensity = 6.0 * flicker * (fireScale + 0.03 * CR.emberK * (1 - CR.flameK)) * (0.2 + 0.8 * CAMP_FLAME);
             campObj.light.distance = 6.0 + 11.0 * fireSize;
-            campObj.logMat.emissiveIntensity = (0.35 + 1.45 * fireScale) * (0.85 + 0.25 * Math.sin(t * 3.1)) * CR.emberK;   // vết nứt than đỏ, thở theo lửa; ban ngày vẫn âm ỉ
+            campObj.logMat.emissiveIntensity = (0.35 + 1.45 * fireScale) * (0.85 + 0.25 * Math.sin(t * 3.1)) * CR.emberK;
             campObj.cutMat.emissiveIntensity = 0.6 * fireScale;
-            campObj.emberMat.color.setRGB(0.15 + 0.76 * fireScale, 0.1 + 0.25 * fireScale, 0.06 + 0.03 * fireScale).lerp(_wetCoal, 1 - CR.emberK);   // ướt nguội: than đen
-            const glowLv = (0.45 + 0.55 * fireScale) * (0.88 + 0.12 * Math.sin(t * 1.7) + 0.05 * Math.sin(t * 4.3)) * CR.emberK;   // than tâm: dư âm vẫn hồng khi lửa 5%
+            campObj.emberMat.color.setRGB(0.15 + 0.76 * fireScale, 0.1 + 0.25 * fireScale, 0.06 + 0.03 * fireScale).lerp(_wetCoal, 1 - CR.emberK);
+            const glowLv = (0.45 + 0.55 * fireScale) * (0.88 + 0.12 * Math.sin(t * 1.7) + 0.05 * Math.sin(t * 4.3)) * CR.emberK;
             campObj.glowMat.opacity = glowLv; campObj.hotMat.color.setRGB(1, 0.22 + 0.2 * glowLv, 0.04).multiplyScalar(0.55 + 0.45 * glowLv).lerp(_wetCoal, 1 - CR.emberK);
             campObj.dimMat.emissiveIntensity = (0.5 + 0.6 * glowLv) * CR.emberK;
           }
-          chiminea.update(dt, t);   // mưa: lửa chuyển sang lò chiminea (camp/chiminea.js)
+          chiminea.update(dt, t);
           if (lanternObj) { lanternObj.light.intensity = 0.5 + nightFactor * 2.6 + (0.2 + nightFactor * 0.4) * Math.sin(t * 8.5) + 0.12 * Math.sin(t * 18.3); lanternObj.light.distance = 8 + nightFactor * 7; lanternObj.lan.rotation.z = Math.sin(t * 1.1) * 0.04; }
           if (awLight && awLan) { awLight.intensity = 0.5 + nightFactor * 2.6 + (0.2 + nightFactor * 0.4) * Math.sin(t * 8.5 + 1.2) + 0.12 * Math.sin(t * 18.3); awLight.distance = 8 + nightFactor * 7; awLan.rotation.z = Math.sin(t * 1.1 + 1.2) * 0.04; }
           updateStudyLamp();
-          if (studyLaptop.hinge) {   // nắp laptop mở/đóng mượt; màn hình sáng dần khi đã mở
+          if (studyLaptop.hinge) {
             studyLaptop.open += (studyLaptop.target - studyLaptop.open) * Math.min(1, dt * 2.2);
             const o = studyLaptop.open; studyLaptop.hinge.rotation.x = -1.85 * o;
             const lit = Math.max(0, (o - 0.6) / 0.4); studyLaptop.screen.color.setScalar(0.06 + 0.94 * lit); studyLaptop.light.intensity = 0.7 * lit;
@@ -14455,19 +14518,19 @@
           if (engObj) {
             const e = engObj;
             if (e.teaT !== undefined && e.phase !== 'tea') teaRelease(e);
-            engPoseBegin(e);   // trả tư thế đích frame trước
+            engPoseBegin(e);
             updateEngineerWeatherThought();
-            const hh = liveWeather.localHour; // One Pleiku clock for sky, animals and the engineer.
+            const hh = liveWeather.localHour;
             const isSleeping = hh >= 21.0 || hh < 6.0;
             vanDoorsTick(dt);
             if (isSleeping) {
               resetFishingBite(); studyLaptop.target = 0; e.seat = null; e.act = 'sleep'; e.phase = 'van'; e.inVan = true; e.van = null; e.enter = null;
-              if (studyChairRig.off) studyChairAt(0);   // (đã đẩy ghế vào trước khi lên giường)
+              if (studyChairRig.off) studyChairAt(0);
               if (e.g.parent !== caravanObj) {
                 caravanObj.add(e.g);
-                e.g.scale.setScalar(ENGINEER_BASE_SCALE); // The scaled van supplies the single 0.90 factor while sleeping.
+                e.g.scale.setScalar(ENGINEER_BASE_SCALE);
                 e.g.position.fromArray(caravanObj.userData.interior.sleepPosition);
-                e.g.rotation.set(0, 0, -Math.PI / 2 + 0.05);   // đầu hơi nâng, gác lên gối nằm
+                e.g.rotation.set(0, 0, -Math.PI / 2 + 0.05);
                 e.legs[0].rotation.set(0, 0, 0); e.legs[1].rotation.set(0, 0, 0);
                 e.knees[0].rotation.set(0, 0, 0); e.knees[1].rotation.set(0, 0, 0);
                 e.arms[0].rotation.set(0, 0, 0); e.arms[1].rotation.set(0, 0, 0);
@@ -14491,7 +14554,7 @@
               const wakeSeconds = (6 * 3600 - Math.round(hh * 3600) + 86400) % 86400;
               const h = Math.floor(wakeSeconds / 3600), m = Math.floor((wakeSeconds % 3600) / 60), s = wakeSeconds % 60;
               const timeStr = `Sleep: ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-              if (timeStr !== lastSleepStr) {   // chuỗi chỉ đổi 1 lần/giây → không vẽ lại canvas mỗi frame
+              if (timeStr !== lastSleepStr) {
                 lastSleepStr = timeStr;
                 sleepCtx.clearRect(0, 0, 256, 64);
                 sleepCtx.font = '26px Outfit, sans-serif'; sleepCtx.fillStyle = '#ffd34a'; sleepCtx.textAlign = 'center'; sleepCtx.textBaseline = 'middle';
@@ -14499,71 +14562,71 @@
               }
               napFx.update(dt, t, null); musicFx.update(dt, t, false); laptopScreenTick(t, false);
             } else {
-              if (e.g.parent === caravanObj) engWake(e);   // 06:00: ngồi dậy ở mép giường
+              if (e.g.parent === caravanObj) engWake(e);
               zzzGroup.visible = false;
               sleepSprite.visible = false;
               const act = engWantAct(e, hh);
               if (!e.act) engSpawn(e, act); else if (act !== e.act) engSetAct(e, act);
               const H = e.hold || (e.hold = {}); for (const k in H) H[k] = false;
               e.armsBusy = false; grill.update(dt, hh);
-              if (e.dish && e.dish.at === 'camp' && !['eat', 'eatFish', 'tossFish', 'tea', 'toChair'].includes(e.phase)) e.dish.at = 'hand';   // hết bữa tối: nhấc chảo khỏi bàn trà mang vào rửa
+              if (e.dish && e.dish.at === 'camp' && !['eat', 'eatFish', 'tossFish', 'tea', 'toChair'].includes(e.phase)) e.dish.at = 'hand';
               if (e.dish && e.dish.at === 'hand' && !e.inVan && e.phase !== 'van' && e.act !== 'dinner' && e.dish.food < 0.05 && e.dish.kind !== 'pan') e.dish = null;
               e.headRollT = 0;
               const outSeat = e.inVan ? null : engPhaseSeat(e.phase);
               const leavingSeat = !e.inVan && engSeatGuard(e, outSeat, e.phase === 'van' ? dogDoorFar : engPhaseGoal(e, outSeat), dt, t);
               const fishing = e.phase === 'fish' && !leavingSeat && !e.inVan;
               if (!fishing) resetFishingBite();
-              e.rodGrp.visible = fishing; groundRod.visible = !fishing; fishLine.visible = fishing; bobber.visible = fishing;   // không câu → cần nằm dưới đất cạnh ghế
+              e.rodGrp.visible = fishing; groundRod.visible = !fishing; fishLine.visible = fishing; bobber.visible = fishing;
               engPetting = false;
               if (leavingSeat) { /* engSeatGuard: đứng dậy + rời ghế, đã đặt vị trí + dáng */ }
-              else if (e.inVan) engVan(e, dt, t, act);          // trong xe: bàn học, bàn ăn, phòng tắm, giường…
-              else if (e.phase === 'van') engEnterVan(e, dt, t);   // việc trong xe: đi tới cửa hông, bước lên
-              else if (e.phase === 'toShelter') {          // mưa: về ghế cắm trại dưới mái hiên (vào thẳng từ phía trước ghế)
+              else if (e.inVan) engVan(e, dt, t, act);
+              else if (e.phase === 'van') engEnterVan(e, dt, t);
+              else if (e.phase === 'toShelter') {
                 if (engUseSeat(e, CAMP_SEAT, dt, t)) { e.phase = 'shelter'; e.timer = 0; }
               }
-              else if (e.phase === 'shelter') {            // ngồi yên dưới mái hiên chừng nào còn mưa, cẳng chân buông đung đưa nhẹ
+              else if (e.phase === 'shelter') {
                 if (engUseSeat(e, CAMP_SEAT, dt, t)) {
                   e.seatLean = 0.02; e.seatSwing = 0.05;
                   e.arms[0].rotation.x = -0.22; e.arms[1].rotation.x = -0.25;
                   e.head.rotation.x = 0.06 + Math.sin(t * 0.6) * 0.025;
                 }
               }
-              else if (e.phase === 'fish') {               // ngồi ghế xếp, thư giãn buông cần câu cá bên hồ (đã ngồi hẳn từ pha 'toFish')
+              else if (e.phase === 'fish') {
                 if (engUseSeat(e, FISH_SEAT, dt, t)) {
                   e.timer -= dt;
-                  e.seatLean = angling.active ? angling.lean : 0.07; e.seatSwing = 0;   // gập thân theo động tác: canh phao đổ tới · giật/dìu ngồi thẳng · thả cá cúi nhìn
-                  e.arms[0].rotation.x = -0.15; e.arms[1].rotation.x = -1.02;         // tư thế nghỉ (lớp câu cá ghi đè từng khung, ghi ngược để thôi câu không giật)
+                  e.seatLean = angling.active ? angling.lean : 0.07; e.seatSwing = 0;
+                  e.arms[0].rotation.x = -0.15; e.arms[1].rotation.x = -1.02;
                   e.head.rotation.x = 0.3;
-                  e.fishBiteK = 1;                                                    // quăng · canh phao · giật · dìu · thả cá: chạy sau lớp tư thế
+                  e.fishBiteK = 1;
                   if (e.timer <= 0 || e.act !== 'fish') {
-                    angling.stopReq = true;                                           // hết giờ: đang dìu thì dìu xong, thu dây về rồi mới đứng dậy
+                    angling.stopReq = true;
                     if (angling.stage === 'done' || !angling.active || e.timer < -45) {
                       e.phase = e.act === 'fish' ? 'toChair' : engPhaseFor(e.act); e.timer = 0; resetFishingBite();
-                      if (grill.st === 'bucket') { grill.toHand(e); e.phase = 'toPlant'; }   // lấy con cá rô trong xô, mang về bếp xiên que cắm nướng
+                      if (grill.st === 'bucket') { grill.toHand(e); e.phase = 'toPlant'; }
                       e.rodGrp.visible = false; groundRod.visible = true; fishLine.visible = false; bobber.visible = false;
                     }
                   }
                 }
               }
-              else if (e.phase === 'toChair') {            // về ghế cắm trại (né bếp lửa), vào thẳng từ phía trước, quay lưng, ngồi → ăn / trà / đọc sách tuỳ việc
+              else if (e.phase === 'toChair') {
                 if (engUseSeat(e, CAMP_SEAT, dt, t)) {
                   e.phase = engChairPhase(e, e.act); e.readPh = Math.random() * 9; idleThoughtAt = Math.min(idleThoughtAt, Date.now() + 4000);
-                  if (e.act === 'dinner') { if (!e.dish || e.dish.kind !== 'pan') e.dish = { kind: 'pan', food: 1 }; e.dish.at = 'camp'; e.eatT0 = e.timer; }   // đặt chảo cơm chiên lên bàn trà
+                  if (e.act === 'dinner') { if (!e.dish || e.dish.kind !== 'pan') e.dish = { kind: 'pan', food: 1 }; e.dish.at = 'camp'; e.eatT0 = e.timer; }
                 }
               }
-              else if (e.phase === 'eat') {                // ăn trưa / tối: bưng chảo tay trái, thìa tay phải xúc → đưa lên → vào miệng → nhai (engEatRice)
+              else if (e.phase === 'eat') {
                 if (engUseSeat(e, CAMP_SEAT, dt, t)) {
                   e.timer -= dt;
-                  if (e.dish && e.eatT0 > 0) e.dish.food = Math.max(0, e.timer / e.eatT0);   // cơm trong chảo vơi dần
-                  e.arms[0].rotation.x = -1.2; e.arms[1].rotation.x = -0.9;                 // góc tay thẳng ước lượng (IK + hướng cổ tay ghi đè)
+                  if (e.dish && e.eatT0 > 0) e.dish.food = Math.max(0, e.timer / e.eatT0);
+                  e.arms[0].rotation.x = -1.2; e.arms[1].rotation.x = -0.9;
                   engEatRice(e, dt, t);
-                  if (e.timer <= 0) { if (e.dish) e.dish.at = 'camp'; e.phase = 'tea'; e.timer = e.actLeft + 60; }   // ăn xong đặt chảo lại bàn trà, ngồi uống trà tới hết giờ
+                  if (e.timer <= 0) { if (e.dish) e.dish.at = 'camp'; e.phase = 'tea'; e.timer = e.actLeft + 60; }
                 }
               }
-              else if (e.phase === 'eatFish') { if (engUseSeat(e, CAMP_SEAT, dt, t)) { e.arms[0].rotation.x = e.arms[1].rotation.x = -1.3; engEatFish(e, dt, t); } }   // 2 tay cầm que cá như bắp ngô
+              else if (e.phase === 'eatFish') { if (engUseSeat(e, CAMP_SEAT, dt, t)) { e.arms[0].rotation.x = e.arms[1].rotation.x = -1.3; engEatFish(e, dt, t); } }
               else if (e.phase === 'tossFish') { if (engUseSeat(e, CAMP_SEAT, dt, t)) engTossFish(e, dt, t); }
-              else if (e.phase === 'toGrill' || e.phase === 'grab' || e.phase === 'toPlant' || e.phase === 'plant') engGrillPhase(e, dt, t);   // lấy que cá nướng · xiên & cắm cá mới
-              else if (e.phase === 'tea') {                // nhấp trà thư giãn, ngả lưng nhẹ; hết giờ: nghỉ trưa thì chợp mắt luôn trên ghế, dạo trại thì đứng dậy đi tiếp
+              else if (e.phase === 'toGrill' || e.phase === 'grab' || e.phase === 'toPlant' || e.phase === 'plant') engGrillPhase(e, dt, t);
+              else if (e.phase === 'tea') {
                 if (engUseSeat(e, CAMP_SEAT, dt, t)) {
                   e.timer -= dt; e.arms[0].rotation.x = e.arms[1].rotation.x = -0.6;
                   const teaIdle = engTea(e, dt, t);
@@ -14574,20 +14637,20 @@
                   }
                 }
               }
-              else if (e.phase === 'nap') {                // ngủ trưa trên ghế: ngả lưng, đầu gục nghiêng, tay buông trên đùi, thở chậm
+              else if (e.phase === 'nap') {
                 if (engUseSeat(e, CAMP_SEAT, dt, t)) {
                   e.seatLean = -0.1 + Math.sin(t * 1.3) * 0.012; e.seatSwing = 0;
                   e.arms[0].rotation.x = -0.42; e.arms[1].rotation.x = -0.45;
                   e.head.rotation.x = 0.45; e.headRollT = 0.24;
                 }
               }
-              else if (e.phase === 'read') {               // đọc sách to (gấp đôi) bằng 2 tay trước ngực · tay phải lật trang ~40 s/lần · tay trái bốc khoai ~20 s/lần (engRead)
+              else if (e.phase === 'read') {
                 if (engUseSeat(e, CAMP_SEAT, dt, t)) { e.arms[0].rotation.x = e.arms[1].rotation.x = -1.2; engRead(e, dt, t); }
               }
-              else if (e.phase === 'wander') {             // đứng dậy, đi lang thang ngẫu nhiên quanh trại
+              else if (e.phase === 'wander') {
                 e.timer -= dt; e.wanderTmr -= dt;
-                if (!e.wanderTgt || e.wanderTmr <= 0) {   // điểm lang thang quanh bếp lửa, không rơi vào ghế / xô / bàn trà
-                  e.wanderTgt = e.g.position.clone();   // không tìm được điểm sạch thì đứng chờ lượt chọn sau
+                if (!e.wanderTgt || e.wanderTmr <= 0) {
+                  e.wanderTgt = e.g.position.clone();
                   for (let k = 0; k < 10; k++) {
                     const a = Math.random() * 6.283, r = 2.2 + Math.random() * 3.4, x = pf.x + Math.cos(a) * r, z = pf.z + Math.sin(a) * r;
                     if (ENG_PROPS.some(o => Math.hypot(x - o.x, z - o.z) < o.r + 0.7) || !engLineClearOfSeats(e.g.position.x, e.g.position.z, x, z)) continue;
@@ -14598,65 +14661,65 @@
                 engStep(e, e.wanderTgt, dt, t, pf, FIRE_AVOID_R);
                 if (e.timer <= 0) { e.phase = 'drink'; e.timer = 9; idleThoughtAt = Math.min(idleThoughtAt, Date.now() + 2000); }
               }
-              else if (e.phase === 'drink') {              // đứng lại, mở chai nước ngửa cổ uống 2 ngụm
+              else if (e.phase === 'drink') {
                 e.timer -= dt; H.bottle = true;
                 const k = 9 - e.timer, up = Math.min(1, k / 0.8, Math.max(0, (9 - k - 0.2) / 0.8)), gulp = up > 0.95 ? Math.sin(t * 7) * 0.04 : 0;
                 e.legs[0].rotation.x = e.legs[1].rotation.x = 0; e.knees[0].rotation.x = e.knees[1].rotation.x = 0;
-                e.arms[0].rotation.x = -2.35 * up + gulp; e.arms[1].rotation.x = -0.1;                        // đưa chai lên, đáy chai chếch cao
-                e.head.rotation.x = -0.38 * up + gulp;                                                         // ngửa cổ, yết hầu nhấp nhô
-                e.lean = -0.06 * up;                                                                           // ngả nhẹ ra sau khi tu chai
+                e.arms[0].rotation.x = -2.35 * up + gulp; e.arms[1].rotation.x = -0.1;
+                e.head.rotation.x = -0.38 * up + gulp;
+                e.lean = -0.06 * up;
                 if (e.timer <= 0) { e.phase = dogPettable() ? 'toDog' : (e.loopN = (e.loopN || 0) + 1) % 2 ? 'toMast' : 'toChair'; e.timer = 0; if (e.phase === 'toDog') idleThoughtAt = Math.min(idleThoughtAt, Date.now() + 3000); }
               }
-              else if (e.phase === 'toDog') {              // ra chỗ chó nằm cạnh bếp lửa
+              else if (e.phase === 'toDog') {
                 if (!dogPettable()) e.phase = 'toMast';
                 else { const dp = dogObj.position, ax = e.g.position.x - dp.x, az = e.g.position.z - dp.z, al = Math.hypot(ax, az) || 1;
                   _petTgt.set(dp.x + ax / al * 0.75, 0, dp.z + az / al * 0.75);
-                  if (engStep(e, _petTgt, dt, t, pf, 1.05, null)) { e.phase = 'pet'; e.timer = 18; } }   // né lòng bếp lửa
+                  if (engStep(e, _petTgt, dt, t, pf, 1.05, null)) { e.phase = 'pet'; e.timer = 18; } }
               }
-              else if (e.phase === 'pet') {                // ngồi xổm vuốt lưng chó, chó vẫy đuôi lia lịa
+              else if (e.phase === 'pet') {
                 e.timer -= dt;
                 const k = Math.min(1, (18 - e.timer) / 0.6, Math.max(0, e.timer / 0.6)), dp = dogObj.position;
                 e.g.rotation.y = Math.atan2(dp.x - e.g.position.x, dp.z - e.g.position.z);
-                e.g.position.y = cowY(e.g.position.x, e.g.position.z) - ENG_FEET - 0.28 * CAMP_SCALE * ENGINEER_SIZE * k;   // hạ người ngồi xổm (gập gối theo cỡ người)
+                e.g.position.y = cowY(e.g.position.x, e.g.position.z) - ENG_FEET - 0.28 * CAMP_SCALE * ENGINEER_SIZE * k;
                 e.legs[0].rotation.x = -1.3 * k; e.legs[1].rotation.x = -1.2 * k; e.knees[0].rotation.x = 2.0 * k; e.knees[1].rotation.x = 1.9 * k;
-                e.arms[0].rotation.x = (-0.62 + Math.sin(t * 4) * 0.16) * k; e.arms[1].rotation.x = -0.15 * k;   // tay vuốt dọc lưng chó
-                e.head.rotation.x = 0.3 * k; e.lean = 0.2 * k;                                                // cúi người về phía chó
+                e.arms[0].rotation.x = (-0.62 + Math.sin(t * 4) * 0.16) * k; e.arms[1].rotation.x = -0.15 * k;
+                e.head.rotation.x = 0.3 * k; e.lean = 0.2 * k;
                 engPetting = k > 0.5;
                 if (e.timer <= 0 || !dogPettable()) { e.phase = (e.loopN = (e.loopN || 0) + 1) % 2 ? 'toMast' : 'toChair'; engPetting = false; }
               }
-              else if (e.phase === 'apple') {              // hái táo bằng sào rút: nhắm · luồn rổ · vặn bứt · lấy quả bỏ giỏ · xách giỏ về (engineer/apple-pick.js)
+              else if (e.phase === 'apple') {
                 if (applePick.update(e, dt, t)) e.doneAct = e.onceKey;
               }
-              else if (e.phase === 'toMast') {             // đi tới cột khí tượng
+              else if (e.phase === 'toMast') {
                 if (engStep(e, e.wp[2], dt, t, pf, FIRE_AVOID_R, mastField)) { e.phase = 'check'; e.timer = 40; }
               }
-              else if (e.phase === 'check') {              // đứng kiểm tra cột khí tượng: ngẩng đầu nhìn cột, đưa bảng ghi chép lên
+              else if (e.phase === 'check') {
                 e.timer -= dt;
                 e.g.rotation.y = Math.atan2(wmast.g.position.x - e.g.position.x, wmast.g.position.z - e.g.position.z);
-                e.head.rotation.x = -0.45 + Math.sin(t * 1.4) * 0.12; e.lean = -0.04;   // ngửa nhìn đỉnh cột
+                e.head.rotation.x = -0.45 + Math.sin(t * 1.4) * 0.12; e.lean = -0.04;
                 e.arms[1].rotation.x = -1.5 + Math.sin(t * 2.2) * 0.18; e.arms[0].rotation.x = -0.2;
                 e.legs[0].rotation.x = 0; e.legs[1].rotation.x = 0;
                 e.knees[0].rotation.x = 0; e.knees[1].rotation.x = 0;
                 if (e.timer <= 0) e.phase = 'toChair';
               }
-              else {                                       // 'toFish' → vào làn phía sau–trái ghế câu, quay lưng, lùi, ngồi
+              else {
                 if (engUseSeat(e, FISH_SEAT, dt, t)) { e.phase = 'fish'; e.timer = e.act === 'fish' ? e.actLeft : 90; }
               }
-              if (grill.st === 'held' && !['grab', 'eatFish', 'tossFish'].includes(e.phase)) engCarryFish(e);   // đi đường: que cá dựng đứng tay phải
-              if (grill.st === 'carried') { const ax = engAxesW(e); engHandSet(e, 1, engBodyW(e, 0.32, 1.38, 0.32, _grT), aimQ(_mrQ, ax.f, _mrUp)); }   // cá rô sống tay trái
+              if (grill.st === 'held' && !['grab', 'eatFish', 'tossFish'].includes(e.phase)) engCarryFish(e);
+              if (grill.st === 'carried') { const ax = engAxesW(e); engHandSet(e, 1, engBodyW(e, 0.32, 1.38, 0.32, _grT), aimQ(_mrQ, ax.f, _mrUp)); }
               const fishInHand = ['held', 'carried', 'plant'].includes(grill.st);
-              const atSeat = !!e.seat && (e.seat.st === 'back' || e.seat.st === 'sit' || e.seat.st === 'seated' || e.seat.st === 'rise');   // tay cần nắm tay vịn
+              const atSeat = !!e.seat && (e.seat.st === 'back' || e.seat.st === 'sit' || e.seat.st === 'seated' || e.seat.st === 'rise');
               const P = e.props;
               P.spoon.visible = !!H.spoon; P.cup.visible = !!H.cup; P.bottle.visible = !!H.bottle; P.book.visible = !!H.book; P.chip.visible = !!H.chip;
               P.chopsticks.visible = !!H.chop; P.knife.visible = !!H.knife; P.spatula.visible = !!H.spatula;
               if (H.coke && !P.coke) engHandCoke(e);
               if (P.coke) P.coke.visible = !!H.coke;
-              if (caravanObj.userData.interior.studyCoke) caravanObj.userData.interior.studyCoke.visible = !H.coke;   // lon trên bàn ẩn khi đang cầm
+              if (caravanObj.userData.interior.studyCoke) caravanObj.userData.interior.studyCoke.visible = !H.coke;
               if (!H.book) P.bookLeaf.visible = false;
               const Dsh = e.dish, dishHand = !!Dsh && Dsh.at === 'hand';
               P.handBowl.visible = (dishHand && Dsh.kind !== 'pan') || !!H.sip; P.handPan.visible = dishHand && Dsh.kind === 'pan';
               setFood(P.handBowl.userData.food, Dsh && Dsh.kind === 'udon' ? Dsh.food : 0, 0.022); setFood(P.handPan.userData.food, dishHand && Dsh.kind === 'pan' ? Dsh.food : 0, 0);
-              if (dishHand && !e.armsBusy && !e.seatCtl) {   // bưng bát hai tay trước bụng · cầm cán chảo một tay
+              if (dishHand && !e.armsBusy && !e.seatCtl) {
                 const rt = e.armRollT || (e.armRollT = [0, 0]);
                 if (Dsh.kind === 'pan') e.arms[1].rotation.x = -0.8;
                 else { e.arms[0].rotation.x = e.arms[1].rotation.x = -0.85; rt[0] = 0.28; rt[1] = -0.28; }
@@ -14674,103 +14737,103 @@
               drawEngineerLabel(t);
             }
             showerFx.update(dt);
-            engPoseEnd(e, dt, t);   // hiển thị tư thế đã làm mượt
-            engFootIK(e, dt);       // IK: bàn chân bám đúng mặt đất voxel, hông hạ theo chân thấp
-            engSeatPost(e, dt);     // dang tay tới tay vịn · đầu quay dẫn hướng · đám mây suy nghĩ đứng thẳng trên hông
+            engPoseEnd(e, dt, t);
+            engFootIK(e, dt);
+            engSeatPost(e, dt);
             if (e.fishBiteK !== undefined) { if (e.phase === 'fish') updateFishingBite(e, dt, t, e.fishBiteK); e.fishBiteK = undefined; }
-            splashFx.update(dt);   // giật cần + dây câu tính SAU khi tư thế đã mượt → đầu dây luôn khớp ngọn cần
-            engArmPost(e, dt);      // khuỷu tay + cổ tay (IK 2 đoạn giữ đúng chỗ bàn tay) · eo vặn theo nhịp bước
-            applePick.tick(e, dt);  // sào, quả trong rổ / tay / giỏ theo bàn tay đã đặt xong · quả trên cây đung đưa
+            splashFx.update(dt);
+            engArmPost(e, dt);
+            applePick.tick(e, dt);
           }
-          for (const f of fishies) {                                            // cá bơi lang thang ngẫu nhiên (wander)
+          for (const f of fishies) {
             if (f.leafCool > 0) f.leafCool -= dt;
-            if (f === angling.fish) { if (f.leafT) endLeafChase(f); f.dy = f.pitch = 0; continue; } // Its existing mesh is controlled by the bait/hook for this visit.
+            if (f === angling.fish) { if (f.leafT) endLeafChase(f); f.dy = f.pitch = 0; continue; }
             if (f === returningFishingFish) { updateReturningFishingFish(f, dt, t); continue; }
             if (f.ang === undefined) { f.ang = Math.random() * 6.283; f.cx = f.base.x; f.cz = f.base.z; f.vmag = 0.7 + Math.random() * 0.7; f.wob = (Math.random() - 0.5) * 0.8; f.rad = Math.max(f.rx, f.rz) + 1.6; }
-            if (f.leafT && fishChaseLeaf(f, dt, t)) continue;   // đang đuổi đớp một chiếc lá
-            f.wob += (Math.random() - 0.5) * 2.2 * dt; f.wob = Math.max(-1.1, Math.min(1.1, f.wob)); f.ang += f.wob * dt;   // hướng đổi ngẫu nhiên, mượt
+            if (f.leafT && fishChaseLeaf(f, dt, t)) continue;
+            f.wob += (Math.random() - 0.5) * 2.2 * dt; f.wob = Math.max(-1.1, Math.min(1.1, f.wob)); f.ang += f.wob * dt;
             const bx = f.base.x - f.cx, bz = f.base.z - f.cz, distB = Math.hypot(bx, bz);
-            if (distB > f.rad) { let d = Math.atan2(bz, bx) - f.ang; while (d > Math.PI) d -= 6.283; while (d < -Math.PI) d += 6.283; f.ang += d * Math.min(1, (distB - f.rad) * 0.9) * dt * 3.0; }   // lượn về khi đi quá xa
+            if (distB > f.rad) { let d = Math.atan2(bz, bx) - f.ang; while (d > Math.PI) d -= 6.283; while (d < -Math.PI) d += 6.283; f.ang += d * Math.min(1, (distB - f.rad) * 0.9) * dt * 3.0; }
             f.cx += Math.cos(f.ang) * f.vmag * dt; f.cz += Math.sin(f.ang) * f.vmag * dt;
-            f.dy = (f.dy || 0) * Math.exp(-dt / 1.2); f.pitch = (f.pitch || 0) * Math.exp(-dt / 0.6);   // sau cú đớp: về dần độ sâu & tư thế bơi thường
+            f.dy = (f.dy || 0) * Math.exp(-dt / 1.2); f.pitch = (f.pitch || 0) * Math.exp(-dt / 0.6);
             f.g.position.set(f.cx, f.base.y + Math.sin(t * 0.9 + f.ph) * 0.05 + f.dy, f.cz);
             f.g.rotation.set(0, -f.ang, f.pitch);
-            f.swT = (f.swT ?? t) + dt; f.swim(f.swT, f.wob);   // sóng thân chạy đầu→đuôi + uốn theo hướng rẽ (đồng hồ riêng: đuổi lá thì quẫy nhanh hơn)
+            f.swT = (f.swT ?? t) + dt; f.swim(f.swT, f.wob);
           }
-          for (const b of bunnies) {                                  // chú thỏ: random-walk + mỗi 60s đào 1 củ cà rốt lên ăn
-            if (bunnyRain(b, dt, t, liveWeather.state.raining)) continue;   // mưa: trú dưới hiên caravan
+          for (const b of bunnies) {
+            if (bunnyRain(b, dt, t, liveWeather.state.raining)) continue;
             const gy = cowY(b.x, b.z);
             if (b.state === 'dig') {
               b.tmr -= dt;
               const mp = Math.min(1, 1 - b.tmr / 7.2), ms = 0.6 + mp * 0.7;
-              b.mound.visible = true; b.mound.scale.set(ms, ms * 0.32, ms);                           // ụ đất lớn dần theo nhát cào
+              b.mound.visible = true; b.mound.scale.set(ms, ms * 0.32, ms);
               if (b.tmr <= 0) {
                 b.state = 'eatCarrot'; b.tmr = 12.0; b.carrot.visible = true; b.carrot.scale.setScalar(1);
                 const dm = new THREE.Mesh(digMarkGeo, bunnyMoundMat.clone()); dm.material.transparent = true;
-                dm.scale.set(0.95, 0.3, 0.95).multiplyScalar(NATURE_SCALE); dm.position.set(b.x + Math.cos(b.ang) * 0.62 * NATURE_SCALE, gy + 0.02 * NATURE_SCALE, b.z + Math.sin(b.ang) * 0.62 * NATURE_SCALE); dm.receiveShadow = true; scene.add(dm);   // đặt đúng chỗ hố TRƯỚC MẶT thỏ (khớp ụ đất tạm), không phải tâm thỏ
+                dm.scale.set(0.95, 0.3, 0.95).multiplyScalar(NATURE_SCALE); dm.position.set(b.x + Math.cos(b.ang) * 0.62 * NATURE_SCALE, gy + 0.02 * NATURE_SCALE, b.z + Math.sin(b.ang) * 0.62 * NATURE_SCALE); dm.receiveShadow = true; scene.add(dm);
                 digMarks.push({ m: dm, born: t });
                 while (digMarks.length > 10) dropDigMark(digMarks.shift());
               }
             } else if (b.state === 'eatCarrot') {
               b.tmr -= dt; b.g.position.set(b.x, gy, b.z);
               const ep = 1 - Math.max(0, b.tmr) / 12.0;
-              b.carrot.position.y = -0.1 + Math.min(0.3, ep * 0.7);                                   // cà rốt nhô dần khỏi đất
-              b.carrot.scale.setScalar(Math.max(0.06, 1 - ep * ep));                                  // rồi vơi dần vì bị gặm
-              b.paws[0].rotation.z = b.paws[1].rotation.z = 0.9;                                      // hai tay ôm củ cà rốt
-              b.head.rotation.z = -0.28 + Math.sin(t * 14) * 0.12;                                    // gật gù nhai
+              b.carrot.position.y = -0.1 + Math.min(0.3, ep * 0.7);
+              b.carrot.scale.setScalar(Math.max(0.06, 1 - ep * ep));
+              b.paws[0].rotation.z = b.paws[1].rotation.z = 0.9;
+              b.head.rotation.z = -0.28 + Math.sin(t * 14) * 0.12;
               if (b.tmr <= 0) {
                 b.carrot.visible = false; b.mound.visible = false; b.carrot.position.y = -0.1;
                 b.paws[0].rotation.z = b.paws[1].rotation.z = 0; b.head.rotation.z = 0;
-                b.digTmr = 60; b.state = 'sniff'; b.tmr = 2 + Math.random() * 2;                       // hẹn 60s cho củ tiếp theo → vòng lặp
+                b.digTmr = 60; b.state = 'sniff'; b.tmr = 2 + Math.random() * 2;
               }
             } else {
               b.digTmr -= dt; b.tmr -= dt;
-              if (b.digTmr <= 0) { b.state = 'dig'; b.tmr = 7.2; b.hop = 0; b.g.rotation.x = 0; }      // tới giờ: dừng mọi việc, đào cà rốt (7.2s = x3)
+              if (b.digTmr <= 0) { b.state = 'dig'; b.tmr = 7.2; b.hop = 0; b.g.rotation.x = 0; }
               else if (b.tmr <= 0) {
                 if (b.state === 'sniff') { b.state = 'hop'; b.tmr = 1.4 + Math.random() * 2.2; b.ang += (Math.random() - 0.5) * 2.4; }
-                else { b.state = 'sniff'; b.tmr = (1.2 + Math.random() * 2.6) * 3; } // dừng ăn cỏ lâu gấp 3 lần (3.6s - 11.4s)
+                else { b.state = 'sniff'; b.tmr = (1.2 + Math.random() * 2.6) * 3; }
               }
               if (b.state === 'hop') {
                 b.hop = (b.hop + dt * 3.2) % 1;
-                const lift = Math.max(0, Math.sin(b.hop * Math.PI)) * 0.5;          // lift when jumping
+                const lift = Math.max(0, Math.sin(b.hop * Math.PI)) * 0.5;
                 const nx = b.x + Math.cos(b.ang) * b.spd * dt * (0.5 + lift), nz = b.z + Math.sin(b.ang) * b.spd * dt * (0.5 + lift);
                 if (bunOK(nx, nz)) { b.x = nx; b.z = nz; } else b.ang += 2.3 + Math.random();
-                b.g.position.set(b.x, gy + lift, b.z); b.g.rotation.y = -b.ang; b.g.rotation.x = 0; // vertical posture
-                b.paws[0].rotation.z = b.paws[1].rotation.z = -0.45 - lift * 0.4;   // arms retracted when jumping
+                b.g.position.set(b.x, gy + lift, b.z); b.g.rotation.y = -b.ang; b.g.rotation.x = 0;
+                b.paws[0].rotation.z = b.paws[1].rotation.z = -0.45 - lift * 0.4;
                 b.head.rotation.z = 0;
-              } else if (b.state === 'sniff') {                                     // chỉ chạy pose gặm cỏ khi đúng là sniff (không đè 1 frame lên dig vừa kích hoạt)
+              } else if (b.state === 'sniff') {
                 b.hop = 0; b.g.position.set(b.x, gy, b.z); b.g.rotation.x = 0;
                 b.paws[0].rotation.z = b.paws[1].rotation.z = 0;
-                b.head.rotation.z = -0.32 + Math.sin(t * 10 + b.ph) * 0.1;          // cúi đầu nhai gặm cỏ (pitch đúng trục — trước dùng .x là roll)
+                b.head.rotation.z = -0.32 + Math.sin(t * 10 + b.ph) * 0.1;
               }
             }
-            bunnyEars(b, dt, t);   // tai có quán tính theo cú nhảy
+            bunnyEars(b, dt, t);
           }
           const rainNow = liveWeather.state.raining;
           if (insectsAwake) {
             for (const bf of butterflies) {
-              if (bflyShelter(bf, dt, t, rainNow)) continue;   // mưa: đậu cành cây cổ thụ
+              if (bflyShelter(bf, dt, t, rainNow)) continue;
               if (animateInsectFlight(bf, dt) === 'arrived') nextButterflyTarget(bf);
-              const beat = bflyFlap(bf, dt), bobY = Math.sin(t * 3.5 + bf.ph) * 0.18 + beat, bobX = Math.cos(t * 2.0 + bf.ph) * 0.12;   // vỗ – lượn theo loài, thân nhấp nhô theo nhịp
+              const beat = bflyFlap(bf, dt), bobY = Math.sin(t * 3.5 + bf.ph) * 0.18 + beat, bobX = Math.cos(t * 2.0 + bf.ph) * 0.12;
               setInsectVisualPosition(bf, bobX, bobY);
             }
-            const beeOK = beeWeatherOK();   // ong ra tổ khi khô, ban ngày, gió < 24 km/h, ≥ 12 °C (animals/beehive.js)
-            for (const b of bees) beeTick(b, dt, t, beeOK);   // bay · đáp chạm hoa / vành tổ · hút mật · bò vào / ra tổ (animals/insects.js)
+            const beeOK = beeWeatherOK();
+            for (const b of bees) beeTick(b, dt, t, beeOK);
           } else {
             for (const b of bees) cancelBeeNectar(b);
           }
-          beehive.update(dt, t);   // ong thợ bò trên bánh sáp trong tổ giỏ rơm
+          beehive.update(dt, t);
           for (const ff of fireflies) {
-            ff.wL.rotation.z = ff.wR.rotation.z = 0.35 + Math.sin(t * 60 + ff.ph) * 0.6;   // cánh màng vỗ (2 bên đối xứng gương: cùng góc)
-            ff.elL.rotation.set(0, -0.3, 0.55 + 0.04 * Math.sin(t * 30 + ff.ph)); ff.elR.rotation.copy(ff.elL.rotation);   // cánh cứng nâng chếch, toả 2 bên
+            ff.wL.rotation.z = ff.wR.rotation.z = 0.35 + Math.sin(t * 60 + ff.ph) * 0.6;
+            ff.elL.rotation.set(0, -0.3, 0.55 + 0.04 * Math.sin(t * 30 + ff.ph)); ff.elR.rotation.copy(ff.elL.rotation);
             ff.fp += dt / ff.per; ff.fl += dt;
-            if (ff.fp >= 1) {   // tới nhịp ⇒ chớp; con trong bán kính 5 bị kéo pha lên (ghép xung) ⇒ dần chớp cùng nhịp
+            if (ff.fp >= 1) {
               ff.fp -= 1; ff.fl = 0;
               for (const o of fireflies) if (o !== ff && o.fl > 0.6 && o.g.position.distanceToSquared(ff.g.position) < 25) o.fp = Math.min(0.999, o.fp * 1.07 + 0.015);
             }
-            const I = ff.fl < 0.08 ? ff.fl / 0.08 : ff.fl < 0.23 ? 1 : Math.max(0, 1 - (ff.fl - 0.23) / 0.3), L = 0.06 + 0.94 * I;   // sáng: lên 0,08 s · giữ 0,15 s · tắt dần 0,3 s
+            const I = ff.fl < 0.08 ? ff.fl / 0.08 : ff.fl < 0.23 ? 1 : Math.max(0, 1 - (ff.fl - 0.23) / 0.3), L = 0.06 + 0.94 * I;
             ff.lampM.color.setRGB(0.85 + 0.05 * L, 0.82 + 0.18 * L, 0.66 - 0.3 * L); ff.sp.material.opacity = 0.12 + 0.88 * I; ff.sp.scale.setScalar(0.22 + 0.4 * I);
-            ff.g.position.y += 0.35 * I * dt;   // nét "J": vọt lên khi chớp
+            ff.g.position.y += 0.35 * I * dt;
             ff.timer -= dt;
 
             if (ff.state === 'paused') {
@@ -14807,43 +14870,43 @@
           updateClouds(dt, t);
           updateWeatherRain(dt, t);
           updateStorkLife(dt, t); updateSparrows(dt, t);
-          if (digMarks.length && (t | 0) !== _digTick) {   // kiểm 1 lần/giây là đủ cho fade 20 phút
+          if (digMarks.length && (t | 0) !== _digTick) {
             _digTick = t | 0;
             for (let i = digMarks.length - 1; i >= 0; i--) {
               const dm2 = digMarks[i], age = t - dm2.born;
               if (age > 1200) { dropDigMark(dm2); digMarks.splice(i, 1); }
-              else if (age > 960) dm2.m.material.opacity = 1 - (age - 960) / 240;   // 4 phút cuối mờ dần về 0
+              else if (age > 960) dm2.m.material.opacity = 1 - (age - 960) / 240;
             }
           }
-          if (dogObj) dogBrain.update(dt, t);   // chó: hành vi (nằm sưởi · vươn vai · đánh hơi · theo chủ · uống nước · chạy vòng · vào xe khi mưa/tối) + dáng đi IK (animals/dog-brain.js)
-          if (raccoonObj) raccoonBrain.update(dt, t);   // gấu mèo: chạng vạng → đêm, kiếm ăn, cào bới, đứng 2 chân, trộm táo, bỏ chạy về hang (animals/raccoon-brain.js)
-          if (coordMoved && coordOn && !drag) {                       // hover địa hình → cập nhật tọa độ + ghim
+          if (dogObj) dogBrain.update(dt, t);
+          if (raccoonObj) raccoonBrain.update(dt, t);
+          if (coordMoved && coordOn && !drag) {
             coordMoved = false;
             ray.setFromCamera(ndc, camera);
             const hit = ray.intersectObjects(terrainMeshes, false)[0];
             if (hit) {
               const p = hit.point;
-              const gx = Math.max(0, Math.round(p.x - X0)), gy = Math.max(0, Math.round(p.y)), gz = Math.max(0, Math.round(p.z - Z0));   // tọa độ theo góc → luôn dương, số nguyên
+              const gx = Math.max(0, Math.round(p.x - X0)), gy = Math.max(0, Math.round(p.y)), gz = Math.max(0, Math.round(p.z - Z0));
               coordTip.innerHTML = '<span style="color:#c0473a">X ' + gx + '</span>&nbsp;&nbsp;<span style="color:#3a7d44">Y ' + gy + '</span>&nbsp;&nbsp;<span style="color:#2f6fb0">Z ' + gz + '</span>';
               coordTip.style.display = 'block';
-              if (!pin.visible) { pin.visible = true; pinDropStart = t; }   // bắt đầu hoạt ảnh thả khi vào địa hình
+              if (!pin.visible) { pin.visible = true; pinDropStart = t; }
               pin.position.set(p.x, p.y, p.z);
-              setGlow(hit.object, hit.instanceId);                          // làm sáng khối dưới mũi tên
+              setGlow(hit.object, hit.instanceId);
             } else { coordTip.style.display = 'none'; pin.visible = false; clearGlow(); }
           } else if (drag) { coordTip.style.display = 'none'; pin.visible = false; clearGlow(); }
           if (!pin.visible) clearGlow();
-          if (pin.visible) {                                          // mũi tên rơi từ trên xuống chạm đất (ease-out); cột & vòng tròn đỉnh cố định
+          if (pin.visible) {
             const dp = pinDropStart < 0 ? 1 : Math.min(1, (t - pinDropStart) / 0.4);
             if (dp < 1 || pinHead.position.y !== 0) pinHead.position.y = Math.pow(1 - dp, 3) * 9;
           }
-          if (pin.visible && coordOn) {                               // nhãn toạ độ neo vào ĐUÔI mũi tên (đỉnh cán ~y+2.5), chiếu ra màn hình mỗi frame
+          if (pin.visible && coordOn) {
             _tailV.set(pin.position.x, pin.position.y + 2.5, pin.position.z).project(camera);
             const rc = dom.getBoundingClientRect();
             coordTip.style.left = (rc.left + (_tailV.x * 0.5 + 0.5) * rc.width + 12) + 'px';
             coordTip.style.top = (rc.top + (-_tailV.y * 0.5 + 0.5) * rc.height - 10) + 'px';
           }
           updateAnimalVisibility(); updateDrawBatches();
-          fluids.update(dt, t, rainK);   // gửi bước mô phỏng nước + khói cho luồng phụ (kèm các cú chạm nước trong khung này), nhận kết quả bước trước
+          fluids.update(dt, t, rainK);
           if (skyOn) updateSky(); nightSky.update(dt, t, skyOn); fitSunShadow(); updateCloseLod(); renderer.render(scene, camera); mastLabel?.updateScreen(); updateZoomPct();
           if (!started) { started = true; const l = document.getElementById('loading'); if (l) l.style.display = 'none'; }
         }

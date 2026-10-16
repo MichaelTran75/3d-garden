@@ -22,7 +22,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 SRC = HERE / 'src'
 SINGLE = HERE.parent / '3D garden.html'
 STAMP = HERE / '.single-stamp'          # băm của bản một tệp dựng lần trước (không đưa lên git)
-BUDGET_KB = {'js/app.js': 420, 'tổng': 440}   # ngân sách dung lượng NÉN gzip (KB) người xem phải tải — vượt thì --check báo lỗi (14/10: 380 → 400 khi thêm chim sẻ + thuyền; 15/10: G nâng 420/440)
+BUDGET_KB = {'js/app.js': 420, 'tổng': 440}   # ngân sách dung lượng NÉN gzip (KB) người xem phải tải — vượt thì --check báo lỗi (14/10: 380 → 400 khi thêm chim sẻ + thuyền; 15/10: G nâng 420/440; 16/10: bỏ cả chú thích cuối dòng ⇒ app.js 420 → 359 KB, còn trống ~60 KB)
 args = set(sys.argv[1:])
 
 def die(msg):
@@ -55,8 +55,71 @@ single = page.replace('@@CSS@@', css).replace('@@WEATHER@@', weather).replace('@
 head = re.search(r'^(.*?)\n  <style>\n(.*?)\n  </style>\n</head>\n', single, re.S)
 body = re.search(r'<body>\n(.*?)\n  <script id="garden-weather-controller">', single, re.S)
 if not head or not body: die('khung trang src/page.html sai cấu trúc')
-# trang web: bỏ các dòng chỉ có chú thích (// …) trong mã cảnh — người xem tải nhẹ hơn ~13%; src/ và bản một tệp (để thử, gỡ lỗi) giữ nguyên chú thích
-web_app = '\n'.join(l for l in app.split('\n') if not l.lstrip().startswith('//'))
+# trang web: bỏ chú thích // (cả dòng lẫn cuối dòng) trong mã cảnh — người xem tải nhẹ hơn; src/ và bản một tệp (để thử, gỡ lỗi) giữ nguyên chú thích.
+# Bộ tách từ tối giản (G 16/10): theo dõi chuỗi '…' "…", template `…${…}…` (KHÔNG đụng gì bên trong phần chữ của template — shader GLSL), regex /…/
+# (đoán theo ký tự đứng trước), chú thích khối /* */ giữ nguyên. Kiểm 2 lớp: chuỗi token (bỏ khoảng trắng + chú thích) trước = sau, và Node phân tích được.
+REGEX_AFTER = set('(,=:[!&|?{};+-*%~^<>')
+REGEX_KW = {'return', 'typeof', 'case', 'do', 'else', 'in', 'of', 'new', 'delete', 'void', 'throw', 'yield', 'await', 'instanceof'}
+def js_scan(src, keep_comments):
+    out, toks, stack = [], [], []   # stack: 'T' = trong chữ template · số = độ sâu ngoặc { } trong ${ … }
+    i, n, last, word = 0, len(src), '', ''
+    while i < n:
+        c = src[i]
+        if stack and stack[-1] == 'T':   # chữ template
+            if c == '\\': out.append(src[i:i + 2]); i += 2; continue
+            if c == '`': stack.pop(); out.append(c); toks.append('`'); i += 1; last = '`'; continue
+            if src.startswith('${', i): stack.append(0); out.append('${'); toks.append('${'); i += 2; last = '{'; continue
+            out.append(c); toks[-1:] = [toks[-1] + c] if toks and toks[-1].startswith('t:') else toks[-1:] + ['t:' + c]; i += 1; continue
+        if src.startswith('//', i):
+            j = src.find('\n', i); j = n if j < 0 else j
+            if keep_comments: out.append(src[i:j])
+            else:
+                while out and out[-1] in (' ', '\t'): out.pop()
+                out.append('\x01')
+            i = j; continue
+        if src.startswith('/*', i):
+            j = src.find('*/', i + 2); j = n if j < 0 else j + 2; out.append(src[i:j]); i = j; continue
+        if c in '"\'':
+            j = i + 1
+            while j < n and src[j] != c and src[j] != '\n': j += 2 if src[j] == '\\' else 1
+            out.append(src[i:j + 1]); toks.append(src[i:j + 1]); i = j + 1; last = 'a'; word = ''; continue
+        if c == '`': stack.append('T'); out.append(c); toks.append('`'); i += 1; continue
+        if c == '/' and (last == '' or last in REGEX_AFTER or word in REGEX_KW):
+            j, cls = i + 1, False
+            while j < n and src[j] != '\n':
+                if src[j] == '\\': j += 2; continue
+                if src[j] == '[': cls = True
+                elif src[j] == ']': cls = False
+                elif src[j] == '/' and not cls: break
+                j += 1
+            j += 1
+            while j < n and (src[j].isalnum() or src[j] == '_'): j += 1
+            out.append(src[i:j]); toks.append(src[i:j]); i = j; last = 'a'; word = ''; continue
+        if c.isspace(): out.append(c); i += 1; continue
+        if c.isalnum() or c in '_$':
+            j = i
+            while j < n and (src[j].isalnum() or src[j] in '_$'): j += 1
+            word = src[i:j]; out.append(word); toks.append(word); i = j; last = 'a'; continue
+        if stack and isinstance(stack[-1], int):
+            if c == '{': stack[-1] += 1
+            elif c == '}':
+                if stack[-1] == 0: stack.pop(); out.append(c); toks.append('}'); i += 1; last = 'a'; continue
+                stack[-1] -= 1
+        out.append(c); toks.append(c); i += 1; last = c; word = ''
+    return ''.join(out), toks
+def strip_js_comments(src):
+    txt, toks = js_scan(src, False)
+    lines = [l.replace('\x01', '') for l in txt.split('\n') if l.strip() != '\x01']
+    res = '\n'.join(lines)
+    if js_scan(res, True)[1] != toks: die('bỏ chú thích làm đổi mã (chuỗi token khác) — xem lại js_scan trong build.py')
+    with tempfile.NamedTemporaryFile('w', suffix='.js', delete=False, encoding='utf-8') as tf: tf.write(res)
+    try:
+        r = subprocess.run(['node', '--check', tf.name], capture_output=True, text=True)
+        if r.returncode != 0: die('mã sau khi bỏ chú thích không phân tích được:\n' + r.stderr[:2000])
+    except FileNotFoundError: pass   # máy không có Node: chỉ dựa vào kiểm chuỗi token
+    finally: pathlib.Path(tf.name).unlink(missing_ok=True)
+    return res
+web_app = strip_js_comments(app)
 files = {'css/app.css': css + '\n', 'js/weather.js': weather.strip('\n') + '\n', 'js/flight-nav.js': flight.strip('\n') + '\n', 'js/app.js': web_app.strip('\n') + '\n'}
 for rel, text in files.items():
     p = HERE / rel; p.parent.mkdir(parents=True, exist_ok=True); p.write_text(text, encoding='utf-8')
