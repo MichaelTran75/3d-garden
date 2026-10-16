@@ -1011,6 +1011,8 @@
           uniform sampler2D uSfH; uniform vec4 uSfG; varying vec3 vSfP; varying vec3 vSfN;
           float sfR(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
           float sfN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(sfR(i), sfR(i + vec2(1.0, 0.0)), f.x), mix(sfR(i + vec2(0.0, 1.0)), sfR(i + vec2(1.0, 1.0)), f.x), f.y); }
+          float sfNw(vec2 p, float P) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); float i0 = mod(i.x, P), i1 = mod(i.x + 1.0, P);   // nhiễu tuần hoàn theo x (chu kỳ P ô) — vòng quanh thân không lộ đường may
+            return mix(mix(sfR(vec2(i0, i.y)), sfR(vec2(i1, i.y)), f.x), mix(sfR(vec2(i0, i.y + 1.0)), sfR(vec2(i1, i.y + 1.0)), f.x), f.y); }
           vec3 sfBump(vec3 n, vec3 sp, float h) { vec3 dx = dFdx(sp), dy = dFdy(sp), r1 = cross(dy, n), r2 = cross(n, dx); float det = dot(dx, r1);
             return normalize(abs(det) * n - sign(det) * (dFdx(h) * r1 + dFdy(h) * r2)); }`;
         function surfaceStyle(mat, kind) {
@@ -1019,13 +1021,13 @@
             prev.call(mat, sh, r);
             SF_H = SF_H || sfHeightTex();
             sh.uniforms.uSfH = { value: SF_H }; sh.uniforms.uSfG = { value: new THREE.Vector4(1 / BLOCK, cx, cz, 0) };
-            sh.vertexShader = 'varying vec3 vSfP; varying vec3 vSfN;\n' + (K === 5 ? 'attribute vec2 aBk; varying vec2 vSfB;\n' : '') + sh.vertexShader.replace('#include <fog_vertex>', `#include <fog_vertex>${K === 5 ? '\n vSfB = aBk;' : ''}
+            sh.vertexShader = 'varying vec3 vSfP; varying vec3 vSfN;\n' + (K === 5 ? 'attribute vec3 aBk; varying vec3 vSfB;\n' : '') + sh.vertexShader.replace('#include <fog_vertex>', `#include <fog_vertex>${K === 5 ? '\n vSfB = aBk;' : ''}
               vec3 sfN3 = objectNormal;
               #ifdef USE_INSTANCING
                 sfN3 = mat3(instanceMatrix) * sfN3;
               #endif
               vSfP = (inverse(viewMatrix) * vec4(mvPosition.xyz, 1.0)).xyz; vSfN = normalize(mat3(modelMatrix) * sfN3);`);
-            sh.fragmentShader = SF_GLSL + (K === 5 ? '\nvarying vec2 vSfB;' : '') + '\n' + sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
+            sh.fragmentShader = SF_GLSL + (K === 5 ? '\nvarying vec3 vSfB;' : '') + '\n' + sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
               float sfHg = 0.0;
               {
                 vec3 wn = normalize(vSfN); float wf = 1.0 - smoothstep(0.55, 0.85, abs(wn.y));   // mặt đứng
@@ -1052,14 +1054,16 @@
                   sfHg = -0.004 * ln * wf + 0.0005 * sfN(vec2(u * 60.0, y * 2.0));
                 #elif ${K} == 5
                   // VỎ CÂY: rãnh nứt DỌC thân = đường đồng mức của nhiễu kéo dài theo thân (~12 ô quanh thân, uốn lượn) ⇒ rãnh hẹp tối, mảng vỏ ở giữa; nứt
-                  // ngang thưa chia mảng; địa y bạc xanh trên mảng; rêu ở gốc. Rãnh lõm thật (bump)
-                  float ba = vSfB.x * 12.0, bl = vSfB.y * 1.6, bw = 1.4 * sfN(vec2(ba * 0.45, bl * 0.7));
-                  float cr = max(1.0 - smoothstep(0.015, 0.085, abs(sfN(vec2(ba + bw, bl * 0.45)) - 0.5)), 0.75 * (1.0 - smoothstep(0.01, 0.06, abs(sfN(vec2(ba * 2.1 + bw + 4.0, bl * 0.8)) - 0.5))));
-                  float hc = (1.0 - smoothstep(0.015, 0.05, abs(sfN(vec2(ba * 0.6 + 3.0, bl * 2.4)) - 0.5))) * step(0.5, sfN(vec2(ba * 0.6, bl * 0.8) + 9.0));
-                  float gv = max(cr, 0.7 * hc), pl = sfN(vec2(ba * 0.8, bl * 1.1) + 2.0);
+                  // ngang thưa chia mảng; địa y xám xanh thành đốm tròn nhỏ trên mảng (17/10: bản đầu kéo dài thành vệt trắng dọc thân); rêu ở gốc. Rãnh lõm
+                  // thật (bump). Mọi nhiễu theo vòng quanh thân đều TUẦN HOÀN (sfNw, chu kỳ = số ô quanh thân) ⇒ không còn đường may dọc thân.
+                  // aBk.z = bm: số lần lặp 12 rãnh quanh thân (thân to như cây cổ thụ: bm ~ chu vi / 0,9 m ⇒ mảng vỏ cùng cỡ thật với cây táo; lưới cũ 2 thành phần ⇒ 1)
+                  float bm = max(1.0, floor(vSfB.z + 0.5)), ba = vSfB.x * 12.0, bl = vSfB.y * 1.6, bw = 1.4 * sfNw(vec2(ba * 0.5, bl * 0.7), 6.0 * bm);
+                  float cr = max(1.0 - smoothstep(0.015, 0.085, abs(sfNw(vec2(ba + bw, bl * 0.45), 12.0 * bm) - 0.5)), 0.75 * (1.0 - smoothstep(0.01, 0.06, abs(sfNw(vec2(ba * 2.0 + bw + 4.0, bl * 0.8), 24.0 * bm) - 0.5))));
+                  float hc = (1.0 - smoothstep(0.015, 0.05, abs(sfNw(vec2(ba * 0.5 + 3.0, bl * 2.4), 6.0 * bm) - 0.5))) * step(0.5, sfNw(vec2(ba * 0.5, bl * 0.8) + 9.0, 6.0 * bm));
+                  float gv = max(cr, 0.7 * hc), pl = sfNw(vec2(ba, bl * 1.1) + 2.0, 12.0 * bm);
                   c *= mix(0.95 + 0.14 * pl, 0.4, gv);
-                  c = mix(c, vec3(0.62, 0.66, 0.55), 0.28 * smoothstep(0.82, 0.95, sfN(vec2(ba * 2.4, bl * 3.0) + 11.0)) * (1.0 - gv));
-                  c = mix(c, vec3(0.30, 0.40, 0.18), 0.5 * (1.0 - smoothstep(0.0, 0.9, hA)) * smoothstep(0.3, 0.7, sfN(vec2(ba * 0.6, bl * 3.0) + 5.0)));
+                  c = mix(c, vec3(0.40, 0.46, 0.34), 0.3 * smoothstep(0.78, 0.92, sfNw(vec2(ba * 2.0, bl * 12.0) + 11.0, 24.0 * bm)) * (1.0 - gv));
+                  c = mix(c, vec3(0.30, 0.40, 0.18), 0.5 * (1.0 - smoothstep(0.0, 0.9, hA)) * smoothstep(0.3, 0.7, sfNw(vec2(ba * 0.5, bl * 3.0) + 5.0, 6.0 * bm)));
                   sfHg = -0.012 * gv + 0.003 * pl;
                 #endif
                 float ao = mix(0.56, 1.0, smoothstep(0.0, 1.3, hA));   // chân tường tối dần + ám bẩn nâu
@@ -2311,9 +2315,9 @@
           geo.setAttribute('aBk', new THREE.Float32BufferAttribute(B, 2)); geo.setIndex(I); return geo;
         }
         function bkAttr(geo, L) {
-          const uv = geo.attributes.uv, B = new Float32Array(uv.count * 2), o = (L * 73.1) % 7;
-          for (let i = 0; i < uv.count; i++) { B[i * 2] = uv.getX(i); B[i * 2 + 1] = uv.getY(i) * L + o; }
-          geo.setAttribute('aBk', new THREE.BufferAttribute(B, 2)); return geo;
+          const uv = geo.attributes.uv, B = new Float32Array(uv.count * 3), o = (L * 73.1) % 7;
+          for (let i = 0; i < uv.count; i++) { B[i * 3] = uv.getX(i); B[i * 3 + 1] = uv.getY(i) * L + o; B[i * 3 + 2] = 1; }
+          geo.setAttribute('aBk', new THREE.BufferAttribute(B, 3)); return geo;
         }
         function natTree(g, o) {
           const rnd = mulberry32(o.seed), tips = [], segs = [], seg = o.seg || 6, R = (m) => m[0] + ((rnd() * (m[1] - m[0] + 1)) | 0);
@@ -2349,16 +2353,115 @@
           branch(new THREE.Vector3(0, 0, 0), _rtUp, o.height, o.trunkR, 0);
           return { tips, rnd, flowerPts: [], segs };
         }
+        const _crV = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
+        function crPt(P0, P1, P2, P3, t, out) {
+          const t1 = Math.sqrt(P0.distanceTo(P1)) + 1e-6, t2 = t1 + Math.sqrt(P1.distanceTo(P2)) + 1e-6, t3 = t2 + Math.sqrt(P2.distanceTo(P3)) + 1e-6, u = t1 + (t2 - t1) * t;
+          const [A1, A2, A3, B1, B2] = _crV;
+          A1.copy(P0).multiplyScalar((t1 - u) / t1).addScaledVector(P1, u / t1);
+          A2.copy(P1).multiplyScalar((t2 - u) / (t2 - t1)).addScaledVector(P2, (u - t1) / (t2 - t1));
+          A3.copy(P2).multiplyScalar((t3 - u) / (t3 - t2)).addScaledVector(P3, (u - t2) / (t3 - t2));
+          B1.copy(A1).multiplyScalar((t2 - u) / t2).addScaledVector(A2, u / t2);
+          B2.copy(A2).multiplyScalar((t3 - u) / (t3 - t1)).addScaledVector(A3, (u - t1) / (t3 - t1));
+          return out.copy(B1).multiplyScalar((t2 - u) / (t2 - t1)).addScaledVector(B2, (u - t1) / (t2 - t1));
+        }
+        function barkTubes(L, o = {}) {
+          const P = [], N = [], UV = [], BK = [], I = [], FB = [], F = o.flare ?? 0.6, lobes = o.lobes ?? 5, wS = o.wS ?? 0.9;
+          const T = new THREE.Vector3(), Nf = new THREE.Vector3(), Bf = new THREE.Vector3(), q = new THREE.Vector3();
+          for (const me of L) {
+            let best = null, bd = 0.5; const n = me.P.length, d = T.subVectors(me.P[n - 1], me.P[n - 2]).normalize().clone();
+            for (const k of me.kids) if (k.atEnd) { const c = q.subVectors(k.P[1], k.P[0]).normalize().dot(d); if (c > bd) { bd = c; best = k; } }
+            if (best) { me.main = best; best.cont = true; }
+          }
+          let ci = 0;
+          for (const head of L) {
+            if (head.cont) continue;
+            const ch = [head]; while (ch[ch.length - 1].main) ch.push(ch[ch.length - 1].main);
+            const C = [], R = [], ends = [];
+            ch.forEach((l, i) => { for (let j = i ? 1 : 0; j < l.P.length; j++) { C.push(l.P[j].clone()); R.push(l.R[j]); } ends.push(C.length - 1); });
+            const r0 = R[0], kind = head.root ? 0 : head.par && head.atEnd ? 1 : 2;
+            let T0;
+            if (kind === 0) { T0 = _rtUp.clone(); C.unshift(C[0].clone().addScaledVector(T0, -(o.sink ?? 0.1))); R.unshift(r0); for (let i = 0; i < ends.length; i++) ends[i]++; }
+            else if (kind === 1) { T0 = head.par.Te.clone(); C[0].addScaledVector(T0, -1.4 * r0); R[0] = 0.96 * r0; }
+            else T0 = q.subVectors(C[1], C[0]).normalize().clone();
+            for (let i = 0; i < ch.length - 1; i++) { const e = ends[i]; R[e] = Math.min(R[e], 0.5 * (R[e - 1] + R[e + 1])); }
+            const n = C.length, last = C[n - 1], dl = T.subVectors(last, C[n - 2]).normalize().clone();
+            const Q = [C[0].clone().addScaledVector(T0, -(kind === 1 ? 1.4 * r0 : C[0].distanceTo(C[1]))), ...C, last.clone().addScaledVector(dl, last.distanceTo(C[n - 2]))];
+            const S = [], SR = [], cI = [];
+            for (let j = 0; j < n - 1; j++) {
+              const rw = R[j] * wS, k = rw >= 0.12 ? 4 : rw >= 0.035 ? 3 : rw >= 0.015 ? 2 : 1; cI.push(S.length);
+              const ts = j === 0 && kind === 0 ? [0] : j === 1 && kind === 0 ? [0, 0.06, 0.14, 0.25, 0.4, 0.6, 0.8]
+                : j === 0 && kind ? (rw >= 0.09 ? [0, 0.12, 0.26, 0.42, 0.6, 0.8] : rw >= 0.03 ? [0, 0.2, 0.4, 0.65] : [0, 0.35, 0.7]) : Array.from({ length: k }, (_, i) => i / k);
+              for (const t of ts) { S.push(crPt(Q[j], Q[j + 1], Q[j + 2], Q[j + 3], t, new THREE.Vector3())); SR.push(R[j] + (R[j + 1] - R[j]) * t); }
+            }
+            cI.push(S.length); S.push(last.clone()); SR.push(R[n - 1]);
+            ch.forEach((l, i) => { const e = ends[i]; l.Te = C[e].clone().sub(crPt(Q[e - 1], Q[e], Q[e + 1], Q[e + 2], 0.995, T)).normalize(); });
+            if (o.segs) ch.forEach((l, i) => { if (l.s0 === undefined) return; const cs = i ? ends[i - 1] : kind === 0 ? 1 : 0;
+              for (let p = 0; p < l.P.length - 1; p++) { const sg = o.segs[l.s0 + p], j = cs + p; if (!sg) continue; q.set((sg[0] + sg[3]) / 2, (sg[1] + sg[4]) / 2, (sg[2] + sg[5]) / 2); let bd = Infinity;
+                for (let t = 0.2; t <= 0.8; t += 0.05) { crPt(Q[j], Q[j + 1], Q[j + 2], Q[j + 3], t, T); const dd = T.distanceToSquared(q); if (dd < bd) { bd = dd; sg[8] = T.x; sg[9] = T.y; sg[10] = T.z; } } } });
+            const tE = ch[ch.length - 1].Te, nRing = S.length, rb = SR[nRing - 1], hc = 0.7 * rb;
+            for (const ph of [0.55, 1.05]) { S.push(last.clone().addScaledVector(tE, hc * Math.sin(ph))); SR.push(rb * Math.cos(ph)); }
+            const tip = last.clone().addScaledVector(tE, hc), M = S.length, seg = Math.max(5, Math.min(o.segMax ?? 14, Math.round(4 + r0 * wS * 45))), S1 = seg + 1;
+            const G = [], tan = S.map((s, i) => i >= nRing - 1 ? tE.clone() : new THREE.Vector3().subVectors(S[Math.min(M - 1, i + 1)], S[Math.max(0, i - 1)]).normalize());
+            const pf = kind === 1 && head.par.fr; if (pf) Nf.copy(pf.N); else { Nf.set(1, 0, 0); if (Math.abs(tan[0].x) > 0.9) Nf.set(0, 0, 1); }
+            const y0 = head.P[0].y, H = (o.flareH ?? 1.1) * r0, sIn = head.pr != null ? head.pr / Math.max(0.35, head.pT ? q.crossVectors(T0, head.pT).length() : 1) : 1.5 * r0, len = [0], FN = [];
+            for (let i = 0; i < M; i++) {
+              if (i) len.push(len[i - 1] + S[i].distanceTo(S[i - 1]));
+              Nf.addScaledVector(tan[i], -Nf.dot(tan[i])).normalize(); Bf.crossVectors(tan[i], Nf); FN.push(Nf.clone());
+              const fl = kind === 0 && i < nRing ? F * Math.exp(-Math.max(0, S[i].y - y0) / H) : 0, col = kind === 2 && i < nRing ? 1 + 0.3 * Math.exp(-Math.max(0, len[i] - sIn) / (1.5 * r0)) : 1;
+              for (let k = 0; k < seg; k++) { const a = k / seg * 6.2832, c = Math.cos(a), s = Math.sin(a), r = SR[i] * col * (1 + fl * (0.72 + 0.28 * Math.cos(lobes * a + 0.7)));
+                G.push(new THREE.Vector3(S[i].x + (Nf.x * c + Bf.x * s) * r, S[i].y + (Nf.y * c + Bf.y * s) * r, S[i].z + (Nf.z * c + Bf.z * s) * r)); }
+            }
+            for (let j = 0; j < n; j++) { const i0 = cI[j], i1 = j < n - 1 ? cI[j + 1] : M - 1, b = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity];
+              for (let i = i0; i <= i1; i++) for (let k = 0; k < seg; k++) { const v = G[i * seg + k]; b[0] = Math.min(b[0], v.x); b[1] = Math.min(b[1], v.y); b[2] = Math.min(b[2], v.z); b[3] = Math.max(b[3], v.x); b[4] = Math.max(b[4], v.y); b[5] = Math.max(b[5], v.z); }
+              if (j === n - 1) { b[0] = Math.min(b[0], tip.x); b[1] = Math.min(b[1], tip.y); b[2] = Math.min(b[2], tip.z); b[3] = Math.max(b[3], tip.x); b[4] = Math.max(b[4], tip.y); b[5] = Math.max(b[5], tip.z); }
+              FB.push(...b); }
+            const base = P.length / 3, off = pf ? pf.along - 1.4 * r0 : (ci * 7.31 + 3.7) % 11, tot = len[M - 1] + hc * 0.3, nv = new THREE.Vector3(), da = new THREE.Vector3(), ds = new THREE.Vector3(); ci++;
+            const bm = pf ? pf.bm : Math.max(1, Math.round(6.2832 * r0 * wS / 0.9)), vK = wS / 0.9;
+            ch.forEach((l, i) => { const j = cI[ends[i]]; l.fr = { N: FN[j], along: len[j] + off, bm }; });
+            const bA = kind === 1 ? head.par.P[head.par.P.length - 1] : kind === 2 && head.pT ? head.P[0] : null, bT = kind === 1 ? T0 : head.pT, w0 = kind === 1 ? r0 : 0.8 * sIn, w1 = kind === 1 ? 3.4 * r0 : sIn + 2.2 * r0;
+            const Bp = pf ? new THREE.Vector3().crossVectors(T0, pf.N) : null;
+            for (let i = 0; i < M; i++) for (let k = 0; k <= seg; k++) {
+              const kk = k % seg, g0 = G[i * seg + kk];
+              da.subVectors(G[i * seg + (kk + 1) % seg], G[i * seg + (kk + seg - 1) % seg]);
+              ds.subVectors(i < M - 1 ? G[(i + 1) * seg + kk] : tip, G[Math.max(0, i - 1) * seg + kk]);
+              nv.crossVectors(da, ds).normalize(); if (nv.dot(q.subVectors(g0, S[i])) < 0) nv.negate();
+              let bu = k / seg;
+              if (bA && len[i] < w1) {
+                const w = Math.max(0, Math.min(1, (len[i] - w0) / (w1 - w0))), sw = w * w * (3 - 2 * w); q.subVectors(g0, bA); q.addScaledVector(bT, -q.dot(bT)).normalize(); nv.multiplyScalar(sw).addScaledVector(q, 1 - sw).normalize();
+                if (pf) { const up = Math.atan2(q.dot(Bp), q.dot(pf.N)) / 6.2832 + 1, u1 = up + Math.round(bu - up); bu = u1 + (bu - u1) * sw; }
+              }
+              P.push(g0.x, g0.y, g0.z); N.push(nv.x, nv.y, nv.z); UV.push(k / seg, len[i] / tot); BK.push(bu * bm, (len[i] + off) * vK, bm);
+            }
+            P.push(tip.x, tip.y, tip.z); N.push(tE.x, tE.y, tE.z); UV.push(0.5, 1); BK.push(0.5 * bm, (len[M - 1] + hc * 0.3 + off) * vK, bm);
+            for (let i = 0; i < M - 1; i++) for (let k = 0; k < seg; k++) { const a = base + i * S1 + k, b = a + 1; I.push(a, b, a + S1, b, b + S1, a + S1); }
+            for (let k = 0; k < seg; k++) I.push(base + (M - 1) * S1 + k, base + (M - 1) * S1 + k + 1, base + M * S1);
+          }
+          const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); geo.setAttribute('normal', new THREE.Float32BufferAttribute(N, 3));
+          geo.setAttribute('uv', new THREE.Float32BufferAttribute(UV, 2)); geo.setAttribute('aBk', new THREE.Float32BufferAttribute(BK, 3)); geo.setIndex(I);
+          geo.userData.flightBounds = new Float64Array(FB); return geo;
+        }
+        const _barkDepth = new WeakMap();
+        function barkMesh(geo, mat) {
+          const m = new THREE.Mesh(geo, mat); m.castShadow = true; m.receiveShadow = true;
+          if (geo.userData.flightBounds) bakedFlightBounds.set(geo, geo.userData.flightBounds);
+          if (!mat.transparent) return [m];
+          let dm = _barkDepth.get(mat);
+          if (!dm) {
+            const ud = mat.userData; mat.userData = {}; dm = mat.clone(); mat.userData = ud; _barkDepth.set(mat, dm); dm.colorWrite = false;
+            dm.onBeforeCompile = (sh, r) => mat.onBeforeCompile(sh, r); dm.customProgramCacheKey = () => mat.customProgramCacheKey();
+          }
+          const d = new THREE.Mesh(geo, dm); d.renderOrder = m.renderOrder - 0.5; d.name = 'Vỏ cây (lượt độ sâu)'; d.raycast = () => {};
+          d.userData.noBatch = true; d.userData.noCollide = true; d.userData.noBake = true; d.userData.noFlight = true; return [d, m];
+        }
         function recTree(g, o) {
           if (o.natural) return natTree(g, o);
-          const rnd = mulberry32(o.seed), tips = [], segs = [];
+          const rnd = mulberry32(o.seed), tips = [], segs = [], limbs = [];
           const flowerPts = [];
-          const limb = (a, b, r1, r2) => { segs.push([a.x, a.y, a.z, b.x, b.y, b.z, r1, r2]); const d = b.clone().sub(a), L = d.length(); const m = new THREE.Mesh(bkAttr(new THREE.CylinderGeometry(r2, r1, L, 7), L), o.barkMat); m.position.copy(a).addScaledVector(d, 0.5); m.quaternion.setFromUnitVectors(_rtUp, d.normalize()); m.castShadow = true; m.receiveShadow = true; g.add(m); };
 
-          const crookedLimb = (a, b, r1, r2, depth = 0, maxDepth = (o.limbMaxDepth != null ? o.limbMaxDepth : 2)) => {
+          const crookedLimb = (a, b, r1, r2, P, R, depth = 0, maxDepth = (o.limbMaxDepth != null ? o.limbMaxDepth : 2)) => {
             const d = b.clone().sub(a), L = d.length();
             if (depth >= maxDepth || L < 0.1 || r1 < 0.012) {
-              limb(a, b, r1, r2);
+              segs.push([a.x, a.y, a.z, b.x, b.y, b.z, r1, r2]); P.push(b); R.push(r2);
               return;
             }
             const mid = new THREE.Vector3().addVectors(a, b).multiplyScalar(0.5);
@@ -2369,21 +2472,14 @@
             const jF = L * 0.14, ang = rnd() * 6.283;
             mid.addScaledVector(p1, Math.cos(ang) * jF).addScaledVector(p2, Math.sin(ang) * jF);
             const midR = (r1 + r2) * 0.5;
-            crookedLimb(a, mid, r1, midR, depth + 1, maxDepth);
-
-            const js = new THREE.Mesh(bkAttr(new THREE.SphereGeometry(midR, 6, 6), Math.PI * midR), o.barkMat);
-            js.position.copy(mid); js.castShadow = true; js.receiveShadow = true; g.add(js);
-
-            crookedLimb(mid, b, midR, r2, depth + 1, maxDepth);
+            crookedLimb(a, mid, r1, midR, P, R, depth + 1, maxDepth);
+            crookedLimb(mid, b, midR, r2, P, R, depth + 1, maxDepth);
           };
 
-          (function grow(a, dir, len, r, depth) {
+          (function grow(a, dir, len, r, depth, par) {
             const b = a.clone().addScaledVector(dir, len);
             if (depth > 0) { b.x += (rnd() - 0.5) * len * 0.3; b.z += (rnd() - 0.5) * len * 0.3; }
-            crookedLimb(a, b, r, r * o.radK);
-
-            const jsNode = new THREE.Mesh(bkAttr(new THREE.SphereGeometry(r * o.radK, 6, 6), Math.PI * r * o.radK), o.barkMat);
-            jsNode.position.copy(b); jsNode.castShadow = true; jsNode.receiveShadow = true; g.add(jsNode);
+            const me = { P: [a], R: [r], par, kids: [], atEnd: true, root: !par, s0: segs.length }; crookedLimb(a, b, r, r * o.radK, me.P, me.R); limbs.push(me); if (par) par.kids.push(me);
 
             if (o.recursiveLeaves && depth > 0) {
               const count = depth === 1 ? 4 : (depth === 2 ? 8 : (depth === 3 ? 15 : 22));
@@ -2413,9 +2509,10 @@
               nd.y += o.upBias; nd.normalize();
 
               const lengthFactor = (depth === 0) ? (0.6 + rnd() * 0.6) : (0.75 + rnd() * 0.5);
-              grow(b, nd, len * o.lenK * lengthFactor, r * (depth === 0 && o.rootK ? o.rootK : o.radK), depth + 1);
+              grow(b, nd, len * o.lenK * lengthFactor, r * (depth === 0 && o.rootK ? o.rootK : o.radK), depth + 1, me);
             }
-          })(new THREE.Vector3(0, 0, 0), _rtUp.clone(), o.trunkLen, o.trunkR, 0);
+          })(new THREE.Vector3(0, 0, 0), _rtUp.clone(), o.trunkLen, o.trunkR, 0, null);
+          g.add(...barkMesh(barkTubes(limbs, Object.assign({ segs }, o)), o.barkMat));
           return { tips, rnd, flowerPts, segs };
         }
         function cloudPts(rnd, cx2, cy2, cz2, r, n, pts) { for (let i = 0; i < n; i++) { const rr = r * Math.cbrt(rnd()), th = rnd() * 6.283, ph = Math.acos(2 * rnd() - 1); pts.push([cx2 + rr * Math.sin(ph) * Math.cos(th), cy2 + rr * Math.cos(ph) * 0.8, cz2 + rr * Math.sin(ph) * Math.sin(th)]); } }
@@ -5262,39 +5359,34 @@
           const barkMat = new THREE.MeshLambertMaterial({ color: 0x4a3420, transparent: true, opacity: TOP }), deadMat = new THREE.MeshLambertMaterial({ color: 0xE2D6C0, transparent: true, opacity: TOP });
           const tw = makeTreeWind({ freq: 0.32, zeta: 0.08, lean: 0.45, branchAmp: 0.07 });
           windShader(barkMat, tw, 0); windShader(deadMat, tw, 0); g.userData.treeWind = tw;
+          surfaceStyle(barkMat, 'bark'); surfaceStyle(deadMat, 'bark');
           const leafCols = [0x4e7a39, 0x5e8c44, 0x6fa052, 0x42692f, 0x567f3a, 0x4e7a39, 0x5e8c44, 0x6fa052, 0x42692f, 0x567f3a, 0xe5b82c];
           const rnd = mulberry32(7777), tips = [], deadTips = [];
           const up = new THREE.Vector3(0, 1, 0), V = (x, y, z) => new THREE.Vector3(x, y, z);
 
           const storkBranchPieces = []; let storkBranchSegment = -1;
           g.userData.storkBranchPieces = storkBranchPieces;
-          const limb = (a, b, r1, r2, mat) => {
-            const d = new THREE.Vector3().subVectors(b, a), L = d.length();
-            const mm = new THREE.Mesh(new THREE.CylinderGeometry(r2, r1, L, 7), mat);
-            mm.castShadow = true; mm.receiveShadow = true;
-            mm.position.copy(a).addScaledVector(d, 0.5);
-            mm.quaternion.setFromUnitVectors(up, d.clone().normalize());
-            g.add(mm);
+          const LB = [], LD = [];
+          const mkLimb = (list, a, r, par, atEnd, pr, pT) => { const l = { P: [a], R: [r], par, kids: [], atEnd, pr, pT }; list.push(l); if (par) par.kids.push(l); return l; };
+          const limb = (a, b, r1, r2, L) => {
+            L.P.push(b); L.R.push(r2);
             if (storkBranchSegment >= 0) storkBranchPieces.push({ a: a.toArray(), b: b.toArray(), r1, r2, segment: storkBranchSegment });
-            return mm;
           };
 
-          const crookedLimb = (a, b, r1, r2, mat, depth = 0, maxDepth = 2) => {
-            const d = new THREE.Vector3().subVectors(b, a), L = d.length();
-            if (depth >= maxDepth || L < 0.12 || r1 < 0.015) return limb(a, b, r1, r2, mat);
+          const crookedLimb = (a, b, r1, r2, L, depth = 0, maxDepth = 2) => {
+            const d = new THREE.Vector3().subVectors(b, a), len = d.length();
+            if (depth >= maxDepth || len < 0.12 || r1 < 0.015) return limb(a, b, r1, r2, L);
             const mid = new THREE.Vector3().addVectors(a, b).multiplyScalar(0.5), dir = d.clone().normalize();
             let tAxis = (Math.abs(dir.y) > 0.9) ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0);
             const p1 = new THREE.Vector3().crossVectors(dir, tAxis).normalize();
             const p2 = new THREE.Vector3().crossVectors(dir, p1).normalize();
-            const jF = L * 0.15, ang = rnd() * 6.283;
+            const jF = len * 0.15, ang = rnd() * 6.283;
             mid.addScaledVector(p1, Math.cos(ang) * jF).addScaledVector(p2, Math.sin(ang) * jF);
             const midR = (r1 + r2) * 0.5;
-            crookedLimb(a, mid, r1, midR, mat, depth + 1, maxDepth);
-            const js = new THREE.Mesh(new THREE.SphereGeometry(midR, 6, 6), mat); js.position.copy(mid); g.add(js);
-            crookedLimb(mid, b, midR, r2, mat, depth + 1, maxDepth);
+            crookedLimb(a, mid, r1, midR, L, depth + 1, maxDepth);
+            crookedLimb(mid, b, midR, r2, L, depth + 1, maxDepth);
           };
 
-          for (let i = 0; i < 6; i++) { const a = i / 6 * 6.283, fl = new THREE.Mesh(new THREE.SphereGeometry(0.32, 6, 5), barkMat); fl.position.set(Math.cos(a) * 0.5, 0.06, Math.sin(a) * 0.5); fl.scale.set(1, 0.5, 1); fl.castShadow = true; g.add(fl); }
           const trunk = [V(0, 0, 0), V(0.12, 0.85, 0.12), V(-0.18, 1.7, 0.28), V(0.22, 2.4, 0.1), V(0.06, 3.0, 0.22)];
 
           const getTrunkPoint = (y) => {
@@ -5304,14 +5396,11 @@
             return new THREE.Vector3().lerpVectors(trunk[3], trunk[4], Math.min(1, (y - 2.4) / 0.6));
           };
 
+          const TR = mkLimb(LB, trunk[0], 0.6, null, false); TR.root = true;
           let r = 0.6;
-          for (let i = 0; i < trunk.length - 1; i++) {
-            crookedLimb(trunk[i], trunk[i + 1], r, r * 0.85, barkMat);
-            const js = new THREE.Mesh(new THREE.SphereGeometry(r * 0.85, 8, 8), barkMat);
-            js.position.copy(trunk[i + 1]);
-            g.add(js);
-            r *= 0.85;
-          }
+          for (let i = 0; i < trunk.length - 1; i++) { crookedLimb(trunk[i], trunk[i + 1], r, r * 0.85, TR); r *= 0.85; }
+          const trunkAt = (y) => { const i = y <= 0.85 ? 0 : y <= 1.7 ? 1 : y <= 2.4 ? 2 : 3, f = Math.min(1, Math.max(0, (y - trunk[i].y) / (trunk[i + 1].y - trunk[i].y)));
+            return { r: 0.6 * Math.pow(0.85, i) * (1 - 0.15 * f), d: trunk[i + 1].clone().sub(trunk[i]).normalize() }; };
 
           const branches = [
             [V(-0.1, 1.7, 0.25), V(-1.1, 2.3, 0.45), V(-2.2, 2.8, 0.6), V(-3.4, 3.1, 0.55), V(-4.8, 3.25, 0.4)],
@@ -5336,41 +5425,32 @@
           });
 
           g.userData.mainBranches = branches.map(br => br.map(v => v.clone()));
-          function sprout(a, dir, len, r, depth, bIdx, isSide = false) {
-            const pieceStart = g.children.length;
+          function sprout(a, dir, len, r, depth, bIdx, isSide = false, par = null, atEnd = true, pr, pT) {
             const b = a.clone().addScaledVector(dir, len);
             b.x += (rnd() - 0.5) * len * 0.3; b.z += (rnd() - 0.5) * len * 0.3;
-            crookedLimb(a, b, r, r * 0.54, barkMat);
-            const js = new THREE.Mesh(new THREE.SphereGeometry(r * 0.54, 6, 6), barkMat);
-            js.position.copy(b);
-            g.add(js);
-            if (depth >= 3 || r * 0.54 < 0.008) { tips.push({ pos: b, bIdx, isSide, from: a.clone(), dir: dir.clone(), radius: r, material: barkMat, pieces: g.children.slice(pieceStart) }); return; }
+            const L = mkLimb(LB, a, r, par, atEnd, pr, pT);
+            crookedLimb(a, b, r, r * 0.54, L);
+            if (depth >= 3 || r * 0.54 < 0.008) { tips.push({ pos: b, bIdx, isSide, from: a.clone(), dir: dir.clone(), radius: r, limb: L }); return; }
             const n = 2 + ((rnd() * 2) | 0);
             for (let k = 0; k < n; k++) {
               const nd = dir.clone().add(V((rnd() - 0.5) * 1.5, (rnd() - 0.4) * 0.6, (rnd() - 0.5) * 1.5)).normalize();
               if (nd.y > 0.5 || nd.y < 0) { nd.y = Math.max(0, Math.min(0.5, nd.y)); nd.normalize(); }
-              sprout(b, nd, len * 0.875 * (0.75 + rnd() * 0.5), r * 0.54, depth + 1, bIdx, isSide);
+              sprout(b, nd, len * 0.875 * (0.75 + rnd() * 0.5), r * 0.54, depth + 1, bIdx, isSide, L, true);
             }
           }
           for (let bIdx = 0; bIdx < branches.length; bIdx++) {
             const br = branches[bIdx];
             let rb = (bIdx === 0) ? 0.237 : 0.182; const rbs = [rb];
-
-            const startSphere = new THREE.Mesh(new THREE.SphereGeometry(rb * 1.1, 8, 8), barkMat);
-            startSphere.position.copy(br[0]);
-            g.add(startSphere);
+            const tk = trunkAt(br[0].y), BL = mkLimb(LB, br[0], rb, TR, br[0].distanceTo(trunk[4]) < 1e-6, tk.r, tk.d);
 
             for (let i = 0; i < br.length - 1; i++) {
               storkBranchSegment = bIdx === 0 ? i : -1;
-              crookedLimb(br[i], br[i + 1], rb, rb * 0.78, barkMat);
+              crookedLimb(br[i], br[i + 1], rb, rb * 0.78, BL);
               storkBranchSegment = -1;
-              const js = new THREE.Mesh(new THREE.SphereGeometry(rb * 0.78, 8, 8), barkMat);
-              js.position.copy(br[i + 1]);
-              g.add(js);
               rb *= 0.78; rbs.push(rb);
             }
             const e = br[br.length - 1], d0 = e.clone().sub(br[br.length - 2]).normalize();
-            sprout(e, d0, 0.62 * 1.25, rb * 0.9, 0, bIdx, false);
+            sprout(e, d0, 0.62 * 1.25, rb * 0.9, 0, bIdx, false, BL, true);
 
             if (bIdx !== 0 && br.length >= 3) {
               const jointsToSprout = br.length > 3 ? [1, 2] : [1];
@@ -5380,7 +5460,7 @@
                 const numSprouts = idx === 1 ? 2 : 3;
                 for (let k = 0; k < numSprouts; k++) {
                   const sideDir = d_mid.clone().add(V((rnd() - 0.5) * 2.2, 0.2 + rnd() * 0.4, (rnd() - 0.5) * 2.2)).normalize();
-                  sprout(midPt, sideDir, 0.42 * (0.8 + rnd() * 0.4) * 1.25, rbs[idx] * 0.55 * 0.9, 1, bIdx, true);
+                  sprout(midPt, sideDir, 0.42 * (0.8 + rnd() * 0.4) * 1.25, rbs[idx] * 0.55 * 0.9, 1, bIdx, true, BL, false, rbs[idx], d_mid);
                 }
               }
             }
@@ -5390,25 +5470,26 @@
                 const midPt = br[2];
                 const d_mid = midPt.clone().sub(br[1]).normalize();
                 const sideDir = d_mid.clone().add(V((rnd() - 0.5) * 1.6, 0.38, (rnd() - 0.5) * 1.6)).normalize();
-                sprout(midPt, sideDir, 0.52 * 1.25 * 0.8, rbs[2] * 0.8 * 0.9, 1, bIdx, true);
+                sprout(midPt, sideDir, 0.52 * 1.25 * 0.8, rbs[2] * 0.8 * 0.9, 1, bIdx, true, BL, false, rbs[2], d_mid);
               }
               if (br.length > 2) {
                 const lowPt = br[1];
                 const d_low = lowPt.clone().sub(br[0]).normalize();
                 const riverDir = d_low.clone().add(V(-1.2, -0.15, (rnd() - 0.5) * 1.4)).normalize();
-                sprout(lowPt, riverDir, 0.48 * 1.25 * 0.8, rbs[1] * 0.85 * 0.9, 1, bIdx, true);
+                sprout(lowPt, riverDir, 0.48 * 1.25 * 0.8, rbs[1] * 0.85 * 0.9, 1, bIdx, true, BL, false, rbs[1], d_low);
               }
             }
           }
           const dead = [V(0.22, 2.4, 0.1), V(0.95, 3.0, -0.25), V(1.55, 3.6, -0.1), V(1.95, 4.0, 0.1)];
-          let rd = 0.2; for (let i = 0; i < dead.length - 1; i++) { crookedLimb(dead[i], dead[i + 1], rd, rd * 0.68, deadMat); rd *= 0.68; }
-          function deadTwig(a, b, r1, r2) {
-            const pieceStart = g.children.length;
-            crookedLimb(a, b, r1, r2, deadMat);
-            deadTips.push({ from: a.clone(), pos: b, dir: b.clone().sub(a).normalize(), radius: r1, material: deadMat, pieces: g.children.slice(pieceStart) });
+          const tk3 = trunkAt(2.4), DL = mkLimb(LD, dead[0], 0.2, null, false, tk3.r, tk3.d);
+          let rd = 0.2; for (let i = 0; i < dead.length - 1; i++) { crookedLimb(dead[i], dead[i + 1], rd, rd * 0.68, DL); rd *= 0.68; }
+          function deadTwig(a, b, r1, r2, atEnd, pr, pT) {
+            const L = mkLimb(LD, a, r1, DL, atEnd, pr, pT);
+            crookedLimb(a, b, r1, r2, L);
+            deadTips.push({ from: a.clone(), pos: b, dir: b.clone().sub(a).normalize(), radius: r1, limb: L });
           }
-          deadTwig(V(1.55, 3.6, -0.1), V(1.9, 4.3, -0.35), 0.09, 0.025);
-          deadTwig(V(1.95, 4.0, 0.1), V(2.4, 4.5, 0.3), 0.08, 0.025);
+          deadTwig(V(1.55, 3.6, -0.1), V(1.9, 4.3, -0.35), 0.09, 0.025, false, 0.2 * 0.68 * 0.68, dead[2].clone().sub(dead[1]).normalize());
+          deadTwig(V(1.95, 4.0, 0.1), V(2.4, 4.5, 0.3), 0.08, 0.025, true);
 
           const tipRnd = mulberry32(7781);
           function refineTerminalTwig(tp) {
@@ -5422,35 +5503,14 @@
               .addScaledVector(across, (tipRnd() - 0.5) * length * 0.14);
             c2.y += length * (0.025 + tipRnd() * 0.04);
             const curve = new THREE.CubicBezierCurve3(a.clone(), c1, c2, end);
-            const steps = 6, sides = 7, frames = curve.computeFrenetFrames(steps, false);
-            const positions = [], uv = [], indices = [];
-            for (let i = 0; i <= steps; i++) {
-              const t = i / steps, center = curve.getPoint(t);
-              const radius = tp.radius * (0.10 + 0.90 * Math.pow(1 - t, 1.15));
-              for (let j = 0; j <= sides; j++) {
-                const angle = j / sides * Math.PI * 2;
-                const p = center.clone().addScaledVector(frames.normals[i], Math.cos(angle) * radius)
-                  .addScaledVector(frames.binormals[i], Math.sin(angle) * radius);
-                positions.push(p.x, p.y, p.z); uv.push(j / sides, t);
-                if (i < steps && j < sides) {
-                  const k = i * (sides + 1) + j, next = k + sides + 1;
-                  indices.push(k, k + 1, next, next, k + 1, next + 1);
-                }
-              }
-            }
-            const cap = positions.length / 3; positions.push(end.x, end.y, end.z); uv.push(0.5, 1);
-            for (let j = 0; j < sides; j++) indices.push(cap, steps * (sides + 1) + j, steps * (sides + 1) + j + 1);
-            const geometry = new THREE.BufferGeometry();
-            geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-            geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
-            geometry.setIndex(indices); geometry.computeVertexNormals();
-            for (const piece of tp.pieces) { g.remove(piece); piece.geometry.dispose(); }
-            const twig = new THREE.Mesh(geometry, tp.material);
-            twig.name = 'Cành ngọn ngắn'; twig.castShadow = twig.receiveShadow = true; g.add(twig);
+            const L = tp.limb, steps = 6; L.P = [L.P[0]]; L.R = [tp.radius];
+            for (let i = 1; i <= steps; i++) { const t = i / steps; L.P.push(curve.getPoint(t)); L.R.push(tp.radius * (0.10 + 0.90 * Math.pow(1 - t, 1.15))); }
             tp.pos.copy(end);
           }
           for (const tp of tips) refineTerminalTwig(tp);
           for (const tp of deadTips) refineTerminalTwig(tp);
+          const OT = { flare: 0.42, flareH: 0.7, lobes: 6, sink: 0.55, wS: 2.76 * 0.9, segMax: 12 };
+          g.add(...barkMesh(barkTubes(LB, OT), barkMat)); g.add(...barkMesh(barkTubes(LD, OT), deadMat));
           const pts = [];
           for (const tp of tips) {
             const isRiver = (tp.bIdx === 0);
@@ -5475,93 +5535,77 @@
           } else {
             scene.add(g);
           }
-          const barkMat = new THREE.MeshLambertMaterial({ color: 0x4a3420, transparent: true, opacity: 0.65 });
+          const barkMat = surfaceStyle(new THREE.MeshLambertMaterial({ color: 0x4a3420, transparent: true, opacity: 0.65 }), 'bark');
           const leafCols = [0x4e7a39, 0x5e8c44, 0x6fa052, 0x42692f];
-          const up = new THREE.Vector3(0, 1, 0), V = (x, y, z) => new THREE.Vector3(x, y, z);
+          const V = (x, y, z) => new THREE.Vector3(x, y, z);
 
-          const limb = (a, b, r1, r2) => {
-            const d = new THREE.Vector3().subVectors(b, a), L = d.length();
-            const mm = new THREE.Mesh(new THREE.CylinderGeometry(r2, r1, L, 7), barkMat);
-            mm.castShadow = true; mm.receiveShadow = true;
-            mm.position.copy(a).addScaledVector(d, 0.5);
-            mm.quaternion.setFromUnitVectors(up, d.clone().normalize());
-            g.add(mm);
-            return mm;
-          };
+          const LB = [], mkLimb = (a, r, par, atEnd, pr, pT) => { const l = { P: [a], R: [r], par, kids: [], atEnd, pr, pT }; LB.push(l); if (par) par.kids.push(l); return l; };
+          const limb = (a, b, r1, r2, L) => { L.P.push(b); L.R.push(r2); };
 
           const rnd = mulberry32(1234);
-          const crookedLimb = (a, b, r1, r2, depth = 0, maxDepth = 2) => {
-            const d = new THREE.Vector3().subVectors(b, a), L = d.length();
-            if (depth >= maxDepth || L < 0.12 || r1 < 0.015) return limb(a, b, r1, r2);
+          const crookedLimb = (a, b, r1, r2, L, depth = 0, maxDepth = 2) => {
+            const d = new THREE.Vector3().subVectors(b, a), len = d.length();
+            if (depth >= maxDepth || len < 0.12 || r1 < 0.015) return limb(a, b, r1, r2, L);
             const mid = new THREE.Vector3().addVectors(a, b).multiplyScalar(0.5), dir = d.clone().normalize();
             let tAxis = (Math.abs(dir.y) > 0.9) ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0);
             const p1 = new THREE.Vector3().crossVectors(dir, tAxis).normalize();
             const p2 = new THREE.Vector3().crossVectors(dir, p1).normalize();
-            const jF = L * 0.15, ang = rnd() * 6.283;
+            const jF = len * 0.15, ang = rnd() * 6.283;
             mid.addScaledVector(p1, Math.cos(ang) * jF).addScaledVector(p2, Math.sin(ang) * jF);
             const midR = (r1 + r2) * 0.5;
-            crookedLimb(a, mid, r1, midR, depth + 1, maxDepth);
-            const js = new THREE.Mesh(new THREE.SphereGeometry(midR, 6, 6), barkMat); js.position.copy(mid); g.add(js);
-            crookedLimb(mid, b, midR, r2, depth + 1, maxDepth);
+            crookedLimb(a, mid, r1, midR, L, depth + 1, maxDepth);
+            crookedLimb(mid, b, midR, r2, L, depth + 1, maxDepth);
           };
 
           const trunk = [V(0, 0, 0), V(0.15, 0.7, 0.1), V(-0.1, 1.4, 0.2), V(0.2, 2.1, 0.15)];
+          const TR = mkLimb(trunk[0], 0.21, null, false); TR.root = true;
           let r = 0.21;
-          for (let i = 0; i < trunk.length - 1; i++) {
-            crookedLimb(trunk[i], trunk[i + 1], r, r * 0.82);
-            const js = new THREE.Mesh(new THREE.SphereGeometry(r * 0.82, 8, 8), barkMat);
-            js.position.copy(trunk[i + 1]);
-            g.add(js);
-            r *= 0.82;
-          }
+          for (let i = 0; i < trunk.length - 1; i++) { crookedLimb(trunk[i], trunk[i + 1], r, r * 0.82, TR); r *= 0.82; }
+          const tDir = (i) => trunk[i + 1].clone().sub(trunk[i - 1]).normalize();
           const sBranches = [
             [V(-0.1, 1.4, 0.2), V(-0.8, 1.9, 0.4), V(-1.6, 2.3, 0.5)],
             [V(0.2, 2.1, 0.15), V(0.9, 2.6, -0.2), V(1.6, 3.0, -0.1)],
             [V(0.2, 2.1, 0.15), V(-0.2, 2.7, 0.6), V(-0.5, 3.2, 0.9)]
           ];
           const sTips = [];
-          function sSprout(a, dir, len, rr, depth) {
+          function sSprout(a, dir, len, rr, depth, par, atEnd = true, pr, pT) {
             const b = a.clone().addScaledVector(dir, len);
             b.x += (rnd() - 0.5) * len * 0.3; b.z += (rnd() - 0.5) * len * 0.3;
-            crookedLimb(a, b, rr, rr * 0.7);
-            const js = new THREE.Mesh(new THREE.SphereGeometry(rr * 0.7, 6, 6), barkMat); js.position.copy(b); g.add(js);
+            const L = mkLimb(a, rr, par, atEnd, pr, pT);
+            crookedLimb(a, b, rr, rr * 0.7, L);
             if (depth >= 3 || rr * 0.7 < 0.012) { sTips.push(b); return; }
             const n = 2 + ((rnd() * 2) | 0);
             for (let k = 0; k < n; k++) {
               const nd = dir.clone().add(V((rnd() - 0.5) * 1.4, (rnd() - 0.25) * 0.7, (rnd() - 0.5) * 1.4)).normalize();
               if (nd.y < 0) { nd.y = 0; nd.normalize(); }
-              sSprout(b, nd, len * 0.7 * (0.75 + rnd() * 0.4), rr * 0.7, depth + 1);
+              sSprout(b, nd, len * 0.7 * (0.75 + rnd() * 0.4), rr * 0.7, depth + 1, L, true);
             }
           }
           const tBranchDir1 = V(-0.6, 0.4, -0.6).normalize();
-          sSprout(trunk[1], tBranchDir1, 0.45, 0.11, 0);
+          sSprout(trunk[1], tBranchDir1, 0.45, 0.11, 0, TR, false, 0.21 * 0.82, tDir(1));
           const tBranchDir2 = V(0.6, 0.3, 0.5).normalize();
-          sSprout(trunk[2], tBranchDir2, 0.38, 0.08, 0);
+          sSprout(trunk[2], tBranchDir2, 0.38, 0.08, 0, TR, false, 0.21 * 0.82 * 0.82, tDir(2));
 
           for (const br of sBranches) {
             let rb = 0.11;
-            const startSphere = new THREE.Mesh(new THREE.SphereGeometry(rb * 1.1, 8, 8), barkMat);
-            startSphere.position.copy(br[0]);
-            g.add(startSphere);
+            const atTop = br[0].distanceTo(trunk[3]) < 1e-6, BL = mkLimb(br[0], rb, TR, atTop, atTop ? undefined : 0.21 * 0.82 * 0.82, atTop ? undefined : tDir(2));
             for (let i = 0; i < br.length - 1; i++) {
-              crookedLimb(br[i], br[i + 1], rb, rb * 0.76);
-              const js = new THREE.Mesh(new THREE.SphereGeometry(rb * 0.76, 8, 8), barkMat);
-              js.position.copy(br[i + 1]);
-              g.add(js);
+              crookedLimb(br[i], br[i + 1], rb, rb * 0.76, BL);
 
               if (i === 0) {
                 const dMid = br[1].clone().sub(br[0]).normalize();
                 const sideDir = dMid.clone().add(V((rnd() - 0.5) * 1.6, 0.3, (rnd() - 0.5) * 1.6)).normalize();
                 if (sideDir.y < 0) sideDir.y = 0.1;
                 sideDir.normalize();
-                sSprout(br[1], sideDir, 0.38, rb * 0.76, 0);
+                sSprout(br[1], sideDir, 0.38, rb * 0.76, 0, BL, false, rb * 0.76, dMid);
               }
 
               rb *= 0.76;
             }
             const e = br[br.length - 1], d0 = e.clone().sub(br[br.length - 2]).normalize();
-            sSprout(e, d0, 0.5, rb, 0);
+            sSprout(e, d0, 0.5, rb, 0, BL, true);
           }
+          g.add(...barkMesh(barkTubes(LB, { flare: 0.5, sink: 0.25, wS: 1.75 * 0.9 }), barkMat));
           const sLeafPts = [];
           const perTip = Math.max(20, Math.round(810 / sTips.length));
           for (const tp of sTips) cloudPts(rnd, tp.x, tp.y + 0.05, tp.z, 0.55, perTip, sLeafPts);
@@ -12583,7 +12627,7 @@
           const boxes = [], matrix = new THREE.Matrix4(), local = new THREE.Matrix4();
           scene.updateMatrixWorld(true);
           for (const root of flightRoots) root.traverse(obj => {
-            if (!obj.isMesh || !obj.geometry) return;
+            if (!obj.isMesh || !obj.geometry || obj.userData.noFlight) return;
             if (!obj.geometry.boundingBox) obj.geometry.computeBoundingBox();
             if (obj.isInstancedMesh) {
               const clusters = new Map(), center = new THREE.Vector3();
@@ -14090,7 +14134,7 @@
             if (r < o.rMin || r > o.rMax || ym < o.y0 * top || ym > o.y1 * top) continue;
             toWorld(a.set(s[0], s[1], s[2])); toWorld(b.set(s[3], s[4], s[5])); d.subVectors(b, a); const L = d.length(); if (L < 0.1) continue; d.divideScalar(L);
             if (Math.abs(d.y) > 0.6) continue;
-            const m = a.clone().lerp(b, 0.5); m.y += r;
+            const m = s.length > 8 ? toWorld(new THREE.Vector3(s[8], s[9], s[10])) : a.clone().lerp(b, 0.5); m.y += r;
             out.push({ p: m, yaw: Math.atan2(d.x, d.z) + Math.PI / 2, score: Math.hypot(s[0] + s[3], s[2] + s[5]) / Math.max(top, 1e-3) - ym / top });
           }
           out.sort((x, y) => x.score - y.score); return out;

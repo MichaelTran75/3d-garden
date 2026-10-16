@@ -45,7 +45,7 @@
             if (r < o.rMin || r > o.rMax || ym < o.y0 * top || ym > o.y1 * top) continue;
             toWorld(a.set(s[0], s[1], s[2])); toWorld(b.set(s[3], s[4], s[5])); d.subVectors(b, a); const L = d.length(); if (L < 0.1) continue; d.divideScalar(L);
             if (Math.abs(d.y) > 0.6) continue;
-            const m = a.clone().lerp(b, 0.5); m.y += r;
+            const m = s.length > 8 ? toWorld(new THREE.Vector3(s[8], s[9], s[10])) : a.clone().lerp(b, 0.5); m.y += r;   // [8–10]: điểm giữa thật trên cành cong (recTree)
             out.push({ p: m, yaw: Math.atan2(d.x, d.z) + Math.PI / 2, score: Math.hypot(s[0] + s[3], s[2] + s[5]) / Math.max(top, 1e-3) - ym / top });
           }
           out.sort((x, y) => x.score - y.score); return out;

@@ -16,6 +16,8 @@
           uniform sampler2D uSfH; uniform vec4 uSfG; varying vec3 vSfP; varying vec3 vSfN;
           float sfR(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
           float sfN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(sfR(i), sfR(i + vec2(1.0, 0.0)), f.x), mix(sfR(i + vec2(0.0, 1.0)), sfR(i + vec2(1.0, 1.0)), f.x), f.y); }
+          float sfNw(vec2 p, float P) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); float i0 = mod(i.x, P), i1 = mod(i.x + 1.0, P);   // nhiễu tuần hoàn theo x (chu kỳ P ô) — vòng quanh thân không lộ đường may
+            return mix(mix(sfR(vec2(i0, i.y)), sfR(vec2(i1, i.y)), f.x), mix(sfR(vec2(i0, i.y + 1.0)), sfR(vec2(i1, i.y + 1.0)), f.x), f.y); }
           vec3 sfBump(vec3 n, vec3 sp, float h) { vec3 dx = dFdx(sp), dy = dFdy(sp), r1 = cross(dy, n), r2 = cross(n, dx); float det = dot(dx, r1);
             return normalize(abs(det) * n - sign(det) * (dFdx(h) * r1 + dFdy(h) * r2)); }`;
         function surfaceStyle(mat, kind) {
@@ -25,13 +27,13 @@
             SF_H = SF_H || sfHeightTex();
             sh.uniforms.uSfH = { value: SF_H }; sh.uniforms.uSfG = { value: new THREE.Vector4(1 / BLOCK, cx, cz, 0) };
             // chèn ở fog_vertex (cuối shader): vị trí thế giới lấy ngược từ mvPosition ⇒ đúng cả khi shader gió đã thay project_vertex (cây đung đưa)
-            sh.vertexShader = 'varying vec3 vSfP; varying vec3 vSfN;\n' + (K === 5 ? 'attribute vec2 aBk; varying vec2 vSfB;\n' : '') + sh.vertexShader.replace('#include <fog_vertex>', `#include <fog_vertex>${K === 5 ? '\n vSfB = aBk;' : ''}
+            sh.vertexShader = 'varying vec3 vSfP; varying vec3 vSfN;\n' + (K === 5 ? 'attribute vec3 aBk; varying vec3 vSfB;\n' : '') + sh.vertexShader.replace('#include <fog_vertex>', `#include <fog_vertex>${K === 5 ? '\n vSfB = aBk;' : ''}
               vec3 sfN3 = objectNormal;
               #ifdef USE_INSTANCING
                 sfN3 = mat3(instanceMatrix) * sfN3;
               #endif
               vSfP = (inverse(viewMatrix) * vec4(mvPosition.xyz, 1.0)).xyz; vSfN = normalize(mat3(modelMatrix) * sfN3);`);
-            sh.fragmentShader = SF_GLSL + (K === 5 ? '\nvarying vec2 vSfB;' : '') + '\n' + sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
+            sh.fragmentShader = SF_GLSL + (K === 5 ? '\nvarying vec3 vSfB;' : '') + '\n' + sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
               float sfHg = 0.0;
               {
                 vec3 wn = normalize(vSfN); float wf = 1.0 - smoothstep(0.55, 0.85, abs(wn.y));   // mặt đứng
@@ -58,14 +60,16 @@
                   sfHg = -0.004 * ln * wf + 0.0005 * sfN(vec2(u * 60.0, y * 2.0));
                 #elif ${K} == 5
                   // VỎ CÂY: rãnh nứt DỌC thân = đường đồng mức của nhiễu kéo dài theo thân (~12 ô quanh thân, uốn lượn) ⇒ rãnh hẹp tối, mảng vỏ ở giữa; nứt
-                  // ngang thưa chia mảng; địa y bạc xanh trên mảng; rêu ở gốc. Rãnh lõm thật (bump)
-                  float ba = vSfB.x * 12.0, bl = vSfB.y * 1.6, bw = 1.4 * sfN(vec2(ba * 0.45, bl * 0.7));
-                  float cr = max(1.0 - smoothstep(0.015, 0.085, abs(sfN(vec2(ba + bw, bl * 0.45)) - 0.5)), 0.75 * (1.0 - smoothstep(0.01, 0.06, abs(sfN(vec2(ba * 2.1 + bw + 4.0, bl * 0.8)) - 0.5))));
-                  float hc = (1.0 - smoothstep(0.015, 0.05, abs(sfN(vec2(ba * 0.6 + 3.0, bl * 2.4)) - 0.5))) * step(0.5, sfN(vec2(ba * 0.6, bl * 0.8) + 9.0));
-                  float gv = max(cr, 0.7 * hc), pl = sfN(vec2(ba * 0.8, bl * 1.1) + 2.0);
+                  // ngang thưa chia mảng; địa y xám xanh thành đốm tròn nhỏ trên mảng (17/10: bản đầu kéo dài thành vệt trắng dọc thân); rêu ở gốc. Rãnh lõm
+                  // thật (bump). Mọi nhiễu theo vòng quanh thân đều TUẦN HOÀN (sfNw, chu kỳ = số ô quanh thân) ⇒ không còn đường may dọc thân.
+                  // aBk.z = bm: số lần lặp 12 rãnh quanh thân (thân to như cây cổ thụ: bm ~ chu vi / 0,9 m ⇒ mảng vỏ cùng cỡ thật với cây táo; lưới cũ 2 thành phần ⇒ 1)
+                  float bm = max(1.0, floor(vSfB.z + 0.5)), ba = vSfB.x * 12.0, bl = vSfB.y * 1.6, bw = 1.4 * sfNw(vec2(ba * 0.5, bl * 0.7), 6.0 * bm);
+                  float cr = max(1.0 - smoothstep(0.015, 0.085, abs(sfNw(vec2(ba + bw, bl * 0.45), 12.0 * bm) - 0.5)), 0.75 * (1.0 - smoothstep(0.01, 0.06, abs(sfNw(vec2(ba * 2.0 + bw + 4.0, bl * 0.8), 24.0 * bm) - 0.5))));
+                  float hc = (1.0 - smoothstep(0.015, 0.05, abs(sfNw(vec2(ba * 0.5 + 3.0, bl * 2.4), 6.0 * bm) - 0.5))) * step(0.5, sfNw(vec2(ba * 0.5, bl * 0.8) + 9.0, 6.0 * bm));
+                  float gv = max(cr, 0.7 * hc), pl = sfNw(vec2(ba, bl * 1.1) + 2.0, 12.0 * bm);
                   c *= mix(0.95 + 0.14 * pl, 0.4, gv);
-                  c = mix(c, vec3(0.62, 0.66, 0.55), 0.28 * smoothstep(0.82, 0.95, sfN(vec2(ba * 2.4, bl * 3.0) + 11.0)) * (1.0 - gv));
-                  c = mix(c, vec3(0.30, 0.40, 0.18), 0.5 * (1.0 - smoothstep(0.0, 0.9, hA)) * smoothstep(0.3, 0.7, sfN(vec2(ba * 0.6, bl * 3.0) + 5.0)));
+                  c = mix(c, vec3(0.40, 0.46, 0.34), 0.3 * smoothstep(0.78, 0.92, sfNw(vec2(ba * 2.0, bl * 12.0) + 11.0, 24.0 * bm)) * (1.0 - gv));
+                  c = mix(c, vec3(0.30, 0.40, 0.18), 0.5 * (1.0 - smoothstep(0.0, 0.9, hA)) * smoothstep(0.3, 0.7, sfNw(vec2(ba * 0.5, bl * 3.0) + 5.0, 6.0 * bm)));
                   sfHg = -0.012 * gv + 0.003 * pl;
                 #endif
                 float ao = mix(0.56, 1.0, smoothstep(0.0, 1.3, hA));   // chân tường tối dần + ám bẩn nâu

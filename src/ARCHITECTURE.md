@@ -109,8 +109,23 @@ cận cảnh, hiệu năng, cách thử và các bẫy đã dính. Chi tiết t�
 - **Cây rừng: cành tự nhiên** (`natTree`, `recTree(g, { natural: true, … })`, G 15/10 học GLB "Low Poly Tree Scene Free"): thân chính tới ngọn, gốc trơn
   ~1/5, 10–13 cành bên rải dọc thân theo góc vàng 137,5°, dưới xoè ~70° (`angTaper`) rồi uốn cong lên (`bend`, hướng sáng), dưới dài – trên ngắn;
   mỗi cành bên 3–4 cành con, cành con chẻ đôi ở đầu; mỗi cành = 1 ống cong liền thuôn dần (`taperTube`, khung vận chuyển song song) — không khớp cầu.
-  ~1.500–1.900 đỉnh / mẫu (cũ ~1.900), ~16 điểm tán. Cây táo, anh đào, cành khúc gỗ vẫn dùng `recTree` cũ (hộp tổ treo đúng 1 cành đã đo, táo,
-  hoa dọc cành phụ thuộc vị trí cành).
+  ~1.500–1.900 đỉnh / mẫu (cũ ~1.900), ~16 điểm tán. Cây táo, anh đào, cành khúc gỗ vẫn dùng dáng `recTree` cũ (hộp tổ treo đúng 1 cành đã đo, táo,
+  hoa dọc cành phụ thuộc vị trí cành) — nhưng lưới giờ là ống cong liền (`barkTubes`, gạch dưới).
+- **Cành = ống cong liền** (`barkTubes(L, o)` ở nature/flowers-trees.js, G 17/10 khoanh "chỗ gấp" thân cây táo rồi "render cho cây cổ thụ luôn"):
+  dùng cho recTree (táo, anh đào, cành khúc gỗ) + cây cổ thụ + cây con. Dựng 2 bước: (1) chạy đệ quy như cũ, CHỈ ghi bản ghi cành `{ P, R, par, kids,
+  atEnd, root, pr, pT }` (điểm gấp khúc giữ nguyên thứ tự rnd() ⇒ táo, hoa, hộp tổ, tổ ong, chỗ chim / cò / bướm đậu không đổi); (2) gom CHUỖI: cành
+  mẹ nối liền với cành con thẳng hướng nhất mọc ở ngọn (lệch < 60°) ⇒ 1 ống qua chỗ chẻ; mỗi chuỗi = Catmull–Rom hướng tâm qua điểm gấp, vòng mặt
+  cắt theo khung vận chuyển song song, pháp tuyến tính từ lưới, vòm khép ngọn. Đầu chuỗi: 0 gốc (cắm đất `sink`, loe `flare` theo `lobes` múi) ·
+  1 mọc ở ngọn mẹ (lùi 1,4 bán kính VÀO LÒNG mẹ, cùng hướng mẹ, 96% bán kính, rồi uốn 1 chiều) — khung mặt cắt, toạ độ vân và pháp tuyến hoà dần
+  từ cành mẹ ⇒ vết nứt chạy liền qua đường tách · 2 mọc ngang giữa cành (cắm từ tim mẹ, cổ cành phình 30% ra ngoài mặt mẹ). Vỏ trong suốt ⇒
+  `barkMesh` thêm bản CHỈ GHI ĐỘ SÂU vẽ trước (renderOrder −0,5, cùng chương trình shader ⇒ cùng độ sâu) ⇒ chỉ lớp vỏ ngoài cùng được tô.
+  `segs[8–10]` = điểm giữa thật trên đường cong (chim đậu đúng mặt cành, lệch TB 0,2 cm). Hộp vật cản bay TỪNG ĐOẠN (`geo.userData.flightBounds`
+  → `bakedFlightBounds`; bản độ sâu `noFlight`) — 1 lưới cả cây mà không có hộp từng đoạn thì bản đồ bay lấy 1 hộp bao cả tán (ong / bướm không vào
+  được hoa dưới cây). Số cạnh / vòng theo cỡ thế giới (`wS`): táo 75k → 25k
+  tam giác, anh đào 57k → 28k, cổ thụ + cây con ~95k như cũ (cộng lượt độ sâu ⇒ cả khung +~1%). **Bẫy** (đã dính): ép cành con đi qua tâm đầu
+  cành mẹ ⇒ đường cong chữ S lòi ra phía đối diện thành gờ ngang; 4 cành con cùng trồi ở 1 độ cao ⇒ vệt vòng ngang (hết nhờ chuỗi liền + hoà
+  pháp tuyến / vân); vật liệu trong suốt chồng 2 lớp ở đoạn lồng nhau ⇒ vệt đậm (lượt độ sâu); `material.clone()` chết vì userData vòng tròn
+  (treeWind ⇄ depthMat) ⇒ tạm gỡ userData khi clone. Soi chuỗi: vá `barkTubes` qua `__ev` để tô màu đỉnh theo chuỗi (scratchpad `forkshot.js`).
 - **Thảm cỏ** (`nature/meadow.js`): cỏ mềm = 45% ô đất theo ngưỡng điểm nhiễu, KHÔNG mọc trên nền san phẳng (`padH`). **Thảm cỏ ngắn**
   (`LAWNS`, G 15/10: bãi khúc gỗ chết + 2 gốc cây, nằm trên nền san phẳng): ô trong elip mép loang luôn có cỏ, kể cả trên nền san
   phẳng; lá 9–15 cm, mảnh hơn 40%, 3 bản/ô; đánh dấu bằng độ tươi +2 trong `aCell.z` (shader: `lawn = step(1.5, aCell.z)`, gốc lá tối
@@ -225,7 +240,8 @@ lò xo) ⇒ lên bậc voxel 0,6 đv thì chân trước lên trước, thân ng
   bằng getter trên `liveWeather.state` (gán thường bị module thời tiết ghi đè).
 - Chỗ đậu trên CÀNH THẬT (16/10): `recTree`/`natTree` ghi `segs` (đoạn cành [a, b, r1, r2], toạ độ cây) → cây táo `userData.limbs`, biến thể rừng
   `_forestVariants[k].segs`; `treeCoords` có `V` (biến thể) + `rot` (`addTreeInst` trả biến thể). `branchPerches` (songbird.js) lọc đoạn bán kính vừa
-  chân chim, gần ngang (|dy| < 0,6), giữa tán, xếp gần thân trước; điểm = mặt trên cành. Đo: chân chim cách trục cành = bán kính (sai ≤ 1,2 cm).
+  chân chim, gần ngang (|dy| < 0,6), giữa tán, xếp gần thân trước; điểm = mặt trên cành (recTree: điểm giữa thật trên ống cong `segs[8–10]`).
+  Đo: chân chim cách trục cành = bán kính (sai ≤ 1,2 cm; recTree từ 17/10 TB 0,2 cm).
   Đừng đặt chỗ đậu bằng toạ độ đoán theo cỡ cây (cây đổi hình là lơ lửng).
 - Độ cao mặt đứng `cowY` (cows-hut.js) cho MỌI con vật + kỹ sư: đập → `damDeckY` · đường nội bộ → `roadSurfaceAt` (đường đắp cao hơn ô đất tới
   1,3 m — trước đây thú đi trên đường bị lún) · còn lại ô đất. `envFree(x, z)`: lưới 0,25 m bị chắn (vật cản đăng ký + đồ trại + nước), tự dựng lại khi
@@ -280,9 +296,10 @@ lò xo) ⇒ lên bậc voxel 0,6 đv thì chân trước lên trước, thân ng
   `onBeforeCompile` (kind: concrete · stucco · boards · woodAO · bark) — shader thủ tục theo toạ độ thế giới: loang tông lớn, mạch cốp pha + ố + vệt
   chảy + rêu chân (bê tông), lốm đốm + vệt nước mưa (vữa), mạch ván + tông từng tấm + thớ (ván), CHÂN TƯỜNG TỐI + ÁM NÂU theo độ cao trên mặt đất
   (ẢNH ĐỘ CAO ĐỊA HÌNH GX × GZ float dựng 1 lần từ cowY ⇒ 1 vật liệu dùng chung nhiều nhà vẫn đúng chân từng nhà), bump theo đạo hàm màn hình.
-  Vỏ cây đọc thuộc tính `aBk` = (quanh thân 0–1, dọc thân m): `taperTube` (cây rừng) giờ nhân đôi cột đường may + pháp tuyến theo bán kính,
-  `bkAttr(geo, L)` cho trụ / cầu của recTree + khúc gỗ — rãnh nứt dọc = đường đồng mức của nhiễu kéo dài theo thân (2 lớp), nứt ngang chia mảng, địa y,
-  rêu gốc. **Bẫy**: shader gió THAY `#include <project_vertex>` ⇒ chèn vị trí ở `fog_vertex`, lấy ngược từ mvPosition; `windShader` GHI ĐÈ
+  Vỏ cây đọc thuộc tính `aBk` = (quanh thân 0–bm, dọc thân m, bm): `taperTube` (cây rừng, 2 thành phần ⇒ bm = 1) nhân đôi cột đường may + pháp
+  tuyến theo bán kính, `barkTubes` (bm = số lần lặp 12 rãnh ≈ chu vi thật / 0,9 m ⇒ thân cổ thụ ~120 rãnh như thật; cành con ở ngọn dùng bm của mẹ),
+  `bkAttr(geo, L)` cho khúc gỗ — rãnh nứt dọc = đường đồng mức của nhiễu kéo dài theo thân (2 lớp), nứt ngang chia mảng, địa y đốm tròn, rêu gốc;
+  nhiễu quanh thân TUẦN HOÀN (`sfNw`, chu kỳ 12·bm ô) ⇒ không lộ đường may. **Bẫy**: shader gió THAY `#include <project_vertex>` ⇒ chèn vị trí ở `fog_vertex`, lấy ngược từ mvPosition; `windShader` GHI ĐÈ
   onBeforeCompile (không nối) ⇒ gọi surfaceStyle SAU windShader; khoá chương trình nối khoá cũ (`|sf` + kind). Vật liệu có shader riêng không gộp lượt vẽ.
 - Drone đồ chơi (`engineer/drone.js`, G 17/10, GLB "Drone" chỉ đo dáng): việc `drone` 15:20 (once; mưa ⇒ trú hiên, gió > 9 m/s ⇒ nghỉ; xong sớm ⇒
   `rest` tới 16:00). Máy trạng thái `D.st`: toTable → grab → carry → place (ngồi xổm, mở càng) → back (lùi 2,8 m) → ready (bật máy, chờ vệ tinh) →

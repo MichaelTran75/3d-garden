@@ -97,7 +97,7 @@
           const boxes = [], matrix = new THREE.Matrix4(), local = new THREE.Matrix4();
           scene.updateMatrixWorld(true);
           for (const root of flightRoots) root.traverse(obj => {
-            if (!obj.isMesh || !obj.geometry) return;
+            if (!obj.isMesh || !obj.geometry || obj.userData.noFlight) return;   // noFlight: bản chỉ ghi độ sâu của vỏ cây (trùng lưới thật)
             if (!obj.geometry.boundingBox) obj.geometry.computeBoundingBox();
             if (obj.isInstancedMesh) {
               const clusters = new Map(), center = new THREE.Vector3();
