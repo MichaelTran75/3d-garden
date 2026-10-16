@@ -276,11 +276,13 @@
         const terrainMeshes = [];   // các lưới mặt địa hình dùng cho raycast tọa độ khi hover
         // BẢNG MÀU BẬC ĐỊA HÌNH (hypsometric) — port từ 3D garden: trũng tối → cao sáng (dải xanh cỏ)
         const TERR_LAYERS = [0x244d18, 0x2c5a1d, 0x356822, 0x3f7628, 0x4a842e, 0x569234, 0x64a03c, 0x74ad46, 0x86ba52, 0x99c661, 0xadd072, 0xc2da86].map(h => new THREE.Color(h));
-        // ô đất PHẲNG (4 ô bên cạnh đều cao bằng/hơn): 4 mặt bên luôn bị che → chỉ giữ mặt trên (lượt vẽ màu) + mặt đáy (lượt đổ bóng vẽ mặt sau,
-        // nên bóng đổ y như khối hộp cũ) → 4 tam giác thay vì 12. Ô sát mép dốc/nước vẫn là hộp đủ 6 mặt.
+        // ô đất PHẲNG (4 ô bên cạnh đều cao bằng/hơn): 4 mặt bên luôn bị che → CHỈ MẶT TRÊN (2 tam giác thay vì 12), KHÔNG ĐỔ BÓNG (vẫn nhận bóng).
+        // Trước đây giữ cả mặt đáy cho lượt đổ bóng (vẽ mặt sau); nhưng tia nắng muốn rơi xuống chỗ thấp hơn thì phải ra khỏi khối đất qua một
+        // ô KHÔNG phẳng (mép dốc/nước = hộp đủ 6 mặt, vẫn đổ bóng) ⇒ ô phẳng không góp gì vào bóng thấy được. G 16/10: −232k tam giác lượt vẽ chính,
+        // −464k lượt bóng mỗi khung; ảnh trước/sau lúc 10:00 và 17:20 (vách sông, đồi, toàn cảnh) lệch trung bình ≤ 0,01/255.
         const flatTopGeo = (() => {
           const g = boxGeo.clone(), idx = g.index.array, keep = [];
-          for (const gr of g.groups) if (gr.materialIndex === 2 || gr.materialIndex === 3) for (let i = gr.start; i < gr.start + gr.count; i++) keep.push(idx[i]);
+          for (const gr of g.groups) if (gr.materialIndex === 2) for (let i = gr.start; i < gr.start + gr.count; i++) keep.push(idx[i]);
           g.setIndex(keep); g.clearGroups(); return g;
         })();
         // instanced unit cubes (with optional per-instance tint) — mục có p[3] = true (ô phẳng) dùng hình chỉ mặt trên + đáy
@@ -305,7 +307,7 @@
               im.setColorAt(k, col);
             }
           }
-          im.castShadow = true; im.receiveShadow = true; im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; scene.add(im);
+          im.castShadow = geo !== flatTopGeo; im.receiveShadow = true; im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; scene.add(im);
           if (collect) terrainMeshes.push(im);
         }
         // instanced boxes with per-instance Y-scale (merged column bodies → huge perf win)

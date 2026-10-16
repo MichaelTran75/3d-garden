@@ -248,7 +248,7 @@
             }
             cloudPts(rnd, tp.pos.x, tp.pos.y + 0.08, tp.pos.z, radius, count, pts);
           }
-          tuftInstanced(g, rnd, pts, new THREE.CylinderGeometry(0.05, 0.05, 0.0018, 6), leafCols, 0.76, 0.7, tw, 0.04);   // lá cây cổ thụ trong suốt hơn 10% (0.85 * 0.9 = 0.76)
+          tuftInstanced(g, rnd, pts, leafHexGeo(0.05), leafCols, 0.76, 0.7, tw, 0.04);   // lá cây cổ thụ trong suốt hơn 10% (0.85 * 0.9 = 0.76)
           g.userData.leafPts = pts;   // lá vàng rụng sinh từ chính các chùm lá (toạ độ cục bộ)
 
           bakeStatic(g);
@@ -358,7 +358,7 @@
           const sLeafPts = [];
           const perTip = Math.max(20, Math.round(810 / sTips.length));   // tổng ~810 điểm lá = gấp 3 lần trước (3 cụm × 90 = 270)
           for (const tp of sTips) cloudPts(rnd, tp.x, tp.y + 0.05, tp.z, 0.55, perTip, sLeafPts);
-          tuftInstanced(g, rnd, sLeafPts, new THREE.CylinderGeometry(0.05, 0.05, 0.0018, 6), leafCols, 0.85);
+          tuftInstanced(g, rnd, sLeafPts, leafHexGeo(0.05), leafCols, 0.85);
           // ---- điểm treo TỔ ONG trên cành cây con (tổ ong giỏ rơm dựng ở animals/beehive.js, treo thẳng đứng từ điểm này) ----
           const hiveAnchor = new THREE.Object3D(); hiveAnchor.position.set(-3.4425, 3.5108, 0.3995); g.add(hiveAnchor); g.userData.hiveAnchor = hiveAnchor;
 

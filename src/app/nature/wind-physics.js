@@ -308,8 +308,18 @@
         vegPools.stem.autoSway = 'vertex'; vegPools.fcube.autoSway = 'rigid'; vegPools.petal.autoSway = 'rigid'; vegPools.fcen.autoSway = 'rigid';
         for (const k of ['stem', 'fcube', 'petal', 'fcen']) flowerWindShader(vegPools[k].mat, 0.37);   // thân & đầu hoa đung đưa cùng gió sát đất
         forestWindShader(leafMatInst);         // khối tán cây rừng
+        // LÁ PHẲNG LỤC GIÁC (G 16/10, đo tam giác): lá cũ là hình trụ 6 cạnh dày 2–4 mm = 24 tam giác (thành bên + 2 nắp); đĩa lục giác cùng bán kính,
+        // 2 mặt = 4 tam giác — ảnh trước/sau gần như trùng (chỉ khác viền mảnh ở mép lá). Vật liệu 2 mặt + forceSinglePass (vật trong suốt 2 mặt mặc định
+        // vẽ 2 lượt) nên lượt vẽ không tăng.
+        function leafHexGeo(r) {
+          const pos = [], uv = [], nrm = [];
+          for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3; pos.push(r * Math.cos(a), 0, r * Math.sin(a)); uv.push(0.5 + 0.5 * Math.cos(a), 0.5 + 0.5 * Math.sin(a)); nrm.push(0, 1, 0); }
+          const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3));
+          g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex([0, 2, 1, 0, 3, 2, 0, 4, 3, 0, 5, 4]); g.userData.twoSided = true; return g;
+        }
         function tuftInstanced(g, rnd, pts, geo, cols, opacity, swayScale = 1.0, tw = null, flutter = 0.025 * swayScale) {   // đám lá/hoa instanced quanh các điểm pts · rung theo gió (tw: mô hình thân cây riêng nếu có)
           const mat = windShader(new THREE.MeshLambertMaterial({ transparent: true, opacity }), tw || genericFoliageWind, flutter);
+          if (geo.userData.twoSided) { mat.side = THREE.DoubleSide; mat.forceSinglePass = true; }
           const im = new THREE.InstancedMesh(geo, mat, pts.length);
           const q = new THREE.Quaternion(), eu = new THREE.Euler(), p = new THREE.Vector3(), sc = new THREE.Vector3(), mm = new THREE.Matrix4(), col = new THREE.Color();
           pts.forEach((pt, k) => {

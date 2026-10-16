@@ -57,6 +57,11 @@ cận cảnh, hiệu năng, cách thử và các bẫy đã dính. Chi tiết t�
   - Mảnh có `userData.lodHi` (cận cảnh) được đổi hình tạm: tự vẽ khi dùng bản nhiều cạnh, lùi xa thì về lại lô.
 - Lớp: 0 = cảnh; 2 = nền trời đêm (camera chính bật, camera phụ như bản đồ mặt chắn mưa không thấy); 31 = mảnh gốc đã gộp.
 - Ngân sách tham khảo: ~250–450 lượt vẽ, ~1,8–2,4 triệu tam giác ở toàn cảnh; mật độ điểm ảnh tối đa 1,6.
+  **Đo thật 16/10** (toàn cảnh mặc định, 10:00): lượt chính 1,76 triệu + lượt bóng 1,29 triệu tam giác (trước khi sửa: 2,12 + 1,88), 779 + 306 lượt vẽ.
+  Lớn nhất: khối đất đủ 6 mặt (21k + 11k ô × 12 tam giác, cả 2 lượt) · cây rừng natTree (~150 cây × 2,4–3,4k) · 2 cây táo cạnh trại (cành
+  35–41k/cây) · anh đào ~100k. Đàn chim sẻ ~280 lượt vẽ (mảnh nhỏ không gộp). Mô phỏng (mọi hành vi) chỉ ~0,4 ms/khung — nút thắt là GPU.
+  Cách đo: bọc `renderer.renderBufferDirect`, lấy chênh `info.render.triangles` mỗi lệnh (`scene` = null ⇒ lượt bóng); lô gộp chia lại theo
+  `userData.batchSrc.recs`. Đã cắt: lá phẳng lục giác `leafHexGeo` (24 → 4 tam giác/lá) và ô đất phẳng không đổ bóng (`flatTopGeo` chỉ mặt trên).
 - **Độ phân giải tự điều chỉnh** (`loop/close-up.js`, `DRES`): khung chậm (> 22 ms) 1,5 s → hạ mật độ điểm ảnh ×0,85; nhanh
   (< 17,8 ms) 4 s → nâng ×1,1; sàn 0,6. Hạ mà không nhanh lên ≥ 8% (màn 30 Hz, nghẽn CPU) → trả lại, thôi thử 60 s.
   Trang thử đặt `window.__resLock = true` để ảnh chụp giữ cỡ.

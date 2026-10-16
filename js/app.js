@@ -362,7 +362,7 @@
         const TERR_LAYERS = [0x244d18, 0x2c5a1d, 0x356822, 0x3f7628, 0x4a842e, 0x569234, 0x64a03c, 0x74ad46, 0x86ba52, 0x99c661, 0xadd072, 0xc2da86].map(h => new THREE.Color(h));
         const flatTopGeo = (() => {
           const g = boxGeo.clone(), idx = g.index.array, keep = [];
-          for (const gr of g.groups) if (gr.materialIndex === 2 || gr.materialIndex === 3) for (let i = gr.start; i < gr.start + gr.count; i++) keep.push(idx[i]);
+          for (const gr of g.groups) if (gr.materialIndex === 2) for (let i = gr.start; i < gr.start + gr.count; i++) keep.push(idx[i]);
           g.setIndex(keep); g.clearGroups(); return g;
         })();
         function instanced(positions, mat, tint, collect) {
@@ -386,7 +386,7 @@
               im.setColorAt(k, col);
             }
           }
-          im.castShadow = true; im.receiveShadow = true; im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; scene.add(im);
+          im.castShadow = geo !== flatTopGeo; im.receiveShadow = true; im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; scene.add(im);
           if (collect) terrainMeshes.push(im);
         }
         function instancedScaled(items, mat, collect) {
@@ -2610,8 +2610,15 @@
         vegPools.stem.autoSway = 'vertex'; vegPools.fcube.autoSway = 'rigid'; vegPools.petal.autoSway = 'rigid'; vegPools.fcen.autoSway = 'rigid';
         for (const k of ['stem', 'fcube', 'petal', 'fcen']) flowerWindShader(vegPools[k].mat, 0.37);   // thân & đầu hoa đung đưa cùng gió sát đất
         forestWindShader(leafMatInst);         // khối tán cây rừng
+        function leafHexGeo(r) {
+          const pos = [], uv = [], nrm = [];
+          for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3; pos.push(r * Math.cos(a), 0, r * Math.sin(a)); uv.push(0.5 + 0.5 * Math.cos(a), 0.5 + 0.5 * Math.sin(a)); nrm.push(0, 1, 0); }
+          const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3));
+          g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex([0, 2, 1, 0, 3, 2, 0, 4, 3, 0, 5, 4]); g.userData.twoSided = true; return g;
+        }
         function tuftInstanced(g, rnd, pts, geo, cols, opacity, swayScale = 1.0, tw = null, flutter = 0.025 * swayScale) {   // đám lá/hoa instanced quanh các điểm pts · rung theo gió (tw: mô hình thân cây riêng nếu có)
           const mat = windShader(new THREE.MeshLambertMaterial({ transparent: true, opacity }), tw || genericFoliageWind, flutter);
+          if (geo.userData.twoSided) { mat.side = THREE.DoubleSide; mat.forceSinglePass = true; }
           const im = new THREE.InstancedMesh(geo, mat, pts.length);
           const q = new THREE.Quaternion(), eu = new THREE.Euler(), p = new THREE.Vector3(), sc = new THREE.Vector3(), mm = new THREE.Matrix4(), col = new THREE.Color();
           pts.forEach((pt, k) => {
@@ -2661,7 +2668,7 @@
           const { tips, rnd } = recTree(g, { seed, s, barkMat, trunkLen: 1.7 * s, trunkR: 0.125 * s, maxDepth: 4, nMin: 2, nMax: 3, lenK: 0.74, radK: 0.6, spread: 0.72, upBias: 0.22, firstSplitN: 4 });
           const pts = []; for (const tp of tips) cloudPts(rnd, tp.x, tp.y + 0.08 * s, tp.z, 0.62 * s, 40, pts);
           cloudPts(rnd, 0, 2.7 * s, 0, 1.05 * s, 130, pts);   // chùm trung tâm cho tán dày ruột
-          tuftInstanced(g, rnd, pts, new THREE.CylinderGeometry(0.09 * s, 0.09 * s, 0.003 * s, 6), [0x86a364, 0x78935b, 0x6e8754, 0x61784a], 0.60); g.userData.leafPts = pts;   // điểm lá: lá rụng theo cơn giật (nature/wind-field.js)   // lá cây trong suốt hơn 20% (0.75 * 0.8 = 0.60)
+          tuftInstanced(g, rnd, pts, leafHexGeo(0.09 * s), [0x86a364, 0x78935b, 0x6e8754, 0x61784a], 0.60); g.userData.leafPts = pts;   // điểm lá: lá rụng theo cơn giật (nature/wind-field.js)   // lá cây trong suốt hơn 20% (0.75 * 0.8 = 0.60)
           function deformApple(geom) {
             const pos = geom.attributes.position;
             for (let i = 0; i < pos.count; i++) {
@@ -2928,7 +2935,7 @@
           const tw = makeTreeWind({ freq: 0.55, zeta: 0.1, lean: 0.3, branchAmp: 0.06 });
           windShader(cherryBark, tw, 0);
           tuftInstanced(g, rnd, blossomPts, new THREE.BoxGeometry(0.17 * s, 0.17 * s, 0.17 * s), cherryPinks, 0.75, 1, tw, 0.035);
-          tuftInstanced(g, rnd, leafPts, new THREE.CylinderGeometry(0.09 * s, 0.09 * s, 0.003 * s, 6), [0x86a364, 0x78935b, 0x6e8754, 0x61784a], 0.90, 1, tw, 0.03);
+          tuftInstanced(g, rnd, leafPts, leafHexGeo(0.09 * s), [0x86a364, 0x78935b, 0x6e8754, 0x61784a], 0.90, 1, tw, 0.03);
           const _q = new THREE.Quaternion(), _p = new THREE.Vector3(), _sc = new THREE.Vector3(1, 1, 1), _mm = new THREE.Matrix4(), _col = new THREE.Color();
           const fallen = new THREE.InstancedMesh(new THREE.BoxGeometry(0.13 * s, 0.002 * s, 0.13 * s), new THREE.MeshLambertMaterial({ transparent: true, opacity: 0.75 }), 26);
           for (let k = 0; k < 26; k++) {
@@ -5272,7 +5279,7 @@
             }
             cloudPts(rnd, tp.pos.x, tp.pos.y + 0.08, tp.pos.z, radius, count, pts);
           }
-          tuftInstanced(g, rnd, pts, new THREE.CylinderGeometry(0.05, 0.05, 0.0018, 6), leafCols, 0.76, 0.7, tw, 0.04);   // lá cây cổ thụ trong suốt hơn 10% (0.85 * 0.9 = 0.76)
+          tuftInstanced(g, rnd, pts, leafHexGeo(0.05), leafCols, 0.76, 0.7, tw, 0.04);   // lá cây cổ thụ trong suốt hơn 10% (0.85 * 0.9 = 0.76)
           g.userData.leafPts = pts;   // lá vàng rụng sinh từ chính các chùm lá (toạ độ cục bộ)
 
           bakeStatic(g);
@@ -5376,7 +5383,7 @@
           const sLeafPts = [];
           const perTip = Math.max(20, Math.round(810 / sTips.length));   // tổng ~810 điểm lá = gấp 3 lần trước (3 cụm × 90 = 270)
           for (const tp of sTips) cloudPts(rnd, tp.x, tp.y + 0.05, tp.z, 0.55, perTip, sLeafPts);
-          tuftInstanced(g, rnd, sLeafPts, new THREE.CylinderGeometry(0.05, 0.05, 0.0018, 6), leafCols, 0.85);
+          tuftInstanced(g, rnd, sLeafPts, leafHexGeo(0.05), leafCols, 0.85);
           const hiveAnchor = new THREE.Object3D(); hiveAnchor.position.set(-3.4425, 3.5108, 0.3995); g.add(hiveAnchor); g.userData.hiveAnchor = hiveAnchor;
 
           bakeStatic(g);
