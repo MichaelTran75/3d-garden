@@ -232,6 +232,10 @@ lò xo) ⇒ lên bậc voxel 0,6 đv thì chân trước lên trước, thân ng
   có vật cản đăng ký thêm — chim sẻ dùng cho chỗ đáp / bước nhảy. Đo va chạm 9 phút (bò, chó, gấu mèo, chim dưới đất, 28 thú ban ngày): 0 lần lấn
   sâu (chó "trong" xe caravan = đang vào xe trú, đúng kịch bản). Bán kính trong `obstacleCoords` là bán kính NÊN TRÁNH (đã nới) — đừng dùng chặn cứng
   cho chó/gấu mèo (chúng cố ý tới sát cửa xe, khúc gỗ).
+- Chó chạy vòng 'zoom' (`animals/dog-brain.js`, 16/10): trước đây vòng R 2,4 m quanh `pf` (lửa trại) luồn qua khe 0,9 m giữa lò chiminea và
+  đống củi ⇒ trông như xoay tại chỗ. Giờ `zoomCenter()` tìm 1 lần bãi trống quanh chỗ nằm `restP` (vòng dò 3,5–12 m, 24 hướng): tâm và 48 điểm
+  trên vòng R 2,2 ± 0,6 m phải `envFree`, ngoài đường (lề 0,3–0,5 m), chênh cao < 0,5 m; không có thì quay về `pf`. Hết giờ chỉ đếm khi đã ở trên vòng
+  (`dc ≤ ZR + 0,8`). Đo: tâm bãi cỏ cách lửa 7,6 m, ~2 vòng, khoảng hở tới bán kính nên tránh: trên vòng ≥ 0,31 m, đoạn chạy ra ≥ 0,10 m.
 - Khói ống bếp xe (`engineer/cooking.js`, 16/10 "giống khói lửa trại, −70%"): dens 0,8 + độ đục 0,6 như lửa trại (trước 1,3 × 0,75), màu xám khói
   (ngả trắng hơi khi luộc), số hạt thả × 0,3, bốc nhờ hơi nóng (draft 0 — dòng gán draft cũ bị nuốt vào chú thích). Bướm bay × 0,7 (`spd`).
   Bẫy thử khói NS: Worker giải tối đa 0,1 s mỗi lượt và cộng dồn dt khi bận ⇒ vòng mô phỏng chạy nhanh (simC) làm khói gần như đứng yên; phải chờ

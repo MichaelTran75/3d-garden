@@ -8679,6 +8679,16 @@
           const eng = () => engObj && !engObj.inVan && engObj.phase !== 'van' && engObj.g.parent === scene ? engObj : null;
           const randPt = (r0, r1) => { for (let k = 0; k < 14; k++) { const a = Math.random() * 6.2832, r = r0 + Math.random() * (r1 - r0), x = restP.x + Math.cos(a) * r, z = restP.z + Math.sin(a) * r; if (isWater(Math.round(x2gi(x)), Math.round(z2gj(z)))) continue; if (obstacleCoords.some(o => Math.hypot(x - o.x, z - o.z) < o.r + 0.4) || ENG_PROPS.some(o => Math.hypot(x - o.x, z - o.z) < o.r + 0.3)) continue; if (Math.abs(cowY(x, z) - cowY(restP.x, restP.z)) > 0.7) continue; return _a.set(x, 0, z).clone(); } return restP.clone(); };
           function setSt(st, t) { B.st = st; B.k = 0; B.t = t || 0; }
+          const ZR = 2.2; let zoomC = null;
+          function zoomCenter() {
+            if (zoomC) return zoomC;
+            for (let ring = 3.5; ring <= 12 && !zoomC; ring += 1) for (let k = 0; k < 24 && !zoomC; k++) {
+              const a = k / 24 * TAU, cx = restP.x + Math.cos(a) * ring, cz = restP.z + Math.sin(a) * ring, y0 = cowY(cx, cz); let ok = envFree(cx, cz) && !roadContains(cx, cz, 0.5);
+              for (let q = 0; q < 16 && ok; q++) { const b = q / 16 * TAU; for (const rr of [ZR - 0.6, ZR, ZR + 0.6]) { const x = cx + Math.cos(b) * rr, z = cz + Math.sin(b) * rr; if (!envFree(x, z) || roadContains(x, z, 0.3) || Math.abs(cowY(x, z) - y0) > 0.5) { ok = false; break; } } }
+              if (ok) zoomC = new THREE.Vector3(cx, y0, cz);
+            }
+            return zoomC || (zoomC = pf.clone());
+          }
           function chooseNext() {
             const E = eng(), hh = liveWeather.localHour;
             if (E && E.walking && Math.random() < 0.6) return setSt('follow', 50 + Math.random() * 60);
@@ -8760,9 +8770,10 @@
               }
               case 'zoom': {
                 B.mode = 'stand'; B.wagAmp = 0.5; B.wagF = 3;
-                const a = Math.atan2(p.z - pf.z, p.x - pf.x) + 0.9, R = 2.4;
-                steer(pf.x + Math.cos(a) * R, pf.z + Math.sin(a) * R, 2.9, dt, null, 0.05);
-                if (B.t <= 0) setSt('return');
+                const C = zoomCenter(), dc = Math.hypot(p.x - C.x, p.z - C.z), a = Math.atan2(p.z - C.z, p.x - C.x) + 0.9;
+                if (dc > ZR + 0.8) B.t += dt;
+                steer(C.x + Math.cos(a) * ZR, C.z + Math.sin(a) * ZR, 2.9, dt, null, 0.05);
+                if (B.t <= 0 || B.k > 25) setSt('return');
                 break;
               }
               case 'follow': {
