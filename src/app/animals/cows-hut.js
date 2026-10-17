@@ -230,8 +230,8 @@
           lamp.traverse(o => { o.userData.noBatch = true; });
           const lsw = { x: 0, z: 0, vx: 0, vz: 0 }, _lw = new THREE.Vector3(), lampW = new THREE.Vector3();
           const lampTick = (dt, n) => {   // n = độ tối (0 ngày → 1 đêm) · con lắc dây 0,4 m (ω₀ ≈ 5 rad/s), gió dưới mái yếu đi còn ~40%
-            filM.color.setRGB(0.29 + 0.71 * n, 0.28 + 0.45 * n, 0.27 + 0.1 * n); glassM.emissive.setRGB(0.48 * n, 0.29 * n, 0.13 * n); glassM.opacity = 0.3 + 0.2 * n;   // G 15/10: sáng giảm 50%
-            halo.visible = n > 0.02; halo.material.opacity = 0.4 * n;
+            filM.color.setRGB(0.29 + 0.71 * n, 0.28 + 0.45 * n, 0.27 + 0.1 * n); glassM.emissive.setRGB(0.24 * n, 0.145 * n, 0.065 * n); glassM.opacity = 0.3 + 0.2 * n;   // G 15/10: sáng giảm 50% · 17/10 giảm thêm 50% (đèn điểm, quầng, vỏ bóng)
+            halo.visible = n > 0.02; halo.material.opacity = 0.2 * n;
             if (!lampW.lengthSq()) lamp.getWorldPosition(lampW);
             windAt(lampW.x, lampW.y, lampW.z, 2.6, _lw); const ex = 0.012 * Math.abs(_lw.x) * _lw.x, ez = 0.012 * Math.abs(_lw.z) * _lw.z;
             for (let h = Math.min(dt, 0.05), k = Math.ceil(h / 0.0167), st = h / k, i = 0; i < k; i++) {

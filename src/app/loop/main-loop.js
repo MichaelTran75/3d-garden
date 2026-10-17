@@ -105,7 +105,7 @@
             const lit = nightFactor > 0.05; lamp.beam.visible = lamp.pool.visible = lit;   // vệt sáng + chùm sáng chỉ khi trời tối
             if (lit) { lamp.beamMat.uniforms.uOpacity.value = 0.14 * nightFactor; lamp.pool.userData.mat.uniforms.uOpacity.value = 0.34 * nightFactor; }
           }
-          cowHut.light.intensity = 15 * nightFactor; cowHut.lampTick(dt, nightFactor);   // đèn sợi đốt trước chuồng bò: sáng theo đêm + đung đưa theo gió
+          cowHut.light.intensity = 7.5 * nightFactor; cowHut.lampTick(dt, nightFactor);   // đèn sợi đốt trước chuồng bò: sáng theo đêm (G 17/10 giảm 50%) + đung đưa theo gió
           if (wmast) {
             const w = liveWeather.state;
             // phong kế: tốc độ quay ∝ gió TẠI CHỖ (gồm cơn giật) — cánh quạt ~1,6·V, chén gió ~1·V rad/s (thu chậm cho mắt theo kịp);
