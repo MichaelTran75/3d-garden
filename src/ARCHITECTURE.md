@@ -138,7 +138,7 @@ cận cảnh, hiệu năng, cách thử và các bẫy đã dính. Chi tiết t�
   có N sợi (thân 12, cành 4–7) mặt cắt bán nguyệt dính nhau ⇒ rãnh hẹp sâu ở chỗ 2 sợi gặp; tâm sợi trôi theo độ xoắn + uốn lượn, sợi phồng xẹp
   theo chiều dài, 2–3 gờ phụ trong mỗi sợi; độ sâu giảm theo bán kính vòng (cành mảnh trơn như cũ), tăng ×2,5 ở bạnh gốc; múi bạnh = sống sợi
   loe ra (`0,2 + 0,8·mb^1,8`). Thân có u lồi (`trunk.burls`) + 1 hốc mục (`trunk.cav`, lõm 50% r, gờ liền sẹo). Lưới: thân ~83 cạnh, vòng ~7 cm
-  (cổ thụ 37k → 88k đỉnh vỏ). Thuộc tính `aBd` (0 = cành thường · 0,02–1 = độ sâu rãnh · tới 1,49 = lòng hốc) → shader vỏ (nhánh `uSfOld`):
+  (cổ thụ 37k → 88k đỉnh vỏ). Thuộc tính `aBd` (0 = cành thường · 0,02–1 = độ sâu rãnh · tới 1,49 = lòng hốc; `bkAttr` cũng ghi aBd = 0 — thiếu thì bakeStatic không gộp được với ống barkTubes cùng vật liệu, lỗi mergeGeometries) → shader vỏ (nhánh `uSfOld`):
   đáy rãnh tối, sống sợi mòn sáng, lòng hốc gần đen, thớ sợi dài mảnh chạy theo độ xoắn (vân `aBk.x` đã cộng độ xoắn). Độ sáng trung bình vỏ
   đo giữ như bản cũ (~79), độ tương phản tăng (lệch chuẩn 21 → 23). Bẫy thử: `helpers.js` trong scratchpad ẩn cây cổ thụ (`ot.visible = false`).
 - **Thảm cỏ** (`nature/meadow.js`): cỏ mềm = 45% ô đất theo ngưỡng điểm nhiễu, KHÔNG mọc trên nền san phẳng (`padH`). **Thảm cỏ ngắn**

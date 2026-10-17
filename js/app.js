@@ -2413,7 +2413,7 @@
         function bkAttr(geo, L) {
           const uv = geo.attributes.uv, B = new Float32Array(uv.count * 3), o = (L * 73.1) % 7;
           for (let i = 0; i < uv.count; i++) { B[i * 3] = uv.getX(i); B[i * 3 + 1] = uv.getY(i) * L + o; B[i * 3 + 2] = 1; }
-          geo.setAttribute('aBk', new THREE.BufferAttribute(B, 3)); return geo;
+          geo.setAttribute('aBk', new THREE.BufferAttribute(B, 3)); geo.setAttribute('aBd', new THREE.BufferAttribute(new Float32Array(uv.count), 1)); return geo;
         }
         function natTree(g, o) {
           const rnd = mulberry32(o.seed), tips = [], segs = [], seg = o.seg || 6, R = (m) => m[0] + ((rnd() * (m[1] - m[0] + 1)) | 0);
