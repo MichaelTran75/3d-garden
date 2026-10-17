@@ -88,6 +88,7 @@ Các mẫu sau chỉ dùng để đo dáng, tỉ lệ hoặc học kiểu vẽ:
 - Bóng đèn sợi đốt: "Incandescent Light Bulb" của AleixoAlonso (CC-BY-4.0)
 - Lò chiminea (chiều cao): "Rustic chimenea" của archiesmitham (CC-BY-NC-SA-4.0)
 - Cành cây rừng: "Low Poly Tree Scene Free" của Nicholas-3D (CC-BY-4.0)
+- Vỏ cây (địa y, mắt cành): "Tree 3D Scan - Retopo" của grafi (CC-BY-4.0)
 - Laptop: "MacBook Pro 2021" của KangaroOz 3D (CC-BY-NC)
 - Ghế văn phòng, bảng ghim: "60's Office Props" của SeanNicolas (CC-BY-NC-4.0)
 - Drone (bản dựng bằng code trước 17/10): "Drone" của Kira (CC-BY-4.0)

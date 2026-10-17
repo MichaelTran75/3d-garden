@@ -13,7 +13,7 @@
           const t = new THREE.DataTexture(d, GX, GZ, THREE.RedFormat, THREE.FloatType); t.magFilter = t.minFilter = THREE.NearestFilter; t.needsUpdate = true; return t;
         }
         const SF_GLSL = `
-          uniform sampler2D uSfH; uniform vec4 uSfG; varying vec3 vSfP; varying vec3 vSfN;
+          uniform sampler2D uSfH; uniform vec4 uSfG; uniform float uSfL; varying vec3 vSfP; varying vec3 vSfN;
           float sfR(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
           float sfN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(sfR(i), sfR(i + vec2(1.0, 0.0)), f.x), mix(sfR(i + vec2(0.0, 1.0)), sfR(i + vec2(1.0, 1.0)), f.x), f.y); }
           float sfNw(vec2 p, float P) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); float i0 = mod(i.x, P), i1 = mod(i.x + 1.0, P);   // nhiễu tuần hoàn theo x (chu kỳ P ô) — vòng quanh thân không lộ đường may
@@ -25,7 +25,7 @@
           mat.onBeforeCompile = (sh, r) => {
             prev.call(mat, sh, r);
             SF_H = SF_H || sfHeightTex();
-            sh.uniforms.uSfH = { value: SF_H }; sh.uniforms.uSfG = { value: new THREE.Vector4(1 / BLOCK, cx, cz, 0) };
+            sh.uniforms.uSfH = { value: SF_H }; sh.uniforms.uSfG = { value: new THREE.Vector4(1 / BLOCK, cx, cz, 0) }; sh.uniforms.uSfL = { value: mat.userData.sfL ?? 1 };
             // chèn ở fog_vertex (cuối shader): vị trí thế giới lấy ngược từ mvPosition ⇒ đúng cả khi shader gió đã thay project_vertex (cây đung đưa)
             sh.vertexShader = 'varying vec3 vSfP; varying vec3 vSfN;\n' + (K === 5 ? 'attribute vec3 aBk; varying vec3 vSfB;\n' : '') + sh.vertexShader.replace('#include <fog_vertex>', `#include <fog_vertex>${K === 5 ? '\n vSfB = aBk;' : ''}
               vec3 sfN3 = objectNormal;
@@ -60,17 +60,25 @@
                   sfHg = -0.004 * ln * wf + 0.0005 * sfN(vec2(u * 60.0, y * 2.0));
                 #elif ${K} == 5
                   // VỎ CÂY: rãnh nứt DỌC thân = đường đồng mức của nhiễu kéo dài theo thân (~12 ô quanh thân, uốn lượn) ⇒ rãnh hẹp tối, mảng vỏ ở giữa; nứt
-                  // ngang thưa chia mảng; địa y xám xanh thành đốm tròn nhỏ trên mảng (17/10: bản đầu kéo dài thành vệt trắng dọc thân); rêu ở gốc. Rãnh lõm
-                  // thật (bump). Mọi nhiễu theo vòng quanh thân đều TUẦN HOÀN (sfNw, chu kỳ = số ô quanh thân) ⇒ không còn đường may dọc thân.
-                  // aBk.z = bm: số lần lặp 12 rãnh quanh thân (thân to như cây cổ thụ: bm ~ chu vi / 0,9 m ⇒ mảng vỏ cùng cỡ thật với cây táo; lưới cũ 2 thành phần ⇒ 1)
-                  float bm = max(1.0, floor(vSfB.z + 0.5)), ba = vSfB.x * 12.0, bl = vSfB.y * 1.6, bw = 1.4 * sfNw(vec2(ba * 0.5, bl * 0.7), 6.0 * bm);
+                  // ngang thưa chia mảng; rêu ở gốc. Rãnh lõm thật (bump). Nhiễu quanh thân đều TUẦN HOÀN (sfNw, chu kỳ = số ô quanh thân) ⇒ không đường may.
+                  // aBk.z = bm (số lần lặp 12 rãnh quanh thân) + phần lẻ = bán kính (× 0,5 m, barkTubes) — lưới cũ không có ⇒ coi như cành vừa.
+                  // G 17/10 học bản quét "Tree 3D Scan - Retopo" (grafi, CC-BY-4.0, chỉ xem): nền xám nâu nứt sâu tối · ĐỊA Y VẢY xám trắng–xanh nhạt loang
+                  // MẢNG LỚN mép lấm tấm (phủ ~30–40% mặt vỏ, không vào rãnh) · CHẤM ĐỊA Y VÀNG cam (Xanthoria) thưa · loang tảo lục mờ · cành non xám
+                  // sáng, nhẵn, ít rãnh. uSfL = độ phủ địa y theo cây (mat.userData.sfL: cổ thụ nhiều, anh đào ít).
+                  float bm = max(1.0, floor(vSfB.z + 0.5)), tR = vSfB.z > 0.5 ? clamp(vSfB.z - bm + 0.49, 0.0, 1.0) : 0.4, thin = 1.0 - smoothstep(0.08, 0.3, tR);
+                  float ba = vSfB.x * 12.0, bl = vSfB.y * 1.6, bw = 1.4 * sfNw(vec2(ba * 0.5, bl * 0.7), 6.0 * bm);
                   float cr = max(1.0 - smoothstep(0.015, 0.085, abs(sfNw(vec2(ba + bw, bl * 0.45), 12.0 * bm) - 0.5)), 0.75 * (1.0 - smoothstep(0.01, 0.06, abs(sfNw(vec2(ba * 2.0 + bw + 4.0, bl * 0.8), 24.0 * bm) - 0.5))));
                   float hc = (1.0 - smoothstep(0.015, 0.05, abs(sfNw(vec2(ba * 0.5 + 3.0, bl * 2.4), 6.0 * bm) - 0.5))) * step(0.5, sfNw(vec2(ba * 0.5, bl * 0.8) + 9.0, 6.0 * bm));
-                  float gv = max(cr, 0.7 * hc), pl = sfNw(vec2(ba, bl * 1.1) + 2.0, 12.0 * bm);
-                  c *= mix(0.95 + 0.14 * pl, 0.4, gv);
-                  c = mix(c, vec3(0.40, 0.46, 0.34), 0.3 * smoothstep(0.78, 0.92, sfNw(vec2(ba * 2.0, bl * 12.0) + 11.0, 24.0 * bm)) * (1.0 - gv));
+                  float gv = max(cr, 0.7 * hc) * (1.0 - 0.6 * thin), pl = sfNw(vec2(ba, bl * 1.1) + 2.0, 12.0 * bm);
+                  c *= mix(0.95 + 0.14 * pl, 0.3, gv);
+                  c = mix(c, c * 1.3 + vec3(0.05, 0.05, 0.045), 0.7 * thin);   // cành non: xám sáng
+                  float lm = 0.62 * sfNw(vec2(ba * 0.5, bl * 4.0) + 13.0, 6.0 * bm) + 0.38 * sfNw(vec2(ba * 1.5, bl * 12.0) + 17.0, 18.0 * bm);   // mảng gần tròn (hơi dài theo thân)
+                  float lp = smoothstep(0.6 - 0.08 * uSfL, 0.68 - 0.06 * uSfL, lm) * (1.0 - gv) * (0.68 + 0.32 * sfNw(vec2(ba * 6.0, bl * 40.0), 72.0 * bm));
+                  c = mix(c, vec3(0.58, 0.6, 0.53) * (0.9 + 0.2 * pl), min(1.0, 0.7 * uSfL) * lp);   // địa y vảy
+                  c = mix(c, vec3(0.86, 0.6, 0.12), 0.9 * smoothstep(0.955, 0.985, sfNw(vec2(ba * 3.0, bl * 30.0) + 23.0, 36.0 * bm)) * (1.0 - gv) * min(1.0, uSfL));   // địa y vàng
+                  c = mix(c, c * vec3(0.84, 0.95, 0.66), 0.4 * uSfL * smoothstep(0.45, 0.8, sfNw(vec2(ba * 0.25, bl * 0.5) + 29.0, 3.0 * bm)));   // tảo lục
                   c = mix(c, vec3(0.30, 0.40, 0.18), 0.5 * (1.0 - smoothstep(0.0, 0.9, hA)) * smoothstep(0.3, 0.7, sfNw(vec2(ba * 0.5, bl * 3.0) + 5.0, 6.0 * bm)));
-                  sfHg = -0.012 * gv + 0.003 * pl;
+                  sfHg = -0.014 * gv + 0.003 * pl + 0.0025 * lp;
                 #endif
                 float ao = mix(0.56, 1.0, smoothstep(0.0, 1.3, hA));   // chân tường tối dần + ám bẩn nâu
                 c *= mix(1.0, ao, wf); c = mix(c, c * vec3(0.86, 0.77, 0.64), (1.0 - smoothstep(0.0, 0.8, hA)) * 0.6 * wf);

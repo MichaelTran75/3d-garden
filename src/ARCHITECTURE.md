@@ -428,6 +428,12 @@ lò xo) ⇒ lên bậc voxel 0,6 đv thì chân trước lên trước, thân ng
   mắt chớp 2,5–6,5 s + nhắm khi `B.dozing` (scale.y `U.eyes`). Nguồn: Call 2003, Gácsi 2004, Kaminski 2017, Sommese 2022, Quaranta 2007,
   Horowitz 2009, Firnkes 2017, Nagasawa 2015. Bẫy thử: máy ảnh bám theo hướng chó ⇒ chó quay mãi đuổi máy ảnh — giữ hướng máy ảnh cố định
   (scratchpad `dogwatch.js`: dwView/dwRun/dwShots/dwAway).
+- Vỏ cây theo bản quét (G 17/10 "seriously study this render, then apply to cây cổ thụ, cây táo và blossom" — "Tree 3D Scan - Retopo", grafi,
+  CC-BY-4.0, chỉ xem): ảnh vân bản quét = nền xám nâu nứt sâu + ĐỊA Y VẢY xám trắng–xanh loang mảng (~35%, không vào rãnh, mép lấm tấm) + chấm ĐỊA Y
+  VÀNG thưa + tảo lục; cành non xám sáng, nhẵn, có MẮT CÀNH u lên. Làm trong shader vỏ (core/surface-style.js, kind 5): `aBk.z` = bm + phần lẻ
+  BÁN KÍNH (× 0,5 m, barkTubes) ⇒ `thin` cho cành non; `uSfL` = `mat.userData.sfL` (cổ thụ 1,25 · táo 1 · anh đào 0,55 · cành chết 0,35). Mắt cành:
+  barkTubes phình bán kính +18% ~30 cm một (cành < 7 cm, băm theo chiều dài, KHÔNG gọi rnd() ⇒ táo / hoa / tổ / chỗ đậu không đổi). Bẫy: mảng nhiễu
+  quanh thân phải có chu kỳ NGUYÊN (12·hệ số nguyên) mới không lộ đường may; tần số dọc thân thấp ⇒ địa y thành vệt dọc (bản đầu) — dọc ×4.
 - Gấu mèo: thân 2 nửa `U.fore`/`U.aft` gập quanh giữa lưng khi phi nhảy (hông chân vẫn gắn `torso` ⇒ IK không đổi).
 - Đo được (trượt TB của bàn chân trụ, đv/khung ở 30 hình/giây): bò 0,0003–0,0007 · hươu 0,0003 · cò 0,0013 · gấu mèo ~0,003 (ngoặt gắt) ·
   kỹ sư ~0,003 (chưa tính lúc ngoặt). Thử: `slipTest`/`ikErr` (công cụ nháp) — đọc `rig.feet`, so điểm đế thật với `F.w`.

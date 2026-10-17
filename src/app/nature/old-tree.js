@@ -27,7 +27,8 @@
           const g = new THREE.Group(); g.position.set(X0 + 89, 7, Z0 + 117); g.scale.setScalar(2.76); g.rotation.set(0, 0, 0.62); g.name = 'Cây cổ thụ (Old Tree)'; scene.add(g);   // ngả thân về phía dòng sông (-x)
           oldTreeGroup = g;
           const TOP = 0.85;
-          const barkMat = new THREE.MeshLambertMaterial({ color: 0x4a3420, transparent: true, opacity: TOP }), deadMat = new THREE.MeshLambertMaterial({ color: 0xE2D6C0, transparent: true, opacity: TOP });
+          const barkMat = new THREE.MeshLambertMaterial({ color: 0x4a4036, transparent: true, opacity: TOP }), deadMat = new THREE.MeshLambertMaterial({ color: 0xE2D6C0, transparent: true, opacity: TOP });
+          barkMat.userData.sfL = 1.25; deadMat.userData.sfL = 0.35;   // G 17/10 theo bản quét: nâu xám, địa y phủ dày (cây già) · cành chết ít
           // cây cổ thụ: thân to, tán nặng → dao động riêng chậm ~0,32 Hz, cản nhỏ (gỗ già ít tắt dần); cành xa thân rung ~1 Hz
           const tw = makeTreeWind({ freq: 0.32, zeta: 0.08, lean: 0.45, branchAmp: 0.07 });
           windShader(barkMat, tw, 0); windShader(deadMat, tw, 0); g.userData.treeWind = tw;
@@ -225,7 +226,7 @@
           } else {
             scene.add(g);
           }
-          const barkMat = surfaceStyle(new THREE.MeshLambertMaterial({ color: 0x4a3420, transparent: true, opacity: 0.65 }), 'bark');   // vân vỏ như cây mẹ
+          const barkMat = surfaceStyle(new THREE.MeshLambertMaterial({ color: 0x4a4036, transparent: true, opacity: 0.65 }), 'bark');   // vân vỏ như cây mẹ
           const leafCols = [0x4e7a39, 0x5e8c44, 0x6fa052, 0x42692f];
           const V = (x, y, z) => new THREE.Vector3(x, y, z);
 

@@ -212,7 +212,8 @@
               if (i) len.push(len[i - 1] + S[i].distanceTo(S[i - 1]));
               Nf.addScaledVector(tan[i], -Nf.dot(tan[i])).normalize(); Bf.crossVectors(tan[i], Nf); FN.push(Nf.clone());
               const fl = kind === 0 && i < nRing ? F * Math.exp(-Math.max(0, S[i].y - y0) / H) : 0, col = kind === 2 && i < nRing ? 1 + 0.3 * Math.exp(-Math.max(0, len[i] - sIn) / (1.5 * r0)) : 1;
-              for (let k = 0; k < seg; k++) { const a = k / seg * 6.2832, c = Math.cos(a), s = Math.sin(a), r = SR[i] * col * (1 + fl * (0.72 + 0.28 * Math.cos(lobes * a + 0.7)));
+              const rw = SR[i] * wS, nq = len[i] * wS / 0.3 + ci * 0.37, nd = rw < 0.07 && Math.abs(Math.sin(Math.floor(nq) * 78.233) * 43758.55) % 1 > 0.3 ? 0.18 * (1 - rw / 0.07) * Math.exp(-((((nq % 1) - 0.5) * 7) ** 2)) : 0;   // mắt cành u lên ~30 cm một (cành non — bản quét)
+              for (let k = 0; k < seg; k++) { const a = k / seg * 6.2832, c = Math.cos(a), s = Math.sin(a), r = SR[i] * col * (1 + nd) * (1 + fl * (0.72 + 0.28 * Math.cos(lobes * a + 0.7)));
                 G.push(new THREE.Vector3(S[i].x + (Nf.x * c + Bf.x * s) * r, S[i].y + (Nf.y * c + Bf.y * s) * r, S[i].z + (Nf.z * c + Bf.z * s) * r)); }
             }
             // hộp bao TỪNG ĐOẠN (bản đồ bay của ong / bướm: 1 lưới cả cây mà chỉ có 1 hộp thì chặn kín cả tán — bản cũ có hộp từng trụ / cầu đã gộp)
@@ -237,9 +238,9 @@
                 // vân vỏ: toạ độ quanh trục cành MẸ tại đỉnh này (nối liền vết nứt qua đường tách), hoà dần sang toạ độ riêng
                 if (pf) { const up = Math.atan2(q.dot(Bp), q.dot(pf.N)) / 6.2832 + 1, u1 = up + Math.round(bu - up); bu = u1 + (bu - u1) * sw; }
               }
-              P.push(g0.x, g0.y, g0.z); N.push(nv.x, nv.y, nv.z); UV.push(k / seg, len[i] / tot); BK.push(bu * bm, (len[i] + off) * vK, bm);
+              P.push(g0.x, g0.y, g0.z); N.push(nv.x, nv.y, nv.z); UV.push(k / seg, len[i] / tot); BK.push(bu * bm, (len[i] + off) * vK, bm - 0.49 + Math.min(0.98, SR[i] * wS * 2));   // phần lẻ: bán kính (shader: cành non)
             }
-            P.push(tip.x, tip.y, tip.z); N.push(tE.x, tE.y, tE.z); UV.push(0.5, 1); BK.push(0.5 * bm, (len[M - 1] + hc * 0.3 + off) * vK, bm);
+            P.push(tip.x, tip.y, tip.z); N.push(tE.x, tE.y, tE.z); UV.push(0.5, 1); BK.push(0.5 * bm, (len[M - 1] + hc * 0.3 + off) * vK, bm - 0.49 + Math.min(0.98, rb * wS * 2));
             for (let i = 0; i < M - 1; i++) for (let k = 0; k < seg; k++) { const a = base + i * S1 + k, b = a + 1; I.push(a, b, a + S1, b, b + S1, a + S1); }
             for (let k = 0; k < seg; k++) I.push(base + (M - 1) * S1 + k, base + (M - 1) * S1 + k + 1, base + M * S1);
           }
