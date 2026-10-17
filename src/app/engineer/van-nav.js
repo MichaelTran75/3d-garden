@@ -2,8 +2,9 @@
         const VAN_FLOOR = dogInside.y, vanFloor = () => VAN_FLOOR, VYAW = caravanObj.rotation.y;
         const VY = { pz: VYAW, nz: VYAW + Math.PI, px: VYAW + Math.PI / 2, nx: VYAW - Math.PI / 2 };   // hướng nhìn dọc các trục của xe
         const VN = {};
-        for (const [k, x, z] of [['door', 0.33, 1.0], ['hall', 0.33, 0.12], ['tbl', 0.05, 0.33], ['bed', 0.62, -0.15], ['mid', 1.45, 0.25], ['rear', 2.5, 0.08],
-          ['stove', 1.33, 0.5], ['board', 2.04, 0.5], ['ksink', 2.5, 0.5], ['bathOut', 2.6, -0.145], ['bathIn', 3.3, 0.0], ['sink', 3.475, 0.74], ['shelf', 3.45, 0.45], ['towel', 3.75, 0.08], ['wcOut', 3.255, -0.2], ['wcIn', 3.255, -0.64]]) { VN[k] = vanPt(x, 1.07, z); VN[k].node = k; }
+        // nút lối đi trong khoang Transit (đv xe, sàn TR.yIn): lối giữa z ≈ 0,1 giữa mép giường (−0,14) và mặt tủ bếp (0,38); phòng tắm ướt x 2,27 → 2,99
+        for (const [k, x, z] of [['door', 0.345, 0.70], ['hall', 0.345, 0.12], ['tbl', 0.12, 0.36], ['bed', 0.62, 0.10], ['mid', 1.30, 0.12], ['rear', 1.95, -0.02],
+          ['stove', 1.01, 0.08], ['board', 1.72, 0.08], ['ksink', 2.20, 0.08], ['bathOut', 2.10, 0.0], ['bathIn', 2.56, 0.0], ['sink', 2.76, 0.33], ['shelf', 2.88, 0.45], ['towel', 2.82, 0.14], ['wcOut', 2.50, -0.11], ['wcIn', 2.52, -0.37]]) { VN[k] = vanPt(x, TR.yIn, z); VN[k].node = k; }
         const VAN_EDGES = [['door', 'hall'], ['hall', 'tbl'], ['hall', 'bed'], ['hall', 'mid'], ['bed', 'mid'], ['mid', 'rear'], ['rear', 'bathOut'], ['bathOut', 'bathIn', 'entry'],
           ['bathIn', 'sink'], ['bathIn', 'shelf'], ['shelf', 'sink'], ['bathIn', 'towel'], ['bathIn', 'wcOut'], ['towel', 'wcOut'], ['wcOut', 'wcIn', 'wc'],
           ['mid', 'stove'], ['mid', 'board'], ['stove', 'board'], ['board', 'ksink'], ['ksink', 'rear']];
@@ -22,8 +23,8 @@
         }
         const VBATH = caravanObj.userData.interior.bath, VSTOOL = caravanObj.userData.interior.stool;
         const VAN_DOORS = {   // cửa lùa: tâm khe cửa khi mở (đv thế giới) — tới gần thì nghiêng vai, cúi đầu
-          entry: { g: VBATH.entryDoor, axis: 'z', slide: 0.5, c: vanPt(2.935, 1.07, -0.145), k: 0, target: 0, shown: -1 },
-          wc: { g: VBATH.wcDoor, axis: 'x', slide: 0.45, c: vanPt(3.255, 1.07, -0.42), k: 0, target: 0, shown: -1 }
+          entry: { g: VBATH.entryDoor, axis: 'z', slide: -0.56, c: vanPt(2.27, TR.yIn, 0.0), k: 0, target: 0, shown: -1 },   // trượt vào sau vách đặc phía bàn học
+          wc: { g: VBATH.wcDoor, axis: 'x', slide: 0.30, c: vanPt(2.48, TR.yIn, -0.25), k: 0, target: 0, shown: -1 }         // rèm kính mờ buồng tắm: lùi về sau
         };
         const LID = { k: 0, target: 0, shown: -1 };   // nắp bồn cầu: 0 đậy · 1 dựng vào két
         function vanDoorsTick(dt) {
@@ -98,13 +99,13 @@
           const st = Math.min(d, e.vel * dt); g.position.x += dx / d * st; g.position.z += dz / d * st;
           g.position.y = VAN_FLOOR - ENG_FEET + engSideGait(e, st, 1) * CAMP_SCALE; e.walking = true; return false;
         }
-        const indoorSeat = (name, x, z, yaw, o = {}) => makeSeat(Object.assign({ name, indoor: true, pos: vanPt(x, 1.07, z), yaw, seatZ: 0, standZ: STUDY_FZ * CAMP_SCALE, contactZ: 0.09,
+        const indoorSeat = (name, x, z, yaw, o = {}) => makeSeat(Object.assign({ name, indoor: true, pos: vanPt(x, TR.yIn, z), yaw, seatZ: 0, standZ: STUDY_FZ * CAMP_SCALE, contactZ: 0.09,
           seatDrop: 0.56, legs: [-1.48, -1.44], knees: [0.98, 0.94], arm: null, ground: vanFloor }, o));   // ghế trong xe cao ~0,48 m như ghế bàn học
-        const STOOL_IN = 0.2, STOOL_SEAT = indoorSeat('stool', -0.65, VSTOOL.rest, VY.pz), TABLE_STAND = vanPt(-0.65, 1.07, VSTOOL.rest + STUDY_FZ);
-        function stoolAt(z) { VSTOOL.obj.position.z = z - VSTOOL.rest; STOOL_SEAT.pos.copy(vanPt(-0.65, 1.07, z)); }
-        const BED_SEAT = indoorSeat('bed', 0.62, -0.52, VY.pz);                                   // mép đệm, đệm cao 0,49 m
-        const TOILET_SEAT = indoorSeat('toilet', 3.58, -1.07, VY.pz, { standZ: 0.4 * CAMP_SCALE }); // lệch 5 cm về phía cửa cho vai không chạm vách sau
-        const TOILET_STAND = seatW(TOILET_SEAT, 0, TOILET_SEAT.standZ), SHOWER_SPOT = vanPt(3.36, 1.07, -0.6);
+        const STOOL_IN = VSTOOL.in, STOOL_SEAT = indoorSeat('stool', VSTOOL.x, VSTOOL.rest, VY.pz), TABLE_STAND = vanPt(VSTOOL.x, TR.yIn, VSTOOL.rest + STUDY_FZ);
+        function stoolAt(z) { VSTOOL.obj.position.z = z - VSTOOL.rest; STOOL_SEAT.pos.copy(vanPt(VSTOOL.x, TR.yIn, z)); }
+        const BED_SEAT = indoorSeat('bed', 0.62, -0.27, VY.pz);                                   // mép đệm (mép giường z −0,14), đệm cao 0,49 m
+        const TOILET_SEAT = indoorSeat('toilet', 2.62, -0.71, VY.pz, { standZ: 0.4 * CAMP_SCALE }); // bồn cầu gọn sát vách −z, mặt quay về lối vào
+        const TOILET_STAND = seatW(TOILET_SEAT, 0, TOILET_SEAT.standZ), SHOWER_SPOT = vanPt(2.58, TR.yIn, -0.37);
         function engHelmet(e, where) {   // mũ bảo hộ: trên đầu · trên kệ phòng tắm · cuối giường
           e.helmet.visible = where === 'head'; e.hair.visible = where !== 'head';
           VBATH.shelfHelmet.visible = where === 'shelf'; caravanObj.userData.interior.bedHelmet.visible = where === 'bed';

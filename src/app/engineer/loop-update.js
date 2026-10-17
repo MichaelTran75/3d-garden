@@ -9,7 +9,7 @@
             vanDoorsTick(dt);
             if (isSleeping) {
               resetFishingBite(); engForceAct = null; studyLaptop.target = 0; e.seat = null; e.act = 'sleep'; e.phase = 'van'; e.inVan = true; e.van = null; e.enter = null;
-              if (studyChairRig.off) studyChairAt(0);   // (đã đẩy ghế vào trước khi lên giường)
+              if (studyChairRig.off || studyChairRig.sw) studyChairAt(0, 0, 0);   // (đã đẩy ghế vào trước khi lên giường)
               if (e.g.parent !== caravanObj) {
                 caravanObj.add(e.g);
                 e.g.scale.setScalar(ENGINEER_BASE_SCALE); // The scaled van supplies the single 0.90 factor while sleeping.
@@ -28,7 +28,7 @@
               zzzGroup.visible = true;
               for (const z of zzzs) {
                 const p = (t * 0.42 + z.ph) % 1.0;
-                z.m.position.set(caravanObj.userData.interior.sleepHead[0] + Math.sin(t * 1.8 + z.ph) * 0.25, 4.0 + p * 3.6, caravanObj.userData.interior.sleepHead[2]);
+                z.m.position.set(caravanObj.userData.interior.sleepHead[0] + Math.sin(t * 1.8 + z.ph) * 0.25, caravanObj.userData.interior.sleepHead[1] + p * 3.6, caravanObj.userData.interior.sleepHead[2]);
                 z.m.material.opacity = (1 - p) * 0.85;
                 z.m.scale.setScalar((0.5 + p * 0.95) * 1.2);
               }

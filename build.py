@@ -25,7 +25,7 @@ SRC = HERE / 'src'
 SINGLE = HERE.parent / '3D garden.html'
 STAMP = HERE / '.single-stamp'          # băm của bản một tệp dựng lần trước (không đưa lên git)
 MODELS_KB = 1500                         # trần dung lượng THÔ của models/ (KB) — mẫu tải sau, không tính vào ngân sách gzip bên dưới
-BUDGET_KB = {'js/app.js': 420, 'tổng': 440}   # ngân sách dung lượng NÉN gzip (KB) người xem phải tải — vượt thì --check báo lỗi (14/10: 380 → 400 khi thêm chim sẻ + thuyền; 15/10: G nâng 420/440; 16/10: bỏ cả chú thích cuối dòng ⇒ app.js 420 → 359 KB, còn trống ~60 KB)
+BUDGET_KB = {'js/app.js': 440, 'tổng': 460}   # ngân sách dung lượng NÉN gzip (KB) người xem phải tải — vượt thì --check báo lỗi (14/10: 380 → 400 khi thêm chim sẻ + thuyền; 15/10: G nâng 420/440; 16/10: bỏ cả chú thích cuối dòng ⇒ app.js 420 → 359 KB, còn trống ~60 KB; 17/10 khuya: G nâng 440/460 để dựng lại xe theo Ford Transit L3H2)
 args = set(sys.argv[1:])
 
 def die(msg):

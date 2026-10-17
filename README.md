@@ -37,7 +37,7 @@ Khi thêm vật mới:
 - Xem thử trên máy: `./preview.sh`
 - Đăng: `./publish.sh "mô tả"` (kéo bản mới, dựng, kiểm ngân sách, commit, push). Pages cập nhật sau khoảng 1 phút.
 - Sửa ngay trên web GitHub: commit vào `src/`, GitHub Actions tự dựng.
-- `build.py --check` báo lỗi khi vượt ngân sách gzip: `js/app.js` ≤ 420 KB, cả trang ≤ 440 KB; thư mục `models/` ≤ 1,5 MB (chưa nén, không tính vào ngân sách gzip).
+- `build.py --check` báo lỗi khi vượt ngân sách gzip: `js/app.js` ≤ 440 KB, cả trang ≤ 460 KB; thư mục `models/` ≤ 1,5 MB (chưa nén, không tính vào ngân sách gzip).
 - Trên máy, `build.py` còn dựng bản một tệp `../3D garden.html` cho bộ test `../tests/` (mốc: 14 đạt, 5 lỗi có sẵn).
 
 ## Nhúng vào Wix
@@ -59,7 +59,7 @@ Quy tắc:
 - Chỉ sửa trong src/. index.html, css/, js/, models/ là tệp dựng ra. Tệp mới trong src/app/ phải thêm vào src/app/manifest.txt đúng thứ tự.
 - Mã src/app/ nối thành một phạm vi biến: không import/export; không chèn chú thích // giữa một dòng nhiều lệnh (nuốt phần sau).
 - Mọi vật dựng bằng code three.js. GLB hoặc ảnh mẫu chỉ dùng để đo, không nhúng; mẫu mới ghi công vào mục Mô hình của README. Ngoại lệ: drone + tay cầm DJI (src/models/dji-mini3.glb) và ảnh vân vỏ cây từ bản quét (src/models/bark-scan.jpg) — G cho dùng nguyên.
-- Giữ ngân sách gzip của python3 build.py --check (js/app.js ≤ 420 KB, cả trang ≤ 440 KB); muốn nâng thì hỏi trước.
+- Giữ ngân sách gzip của python3 build.py --check (js/app.js ≤ 440 KB, cả trang ≤ 460 KB); muốn nâng thì hỏi trước.
 - Cây, cành, lá dùng rnd() có hạt giống: giữ đúng thứ tự gọi rnd() để táo, hoa, tổ, chỗ chim đậu không đổi chỗ.
 - Không viết lại lịch sử git.
 Kiểm tra: ./preview.sh để xem; nếu có ../tests thì chạy node --test ../tests/garden-flight.test.cjs (mốc 14 đạt, 5 lỗi có sẵn).
@@ -77,6 +77,7 @@ Mọi vật thể dựng bằng code three.js, nhãn vẽ bằng canvas, trừ h
 
 Các mẫu sau chỉ dùng để đo dáng, tỉ lệ hoặc học kiểu vẽ:
 
+- Xe nhà Ford Transit L3H2 (dáng thân, mũi xe, kính, mui cao, hốc bánh): "Ford Transit L2H2" của geyges (Sketchfab Standard)
 - Cò: `Stork.glb` trong bộ ví dụ three.js (MIT)
 - Cá koi: "Koi Fish" của Xfdfgd (CC-BY-4.0)
 - Chim sẻ: "Bird 5 - Animated Low Poly" của WildPoly3D (CC-BY-NC-4.0)

@@ -147,7 +147,7 @@
           e.head.rotation.x = hp;   // lớp tư thế (lò xo) làm mượt khi đổi việc
           // ghế văn phòng theo người: đi ghi chú thì lăn + xoay sang bảng (lăn ra 2,6–4,2 s, về 7,6–9,2 s), nghĩ thì xoay nhẹ qua lại; lưng ngả theo người tựa ra sau
           const C = studyChairRig, out = L.st === 'note' && !L.leave ? lapPulse(L.t, 2.6, 9.2, 1.6) : 0, fid = L.st === 'think' ? 0.07 * Math.sin(t * 0.55) : L.st === 'read' ? 0.03 * Math.sin(t * 0.3) : 0, kc = 1 - Math.exp(-dt * 4);
-          studyChairAt(C.off, C.sx + (0.17 * out - C.sx) * kc, C.sw + (-0.95 * out + fid - C.sw) * kc);
+          studyChairAt(C.off, C.sx + (-0.02 * out - C.sx) * kc, C.sw + (-1.0 * out + fid - C.sw) * kc);   // bảng ghim gần (Transit): chỉ xoay, không lăn sang
           C.back.rotation.x += (0.12 + Math.max(0, -(e.seatLean || 0)) * 1.6 - C.back.rotation.x) * Math.min(1, dt * 3);
         }
         function lapHeldTick(e) {   // sau IK tay: tờ giấy dán đang cầm ở tay phải (đọc đúng chỗ bàn tay đã giải xong)

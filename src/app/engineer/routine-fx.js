@@ -36,7 +36,7 @@
               p.t += h; if (p.t > 6) { p.t -= 6; p.x = 3.08 + Math.random() * 0.75; p.z = -1.35 + Math.random() * 0.8; }
               const k = p.t / 6; p.s.visible = fx.steam > 0.02 && p.x > 0;
               if (!p.s.visible) continue;
-              const w = vanPt(p.x, 1.6 + k * 1.7, p.z); p.s.position.copy(w); p.s.scale.setScalar(0.35 + k * 0.7); p.s.material.opacity = 0.28 * Math.sin(Math.PI * k) * fx.steam;
+              const w = vanPt(p.x, TR.yIn + 0.55 + k * 1.45, p.z); p.s.position.copy(w); p.s.scale.setScalar(0.35 + k * 0.7); p.s.material.opacity = 0.28 * Math.sin(Math.PI * k) * fx.steam;
             }
           } };
           return fx;

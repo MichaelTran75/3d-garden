@@ -10,7 +10,7 @@ cận cảnh, hiệu năng, cách thử và các bẫy đã dính. Chi tiết t�
   được kéo lên đầu nên gọi được từ tệp đứng trước. **Trùng tên biến giữa hai tệp = lỗi cú pháp** → đặt tên nháp có tiền tố riêng
   (`_aV`, `_rfE`, `_cuX`…).
 - `python3 build.py --check`: dựng `index.html` + `css/` + `js/` (trang GitHub Pages) và `../3D garden.html` (bản một tệp để thử/gỡ lỗi),
-  kiểm cú pháp bằng node, kiểm **ngân sách gzip** (`BUDGET_KB`: app.js 400 KB, tổng 420 KB — nâng từ 380/400 ngày 14/10 khi thêm chim sẻ + xuồng; 15/10 G nâng lên 420/440; đang dùng ~398/413).
+  kiểm cú pháp bằng node, kiểm **ngân sách gzip** (`BUDGET_KB`: app.js 440 KB, tổng 460 KB — 14/10 380/400 → 400/420, 15/10 420/440, 17/10 G nâng 440/460 khi dựng lại xe Transit; đang dùng ~415/430).
 - `js/app.js` trên web **bỏ mọi dòng chỉ có chú thích** (`// …`) → nhẹ hơn ~13%. Chú thích cuối dòng vẫn giữ. Bản một tệp giữ nguyên.
   ⇒ Đừng chèn `//` vào GIỮA một dòng có nhiều lệnh (phần sau bị nuốt) và đừng để dòng dữ liệu bắt đầu bằng `//` trong chuỗi `` ` ` ``.
 - `./publish.sh "mô tả"`: kéo bản mới, dựng, commit, push; GitHub Actions dựng lại Pages. Wix nhúng trang Pages bằng iframe.
@@ -402,6 +402,19 @@ lò xo) ⇒ lên bậc voxel 0,6 đv thì chân trước lên trước, thân ng
   lên 2 pha). `wire()` ghi `links` ⇒ `poleGuys()` (cuối tệp, sau khi nối hết dây) thêm dây néo + ống bảo vệ vàng cho cột lệch lực (tổng hướng dây ≥ 0,7),
   neo cách 3,2 m, né nước / đường (thử lệch ±20°, ±40°). Điểm nối dây (conn) giữ nguyên. Cột 3, 5 dời ra mép đông 2 nhà (bản cũ cắm trong nền nhà ⇒
   xuyên mái); cột 5 giờ có dây vào Nhà thiết bị (`buildingTies[2]` trước bỏ trống).
+- Xe nhà = FORD TRANSIT L3H2 (G 17/10 khuya, đo GLB "Ford Transit L2H2" — geyges, Sketchfab Standard, chỉ đo): van/transit.js dựng vỏ từ bảng số đo
+  (bắn tia quanh mẫu): `TR_SEC` mặt cắt thân theo độ cao (gờ vai 1,54–1,63, khum trên vai), `TR_ROOF` đỉnh mui theo x (mui cao H2 vươn qua cabin),
+  `TR_DROP` mui khum + bo góc, `TR_NOSE` mũi xe từng mức (cản đen · ga-lăng 3 nan · đèn pha vuốt lên vè · ca-pô · hốc gạt mưa) và `TR_WS` kính chắn gió
+  + trụ A. Vách hông = 1 tấm (x, y) chia tam giác có điểm Steiner (`ShapeUtils.triangulateShape`, lỗ 1 điểm = Steiner) rồi uốn `z = trSideZ(x, y)`
+  ⇒ khoét được hốc bánh, kính cabin, cửa lùa, cửa sổ nhà xe mà vẫn giữ gờ vai. Vỏ 2 lớp (lớp trong lùi T theo pháp tuyến) như vỏ cũ.
+  Tỉ lệ **1,1 đv/m theo người** (kỹ sư cao 1,95 đv kể cả mũ ≈ 1,75 m; bản xe cũ to quá cỡ ~1,22). L3 = L2 + 0,45 m chèn giữa cửa lùa và hốc sau.
+  Khoang: sàn `TR.yIn` 0,83 (cũ 1,07 — mọi `vanPt(…, 1.07, …)` đổi sang `TR.yIn`), trần ~2,90, lòng z ±0,98, x −0,58 → 2,99. Bố trí giữ như cũ
+  nhưng gọn: bàn ăn 0,55 × 0,42 ở nửa trước ô cửa lùa · giường 2,0 × 0,84 · bàn học 0,85 · bếp giữ dài 1,82 (lấn 14 cm ô cửa) · phòng tắm ướt
+  0,72 (bồn cầu gọn sát vách −z, rèm kính mờ = "cửa WC", lavabo sau vách lùi x 2,535). Lối đi giường ↔ tủ bếp chỉ ~0,52 ⇒ bàn học đổi kịch bản:
+  đứng cạnh ghế (phía đầu giường) xoay ghế về mình, ngồi, xoay về bàn rồi nhích vào (`stDesk`: toSide → swing → toStand → turn → sit → swivelIn →
+  scoot → work …). Vách ngang trong xe (`xWall`) cắt theo lòng xe để không thò qua vách khum / góc mui. Ổ chó trú mưa: sàn cabin giữa 2 đế ghế.
+  Bẫy: cột chống bạt nằm trên đường thẳng tới `dogDoorFar` ⇒ `colSlide` trượt qua lại tại chỗ (kỹ sư kẹt ngoài xe) — bạt kéo dài ra trước x −1,15.
+  Gai lốp 192 mảnh để bộ gộp lượt vẽ tách ⇒ hiện màu trắng: `bakeStatic(wheels)` trước.
 - Laptop nhấp nháy phím (17/10): mặt phím chỉ cao hơn mặt đế 0,05 mm, nhỏ hơn 1 bước độ sâu của camera trực giao (gần 0,1 – xa 4.000 m ⇒ ~0,24 mm);
   đế gộp lượt vẽ (vị trí qua ma trận xương trong shader) còn mặt phím vẽ riêng ⇒ thắng thua đổi theo góc nhìn. Sửa: mặt phím / logo / kính / màn
   `polygonOffset` + cách ≥ 0,3 mm. **Quy tắc**: mặt dán (decal) nằm sát mặt khác dưới ~1 mm thì luôn dùng polygonOffset.

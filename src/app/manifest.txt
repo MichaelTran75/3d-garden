@@ -35,10 +35,10 @@ engineer/instance-gait.js              # vị trí khu cắm trại, tạo kỹ 
 engineer/pose-ik-walk.js               # lớp tư thế (lò xo), IK bàn chân, đi bộ né vật cản
 engineer/thought-bubble.js             # nhãn đếm ngược câu cá + đám mây suy nghĩ (vẽ canvas)
 engineer/thoughts.js                   # câu suy nghĩ theo việc, giờ, thời tiết
-van/shell-cab.js                       # vật liệu xe, cabin lái, bánh, tủ bếp
+van/shell-cab.js                       # vật liệu xe (dùng chung cho trại)
 van/desk-lamp-soda-breakfast.js        # đèn bàn, lon nước ngọt, đồ ăn sáng
 van/kitchen.js                         # bếp: chậu, thớt, bảng treo, bếp ga, lò, đồ động
-van/shell-walls.js                     # vỏ thân xe có ô cửa, cửa sổ
+van/transit.js                         # FORD TRANSIT L3H2: vỏ thân (mũi, kính, mui cao, vách hông có ô cửa, đuôi), cabin lái, bánh, tủ bếp
 van/caravan.js                         # xe caravan: giường, bàn học, bàn ăn, phòng tắm, mái, bạt
 van/sleep-fx.js                        # Zzz + bảng đếm ngược giấc ngủ
 camp/chairs-lantern-fire.js            # ghế câu, đèn lồng, lửa trại, ấm, bàn trà, ghế cắm trại

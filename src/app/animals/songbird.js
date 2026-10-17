@@ -253,7 +253,7 @@
             // chạc cành thật sát thân, giữa tán (lá che mưa) — 3 chỗ kín nhất, chọn ngẫu nhiên
             roost: () => { if (!W._perch) { tree.updateMatrixWorld(true); W._perch = pickPerches(branchPerches(tree.userData.limbs, v => tree.localToWorld(v), tree.scale.x, { rMin: 0.012, rMax: 0.07, y0: 0.4, y1: 0.85 }), 3, 0.25); }
               const c = W._perch[(Math.random() * W._perch.length) | 0]; return { p: c.p.clone(), yaw: c.yaw + (Math.random() < 0.5 ? 0 : Math.PI), kind: 'roost', sleep: true }; },
-            roof: () => ({ p: caravanObj.localToWorld(new THREE.Vector3(2.2 + Math.random() * 0.3, 3.75, 0.95 + Math.random() * 0.2)), yaw: caravanObj.rotation.y + Math.PI + (Math.random() - 0.5), kind: 'roof', T: 6 + Math.random() * 10 }),
+            roof: () => ({ p: caravanObj.localToWorld(new THREE.Vector3(1.9 + Math.random() * 0.25, 2.965, -0.15 + Math.random() * 0.25)), yaw: caravanObj.rotation.y + Math.PI + (Math.random() - 0.5), kind: 'roof', T: 6 + Math.random() * 10 }),
             wire: () => {   // dây pha giữa nhịp cột 1 → cổng néo trạm (Bézier bậc 2 võng 0,3 như world/substation-bess.js)
               const a = gridPoles[0], b = subTie.e, t = 0.35 + Math.random() * 0.3, m = a.clone().lerp(b, 0.5); m.y -= 0.3;
               const p = a.clone().multiplyScalar((1 - t) * (1 - t)).addScaledVector(m, 2 * t * (1 - t)).addScaledVector(b, t * t);

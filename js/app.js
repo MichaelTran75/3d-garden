@@ -6824,325 +6824,6 @@
           chairFabric = new THREE.MeshLambertMaterial({ color: 0xE2D6C0 }),
           campFabricYellow = new THREE.MeshLambertMaterial({ color: 0xf5e2a3 }),
           campFrameWood = new THREE.MeshLambertMaterial({ color: 0x8b6f47 });
-        const CAB = { xc: -3.22, xr: -1.32, floorY: 0.956, axleF: -2.096956, axleR: 1.888478, wheelY: 0.50561 };
-        function motorhomeCab(parent) {
-          const C = CAB, V3 = (x, y, z) => new THREE.Vector3(x, y, z), T = .04;
-          const lam = (color, o = {}) => new THREE.MeshLambertMaterial({ color, ...o }), two = { side: THREE.DoubleSide };
-          const M = {
-            body: lam(0xE2D6C0, { transparent: true, opacity: 0.5, depthWrite: false, side: THREE.DoubleSide }),
-            glass: lam(0x8fc1e3, { transparent: true, opacity: 0.25, depthWrite: false, side: THREE.DoubleSide }),
-            trim: lam(0x42474a), matte: lam(0x30383a, two), bumper: lam(0x50585b), grille: lam(0x404a4b), handle: lam(0x777b7a),
-            lamp: lam(0xfff3c4), lampBox: lam(0x858d8c), mirror: lam(0xb3ccd0),
-            under: lam(0x665d4b, two), mat: lam(0x43494b), dash: lam(0x958776), dashTrim: lam(0x777166),
-            seat: lam(0xc5b596), seatBand: lam(0x857962), seatDark: lam(0x42494a), switchCap: lam(0xb8afa0),
-            tyre: lam(0x2b2925), rim: lam(0xb9b3a6, two), rimDark: lam(0x4c5355, two), hub: lam(0x92958e, two),
-            cabinet: lam(0xa58e69), front: lam(0xd0ccc0)
-          };
-          const cab = new THREE.Group(); cab.name = 'Cabin lái, bánh xe & tủ bếp'; cab.userData.noBake = true;
-          const shell = new THREE.Group(); shell.name = 'Vỏ cabin'; shell.userData.xray = 'shell';
-          const inner = new THREE.Group(); inner.name = 'Nội thất cabin'; inner.userData.xray = 'keep';
-          const wheels = new THREE.Group(); wheels.name = 'Bánh xe'; wheels.userData.xray = 'keep';
-          cab.add(shell, inner, wheels);
-          const mesh = (geo, mat, par, name, outline = null) => {
-            const m = new THREE.Mesh(geo, mat); m.name = name; m.castShadow = mat !== M.glass; m.receiveShadow = true;
-            if (outline) edge(m, geo, outline); par.add(m); return m;
-          };
-          const box = (par, name, w, h, d, x, y, z, mat, outlined = false) => { const m = bx(w, h, d, mat, true, outlined, lineDark); m.name = name; m.position.set(x, y, z); par.add(m); return m; };
-          const bar = (par, name, a, b, t, mat, round = false) => {
-            const v = new THREE.Vector3().subVectors(b, a), len = v.length();
-            const m = round ? cyl(t, t, len, mat, true, false, null, 8) : bx(t, len, t, mat, true, false);
-            m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), v.normalize()); m.position.copy(a).add(b).multiplyScalar(.5);
-            m.name = name; par.add(m); return m;
-          };
-          const polyline = (par, name, pts, t, mat) => { for (let i = 0; i < pts.length - 1; i++) bar(par, name, pts[i], pts[i + 1], t, mat); };
-          const facets = (polys) => {
-            const p = [];
-            for (const poly of polys) for (let i = 1; i < poly.length - 1; i++) p.push(...poly[0], ...poly[i], ...poly[i + 1]);
-            const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(p, 3));
-            geo.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(p.length / 3 * 2), 2)); geo.computeVertexNormals(); return geo;
-          };
-          const mirrorZ = polys => [...polys, ...polys.map(poly => poly.map(([x, y, z]) => [x, y, -z]).reverse())];
-          const onPlane = (geo, o, u, v) => geo.applyMatrix4(new THREE.Matrix4().makeBasis(u, v, new THREE.Vector3().crossVectors(u, v)).setPosition(o));
-          const shapeOf = pts => new THREE.Shape(pts.map(p => new THREE.Vector2(...p)));
-          const roundRect = (x0, y0, x1, y1, r) => { const s = new THREE.Shape(); s.moveTo(x0 + r, y0); s.lineTo(x1 - r, y0); s.quadraticCurveTo(x1, y0, x1, y0 + r); s.lineTo(x1, y1 - r); s.quadraticCurveTo(x1, y1, x1 - r, y1); s.lineTo(x0 + r, y1); s.quadraticCurveTo(x0, y1, x0, y1 - r); s.lineTo(x0, y0 + r); s.quadraticCurveTo(x0, y0, x0 + r, y0); return s; };
-          const lerpTab = (tab, t) => { if (t <= tab[0][0]) return tab[0][1]; for (let i = 1; i < tab.length; i++) if (t <= tab[i][0]) { const [a, va] = tab[i - 1], [b, vb] = tab[i]; return va + (vb - va) * (t - a) / (b - a); } return tab[tab.length - 1][1]; };
-          const seam = [], seamLine = pts => { for (let i = 0; i < pts.length - 1; i++) seam.push(...pts[i], ...pts[i + 1]); };
-
-          const SIDE = [[.60, 1.22], [.95, 1.29], [1.15, 1.335], [1.78, 1.335], [1.92, 1.30], [2.03, 1.24], [2.10, 1.22], [2.84, 1.06]];
-          const sideZ = y => lerpTab(SIDE, y), xWin = y => C.xc + (y - 2.10) / .74 * .56;
-          const WS = [[2.03, -3.62, 1.12, .24], [2.25, -3.41, 1.10, .20], [2.50, -3.235, 1.05, .15], [2.70, -3.04, .99, .09], [2.88, -2.78, .93, .03]];
-          const wsRow = y => { let i = 1; while (i < WS.length - 1 && y > WS[i][0]) i++; const a = WS[i - 1], b = WS[i], k = (y - a[0]) / (b[0] - a[0]); return a.map((v, j) => v + (b[j] - v) * k); };
-          const wsX = (y, z) => { const [, c, w, e] = wsRow(y); return c + e * Math.pow(Math.min(1, Math.abs(z) / w), 3.2); };
-          const PLAN_MID = [[0, -3.80], [.45, -3.795], [.75, -3.77], [.92, -3.66], [1.06, -3.54], [1.20, -3.40], [1.29, -3.30], [1.335, C.xc]];
-          const NOSE = [
-            [.60, [[0, -3.645], [.45, -3.60], [.70, -3.555], [.86, -3.50], [.98, -3.44], [1.08, -3.37], [1.16, -3.30], [1.22, C.xc]]],
-            [.95, [[0, -3.71], [.45, -3.69], [.72, -3.655], [.88, -3.61], [1.02, -3.55], [1.14, -3.46], [1.24, -3.35], [1.29, C.xc]]],
-            [1.15, PLAN_MID], [1.21, PLAN_MID], [1.62, PLAN_MID], [1.78, PLAN_MID],
-            [1.92, [[0, -3.71], [.45, -3.70], [.75, -3.68], [.92, -3.58], [1.06, -3.47], [1.17, -3.38], [1.25, -3.30], [1.30, C.xc]]],
-            [2.03, [...[0, .45, .75, .92, 1.06, 1.12].map(z => [z, wsX(2.03, z)]), [1.19, -3.287], [1.24, C.xc]]]
-          ];
-          const GRILLE = [1.21, 1.62], GJ = 4;
-          const noseX = (y, z) => {
-            const at = plan => lerpTab(plan, Math.abs(z));
-            for (let i = 1; i < NOSE.length; i++) if (y <= NOSE[i][0]) { const [ya, pa] = NOSE[i - 1], [yb, pb] = NOSE[i], k = Math.max(0, (y - ya) / (yb - ya)); return at(pa) * (1 - k) + at(pb) * k; }
-            return at(NOSE[NOSE.length - 1][1]);
-          };
-          const behindNose = (geo, gap = T + .01) => { const p = geo.attributes.position; for (let i = 0; i < p.count; i++) { const lim = noseX(p.getY(i), p.getZ(i)) + gap; if (p.getX(i) < lim) p.setX(i, lim); } geo.computeVertexNormals(); return geo; };
-          const inset = (plan, d) => plan.map((p, j) => {
-            const a = plan[Math.max(0, j - 1)], b = plan[Math.min(plan.length - 1, j + 1)], tz = b[0] - a[0], tx = b[1] - a[1], l = Math.hypot(tz, tx);
-            return [Math.max(0, p[0] - tx / l * d), p[1] + tz / l * d];
-          });
-          for (const d of [0, T]) {
-            const polys = [];
-            for (let i = 0; i < NOSE.length - 1; i++) {
-              const [y0, a] = NOSE[i], [y1, b] = NOSE[i + 1], p0 = d ? inset(a, d) : a, p1 = d ? inset(b, d) : b, hole = y0 >= GRILLE[0] && y1 <= GRILLE[1];
-              for (let j = 0; j < p0.length - 1; j++) if (!(hole && j < GJ)) polys.push([[p0[j][1], y0, p0[j][0]], [p0[j + 1][1], y0, p0[j + 1][0]], [p1[j + 1][1], y1, p1[j + 1][0]], [p1[j][1], y1, p1[j][0]]]);
-            }
-            mesh(facets(mirrorZ(polys)), M.body, shell, 'Mũi cabin bo góc', d ? null : lineDark);
-          }
-          const ARCH = [[-2.72, .60], [-2.64, .92], [-2.52, 1.06], [-2.32, 1.155], [-1.88, 1.16], [-1.72, 1.08], [-1.60, .96], [-1.53, .74], [-1.51, .60]];
-          const archL = ARCH.slice(0, 5), archR = ARCH.slice(4), archTop = 1.16;
-          const archX = (br, y) => { for (let i = 0; i < br.length - 1; i++) { const [xa, ya] = br[i], [xb, yb] = br[i + 1]; if ((y - ya) * (y - yb) <= 0 && ya !== yb) return xa + (xb - xa) * (y - ya) / (yb - ya); } return br[br.length - 1][0]; };
-          const bandPolys = (y0, y1) => {
-            const xa = C.xc, xb = C.xr, inL = archL.filter(p => p[1] > y0 && p[1] < y1), inR = ARCH.slice(5).filter(p => p[1] > y0 && p[1] < y1);
-            if (y0 >= archTop) return [[[xa, y0], [xb, y0], [xb, y1], [xa, y1]]];
-            if (y1 < archTop) return [[[xa, y0], [archX(archL, y0), y0], ...inL, [archX(archL, y1), y1], [xa, y1]], [[archX(archR, y1), y1], ...inR, [archX(archR, y0), y0], [xb, y0], [xb, y1]]];
-            return [[[xa, y0], [archX(archL, y0), y0], ...inL, ...inR, [archX(archR, y0), y0], [xb, y0], [xb, y1], [xa, y1]]];
-          };
-          for (let i = 0; i < 6; i++) {
-            const [y0, z0] = SIDE[i], [y1, z1] = SIDE[i + 1];
-            for (const d of [0, T]) for (const poly of bandPolys(y0, y1)) for (const s of [-1, 1]) {
-              const g = new THREE.ShapeGeometry(shapeOf(poly)), pos = g.attributes.position;
-              for (let k = 0; k < pos.count; k++) pos.setZ(k, s * (z0 + (z1 - z0) * (pos.getY(k) - y0) / (y1 - y0) - d));
-              g.computeVertexNormals(); mesh(g, M.body, shell, 'Hông cabin');
-            }
-          }
-          const sv = Math.hypot(.74, .16), sOf = y => (y - 2.10) / .74 * sv;
-          const winS = shapeOf([[C.xc, 0], [C.xr, 0], [C.xr, sv], [xWin(2.84), sv]]);
-          const ventF = y => -3.00 + (y - 2.30) * .70;
-          const vent = new THREE.Path(); vent.moveTo(ventF(2.14), sOf(2.14)); vent.lineTo(-2.56, sOf(2.14)); vent.lineTo(-2.56, sOf(2.80)); vent.lineTo(ventF(2.80), sOf(2.80)); vent.closePath();
-          const main = new THREE.Path(); main.moveTo(-2.50, sOf(2.12)); main.lineTo(-1.50, sOf(2.12)); main.lineTo(-1.50, sOf(2.82) - .08); main.quadraticCurveTo(-1.50, sOf(2.82), -1.58, sOf(2.82)); main.lineTo(-2.50, sOf(2.82)); main.closePath();
-          winS.holes.push(vent, main);
-          for (const s of [-1, 1]) {
-            const o = V3(0, 2.10, s * 1.22), u = V3(1, 0, 0), v = V3(0, .74, -s * .16).normalize(), nOut = new THREE.Vector3().crossVectors(u, v).multiplyScalar(s);
-            mesh(onPlane(new THREE.ShapeGeometry(winS, 8), o, u, v), M.body, shell, 'Dải kính hông', lineDark);
-            mesh(onPlane(new THREE.ShapeGeometry(winS, 8), o.clone().addScaledVector(nOut, -T), u, v), M.body, shell, 'Dải kính hông');
-            for (const hole of [vent, main]) {
-              mesh(onPlane(new THREE.ShapeGeometry(new THREE.Shape(hole.getPoints(6)), 6), o.clone().addScaledVector(nOut, -.012), u, v), M.glass, shell, 'Kính cửa cabin');
-              const pts = hole.getPoints(3).map(p => o.clone().addScaledVector(u, p.x).addScaledVector(v, p.y));
-              for (let i = 0; i < pts.length; i++) { const q = pts[(i + 1) % pts.length]; if (q.distanceTo(pts[i]) > .005) bar(shell, 'Khung kính cửa', pts[i], q, .03, M.matte); }
-            }
-          }
-          const WT = [-1, -.95, -.85, -.7, -.5, -.25, 0, .25, .5, .7, .85, .95, 1], wsPt = (y, t) => { const w = wsRow(y)[2]; return [wsX(y, t * w), y, t * w]; };
-          const wsPos = [], wsIdx = [];
-          for (const [y] of WS) for (const t of WT) wsPos.push(...wsPt(y, t));
-          for (let r = 0; r < WS.length - 1; r++) for (let c = 0; c < WT.length - 1; c++) { const a = r * WT.length + c, b = a + WT.length; wsIdx.push(a, a + 1, b + 1, a, b + 1, b); }
-          const wsGeo = new THREE.BufferGeometry(); wsGeo.setAttribute('position', new THREE.Float32BufferAttribute(wsPos, 3));
-          wsGeo.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(wsPos.length / 3 * 2), 2)); wsGeo.setIndex(wsIdx); wsGeo.computeVertexNormals();
-          mesh(wsGeo, M.glass, shell, 'Kính chắn gió');
-          polyline(shell, 'Khung kính chắn gió', WT.map(t => V3(...wsPt(2.03, t))), .035, M.matte);
-          polyline(shell, 'Khung kính chắn gió', WT.map(t => V3(...wsPt(2.88, t))), .035, M.matte);
-          polyline(shell, 'Ốp chân kính', WT.map(t => { const [x, , z] = wsPt(2.03, t); return V3(x - .025, 2.045, z); }), .04, M.matte);
-          for (const t of [-1, 1]) polyline(shell, 'Khung kính chắn gió', WS.map(([y]) => V3(...wsPt(y, t))), .035, M.matte);
-          const PY = [2.03, 2.10, 2.25, 2.50, 2.70, 2.84, 2.88];
-          const sideFront = y => y <= 2.10 ? [C.xc, y, sideZ(y)] : y <= 2.84 ? [xWin(y), y, sideZ(y)] : [-2.70, 2.885, 1.02];
-          const pil = []; for (let i = 0; i < PY.length - 1; i++) pil.push([wsPt(PY[i], 1), sideFront(PY[i]), sideFront(PY[i + 1]), wsPt(PY[i + 1], 1)]);
-          mesh(facets(mirrorZ(pil)), M.body, shell, 'Trụ kính chắn gió', lineDark);
-          const ROOF = [[1.06, 2.84], [1.02, 2.885], [.95, 2.905], [.88, 2.925], [.70, 2.945], [.42, 2.965], [0, 2.98]], roofY = z => lerpTab([...ROOF].reverse(), Math.abs(z));
-          const roofX = z => lerpTab([[0, -2.75], [.80, -2.75], [.95, -2.74], [1.02, -2.70], [1.06, xWin(2.84)]], Math.abs(z));
-          const roofZ = [...ROOF.map(p => -p[0]), ...ROOF.slice(0, -1).reverse().map(p => p[0])];
-          for (const d of [0, T]) {
-            const polys = []; for (let k = 0; k < roofZ.length - 1; k++) { const a = roofZ[k], b = roofZ[k + 1]; polys.push([[roofX(a), roofY(a) - d, a], [C.xr, roofY(a) - d, a], [C.xr, roofY(b) - d, b], [roofX(b), roofY(b) - d, b]]); }
-            mesh(facets(polys), M.body, shell, 'Mui vòm cabin', d ? null : lineDark);
-          }
-          const HZ = [0, .25, .50, .80, .93], head = [];
-          for (let k = 0; k < HZ.length - 1; k++) { const a = HZ[k], b = HZ[k + 1]; head.push([wsPt(2.88, a / .93), [roofX(a), roofY(a), a], [roofX(b), roofY(b), b], wsPt(2.88, b / .93)]); }
-          head.push([wsPt(2.88, 1), [roofX(.93), roofY(.93), .93], [-2.70, 2.885, 1.02]]);
-          mesh(facets(mirrorZ(head)), M.body, shell, 'Đầu mui trên kính', lineDark);
-          for (const z0 of [.09, -.75]) {
-            bar(shell, 'Cần gạt mưa', V3(wsX(2.05, z0) - .02, 2.05, z0), V3(wsX(2.13, z0 + .70) - .015, 2.13, z0 + .70), .016, M.trim);
-            const pv = cyl(.02, .02, .03, M.trim, true, false); pv.position.set(wsX(2.04, z0) - .03, 2.045, z0); shell.add(pv);
-          }
-          for (const s of [-1, 1]) {
-            const hg = onPlane(new THREE.ExtrudeGeometry(roundRect(-.12, -.248, .12, .248, .045), { depth: .141, bevelEnabled: false, curveSegments: 3 }), V3(-3.051, 2.309, s * 1.5585), V3(0, 0, 1), V3(0, 1, 0));
-            mesh(hg, M.trim, shell, 'Hộp gương chiếu hậu', lineDark);
-            const mg = new THREE.Mesh(new THREE.PlaneGeometry(.20, .43), M.mirror); mg.rotation.y = Math.PI / 2; mg.position.set(-3.049, 2.309, s * 1.5585); mg.name = 'Mặt gương'; shell.add(mg);
-            box(shell, 'Giá gương', .097, .086, .26, -3.155, 2.135, s * 1.324, M.matte);
-            bar(shell, 'Thanh gương', V3(-2.99, 2.346, s * 1.165), V3(-3.17, 2.346, s * 1.45), .044, M.matte, true);
-            box(shell, 'Tay nắm cửa', .21, .045, .03, -1.575, 1.765, s * (sideZ(1.765) + .015), M.handle, true);
-          }
-          for (const s of [-1, 1]) {
-            const on = (x, y) => [x, y, s * (y <= 2.10 ? sideZ(y) + .003 : sideZ(y) + .003)];
-            const up = x => [.92, .95, 1.15, 1.78, 1.92, 2.03, 2.10].map(y => on(x, y));
-            seamLine(up(-3.215)); seamLine(up(-1.40)); seamLine([on(-1.40, 2.10), on(-1.40, 2.84)]);
-            seamLine([on(-3.215, .92), on(archX(archL, .92), .92)]); seamLine([on(archX(archR, .92), .92), on(-1.40, .92)]);
-            seamLine(ARCH.map(([x, y]) => on(x, y)));
-            for (const y of [1.78, 1.92, 2.03]) seamLine([on(C.xc, y), on(C.xr, y)]);
-          }
-          const seamL = new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(seam, 3)), lineDark); seamL.name = 'Ron cửa cabin'; shell.add(seamL);
-          const xGr = -3.60, xLp = -3.54, zDiv = .79, zO = PLAN_MID[GJ][0], xMid = z => lerpTab(PLAN_MID, Math.abs(z)), gTop = 1.585, gBot = 1.25;
-          const railPlan = inset(PLAN_MID, -.012).slice(0, GJ + 1), rails = [];
-          for (const [y0, y1] of [[gTop, 1.625], [1.205, gBot]]) for (let j = 0; j < GJ; j++)
-            rails.push([[railPlan[j][1], y0, railPlan[j][0]], [railPlan[j + 1][1], y0, railPlan[j + 1][0]], [railPlan[j + 1][1], y1, railPlan[j + 1][0]], [railPlan[j][1], y1, railPlan[j][0]]]);
-          mesh(facets(mirrorZ(rails)), M.matte, shell, 'Khung ga-lăng', lineDark);
-          const curve = [...PLAN_MID.slice(1, GJ + 1).reverse().map(([z]) => -z), ...PLAN_MID.slice(0, GJ + 1).map(([z]) => z)];
-          const tunnel = shapeOf([...curve.map(z => [xMid(z), z]), [xLp, zDiv], [xGr, zDiv], [xGr, -zDiv], [xLp, -zDiv]]);
-          for (const y of [gTop, gBot]) mesh(new THREE.ShapeGeometry(tunnel).rotateX(Math.PI / 2).translate(0, y, 0), M.matte, shell, 'Lòng ga-lăng');
-          const facePlane = (w, h, x, y, z, mat, name) => { const p = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat); p.rotation.y = -Math.PI / 2; p.position.set(x, y, z); p.name = name; shell.add(p); return p; };
-          const gMid = (gTop + gBot) / 2, gH = gTop - gBot;
-          facePlane(2 * zDiv, gH, xGr - .001, gMid, 0, M.grille, 'Nền lưới tản nhiệt');
-          for (let i = 0; i < 5; i++) box(shell, 'Nan lưới tản nhiệt', .012, .022, 2 * zDiv - .04, xGr - .008, 1.29 + i * .065, 0, M.lampBox);
-          for (const s of [-1, 1]) {
-            box(shell, 'Vách ngăn ga-lăng', .15, gH, .03, -3.625, gMid, s * zDiv, M.matte, true);
-            facePlane(zO - zDiv, gH, xLp - .001, gMid, s * (zO + zDiv) / 2, M.lampBox, 'Hộp đèn pha');
-            for (const [y, r] of [[1.505, .062], [1.345, .078]]) {
-              const lens = new THREE.Mesh(new THREE.CircleGeometry(r, 18), M.lamp); lens.rotation.y = -Math.PI / 2; lens.position.set(xLp - .005, y, s * .9175); lens.name = 'Đèn pha'; shell.add(lens);
-              const ring = new THREE.Mesh(new THREE.TorusGeometry(r, .009, 5, 18), M.handle); ring.rotation.y = Math.PI / 2; ring.position.copy(lens.position); shell.add(ring);
-            }
-          }
-          const BUMP = [
-            [0, -3.88, -3.80, 0, -3.68], [.50, -3.84, -3.72, .50, -3.64], [.80, -3.80, -3.68, .78, -3.61], [.92, -3.79, -3.62, .88, -3.57],
-            [1.00, -3.70, -3.53, .96, -3.50], [1.12, -3.56, -3.42, 1.06, -3.42], [1.20, -3.47, -3.37, 1.15, -3.34], [1.26, -3.40, -3.34, 1.22, -3.28],
-            [1.33, -3.31, -3.28, 1.29, -3.18], [1.364, -3.18, -3.18, 1.305, -3.08], [1.364, -2.66, -2.66, 1.305, -2.66]];
-          const bFull = [...BUMP.slice(1).reverse().map(([zo, xt, xb, zi, xi]) => [-zo, xt, xb, -zi, xi]), ...BUMP], bumper = [];
-          const bBot = z => lerpTab([[0, .647], [.88, .638], [1.1, .628], [1.2, .62], [1.3, .615]], Math.abs(z)), bTopY = z => .925 - .025 * (z / 1.364) ** 2;
-          const bq = n => { const [zo, xt, xb, zi, xi] = bFull[n]; return { OT: [xt, bTopY(zo), zo], OB: [xb, bBot(zo), zo], IB: [xi, bBot(zi), zi], IT: [xi, bTopY(zi), zi] }; };
-          for (let n = 0; n < bFull.length - 1; n++) { const a = bq(n), b = bq(n + 1); bumper.push([a.OT, a.OB, b.OB, b.OT], [a.OB, a.IB, b.IB, b.OB], [a.IB, a.IT, b.IT, b.IB], [a.IT, a.OT, b.OT, b.IT]); }
-          for (const n of [0, bFull.length - 1]) { const a = bq(n); bumper.push([a.OT, a.OB, a.IB, a.IT]); }
-          mesh(facets(bumper), M.bumper, shell, 'Cản trước', lineDark);
-          box(shell, 'Giá biển số', .128, .257, .53, -3.776, .6465, 0, M.trim, true);
-          for (const [h, d, y, z] of [[.025, .53, .7625, 0], [.025, .53, .5305, 0], [.257, .025, .6465, .2525], [.257, .025, .6465, -.2525]]) box(shell, 'Viền biển số', .031, h, d, -3.8555, y, z, M.trim);
-          const pc = document.createElement('canvas'); pc.width = 256; pc.height = 128; const pk = pc.getContext('2d');
-          pk.fillStyle = '#e4dbc5'; pk.fillRect(0, 0, 256, 128); pk.strokeStyle = '#243240'; pk.lineWidth = 6; pk.strokeRect(6, 6, 244, 116);
-          pk.font = '700 84px Arial, sans-serif'; pk.textAlign = 'center'; pk.textBaseline = 'middle'; pk.fillStyle = '#243240'; pk.fillText('Jade', 128, 68);
-          const plateTex = new THREE.CanvasTexture(pc); plateTex.colorSpace = THREE.SRGBColorSpace;
-          facePlane(.42, .21, -3.842, .6465, 0, new THREE.MeshLambertMaterial({ map: plateTex }), 'Biển số trước · Jade');
-          for (const s of [-1, 1]) {
-            box(shell, 'Hộc cửa', .573, .306, .088, -2.8965, 1.182, s * 1.252, M.trim);
-            box(shell, 'Tay vịn cửa', .567, .126, .10, -2.9325, 1.676, s * 1.267, M.trim);
-            box(shell, 'Tay nắm trong cửa', .269, .111, .089, -2.1925, 1.6725, s * 1.2535, M.trim);
-            box(shell, 'Tấm che nắng', .16, .019, .637, -2.691, 2.8415, s * .5595, M.dashTrim);
-          }
-
-          box(inner, 'Tấm sàn gầm', 1.30, .01, 1.90, -1.97, .535, 0, M.under);
-          const trayPlan = inset(NOSE[0][1], T), tray = [...trayPlan.map(([z, x]) => [x, z]), [-2.72, trayPlan[trayPlan.length - 1][0]], [-2.72, -trayPlan[trayPlan.length - 1][0]], ...trayPlan.slice(1).reverse().map(([z, x]) => [x, -z])];
-          mesh(new THREE.ExtrudeGeometry(shapeOf(tray), { depth: .045, bevelEnabled: false }).rotateX(Math.PI / 2).translate(0, .60, 0), M.under, inner, 'Khay gầm trước');
-          box(inner, 'Tấm ốp sàn sau cabin', .086, .01, 2.844, -1.265, .529, 0, M.under);
-          box(inner, 'Thảm sàn', 1.85, .029, 1.12, -2.294, .9415, 0, M.mat);
-          for (const s of [-1, 1]) {
-            box(inner, 'Thảm sàn', .584, .029, .69, -2.927, .9415, s * .905, M.mat);
-            box(inner, 'Thảm sàn', .211, .029, .69, -1.4745, .9415, s * .905, M.mat);
-            const tub = [[-2.73, .54], ...ARCH, [-1.50, .54]], rib = []; for (let i = 0; i < tub.length - 1; i++) { const [xa, ya] = tub[i], [xb, yb] = tub[i + 1]; rib.push([[xa, ya, s * .56], [xb, yb, s * .56], [xb, yb, s * 1.30], [xa, ya, s * 1.30]]); }
-            mesh(facets(rib), M.under, inner, 'Hốc bánh trước');
-            mesh(new THREE.ShapeGeometry(shapeOf(tub)).translate(0, 0, s * .56), M.under, inner, 'Vách trong hốc bánh');
-          }
-          const shaped = (w, h, d, segs, fn) => { const g = new THREE.BoxGeometry(w, h, d, ...segs), p = g.attributes.position, v = new THREE.Vector3(); for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i); fn(v); p.setXYZ(i, v.x, v.y, v.z); } g.computeVertexNormals(); return g; };
-          const roundCorner = (v, a, b, ca, cb, r) => { const da = v[a] * Math.sign(ca) - Math.abs(ca), db = v[b] * Math.sign(cb) - Math.abs(cb); if (da > 0 && db > 0) { const l = Math.hypot(da, db); if (l > r * .999) { v[a] = Math.sign(ca) * (Math.abs(ca) + da / l * r); v[b] = Math.sign(cb) * (Math.abs(cb) + db / l * r); } } };
-          const cushionGeo = shaped(.90, .304, .96, [12, 4, 12], v => {
-            roundCorner(v, 'x', 'y', -(.45 - .08), .152 - .08, .08);
-            const k = Math.min(1, Math.max(0, (v.y - .06) / .09)); v.y -= .032 * k * Math.max(0, 1 - (v.z / .38) ** 2);
-          });
-          const backGeo = shaped(.16, .96, .96, [2, 10, 12], v => {
-            for (const s of [-1, 1]) roundCorner(v, 'z', 'y', s * (.48 - .12), .48 - .12, .12);
-            if (v.x < 0) v.x += .04 * Math.max(0, 1 - (v.z / .40) ** 2);
-          });
-          const gear = new THREE.Shape(); for (let i = 0; i <= 28; i++) { const t = i / 28 * Math.PI * 2, r = i % 2 ? .085 : .098; i ? gear.lineTo(Math.cos(t) * r, Math.sin(t) * r) : gear.moveTo(r, 0); }
-          const gearGeo = new THREE.ExtrudeGeometry(gear, { depth: .06, bevelEnabled: false }).translate(0, 0, -.03);
-          for (const s of [-1, 1]) {
-            const zc = s * .64;
-            mesh(cushionGeo, M.seat, inner, 'Đệm ngồi', lineDark).position.set(-2.15, 1.368, zc);
-            box(inner, 'Hộp sau ghế', .378, .444, 1.104, -1.725, 1.361, s * .696, M.dashTrim);
-            const back = mesh(backGeo, M.seat, inner, 'Tựa lưng', lineDark); back.position.set(-1.65, 1.985, zc); back.rotation.z = -.272;
-            const band = box(back, 'Đai tựa lưng', .18, .07, .98, 0, -.40, 0, M.seatBand); band.castShadow = false;
-            mesh(gearGeo, M.seatDark, inner, 'Núm chỉnh tựa', lineDark).position.set(-1.77, 1.385, s * 1.15);
-            for (const x of [-2.472, -1.697]) for (const zl of [.282, 1.025]) box(inner, 'Chân ghế', .166, .224, .074, x, 1.039, s * zl, M.seatDark);
-            for (const zl of [.282, 1.031]) box(inner, 'Ray trượt ghế', .951, .046, .106, -2.0805, 1.174, s * zl, M.mat);
-          }
-          const dash = new THREE.Group(); dash.name = 'Táp-lô'; dash.userData.xray = 'shell'; inner.add(dash);
-          const dashGeo = new THREE.ExtrudeGeometry(shapeOf([[-3.25, C.floorY], [-3.20, C.floorY], [-3.27, 1.18], [-3.05, 1.46], [-3.11, 1.50], [-3.12, 1.78], [-3.55, 2.035], [-3.60, 2.035], [-3.32, 1.60], [-3.30, 1.20]]), { depth: 2.5, steps: 25, bevelEnabled: false }).translate(0, 0, -1.25);
-          behindNose(dashGeo);
-          mesh(dashGeo, M.dash, dash, 'Táp-lô', lineDark);
-          const incl = new THREE.Vector2(-3.55 - -3.12, 2.035 - 1.78).normalize(), inclAng = Math.atan2(incl.y, incl.x), onIncl = (t, lift) => V3(-3.12 + incl.x * t + incl.y * lift, 1.78 + incl.y * t - incl.x * lift, 0);
-          const binGeo = new THREE.ExtrudeGeometry(shapeOf([[-3.27, 1.869], [-3.27, 2.12], [-3.10, 2.13], [-3.10, 2.18], [-3.30, 2.18], [-3.50, 2.10], [-3.55, 2.035]]), { depth: .74, steps: 8, bevelEnabled: false }).translate(0, 0, .24);
-          behindNose(binGeo);
-          mesh(binGeo, M.dashTrim, dash, 'Hộp đồng hồ', lineDark);
-          const gc = document.createElement('canvas'); gc.width = 256; gc.height = 96; const gk = gc.getContext('2d');
-          gk.fillStyle = '#20292b'; gk.fillRect(0, 0, 256, 96);
-          for (let i = 0; i < 3; i++) {
-            const x0 = 8 + i * 84; gk.fillStyle = '#e3d9a8'; gk.fillRect(x0, 10, 72, 76);
-            gk.strokeStyle = '#2b2a26'; gk.lineWidth = 2; gk.beginPath(); gk.arc(x0 + 36, 60, 28, Math.PI * 1.1, Math.PI * 1.9); gk.stroke();
-            for (let k = 0; k <= 6; k++) { const t = Math.PI * (1.1 + k * .8 / 6); gk.beginPath(); gk.moveTo(x0 + 36 + Math.cos(t) * 24, 60 + Math.sin(t) * 24); gk.lineTo(x0 + 36 + Math.cos(t) * 30, 60 + Math.sin(t) * 30); gk.stroke(); }
-            const t = Math.PI * (1.25 + i * .22); gk.strokeStyle = '#c0392b'; gk.lineWidth = 3; gk.beginPath(); gk.moveTo(x0 + 36, 60); gk.lineTo(x0 + 36 + Math.cos(t) * 26, 60 + Math.sin(t) * 26); gk.stroke();
-          }
-          const gaugeTex = new THREE.CanvasTexture(gc); gaugeTex.colorSpace = THREE.SRGBColorSpace;
-          const gauge = new THREE.Mesh(new THREE.PlaneGeometry(.56, .21), new THREE.MeshLambertMaterial({ map: gaugeTex })); gauge.name = 'Mặt đồng hồ';
-          gauge.rotation.y = Math.PI / 2; gauge.position.set(-3.268, 1.995, .61); dash.add(gauge);
-          const vMid = onIncl(.23, .004), vent2 = box(dash, 'Cửa gió giữa', .235, .006, .29, vMid.x, vMid.y, .0685, M.matte); vent2.rotation.z = inclAng;
-          for (let i = 0; i < 12; i++) { const p = onIncl(.125 + i * .019, .012); const s2 = box(dash, 'Nan cửa gió', .006, .01, .27, p.x, p.y, .0685, M.dashTrim); s2.rotation.z = inclAng; }
-          for (const z of [.035, .095, .155, .216, .283]) { const k = cyl(.02, .02, .035, M.switchCap, true, false, null, 10); k.rotation.z = Math.PI / 2; k.position.set(-3.10, 1.688, z); dash.add(k); }
-          const gbGeo = new THREE.ExtrudeGeometry(shapeOf([[-3.12, 1.784], [-3.04, 1.784], [-3.04, 1.93], [-3.09, 1.96], [-3.39, 1.96], [-3.39, 1.940]]), { depth: .632, bevelEnabled: false }).translate(0, 0, -.758);
-          mesh(gbGeo, M.dashTrim, dash, 'Hộc đựng đồ', lineDark);
-          box(dash, 'Khoá hộc', .012, .03, .07, -3.034, 1.87, -.44, M.matte);
-          for (const s of [-1, 1]) {
-            const spk = cyl(.095, .103, .07, M.matte, true, false, null, 16); spk.rotation.z = -Math.PI / 2; spk.position.set(-3.07, 1.64, s * .934); spk.name = 'Loa'; dash.add(spk);
-            const rim = new THREE.Mesh(new THREE.TorusGeometry(.09, .008, 5, 16), M.dashTrim); rim.rotation.y = Math.PI / 2; rim.position.set(-3.034, 1.64, s * .934); dash.add(rim);
-            box(dash, 'Cửa gió đầu táp-lô', .25, .356, .096, -3.216, 1.947, s * 1.049, M.dashTrim, true);
-            for (let i = 0; i < 6; i++) box(dash, 'Lá cửa gió', .012, .012, .085, -3.088, 1.87 + i * .04, s * 1.049, M.matte);
-            const d = onIncl(.47, .004), slot = box(dash, 'Khe sấy kính', .045, .006, .68, d.x, d.y, s * .37, M.matte); slot.rotation.z = inclAng;
-          }
-          const hubP = V3(-2.768, 2.05, .6145), colDir = V3(Math.sin(.332), Math.cos(.332), 0), colA = hubP.clone().addScaledVector(colDir, -(2.05 - .93) / colDir.y);
-          bar(inner, 'Cột lái', colA, hubP.clone().addScaledVector(colDir, -.02), .03, M.matte, true);
-          const wheel = new THREE.Group(); wheel.name = 'Vô-lăng'; wheel.position.copy(hubP); wheel.quaternion.setFromUnitVectors(V3(0, 0, 1), colDir); inner.add(wheel);
-          const ring = new THREE.Mesh(new THREE.TorusGeometry(.23, .02, 6, 12), M.mat); ring.castShadow = true; wheel.add(ring);
-          for (const t of [0, Math.PI / 2, -Math.PI / 2]) bar(wheel, 'Chấu vô-lăng', V3(0, 0, .005), V3(Math.cos(t) * .22, Math.sin(t) * .22, 0), .022, M.mat);
-          const hubCap = cyl(.045, .045, .03, M.matte, true, true, lineDark, 12); hubCap.rotation.x = Math.PI / 2; wheel.add(hubCap);
-          const bootM = cyl(.05, .087, .127, M.matte, true, false, null, 10); bootM.position.set(-2.906, C.floorY + .04, .1225); inner.add(bootM);
-          bar(inner, 'Cần số', V3(-2.94, 1.04, .1225), V3(-2.70, 1.83, .1225), .013, M.mat, true);
-          const gearKnob = sph(.035, M.seat, true, false); gearKnob.position.set(-2.694, 1.846, .1225); inner.add(gearKnob);
-          for (const [z, l] of [[.392, .33], [.504, .29], [.80, .29]]) { const pad = box(inner, 'Bàn đạp', l, .018, .06, -3.195, 1.035, z, M.trim); pad.rotation.z = 2.38; }
-
-          const lathe = (pts, n = 28) => new THREE.LatheGeometry(pts.map(p => new THREE.Vector2(...p)), n);
-          const tyreGeo = lathe([[.31, -.19], [.40, -.199], [.46, -.193], [.495, -.176], [.506, -.152], [.506, .152], [.495, .176], [.46, .193], [.40, .199], [.31, .19]]);
-          const rimGeo = lathe([[.316, .152], [.30, .157], [.28, .150], [.25, .12]]), dishGeo = lathe([[.25, .12], [.20, .12]]);
-          const bossGeo = lathe([[.20, .12], [.196, .165], [.07, .17]]), capGeo = lathe([[.07, .17], [.06, .185], [0, .188]], 16);
-          const backDisc = new THREE.CircleGeometry(.315, 24);
-          for (const g of [tyreGeo, rimGeo, dishGeo, bossGeo, capGeo]) g.rotateX(Math.PI / 2);
-          const nutGeo = new THREE.CylinderGeometry(.017, .017, .022, 6); nutGeo.rotateX(Math.PI / 2);
-          function roadWheel(x, z, outward, name) {
-            const w = new THREE.Group(); w.name = name; w.position.set(x, C.wheelY, z); if (outward < 0) w.rotation.y = Math.PI;
-            const t = new THREE.Mesh(tyreGeo, M.tyre); t.castShadow = t.receiveShadow = true; edge(t, tyreGeo, lineDark); w.add(t);
-            for (const [g, m] of [[rimGeo, M.rim], [dishGeo, M.hub], [bossGeo, M.rimDark], [capGeo, M.hub]]) { const p = new THREE.Mesh(g, m); p.castShadow = true; w.add(p); }
-            const bk = new THREE.Mesh(backDisc, M.rimDark); bk.position.z = -.19; bk.rotation.y = Math.PI; w.add(bk);
-            for (let k = 0; k < 6; k++) { const n = new THREE.Mesh(nutGeo, M.tyre); n.position.set(Math.cos(k * Math.PI / 3) * .13, Math.sin(k * Math.PI / 3) * .13, .175); w.add(n); }
-            wheels.add(w);
-          }
-          for (const sd of [-1, 1]) {
-            roadWheel(C.axleF, sd * 1.198, sd, 'Bánh trước');
-            roadWheel(C.axleR, sd * 1.368, sd, 'Bánh sau ngoài'); roadWheel(C.axleR, sd * .9575, sd, 'Bánh sau trong');
-          }
-
-          const galley = new THREE.Group(); galley.name = 'Bếp dọc vách cửa hông'; galley.userData.xray = 'keep'; galley.userData.noBake = true;
-          galley.rotation.y = -Math.PI / 2; galley.position.set(1.92, 0, -1.57);
-          const cabinets = new THREE.Group(); cabinets.name = 'Thân tủ & cánh tủ';
-          box(cabinets, 'Thân tủ bếp', .51, .725, 1.82, 2.665, 1.4325, 0, M.cabinet, true);
-          for (const [name, h, d, y, z] of [['Cánh tủ chậu', .505, .398, 1.3325, -.69], ['Cánh tủ giữa', .65, .68, 1.405, -.11], ['Cửa lò nướng', .5, .52, 1.37, .59], ['Ngăn kéo', .13, .35, 1.685, -.677]])
-            box(cabinets, name, .012, h, d, 2.403, y, z, M.front, true);
-          box(cabinets, 'Ô kính cửa lò', .006, .2, .34, 2.396, 1.42, .59, M.matte);
-          for (const z of [-.53, .19, .8]) box(cabinets, 'Tay nắm tủ', .018, .11, .05, 2.39, 1.42, z, M.trim);
-          box(cabinets, 'Khe tách khối bếp', .58, .76, .014, 2.68, 1.45, .263, M.matte);
-          for (let i = 0; i < 4; i++) {
-            const k = cyl(.027, .027, .03, M.matte, true, false, null, 12); k.rotation.z = Math.PI / 2; k.position.set(2.386, 1.722, .395 + i * .13); cabinets.add(k);
-            const ring = cyl(.036, .036, .006, M.trim, false, false, null, 12); ring.rotation.z = Math.PI / 2; ring.position.set(2.398, 1.722, .395 + i * .13); cabinets.add(ring);
-          }
-          const gasPipe = cyl(.016, .016, .08, M.handle, true, false, null, 8); gasPipe.rotation.x = Math.PI / 2; gasPipe.position.set(2.8, 1.2, .95); gasPipe.name = 'Ống ga'; cabinets.add(gasPipe);
-          const gasNut = cyl(.022, .022, .02, M.handle, true, false, null, 6); gasNut.rotation.x = Math.PI / 2; gasNut.position.set(2.8, 1.2, .985); cabinets.add(gasNut);
-          bakeStatic(cabinets); galley.add(cabinets); cab.add(galley);
-
-          bakeStatic(cab);
-          parent.add(cab);
-          return galley;
-        }
-
         const WORK_LAMP_HEAD = { x: -0.002, z: 0.219, radius: 0.039, ledY: 0.43 };
         function workLamp(parent) {
           const lamp = new THREE.Group(); lamp.name = 'Đèn bàn học';
@@ -7252,7 +6933,7 @@
           const m = new THREE.Mesh(geo, mats); m.name = key; m.castShadow = m.receiveShadow = true; return m;
         }
 
-        function motorhomeKitchen(galley) {
+        function motorhomeKitchen(galley, ceilY = 3.56) {
           const lam = (c, o = {}) => new THREE.MeshLambertMaterial({ color: c, ...o });
           const M = { counter: lam(0xd8d0bc), steel: lam(0x98a7a4), dark: lam(0x2e3436), iron: lam(0x1f2224), peg: lam(0xd9c49a), hole: lam(0x5a4a33), boardG: lam(0x9fd6a4),
             boardT: lam(0x6fb0a0), wood: lam(0x7a4a2a), blade: lam(0xc8ced2), cap: lam(0x3b3f42), sponge: lam(0xe36f9a), soap: lam(0xe9e6dc), lid: lam(0x9aa5a8) };
@@ -7310,8 +6991,8 @@
           const lip = box(S, 0.05, 0.12, 0.6, 2.62, 2.34 + HY, 0.59, M.steel, true); lip.rotation.z = 0.35;
           box(S, 0.27, 0.006, 0.52, 2.8, 2.297 + HY, 0.59, M.dark);
           for (let k = 0; k < 7; k++) box(S, 0.27, 0.004, 0.006, 2.8, 2.293 + HY, 0.37 + k * 0.073, M.steel);
-          box(S, 0.12, 1.16 - HY, 0.12, 2.79, 2.98 + HY / 2, 0.47, M.steel, true);
-          box(S, 0.16, 0.025, 0.16, 2.79, 3.545, 0.47, M.steel);
+          box(S, 0.12, ceilY - 2.40 - HY, 0.12, 2.79, (2.40 + HY + ceilY) / 2, 0.47, M.steel, true);
+          box(S, 0.16, 0.025, 0.16, 2.79, ceilY - 0.015, 0.47, M.steel);
           box(S, 0.014, 0.045, 0.6, 2.384, 1.812, 0.59, M.dark, true);
           bakeStatic(S); galley.add(S);
 
@@ -7351,86 +7032,277 @@
           return { flames, knobs, hoodLamp, pot, potWater, potNoodles, potSteam, pegPan, stovePan, pegKnife, scallions, counterBowl, tapWater, burners: BURN, steam: 0, TOP };
         }
 
-        function motorhomeShell(g, body, roofMat, glass, base, x0, x1, dz, yRoof, dX0, dX1, doorH) {
-          function opening(shape, x, y, w, h) {
-            const p = new THREE.Path();
-            p.moveTo(x, y); p.lineTo(x, y + h); p.lineTo(x + w, y + h); p.lineTo(x + w, y); p.closePath();
-            shape.holes.push(p);
-          }
-          function panel(shape, depth, z, name, material = body) {
-            const geo = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false, curveSegments: 18 });
-            const mesh = new THREE.Mesh(geo, material); mesh.position.z = z; mesh.name = name;
-            mesh.castShadow = mesh.receiveShadow = true; edge(mesh, geo, lineDark); g.add(mesh); return mesh;
-          }
-          function windowAt(x, y, w, h, z) {
-            const pane = bx(w, h, 0.035, glass, false, true, lineDark);
-            pane.position.set(x + w / 2, y + h / 2, z); g.add(pane);
-          }
-          const sill = 0.56, axle = 1.888, wheelY = 0.5053, archR = 0.61;
-          const a = Math.asin((sill - wheelY) / archR), half = Math.sqrt(archR * archR - (sill - wheelY) ** 2);
-          for (const side of [-1, 1]) {
-            const shape = new THREE.Shape(); shape.moveTo(x0, sill);
-            if (side === 1) {
-              shape.lineTo(dX0, sill); shape.lineTo(dX0, base + doorH);
-              shape.lineTo(dX1, base + doorH); shape.lineTo(dX1, sill);
-            }
-            shape.lineTo(axle - half, sill); shape.absarc(axle, wheelY, archR, Math.PI - a, a, true);
-            shape.lineTo(x1, sill); shape.lineTo(x1, yRoof - 0.02); shape.lineTo(x0, yRoof - 0.02); shape.closePath();
-            const windows = side === 1 ? [[-1.03, 2.27, 0.66, 0.72], [1.39, 2.27, 1.21, 0.72]] : [[-0.63, 2.28, 2.27, 0.72]];
-            for (const [x, y, w, h] of windows) { opening(shape, x, y, w, h); windowAt(x, y, w, h, side * (dz - 0.04)); }
-            panel(shape, 0.1, side > 0 ? dz - 0.1 : -dz, side > 0 ? 'Vách cửa & hốc bánh sau' : 'Vách giường & hốc bánh sau');
-            const arch = new THREE.Mesh(new THREE.TorusGeometry(archR + 0.018, 0.036, 6, 26, Math.PI), caravanDark);
-            arch.position.set(axle, wheelY, side * (dz + 0.01)); arch.castShadow = true; g.add(arch);
-          }
-          for (const z of [-1.04, 1.04]) {
-            const pier = bx(0.09, 1.86, 0.78, body); pier.position.set(x0, base + 0.93, z); g.add(pier);
-          }
-          const lintel = bx(0.09, 0.65, dz * 2, body); lintel.position.set(x0, yRoof - 0.345, 0); g.add(lintel);
-          for (const z of [-1.045, 1.045]) {
-            const pier = bx(0.1, 2.12, 0.81, body); pier.position.set(x1 - 0.05, base + 1.06, z); g.add(pier);
-          }
-          const rearHeader = bx(0.1, 0.56, dz * 2, body); rearHeader.position.set(x1 - 0.05, yRoof - 0.28, 0); g.add(rearHeader);
+        const TR = { yIn: 0.83, xP: -0.58, xF: -2.12, xR: 2.03, wr: 0.44, wz: 0.955, front: -3.264, rear: 3.05, rc: 0.12, sill: 0.608, T: 0.035,
+          door: [-0.55, 0.83, 0.83, 2.72], archR: 0.535, archY: 0.52, inW: 0.98, ceil: 2.90 };
+        const TR_SEC = [[0.608, 1.018], [0.718, 1.06], [1.015, 1.063], [1.30, 1.065], [1.543, 1.065], [1.631, 1.044], [1.72, 1.034], [1.763, 1.030], [2.093, 1.022],
+          [2.319, 1.007], [2.572, 1.001], [2.697, 0.985], [2.813, 0.949]];
+        const TR_ROOF = [[-1.513, 2.431], [-1.458, 2.487], [-1.348, 2.579], [-1.238, 2.665], [-1.128, 2.733], [-1.018, 2.786], [-0.908, 2.827], [-0.798, 2.858],
+          [-0.578, 2.899], [-0.358, 2.921], [-0.028, 2.931], [0.52, 2.95], [1.6, 2.957], [3.1, 2.957]];
+        const TR_DROP = [[0, 0], [0.33, 0.0123], [0.55, 0.0341], [0.715, 0.0576], [0.825, 0.08], [0.902, 0.106], [0.949, 0.143]];
+        const trLerp = (tab, t) => { if (t <= tab[0][0]) return tab[0][1]; for (let i = 1; i < tab.length; i++) if (t <= tab[i][0]) { const [a, va] = tab[i - 1], [b, vb] = tab[i]; return va + (vb - va) * (t - a) / (b - a); } return tab[tab.length - 1][1]; };
+        const trSS = (a, b, t) => { const k = Math.max(0, Math.min(1, (t - a) / (b - a))); return k * k * (3 - 2 * k); };
+        const trS = x => 0.5 + 0.5 * trSS(-1.513, -0.9, x);
+        const trRoofY = x => trLerp(TR_ROOF, x), trTop = x => trRoofY(x) - 0.143 * trS(x);
+        const trSideZ = (x, y) => { const yt = trTop(x); return trLerp(TR_SEC, y) + (0.949 - trLerp(TR_SEC, yt)) * trSS(yt - 0.3, yt, y); };
+        const trArchFront = y => TR.xF - Math.sqrt(Math.max(0, TR.archR ** 2 - (y - TR.archY) ** 2));
+        const trXh = z => -1.513 + 0.10 * (z / 0.949) ** 2;
+        const TR_ROOF_X = [-1.30, -1.20, -1.10, -1.0, -0.9, -0.8, -0.6, -0.35, 0.0, 0.5, 1.0, 1.6, 2.2, 2.93];
+        const TR_NOSE = [[0.575, [-3.128, -3.129, -3.183, -3.149, -3.054, -2.886]], [0.663, [-3.236, -3.218, -3.221, -3.185, -3.064, -2.92]], [0.773, [-3.264, -3.257, -3.241, -3.202, -3.059, -2.926]],
+          [0.883, [-3.216, -3.205, -3.218, -3.164, -3.076, -2.962]], [0.993, [-3.199, -3.188, -3.153, -3.112, -3.015, -2.823]], [1.103, [-3.213, -3.176, -3.155, -3.09, -3.001, -2.809]],
+          [1.213, [-3.169, -3.154, -3.131, -3.03, -2.93, -2.729]], [1.323, [-3.151, -3.133, -3.081, -2.986, -2.89, -2.694]], [1.433, [-3.031, -3.009, -2.966, -2.909, -2.814, -2.621]],
+          [1.488, [-2.904, -2.875, -2.843, -2.777, -2.743, -2.589]], [1.543, [-2.75, -2.723, -2.67, -2.637, -2.592, -2.483]], [1.598, [-2.592, -2.568, -2.541, -2.5, -2.451, -2.41]],
+          [1.642, [-2.393, -2.385, -2.339, -2.304, -2.258, -2.252]]];
+        const TR_NZ = [0, 0.33, 0.55, 0.715, 0.88, 0.99];
+        const trNoseEnd = y => y < 0.98 ? trArchFront(y) : y < 1.62 ? -2.393 : -2.24;
+        const TR_WS = [[[-2.393, -2.385, -2.339, -2.304, -2.275, -2.258], 1.642, [-2.24, 1.642]], [[-2.137, -2.117, -2.086, -2.054, -2.025, -2.005], 1.873, [-1.98, 1.873]],
+          [[-1.88, -1.861, -1.834, -1.804, -1.778, -1.758], 2.093, [-1.735, 2.093]], [[-1.57, -1.555, -1.53, -1.505, -1.48, -1.46], [2.36, 2.36, 2.355, 2.35, 2.34, 2.33], [-1.44, 2.33]]];
+        const TR_WZ = [0, 0.33, 0.55, 0.715, 0.825, 0.902];
+        const trNoseX = (z, y) => {
+          const at = (row, end) => { const zs = [...TR_NZ, trSideZ(end, row[0])], xs = [...row[1], end]; z = Math.abs(z); for (let i = 1; i < zs.length; i++) if (z <= zs[i]) return xs[i - 1] + (xs[i] - xs[i - 1]) * (z - zs[i - 1]) / (zs[i] - zs[i - 1]); return xs[xs.length - 1]; };
+          for (let i = 1; i < TR_NOSE.length; i++) if (y <= TR_NOSE[i][0]) { const a = TR_NOSE[i - 1], b = TR_NOSE[i], k = Math.max(0, (y - a[0]) / (b[0] - a[0])); return at(a, trNoseEnd(a[0])) * (1 - k) + at(b, trNoseEnd(b[0])) * k; }
+          return at(TR_NOSE[TR_NOSE.length - 1], -2.24);
+        };
 
-          const profile = [[-3.9, 3.07], [-3.39, yRoof], [x0 + 0.06, yRoof], [x0 + 0.06, 2.98], [-3.61, 2.98]];
-          for (const side of [-1, 1]) {
-            const shape = new THREE.Shape(profile.map(p => new THREE.Vector2(...p)));
-            opening(shape, -2.98, 3.17, 1.03, 0.28);
-            panel(shape, 0.07, side > 0 ? dz - 0.07 : -dz, 'Khoang ngủ trên cabin');
-            windowAt(-2.98, 3.17, 1.03, 0.28, side * (dz - 0.035));
+        function transitBody(g) {
+          const V3 = (x, y, z) => new THREE.Vector3(x, y, z), V2 = (x, y) => new THREE.Vector2(x, y), lam = (c, o = {}) => new THREE.MeshLambertMaterial({ color: c, ...o }), two = { side: THREE.DoubleSide };
+          const M = { body: lam(0xE2D6C0, { transparent: true, opacity: 0.5, depthWrite: false, side: THREE.DoubleSide }), glass: lam(0x8fc1e3, { transparent: true, opacity: 0.25, depthWrite: false, side: THREE.DoubleSide }),
+            frost: lam(0xdfe9ec, { transparent: true, opacity: 0.6, depthWrite: false, side: THREE.DoubleSide }), black: lam(0x3a3f41, two), grille: lam(0x24292b, two), lamp: lam(0xdde4e6, two),
+            chrome: lam(0xc9cdd0), red: lam(0xb8322a, two), amber: lam(0xe39a32, two), mirror: lam(0xb3ccd0), blue: lam(0x1f3f7a), dark: lam(0x4a5052) };
+          const shell = new THREE.Group(); shell.name = 'Vỏ Ford Transit L3H2'; shell.userData.xray = 'shell'; g.add(shell);
+          const T = TR.T, IN = V3(0.4, 1.6, 0), seam = [];
+          const triGeo = (p, n) => { const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(p, 3)); if (n) geo.setAttribute('normal', new THREE.Float32BufferAttribute(n, 3)); else geo.computeVertexNormals(); geo.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(p.length / 3 * 2), 2)); return geo; };
+          const mesh = (geo, mat, name, outline = false, par = shell) => { const m = new THREE.Mesh(geo, mat); m.name = name; m.castShadow = mat !== M.glass && mat !== M.frost; m.receiveShadow = true; if (outline) edge(m, geo, lineDark); par.add(m); return m; };
+          const box = (name, w, h, d, x, y, z, mat, out = false, par = shell) => { const m = bx(w, h, d, mat, true, out, lineDark); m.name = name; m.position.set(x, y, z); par.add(m); return m; };
+          const bar = (name, a, b, t, mat, round = false, par = shell) => { const v = new THREE.Vector3().subVectors(b, a), len = v.length(); const m = round ? cyl(t, t, len, mat, true, false, null, 8) : bx(t, len, t, mat, true, false);
+            m.quaternion.setFromUnitVectors(V3(0, 1, 0), v.normalize()); m.position.copy(a).add(b).multiplyScalar(0.5); m.name = name; par.add(m); return m; };
+          const loop = (name, pts, t, mat, closed = true) => { for (let i = 0; i < pts.length - (closed ? 0 : 1); i++) { const q = pts[(i + 1) % pts.length]; if (q.distanceTo(pts[i]) > 0.004) bar(name, pts[i], q, t, mat); } };
+          const outward = (p, n) => (n.x * (p.x - IN.x) + n.y * (p.y - IN.y) + n.z * (p.z - IN.z) < 0 ? -1 : 1);
+          const insetGeo = geo => { const p = geo.attributes.position, n = geo.attributes.normal, q = new Float32Array(p.count * 3), a = V3(), b = V3();
+            for (let i = 0; i < p.count; i++) { a.fromBufferAttribute(p, i); b.fromBufferAttribute(n, i); a.addScaledVector(b, -T * outward(a, b)); a.toArray(q, i * 3); }
+            return triGeo(q, Array.from(n.array)); };
+          function gridMeshes(P, key, name, inner = true) {
+            const R = P.length, C = P[0].length, pos = new Float32Array(R * C * 3), idx = [];
+            P.forEach((row, r) => row.forEach((p, c) => p.toArray(pos, (r * C + c) * 3)));
+            for (let r = 0; r < R - 1; r++) for (let c = 0; c < C - 1; c++) if (key(r, c)) { const a = r * C + c, b = a + C; idx.push(a, b, a + 1, a + 1, b, b + 1); }
+            const full = new THREE.BufferGeometry(); full.setAttribute('position', new THREE.BufferAttribute(pos, 3)); full.setIndex(idx); full.computeVertexNormals();
+            const N = full.attributes.normal.array, out = {};
+            for (let r = 0; r < R - 1; r++) for (let c = 0; c < C - 1; c++) { const k = key(r, c); if (!k) continue; const o = out[k] || (out[k] = { p: [], n: [] }), a = r * C + c, b = a + C;
+              for (const v of [a, b, a + 1, a + 1, b, b + 1]) { o.p.push(pos[v * 3], pos[v * 3 + 1], pos[v * 3 + 2]); o.n.push(N[v * 3], N[v * 3 + 1], N[v * 3 + 2]); } }
+            full.dispose();
+            for (const k in out) { const geo = triGeo(out[k].p, out[k].n); mesh(geo, M[k], name, k === 'body' || k === 'black'); if (inner && k === 'body') mesh(insetGeo(geo), M[k], name); }
           }
-          function quad(a, b, z0, z1, material, name) {
-            const geo = new THREE.BufferGeometry();
-            geo.setAttribute('position', new THREE.Float32BufferAttribute([
-              a[0], a[1], z0, b[0], b[1], z0, b[0], b[1], z1, a[0], a[1], z1
-            ], 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 1, 0, 1, 1, 0, 1], 2));
-            geo.setIndex([0, 2, 1, 0, 3, 2]); geo.computeVertexNormals();
-            const m = new THREE.Mesh(geo, material); m.name = name; m.castShadow = m.receiveShadow = true; edge(m, geo, lineDark); g.add(m);
+          const full = (half, mk) => [...half.slice(1).reverse().map(p => mk(p, -1)), ...half.map(p => mk(p, 1))];
+
+          const noseRows = TR_NOSE.map(([y, xs]) => { const xe = trNoseEnd(y), half = [...TR_NZ.map((z, i) => [z, Math.min(xs[i], xe - 0.012)]), [trSideZ(xe, y), xe]]; return full(half, ([z, x], s) => V3(x, y, s * z)); });
+          const NC = TR_NZ.length + 1, nKey = (r, c) => { const h = Math.abs(c - (NC - 1) + 0.5) - 0.5;
+            if (r <= 2 || r === 11) return 'black'; if (r <= 6 && h <= 1) return 'grille'; if (r >= 5 && r <= 7 && h >= 2) return 'lamp'; return 'body'; };
+          gridMeshes(noseRows, nKey, 'Mũi xe');
+          const roofSec = (x, z) => trRoofY(x) - trLerp(TR_DROP, Math.abs(z)) * trS(x), RZ = [...TR_WZ, 0.949];
+          const wsRows = [...TR_WS.map(([xs, ys, end]) => full([...TR_WZ.map((z, i) => [z, xs[i], Array.isArray(ys) ? ys[i] : ys]), [trSideZ(end[0], end[1]), end[0], end[1]]], ([z, x, y], s) => V3(x, y, s * z))),
+            full(RZ.map(z => [z, trXh(z), roofSec(trXh(z), z)]), ([z, x, y], s) => V3(x, y, s * z))];
+          const WC = RZ.length, wKey = (r, c) => { const h = Math.abs(c - (WC - 1) + 0.5) - 0.5; return r < 3 && h < 4 ? 'glass' : 'body'; };
+          gridMeshes(wsRows, wKey, 'Kính chắn gió & trụ A');
+          const roofRows = [wsRows[wsRows.length - 1], ...TR_ROOF_X.map(x => full(RZ.map(z => [z, roofSec(x, z)]), ([z, y], s) => V3(x, y, s * z)))];
+          gridMeshes(roofRows, () => 'body', 'Mui cao');
+          for (const z of [-0.6, -0.3, 0.3, 0.6]) box('Gân mui', 2.3, 0.014, 0.05, 1.7, roofSec(1.7, z) + 0.006, z, M.body);
+
+          const arc = (cx, a0, a1, n) => Array.from({ length: n + 1 }, (_, i) => { const a = a0 + (a1 - a0) * i / n; return [cx + TR.archR * Math.cos(a), TR.archY + TR.archR * Math.sin(a)]; });
+          const aS = Math.asin((TR.sill - TR.archY) / TR.archR), aP0 = Math.atan2(0.98 - TR.archY, -2.393 - TR.xF);
+          const SY = TR_SEC.map(p => p[0]), xhE = trXh(0.949);
+          const archRear = arc(TR.xR, Math.PI - aS, aS, 14), archFront = arc(TR.xF, aS, aP0, 12);
+          const CONT = [[-2.393, 0.98], ...[1.0, 1.15, 1.3, 1.45, 1.543, 1.598].map(y => [-2.393, y]), [-2.24, 1.642], [-1.98, 1.873], [-1.735, 2.093], [-1.44, 2.33],
+            [xhE, trTop(xhE)], ...TR_ROOF_X.map(x => [x, trTop(x)]), ...SY.slice(0, -1).reverse().map(y => [2.93, y]),
+            ...archRear.slice().reverse(), ...archFront.slice(0, -1)];
+          const DOOR_GLASS = [[-0.935, 2.26], [-0.941, 1.73], [-1.073, 1.642], [-1.293, 1.565], [-1.513, 1.521], [-1.733, 1.488], [-1.854, 1.499], [-1.862, 1.93], [-1.685, 2.093], [-1.535, 2.215], [-1.45, 2.285], [-1.02, 2.295]];
+          const rr = (x0, y0, x1, y1, r = 0.06) => { const p = []; for (const [cx, cy, a0] of [[x1 - r, y0 + r, -Math.PI / 2], [x1 - r, y1 - r, 0], [x0 + r, y1 - r, Math.PI / 2], [x0 + r, y0 + r, Math.PI]]) for (let k = 0; k <= 3; k++) { const a = a0 + k * Math.PI / 6; p.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]); } return p; };
+          const WIN = { 1: [rr(2.42, 2.04, 2.82, 2.44)], [-1]: [rr(-0.30, 1.86, 1.22, 2.46), rr(1.52, 1.98, 2.16, 2.46)] };
+          const DOOR = TR.door, doorHole = [[DOOR[0], DOOR[2]], [DOOR[1], DOOR[2]], [DOOR[1], DOOR[3]], [DOOR[0], DOOR[3]]];
+          const inPoly = (x, y, P) => { let c = false; for (let i = 0, j = P.length - 1; i < P.length; j = i++) { const [xi, yi] = P[i], [xj, yj] = P[j]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c; } return c; };
+          const segD = (x, y, P) => { let d = 9; for (let i = 0; i < P.length; i++) { const [ax, ay] = P[i], [bx2, by] = P[(i + 1) % P.length], vx = bx2 - ax, vy = by - ay, t = Math.max(0, Math.min(1, ((x - ax) * vx + (y - ay) * vy) / (vx * vx + vy * vy || 1))); d = Math.min(d, Math.hypot(x - ax - vx * t, y - ay - vy * t)); } return d; };
+          const sideRefs = {};
+          for (const s of [1, -1]) {
+            const holes = [DOOR_GLASS, ...WIN[s], ...(s > 0 ? [doorHole] : [])], steiner = [];
+            const YS = [0.66, 0.718, 0.85, 1.0, 1.15, 1.3, 1.45, 1.543, 1.587, 1.631, 1.70, 1.763, 1.9, 2.093, 2.2, 2.319, 2.45, 2.572, 2.697, 2.765];
+            for (let x = -2.33; x < 2.92; x += 0.16) for (const y of YS) if (inPoly(x, y, CONT) && !holes.some(h => inPoly(x, y, h)) && segD(x, y, CONT) > 0.035 && holes.every(h => segD(x, y, h) > 0.035)) steiner.push([x, y]);
+            const flat = [CONT, ...holes, ...steiner.map(p => [p])], faces = THREE.ShapeUtils.triangulateShape(CONT.map(p => V2(...p)), [...holes, ...steiner.map(p => [p])].map(h => h.map(p => V2(...p))));
+            const P2 = flat.flat(), pos = [], idx = [];
+            for (const [x, y] of P2) pos.push(x, y, s * trSideZ(x, y));
+            for (const f of faces) idx.push(...f);
+            const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setIndex(idx); geo.computeVertexNormals();
+            geo.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(P2.length * 2), 2));
+            mesh(geo, M.body, s > 0 ? 'Vách hông bên cửa lùa' : 'Vách hông bên tài', true);
+            const ig = insetGeo(geo.toNonIndexed()); mesh(ig, M.body, 'Lớp trong vách hông');
+            const N = geo.attributes.normal, PA = geo.attributes.position, rim = [], a = V3(), n = V3();
+            const inner = i => { a.fromBufferAttribute(PA, i); n.fromBufferAttribute(N, i); return a.clone().addScaledVector(n, -T * outward(a, n)); };
+            const ring = (i0, len, closed) => { for (let k = 0; k < len - (closed ? 0 : 1); k++) { const i = i0 + k, j = i0 + (k + 1) % len, A = V3().fromBufferAttribute(PA, i), B = V3().fromBufferAttribute(PA, j), Ai = inner(i), Bi = inner(j); rim.push(...A.toArray(), ...B.toArray(), ...Bi.toArray(), ...A.toArray(), ...Bi.toArray(), ...Ai.toArray()); } };
+            let o = CONT.length; for (const h of holes) { ring(o, h.length, true); o += h.length; }
+            const bot = CONT.length - archRear.length - archFront.length + 1; ring(bot - 1, CONT.length - bot + 1, false);
+            mesh(triGeo(rim), M.body, 'Gờ vách hông');
+            sideRefs[s] = { holes };
+            const pane = (P, mat, name, frame) => { const sg = new THREE.ShapeGeometry(new THREE.Shape(P.map(p => V2(...p))), 6), q = sg.attributes.position; for (let i = 0; i < q.count; i++) q.setZ(i, s * (trSideZ(q.getX(i), q.getY(i)) - 0.012)); sg.computeVertexNormals(); mesh(sg, mat, name);
+              if (frame) loop('Viền cao su cửa sổ', P.map(([x, y]) => V3(x, y, s * (trSideZ(x, y) + 0.004))), 0.03, M.black); };
+            pane(DOOR_GLASS, M.glass, 'Kính cửa cabin', true);
+            WIN[s].forEach((P, i) => pane(P, s > 0 && i === 0 ? M.frost : M.glass, 'Cửa sổ nhà xe', true));
+            const on = (x, y) => [x, y, s * (trSideZ(x, y) + 0.003)], ln = pts => { for (let i = 0; i < pts.length - 1; i++) seam.push(...pts[i], ...pts[i + 1]); };
+            ln([0.98, 1.2, 1.5, 1.7].map(y => on(-2.03, y)).concat([on(-1.88, 1.92), on(-1.70, 2.11), on(-1.52, 2.36)]));
+            ln([0.62, 1.0, 1.5, 2.0, 2.4].map(y => on(-0.70, y)).concat([on(-0.70, 2.62)])); ln([on(-2.03, 0.98), on(-1.59, 0.98)]); ln([on(-1.59, 0.62), on(-0.70, 0.62)]);
+            ln([-2.3, -1.6, -0.9, -0.55].map(x => on(x, 1.587))); ln([0.83, 1.5, 2.2, 2.93].map(x => on(x, 1.587)));
+            if (s < 0) ln([-0.55, 0.2, 0.83].map(x => on(x, 1.587)));
+            const band = (x0, x1, y0, y1, name) => { const g2 = new THREE.PlaneGeometry(x1 - x0, y1 - y0, Math.max(1, Math.round((x1 - x0) / 0.3)), 3); g2.translate((x0 + x1) / 2, (y0 + y1) / 2, 0); const r2 = g2.attributes.position;
+              for (let i = 0; i < r2.count; i++) r2.setZ(i, s * (trSideZ(r2.getX(i), r2.getY(i)) + 0.014)); g2.computeVertexNormals(); mesh(g2, M.black, name, true); };
+            const xa = TR.xF + Math.sqrt(TR.archR ** 2 - (TR.sill - TR.archY) ** 2), xb = TR.xR - Math.sqrt(TR.archR ** 2 - (TR.sill - TR.archY) ** 2), xc = TR.xR + (TR.xR - xb);
+            if (s > 0) { band(xa, DOOR[0], TR.sill, 0.95, 'Ốp chân thân'); band(DOOR[0], DOOR[1], TR.sill, DOOR[2] - 0.005, 'Ốp chân thân'); band(DOOR[1], xb, TR.sill, 0.95, 'Ốp chân thân'); }
+            else band(xa, xb, TR.sill, 0.95, 'Ốp chân thân');
+            band(xc, 2.93, TR.sill, 1.0, 'Ốp góc đuôi');
+            for (const [cx, a1] of [[TR.xF, aP0], [TR.xR, Math.PI - aS]]) { const rg = new THREE.RingGeometry(TR.archR, TR.archR + 0.075, 22, 1, aS, a1 - aS); rg.translate(cx, TR.archY, 0); const r2 = rg.attributes.position;
+              for (let i = 0; i < r2.count; i++) r2.setZ(i, s * (trSideZ(r2.getX(i), Math.max(TR.sill, r2.getY(i))) + 0.02)); rg.computeVertexNormals(); mesh(rg, M.black, 'Ốp vòm bánh', true); }
+            const mz = s * 1.30, base = V3(-1.84, 1.56, s * (trSideZ(-1.84, 1.56) + 0.01));
+            box('Chân gương', 0.12, 0.06, 0.16, -1.86, 1.56, s * 1.13, M.black); bar('Tay gương', base, V3(-1.9, 1.62, mz - s * 0.12), 0.035, M.black, true);
+            const hg = box('Hộp gương chiếu hậu', 0.11, 0.40, 0.26, -1.92, 1.72, mz, M.black, true); hg.rotation.y = s * 0.12;
+            const mg = new THREE.Mesh(new THREE.PlaneGeometry(0.22, 0.34), M.mirror); mg.rotation.y = Math.PI / 2 + s * 0.12; mg.position.set(-1.862, 1.72, mz); mg.name = 'Mặt gương'; shell.add(mg);
+            box('Tay nắm cửa cabin', 0.17, 0.045, 0.03, -1.05, 1.62, s * (trSideZ(-1.05, 1.62) + 0.016), M.black);
           }
-          const slopeBody = body.clone(); slopeBody.side = THREE.DoubleSide;
-          const slopeGlass = glass.clone(); slopeGlass.side = THREE.DoubleSide;
-          const topMat = roofMat.clone(); topMat.side = THREE.DoubleSide;
-          for (const side of [-1, 1]) {
-            const geo = new THREE.BufferGeometry();
-            geo.setAttribute('position', new THREE.Float32BufferAttribute([
-              -1.48, 0.56, side * 1.335, x0 + 0.015, 0.56, side * dz,
-              x0 + 0.015, 2.99, side * dz, -1.48, 2.99, side * 1.335
-            ], 3));
-            geo.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 1, 0, 1, 1, 0, 1], 2));
-            geo.setIndex(side > 0 ? [0, 1, 2, 0, 2, 3] : [0, 2, 1, 0, 3, 2]); geo.computeVertexNormals();
-            const m = new THREE.Mesh(geo, slopeBody); m.name = 'Vai nối cabin và thân ở'; m.castShadow = m.receiveShadow = true; g.add(m);
+          const SEC_HALF = [...SY.map(y => [trLerp(TR_SEC, y), y]), ...[0.902, 0.825, 0.715, 0.55, 0.33].map(z => [z, roofSec(2.93, z)]), [0, roofSec(2.93, 0)]];
+          const SEC = [...SEC_HALF, ...SEC_HALF.slice(0, -1).reverse().map(([z, y]) => [-z, y])];
+          const SN = SEC.map((p, i) => { const a = SEC[Math.max(0, i - 1)], b = SEC[Math.min(SEC.length - 1, i + 1)]; let nz = b[1] - a[1], ny = -(b[0] - a[0]); const l = Math.hypot(nz, ny) || 1; nz /= l; ny /= l; if (nz * p[0] + ny * (p[1] - 1.6) < 0) { nz = -nz; ny = -ny; } return [nz, ny]; });
+          const capRows = []; for (let j = 0; j <= 5; j++) { const f = j / 5 * Math.PI / 2, d = TR.rc * (1 - Math.cos(f)), x = 2.93 + TR.rc * Math.sin(f); capRows.push(SEC.map(([z, y], i) => V3(x, y - SN[i][1] * d, z - SN[i][0] * d))); }
+          const nS = SY.length, L = SEC.length, cKey = (r, c) => {
+            if (c >= nS - 1 && c < L - nS) return 'body'; const y = (SEC[c][1] + SEC[c + 1][1]) / 2; return y < 1.015 ? 'black' : y < 1.30 ? 'red' : y < 1.543 ? 'amber' : y < 1.72 ? 'red' : 'body'; };
+          gridMeshes(capRows, cKey, 'Góc bo đuôi xe');
+          const back = capRows[capRows.length - 1].map(p => [p.z, p.y]);
+          const RW = [rr(0.14, 2.06, 0.62, 2.52), rr(-0.62, 2.06, -0.14, 2.52)];
+          {
+            const faces = THREE.ShapeUtils.triangulateShape(back.map(p => V2(...p)), RW.map(h => h.map(p => V2(...p)))), P2 = [...back, ...RW.flat()], p = [];
+            for (const f of faces) for (const v of f) p.push(TR.rear, P2[v][1], P2[v][0]);
+            const geo = triGeo(p); mesh(geo, M.body, 'Mặt sau (2 cánh cửa)', true);
+            const q = p.slice(); for (let i = 0; i < q.length; i += 3) q[i] -= T; mesh(triGeo(q), M.body, 'Lớp trong cửa sau');
+            for (const h of RW) { const sg = new THREE.ShapeGeometry(new THREE.Shape(h.map(([z, y]) => V2(z, y))), 4); sg.rotateY(-Math.PI / 2); sg.translate(TR.rear + 0.006, 0, 0); mesh(sg, M.frost, 'Kính mờ cửa sau'); loop('Viền kính cửa sau', h.map(([z, y]) => V3(TR.rear + 0.01, y, z)), 0.028, M.black); }
+            const lnB = pts => { for (let i = 0; i < pts.length - 1; i++) seam.push(...pts[i], ...pts[i + 1]); };
+            lnB([[TR.rear + 0.003, 0.64, 0], [TR.rear + 0.003, 2.86, 0]]);
+            for (const s of [-1, 1]) {
+              lnB([[TR.rear + 0.003, 0.64, s * 0.86], [TR.rear + 0.003, 2.80, s * 0.86]]);
+              for (const [y0, y1, mat] of [[1.015, 1.30, M.red], [1.30, 1.543, M.amber], [1.543, 1.72, M.red]]) box('Đèn hậu', 0.02, y1 - y0 - 0.008, 0.12, TR.rear + 0.008, (y0 + y1) / 2, s * 0.88, mat);
+              box('Phản quang sau', 0.015, 0.04, 0.14, TR.rear + 0.006, 0.80, s * 0.84, M.red);
+            }
+            box('Tay nắm cửa sau', 0.04, 0.05, 0.2, TR.rear + 0.02, 1.62, 0.13, M.black);
+            box('Đèn phanh trên cao', 0.04, 0.05, 0.36, TR.rear + 0.015, 2.86, 0, M.red);
+            box('Cản sau', 0.27, 0.22, 1.98, TR.rear + 0.12, 0.56, 0, M.black, true);
+            box('Bậc giẫm cản sau', 0.2, 0.02, 0.8, TR.rear + 0.15, 0.68, 0, M.dark);
           }
-          for (let i = 1; i < profile.length; i++) {
-            const a = profile[i], b = profile[(i + 1) % profile.length];
-            if (i === 2) continue;
-            quad(a, b, -dz, dz, i === 1 ? topMat : slopeBody, 'Vỏ mui liền mạch');
+          for (const y of [1.04, 1.15, 1.26]) loop('Nan ga-lăng mạ', [-0.56, -0.42, -0.2, 0, 0.2, 0.42, 0.56].map(z => V3(trNoseX(z, y) - 0.018, y, z)), 0.035, M.chrome, false);
+          const badge = new THREE.Mesh(new THREE.CircleGeometry(0.07, 20), M.blue); badge.scale.set(1, 0.48, 1); badge.rotation.y = -Math.PI / 2; badge.position.set(trNoseX(0, 1.2) - 0.03, 1.2, 0); badge.name = 'Logo bầu dục'; shell.add(badge);
+          for (const s of [-1, 1]) {
+            const fz = s * 0.80, fx = trNoseX(0.8, 0.72) - 0.006, fog = new THREE.Mesh(new THREE.CircleGeometry(0.05, 16), M.lamp); fog.rotation.y = -Math.PI / 2 + s * 0.35; fog.position.set(fx, 0.72, fz); fog.name = 'Đèn sương mù'; shell.add(fog);
+            const ring = new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.008, 5, 16), M.chrome); ring.rotation.y = Math.PI / 2 + s * 0.35; ring.position.copy(fog.position); shell.add(ring);
           }
-          const a0 = profile[0], b0 = profile[1], lerp = t => [a0[0] + (b0[0] - a0[0]) * t, a0[1] + (b0[1] - a0[1]) * t];
-          const low = lerp(.20), high = lerp(.77);
-          quad(a0, low, -dz, dz, slopeBody, 'Viền dưới kính mui'); quad(high, b0, -dz, dz, slopeBody, 'Viền trên kính mui');
-          quad(low, high, -dz, -.95, slopeBody, 'Trụ kính mui'); quad(low, high, .95, dz, slopeBody, 'Trụ kính mui');
-          quad(low, high, -.95, .95, slopeGlass, 'Kính trước khoang ngủ');
+          const pc = document.createElement('canvas'); pc.width = 256; pc.height = 128; const pk = pc.getContext('2d');
+          pk.fillStyle = '#e4dbc5'; pk.fillRect(0, 0, 256, 128); pk.strokeStyle = '#243240'; pk.lineWidth = 6; pk.strokeRect(6, 6, 244, 116);
+          pk.font = '700 84px Arial, sans-serif'; pk.textAlign = 'center'; pk.textBaseline = 'middle'; pk.fillStyle = '#243240'; pk.fillText('Jade', 128, 68);
+          const plateTex = new THREE.CanvasTexture(pc); plateTex.colorSpace = THREE.SRGBColorSpace; const plateM = new THREE.MeshLambertMaterial({ map: plateTex });
+          for (const [x, y, ry] of [[trNoseX(0, 0.75) - 0.012, 0.75, -Math.PI / 2], [TR.rear + 0.012, 0.86, Math.PI / 2]]) { const pl = new THREE.Mesh(new THREE.PlaneGeometry(0.40, 0.2), plateM); pl.rotation.y = ry; pl.position.set(x, y, 0); pl.name = 'Biển số · Jade'; shell.add(pl); }
+          for (const z0 of [0.06, -0.78]) bar('Cần gạt mưa', V3(-2.37, 1.66, z0), V3(-2.12, 1.86, z0 + 0.66), 0.016, M.black);
+          const hood = [[0, 1.433], [0.55, 1.433], [0.88, 1.40], [0.99, 1.43], [1.03, 1.55], [1.04, 1.62]].map(([z, y]) => [trNoseX(z, y) + 0.004, y + 0.004, z]);
+          for (let i = 0; i < hood.length - 1; i++) for (const s of [-1, 1]) seam.push(hood[i][0], hood[i][1], s * hood[i][2], hood[i + 1][0], hood[i + 1][1], s * hood[i + 1][2]);
+          box('Ray cửa lùa', 1.9, 0.045, 0.03, (DOOR[1] + 2.75) / 2, 1.80, trSideZ(1.8, 1.80) + 0.012, M.black);
+          const seamL = new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(seam, 3)), lineDark); seamL.name = 'Ron vỏ xe'; shell.add(seamL);
+
+          const sd = new THREE.Group(); sd.name = 'Cửa lùa (mở)'; shell.add(sd);
+          {
+            const L = DOOR[1] - DOOR[0] + 0.06, x0 = DOOR[1] + 0.03, y0 = 0.70, y1 = DOOR[3] + 0.03, off = 0.065, hole = rr(x0 + 0.2, 1.86, x0 + L - 0.28, 2.46);
+            const sh = new THREE.Shape([V2(x0, y0), V2(x0 + L, y0), V2(x0 + L, y1), V2(x0, y1)]); sh.holes.push(new THREE.Path(hole.map(p => V2(...p))));
+            for (const d of [0, T]) { const sg = new THREE.ShapeGeometry(sh, 4), q = sg.attributes.position; for (let i = 0; i < q.count; i++) q.setZ(i, trSideZ(q.getX(i), q.getY(i)) + off - d); sg.computeVertexNormals(); mesh(sg, M.body, 'Tấm cửa lùa', !d, sd); }
+            const pg = new THREE.ShapeGeometry(new THREE.Shape(hole.map(p => V2(...p))), 4), q = pg.attributes.position; for (let i = 0; i < q.count; i++) q.setZ(i, trSideZ(q.getX(i), q.getY(i)) + off - 0.015); pg.computeVertexNormals(); mesh(pg, M.glass, 'Kính cửa lùa', false, sd);
+            loop('Viền kính cửa lùa', hole.map(([x, y]) => V3(x, y, trSideZ(x, y) + off + 0.004)), 0.03, M.black);
+            const cg = new THREE.PlaneGeometry(L, 0.95 - y0, 4, 2); cg.translate(x0 + L / 2, (y0 + 0.95) / 2, 0); const c2 = cg.attributes.position; for (let i = 0; i < c2.count; i++) c2.setZ(i, trSideZ(c2.getX(i), c2.getY(i)) + off + 0.012); cg.computeVertexNormals(); mesh(cg, M.black, 'Ốp chân cửa lùa', true, sd);
+            box('Tay nắm cửa lùa', 0.045, 0.2, 0.03, x0 + 0.08, 1.62, trSideZ(x0, 1.62) + off + 0.02, M.black, false, sd);
+            const ky = [0.75, 1.80, 2.70]; for (const y of ky) box('Giá trượt cửa lùa', 0.05, 0.04, off, x0 + 0.04, y, trSideZ(x0, y) + off / 2, M.black, false, sd);
+          }
+          bakeStatic(shell);
+          return { shell, M };
         }
 
+        function transitCab(parent) {
+          const V3 = (x, y, z) => new THREE.Vector3(x, y, z), lam = (c, o = {}) => new THREE.MeshLambertMaterial({ color: c, ...o }), two = { side: THREE.DoubleSide };
+          const M = { mat: lam(0x43494b), dash: lam(0x5d6163), dashTop: lam(0x46494b), trim: lam(0x8a8c88), seat: lam(0x6f706c), seatBand: lam(0x55575a), seatDark: lam(0x2e3133),
+            screen: lam(0x1d2326), tyre: lam(0x2b2925), tread: lam(0x232120), rim: lam(0x2f3335, two), hub: lam(0x92958e, two), cabinet: lam(0xa58e69), front: lam(0xd0ccc0), matte: lam(0x30383a, two), handle: lam(0x777b7a) };
+          const cab = new THREE.Group(); cab.name = 'Cabin lái, bánh xe & tủ bếp'; cab.userData.noBake = true;
+          const inner = new THREE.Group(); inner.name = 'Nội thất cabin'; inner.userData.xray = 'keep';
+          const dash = new THREE.Group(); dash.name = 'Táp-lô'; dash.userData.xray = 'shell';
+          const wheels = new THREE.Group(); wheels.name = 'Bánh xe'; wheels.userData.xray = 'keep';
+          cab.add(inner, dash, wheels);
+          const box = (par, name, w, h, d, x, y, z, mat, out = false) => { const m = bx(w, h, d, mat, true, out, lineDark); m.name = name; m.position.set(x, y, z); par.add(m); return m; };
+          const bar = (par, name, a, b, t, mat, round = false) => { const v = new THREE.Vector3().subVectors(b, a), len = v.length(); const m = round ? cyl(t, t, len, mat, true, false, null, 8) : bx(t, len, t, mat, true, false);
+            m.quaternion.setFromUnitVectors(V3(0, 1, 0), v.normalize()); m.position.copy(a).add(b).multiplyScalar(0.5); m.name = name; par.add(m); return m; };
+          const shaped = (w, h, d, segs, fn) => { const g = new THREE.BoxGeometry(w, h, d, ...segs), p = g.attributes.position, v = new THREE.Vector3(); for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i); fn(v); p.setXYZ(i, v.x, v.y, v.z); } g.computeVertexNormals(); return g; };
+          const Y0 = TR.yIn;
+          box(inner, 'Thảm sàn cabin', 1.62, 0.012, 1.86, -1.43, Y0 + 0.006, 0, M.mat);
+          const prof = [[-2.33, 1.64], [-2.05, 1.715], [-1.93, 1.70], [-1.87, 1.62], [-1.85, 1.44], [-1.93, 1.26], [-2.04, 1.08], [-2.16, Y0], [-2.36, Y0]];
+          const dg = new THREE.ExtrudeGeometry(new THREE.Shape(prof.map(([x, y]) => new THREE.Vector2(x, y))), { depth: 1.84, bevelEnabled: false }).translate(0, 0, -0.92);
+          const dm = new THREE.Mesh(dg, M.dash); dm.name = 'Táp-lô'; dm.castShadow = dm.receiveShadow = true; edge(dm, dg, lineDark); dash.add(dm);
+          box(dash, 'Mặt trên táp-lô', 0.30, 0.012, 1.80, -2.0, 1.712, 0, M.dashTop);
+          box(dash, 'Mái che đồng hồ', 0.20, 0.08, 0.44, -1.98, 1.745, -0.48, M.dashTop, true);
+          const gc = document.createElement('canvas'); gc.width = 192; gc.height = 64; const gk = gc.getContext('2d'); gk.fillStyle = '#15191b'; gk.fillRect(0, 0, 192, 64);
+          for (const cx of [48, 144]) { gk.strokeStyle = '#d9dee0'; gk.lineWidth = 3; gk.beginPath(); gk.arc(cx, 34, 24, Math.PI * 0.8, Math.PI * 2.2); gk.stroke(); gk.strokeStyle = '#e5533b'; gk.beginPath(); gk.moveTo(cx, 34); gk.lineTo(cx + 18, 22); gk.stroke(); }
+          const gt = new THREE.CanvasTexture(gc); gt.colorSpace = THREE.SRGBColorSpace;
+          const gauge = new THREE.Mesh(new THREE.PlaneGeometry(0.36, 0.12), new THREE.MeshLambertMaterial({ map: gt })); gauge.rotation.y = Math.PI / 2; gauge.rotation.z = 0.25; gauge.position.set(-1.92, 1.66, -0.48); gauge.name = 'Cụm đồng hồ'; dash.add(gauge);
+          box(dash, 'Màn hình giữa', 0.012, 0.13, 0.22, -1.862, 1.55, 0.0, M.screen);
+          for (const z of [-0.85, -0.16, 0.16, 0.85]) box(dash, 'Cửa gió', 0.02, 0.07, 0.13, -1.875, 1.64, z, M.seatDark);
+          bar(inner, 'Cần số trên táp-lô', V3(-1.86, 1.40, -0.2), V3(-1.76, 1.47, -0.2), 0.015, M.trim, true);
+          const knob = sph(0.032, M.seatDark, true, false); knob.position.set(-1.755, 1.475, -0.2); inner.add(knob);
+          const hubP = V3(-1.70, 1.56, -0.48), colDir = V3(Math.sin(1.08), Math.cos(1.08), 0);
+          bar(inner, 'Cột lái', hubP.clone().addScaledVector(colDir, -0.30), hubP.clone().addScaledVector(colDir, -0.02), 0.03, M.seatDark, true);
+          const wheel = new THREE.Group(); wheel.name = 'Vô-lăng'; wheel.position.copy(hubP); wheel.quaternion.setFromUnitVectors(V3(0, 0, 1), colDir); inner.add(wheel);
+          const ring = new THREE.Mesh(new THREE.TorusGeometry(0.19, 0.019, 6, 18), M.seatDark); ring.castShadow = true; wheel.add(ring);
+          for (const t of [0, Math.PI, -Math.PI / 2]) bar(wheel, 'Chấu vô-lăng', V3(0, 0, 0.005), V3(Math.cos(t) * 0.18, Math.sin(t) * 0.18, 0), 0.03, M.seatDark);
+          const cap = cyl(0.06, 0.06, 0.04, M.seatDark, true, true, lineDark, 12); cap.rotation.x = Math.PI / 2; wheel.add(cap);
+          for (const [z, l] of [[-0.36, 0.08], [-0.50, 0.07], [-0.62, 0.07]]) { const pad = box(inner, 'Bàn đạp', l, 0.015, 0.06, -2.1, 0.97, z, M.seatDark); pad.rotation.z = -1.0; }
+          box(inner, 'Gương chiếu hậu trong', 0.03, 0.06, 0.24, -1.60, 2.28, 0, M.seatDark);
+          for (const s of [-1, 1]) { const v = box(inner, 'Tấm che nắng', 0.24, 0.018, 0.40, -1.52, 2.31, s * 0.45, M.trim); v.rotation.z = 0.2; }
+          const cushion = shaped(0.52, 0.13, 0.52, [6, 2, 6], v => { if (v.x < -0.18 && v.y > 0) v.y -= (v.x + 0.18) * (v.x + 0.18) * 1.5; const k = Math.max(0, v.y) / 0.065; v.y -= 0.02 * k * Math.max(0, 1 - (v.z / 0.2) ** 2); });
+          const backG = shaped(0.12, 0.66, 0.52, [2, 6, 6], v => { if (v.x < 0) v.x += 0.03 * Math.max(0, 1 - (v.z / 0.2) ** 2); if (v.y > 0.2) v.z *= 1 - (v.y - 0.2) * 0.12; });
+          for (const s of [-1, 1]) {
+            const zc = s * 0.46, sg = new THREE.Group(); sg.name = s < 0 ? 'Ghế lái' : 'Ghế phụ'; sg.position.set(-1.12, Y0, zc); inner.add(sg);
+            box(sg, 'Đế xoay ghế', 0.34, 0.26, 0.34, 0, 0.13, 0, M.seatDark);
+            const cu = new THREE.Mesh(cushion, M.seat); cu.position.set(0.0, 0.40, 0); cu.castShadow = true; edge(cu, cushion, lineDark); cu.name = 'Đệm ghế'; sg.add(cu);
+            const bk = new THREE.Mesh(backG, M.seat); bk.position.set(0.30, 0.78, 0); bk.rotation.z = 0.24; bk.castShadow = true; edge(bk, backG, lineDark); bk.name = 'Tựa lưng'; sg.add(bk);
+            box(sg, 'Gối đầu', 0.10, 0.18, 0.30, 0.40, 1.22, 0, M.seat, true).rotation.z = 0.24;
+            box(sg, 'Đai tựa lưng', 0.125, 0.06, 0.53, 0.2, 0.55, 0, M.seatBand).rotation.z = 0.24;
+            box(sg, 'Tay vịn ghế', 0.40, 0.05, 0.06, 0.02, 0.62, -s * 0.29, M.seatDark);
+          }
+          const lathe = (pts, n = 30) => new THREE.LatheGeometry(pts.map(p => new THREE.Vector2(...p)), n);
+          const R = TR.wr, tyreGeo = lathe([[0.23, -0.13], [0.33, -0.134], [0.405, -0.128], [0.43, -0.11], [R - 0.012, -0.09], [R - 0.012, 0.09], [0.43, 0.11], [0.405, 0.128], [0.33, 0.134], [0.23, 0.13]]);
+          const rimGeo = lathe([[0.232, 0.118], [0.222, 0.124], [0.205, 0.112], [0.175, 0.085]]), dishGeo = lathe([[0.175, 0.085], [0.11, 0.09]]), capGeo = lathe([[0.11, 0.09], [0.07, 0.115], [0, 0.118]], 16);
+          for (const g of [tyreGeo, rimGeo, dishGeo, capGeo]) g.rotateX(Math.PI / 2);
+          const lug = new THREE.BoxGeometry(0.075, 0.024, 0.09), nutGeo = new THREE.CylinderGeometry(0.014, 0.014, 0.02, 6); nutGeo.rotateX(Math.PI / 2);
+          const back = new THREE.CircleGeometry(0.232, 24);
+          for (const [x, s, nm] of [[TR.xF, 1, 'Bánh trước'], [TR.xF, -1, 'Bánh trước'], [TR.xR, 1, 'Bánh sau'], [TR.xR, -1, 'Bánh sau']]) {
+            const w = new THREE.Group(); w.name = nm; w.position.set(x, R, s * TR.wz); if (s < 0) w.rotation.y = Math.PI;
+            const t = new THREE.Mesh(tyreGeo, M.tyre); t.castShadow = t.receiveShadow = true; edge(t, tyreGeo, lineDark); w.add(t);
+            for (let k = 0; k < 24; k++) for (const side of [-1, 1]) { const a = (k + (side > 0 ? 0.5 : 0)) / 24 * Math.PI * 2, l = new THREE.Mesh(lug, M.tread); l.position.set(Math.cos(a) * (R - 0.004), Math.sin(a) * (R - 0.004), side * 0.05); l.rotation.z = a + Math.PI / 2; w.add(l); }
+            for (const [g, m] of [[rimGeo, M.rim], [dishGeo, M.rim], [capGeo, M.hub]]) { const p = new THREE.Mesh(g, m); p.castShadow = true; w.add(p); }
+            const bk = new THREE.Mesh(back, M.rim); bk.position.z = -0.12; bk.rotation.y = Math.PI; w.add(bk);
+            for (let k = 0; k < 6; k++) { const n = new THREE.Mesh(nutGeo, M.hub); n.position.set(Math.cos(k * Math.PI / 3) * 0.09, Math.sin(k * Math.PI / 3) * 0.09, 0.098); w.add(n); }
+            wheels.add(w);
+          }
+          const galley = new THREE.Group(); galley.name = 'Bếp dọc vách cửa hông'; galley.userData.xray = 'keep'; galley.userData.noBake = true;
+          galley.rotation.y = -Math.PI / 2;
+          const cabinets = new THREE.Group(); cabinets.name = 'Thân tủ & cánh tủ';
+          box(cabinets, 'Thân tủ bếp', .51, .725, 1.82, 2.665, 1.4325, 0, M.cabinet, true);
+          for (const [name, h, d, y, z] of [['Cánh tủ chậu', .505, .398, 1.3325, -.69], ['Cánh tủ giữa', .65, .68, 1.405, -.11], ['Cửa lò nướng', .5, .52, 1.37, .59], ['Ngăn kéo', .13, .35, 1.685, -.677]])
+            box(cabinets, name, .012, h, d, 2.403, y, z, M.front, true);
+          box(cabinets, 'Ô kính cửa lò', .006, .2, .34, 2.396, 1.42, .59, M.matte);
+          for (const z of [-.53, .19, .8]) box(cabinets, 'Tay nắm tủ', .018, .11, .05, 2.39, 1.42, z, M.mat);
+          box(cabinets, 'Khe tách khối bếp', .58, .76, .014, 2.68, 1.45, .263, M.matte);
+          for (let i = 0; i < 4; i++) {
+            const k = cyl(.027, .027, .03, M.matte, true, false, null, 12); k.rotation.z = Math.PI / 2; k.position.set(2.386, 1.722, .395 + i * .13); cabinets.add(k);
+            const rg = cyl(.036, .036, .006, M.mat, false, false, null, 12); rg.rotation.z = Math.PI / 2; rg.position.set(2.398, 1.722, .395 + i * .13); cabinets.add(rg);
+          }
+          const gasPipe = cyl(.016, .016, .08, M.handle, true, false, null, 8); gasPipe.rotation.x = Math.PI / 2; gasPipe.position.set(2.8, 1.2, .95); gasPipe.name = 'Ống ga'; cabinets.add(gasPipe);
+          bakeStatic(cabinets); galley.add(cabinets); cab.add(galley);
+          bakeStatic(inner); bakeStatic(dash); bakeStatic(wheels);
+          parent.add(cab);
+          return galley;
+        }
         const studyDeskLighting = { light: null, bulb: null, on: null };
         const studyLaptop = { hinge: null, screen: null, light: null, open: 0, target: 0 };
         const studyChairRig = { obj: null, home: 0, off: 0, sx: 0, sw: 0 };
@@ -7499,41 +7371,41 @@
         }
         function caravan() {
           const g = new THREE.Group();
-          const base = 0.95, Dc = 3.0, dz = Dc / 2;
-          const x0 = -1.2, x1 = 3.0, bLen = x1 - x0, bcx = (x0 + x1) / 2, Hc = 2.7, yRoof = base + Hc, yIn = base + 0.12, bthLen = 1.05;
+          const yIn = TR.yIn, base = yIn - 0.12, x0 = TR.xP, x1 = 2.27, xB = 2.99, dz = TR.inW, wallZ = 1.06, ceil = TR.ceil;
+          const roofTop = (x, z) => trRoofY(x) - trLerp(TR_DROP, Math.abs(z)) * trS(x);
           const floorMat = new THREE.MeshLambertMaterial({ color: 0xb99c73 }), woodMat = new THREE.MeshLambertMaterial({ color: 0x9c7b4f }),
-            cushMat = new THREE.MeshLambertMaterial({ color: 0xc94f3d }), kitMat = new THREE.MeshLambertMaterial({ color: 0x86663f }),
-            litMat = new THREE.MeshLambertMaterial({ color: 0xfff3c4 }),
-            vanGlass = new THREE.MeshLambertMaterial({ color: 0x8fc1e3, transparent: true, opacity: 0.25 });
-          const chassis = bx(bLen + 0.1, 0.22, Dc * 0.7, caravanDark, true, true, lineDark); chassis.position.set(bcx, base - 0.17, 0); g.add(chassis);
-          const dX0 = -0.15, dX1 = 0.81, doorW = dX1 - dX0, doorH = 2.12;
-          const floor = bx(bLen - 0.1, 0.12, Dc - 0.16, floorMat); floor.position.set(bcx, base + 0.06, 0); floor.receiveShadow = true; g.add(floor);
-          const roof = bx(bLen + 0.14, 0.2, Dc + 0.14, caravanRoofM); roof.position.set(bcx, yRoof, 0); g.add(roof);
-          motorhomeShell(g, caravanBody, caravanRoofM, vanGlass, base, x0, x1, dz, yRoof, dX0, dX1, doorH);
-          const galley = motorhomeCab(g);
+            cushMat = new THREE.MeshLambertMaterial({ color: 0xc94f3d }), litMat = new THREE.MeshLambertMaterial({ color: 0xfff3c4 });
+          const vanGlass = new THREE.MeshLambertMaterial({ color: 0x8fc1e3, transparent: true, opacity: 0.25 });
+          const under = new THREE.Group(); under.name = 'Gầm xe'; g.add(under);
+          for (const z of [-0.52, 0.52]) { const r = bx(5.6, 0.14, 0.09, caravanDark, true, true, lineDark); r.position.set(0.15, 0.50, z); under.add(r); }
+          const pan = bx(5.2, 0.02, 1.9, caravanDark, true, false); pan.position.set(0.3, base - 0.01, 0); under.add(pan);
+          const tank = bx(0.8, 0.26, 0.5, caravanDark, true, true, lineDark); tank.position.set(-0.2, 0.47, -0.62); under.add(tank);
+          const exh = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 2.9, 8), metalMat); exh.rotation.z = Math.PI / 2; exh.position.set(1.3, 0.40, -0.35); under.add(exh);
+          const spare = new THREE.Mesh(new THREE.CylinderGeometry(0.37, 0.37, 0.22, 16), tyreMat); spare.position.set(2.6, 0.45, 0); under.add(spare);
+          const floor = bx(5.24, 0.12, 1.98, floorMat); floor.position.set(0.37, base + 0.06, 0); floor.receiveShadow = true; g.add(floor);
+          transitBody(g);
+          const galley = transitCab(g);
+          galley.position.set(1.60, yIn - 1.07, -1.99);
           const axles = new THREE.Group(); axles.name = 'Cầu bánh xe';
-          const axleGeo = new THREE.CylinderGeometry(0.065, 0.065, 1, 8);
-          for (const [axleX, track] of [[-2.096956, 2.46], [1.888478, 2.80]]) {
-            const shaft = new THREE.Mesh(axleGeo, caravanDark);
-            shaft.rotation.x = Math.PI / 2; shaft.scale.y = track;
-            shaft.position.set(axleX, 0.50561, 0); shaft.castShadow = true; axles.add(shaft);
-          }
+          const axleGeo = new THREE.CylinderGeometry(0.055, 0.055, 1, 8);
+          for (const axleX of [TR.xF, TR.xR]) { const shaft = new THREE.Mesh(axleGeo, caravanDark); shaft.rotation.x = Math.PI / 2; shaft.scale.y = 2 * TR.wz - 0.2; shaft.position.set(axleX, TR.wr, 0); shaft.castShadow = true; axles.add(shaft); }
+          const diff = new THREE.Mesh(new THREE.SphereGeometry(0.14, 10, 8), caravanDark); diff.scale.set(1, 0.8, 1); diff.position.set(TR.xR, TR.wr, 0); axles.add(diff);
           axles.userData.noBake = true; g.add(axles);
-          const door = bx(doorW * 0.9, doorH, 0.08, caravanBody, true, true, lineDark); door.position.set(dX1 + doorW * 0.46, base + doorH / 2, dz + 0.12); g.add(door);
-          const dWin = bx(doorW * 0.5, 0.7, 0.04, vanGlass, false, true, lineDark); dWin.position.set(dX1 + doorW * 0.46, base + doorH * 0.64, dz + 0.17); g.add(dWin);
-          const dRail = bx(doorW + 1.4, 0.07, 0.07, caravanDark); dRail.position.set((dX0 + dX1) / 2 + 0.5, base + doorH + 0.05, dz + 0.12); g.add(dRail);
+          const tubs = new THREE.Group(); tubs.name = 'Hốc bánh trong khoang';
+          for (const x of [TR.xF, TR.xR]) for (const s of [-1, 1]) { const tb = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.2, 18, 1, false, Math.PI - 1.2, 2.4), caravanDark); tb.rotation.x = Math.PI / 2; tb.position.set(x, TR.wr, s * 0.885); tb.castShadow = tb.receiveShadow = true; tubs.add(tb); }
+          g.add(tubs);
           const entrySteps = new THREE.Group(); entrySteps.name = 'Bậc cửa có khung đỡ';
           entrySteps.userData.noBake = true;
-          const stepCx = (dX0 + dX1) / 2, stepWidth = doorW * 0.7;
+          const stepCx = 0.345, stepWidth = 0.6;
           function stepBox(w, h, d, x, y, z, mat, outlined = false) {
             const m = bx(w, h, d, mat, true, outlined, lineDark); m.position.set(x, y, z); entrySteps.add(m); return m;
           }
           function stepStrut(a, b) {
-            const v = new THREE.Vector3().subVectors(b, a), m = bx(.045, v.length(), .045, metalMat, true, false);
+            const v = new THREE.Vector3().subVectors(b, a), m = bx(.04, v.length(), .04, metalMat, true, false);
             m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), v.normalize());
             m.position.copy(a).add(b).multiplyScalar(.5); entrySteps.add(m);
           }
-          const stepTreads = [{ y: base * .5, z: dz + .33, depth: .5, height: .12 }, { y: base * .24, z: dz + .6, depth: .42, height: .1 }];
+          const stepTreads = [{ y: 0.53, z: wallZ + 0.19, depth: 0.36, height: 0.07 }, { y: 0.26, z: wallZ + 0.49, depth: 0.32, height: 0.07 }];
           for (const t of stepTreads) {
             stepBox(stepWidth, t.height, t.depth, stepCx, t.y, t.z, caravanDark, true);
             stepBox(stepWidth - .035, .014, .045, stepCx, t.y + t.height / 2 + .006, t.z + t.depth / 2 - .025, rimMat);
@@ -7541,15 +7413,18 @@
           }
           for (const side of [-1, 1]) {
             const sx = stepCx + side * (stepWidth / 2 - .055);
-            stepBox(.06, .18, .055, sx, base - .12, dz + .005, metalMat);
-            stepStrut(new THREE.Vector3(sx, base - .08, dz + .025), new THREE.Vector3(sx, .07, dz + .77));
-            stepStrut(new THREE.Vector3(sx, base * .5 - .06, dz + .52), new THREE.Vector3(sx, .07, dz + .77));
-            stepBox(.12, .055, .14, sx, .0275, dz + .77, tyreMat);
-            for (const t of stepTreads) stepBox(.08, .038, t.depth - .03, sx, t.y - t.height / 2 - .018, t.z, metalMat);
+            stepBox(.06, .16, .055, sx, base - .1, wallZ - .02, metalMat);
+            stepStrut(new THREE.Vector3(sx, base - .08, wallZ), new THREE.Vector3(sx, .06, wallZ + .66));
+            stepStrut(new THREE.Vector3(sx, 0.26 - .04, wallZ + .4), new THREE.Vector3(sx, .06, wallZ + .66));
+            stepBox(.11, .05, .13, sx, .025, wallZ + .66, tyreMat);
+            for (const t of stepTreads) stepBox(.07, .035, t.depth - .03, sx, t.y - t.height / 2 - .017, t.z, metalMat);
           }
-          entrySteps.userData.treads = stepTreads; entrySteps.userData.door = { cx: stepCx, w: stepWidth, wall: dz, x0: dX0, x1: dX1 };
+          entrySteps.userData.treads = stepTreads; entrySteps.userData.door = { cx: stepCx, w: stepWidth, wall: wallZ, x0: TR.door[0], x1: TR.door[1] };
           g.add(entrySteps);
-          const bedLen = bLen * 0.62, bedW = 0.98, bedCx = x0 + bedLen / 2 + .08, bedZ = -dz + 0.62;
+          const grab = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.62, 6), metalMat); grab.position.set(TR.door[0] + 0.05, yIn + 0.95, dz - 0.02); grab.castShadow = true; g.add(grab);
+          const sillPlate = bx(TR.door[1] - TR.door[0], 0.012, wallZ - dz + 0.03, metalMat, true, false); sillPlate.position.set((TR.door[0] + TR.door[1]) / 2, yIn + 0.006, (dz + wallZ) / 2); g.add(sillPlate);
+
+          const bedLen = 2.0, bedW = 0.84, bedX1 = x0 + bedLen, bedCx = x0 + bedLen / 2, bedZ = -dz + bedW / 2;
           const bed = new THREE.Group(); bed.name = 'Giường dọc vách đối diện';
           const flexaWhite = new THREE.MeshLambertMaterial({ color: 0xe6e4de }), flexaBlack = new THREE.MeshLambertMaterial({ color: 0x1f2022 });
           const mattGrey = new THREE.MeshLambertMaterial({ color: 0x8c8e90 });
@@ -7567,7 +7442,7 @@
             bedPart(0.2, 0.025, 0.006, dx, 0.31, frontZ - 0.012, flexaWhite, false);
           }
           bedPart(bedLen - 0.05, 0.146, bedW - 0.05, bedCx, mattTop - 0.073, bedZ, mattGrey);
-          const duvet = bx(bedLen * 0.5, 0.06, bedW - 0.02, cushMat); duvet.position.set(bedCx - bedLen * 0.22, yIn + mattTop + 0.03, bedZ + 0.01); duvet.userData.noBake = duvet.userData.noBatch = true; bed.add(duvet);
+          const duvet = bx(bedLen * 0.42, 0.06, bedW - 0.02, cushMat); duvet.position.set(x0 + bedLen * 0.25, yIn + mattTop + 0.03, bedZ + 0.01); duvet.userData.noBake = duvet.userData.noBatch = true; bed.add(duvet);
           function flexaPillow(w, h, t, fabric, trim, dent = 0) {
             const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d');
             x.fillStyle = '#' + new THREE.Color(fabric).getHexString(); x.fillRect(0, 0, 128, 128);
@@ -7594,14 +7469,16 @@
             pipe.castShadow = true; pg.add(pipe);
             return pg;
           }
-          const backPillow = flexaPillow(0.46, 0.44, 0.15, 0x6b6d6f, 0x8f9193);
-          backPillow.position.set(bedCx + 0.42, yIn + mattTop + 0.21, backZ + 0.12); backPillow.rotation.x = -0.28; bed.add(backPillow);
-          const headPillow = flexaPillow(0.6, 0.4, 0.12, 0xd2cfc6, 0xa8a499, 0.035);
-          headPillow.rotation.set(-Math.PI / 2, 0, Math.PI / 2); headPillow.position.set(bedCx + 0.82, yIn + mattTop + 0.045, bedZ); bed.add(headPillow);
+          const backPillow = flexaPillow(0.42, 0.40, 0.14, 0x6b6d6f, 0x8f9193);
+          backPillow.position.set(bedCx + 0.2, yIn + mattTop + 0.2, backZ + 0.11); backPillow.rotation.x = -0.28; bed.add(backPillow);
+          const headPillow = flexaPillow(0.56, 0.38, 0.12, 0xd2cfc6, 0xa8a499, 0.035);
+          headPillow.rotation.set(-Math.PI / 2, 0, Math.PI / 2); headPillow.position.set(bedX1 - 0.32, yIn + mattTop + 0.045, bedZ); bed.add(headPillow);
           bakeStatic(bed); bed.userData.noBake = true; g.add(bed);
+          const cup = bx(1.7, 0.3, 0.32, caravanRoofM, true, true, lineDark); cup.position.set(x0 + 0.95, 2.62, -dz + 0.22); g.add(cup);
+
           const study = new THREE.Group(); study.name = 'Góc học tập trong xe'; study.userData.noBake = true;
           const desk = new THREE.Group(); desk.name = 'Bàn học nhỏ';
-          const deskX = 2.34, deskZ = -1.12, deskHeight = .76;
+          const DW = x1 - bedX1, DD = 0.52, dX = bedX1 + DW / 2, dZ = -dz + DD / 2, dH = 0.912;
           function studyBox(parent, name, w, h, d, x, y, z, mat, outlined = false) {
             const m = bx(w, h, d, mat, true, outlined, lineDark); m.name = name; m.position.set(x, y, z); parent.add(m); return m;
           }
@@ -7611,20 +7488,15 @@
             const kept = new Set(); assembly.traverse(o => { if (o.geometry) kept.add(o.geometry); });
             for (const geometry of original) if (!kept.has(geometry)) geometry.dispose();
           }
-          studyBox(desk, 'Mặt bàn học', 1.08, .06, .5, deskX, yIn + deskHeight - .03, deskZ, woodMat, true);
-          for (const sx of [-1, 1]) for (const sz of [-1, 1])
-            studyBox(desk, 'Chân bàn học', .045, .70, .045, deskX + sx * .455, yIn + .35, deskZ + sz * .195, metalMat);
-          studyBox(desk, 'Thanh đỡ sau bàn', .93, .07, .035, deskX, yIn + .61, deskZ - .2, metalMat);
-          studyBox(desk, 'Ngăn kéo nhỏ', .28, .11, .4, deskX + .31, yIn + .645, deskZ + .015, caravanRoofM, true);
-          studyBox(desk, 'Tay nắm ngăn kéo', .115, .017, .025, deskX + .31, yIn + .645, deskZ + .227, metalMat);
-          studyBox(desk, 'Sổ trên bàn', .27, .014, .2, deskX - .34, yIn + deskHeight + .01, deskZ - .09, caravanDark);
-          studyBox(desk, 'Giấy trong sổ', .253, .009, .185, deskX - .34, yIn + deskHeight + .019, deskZ - .09, caravanRoofM);
+          studyBox(desk, 'Mặt bàn học', DW - 0.02, .06, DD, dX, yIn + dH - .03, dZ, woodMat, true);
+          for (const sx of [-1, 1]) for (const sz of [-1, 1]) studyBox(desk, 'Chân bàn học', .045, dH - .06, .045, dX + sx * (DW / 2 - .06), yIn + (dH - .06) / 2, dZ + sz * (DD / 2 - .05), metalMat);
+          studyBox(desk, 'Thanh đỡ sau bàn', DW - .14, .07, .035, dX, yIn + dH - .2, dZ - DD / 2 + .04, metalMat);
+          studyBox(desk, 'Ngăn kéo nhỏ', .3, .12, .44, dX + .2, yIn + dH - .135, dZ + .02, caravanRoofM, true);
+          studyBox(desk, 'Tay nắm ngăn kéo', .12, .017, .025, dX + .2, yIn + dH - .135, dZ + .245, metalMat);
           bakeStudyFurniture(desk); study.add(desk);
-          const DESK_K = 1.2; desk.scale.setScalar(DESK_K); desk.position.set(2.88 * (1 - DESK_K), yIn * (1 - DESK_K), -1.37 * (1 - DESK_K));
-          const dX = 2.88 - (2.88 - deskX) * DESK_K, dZ = -1.37 + (deskZ + 1.37) * DESK_K, dH = deskHeight * DESK_K;
 
           const studyChair = new THREE.Group(); studyChair.name = 'Ghế bàn học'; studyChair.userData.noBatch = true;
-          const chairX = dX - .02, chairZ = -.38, SEAT_TOP = .4875;
+          const chairX = dX - .02, chairZ = dZ + DD / 2 + .39, SEAT_TOP = .4875;
           {
             const leather = new THREE.MeshLambertMaterial({ color: 0x6e4129 }), seam = new THREE.MeshLambertMaterial({ color: 0x3f2416 }), chrome = new THREE.MeshLambertMaterial({ color: 0xd4d8dc }), dark = new THREE.MeshLambertMaterial({ color: 0x35383b });
             const base = new THREE.Group(); base.position.set(chairX, yIn, chairZ); studyChair.add(base);
@@ -7657,7 +7529,7 @@
           study.add(studyChair); studyChairRig.obj = studyChair; studyChairRig.home = studyChair.position.z;
 
           {
-            const BW = .72, BH = .5, bd = new THREE.Group(); bd.name = 'Bảng ghim ghi chú'; bd.position.set(2.86 - .016, yIn + 1.32, -.82); bd.rotation.y = -Math.PI / 2;
+            const BW = .62, BH = .5, bd = new THREE.Group(); bd.name = 'Bảng ghim ghi chú'; bd.position.set(x1 - .03, yIn + 1.32, -dz + .36); bd.rotation.y = -Math.PI / 2;
             const frameM = new THREE.MeshLambertMaterial({ color: 0x5b3a22 }), pinM = new THREE.MeshLambertMaterial({ color: 0xc4362b });
             const cork = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'); x.fillStyle = '#b48c5c'; x.fillRect(0, 0, 64, 64);
               for (let i = 0; i < 420; i++) { x.fillStyle = ['#9c7446', '#c9a272', '#a98050'][i % 3]; x.fillRect(Math.random() * 64, Math.random() * 64, 1 + Math.random() * 2, 1 + Math.random() * 2); }
@@ -7669,18 +7541,18 @@
             studyBox(bd, 'Mặt bần', BW - .04, BH - .04, .012, 0, 0, .006, cork);
             for (const [w, h, x, y] of [[BW, .03, 0, BH / 2 - .015], [BW, .03, 0, -BH / 2 + .015], [.03, BH, -BW / 2 + .015, 0], [.03, BH, BW / 2 - .015, 0]]) studyBox(bd, 'Khung bảng', w, h, .03, x, y, .015, frameM);
             const pin = (x, y, z) => { const p = new THREE.Mesh(new THREE.CylinderGeometry(.007, .009, .014, 8), pinM); p.rotation.x = Math.PI / 2; p.position.set(x, y, z + .007); bd.add(p); return p; };
-            for (const [x, y, w, h, r, c] of [[-.24, .1, .13, .16, .06, 0xece6d6], [-.07, .12, .12, .15, -.04, 0xf5f0e6], [.1, .09, .13, .17, .03, 0xe9e2d0], [-.2, -.12, .1, .1, -.08, 0xf2d46b], [.24, .1, .1, .1, .1, 0xf0b8c4], [.0, -.13, .14, .11, .05, 0xd6e6f2]]) {
+            for (const [x, y, w, h, r, c] of [[-.2, .1, .13, .16, .06, 0xece6d6], [-.04, .12, .12, .15, -.04, 0xf5f0e6], [.12, .09, .13, .17, .03, 0xe9e2d0], [-.18, -.12, .1, .1, -.08, 0xf2d46b], [.22, .12, .09, .09, .1, 0xf0b8c4], [.01, -.13, .14, .11, .05, 0xd6e6f2]]) {
               const pp = new THREE.Mesh(new THREE.BoxGeometry(w, h, .002), paperM(c)); pp.position.set(x, y, .014); pp.rotation.z = r; bd.add(pp); pin(x + Math.sin(r) * h * .4, y + h * .4, .015);
             }
-            const slots = [[.2, -.12], [.27, -.03], [.15, -.04], [.08, -.18]], notes = [];
+            const slots = [[.17, -.12], [.24, -.03], [.15, -.05], [.09, -.18]], notes = [];
             for (let i = 0; i < 4; i++) { const n = new THREE.Mesh(new THREE.BoxGeometry(.075, .075, .002), paperM(0xf3d35e)); n.visible = false; n.userData.noBatch = true; bd.add(n); const pn = pin(0, 0, .015); pn.visible = false; pn.userData.noBatch = true; notes.push({ n, pn }); }
             const held = new THREE.Mesh(new THREE.BoxGeometry(.075, .002, .075), paperM(0xf3d35e)); held.visible = false; held.userData.noBatch = true; study.add(held);
-            const pad = new THREE.Mesh(new THREE.BoxGeometry(.085, .014, .085), paperM(0xf3d35e)); pad.name = 'Tập giấy dán'; pad.position.set(dX + .33, yIn + dH + .008, dZ + .2); pad.rotation.y = -.25;
+            const pad = new THREE.Mesh(new THREE.BoxGeometry(.085, .014, .085), paperM(0xf3d35e)); pad.name = 'Tập giấy dán'; pad.position.set(dX + .32, yIn + dH + .008, dZ + .16); pad.rotation.y = -.25; study.add(pad);
             study.add(bd);
             Object.assign(studyBoard, { g: bd, BW, BH, slots, notes, held, pad, padP: pad.position.clone(), next: 0 });
           }
           const lamp = workLamp(study), lampHead = WORK_LAMP_HEAD;
-          lamp.position.set(dX + .28 * DESK_K, yIn + dH + .001, dZ - .13 * DESK_K); lamp.rotation.y = -1.0;
+          lamp.position.set(dX + .3, yIn + dH + .001, dZ - .17); lamp.rotation.y = -1.0;
           const bulbMat = new THREE.MeshStandardMaterial({ color: 0xE2D6C0, emissive: 0xffc46d, emissiveIntensity: 0, roughness: .65 });
           const bulb = new THREE.Mesh(new THREE.CircleGeometry(lampHead.radius * .86, 18), bulbMat);
           bulb.name = 'Bóng đèn bàn học'; bulb.rotation.x = Math.PI / 2; bulb.position.set(lampHead.x, lampHead.ledY, lampHead.z); lamp.add(bulb);
@@ -7688,21 +7560,23 @@
           studyLight.name = 'Ánh sáng bàn học'; studyLight.position.set(lampHead.x, lampHead.ledY - .05, lampHead.z);
           studyLight.castShadow = false; lamp.add(studyLight);
           studyDeskLighting.light = studyLight; studyDeskLighting.bulb = bulbMat;
-          const coke = sodaCan(); coke.scale.setScalar(1.155); coke.position.set(dX - .37 * DESK_K, yIn + dH + .001, dZ + .09 * DESK_K); coke.rotation.y = -.6; coke.name = 'Lon coke trên bàn học'; study.add(coke);
+          const coke = sodaCan(); coke.scale.setScalar(1.155); coke.position.set(dX - .345, yIn + dH + .001, dZ + .1); coke.rotation.y = -.6; coke.name = 'Lon coke trên bàn học'; study.add(coke);
           {
-            const M = macbookPro(), lap = M.g; lap.name = 'Laptop'; lap.position.set(dX - .01, yIn + dH + .001, dZ + .076 * DESK_K); lap.scale.setScalar(1.11 * LAP_K); study.add(lap);
+            const M = macbookPro(), lap = M.g; lap.name = 'Laptop'; lap.position.set(dX - .01, yIn + dH + .001, dZ + DD / 2 - .2); lap.scale.setScalar(1.11 * LAP_K); study.add(lap);
             const glow = new THREE.PointLight(0x9fc8ff, 0, 1.4 * CAMP_SCALE, 2); glow.position.set(0, .14, .02); lap.add(glow);
             lap.traverse(o => { o.userData.noBake = true; });
             Object.assign(studyLaptop, { hinge: M.hinge, screen: M.screenMat, keys: M.keyMat, light: glow, group: lap, canvas: M.canvas, ctx: M.ctx, tex: M.tex, mode: 'dash', drawnAt: -1 });
           }
           study.userData.layout = {
-            desk: { center: [dX, dZ], size: [1.08 * DESK_K, .5 * DESK_K], height: dH },
+            desk: { center: [dX, dZ], size: [DW, DD], height: dH },
             chair: { center: [chairX, chairZ], size: [.43, .43], facing: '-Z' }, lampSchedule: '18:30–06:00 Asia/Ho_Chi_Minh'
           };
           g.add(study);
-          const tTop = bx(0.62, 0.08, 0.62, woodMat, true, true, lineDark); tTop.name = 'Bàn vuông'; tTop.userData.noBake = true; tTop.position.set(-0.65, yIn + 0.78, 0.8); tTop.castShadow = true; g.add(tTop);
-          const tLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.78, 8), metalMat); tLeg.position.set(-0.65, yIn + 0.39, 0.8); g.add(tLeg);
-          const breakfast = new THREE.Group(); breakfast.name = 'Đồ ăn sáng trên bàn vuông'; breakfast.userData.noBake = true; breakfast.position.set(-0.65, yIn + 0.821, 0.8); g.add(breakfast);
+          const TX = x0 + 0.305, TZ = dz - 0.21, TW = 0.55, TD = 0.42;
+          const tTop = bx(TW, 0.08, TD, woodMat, true, true, lineDark); tTop.name = 'Bàn vuông'; tTop.userData.noBake = true; tTop.position.set(TX, yIn + 0.78, TZ); tTop.castShadow = true; g.add(tTop);
+          const tLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.78, 8), metalMat); tLeg.position.set(TX, yIn + 0.39, TZ); g.add(tLeg);
+          const tFoot = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.18, 0.02, 14), metalMat); tFoot.position.set(TX, yIn + 0.01, TZ); g.add(tFoot);
+          const breakfast = new THREE.Group(); breakfast.name = 'Đồ ăn sáng trên bàn vuông'; breakfast.userData.noBake = true; breakfast.position.set(TX, yIn + 0.821, TZ); g.add(breakfast);
           const BOOK_K = 1.1;
           const layFlat = (item, cx, cz, yaw) => {
             const ext = BREAKFAST_SIZE[item.name], h = ext[1] * BOOK_K, t = ext[2] * BOOK_K;
@@ -7710,33 +7584,110 @@
             item.position.set(cx + Math.sin(yaw) * h / 2, t / 2, cz + Math.cos(yaw) * h / 2);
           };
           let cerealBowl = null;
-          const cereal = breakfastItem('cereal'); layFlat(cereal, -0.15, 0.12, 0.14); cereal.name = 'Hộp ngũ cốc'; breakfast.add(cereal);
-          const coffee = breakfastItem('coffee'); layFlat(coffee, 0.11, 0.1, -0.2); coffee.name = 'Hộp cà phê'; breakfast.add(coffee);
-          const milk = breakfastItem('milk'); milk.name = 'Chai sữa'; milk.position.set(0.22, 0, -0.13); breakfast.add(milk);
+          const cereal = breakfastItem('cereal'); layFlat(cereal, -0.14, -0.02, 0.14); cereal.name = 'Hộp ngũ cốc'; breakfast.add(cereal);
+          const coffee = breakfastItem('coffee'); layFlat(coffee, 0.1, -0.03, -0.2); coffee.name = 'Hộp cà phê'; breakfast.add(coffee);
+          const milk = breakfastItem('milk'); milk.name = 'Chai sữa'; milk.position.set(0.2, 0, -0.08); breakfast.add(milk);
           {
-            const bowl = cerealBowl = new THREE.Group(); bowl.name = 'Bát ngũ cốc'; bowl.position.set(-0.04, 0, -0.16); bowl.visible = false; breakfast.add(bowl);
+            const bowl = cerealBowl = new THREE.Group(); bowl.name = 'Bát ngũ cốc'; bowl.position.set(-0.05, 0, -0.1); bowl.visible = false; breakfast.add(bowl);
             const food = new THREE.Group(); food.name = 'Ngũ cốc + sữa'; bowl.add(food); bowl.userData.food = food;
             const ceramic = new THREE.MeshLambertMaterial({ color: 0xf2efe8, side: THREE.DoubleSide });
-            const shell = new THREE.Mesh(new THREE.LatheGeometry([[0, 0], [0.04, 0], [0.042, 0.006], [0.07, 0.034], [0.078, 0.056], [0.073, 0.057], [0.065, 0.036], [0.036, 0.009], [0, 0.009]].map(([r, y]) => new THREE.Vector2(r, y)), 20), ceramic);
-            shell.castShadow = true; bowl.add(shell);
+            const shellB = new THREE.Mesh(new THREE.LatheGeometry([[0, 0], [0.04, 0], [0.042, 0.006], [0.07, 0.034], [0.078, 0.056], [0.073, 0.057], [0.065, 0.036], [0.036, 0.009], [0, 0.009]].map(([r, y]) => new THREE.Vector2(r, y)), 20), ceramic);
+            shellB.castShadow = true; bowl.add(shellB);
             const milkTop = new THREE.Mesh(new THREE.CircleGeometry(0.066, 20), new THREE.MeshLambertMaterial({ color: 0xfbf6ea })); milkTop.rotation.x = -Math.PI / 2; milkTop.position.y = 0.043; food.add(milkTop);
             const flakeM = new THREE.MeshLambertMaterial({ color: 0xd9a64a });
             for (let k = 0; k < 14; k++) { const a = k * 2.4, r = 0.012 + (k % 5) * 0.011, f = new THREE.Mesh(new THREE.BoxGeometry(0.016, 0.005, 0.013), flakeM); f.position.set(Math.cos(a) * r, 0.046, Math.sin(a) * r); f.rotation.set(0.3 * Math.sin(k), a, 0.25 * Math.cos(k * 1.7)); food.add(f); }
           }
-          const tableUdon = udonBowl(); tableUdon.position.set(-0.04, 0, -0.16); tableUdon.scale.setScalar(1.2); tableUdon.visible = false; breakfast.add(tableUdon);
+          const tableUdon = udonBowl(); tableUdon.position.set(-0.05, 0, -0.1); tableUdon.scale.setScalar(1.2); tableUdon.visible = false; breakfast.add(tableUdon);
+          const STOOL_REST = 0.04, STOOL_IN = 0.16;
           const stool = new THREE.Group(); stool.name = 'Ghế đẩu bàn ăn'; stool.userData.noBake = true; stool.position.set(0, 0, 0); g.add(stool);
-          { const sx0 = -0.65, sz0 = -0.04;
+          { const sx0 = TX, sz0 = STOOL_REST;
             const top = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.162, 0.05, 18), woodMat); top.position.set(sx0, yIn + 0.455, sz0); top.castShadow = true; stool.add(top);
             for (let k = 0; k < 4; k++) { const a = Math.PI / 4 + k * Math.PI / 2, leg = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.018, 0.45, 6), metalMat);
               leg.position.set(sx0 + Math.cos(a) * 0.12, yIn + 0.215, sz0 + Math.sin(a) * 0.12); leg.rotation.set(Math.sin(a) * 0.12, 0, -Math.cos(a) * 0.12); leg.castShadow = true; stool.add(leg); }
             const ring = new THREE.Mesh(new THREE.TorusGeometry(0.135, 0.009, 4, 18), metalMat); ring.rotation.x = Math.PI / 2; ring.position.set(sx0, yIn + 0.15, sz0); stool.add(ring); }
-          const bedHelmet = engHelmetProp(); bedHelmet.position.set(bedCx - bedLen / 2 + 0.3, yIn + mattTop - 0.02, bedZ + 0.18); bedHelmet.rotation.y = 0.6; bedHelmet.visible = false; g.add(bedHelmet);
-          const kitchen = motorhomeKitchen(galley);
-          const cup = bx(bLen * 0.62, 0.44, 0.4, caravanRoofM); cup.position.set(bcx - .55, yRoof - 0.45, -dz + 0.32); g.add(cup);
-          const cabH = 1.85, cabLen = 2.0, cabX = x0 - cabLen / 2, cabDz = Dc * 0.9, wsX = cabX - cabLen / 2;
-          const awFront = 1.1 - 1.75, awRear = x1 + bthLen, awLen = awRear - awFront, awC = (awFront + awRear) / 2;
-          const aw = bx(awLen, 0.04, 2.4, awningMat, true, true, lineDark); aw.position.set(awC, yRoof - 0.02, dz + 1.2); aw.rotation.x = -0.16; g.add(aw);
-          for (const px of [awFront + 0.1, awRear - 0.1]) { const pTop = base + Hc + 0.33, pBot = -1.4, pH = pTop - pBot; const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, pH, 6), chairFrame); pole.castShadow = true; pole.position.set(px, (pTop + pBot) / 2, dz + 2.3); g.add(pole); const cap = new THREE.Mesh(new THREE.SphereGeometry(0.035, 8, 6), chairFrame); cap.position.set(px, pTop, dz + 2.3); cap.castShadow = true; g.add(cap); }
+          const bedHelmet = engHelmetProp(); bedHelmet.position.set(x0 + 0.28, yIn + mattTop - 0.02, bedZ + 0.16); bedHelmet.rotation.y = 0.6; bedHelmet.visible = false; g.add(bedHelmet);
+          const kitchen = motorhomeKitchen(galley, ceil - galley.position.y);
+
+          const bthW = 2 * dz, bthLen = xB - x1, bthCX = (x1 + xB) / 2, flY = yIn, ceilY = ceil - 0.02;
+          const bthWallM = new THREE.MeshLambertMaterial({ color: 0xE2D6C0, transparent: true, opacity: 0.42, depthWrite: false });
+          const twcM = new THREE.MeshLambertMaterial({ color: 0xE2D6C0 }), tileM = new THREE.MeshLambertMaterial({ color: 0xE2D6C0 }),
+            mirrorM = new THREE.MeshLambertMaterial({ color: 0xbfe0e8 }), towelM = new THREE.MeshLambertMaterial({ color: 0xd98c6a });
+          const bath = new THREE.Group(); bath.name = 'Phòng tắm gọn';
+          bath.userData.layout = { length: bthLen, width: bthW, floorArea: bthLen * bthW, entryWidth: 0.6, wetBath: [bthLen, 0.73], rearX: xB };
+          const bthFlr = bx(bthLen, 0.012, bthW, tileM); bthFlr.position.set(bthCX, flY + 0.006, 0); bthFlr.receiveShadow = true; bath.add(bthFlr);
+          const bthLight = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.03, 12), litMat); bthLight.position.set(bthCX, ceil - 0.03, 0); bath.add(bthLight);
+          const doorM = new THREE.MeshLambertMaterial({ color: 0xd9e3e6, transparent: true, opacity: 0.55, depthWrite: false });
+          const panel = (x0p, x1p, y0, y1, z0, z1, mat = bthWallM) => { const m = bx(x1p - x0p, y1 - y0, z1 - z0, mat, mat !== doorM, true, lineDark); m.position.set((x0p + x1p) / 2, (y0 + y1) / 2, (z0 + z1) / 2); bath.add(m); return m; };
+          const entry = [-0.30, 0.30], doorTop = flY + 1.97, kitZ = 0.38, kitX = 2.535;
+          const innerSec = xc => { const h = [], T2 = TR.T + 0.012;
+            for (const y of [yIn, 1.2, 1.6, 2.0, 2.4, 2.6, 2.7]) h.push([trSideZ(xc, y) - T2, y]);
+            for (const z of [0.93, 0.88, 0.8, 0.65, 0.4, 0]) h.push([z, roofTop(xc, z) - T2]);
+            return [...h, ...h.slice(0, -1).reverse().map(([z, y]) => [-z, y])]; };
+          const clip = (P, f) => { const out = []; for (let i = 0; i < P.length; i++) { const a = P[i], b = P[(i + 1) % P.length], fa = f(a), fb = f(b); if (fa >= 0) out.push(a); if (fa * fb < 0) { const t = fa / (fa - fb); out.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]); } } return out; };
+          const xWall = (xc, t, z0, z1, y0, y1) => { let P = innerSec(xc); for (const f of [p => p[0] - z0, p => z1 - p[0], p => p[1] - y0, p => y1 - p[1]]) P = clip(P, f);
+            const geo = new THREE.ExtrudeGeometry(new THREE.Shape(P.map(([z, y]) => new THREE.Vector2(z, y))), { depth: t, bevelEnabled: false }); geo.rotateY(-Math.PI / 2); geo.translate(xc + t / 2, 0, 0);
+            const m = new THREE.Mesh(geo, bthWallM); m.receiveShadow = true; edge(m, geo, lineDark); bath.add(m); return m; };
+          xWall(x1, 0.05, -1.1, entry[0], flY, 3.2);
+          xWall(x1, 0.05, entry[0], entry[1], doorTop, 3.2);
+          xWall(x1, 0.05, entry[1], kitZ, flY, 3.2);
+          panel(x1, kitX, flY, ceilY, kitZ - 0.025, kitZ + 0.025);
+          xWall(kitX, 0.05, kitZ, 1.1, flY, 3.2);
+          const entryDoorG = new THREE.Group(); entryDoorG.name = 'Cửa lùa phòng tắm'; entryDoorG.userData.noBake = true; bath.add(entryDoorG);
+          entryDoorG.add(panel(x1 + 0.03, x1 + 0.055, flY + 0.02, doorTop - 0.01, entry[0] - 0.02, entry[1] + 0.02, doorM));
+          const entryHandle = bx(0.03, 0.16, 0.03, caravanDark, false, false); entryHandle.position.set(x1 - 0.005, flY + 0.98, entry[1] - 0.06); entryDoorG.add(entryHandle);
+          const wcZ = -0.25, curt = [x1 + 0.05, 2.66];
+          panel(curt[1], xB - 0.01, flY + 0.06, ceilY - 0.06, wcZ - 0.012, wcZ + 0.012, doorM);
+          const wcDoorG = new THREE.Group(); wcDoorG.name = 'Rèm trượt buồng tắm'; wcDoorG.userData.noBake = true; bath.add(wcDoorG);
+          wcDoorG.add(panel(curt[0], curt[1] + 0.02, flY + 0.06, ceilY - 0.06, wcZ - 0.04, wcZ - 0.018, doorM));
+          const rail = bx(bthLen, 0.02, 0.02, metalMat, false, false); rail.position.set(bthCX, ceilY - 0.04, wcZ - 0.02); bath.add(rail);
+          const twcX = 2.62, twcZ = -dz + 0.29;
+          const toilet = new THREE.Group(); toilet.name = 'Bồn cầu hướng cửa phòng tắm';
+          const twcBowl = bx(0.42, 0.40, 0.38, twcM, true, true, lineDark); twcBowl.position.set(0, flY + 0.24, 0); toilet.add(twcBowl);
+          const twcPed = bx(0.2, 0.24, 0.2, twcM, true, true, lineDark); twcPed.position.set(0.02, flY + 0.12, 0); toilet.add(twcPed);
+          const twcTank = bx(0.13, 0.36, 0.38, twcM, true, true, lineDark); twcTank.position.set(0.215, flY + 0.58, 0); toilet.add(twcTank);
+          const twcLidHinge = new THREE.Group(); twcLidHinge.name = 'Bản lề nắp bồn cầu'; twcLidHinge.userData.noBake = true; twcLidHinge.position.set(0.13, flY + 0.4625, 0); toilet.add(twcLidHinge);
+          const twcLid = bx(0.34, 0.045, 0.36, twcM, true, true, lineDark); twcLid.position.set(-0.17, -0.0225, 0); twcLidHinge.add(twcLid);
+          const twcSeat = new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.038, 6, 16), twcM); twcSeat.rotation.x = Math.PI / 2; twcSeat.scale.x = 1.25; twcSeat.position.set(-0.02, flY + 0.42, 0); twcSeat.castShadow = true; toilet.add(twcSeat);
+          const twcBtn = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.03, 12), metalMat); twcBtn.position.set(0.215, flY + 0.775, 0); toilet.add(twcBtn);
+          toilet.rotation.y = Math.PI / 2; toilet.position.set(twcX, 0, twcZ);
+          toilet.userData.noBake = true; bakeStatic(toilet); bath.add(toilet);
+          const spX = x1 + 0.1, spZ = -dz + 0.03;
+          const spValve = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.05, 10), metalMat); spValve.rotation.x = Math.PI / 2; spValve.position.set(spX, flY + 0.38, spZ); bath.add(spValve);
+          const spHolder = bx(0.06, 0.06, 0.05, metalMat, false, false); spHolder.position.set(spX, flY + 0.72, spZ); bath.add(spHolder);
+          const spHead = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.018, 0.15, 10), metalMat); spHead.position.set(spX, flY + 0.72, spZ + 0.04); spHead.castShadow = true; bath.add(spHead);
+          const spNozzle = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.045, 10), metalMat); spNozzle.rotation.x = Math.PI / 2; spNozzle.position.set(spX, flY + 0.8, spZ + 0.065); bath.add(spNozzle);
+          const spHose = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([
+            new THREE.Vector3(spX, flY + 0.38, spZ + 0.03), new THREE.Vector3(spX + 0.03, flY + 0.27, spZ + 0.09),
+            new THREE.Vector3(spX + 0.05, flY + 0.33, spZ + 0.1), new THREE.Vector3(spX + 0.02, flY + 0.55, spZ + 0.06), new THREE.Vector3(spX, flY + 0.65, spZ + 0.04)
+          ]), 24, 0.008, 6, false), metalMat); bath.add(spHose);
+          const snkX = (kitX + xB) / 2, sWallZ = dz - 0.02;
+          const snkCab = bx(0.38, 0.42, 0.3, woodMat, true, true, lineDark); snkCab.position.set(snkX, flY + 0.5, sWallZ - 0.15); bath.add(snkCab);
+          const snkTop = bx(0.42, 0.05, 0.34, tileM, true, true, lineDark); snkTop.position.set(snkX, flY + 0.735, sWallZ - 0.17); bath.add(snkTop);
+          const snkBasin = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.09, 0.1, 14), twcM); snkBasin.position.set(snkX, flY + 0.78, sWallZ - 0.19); snkBasin.castShadow = true; bath.add(snkBasin);
+          const snkTap = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.14, 8), metalMat); snkTap.position.set(snkX, flY + 0.83, sWallZ - 0.05); bath.add(snkTap);
+          const snkSpout = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.11, 8), metalMat); snkSpout.rotation.x = -Math.PI / 2.3; snkSpout.position.set(snkX, flY + 0.9, sWallZ - 0.1); bath.add(snkSpout);
+          const mirror = bx(0.32, 0.4, 0.03, mirrorM, false, true, lineDark); mirror.position.set(snkX, flY + 1.16, sWallZ - 0.015); bath.add(mirror);
+          const tapWater = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.011, 0.09, 6), new THREE.MeshLambertMaterial({ color: 0xbfe2ff, transparent: true, opacity: 0.7, depthWrite: false }));
+          tapWater.name = 'Nước chảy từ vòi'; tapWater.userData.noBake = true; tapWater.visible = false; tapWater.position.set(snkX, flY + 0.84, sWallZ - 0.15); bath.add(tapWater);
+          const shelfX = kitX + 0.11, shelfZ = 0.5, shelfY = flY + 1.42;
+          const shelfBoard = bx(0.2, 0.025, 0.24, woodMat, true, true, lineDark); shelfBoard.position.set(shelfX, shelfY, shelfZ); bath.add(shelfBoard);
+          for (const sz of [-0.08, 0.08]) { const br = bx(0.02, 0.1, 0.02, metalMat, false, false); br.position.set(kitX + 0.035, shelfY - 0.06, shelfZ + sz); bath.add(br); }
+          const shelfHelmet = engHelmetProp(); shelfHelmet.position.set(shelfX + 0.02, shelfY + 0.0125, shelfZ); shelfHelmet.rotation.y = Math.PI / 2; shelfHelmet.visible = false; bath.add(shelfHelmet);
+          const towelX = (curt[1] + xB) / 2;
+          const towelBar = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.28, 8), metalMat); towelBar.rotation.z = Math.PI / 2; towelBar.position.set(towelX, flY + 0.98, wcZ + 0.05); bath.add(towelBar);
+          const towel = bx(0.26, 0.4, 0.035, towelM, true, true, lineDark); towel.position.set(towelX, flY + 0.78, wcZ + 0.045); towel.name = 'Khăn tắm'; towel.userData.noBake = true; bath.add(towel);
+          const shX = twcX, sideZ = -dz + 0.03;
+          const shArm = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.2, 8), metalMat); shArm.rotation.x = Math.PI / 2.4; shArm.position.set(shX, ceilY - 0.09, sideZ + 0.09); bath.add(shArm);
+          const shHead = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.06, 0.05, 14), metalMat); shHead.rotation.x = -0.45; shHead.position.set(shX, ceilY - 0.15, sideZ + 0.19); bath.add(shHead);
+          const shMixer = bx(0.12, 0.16, 0.045, metalMat, false, true, lineDark); shMixer.position.set(x1 + 0.2, flY + 1.06, sideZ + 0.02); bath.add(shMixer);
+          const drain = bx(0.14, 0.01, 0.14, caravanDark, false, true); drain.position.set(twcX - 0.05, flY + 0.014, wcZ - 0.13); bath.add(drain);
+          bath.userData.xray = 'shell';
+          for (const item of [bthFlr, toilet, spValve, spHolder, spHead, spNozzle, spHose, snkCab, snkTop, snkBasin, snkTap, snkSpout, mirror, towelBar, towel, shArm, shHead, shMixer, drain, bthLight, tapWater, shelfBoard, shelfHelmet]) item.userData.xray = 'keep';
+          const bathRig = { entryDoor: entryDoorG, wcDoor: wcDoorG, lid: twcLidHinge, towel, tapWater, shelfHelmet, doorMat: doorM, wallMat: bthWallM,
+            showerHead: [shX, ceilY - 0.15, sideZ + 0.19], mixer: [x1 + 0.2, flY + 1.06, sideZ + 0.04], flush: [twcX, flY + 0.775, -dz + 0.08], shelf: [shelfX, shelfY, shelfZ] };
+          bath.userData.noBake = true;
+          bakeStatic(bath); g.add(bath);
+
           const roofDetails = new THREE.Group(); roofDetails.name = 'Thiết bị mái xe chi tiết';
           roofDetails.userData.noBake = true; g.add(roofDetails);
           function roofBox(w, h, d, x, y, z, mat, outlined = false) {
@@ -7755,165 +7706,50 @@
             edge(m, geo, lineDark); roofDetails.add(m); return m;
           }
           function roofVent(x, z, size, height) {
-            const y = yRoof + .1;
+            const y = roofTop(x, z);
             roofBox(size + .05, .025, size + .05, x, y + .0125, z, metalMat);
             roofBox(size - .065, .075, size - .065, x, y + .0625, z, caravanDark);
             roofLid(size - .035, size - .035, height - .08, .055, x, y + .08, z, caravanDark);
-            for (const side of [-1, 1]) for (let n = -2; n <= 2; n++) {
-              roofBox(size * .68, .012, .012, x, y + .045 + (n + 2) * .01, z + side * (size / 2 - .027), metalMat);
-            }
+            for (const side of [-1, 1]) for (let n = -2; n <= 2; n++) roofBox(size * .68, .012, .012, x, y + .045 + (n + 2) * .01, z + side * (size / 2 - .027), metalMat);
           }
-          roofVent(x1 - .45, -.55, .66, .21);
+          roofVent(-0.15, -0.38, .5, .19);
+          roofVent(2.62, -0.45, .36, .15);
           {
-            const cx = 1.45, cz = 1.22, y = yRoof + .1, pipe = new THREE.MeshLambertMaterial({ color: 0xa7b0b3 });
+            const cx = galley.position.x - 0.47, cz = 0.74, y = roofTop(cx, cz), pipe = new THREE.MeshLambertMaterial({ color: 0xa7b0b3 });
             roofBox(.18, .02, .18, cx, y + .01, cz, metalMat);
             const tube = new THREE.Mesh(new THREE.CylinderGeometry(.045, .048, .32, 14), pipe); tube.position.set(cx, y + .17, cz); tube.castShadow = true; roofDetails.add(tube);
             const cap = new THREE.Mesh(new THREE.ConeGeometry(.095, .07, 16), pipe); cap.position.set(cx, y + .395, cz); cap.castShadow = true; roofDetails.add(cap);
             for (let k = 0; k < 3; k++) { const a = k * 2.094, leg = new THREE.Mesh(new THREE.BoxGeometry(.008, .06, .008), pipe); leg.position.set(cx + Math.cos(a) * .04, y + .345, cz + Math.sin(a) * .04); roofDetails.add(leg); }
             g.userData.chimneyTop = new THREE.Vector3(cx, y + .35, cz);
           }
-          const acX = x0 + .35, acBottom = yRoof + .1;
-          roofBox(1.01, .055, .86, acX, acBottom + .0275, 0, caravanDark);
-          roofLid(.995, .845, .21, .12, acX, acBottom + .055, 0, caravanRoofM);
-          for (const side of [-1, 1]) {
-            roofBox(.59, .12, .015, acX + .06, acBottom + .12, side * .443, caravanDark);
-            for (let n = 0; n < 4; n++) roofBox(.6, .012, .022, acX + .06, acBottom + .075 + n * .028, side * .445, metalMat);
-            roofBox(.012, .125, .46, acX + side * .516, acBottom + .125, 0, caravanDark);
-            for (let n = 0; n < 5; n++) roofBox(.018, .12, .014, acX + side * .518, acBottom + .125, -.18 + n * .09, metalMat);
-          }
-          roofBox(.49, .012, .32, acX - .13, acBottom + .272, 0, caravanRoofM);
-          for (const x of [-.26, .26]) for (const z of [-.16, .16]) roofBox(.026, .013, .026, acX - .13 + x, acBottom + .275, z, metalMat);
-          const bthW = Dc - 0.06, bthH = Hc;
-          const bthCX = x1 + bthLen / 2;
-          const bthBackX = bthCX + bthLen / 2;
-          const bthZ = -bthW * 0.24, snkZ = bthW * 0.29;
-          const bthWallM = new THREE.MeshLambertMaterial({ color: 0xE2D6C0, transparent: true, opacity: 0.42, depthWrite: false });
-          const twcM = new THREE.MeshLambertMaterial({ color: 0xE2D6C0 }), tileM = new THREE.MeshLambertMaterial({ color: 0xE2D6C0 }),
-            mirrorM = new THREE.MeshLambertMaterial({ color: 0xbfe0e8 }), towelM = new THREE.MeshLambertMaterial({ color: 0xd98c6a });
-          const bath = new THREE.Group(); bath.name = 'Phòng tắm gọn';
-          bath.userData.layout = { length: bthLen, width: bthW, floorArea: bthLen * bthW, entryWidth: 0.65, wetBath: [0.95, 1.0], clearAisle: 0.91, rearX: bthBackX };
-          const bthChs = bx(bthLen + 0.18, 0.3, Dc * 0.6, caravanDark, true, true, lineDark); bthChs.position.set(bthCX, base - 0.12, 0); bath.add(bthChs);
-          const bthFlr = bx(bthLen, 0.1, bthW, tileM); bthFlr.position.set(bthCX, base + 0.05, 0); bthFlr.receiveShadow = true; bath.add(bthFlr);
-          const bthRf = bx(bthLen + 0.16, 0.2, bthW + 0.16, caravanRoofM); bthRf.position.set(bthCX, yRoof, 0); bath.add(bthRf);
-          const bthBk = bx(0.1, bthH, bthW, bthWallM, true, true, lineDark); bthBk.position.set(bthBackX - 0.05, base + bthH / 2, 0); bath.add(bthBk);
-          for (const bsz of [-1, 1]) { const sw = bx(bthLen, bthH, 0.1, bthWallM, true, true, lineDark); sw.position.set(bthCX, base + bthH / 2, bsz * bthW / 2); bath.add(sw); }
-          const bthWin = bx(0.06, 0.66, bthW * 0.42, vanGlass, false, true, lineDark); bthWin.position.set(bthBackX - 0.02, base + bthH * 0.64, 0); bath.add(bthWin);
-          const bthStripe = bx(0.07, 0.14, bthW + 0.02, caravanStripe); bthStripe.position.set(bthBackX - 0.11, base + bthH * 0.46, 0); bath.add(bthStripe);
-          roofVent(bthCX, 0, .42, .16);
-          const bthLight = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.04, 12), litMat); bthLight.position.set(bthCX, yRoof - 0.13, 0); bath.add(bthLight);
-          const twcX = bthBackX - 0.42;
-          const toilet = new THREE.Group(); toilet.name = 'Bồn cầu hướng cửa hông';
-          const twcBowl = bx(0.5, 0.5, 0.46, twcM, true, true, lineDark); twcBowl.position.set(twcX, base + 0.31, bthZ); toilet.add(twcBowl);
-          const twcPed = bx(0.22, 0.32, 0.22, twcM, true, true, lineDark); twcPed.position.set(twcX, base + 0.16, bthZ); toilet.add(twcPed);
-          const twcTank = bx(0.16, 0.42, 0.46, twcM, true, true, lineDark); twcTank.position.set(bthBackX - 0.17, base + 0.82, bthZ); toilet.add(twcTank);
-          const twcLidHinge = new THREE.Group(); twcLidHinge.name = 'Bản lề nắp bồn cầu'; twcLidHinge.userData.noBake = true; twcLidHinge.position.set(twcX + 0.15, base + 0.5925, bthZ); toilet.add(twcLidHinge);
-          const twcLid = bx(0.4, 0.055, 0.44, twcM, true, true, lineDark); twcLid.position.set(-0.2, -0.0275, 0); twcLidHinge.add(twcLid);
-          const twcSeat = new THREE.Mesh(new THREE.TorusGeometry(0.18, 0.045, 6, 16), twcM); twcSeat.rotation.x = Math.PI / 2; twcSeat.scale.x = 1.3; twcSeat.position.set(twcX, base + 0.535, bthZ); twcSeat.castShadow = true; toilet.add(twcSeat);
-          const twcBtn = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.03, 12), metalMat); twcBtn.position.set(bthBackX - 0.17, base + 1.05, bthZ); toilet.add(twcBtn);
-          for (const fixture of toilet.children) { fixture.position.x -= twcX; fixture.position.z -= bthZ; }
-          toilet.rotation.y = Math.PI / 2; toilet.position.set(twcX, 0, -bthW / 2 + 0.4);
-          toilet.userData.noBake = true; bakeStatic(toilet); bath.add(toilet);
-          const flY = base + 0.1, ceilY = yRoof - 0.1, inBack = bthBackX - 0.1;
-          const wcZ = -0.42, wcDoor = [x1 + 0.03, x1 + 0.55], doorTop = base + 2.14;
-          const doorM = new THREE.MeshLambertMaterial({ color: 0xd9e3e6, transparent: true, opacity: 0.55, depthWrite: false });
-          const panel = (x0p, x1p, y0, y1, z0, z1, mat = bthWallM) => { const m = bx(x1p - x0p, y1 - y0, z1 - z0, mat, mat !== doorM, true, lineDark); m.position.set((x0p + x1p) / 2, (y0 + y1) / 2, (z0 + z1) / 2); bath.add(m); return m; };
-          panel(wcDoor[1], inBack, flY, ceilY, wcZ - 0.025, wcZ + 0.025);
-          panel(x1, wcDoor[0], flY, ceilY, wcZ - 0.025, wcZ + 0.025);
-          panel(wcDoor[0], wcDoor[1], doorTop, ceilY, wcZ - 0.025, wcZ + 0.025);
-          const wcDoorG = new THREE.Group(); wcDoorG.name = 'Cửa lùa buồng WC'; wcDoorG.userData.noBake = true; bath.add(wcDoorG);
-          wcDoorG.add(panel(wcDoor[0], wcDoor[1] + 0.03, flY + 0.01, doorTop - 0.01, wcZ + 0.03, wcZ + 0.055, doorM));
-          const wcHandle = bx(0.03, 0.16, 0.03, caravanDark, false, false); wcHandle.position.set(wcDoor[0] + 0.06, base + 1.05, wcZ + 0.07); wcDoorG.add(wcHandle);
-          const entry = [wcZ + 0.025, 0.25], pierZ = 0.64;
-          panel(x1 - 0.1, x1, base, doorTop, -pierZ, wcZ + 0.025);
-          panel(x1 - 0.1, x1, base, doorTop, entry[1], pierZ);
-          const entryDoorG = new THREE.Group(); entryDoorG.name = 'Cửa lùa phòng tắm'; entryDoorG.userData.noBake = true; bath.add(entryDoorG);
-          entryDoorG.add(panel(x1 - 0.13, x1 - 0.1, base + 0.13, doorTop - 0.01, entry[0], entry[1] + 0.03, doorM));
-          const entryHandle = bx(0.03, 0.16, 0.03, caravanDark, false, false); entryHandle.position.set(x1 - 0.16, base + 1.05, entry[1] - 0.06); entryDoorG.add(entryHandle);
-          const spX = x1 + 0.03, spZ = -1.15;
-          const spValve = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.06, 10), metalMat); spValve.rotation.z = Math.PI / 2; spValve.position.set(spX, base + 0.42, spZ); bath.add(spValve);
-          const spHolder = bx(0.05, 0.06, 0.07, metalMat, false, false); spHolder.position.set(spX, base + 0.78, spZ); bath.add(spHolder);
-          const spHead = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.02, 0.16, 10), metalMat); spHead.position.set(spX + 0.045, base + 0.78, spZ); spHead.castShadow = true; bath.add(spHead);
-          const spNozzle = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.05, 10), metalMat); spNozzle.rotation.z = Math.PI / 2; spNozzle.position.set(spX + 0.07, base + 0.86, spZ); bath.add(spNozzle);
-          const spHose = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([
-            new THREE.Vector3(spX + 0.03, base + 0.42, spZ), new THREE.Vector3(spX + 0.09, base + 0.3, spZ + 0.03),
-            new THREE.Vector3(spX + 0.1, base + 0.36, spZ + 0.05), new THREE.Vector3(spX + 0.06, base + 0.6, spZ + 0.02), new THREE.Vector3(spX + 0.045, base + 0.7, spZ)
-          ]), 24, 0.008, 6, false), metalMat); bath.add(spHose);
-          const snkX = (x1 + inBack) / 2, wallZ = bthW / 2 - 0.05;
-          const snkCab = bx(0.5, 0.46, 0.32, woodMat, true, true, lineDark); snkCab.position.set(snkX, base + 0.57, wallZ - 0.16); bath.add(snkCab);
-          const snkTop = bx(0.54, 0.06, 0.36, tileM, true, true, lineDark); snkTop.position.set(snkX, base + 0.8, wallZ - 0.18); bath.add(snkTop);
-          const snkBasin = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.1, 0.11, 14), twcM); snkBasin.position.set(snkX, base + 0.85, wallZ - 0.2); snkBasin.castShadow = true; bath.add(snkBasin);
-          const snkTap = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.16, 8), metalMat); snkTap.position.set(snkX, base + 0.92, wallZ - 0.06); bath.add(snkTap);
-          const snkSpout = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.12, 8), metalMat); snkSpout.rotation.x = -Math.PI / 2.3; snkSpout.position.set(snkX, base + 0.99, wallZ - 0.11); bath.add(snkSpout);
-          const mirror = bx(0.36, 0.44, 0.04, mirrorM, false, true, lineDark); mirror.position.set(snkX, base + 1.24, wallZ - 0.02); bath.add(mirror);
-          const tapWater = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.011, 0.1, 6), new THREE.MeshLambertMaterial({ color: 0xbfe2ff, transparent: true, opacity: 0.7, depthWrite: false }));
-          tapWater.name = 'Nước chảy từ vòi'; tapWater.userData.noBake = true; tapWater.visible = false; tapWater.position.set(snkX, base + 0.93, wallZ - 0.165); bath.add(tapWater);
-          const shelfX = x1 + 0.1, shelfZ = 0.45, shelfY = base + 1.55;
-          const shelfBoard = bx(0.2, 0.025, 0.3, woodMat, true, true, lineDark); shelfBoard.position.set(shelfX, shelfY, shelfZ); bath.add(shelfBoard);
-          for (const sz of [-0.1, 0.1]) { const br = bx(0.02, 0.1, 0.02, metalMat, false, false); br.position.set(x1 + 0.02, shelfY - 0.06, shelfZ + sz); bath.add(br); }
-          const shelfHelmet = engHelmetProp(); shelfHelmet.position.set(shelfX + 0.02, shelfY + 0.0125, shelfZ); shelfHelmet.rotation.y = Math.PI / 2; shelfHelmet.visible = false; bath.add(shelfHelmet);
-          const towelX = (wcDoor[1] + inBack) / 2 + 0.02;
-          const towelBar = new THREE.Mesh(new THREE.CylinderGeometry(0.013, 0.013, 0.32, 8), metalMat); towelBar.rotation.z = Math.PI / 2; towelBar.position.set(towelX, base + 1.02, wcZ + 0.10); bath.add(towelBar);
-          const towel = bx(0.3, 0.42, 0.04, towelM, true, true, lineDark); towel.position.set(towelX, base + 0.81, wcZ + 0.09); towel.name = 'Khăn tắm'; towel.userData.noBake = true; bath.add(towel);
-          const shX = x1 + 0.24, sideZ = -bthW / 2 + 0.05;
-          const shArm = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.24, 8), metalMat);
-          shArm.rotation.x = Math.PI / 2.4; shArm.position.set(shX, base + 2.32, sideZ + 0.1); bath.add(shArm);
-          const shHead = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.07, 0.06, 14), metalMat);
-          shHead.rotation.x = -0.45; shHead.position.set(shX, base + 2.22, sideZ + 0.21); bath.add(shHead);
-          const shMixer = bx(0.14, 0.18, 0.05, metalMat, false, true, lineDark); shMixer.position.set(shX, base + 1.15, sideZ + 0.025); bath.add(shMixer);
-          const drain = bx(0.16, 0.012, 0.16, caravanDark, false, true);
-          drain.position.set(x1 + 0.24, base + 0.106, -0.8); bath.add(drain);
-          bath.userData.xray = 'shell';
-          for (const item of [bthFlr, toilet, spValve, spHolder, spHead, spNozzle, spHose, snkCab, snkTop, snkBasin, snkTap, snkSpout, mirror, towelBar, towel, shArm, shHead, shMixer, drain, bthLight, tapWater, shelfBoard, shelfHelmet]) item.userData.xray = 'keep';
-          const bathRig = { entryDoor: entryDoorG, wcDoor: wcDoorG, lid: twcLidHinge, towel, tapWater, shelfHelmet, doorMat: doorM, wallMat: bthWallM,
-            showerHead: [shX, base + 2.22, sideZ + 0.21], mixer: [shX, base + 1.15, sideZ + 0.05], flush: [twcX, base + 1.05, -bthW / 2 + 0.15], shelf: [shelfX, shelfY, shelfZ] };
-          bath.userData.noBake = true;
-          bakeStatic(bath); g.add(bath);
-
           const solarMat = new THREE.MeshLambertMaterial({ color: 0x163a5c });
-          const chrome = rimMat, amber = warningMat, redLamp = cushMat, stripeM = caravanStripe;
-
-          for (const mz of [-0.9, -0.45, 0, 0.45, 0.9]) {
-            const marker = bx(0.075, 0.06, 0.13, amber, false, false); marker.position.set(-3.40, yRoof + 0.025, mz); g.add(marker);
-          }
-          for (const sz of [-1, 1]) { const flap = bx(0.04, 0.4, 0.42, tyreMat, true, false); flap.position.set(2.48, 0.27, sz * 1.29); g.add(flap); }
-
-          for (const pz of [-.55, .55]) {
-            roofBox(1.61, .04, .79, .55, yRoof + .135, pz, caravanDark);
-            for (const dx of [-.81, .81]) roofBox(.035, .065, .825, .55 + dx, yRoof + .151, pz, metalMat);
-            for (const dzp of [-.405, .405]) roofBox(1.64, .065, .035, .55, yRoof + .151, pz + dzp, metalMat);
+          const SPX = 1.1, SPL = 1.24;
+          for (const pz of [-.33, .33]) {
+            const y0 = roofTop(SPX, pz) + .035;
+            roofBox(SPL, .035, .6, SPX, y0 + .03, pz, caravanDark);
+            for (const dx of [-SPL / 2, SPL / 2]) roofBox(.03, .055, .625, SPX + dx, y0 + .04, pz, metalMat);
+            for (const dzp of [-.305, .305]) roofBox(SPL + .03, .055, .03, SPX, y0 + .04, pz + dzp, metalMat);
             for (let col = 0; col < 4; col++) for (let row = 0; row < 2; row++) {
-              const cellX = .55 - .585 + col * .39, cellZ = pz + (row ? .195 : -.195);
-              roofBox(.376, .012, .376, cellX, yRoof + .164, cellZ, solarMat);
-              for (const bus of [-.075, .075]) roofBox(.003, .002, .354, cellX + bus, yRoof + .171, cellZ, rimMat);
+              const cellX = SPX - SPL * .375 + col * SPL / 4, cellZ = pz + (row ? .145 : -.145);
+              roofBox(SPL / 4 - .02, .01, .28, cellX, y0 + .052, cellZ, solarMat);
+              for (const bus of [-.06, .06]) roofBox(.003, .002, .26, cellX + bus, y0 + .058, cellZ, rimMat);
             }
-            for (const dx of [-.64, .64]) for (const dzp of [-.31, .31]) {
-              roofBox(.13, .017, .13, .55 + dx, yRoof + .1085, pz + dzp, metalMat);
-              roofBox(.035, .055, .07, .55 + dx, yRoof + .135, pz + dzp, metalMat);
-              roofBox(.025, .014, .025, .55 + dx, yRoof + .184, pz + dzp, caravanDark);
-            }
+            for (const dx of [-.5, .5]) for (const dzp of [-.22, .22]) { roofBox(.1, .015, .1, SPX + dx, y0 - .028, pz + dzp, metalMat); roofBox(.03, .04, .06, SPX + dx, y0 - .005, pz + dzp, metalMat); }
           }
-          const wirePaths = [[new THREE.Vector3(1.32, yRoof + .137, -.55), new THREE.Vector3(1.48, yRoof + .119, -.55), new THREE.Vector3(1.48, yRoof + .119, -.08)], [new THREE.Vector3(1.32, yRoof + .137, .55), new THREE.Vector3(1.48, yRoof + .119, .55), new THREE.Vector3(1.48, yRoof + .119, .08)]];
-          for (const points of wirePaths) {
-            const wire = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), 10, .009, 5, false), caravanDark);
-            wire.castShadow = true; roofDetails.add(wire);
+          const wire = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([new THREE.Vector3(SPX + SPL / 2, roofTop(1.8, 0) + .06, -.1), new THREE.Vector3(SPX + SPL / 2 + .12, roofTop(1.85, 0) + .02, 0), new THREE.Vector3(SPX + SPL / 2 + .12, roofTop(1.85, 0) + .02, .1)]), 8, .009, 5, false), caravanDark);
+          wire.castShadow = true; roofDetails.add(wire);
+          roofBox(.16, .05, .14, SPX + SPL / 2 + .14, roofTop(1.9, 0) + .03, 0.12, caravanRoofM);
+          for (const sz of [-1, 1]) {
+            const rz = sz * .84, y = roofTop(1, rz) + .07;
+            const rl = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 3.1, 6), metalMat); rl.rotation.z = Math.PI / 2; rl.position.set(1.32, y, rz); rl.castShadow = true; roofDetails.add(rl);
+            for (const rx of [-0.15, 1.3, 2.8]) roofBox(.08, .07, .07, rx, y - .035, rz, caravanDark);
           }
-          roofBox(.2, .06, .17, 1.48, yRoof + .13, 0, caravanRoofM);
-          roofBox(.22, .018, .19, 1.48, yRoof + .108, 0, metalMat);
-          for (const sz of [-1, 1]) for (const rx of [x0 + .17, .65, x1 - .2]) {
-            roofBox(.13, .032, .12, rx, yRoof + .116, sz * (Dc / 2 - .06), metalMat);
-            roofBox(.07, .035, .095, rx, yRoof + .147, sz * (Dc / 2 - .06), caravanDark);
-          }
-          for (const sz of [-1, 1]) { const rail = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, bLen + 0.1, 6), metalMat); rail.rotation.z = Math.PI / 2; rail.position.set(bcx, yRoof + 0.12, sz * (Dc / 2 - 0.06)); rail.castShadow = true; g.add(rail); }
-          const railX = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, Dc - 0.12, 6), metalMat); railX.rotation.x = Math.PI / 2; railX.position.set(x1 - 0.12, yRoof + 0.12, 0); g.add(railX);
-          const dome = new THREE.Mesh(new THREE.SphereGeometry(0.18, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), caravanRoofM); dome.castShadow = true; dome.position.set(x1 - 0.5, yRoof + 0.1, 0.95); g.add(dome);
-          const domeB = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.05, 12), caravanDark); domeB.position.set(x1 - 0.5, yRoof + 0.11, 0.95); g.add(domeB);
-          const whip = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.72, 5), metalMat); whip.position.set(x0 + 0.3, yRoof + 0.46, -1.05); whip.castShadow = true; g.add(whip);
-          const slX = x1 - 1.12, slZ = 0.95;
-          const slBase = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.13, 0.05, 12), caravanDark); slBase.position.set(slX, yRoof + 0.04, slZ); g.add(slBase);
-          const slPole = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.032, 0.34, 8), metalMat); slPole.position.set(slX, yRoof + 0.21, slZ); slPole.castShadow = true; g.add(slPole);
-          const slBack = bx(0.42, 0.04, 0.36, caravanDark, true, false); slBack.position.set(slX - 0.045, yRoof + 0.37, slZ); slBack.rotation.z = 0.44; g.add(slBack);
-          const slDish = bx(0.46, 0.035, 0.4, wallMat, true, true, lineDark); slDish.position.set(slX - 0.085, yRoof + 0.39, slZ); slDish.rotation.z = 0.44; g.add(slDish);
-
+          const whip = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.6, 5), metalMat); whip.position.set(-0.75, roofTop(-0.75, -0.6) + 0.3, -0.6); whip.castShadow = true; g.add(whip);
+          const slX = 2.3, slZ = 0.42, slY = roofTop(slX, slZ);
+          const slBase = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.13, 0.05, 12), caravanDark); slBase.position.set(slX, slY + 0.025, slZ); g.add(slBase);
+          const slPole = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.032, 0.3, 8), metalMat); slPole.position.set(slX, slY + 0.18, slZ); slPole.castShadow = true; g.add(slPole);
+          const slBack = bx(0.42, 0.04, 0.36, caravanDark, true, false); slBack.position.set(slX - 0.045, slY + 0.33, slZ); slBack.rotation.z = 0.44; g.add(slBack);
+          const slDish = bx(0.46, 0.035, 0.4, wallMat, true, true, lineDark); slDish.position.set(slX - 0.085, slY + 0.35, slZ); slDish.rotation.z = 0.44; g.add(slDish);
           const wifiShapes = [], dotY = -0.08;
           for (const radius of [0.08, 0.135, 0.19]) {
             const shape = new THREE.Shape(), halfStroke = 0.009;
@@ -7927,49 +7763,33 @@
           const wifi = new THREE.Mesh(wifiGeo, new THREE.MeshBasicMaterial({ color: 0x243240, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }));
           wifi.name = 'Wi-Fi trên mặt đĩa'; wifi.userData.noBake = true;
           wifi.position.copy(slDish.position); wifi.quaternion.copy(slDish.quaternion); g.add(wifi);
+          const ladX = TR.rear + 0.07, ladY0 = 0.74, ladY1 = roofTop(2.9, -0.5) + 0.04;
+          for (const lz of [-0.32, -0.74]) { const lr = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, ladY1 - ladY0, 6), metalMat); lr.castShadow = true; lr.position.set(ladX, (ladY0 + ladY1) / 2, lz); g.add(lr);
+            const hook = bx(0.2, 0.03, 0.03, metalMat, true, false); hook.position.set(ladX - 0.09, ladY1, lz); g.add(hook);
+            for (const y of [0.95, 2.2]) { const st = bx(0.07, 0.03, 0.03, metalMat, true, false); st.position.set(ladX - 0.035, y, lz); g.add(st); } }
+          for (let r = 0; r < 7; r++) { const rung = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.42, 6), metalMat); rung.rotation.x = Math.PI / 2; rung.position.set(ladX, 0.9 + r * 0.3, -0.53); g.add(rung); }
+          for (const sz of [-1, 1]) { const flap = bx(0.03, 0.3, 0.26, tyreMat, true, false); flap.position.set(TR.xR + 0.6, 0.3, sz * TR.wz); g.add(flap); }
+          const wIn = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.04, 10), rimMat); wIn.rotation.x = Math.PI / 2; wIn.position.set(2.55, 1.25, -1.075); g.add(wIn);
+          const shore = bx(0.18, 0.22, 0.04, caravanDark, false, true, lineDark); shore.position.set(2.25, 1.25, -1.08); g.add(shore);
+          const lpg = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.6, 12), rimMat); lpg.rotation.z = Math.PI / 2; lpg.position.set(0.85, 0.45, -0.62); lpg.castShadow = true; g.add(lpg);
+          for (const sx of [-0.2, 0.2]) { const strap = bx(0.04, 0.08, 0.38, caravanDark, false, false); strap.position.set(0.85 + sx, 0.45, -0.62); g.add(strap); }
 
-          const ladX = bthBackX + 0.1, ladH = yRoof - base + 0.25;
-          for (const sz of [-0.42, 0.42]) { const lr = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, ladH, 6), metalMat); lr.castShadow = true; lr.position.set(ladX, base + ladH / 2, sz); g.add(lr); }
-          for (let r = 0; r < 6; r++) { const rung = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.9, 6), metalMat); rung.rotation.x = Math.PI / 2; rung.position.set(ladX, base + 0.4 + r * 0.5, 0); g.add(rung); }
-          for (const sz of [-1, 1]) {
-            const tl = bx(0.06, 0.3, 0.16, redLamp, true, true, lineDark); tl.position.set(bthBackX + 0.04, base + 0.56, sz * (bthW / 2 - 0.22)); g.add(tl);
-            const ta = bx(0.06, 0.15, 0.16, amber, true, true, lineDark); ta.position.set(bthBackX + 0.04, base + 0.34, sz * (bthW / 2 - 0.22)); g.add(ta);
-          }
-          const rbump = bx(0.14, 0.22, bthW - 0.1, caravanDark, true, true, lineDark); rbump.position.set(bthBackX + 0.06, base - 0.03, 0); g.add(rbump);
-          const rplate = bx(0.04, 0.2, 0.44, litMat, false, true, lineDark); rplate.position.set(bthBackX + 0.09, base + 0.3, 0); g.add(rplate);
-          const brake = bx(0.05, 0.08, 0.8, redLamp, false, true, lineDark); brake.position.set(bthBackX + 0.02, base + bthH - 0.18, 0); g.add(brake);
-
-          for (const sz of [-1, 1]) {
-            const mR = bx(0.05, 0.07, 0.13, redLamp, false, false); mR.position.set(x1 - 0.06, base + Hc - 0.25, sz * (dz + 0.01)); g.add(mR);
-          }
-          const hatch = bx(0.9, 0.58, 0.04, caravanDark, true, true, lineDark); hatch.position.set(1.4, base + 0.5, -dz - 0.02); g.add(hatch);
-          const hLatch = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.06, 8), chrome); hLatch.rotation.x = Math.PI / 2; hLatch.position.set(1.72, base + 0.5, -dz - 0.05); g.add(hLatch);
-
-          const grab = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.92, 6), metalMat); grab.position.set(dX1 + 0.08, base + doorH * 0.5, dz + 0.17); grab.castShadow = true; g.add(grab);
-          for (const gy of [base + 0.55, base + doorH - 0.12]) { const mt = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.16, 6), metalMat); mt.rotation.x = Math.PI / 2; mt.position.set(dX1 + 0.08, gy, dz + 0.1); g.add(mt); }
+          const awFront = -1.15, awRear = 2.9, awLen = awRear - awFront, awC = (awFront + awRear) / 2, awY = 2.62;
+          const cass = bx(awLen + 0.06, 0.11, 0.13, caravanRoofM, true, true, lineDark); cass.name = 'Hộp cuốn bạt'; cass.position.set(awC, 2.78, 0.99); g.add(cass);
+          const aw = bx(awLen, 0.04, 2.4, awningMat, true, true, lineDark); aw.position.set(awC, awY, wallZ + 1.2 - 0.06); aw.rotation.x = -0.16; g.add(aw);
+          const awEdgeZ = wallZ + 2.34, awEdgeY = awY - Math.sin(0.16) * 1.2;
+          for (const px of [awFront + 0.08, awRear - 0.08]) { const pTop = awEdgeY + 0.12, pBot = -1.4, pH = pTop - pBot; const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, pH, 6), chairFrame); pole.castShadow = true; pole.position.set(px, (pTop + pBot) / 2, awEdgeZ); g.add(pole); const cp = new THREE.Mesh(new THREE.SphereGeometry(0.032, 8, 6), chairFrame); cp.position.set(px, pTop, awEdgeZ); cp.castShadow = true; g.add(cp); }
+          const stripeM = caravanStripe, chrome = rimMat;
           const awX = 1.1;
-          for (let k = 0; k < 4; k++) { const band = bx(0.34, 0.045, 2.42, stripeM, false, false); band.position.set(awC + (k - 1.5) * 1.15, yRoof - 0.015, dz + 1.2); band.rotation.x = -0.16; g.add(band); }
-          const roll = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, awLen + 0.1, 8), chrome); roll.rotation.z = Math.PI / 2; roll.position.set(awC, yRoof + 0.12, dz + 2.36); roll.castShadow = true; g.add(roll);
-          const valance = bx(awLen + 0.1, 0.22, 0.03, stripeM, false, true, lineDark); valance.position.set(awC, yRoof, dz + 2.37); valance.rotation.x = -0.16; g.add(valance);
-
-          const awCord = cyl(0.015, 0.015, 0.2, new THREE.MeshLambertMaterial({ color: 0x243240 }), false, false, null, 6); awCord.name = 'awLan'; awCord.position.set(awX, yRoof + 0.02, dz + 2.36); g.add(awCord);
+          for (let k = 0; k < 4; k++) { const band = bx(0.32, 0.045, 2.42, stripeM, false, false); band.position.set(awC + (k - 1.5) * 1.0, awY + 0.005, wallZ + 1.14); band.rotation.x = -0.16; g.add(band); }
+          const roll = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, awLen + 0.06, 8), chrome); roll.rotation.z = Math.PI / 2; roll.position.set(awC, awEdgeY + 0.02, awEdgeZ); roll.castShadow = true; g.add(roll);
+          const valance = bx(awLen + 0.06, 0.16, 0.025, stripeM, false, true, lineDark); valance.position.set(awC, awEdgeY - 0.07, awEdgeZ + 0.01); g.add(valance);
+          const awCord = cyl(0.012, 0.012, 0.18, new THREE.MeshLambertMaterial({ color: 0x243240 }), false, false, null, 6); awCord.name = 'awLan'; awCord.position.set(awX, awEdgeY - 0.07, awEdgeZ - 0.05); g.add(awCord);
           const body = lanBody(g, 'awLan');
-          awLan = body.lan; awLan.position.set(awX, yRoof - 0.08, dz + 2.36);
+          awLan = body.lan; awLan.position.set(awX, awEdgeY - 0.17, awEdgeZ - 0.05);
           awLight = body.light;
 
-          const lpg = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.82, 12), rimMat); lpg.rotation.z = Math.PI / 2; lpg.position.set(-0.3, base - 0.26, 0.72); lpg.castShadow = true; g.add(lpg);
-          for (const sx of [-0.28, 0.28]) { const strap = bx(0.05, 0.12, 0.56, caravanDark, false, false); strap.position.set(-0.3 + sx, base - 0.26, 0.72); g.add(strap); }
-          const exhaust = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.2, 8), metalMat); exhaust.rotation.z = Math.PI / 2; exhaust.position.set(0.7, base - 0.34, -dz + 0.45); g.add(exhaust);
-          const etip = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.16, 8), chrome); etip.rotation.z = Math.PI / 2; etip.position.set(1.85, base - 0.34, -dz + 0.45); g.add(etip);
-          for (const jx of [x0 + 0.4, x1 - 0.2]) for (const sz of [-1, 1]) { const jack = bx(0.08, 0.42, 0.08, metalMat, true, false); jack.position.set(jx, base - 0.42, sz * (dz - 0.25)); g.add(jack); }
-
-          const wIn = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.05, 10), chrome); wIn.rotation.x = Math.PI / 2; wIn.position.set(2.55, base + 0.74, -dz - 0.02); g.add(wIn);
-          const shore = bx(0.24, 0.3, 0.05, caravanDark, false, true, lineDark); shore.position.set(2.18, base + 0.7, -dz - 0.03); g.add(shore);
-          for (const sz of [-1, 1]) { const refl = bx(0.03, 0.09, 0.18, redLamp, false, false); refl.position.set(x1 - 0.35, base + 0.14, sz * (dz + 0.01)); g.add(refl); }
-          const dhdl = bx(0.05, 0.32, 0.06, caravanDark, false, false); dhdl.position.set(dX1 + 0.12, base + doorH * 0.5, dz + 0.18); g.add(dhdl);
-
-          const rcam = bx(0.09, 0.09, 0.15, caravanDark, false, true, lineDark); rcam.position.set(bthBackX + 0.05, base + bthH - 0.34, 0); g.add(rcam);
-          for (const detail of [roofDetails, entrySteps]) {
+          for (const detail of [roofDetails, entrySteps, under]) {
             const original = new Set(); detail.traverse(o => { if (o.geometry) original.add(o.geometry); });
             bakeStatic(detail);
             const kept = new Set(); detail.traverse(o => { if (o.geometry) kept.add(o.geometry); });
@@ -7977,22 +7797,22 @@
           }
           g.userData.interior = {
             bed: { center: [bedCx, bedZ], size: [bedLen, bedW] },
-            table: { center: [-0.65, 0.8], size: [0.62, 0.62] },
+            table: { center: [TX, TZ], size: [TW, TD] },
             study: study.userData.layout,
-            sleepPosition: [bedCx - 1.35 + 2.06 * (1.026 - ENGINEER_BASE_SCALE), yIn + 0.49 + 0.05, bedZ], sleepHead: [bedCx + 1.1, 4, bedZ],
-            stool: { obj: stool, rest: -0.04 }, bath: bathRig, bedHelmet, kitchen, cerealBowl, tableUdon, studyCoke: coke,
+            sleepPosition: [bedX1 - 0.1 - 2.33 * ENGINEER_BASE_SCALE, yIn + 0.49 + 0.05, bedZ], sleepHead: [bedX1 - 0.25, 3.2, bedZ],
+            stool: { obj: stool, rest: STOOL_REST, in: STOOL_IN, x: TX }, bath: bathRig, bedHelmet, kitchen, cerealBowl, tableUdon, studyCoke: coke,
             bedTop: yIn + mattTop, duvet, duvetMat: cushMat, bedGroup: bed
           };
           g.userData.xray = 'shell';
-          for (const item of [floor, bed, study, tTop, tLeg, breakfast, cup, axles, awCord, awLan, stool, bedHelmet]) item.userData.xray = 'keep';
+          for (const item of [floor, bed, study, tTop, tLeg, tFoot, breakfast, cup, axles, awCord, awLan, stool, bedHelmet, sillPlate, grab]) item.userData.xray = 'keep';
           return bakeStatic(g);
         }
         let awLight, awLan;
         const caravanObj = caravan(); caravanObj.scale.multiplyScalar(CAMP_SCALE); caravanObj.name = 'Xe Caravan (Motorhome)'; {
           const p = worldCell(CARAVAN_CELL[0], CARAVAN_CELL[1]); caravanObj.position.copy(p); caravanObj.rotation.y = Math.atan2(bobberBase.x - p.x, bobberBase.z - p.z); scene.add(caravanObj);
           const vc = Math.cos(caravanObj.rotation.y), vs = -Math.sin(caravanObj.rotation.y);
-          for (const [lx, rr] of [[-2.4, 2.5], [0.6, 2.6], [3.525, 2.15]])
-            obstacleCoords.push({ x: p.x + lx * vc * CAMP_SCALE, y: p.y, z: p.z + lx * vs * CAMP_SCALE, r: rr * CAMP_SCALE, h: 3.5 * CAMP_SCALE });
+          for (const [lx, rr] of [[-2.2, 1.9], [0.4, 2.0], [2.3, 1.85]])
+            obstacleCoords.push({ x: p.x + lx * vc * CAMP_SCALE, y: p.y, z: p.z + lx * vs * CAMP_SCALE, r: rr * CAMP_SCALE, h: 3.0 * CAMP_SCALE });
         }
 
         updateStudyLamp();
@@ -8010,7 +7830,7 @@
         const sleepCtx = sleepCanvas.getContext('2d');
         const sleepTex = new THREE.CanvasTexture(sleepCanvas);
         const sleepSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: sleepTex, transparent: true, opacity: 0.92, depthWrite: false, depthTest: false }));
-        sleepSprite.scale.set(7.5, 1.87, 1.0); sleepSprite.position.set(caravanObj.userData.interior.bed.center[0] - 0.15, 4.4, caravanObj.userData.interior.bed.center[1]); sleepSprite.visible = false;
+        sleepSprite.scale.set(7.5, 1.87, 1.0); sleepSprite.position.set(caravanObj.userData.interior.bed.center[0] - 0.15, 3.65, caravanObj.userData.interior.bed.center[1]); sleepSprite.visible = false;
         caravanObj.add(sleepSprite);
         let lastSleepStr = '';
 
@@ -8933,7 +8753,7 @@
         const racField = buildFlowField(racApproach.x, racApproach.z);
         caravanObj.updateMatrixWorld(true);
         const vanPt = (x, y, z) => caravanObj.localToWorld(new THREE.Vector3(x, y, z)), vanOut = new THREE.Vector3(Math.sin(caravanObj.rotation.y), 0, Math.cos(caravanObj.rotation.y));
-        const bunnyShelter = vanPt(2.25, 0, 1.95), bunnyField = buildFlowField(bunnyShelter.x, bunnyShelter.z), bunnyShelterAng = Math.atan2(vanOut.z, vanOut.x);
+        const bunnyShelter = vanPt(2.25, 0, 1.52), bunnyField = buildFlowField(bunnyShelter.x, bunnyShelter.z), bunnyShelterAng = Math.atan2(vanOut.z, vanOut.x);
         function bunnyEars(b, dt, t) {
           if (!b.ears) return;
           const p = b.g.position, h = Math.max(1e-3, Math.min(dt, 0.05));
@@ -8978,7 +8798,7 @@
           bunnyEars(b, dt, t);
           return true;
         }
-        const dogDoorFar = vanPt(0.33, 0, 3.2), dogDoorStep = vanPt(0.33, 0, 1.9), dogInside = vanPt(0.33, 1.07, 1.0), dogBed = vanPt(-0.5, 1.07, 1.12);
+        const dogDoorFar = vanPt(0.345, 0, 2.8), dogDoorStep = vanPt(0.345, 0, 1.85), dogInside = vanPt(0.345, TR.yIn, 0.66), dogBed = vanPt(-1.18, TR.yIn, 0.0);
         const dogLie = campObj.g.position.clone().add(new THREE.Vector3(Math.cos(-0.5) * 1.55, 0, Math.sin(-0.5) * 1.55));
         const dogDoorField = buildFlowField(dogDoorFar.x, dogDoorFar.z), dogFireField = buildFlowField(dogLie.x, dogLie.z);
         const dogRain = { st: null, t: 0, yaw: 0 };
@@ -9074,7 +8894,7 @@
           const bowlP = new THREE.Vector3(), drinkP = new THREE.Vector3(), toBowl = new THREE.Vector3();
           { const vo = dogDoorFar.clone().sub(dogDoorStep).setY(0).normalize();
             const free = () => !ENG_PROPS.some(o => Math.hypot(drinkP.x - o.x, drinkP.z - o.z) < o.r + 0.4 || Math.hypot(bowlP.x - o.x, bowlP.z - o.z) < o.r + 0.2) && !obstacleCoords.some(o => Math.hypot(drinkP.x - o.x, drinkP.z - o.z) < o.r + 0.25);
-            for (const lx of [1.05, -0.75, -0.95, 1.05]) { bowlP.copy(vanPt(lx, 0, 2.15)); drinkP.copy(bowlP).addScaledVector(vo, 0.42); if (free()) break; }
+            for (const lx of [1.05, -0.75, -0.95, 1.05]) { bowlP.copy(vanPt(lx, 0, 1.72)); drinkP.copy(bowlP).addScaledVector(vo, 0.42); if (free()) break; }
             bowlP.y = drinkP.y = cowY(bowlP.x, bowlP.z); toBowl.copy(bowlP).sub(drinkP).setY(0).normalize(); }
           bowl.position.copy(bowlP); scene.add(bowl);
           let drinkF = null;
@@ -9459,15 +9279,15 @@
         const dogPettable = () => dogBrain.pettable();
         const engStudyPts = (() => {
           const ch = caravanObj.userData.interior.study.chair.center, cx = ch[0], cz = ch[1];
-          return { cx, cz, aisle: vanPt(1.45, 1.07, 0.25), yaw: caravanObj.rotation.y + Math.PI };
+          return { cx, cz, aisle: vanPt(1.30, TR.yIn, 0.12), yaw: caravanObj.rotation.y + Math.PI };
         })();
-        const STUDY_PULL = 0.45, STUDY_FZ = 0.37;
+        const STUDY_PULL = 0.1, STUDY_FZ = 0.37;
         const STUDY_SEAT = makeSeat({ name: 'study', indoor: true, pos: new THREE.Vector3(), yaw: engStudyPts.yaw, seatZ: 0, standZ: STUDY_FZ * CAMP_SCALE, contactZ: 0.09,
           seatDrop: 0.56, legs: [-1.48, -1.44], knees: [0.98, 0.94], arm: null, ground: () => dogInside.y });
         function studyChairAt(off, sx = studyChairRig.sx, sw = studyChairRig.sw) {
           const R = studyChairRig; R.off = off; R.sx = sx; R.sw = sw;
           if (R.obj) { R.obj.position.z = R.home + off; R.obj.position.x = sx; R.swivel.rotation.y = sw; }
-          STUDY_SEAT.pos.copy(vanPt(engStudyPts.cx + sx, 1.07, engStudyPts.cz + off));
+          STUDY_SEAT.pos.copy(vanPt(engStudyPts.cx + sx, TR.yIn, engStudyPts.cz + off));
           const y = engStudyPts.yaw + sw, C = STUDY_SEAT; C.yaw = y; C.fx = Math.sin(y); C.fz = Math.cos(y); C.xx = Math.cos(y); C.xz = -Math.sin(y);
         }
         studyChairAt(0);
@@ -9519,8 +9339,8 @@
         const VAN_FLOOR = dogInside.y, vanFloor = () => VAN_FLOOR, VYAW = caravanObj.rotation.y;
         const VY = { pz: VYAW, nz: VYAW + Math.PI, px: VYAW + Math.PI / 2, nx: VYAW - Math.PI / 2 };
         const VN = {};
-        for (const [k, x, z] of [['door', 0.33, 1.0], ['hall', 0.33, 0.12], ['tbl', 0.05, 0.33], ['bed', 0.62, -0.15], ['mid', 1.45, 0.25], ['rear', 2.5, 0.08],
-          ['stove', 1.33, 0.5], ['board', 2.04, 0.5], ['ksink', 2.5, 0.5], ['bathOut', 2.6, -0.145], ['bathIn', 3.3, 0.0], ['sink', 3.475, 0.74], ['shelf', 3.45, 0.45], ['towel', 3.75, 0.08], ['wcOut', 3.255, -0.2], ['wcIn', 3.255, -0.64]]) { VN[k] = vanPt(x, 1.07, z); VN[k].node = k; }
+        for (const [k, x, z] of [['door', 0.345, 0.70], ['hall', 0.345, 0.12], ['tbl', 0.12, 0.36], ['bed', 0.62, 0.10], ['mid', 1.30, 0.12], ['rear', 1.95, -0.02],
+          ['stove', 1.01, 0.08], ['board', 1.72, 0.08], ['ksink', 2.20, 0.08], ['bathOut', 2.10, 0.0], ['bathIn', 2.56, 0.0], ['sink', 2.76, 0.33], ['shelf', 2.88, 0.45], ['towel', 2.82, 0.14], ['wcOut', 2.50, -0.11], ['wcIn', 2.52, -0.37]]) { VN[k] = vanPt(x, TR.yIn, z); VN[k].node = k; }
         const VAN_EDGES = [['door', 'hall'], ['hall', 'tbl'], ['hall', 'bed'], ['hall', 'mid'], ['bed', 'mid'], ['mid', 'rear'], ['rear', 'bathOut'], ['bathOut', 'bathIn', 'entry'],
           ['bathIn', 'sink'], ['bathIn', 'shelf'], ['shelf', 'sink'], ['bathIn', 'towel'], ['bathIn', 'wcOut'], ['towel', 'wcOut'], ['wcOut', 'wcIn', 'wc'],
           ['mid', 'stove'], ['mid', 'board'], ['stove', 'board'], ['board', 'ksink'], ['ksink', 'rear']];
@@ -9539,8 +9359,8 @@
         }
         const VBATH = caravanObj.userData.interior.bath, VSTOOL = caravanObj.userData.interior.stool;
         const VAN_DOORS = {
-          entry: { g: VBATH.entryDoor, axis: 'z', slide: 0.5, c: vanPt(2.935, 1.07, -0.145), k: 0, target: 0, shown: -1 },
-          wc: { g: VBATH.wcDoor, axis: 'x', slide: 0.45, c: vanPt(3.255, 1.07, -0.42), k: 0, target: 0, shown: -1 }
+          entry: { g: VBATH.entryDoor, axis: 'z', slide: -0.56, c: vanPt(2.27, TR.yIn, 0.0), k: 0, target: 0, shown: -1 },
+          wc: { g: VBATH.wcDoor, axis: 'x', slide: 0.30, c: vanPt(2.48, TR.yIn, -0.25), k: 0, target: 0, shown: -1 }
         };
         const LID = { k: 0, target: 0, shown: -1 };
         function vanDoorsTick(dt) {
@@ -9615,13 +9435,13 @@
           const st = Math.min(d, e.vel * dt); g.position.x += dx / d * st; g.position.z += dz / d * st;
           g.position.y = VAN_FLOOR - ENG_FEET + engSideGait(e, st, 1) * CAMP_SCALE; e.walking = true; return false;
         }
-        const indoorSeat = (name, x, z, yaw, o = {}) => makeSeat(Object.assign({ name, indoor: true, pos: vanPt(x, 1.07, z), yaw, seatZ: 0, standZ: STUDY_FZ * CAMP_SCALE, contactZ: 0.09,
+        const indoorSeat = (name, x, z, yaw, o = {}) => makeSeat(Object.assign({ name, indoor: true, pos: vanPt(x, TR.yIn, z), yaw, seatZ: 0, standZ: STUDY_FZ * CAMP_SCALE, contactZ: 0.09,
           seatDrop: 0.56, legs: [-1.48, -1.44], knees: [0.98, 0.94], arm: null, ground: vanFloor }, o));
-        const STOOL_IN = 0.2, STOOL_SEAT = indoorSeat('stool', -0.65, VSTOOL.rest, VY.pz), TABLE_STAND = vanPt(-0.65, 1.07, VSTOOL.rest + STUDY_FZ);
-        function stoolAt(z) { VSTOOL.obj.position.z = z - VSTOOL.rest; STOOL_SEAT.pos.copy(vanPt(-0.65, 1.07, z)); }
-        const BED_SEAT = indoorSeat('bed', 0.62, -0.52, VY.pz);
-        const TOILET_SEAT = indoorSeat('toilet', 3.58, -1.07, VY.pz, { standZ: 0.4 * CAMP_SCALE });
-        const TOILET_STAND = seatW(TOILET_SEAT, 0, TOILET_SEAT.standZ), SHOWER_SPOT = vanPt(3.36, 1.07, -0.6);
+        const STOOL_IN = VSTOOL.in, STOOL_SEAT = indoorSeat('stool', VSTOOL.x, VSTOOL.rest, VY.pz), TABLE_STAND = vanPt(VSTOOL.x, TR.yIn, VSTOOL.rest + STUDY_FZ);
+        function stoolAt(z) { VSTOOL.obj.position.z = z - VSTOOL.rest; STOOL_SEAT.pos.copy(vanPt(VSTOOL.x, TR.yIn, z)); }
+        const BED_SEAT = indoorSeat('bed', 0.62, -0.27, VY.pz);
+        const TOILET_SEAT = indoorSeat('toilet', 2.62, -0.71, VY.pz, { standZ: 0.4 * CAMP_SCALE });
+        const TOILET_STAND = seatW(TOILET_SEAT, 0, TOILET_SEAT.standZ), SHOWER_SPOT = vanPt(2.58, TR.yIn, -0.37);
         function engHelmet(e, where) {
           e.helmet.visible = where === 'head'; e.hair.visible = where !== 'head';
           VBATH.shelfHelmet.visible = where === 'shelf'; caravanObj.userData.interior.bedHelmet.visible = where === 'bed';
@@ -9771,7 +9591,7 @@
           }
           e.head.rotation.x = hp;
           const C = studyChairRig, out = L.st === 'note' && !L.leave ? lapPulse(L.t, 2.6, 9.2, 1.6) : 0, fid = L.st === 'think' ? 0.07 * Math.sin(t * 0.55) : L.st === 'read' ? 0.03 * Math.sin(t * 0.3) : 0, kc = 1 - Math.exp(-dt * 4);
-          studyChairAt(C.off, C.sx + (0.17 * out - C.sx) * kc, C.sw + (-0.95 * out + fid - C.sw) * kc);
+          studyChairAt(C.off, C.sx + (-0.02 * out - C.sx) * kc, C.sw + (-1.0 * out + fid - C.sw) * kc);
           C.back.rotation.x += (0.12 + Math.max(0, -(e.seatLean || 0)) * 1.6 - C.back.rotation.x) * Math.min(1, dt * 3);
         }
         function lapHeldTick(e) {
@@ -9780,7 +9600,7 @@
           e.wrists[0].updateWorldMatrix(true, false); const p = e.wrists[0].localToWorld(_lwV.set(0, -0.06, 0.05)); Bd.held.parent.worldToLocal(p); Bd.held.position.copy(p);
         }
         const stDesk = { node: 'mid', tick(e, V, dt, t, keep) {
-          const g = e.g, P = engStudyPts, C = STUDY_SEAT, off = studyChairRig.off;
+          const g = e.g, P = engStudyPts, C = STUDY_SEAT, R = studyChairRig, SW = Math.PI / 2, OUT = STUDY_PULL;
           const face = (dx, dz, k = 8) => { let d = Math.atan2(dx, dz) - g.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); g.rotation.y += d * Math.min(1, dt * k); };
           const walkIn = (Q, spd = 0.85) => {
             const dx = Q.x - g.position.x, dz = Q.z - g.position.z, dd = Math.hypot(dx, dz);
@@ -9789,37 +9609,34 @@
             const st = Math.min(dd, e.vel * dt); g.position.x += dx / dd * st; g.position.z += dz / dd * st; face(dx, dz);
             g.position.y = VAN_FLOOR - ENG_FEET + engGait(e, st) * CAMP_SCALE; e.walking = true; return false;
           };
-          const vp = (x, z) => vanPt(x, 1.07, z);
-          const backPt = o => vp(P.cx, P.cz + o + 0.52), leftBack = o => vp(P.cx - 0.57, P.cz + o + 0.52), leftFront = o => vp(P.cx - 0.57, P.cz + o - STUDY_FZ), standPt = o => vp(P.cx, P.cz + o - STUDY_FZ);
-          const drag = (from, to, fwd) => {
-            V.k = Math.min(1, V.k + dt / 1.6);
-            const o2 = from + (to - from) * minJerk(segK(V.k, 0.18, 0.92)), grip = minJerk(segK(V.k, 0, 0.2)) * (1 - minJerk(segK(V.k, 0.9, 1)));
-            const tg = backPt(o2), st = Math.hypot(tg.x - g.position.x, tg.z - g.position.z);
-            g.position.x = tg.x; g.position.z = tg.z; e.vel = Math.min(0.5, st / Math.max(dt, 1e-3));
-            g.position.y = VAN_FLOOR - ENG_FEET + engGait(e, fwd ? st : -st) * CAMP_SCALE; e.walking = st > 1e-4;
-            face(Math.sin(P.yaw), Math.cos(P.yaw));
-            e.arms[0].rotation.x = e.arms[1].rotation.x = -0.62 * grip; e.lean = 0.1 * grip; e.head.rotation.x = 0.3 * grip;
-            studyChairAt(o2); return V.k >= 1;
+          const vp = (x, z) => vanPt(x, TR.yIn, z);
+          const sidePt = () => vp(P.cx - 0.5, P.cz + 0.1), standPt = () => vp(P.cx - STUDY_FZ, P.cz + R.off);
+          const turnChair = (o0, o1, s0, s1, dur, grip) => {
+            V.k = Math.min(1, V.k + dt / dur); const m = minJerk(V.k);
+            studyChairAt(o0 + (o1 - o0) * m, 0, s0 + (s1 - s0) * m);
+            if (grip) { const r = Math.sin(Math.PI * Math.min(1, V.k * 1.1)); e.arms[0].rotation.x = e.arms[1].rotation.x = -0.8 * r; e.lean = 0.2 * r; e.head.rotation.x = 0.32 * r; }
+            return V.k >= 1;
           };
-          if (!V.st) V.st = off > 0.4 ? 'aroundL' : 'toBack';
+          if (!V.st) V.st = 'toSide';
           if (!keep) {
-            if (V.st === 'toBack') return 'released';
-            if (V.st === 'aroundL' || V.st === 'aroundF') V.st = 'outB';
-            else if (V.st === 'toStand' || V.st === 'turn') V.st = 'outF';
+            if (V.st === 'toSide') return 'released';
+            if (V.st === 'faceChair' || V.st === 'swing' || V.st === 'toStand' || V.st === 'turn') V.st = 'outS';
             else if (V.st === 'work' && lapDone(e, V)) { V.st = 'unscoot'; V.k = 0; }
           }
-          if (V.st === 'toBack') { if (walkIn(backPt(off), 0.6)) { V.st = 'pull'; V.k = 0; V.dragFrom = off; } }
-          else if (V.st === 'pull') { if (drag(V.dragFrom, STUDY_PULL, false)) V.st = keep ? 'aroundL' : 'push0'; }
-          else if (V.st === 'push0') { V.st = 'push'; V.k = 0; V.dragFrom = off; }
-          else if (V.st === 'aroundL') { if (walkIn(leftBack(off), 0.6)) V.st = 'aroundF'; }
-          else if (V.st === 'aroundF') { if (walkIn(leftFront(off), 0.6)) V.st = 'toStand'; }
-          else if (V.st === 'toStand') { if (walkIn(standPt(off), 0.45)) V.st = 'turn'; }
-          else if (V.st === 'turn') { if (engSeatTurn(e, P.yaw, dt, vanFloor)) { e.seat = engNewSeat(C, 'sit'); engSeatStartSit(e, C, e.seat); V.st = 'sit'; } }
-          else if (V.st === 'sit') { e.seatCtl = true; if (engSitStep(e, C, e.seat, dt, t)) { e.seat.st = 'seated'; V.st = 'scoot'; V.k = 0; } }
+          if (V.st === 'toSide') { if (walkIn(sidePt(), 0.6)) V.st = 'faceChair'; }
+          else if (V.st === 'faceChair') { if (engSeatTurn(e, VY.px, dt, vanFloor)) { V.st = 'swing'; V.k = 0; } }
+          else if (V.st === 'swing') { if (turnChair(0, OUT, 0, SW, 1.5, true)) V.st = 'toStand'; }
+          else if (V.st === 'toStand') { if (walkIn(standPt(), 0.4)) V.st = 'turn'; }
+          else if (V.st === 'turn') { if (engSeatTurn(e, C.yaw, dt, vanFloor)) { e.seat = engNewSeat(C, 'sit'); engSeatStartSit(e, C, e.seat); V.st = 'sit'; } }
+          else if (V.st === 'sit') { e.seatCtl = true; if (engSitStep(e, C, e.seat, dt, t)) { e.seat.st = 'seated'; V.st = 'swivelIn'; V.k = 0; } }
+          else if (V.st === 'swivelIn' || V.st === 'swivelOut') {
+            const into = V.st === 'swivelIn'; e.seatCtl = true; engSeatHold(e, C, e.seat, dt, t);
+            if (turnChair(OUT, OUT, into ? SW : 0, into ? 0 : SW, 1.8, false)) { if (into) { V.st = 'scoot'; V.k = 0; } else { engSeatStartRise(e, C, e.seat); V.st = 'rise'; } }
+          }
           else if (V.st === 'scoot' || V.st === 'unscoot') {
-            V.k = Math.min(1, V.k + dt / 2.2); const m = minJerk(V.k), into = V.st === 'scoot';
-            studyChairAt(into ? STUDY_PULL * (1 - m) : 0.5 * m); engScootPose(e, C, e.seat, V.k, dt, t);
-            if (V.k >= 1) { if (into) V.st = 'work'; else { engSeatStartRise(e, C, e.seat); V.st = 'rise'; } }
+            V.k = Math.min(1, V.k + dt / 2.0); const m = minJerk(V.k), into = V.st === 'scoot';
+            studyChairAt(into ? OUT * (1 - m) : OUT * m, 0, 0); engScootPose(e, C, e.seat, V.k, dt, t);
+            if (V.k >= 1) { if (into) V.st = 'work'; else { V.st = 'swivelOut'; V.k = 0; } }
           }
           else if (V.st === 'work') {
             e.seatCtl = true; engSeatHold(e, C, e.seat, dt, t);
@@ -9834,11 +9651,10 @@
               else { const tap = (t % 6) < 3.8 ? 0.05 : 0; e.arms[0].rotation.x = -1.1 + Math.sin(t * 11) * tap; e.arms[1].rotation.x = -1.1 + Math.sin(t * 11 + 1.7) * tap; }
             }
           }
-          else if (V.st === 'rise') { e.seatCtl = true; if (engRiseStep(e, C, e.seat, dt, t)) { e.seat = null; V.st = 'outF'; } }
-          else if (V.st === 'outF') { if (walkIn(leftFront(off), 0.55)) V.st = 'outB'; }
-          else if (V.st === 'outB') { if (walkIn(leftBack(off), 0.6)) V.st = 'toBack2'; }
-          else if (V.st === 'toBack2') { if (walkIn(backPt(off), 0.5)) { V.st = 'push'; V.k = 0; V.dragFrom = off; } }
-          else if (V.st === 'push') { if (drag(V.dragFrom, 0, true)) V.st = 'toAisle'; }
+          else if (V.st === 'rise') { e.seatCtl = true; if (engRiseStep(e, C, e.seat, dt, t)) { e.seat = null; V.st = 'outS'; } }
+          else if (V.st === 'outS') { if (walkIn(sidePt(), 0.5)) V.st = 'faceBack'; }
+          else if (V.st === 'faceBack') { if (engSeatTurn(e, VY.px, dt, vanFloor)) { V.st = 'swingBack'; V.k = 0; V.from = [R.off, R.sw]; } }
+          else if (V.st === 'swingBack') { if (turnChair(V.from[0], 0, V.from[1], 0, 1.4, true)) V.st = 'toAisle'; }
           else if (V.st === 'toAisle') { if (walkIn(P.aisle)) return 'released'; }
           return 'busy';
         } };
@@ -10336,7 +10152,7 @@
           if (A.van) {
             const V = e.van = engVanNew('hall'); e.inVan = true; V.act = act; V.plan = A.plan || []; V.idx = 0;
             const at = (node, station, st) => { V.node = node; V.station = station; V.st = st; };
-            if (act === 'research' || act === 'music') { studyChairAt(0); e.seat = engNewSeat(STUDY_SEAT, 'seated'); at('mid', 'desk', 'work'); studyLaptop.open = 1; }
+            if (act === 'research' || act === 'music') { studyChairAt(0, 0, 0); e.seat = engNewSeat(STUDY_SEAT, 'seated'); at('mid', 'desk', 'work'); studyLaptop.open = 1; }
             else if (act === 'breakfast' || act === 'lunch') {
               stoolAt(STOOL_IN); e.seat = engNewSeat(STOOL_SEAT, 'seated'); at('tbl', 'table', 'eat');
               e.dish = { kind: act === 'lunch' ? 'udon' : 'cereal', at: 'table', food: 1 }; V.t0 = clock.elapsedTime; V.f0 = 1; V.dur = Math.max(90, Math.min(act === 'lunch' ? 900 : 720, e.actLeft - 150));
@@ -10391,7 +10207,7 @@
               p.t += h; if (p.t > 6) { p.t -= 6; p.x = 3.08 + Math.random() * 0.75; p.z = -1.35 + Math.random() * 0.8; }
               const k = p.t / 6; p.s.visible = fx.steam > 0.02 && p.x > 0;
               if (!p.s.visible) continue;
-              const w = vanPt(p.x, 1.6 + k * 1.7, p.z); p.s.position.copy(w); p.s.scale.setScalar(0.35 + k * 0.7); p.s.material.opacity = 0.28 * Math.sin(Math.PI * k) * fx.steam;
+              const w = vanPt(p.x, TR.yIn + 0.55 + k * 1.45, p.z); p.s.position.copy(w); p.s.scale.setScalar(0.35 + k * 0.7); p.s.material.opacity = 0.28 * Math.sin(Math.PI * k) * fx.steam;
             }
           } };
           return fx;
@@ -12742,7 +12558,7 @@
           for (let j = 0; j < GZ; j++) for (let i = 0; i < GX; i++) if (isWater(i, j)) { wd[i + j * GX] = 0; q[qt++] = i + j * GX; }
           while (qh < qt) { const c = q[qh++], d = wd[c] + 1; if (d > 40) continue; const ci = c % GX, cj = (c / GX) | 0;
             for (const n of [ci > 0 ? c - 1 : -1, ci < GX - 1 ? c + 1 : -1, cj > 0 ? c - GX : -1, cj < GZ - 1 ? c + GX : -1]) if (n >= 0 && wd[n] > d) { wd[n] = d; q[qt++] = n; } }
-          const door = vanPt(0.33, 0, 2.6), camps = [[pf.x, pf.z, 3.2], [door.x, door.z, 1.8]];
+          const door = vanPt(0.345, 0, 2.16), camps = [[pf.x, pf.z, 3.2], [door.x, door.z, 1.8]];
           const LAWNS = [{ x: X0 + 103.3, z: Z0 + 109.4, rx: 8.5, rz: 10.5 }], lrnd = mulberry32(7171);
           const lawnAt = (i, j, x, z) => { let L = 0; for (const W of LAWNS) { const u = (x - W.x) / W.rx, v = (z - W.z) / W.rz; L = Math.max(L, 1 - u * u - v * v + 0.35 * (vnoise(i * 0.2 + 3, j * 0.2 + 11) - 0.5)); } return L > 0 && !deadLogOut(x, z, -0.15) ? L : 0; };
           let land = 0; const cand = [], lawnPad = [];
@@ -14851,7 +14667,7 @@
             apple: () => { tree.updateMatrixWorld(true); const A = tree.userData.apples, a = A[(Math.random() * A.length) | 0]; return { p: tree.localToWorld(a.home.clone().add(tmp.set(0, 0.28 * treeS + 0.02, 0))), yaw: Math.random() * TAU, kind: 'apple', T: 6 + Math.random() * 10 }; },
             roost: () => { if (!W._perch) { tree.updateMatrixWorld(true); W._perch = pickPerches(branchPerches(tree.userData.limbs, v => tree.localToWorld(v), tree.scale.x, { rMin: 0.012, rMax: 0.07, y0: 0.4, y1: 0.85 }), 3, 0.25); }
               const c = W._perch[(Math.random() * W._perch.length) | 0]; return { p: c.p.clone(), yaw: c.yaw + (Math.random() < 0.5 ? 0 : Math.PI), kind: 'roost', sleep: true }; },
-            roof: () => ({ p: caravanObj.localToWorld(new THREE.Vector3(2.2 + Math.random() * 0.3, 3.75, 0.95 + Math.random() * 0.2)), yaw: caravanObj.rotation.y + Math.PI + (Math.random() - 0.5), kind: 'roof', T: 6 + Math.random() * 10 }),
+            roof: () => ({ p: caravanObj.localToWorld(new THREE.Vector3(1.9 + Math.random() * 0.25, 2.965, -0.15 + Math.random() * 0.25)), yaw: caravanObj.rotation.y + Math.PI + (Math.random() - 0.5), kind: 'roof', T: 6 + Math.random() * 10 }),
             wire: () => {
               const a = gridPoles[0], b = subTie.e, t = 0.35 + Math.random() * 0.3, m = a.clone().lerp(b, 0.5); m.y -= 0.3;
               const p = a.clone().multiplyScalar((1 - t) * (1 - t)).addScaledVector(m, 2 * t * (1 - t)).addScaledVector(b, t * t);
@@ -16535,7 +16351,7 @@
             vanDoorsTick(dt);
             if (isSleeping) {
               resetFishingBite(); engForceAct = null; studyLaptop.target = 0; e.seat = null; e.act = 'sleep'; e.phase = 'van'; e.inVan = true; e.van = null; e.enter = null;
-              if (studyChairRig.off) studyChairAt(0);
+              if (studyChairRig.off || studyChairRig.sw) studyChairAt(0, 0, 0);
               if (e.g.parent !== caravanObj) {
                 caravanObj.add(e.g);
                 e.g.scale.setScalar(ENGINEER_BASE_SCALE);
@@ -16553,7 +16369,7 @@
               zzzGroup.visible = true;
               for (const z of zzzs) {
                 const p = (t * 0.42 + z.ph) % 1.0;
-                z.m.position.set(caravanObj.userData.interior.sleepHead[0] + Math.sin(t * 1.8 + z.ph) * 0.25, 4.0 + p * 3.6, caravanObj.userData.interior.sleepHead[2]);
+                z.m.position.set(caravanObj.userData.interior.sleepHead[0] + Math.sin(t * 1.8 + z.ph) * 0.25, caravanObj.userData.interior.sleepHead[1] + p * 3.6, caravanObj.userData.interior.sleepHead[2]);
                 z.m.material.opacity = (1 - p) * 0.85;
                 z.m.scale.setScalar((0.5 + p * 0.95) * 1.2);
               }

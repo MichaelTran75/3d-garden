@@ -3,7 +3,7 @@
         //  · bàn sơ chế: thớt xanh nhạt trên mặt đá; tấm bảng đục lỗ (pegboard) phía sau, móc treo thớt xanh ngọc, dao, chảo rán
         //  · khối bếp riêng: mặt bếp đen 4 họng lửa, 2 vỉ gang (khung + nan toả vào họng lửa), nắp dựng phía sau, tấm chắn gió bên phải mở chếch
         //  Đồ động (lửa, nồi, chảo, dao, bát, hành, nước vòi) để riêng, không gộp lưới; trả về cho lịch nấu ăn của kỹ sư điều khiển ----
-        function motorhomeKitchen(galley) {
+        function motorhomeKitchen(galley, ceilY = 3.56) {   // ceilY: trần xe trong toạ độ tủ bếp (ống gió máy hút mùi chạy tới đó)
           const lam = (c, o = {}) => new THREE.MeshLambertMaterial({ color: c, ...o });
           const M = { counter: lam(0xd8d0bc), steel: lam(0x98a7a4), dark: lam(0x2e3436), iron: lam(0x1f2224), peg: lam(0xd9c49a), hole: lam(0x5a4a33), boardG: lam(0x9fd6a4),
             boardT: lam(0x6fb0a0), wood: lam(0x7a4a2a), blade: lam(0xc8ced2), cap: lam(0x3b3f42), sponge: lam(0xe36f9a), soap: lam(0xe9e6dc), lid: lam(0x9aa5a8) };
@@ -72,8 +72,8 @@
           const lip = box(S, 0.05, 0.12, 0.6, 2.62, 2.34 + HY, 0.59, M.steel, true); lip.rotation.z = 0.35;
           box(S, 0.27, 0.006, 0.52, 2.8, 2.297 + HY, 0.59, M.dark);
           for (let k = 0; k < 7; k++) box(S, 0.27, 0.004, 0.006, 2.8, 2.293 + HY, 0.37 + k * 0.073, M.steel);   // nan lưới lọc
-          box(S, 0.12, 1.16 - HY, 0.12, 2.79, 2.98 + HY / 2, 0.47, M.steel, true);   // ống gió lên trần (2,98 → 3,56)
-          box(S, 0.16, 0.025, 0.16, 2.79, 3.545, 0.47, M.steel);   // mặt bích trần
+          box(S, 0.12, ceilY - 2.40 - HY, 0.12, 2.79, (2.40 + HY + ceilY) / 2, 0.47, M.steel, true);   // ống gió lên trần
+          box(S, 0.16, 0.025, 0.16, 2.79, ceilY - 0.015, 0.47, M.steel);   // mặt bích trần
           // dải núm vặn ga ở mép trước mặt bếp
           box(S, 0.014, 0.045, 0.6, 2.384, 1.812, 0.59, M.dark, true);
           bakeStatic(S); galley.add(S);

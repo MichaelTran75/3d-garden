@@ -1,7 +1,9 @@
         // ---- các "trạm" trong xe: mỗi trạm có nút vào/ra và máy trạng thái riêng; keep = việc hiện tại còn cần trạm này
         //      (hết cần thì tự gỡ ra: nhích ghế, đứng dậy, đẩy ghế vào… rồi trả 'released' khi đã đứng ở nút) ----
         const stDesk = { node: 'mid', tick(e, V, dt, t, keep) {   // bàn học: nghiên cứu ban ngày · học bài nghe nhạc buổi tối
-          const g = e.g, P = engStudyPts, C = STUDY_SEAT, off = studyChairRig.off;
+          // lối đi trong Transit chỉ ~0,55 m (giường ↔ tủ bếp) ⇒ không vòng ra sau ghế được: đứng cạnh ghế phía đầu giường, nắm tay vịn XOAY ghế về phía mình
+          // (lăn lùi 10 cm cho tay vịn khỏi vướng mép bàn), quay lưng ngồi xuống, xoay cả người + ghế về bàn rồi nhích vào; hết giờ làm ngược lại, trả ghế về
+          const g = e.g, P = engStudyPts, C = STUDY_SEAT, R = studyChairRig, SW = Math.PI / 2, OUT = STUDY_PULL;
           const face = (dx, dz, k = 8) => { let d = Math.atan2(dx, dz) - g.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); g.rotation.y += d * Math.min(1, dt * k); };
           const walkIn = (Q, spd = 0.85) => {   // đi trong xe: thẳng tới điểm
             const dx = Q.x - g.position.x, dz = Q.z - g.position.z, dd = Math.hypot(dx, dz);
@@ -10,37 +12,34 @@
             const st = Math.min(dd, e.vel * dt); g.position.x += dx / dd * st; g.position.z += dz / dd * st; face(dx, dz);
             g.position.y = VAN_FLOOR - ENG_FEET + engGait(e, st) * CAMP_SCALE; e.walking = true; return false;
           };
-          const vp = (x, z) => vanPt(x, 1.07, z);
-          const backPt = o => vp(P.cx, P.cz + o + 0.52), leftBack = o => vp(P.cx - 0.57, P.cz + o + 0.52), leftFront = o => vp(P.cx - 0.57, P.cz + o - STUDY_FZ), standPt = o => vp(P.cx, P.cz + o - STUDY_FZ);
-          const drag = (from, to, fwd) => {   // nắm đỉnh tựa lưng: kéo ghế ra (lùi bước) / đẩy ghế vào (tiến bước)
-            V.k = Math.min(1, V.k + dt / 1.6);
-            const o2 = from + (to - from) * minJerk(segK(V.k, 0.18, 0.92)), grip = minJerk(segK(V.k, 0, 0.2)) * (1 - minJerk(segK(V.k, 0.9, 1)));
-            const tg = backPt(o2), st = Math.hypot(tg.x - g.position.x, tg.z - g.position.z);
-            g.position.x = tg.x; g.position.z = tg.z; e.vel = Math.min(0.5, st / Math.max(dt, 1e-3));
-            g.position.y = VAN_FLOOR - ENG_FEET + engGait(e, fwd ? st : -st) * CAMP_SCALE; e.walking = st > 1e-4;
-            face(Math.sin(P.yaw), Math.cos(P.yaw));
-            e.arms[0].rotation.x = e.arms[1].rotation.x = -0.62 * grip; e.lean = 0.1 * grip; e.head.rotation.x = 0.3 * grip;
-            studyChairAt(o2); return V.k >= 1;
+          const vp = (x, z) => vanPt(x, TR.yIn, z);
+          const sidePt = () => vp(P.cx - 0.5, P.cz + 0.1), standPt = () => vp(P.cx - STUDY_FZ, P.cz + R.off);   // cạnh ghế (đầu giường) · trước mặt ghế đã xoay về −x
+          const turnChair = (o0, o1, s0, s1, dur, grip) => {   // lăn + xoay mâm ghế: đứng thì 2 tay nắm tay vịn kéo xoay, ngồi thì người xoay theo ghế
+            V.k = Math.min(1, V.k + dt / dur); const m = minJerk(V.k);
+            studyChairAt(o0 + (o1 - o0) * m, 0, s0 + (s1 - s0) * m);
+            if (grip) { const r = Math.sin(Math.PI * Math.min(1, V.k * 1.1)); e.arms[0].rotation.x = e.arms[1].rotation.x = -0.8 * r; e.lean = 0.2 * r; e.head.rotation.x = 0.32 * r; }
+            return V.k >= 1;
           };
-          if (!V.st) V.st = off > 0.4 ? 'aroundL' : 'toBack';
-          if (!keep) {   // việc khác: chưa kịp ngồi thì quay ra (ghế đã kéo thì đẩy vào), đang ngồi thì nhích ghế ra rồi đứng dậy
-            if (V.st === 'toBack') return 'released';
-            if (V.st === 'aroundL' || V.st === 'aroundF') V.st = 'outB';
-            else if (V.st === 'toStand' || V.st === 'turn') V.st = 'outF';
+          if (!V.st) V.st = 'toSide';
+          if (!keep) {   // việc khác: chưa ngồi thì trả ghế rồi đi; đang ngồi thì làm xong động tác, lùi ghế, xoay ra, đứng dậy
+            if (V.st === 'toSide') return 'released';
+            if (V.st === 'faceChair' || V.st === 'swing' || V.st === 'toStand' || V.st === 'turn') V.st = 'outS';
             else if (V.st === 'work' && lapDone(e, V)) { V.st = 'unscoot'; V.k = 0; }   // nghiên cứu: hạ tay về máy trước (engineer/laptop-work.js)
           }
-          if (V.st === 'toBack') { if (walkIn(backPt(off), 0.6)) { V.st = 'pull'; V.k = 0; V.dragFrom = off; } }
-          else if (V.st === 'pull') { if (drag(V.dragFrom, STUDY_PULL, false)) V.st = keep ? 'aroundL' : 'push0'; }
-          else if (V.st === 'push0') { V.st = 'push'; V.k = 0; V.dragFrom = off; }
-          else if (V.st === 'aroundL') { if (walkIn(leftBack(off), 0.6)) V.st = 'aroundF'; }   // vòng bên trái ghế (phía đuôi giường)
-          else if (V.st === 'aroundF') { if (walkIn(leftFront(off), 0.6)) V.st = 'toStand'; }
-          else if (V.st === 'toStand') { if (walkIn(standPt(off), 0.45)) V.st = 'turn'; }   // đi ngang vào khoảng trước mặt ghế
-          else if (V.st === 'turn') { if (engSeatTurn(e, P.yaw, dt, vanFloor)) { e.seat = engNewSeat(C, 'sit'); engSeatStartSit(e, C, e.seat); V.st = 'sit'; } }
-          else if (V.st === 'sit') { e.seatCtl = true; if (engSitStep(e, C, e.seat, dt, t)) { e.seat.st = 'seated'; V.st = 'scoot'; V.k = 0; } }
-          else if (V.st === 'scoot' || V.st === 'unscoot') {   // nhích cả ghế vào sát bàn · hết giờ: nhích ra để còn chỗ đứng dậy
-            V.k = Math.min(1, V.k + dt / 2.2); const m = minJerk(V.k), into = V.st === 'scoot';
-            studyChairAt(into ? STUDY_PULL * (1 - m) : 0.5 * m); engScootPose(e, C, e.seat, V.k, dt, t);
-            if (V.k >= 1) { if (into) V.st = 'work'; else { engSeatStartRise(e, C, e.seat); V.st = 'rise'; } }
+          if (V.st === 'toSide') { if (walkIn(sidePt(), 0.6)) V.st = 'faceChair'; }
+          else if (V.st === 'faceChair') { if (engSeatTurn(e, VY.px, dt, vanFloor)) { V.st = 'swing'; V.k = 0; } }
+          else if (V.st === 'swing') { if (turnChair(0, OUT, 0, SW, 1.5, true)) V.st = 'toStand'; }
+          else if (V.st === 'toStand') { if (walkIn(standPt(), 0.4)) V.st = 'turn'; }
+          else if (V.st === 'turn') { if (engSeatTurn(e, C.yaw, dt, vanFloor)) { e.seat = engNewSeat(C, 'sit'); engSeatStartSit(e, C, e.seat); V.st = 'sit'; } }
+          else if (V.st === 'sit') { e.seatCtl = true; if (engSitStep(e, C, e.seat, dt, t)) { e.seat.st = 'seated'; V.st = 'swivelIn'; V.k = 0; } }
+          else if (V.st === 'swivelIn' || V.st === 'swivelOut') {   // ngồi xoay cả ghế (chân đẩy sàn): về bàn · quay ra lối đi
+            const into = V.st === 'swivelIn'; e.seatCtl = true; engSeatHold(e, C, e.seat, dt, t);
+            if (turnChair(OUT, OUT, into ? SW : 0, into ? 0 : SW, 1.8, false)) { if (into) { V.st = 'scoot'; V.k = 0; } else { engSeatStartRise(e, C, e.seat); V.st = 'rise'; } }
+          }
+          else if (V.st === 'scoot' || V.st === 'unscoot') {   // nhích cả ghế vào sát bàn · hết giờ: nhích ra để còn chỗ xoay
+            V.k = Math.min(1, V.k + dt / 2.0); const m = minJerk(V.k), into = V.st === 'scoot';
+            studyChairAt(into ? OUT * (1 - m) : OUT * m, 0, 0); engScootPose(e, C, e.seat, V.k, dt, t);
+            if (V.k >= 1) { if (into) V.st = 'work'; else { V.st = 'swivelOut'; V.k = 0; } }
           }
           else if (V.st === 'work') {
             e.seatCtl = true; engSeatHold(e, C, e.seat, dt, t);
@@ -55,11 +54,10 @@
               else { const tap = (t % 6) < 3.8 ? 0.05 : 0; e.arms[0].rotation.x = -1.1 + Math.sin(t * 11) * tap; e.arms[1].rotation.x = -1.1 + Math.sin(t * 11 + 1.7) * tap; }
             }
           }
-          else if (V.st === 'rise') { e.seatCtl = true; if (engRiseStep(e, C, e.seat, dt, t)) { e.seat = null; V.st = 'outF'; } }
-          else if (V.st === 'outF') { if (walkIn(leftFront(off), 0.55)) V.st = 'outB'; }
-          else if (V.st === 'outB') { if (walkIn(leftBack(off), 0.6)) V.st = 'toBack2'; }
-          else if (V.st === 'toBack2') { if (walkIn(backPt(off), 0.5)) { V.st = 'push'; V.k = 0; V.dragFrom = off; } }
-          else if (V.st === 'push') { if (drag(V.dragFrom, 0, true)) V.st = 'toAisle'; }
+          else if (V.st === 'rise') { e.seatCtl = true; if (engRiseStep(e, C, e.seat, dt, t)) { e.seat = null; V.st = 'outS'; } }
+          else if (V.st === 'outS') { if (walkIn(sidePt(), 0.5)) V.st = 'faceBack'; }
+          else if (V.st === 'faceBack') { if (engSeatTurn(e, VY.px, dt, vanFloor)) { V.st = 'swingBack'; V.k = 0; V.from = [R.off, R.sw]; } }
+          else if (V.st === 'swingBack') { if (turnChair(V.from[0], 0, V.from[1], 0, 1.4, true)) V.st = 'toAisle'; }   // trả ghế về sát bàn, quay vào bàn
           else if (V.st === 'toAisle') { if (walkIn(P.aisle)) return 'released'; }
           return 'busy';
         } };

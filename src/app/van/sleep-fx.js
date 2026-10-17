@@ -13,7 +13,7 @@
         const sleepCtx = sleepCanvas.getContext('2d');
         const sleepTex = new THREE.CanvasTexture(sleepCanvas);
         const sleepSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: sleepTex, transparent: true, opacity: 0.92, depthWrite: false, depthTest: false }));
-        sleepSprite.scale.set(7.5, 1.87, 1.0); sleepSprite.position.set(caravanObj.userData.interior.bed.center[0] - 0.15, 4.4, caravanObj.userData.interior.bed.center[1]); sleepSprite.visible = false;
+        sleepSprite.scale.set(7.5, 1.87, 1.0); sleepSprite.position.set(caravanObj.userData.interior.bed.center[0] - 0.15, 3.65, caravanObj.userData.interior.bed.center[1]); sleepSprite.visible = false;
         caravanObj.add(sleepSprite);
         let lastSleepStr = '';   // chỉ vẽ lại canvas khi chuỗi giờ đổi (1 lần/giây thay vì mỗi frame)
 

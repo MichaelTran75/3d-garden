@@ -19,7 +19,7 @@
           for (let j = 0; j < GZ; j++) for (let i = 0; i < GX; i++) if (isWater(i, j)) { wd[i + j * GX] = 0; q[qt++] = i + j * GX; }
           while (qh < qt) { const c = q[qh++], d = wd[c] + 1; if (d > 40) continue; const ci = c % GX, cj = (c / GX) | 0;
             for (const n of [ci > 0 ? c - 1 : -1, ci < GX - 1 ? c + 1 : -1, cj > 0 ? c - GX : -1, cj < GZ - 1 ? c + GX : -1]) if (n >= 0 && wd[n] > d) { wd[n] = d; q[qt++] = n; } }
-          const door = vanPt(0.33, 0, 2.6), camps = [[pf.x, pf.z, 3.2], [door.x, door.z, 1.8]];
+          const door = vanPt(0.345, 0, 2.16), camps = [[pf.x, pf.z, 3.2], [door.x, door.z, 1.8]];
           // ---- THẢM CỎ NGẮN (G 15/10 "thảm cỏ ngắn vào khu vực này": bãi quanh khúc gỗ chết + 2 gốc cây): ô trong vùng luôn có cỏ, lá thấp 9–15 cm
           //      (cỏ mềm 15–39 cm), mảnh hơn 40%, dày gấp 3 (3 bản/ô, hạt giống khác), gốc lá tối hơn nền chút ⇒ thấy vân thảm cả khi zoom vừa; mép loang theo nhiễu cho khỏi thành hình elip. Không tính vào 45% của thảm cỏ
           //      mềm (ngưỡng chọn ô giữ nguyên, ô cỏ mềm sẵn có giữ nguyên); RNG riêng ⇒ cỏ chỗ khác y như cũ. Lõi khúc gỗ rỗng bỏ trống (nhìn qua miệng gỗ thấy cỏ) ----

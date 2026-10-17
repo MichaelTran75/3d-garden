@@ -1,17 +1,16 @@
         // ---- bàn học trong caravan (nghiên cứu ban ngày, học bài buổi tối): lối giữa → sau ghế → kéo ghế ra → vòng ra trước → ngồi, mở laptop ----
         const engStudyPts = (() => {
           const ch = caravanObj.userData.interior.study.chair.center, cx = ch[0], cz = ch[1];
-          return { cx, cz, aisle: vanPt(1.45, 1.07, 0.25), yaw: caravanObj.rotation.y + Math.PI };   // ghế quay về −Z cục bộ (mặt bàn)
+          return { cx, cz, aisle: vanPt(1.30, TR.yIn, 0.12), yaw: caravanObj.rotation.y + Math.PI };   // ghế quay về −Z cục bộ (mặt bàn)
         })();
-        // ghế bàn học: khe mép ghế–mép bàn chỉ 17,5 cm (đv xe), giữa đuôi giường và ghế 62 cm < bề ngang vai kỹ sư ⇒ đứng sau ghế nắm tựa lưng KÉO GHẾ RA
-        // 55 cm (ra lối đi), vòng bên trái ra trước mặt ghế, quay lưng, ngồi xuống rồi nhích cả ghế vào sát bàn; hết giờ: nhích ghế ra, đứng dậy, vòng ra sau, đẩy ghế vào
-        const STUDY_PULL = 0.45, STUDY_FZ = 0.37;
+        // ghế bàn học: lối đi Transit hẹp ⇒ đứng cạnh ghế, xoay ghế về phía mình, ngồi rồi xoay về bàn (engineer/van-stations.js stDesk)
+        const STUDY_PULL = 0.1, STUDY_FZ = 0.37;   // ghế lùi 10 cm khi xoay (tay vịn khỏi vướng mép bàn)
         const STUDY_SEAT = makeSeat({ name: 'study', indoor: true, pos: new THREE.Vector3(), yaw: engStudyPts.yaw, seatZ: 0, standZ: STUDY_FZ * CAMP_SCALE, contactZ: 0.09,
           seatDrop: 0.56, legs: [-1.48, -1.44], knees: [0.98, 0.94], arm: null, ground: () => dogInside.y });   // ghế thấp hơn ghế xếp: cẳng chân chếch ra trước dưới gầm bàn
         function studyChairAt(off, sx = studyChairRig.sx, sw = studyChairRig.sw) {   // ghế văn phòng: lăn dọc trục trước–sau (off) + ngang (sx) (đv xe), xoay mâm sw (rad)
           const R = studyChairRig; R.off = off; R.sx = sx; R.sw = sw;                  // + cập nhật mô tả ghế (vị trí, hướng) cho bộ điều khiển ngồi: người xoay / lăn theo ghế
           if (R.obj) { R.obj.position.z = R.home + off; R.obj.position.x = sx; R.swivel.rotation.y = sw; }
-          STUDY_SEAT.pos.copy(vanPt(engStudyPts.cx + sx, 1.07, engStudyPts.cz + off));
+          STUDY_SEAT.pos.copy(vanPt(engStudyPts.cx + sx, TR.yIn, engStudyPts.cz + off));
           const y = engStudyPts.yaw + sw, C = STUDY_SEAT; C.yaw = y; C.fx = Math.sin(y); C.fz = Math.cos(y); C.xx = Math.cos(y); C.xz = -Math.sin(y);
         }
         studyChairAt(0);

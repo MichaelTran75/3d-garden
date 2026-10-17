@@ -26,7 +26,7 @@
           const bowlP = new THREE.Vector3(), drinkP = new THREE.Vector3(), toBowl = new THREE.Vector3();
           { const vo = dogDoorFar.clone().sub(dogDoorStep).setY(0).normalize();
             const free = () => !ENG_PROPS.some(o => Math.hypot(drinkP.x - o.x, drinkP.z - o.z) < o.r + 0.4 || Math.hypot(bowlP.x - o.x, bowlP.z - o.z) < o.r + 0.2) && !obstacleCoords.some(o => Math.hypot(drinkP.x - o.x, drinkP.z - o.z) < o.r + 0.25);
-            for (const lx of [1.05, -0.75, -0.95, 1.05]) { bowlP.copy(vanPt(lx, 0, 2.15)); drinkP.copy(bowlP).addScaledVector(vo, 0.42); if (free()) break; }
+            for (const lx of [1.05, -0.75, -0.95, 1.05]) { bowlP.copy(vanPt(lx, 0, 1.72)); drinkP.copy(bowlP).addScaledVector(vo, 0.42); if (free()) break; }
             bowlP.y = drinkP.y = cowY(bowlP.x, bowlP.z); toBowl.copy(bowlP).sub(drinkP).setY(0).normalize(); }
           bowl.position.copy(bowlP); scene.add(bowl);
           let drinkF = null;   // bảng DP tới chỗ uống (dựng lần đầu chó đi uống)
