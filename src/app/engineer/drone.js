@@ -73,13 +73,20 @@
           }
           // ---- trạng thái ----
           const D = { st: 'idle', k: 0, home: new THREE.Vector3(), stand: new THREE.Vector3(), table: new THREE.Vector3(), pos: new THREE.Vector3(), vel: new THREE.Vector3(), yaw: 0, gp: -0.3, wp: [], wi: 0,
-            spin: 0, fold: 0, bat: 100, rec: 0, orbit: null, tilt: new THREE.Vector2(), stick: [0, 0, 0, 0], frame: 0, hold: null, lookDown: 0 };
+            spin: 0, fold: 0, bat: 100, rec: 0, orbit: null, tilt: new THREE.Vector2(), stick: [0, 0, 0, 0], frame: 0, hold: null, lookDown: 0, rcSpot: new THREE.Vector3(), standT: new THREE.Vector3() };
           const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _q = new THREE.Quaternion(), UP = new THREE.Vector3(0, 1, 0);
-          const tableSpot = () => { const t = scene.getObjectByName('Bàn trà (Camp Table)'); t.updateMatrixWorld(true); const b = new THREE.Box3().setFromObject(t); return new THREE.Vector3(b.min.x + 0.2, b.max.y + 0.005, (b.min.z + b.max.z) / 2 + 0.13); };   // đầu bàn phía tây (giữa bàn để chảo cơm tối, cốc)
-          function park() {   // trên bàn trà: drone gập càng, tay cầm đặt cạnh
-            const p = tableSpot(); D.table.copy(p);
-            scene.add(g); g.position.copy(p); g.rotation.set(0, 0.6, 0); setFold(0); spinTo(0, 1);
-            scene.add(rc); rc.position.set(p.x + 0.04, p.y + 0.02 * S, p.z - 0.33); rc.rotation.set(0, 1.35, 0); bub.visible = false; phoneM.color.setScalar(0);
+          // chỗ trên MẶT bàn trà theo toạ độ của bàn (x dọc bàn, z ngang; ghế cắm trại phía +z): drone gập càng nằm dọc bàn ở đầu tây, tay cầm cạnh nó, cả hai sát mép
+          // phía −z (chảo, ca nấu, gói khoai tây ở nửa phía ghế); kỹ sư đứng lấy / cất ở phía −z ngoài vòng né bàn. Bản cũ lấy đỉnh hộp bao cả nhóm bàn (gồm ca nấu,
+          // làn hơi) ⇒ drone lơ lửng trên mặt bàn, góc "đầu bàn" theo hộp bao trục thế giới (bàn xoay 27°) rơi ra ngoài mép (G 17/10 "đặt drone lên bàn correctly")
+          const tableLay = () => { const t = scene.getObjectByName('Bàn trà (Camp Table)'); t.updateMatrixWorld(true); const top = t.userData.top ?? 0.45, W = (t.userData.size || [0.66, 0.48])[1];
+            const stand = t.localToWorld(new THREE.Vector3(-0.03, 0, -W / 2 - 0.62)); stand.y = cowY(stand.x, stand.z);
+            return { yaw: t.rotation.y, dr: t.localToWorld(new THREE.Vector3(-0.2, top, -0.13)), rc: t.localToWorld(new THREE.Vector3(0.16, top, -0.15)), stand }; };
+          const _bb = new THREE.Box3();
+          function restOn(o, y) { o.updateMatrixWorld(true); _bb.setFromObject(o, true); o.position.y += y + 0.001 - _bb.min.y; o.updateMatrixWorld(true); }   // đáy thật của lưới (đỉnh đã xoay) chạm mặt y
+          function park() {   // trên mặt bàn trà: drone gập càng nằm dọc bàn, tay cầm nằm cạnh — đáy lưới thật chạm mặt bàn
+            const T = tableLay(); D.table.copy(T.dr); D.rcSpot.copy(T.rc); D.standT.copy(T.stand);
+            scene.add(g); g.position.copy(T.dr); g.rotation.set(0, T.yaw + Math.PI / 2, 0); core.rotation.set(0, 0, 0); setFold(0); spinTo(0, 1); restOn(g, T.dr.y);
+            scene.add(rc); rc.position.copy(T.rc); rc.rotation.set(0, T.yaw, 0); restOn(rc, T.rc.y); bub.visible = false; phoneM.color.setScalar(0);
           }
           function setFold(f) { D.fold = f; arms.forEach((a, i) => { a.piv.rotation.y = a.fold + (a.open - a.fold) * f; if (D.spin < 0.05) props[i].rotation.y = Math.PI / 2 * (1 - f); }); }   // gập: lá cánh xếp dọc càng
           function spinTo(w, dt) { D.spin += (w - D.spin) * Math.min(1, dt * 2.5); }
@@ -172,9 +179,9 @@
           // ---- mỗi khung trong pha 'drone' của kỹ sư: trả true khi xong việc ----
           function update(e, dt, t) {
             D.k += dt; const H = e.hold || (e.hold = {});
-            if (D.st === 'idle') { sizeBubble(); D.table.copy(tableSpot()); const z = dogBrain.zoomSpot(); D.home.set(z.x, cowY(z.x, z.z) + 0.003, z.z);
+            if (D.st === 'idle') { sizeBubble(); { const T = tableLay(); D.table.copy(T.dr); D.rcSpot.copy(T.rc); D.standT.copy(T.stand); } const z = dogBrain.zoomSpot(); D.home.set(z.x, cowY(z.x, z.z) + 0.003, z.z);
               _v.set(D.table.x - D.home.x, 0, D.table.z - D.home.z).normalize(); D.stand.copy(D.home).addScaledVector(_v, 2.8); D.stand.y = cowY(D.stand.x, D.stand.z); go('toTable'); }
-            if (D.st === 'toTable') { if (engStep(e, _w.set(D.table.x - 0.1, 0, D.table.z - 1.0), dt, t, pf, FIRE_AVOID_R) || D.k > 90) go('grab'); }   // đứng ngoài vòng né bàn trà (0,92 m)
+            if (D.st === 'toTable') { if (engStep(e, D.standT, dt, t, pf, FIRE_AVOID_R) || D.k > 90) go('grab'); }   // đứng phía −z của bàn, ngoài vòng né bàn trà
             else if (D.st === 'grab') {   // với 2 tay lấy drone + tay cầm trên bàn
               engStandStill(e); face(e, D.table); look(e, D.table); const R = e.reachT || (e.reachT = [null, null]);
               R[1] = g.position.clone().setY(g.position.y + 0.03); R[0] = rc.position.clone().setY(rc.position.y + 0.03);
@@ -209,8 +216,8 @@
               if (D.k > 2.4) hold(e, { drone: 1 });
               if (D.k > 3.4) { e.noFootIK = false; go('home'); }
             }
-            else if (D.st === 'home') { hold(e, { drone: 1, rc: 1 }); if (engStep(e, _w.set(D.table.x - 0.1, 0, D.table.z - 1.0), dt, t, pf, FIRE_AVOID_R) || D.k > 120) go('park'); }
-            else if (D.st === 'park') { engStandStill(e); face(e, D.table); look(e, D.table); const R = e.reachT || (e.reachT = [null, null]); R[1] = D.table.clone().setY(D.table.y + 0.05); R[0] = D.table.clone().add(_v.set(0.04, 0.05, -0.33));
+            else if (D.st === 'home') { hold(e, { drone: 1, rc: 1 }); if (engStep(e, D.standT, dt, t, pf, FIRE_AVOID_R) || D.k > 120) go('park'); }
+            else if (D.st === 'park') { engStandStill(e); face(e, D.table); look(e, D.table); const R = e.reachT || (e.reachT = [null, null]); R[1] = D.table.clone().setY(D.table.y + 0.05); R[0] = D.rcSpot.clone().setY(D.rcSpot.y + 0.05);
               if (D.k > 1.0) { park(); go('done'); } }
             if (D.st === 'done') { D.st = 'idle'; return true; }
             if (D.st !== 'grab' && D.st !== 'park' && D.st !== 'toTable' && !(D.st === 'place' && D.k > 0.8) && D.st !== 'pick') e.armsBusy = true;

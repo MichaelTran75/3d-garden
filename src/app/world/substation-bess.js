@@ -9,8 +9,30 @@
           x.fillStyle = '#E2D6C0'; x.fillText(txt, 64, 64);
           const t = new THREE.CanvasTexture(c); t.anisotropy = 4; return t;
         }
+        // ---- CỘT ĐIỆN (G 17/10 "improve cột điện structure", học cột điện trong GLB "Inakaya" — Jellepostma, CC-BY-4.0, chỉ xem để đo: cột bê tông thuôn có
+        //      nắp đỉnh, khung xà kẹp cột, sứ, đai ôm cột, máy biến áp trụ có cánh tản nhiệt, bu lông leo so le, biển trên cột). Cột bê tông ly tâm thuôn
+        //      Ø 0,36 → 0,2 m + mố chân · xà thép 2,7 m + 2 thanh chống chéo + đai ôm · 2 pha trên sứ đứng có tán ở 2 đầu xà, pha giữa trên sứ ĐỈNH CỘT
+        //      (bản cũ: thân cột vươn qua xà, xuyên sứ giữa ⇒ dây pha giữa chui qua thân) · bu lông leo so le từ 2,6 m · biển "cấm trèo" · cột cấp điện nhà
+        //      (opts.tx): máy biến áp treo cột nối 2 pha · cột lệch lực (cuối tuyến / góc): dây néo + ống bảo vệ vàng (poleGuys, sau khi nối hết dây).
+        //      Điểm nối dây (conn) giữ y như cũ: tim cột, 0,88·h + 0,4 ----
+        const poleConc = new THREE.MeshLambertMaterial({ color: 0xaaa69d }), poleConcD = new THREE.MeshLambertMaterial({ color: 0x8c8880 });
+        const poleGuardM = new THREE.MeshLambertMaterial({ color: 0xe6c02a }), poleStripeM = new THREE.MeshLambertMaterial({ color: 0x1d1f22 }), poleTxM = new THREE.MeshLambertMaterial({ color: 0x8b959a }), poleConns = [];
+        const _pV = (x, y, z) => new THREE.Vector3(x, y, z);
+        let _pIns = null, _pSign = null;
+        function poleInsGeo() {   // sứ đứng có 3 tán xoè (lathe), cao 0,3 m, gốc ở đáy
+          if (_pIns) return _pIns; const V2 = (x, y) => new THREE.Vector2(x, y), pts = [V2(0.001, 0), V2(0.045, 0), V2(0.04, 0.03)];
+          for (let i = 0; i < 3; i++) { const y = 0.05 + i * 0.075; pts.push(V2(0.036, y), V2(0.086 - i * 0.01, y + 0.018), V2(0.08 - i * 0.01, y + 0.03), V2(0.035, y + 0.042)); }
+          pts.push(V2(0.033, 0.27), V2(0.028, 0.3), V2(0.001, 0.3)); return (_pIns = new THREE.LatheGeometry(pts, 12));
+        }
+        function poleSignTex() {   // biển cấm trèo: viền đỏ, tia sét đỏ, chữ
+          if (_pSign) return _pSign; const c = document.createElement('canvas'); c.width = 128; c.height = 172; const x = c.getContext('2d');
+          x.fillStyle = '#f4f1ea'; x.fillRect(0, 0, 128, 172); x.strokeStyle = '#c8261d'; x.lineWidth = 9; x.strokeRect(6, 6, 116, 160);
+          x.fillStyle = '#c8261d'; x.beginPath(); x.moveTo(74, 22); x.lineTo(44, 74); x.lineTo(64, 74); x.lineTo(50, 112); x.lineTo(86, 62); x.lineTo(66, 62); x.lineTo(80, 22); x.closePath(); x.fill();
+          x.textAlign = 'center'; x.font = 'bold 19px Arial, sans-serif'; x.fillText('CẤM TRÈO', 64, 136); x.font = 'bold 12px Arial, sans-serif'; x.fillStyle = '#1d1d1d'; x.fillText('NGUY HIỂM', 64, 155);
+          const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return (_pSign = t);
+        }
         let poleCounter = 0;
-        function poleAt(oi, oj, h = 6.72, label = null) {
+        function poleAt(oi, oj, h = 6.72, label = null, opts = {}) {
           poleCounter++; const numStr = label || ('' + poleCounter);
           const p = worldCell(oi, oj), g = new THREE.Group(); g.position.copy(p); g.name = 'Cột điện #' + poleCounter + ' (Power Pole)'; scene.add(g);
           obstacleCoords.push({ x: p.x, y: p.y, z: p.z, r: 1.5, h: h + 1.5 });
@@ -18,16 +40,70 @@
           if (poleCounter === 1 || poleCounter === 2 || poleCounter === 3 || poleCounter === 5) rotY = Math.PI / 2;        // cột 1, 2, 3 & 5 xoay 90°
           else if (poleCounter === 6) rotY = Math.PI / 6;                        // cột 6 xoay ngược chiều kim đồng hồ 30°
           g.rotation.y = rotY;
-          const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.13, h, 8), metalMat); mast.position.y = h / 2; mast.castShadow = true; g.add(mast);
-          const arm = bx(2.7, 0.12, 0.16, metalMat, true, true, lineDark); arm.position.y = h * 0.88; g.add(arm);
-          for (const x of [-1.05, 0, 1.05]) { const ins = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.34, 8), ceramicMat); ins.position.set(x, arm.position.y + 0.23, 0); ins.castShadow = true; g.add(ins); }
+          const add = (m, x, y, z, cast = true) => { m.position.set(x, y, z); m.castShadow = cast; m.receiveShadow = true; g.add(m); return m; };
+          const band = (y, r, hh = 0.07) => add(new THREE.Mesh(new THREE.CylinderGeometry(r, r, hh, 14, 1, true), metalMat), 0, y, 0, false);   // đai ôm cột
+          const yA = h * 0.88, top = yA + 0.12, RB = 0.18, RT = 0.1, rAt = y => RB + (RT - RB) * y / top;
+          // thân bê tông thuôn + mố chân + nắp đỉnh
+          add(new THREE.Mesh(new THREE.CylinderGeometry(RT, RB, top, 14), poleConc), 0, top / 2, 0);
+          add(new THREE.Mesh(new THREE.CylinderGeometry(RB + 0.05, RB + 0.12, 0.24, 14), poleConcD), 0, 0.06, 0);
+          add(new THREE.Mesh(new THREE.CylinderGeometry(RT + 0.03, RT + 0.02, 0.06, 14), poleConcD), 0, top + 0.03, 0);
+          // xà thép + 2 thanh chống chéo xuống thân + đai ôm ở 2 chỗ kẹp
+          add(bx(2.7, 0.08, 0.09, metalMat, true, true, lineDark), 0, yA, 0);
+          for (const sx of [-1, 1]) rodBetween(g, _pV(sx * rAt(yA - 0.62), yA - 0.62, 0), _pV(sx * 0.8, yA - 0.04, 0), 0.016, metalMat, 5, true);
+          band(yA, rAt(yA) + 0.012, 0.1); band(yA - 0.62, rAt(yA - 0.62) + 0.012);
+          // sứ: 2 đầu xà + đỉnh cột — đỉnh sứ (kẹp dây) đúng conn (yA + 0.4)
+          for (const [x, y0] of [[-1.05, yA + 0.045], [1.05, yA + 0.045], [0, top + 0.06]]) {
+            add(new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.06, 6), metalMat), x, y0 + 0.02, 0, false);   // chân sứ
+            const ins = add(new THREE.Mesh(poleInsGeo(), ceramicMat), x, y0 + 0.045, 0); ins.scale.y = (yA + 0.375 - (y0 + 0.045)) / 0.3;
+            add(new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.03, 0.03, 8), metalMat), x, yA + 0.39, 0, false);   // kẹp dây đỉnh sứ
+          }
+          // bu lông leo so le 2 phía (vuông góc xà) từ 2,6 m tới dưới chỗ chống xà
+          for (let y = 2.6, sz = 1; y < yA - 0.8; y += 0.42, sz = -sz) rodBetween(g, _pV(0, y, sz * (rAt(y) - 0.01)), _pV(0, y + 0.015, sz * (rAt(y) + 0.17)), 0.011, metalMat, 5, false);
+          // biển cấm trèo + 2 đai giữ (mặt +z)
+          { const yS = 2.25, r = rAt(yS); add(bx(0.3, 0.4, 0.012, poleConcD, false, false), 0, yS, r + 0.008, false);
+            const face = add(new THREE.Mesh(new THREE.PlaneGeometry(0.29, 0.39), new THREE.MeshLambertMaterial({ map: poleSignTex(), polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 })), 0, yS, r + 0.0145, false);
+            band(yS + 0.16, r + 0.008, 0.03); band(yS - 0.16, r + 0.008, 0.03); face.name = 'Biển cấm trèo'; }
+          // máy biến áp treo cột (cột có nhánh vào nhà): 2 giá ngang ôm cột phía −z · bồn dầu có 16 cánh tản nhiệt · nắp · 2 sứ cao thế nối dây lên 2 pha đầu xà · hộp hạ thế
+          if (opts.tx) {
+            const yT = yA - 2.7, tz = -(rAt(yT) + 0.34);
+            for (const y of [yT - 0.32, yT + 0.28]) { add(bx(0.12, 0.06, 0.62, metalMat, true, true, lineDark), 0, y, tz / 2 - 0.02); band(y, rAt(y) + 0.012); }
+            add(new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.66, 20), poleTxM), 0, yT, tz);
+            for (let k = 0; k < 16; k++) { const a = k / 16 * Math.PI * 2, f = add(bx(0.01, 0.52, 0.07, poleTxM, true, false), Math.cos(a) * 0.29, yT - 0.03, tz + Math.sin(a) * 0.29); f.rotation.y = Math.PI / 2 - a; }
+            add(new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.29, 0.05, 20), poleTxM), 0, yT + 0.355, tz);
+            add(new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.24, 0.07, 20), poleTxM), 0, yT + 0.415, tz);
+            add(bx(0.22, 0.16, 0.1, poleTxM, true, true, lineDark), 0, yT - 0.1, tz - 0.3);   // hộp đấu hạ thế
+            for (const sx of [-1, 1]) { const bu = add(new THREE.Mesh(poleInsGeo(), ceramicMat), sx * 0.11, yT + 0.45, tz); bu.scale.set(0.55, 0.5, 0.55);
+              const a0 = _pV(sx * 0.11, yT + 0.6, tz), a2 = _pV(sx * 1.05, yA + 0.39, 0), a1 = a0.clone().lerp(a2, 0.5); a1.y -= 0.25;
+              g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(new THREE.QuadraticBezierCurve3(a0, a1, a2).getPoints(10)), cableMat)); }
+          }
           const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: poleBadgeTex(numStr), transparent: true, opacity: 0.95, depthTest: false, depthWrite: false }));
           sp.scale.set(2.2, 2.2, 1); sp.position.set(0, h + 1.25, 0); sp.renderOrder = 25; g.add(sp); numSprites.push(sp);
-          const conn = p.clone().add(new THREE.Vector3(0, arm.position.y + 0.4, 0));
-          conn.crossarmDir = new THREE.Vector3(Math.cos(rotY), 0, -Math.sin(rotY));
+          const conn = p.clone().add(new THREE.Vector3(0, yA + 0.4, 0));
+          conn.crossarmDir = new THREE.Vector3(Math.cos(rotY), 0, -Math.sin(rotY)); conn.pole = g; conn.yA = yA; conn.rAt = rAt; conn.links = []; poleConns.push(conn);
           return conn;
         }
+        // dây néo cho cột lệch lực: tổng hướng (ngang) các dây nối dài ⇒ néo ngược lại, neo cách cột 3,2 m (né mặt nước, đường; thử lệch ±20°, ±40°)
+        function poleGuys() {
+          for (const c of poleConns) {
+            const R = new THREE.Vector3(); for (const q of c.links) R.add(_pV(q.x - c.x, 0, q.z - c.z).normalize());
+            if (R.length() < 0.7) continue;
+            const base = c.pole.position, d0 = R.normalize().negate();
+            for (const da of [0, 0.35, -0.35, 0.7, -0.7]) {
+              const d = d0.clone().applyAxisAngle(_pV(0, 1, 0), da), ax = base.x + d.x * 3.2, az = base.z + d.z * 3.2, i = Math.round(ax / BLOCK + cx - 0.5), j = Math.round(az / BLOCK + cz - 0.5);
+              if (i < 1 || j < 1 || i >= GX - 1 || j >= GZ - 1 || isWater(i, j) || roadContains(ax, az, 0.4) || Math.abs(surfaceY(i, j) - base.y) > 0.7) continue;
+              const gy = surfaceY(i, j), gg = new THREE.Group(); gg.name = 'Dây néo ' + c.pole.name; scene.add(gg);
+              const A = _pV(base.x + d.x * 0.12, base.y + c.yA - 0.35, base.z + d.z * 0.12), B = _pV(ax, gy + 0.05, az), u = A.clone().sub(B).normalize();
+              rodBetween(gg, A, B, 0.009, metalMat, 4, false);
+              rodBetween(gg, B, B.clone().addScaledVector(u, 1.9), 0.04, poleGuardM, 10, true);   // ống bảo vệ vàng
+              for (const k of [0.45, 0.95, 1.45]) { rodBetween(gg, B.clone().addScaledVector(u, k), B.clone().addScaledVector(u, k + 0.12), 0.042, poleStripeM, 10, false); }
+              const blk = bx(0.3, 0.12, 0.3, poleConcD, true, false); blk.position.set(ax, gy + 0.03, az); gg.add(blk);
+              const band = new THREE.Mesh(new THREE.CylinderGeometry(c.rAt(c.yA - 0.35) + 0.012, c.rAt(c.yA - 0.35) + 0.012, 0.06, 14, 1, true), metalMat); band.position.set(0, c.yA - 0.35, 0); c.pole.add(band);
+              break;
+            }
+          }
+        }
         function wire(a, b, sag = 0.55) {
+          if (a.links) a.links.push(b); if (b.links) b.links.push(a);   // cho dây néo (poleGuys)
           const dir = new THREE.Vector3().subVectors(b, a); dir.y = 0; dir.normalize();
           const perp = new THREE.Vector3(-dir.z, 0, dir.x);
           const perpA = a.crossarmDir || perp;
@@ -163,10 +239,10 @@
           return { w: tie(gW[1][0]), e: tie(gE[1][0]) };
         }
         const subTie = substation(23.5, 27.2);
-        const gridDefs = [[27, 27, 10.8], [18.5, 26.8, 10.8], [12.5, 27.0, 10.8], [8.1, 22.0, 10.8], [7.0, 29.0, 10.8]];
-        const gridPoles = gridDefs.map(c => poleAt(c[0], c[1], c[2]));
+        const gridDefs = [[27, 27, 10.8], [18.5, 26.8, 10.8], [15.4, 27.0, 10.8], [8.1, 22.0, 10.8], [8.25, 29.0, 10.8]];   // 17/10: cột 3, 5 dời ra mép đông 2 nhà (bản cũ cắm trong nền Xưởng bảo trì / Nhà thiết bị ⇒ cột xuyên mái)
+        const gridPoles = gridDefs.map((c, k) => poleAt(c[0], c[1], c[2], null, { tx: k >= 2 }));   // cột 3, 4, 5 có nhánh vào nhà ⇒ máy biến áp treo cột
         const buildingTies = [worldCell(13, 27, 7.6 * ARCHITECTURE_SCALE), worldCell(7, 19, 8.5 * ARCHITECTURE_SCALE), worldCell(6, 29, 7.5 * ARCHITECTURE_SCALE)];
-        wire(gridPoles[0], subTie.e, 0.3); wire(subTie.w, gridPoles[1], 0.5); wire(gridPoles[1], gridPoles[2], 0.55); wire(gridPoles[2], buildingTies[0], 0.45); wire(gridPoles[2], gridPoles[3], 0.7); wire(gridPoles[3], buildingTies[1], 0.45); wire(gridPoles[2], gridPoles[4], 0.65);   // 2 lộ 110 kV vào 2 cổng néo của trạm
+        wire(gridPoles[0], subTie.e, 0.3); wire(subTie.w, gridPoles[1], 0.5); wire(gridPoles[1], gridPoles[2], 0.55); wire(gridPoles[2], buildingTies[0], 0.45); wire(gridPoles[2], gridPoles[3], 0.7); wire(gridPoles[3], buildingTies[1], 0.45); wire(gridPoles[2], gridPoles[4], 0.65); wire(gridPoles[4], buildingTies[2], 0.45);   // 2 lộ 110 kV vào 2 cổng néo của trạm · cột 5 cấp điện Nhà thiết bị (trước bỏ trống)
 
         // ---- pin lưu trữ (battery storage / BESS) cạnh cánh đồng pin mặt trời + cột điện nối lưới ----
         function batteryBank() {
@@ -208,5 +284,7 @@
             const curve = new THREE.QuadraticBezierCurve3(p0, p1, p2);
             scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(curve.getPoints(18)), cableMat));
           }
+          batPole.links.push(bp);
         }                   // dây hạ xuống pin lưu trữ
+        poleGuys();   // sau khi mọi dây đã nối
 

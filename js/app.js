@@ -1726,8 +1726,24 @@
           x.fillStyle = '#E2D6C0'; x.fillText(txt, 64, 64);
           const t = new THREE.CanvasTexture(c); t.anisotropy = 4; return t;
         }
+        const poleConc = new THREE.MeshLambertMaterial({ color: 0xaaa69d }), poleConcD = new THREE.MeshLambertMaterial({ color: 0x8c8880 });
+        const poleGuardM = new THREE.MeshLambertMaterial({ color: 0xe6c02a }), poleStripeM = new THREE.MeshLambertMaterial({ color: 0x1d1f22 }), poleTxM = new THREE.MeshLambertMaterial({ color: 0x8b959a }), poleConns = [];
+        const _pV = (x, y, z) => new THREE.Vector3(x, y, z);
+        let _pIns = null, _pSign = null;
+        function poleInsGeo() {
+          if (_pIns) return _pIns; const V2 = (x, y) => new THREE.Vector2(x, y), pts = [V2(0.001, 0), V2(0.045, 0), V2(0.04, 0.03)];
+          for (let i = 0; i < 3; i++) { const y = 0.05 + i * 0.075; pts.push(V2(0.036, y), V2(0.086 - i * 0.01, y + 0.018), V2(0.08 - i * 0.01, y + 0.03), V2(0.035, y + 0.042)); }
+          pts.push(V2(0.033, 0.27), V2(0.028, 0.3), V2(0.001, 0.3)); return (_pIns = new THREE.LatheGeometry(pts, 12));
+        }
+        function poleSignTex() {
+          if (_pSign) return _pSign; const c = document.createElement('canvas'); c.width = 128; c.height = 172; const x = c.getContext('2d');
+          x.fillStyle = '#f4f1ea'; x.fillRect(0, 0, 128, 172); x.strokeStyle = '#c8261d'; x.lineWidth = 9; x.strokeRect(6, 6, 116, 160);
+          x.fillStyle = '#c8261d'; x.beginPath(); x.moveTo(74, 22); x.lineTo(44, 74); x.lineTo(64, 74); x.lineTo(50, 112); x.lineTo(86, 62); x.lineTo(66, 62); x.lineTo(80, 22); x.closePath(); x.fill();
+          x.textAlign = 'center'; x.font = 'bold 19px Arial, sans-serif'; x.fillText('CẤM TRÈO', 64, 136); x.font = 'bold 12px Arial, sans-serif'; x.fillStyle = '#1d1d1d'; x.fillText('NGUY HIỂM', 64, 155);
+          const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return (_pSign = t);
+        }
         let poleCounter = 0;
-        function poleAt(oi, oj, h = 6.72, label = null) {
+        function poleAt(oi, oj, h = 6.72, label = null, opts = {}) {
           poleCounter++; const numStr = label || ('' + poleCounter);
           const p = worldCell(oi, oj), g = new THREE.Group(); g.position.copy(p); g.name = 'Cột điện #' + poleCounter + ' (Power Pole)'; scene.add(g);
           obstacleCoords.push({ x: p.x, y: p.y, z: p.z, r: 1.5, h: h + 1.5 });
@@ -1735,16 +1751,63 @@
           if (poleCounter === 1 || poleCounter === 2 || poleCounter === 3 || poleCounter === 5) rotY = Math.PI / 2;
           else if (poleCounter === 6) rotY = Math.PI / 6;
           g.rotation.y = rotY;
-          const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.13, h, 8), metalMat); mast.position.y = h / 2; mast.castShadow = true; g.add(mast);
-          const arm = bx(2.7, 0.12, 0.16, metalMat, true, true, lineDark); arm.position.y = h * 0.88; g.add(arm);
-          for (const x of [-1.05, 0, 1.05]) { const ins = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.34, 8), ceramicMat); ins.position.set(x, arm.position.y + 0.23, 0); ins.castShadow = true; g.add(ins); }
+          const add = (m, x, y, z, cast = true) => { m.position.set(x, y, z); m.castShadow = cast; m.receiveShadow = true; g.add(m); return m; };
+          const band = (y, r, hh = 0.07) => add(new THREE.Mesh(new THREE.CylinderGeometry(r, r, hh, 14, 1, true), metalMat), 0, y, 0, false);
+          const yA = h * 0.88, top = yA + 0.12, RB = 0.18, RT = 0.1, rAt = y => RB + (RT - RB) * y / top;
+          add(new THREE.Mesh(new THREE.CylinderGeometry(RT, RB, top, 14), poleConc), 0, top / 2, 0);
+          add(new THREE.Mesh(new THREE.CylinderGeometry(RB + 0.05, RB + 0.12, 0.24, 14), poleConcD), 0, 0.06, 0);
+          add(new THREE.Mesh(new THREE.CylinderGeometry(RT + 0.03, RT + 0.02, 0.06, 14), poleConcD), 0, top + 0.03, 0);
+          add(bx(2.7, 0.08, 0.09, metalMat, true, true, lineDark), 0, yA, 0);
+          for (const sx of [-1, 1]) rodBetween(g, _pV(sx * rAt(yA - 0.62), yA - 0.62, 0), _pV(sx * 0.8, yA - 0.04, 0), 0.016, metalMat, 5, true);
+          band(yA, rAt(yA) + 0.012, 0.1); band(yA - 0.62, rAt(yA - 0.62) + 0.012);
+          for (const [x, y0] of [[-1.05, yA + 0.045], [1.05, yA + 0.045], [0, top + 0.06]]) {
+            add(new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.06, 6), metalMat), x, y0 + 0.02, 0, false);
+            const ins = add(new THREE.Mesh(poleInsGeo(), ceramicMat), x, y0 + 0.045, 0); ins.scale.y = (yA + 0.375 - (y0 + 0.045)) / 0.3;
+            add(new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.03, 0.03, 8), metalMat), x, yA + 0.39, 0, false);
+          }
+          for (let y = 2.6, sz = 1; y < yA - 0.8; y += 0.42, sz = -sz) rodBetween(g, _pV(0, y, sz * (rAt(y) - 0.01)), _pV(0, y + 0.015, sz * (rAt(y) + 0.17)), 0.011, metalMat, 5, false);
+          { const yS = 2.25, r = rAt(yS); add(bx(0.3, 0.4, 0.012, poleConcD, false, false), 0, yS, r + 0.008, false);
+            const face = add(new THREE.Mesh(new THREE.PlaneGeometry(0.29, 0.39), new THREE.MeshLambertMaterial({ map: poleSignTex(), polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 })), 0, yS, r + 0.0145, false);
+            band(yS + 0.16, r + 0.008, 0.03); band(yS - 0.16, r + 0.008, 0.03); face.name = 'Biển cấm trèo'; }
+          if (opts.tx) {
+            const yT = yA - 2.7, tz = -(rAt(yT) + 0.34);
+            for (const y of [yT - 0.32, yT + 0.28]) { add(bx(0.12, 0.06, 0.62, metalMat, true, true, lineDark), 0, y, tz / 2 - 0.02); band(y, rAt(y) + 0.012); }
+            add(new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.66, 20), poleTxM), 0, yT, tz);
+            for (let k = 0; k < 16; k++) { const a = k / 16 * Math.PI * 2, f = add(bx(0.01, 0.52, 0.07, poleTxM, true, false), Math.cos(a) * 0.29, yT - 0.03, tz + Math.sin(a) * 0.29); f.rotation.y = Math.PI / 2 - a; }
+            add(new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.29, 0.05, 20), poleTxM), 0, yT + 0.355, tz);
+            add(new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.24, 0.07, 20), poleTxM), 0, yT + 0.415, tz);
+            add(bx(0.22, 0.16, 0.1, poleTxM, true, true, lineDark), 0, yT - 0.1, tz - 0.3);
+            for (const sx of [-1, 1]) { const bu = add(new THREE.Mesh(poleInsGeo(), ceramicMat), sx * 0.11, yT + 0.45, tz); bu.scale.set(0.55, 0.5, 0.55);
+              const a0 = _pV(sx * 0.11, yT + 0.6, tz), a2 = _pV(sx * 1.05, yA + 0.39, 0), a1 = a0.clone().lerp(a2, 0.5); a1.y -= 0.25;
+              g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(new THREE.QuadraticBezierCurve3(a0, a1, a2).getPoints(10)), cableMat)); }
+          }
           const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: poleBadgeTex(numStr), transparent: true, opacity: 0.95, depthTest: false, depthWrite: false }));
           sp.scale.set(2.2, 2.2, 1); sp.position.set(0, h + 1.25, 0); sp.renderOrder = 25; g.add(sp); numSprites.push(sp);
-          const conn = p.clone().add(new THREE.Vector3(0, arm.position.y + 0.4, 0));
-          conn.crossarmDir = new THREE.Vector3(Math.cos(rotY), 0, -Math.sin(rotY));
+          const conn = p.clone().add(new THREE.Vector3(0, yA + 0.4, 0));
+          conn.crossarmDir = new THREE.Vector3(Math.cos(rotY), 0, -Math.sin(rotY)); conn.pole = g; conn.yA = yA; conn.rAt = rAt; conn.links = []; poleConns.push(conn);
           return conn;
         }
+        function poleGuys() {
+          for (const c of poleConns) {
+            const R = new THREE.Vector3(); for (const q of c.links) R.add(_pV(q.x - c.x, 0, q.z - c.z).normalize());
+            if (R.length() < 0.7) continue;
+            const base = c.pole.position, d0 = R.normalize().negate();
+            for (const da of [0, 0.35, -0.35, 0.7, -0.7]) {
+              const d = d0.clone().applyAxisAngle(_pV(0, 1, 0), da), ax = base.x + d.x * 3.2, az = base.z + d.z * 3.2, i = Math.round(ax / BLOCK + cx - 0.5), j = Math.round(az / BLOCK + cz - 0.5);
+              if (i < 1 || j < 1 || i >= GX - 1 || j >= GZ - 1 || isWater(i, j) || roadContains(ax, az, 0.4) || Math.abs(surfaceY(i, j) - base.y) > 0.7) continue;
+              const gy = surfaceY(i, j), gg = new THREE.Group(); gg.name = 'Dây néo ' + c.pole.name; scene.add(gg);
+              const A = _pV(base.x + d.x * 0.12, base.y + c.yA - 0.35, base.z + d.z * 0.12), B = _pV(ax, gy + 0.05, az), u = A.clone().sub(B).normalize();
+              rodBetween(gg, A, B, 0.009, metalMat, 4, false);
+              rodBetween(gg, B, B.clone().addScaledVector(u, 1.9), 0.04, poleGuardM, 10, true);
+              for (const k of [0.45, 0.95, 1.45]) { rodBetween(gg, B.clone().addScaledVector(u, k), B.clone().addScaledVector(u, k + 0.12), 0.042, poleStripeM, 10, false); }
+              const blk = bx(0.3, 0.12, 0.3, poleConcD, true, false); blk.position.set(ax, gy + 0.03, az); gg.add(blk);
+              const band = new THREE.Mesh(new THREE.CylinderGeometry(c.rAt(c.yA - 0.35) + 0.012, c.rAt(c.yA - 0.35) + 0.012, 0.06, 14, 1, true), metalMat); band.position.set(0, c.yA - 0.35, 0); c.pole.add(band);
+              break;
+            }
+          }
+        }
         function wire(a, b, sag = 0.55) {
+          if (a.links) a.links.push(b); if (b.links) b.links.push(a);
           const dir = new THREE.Vector3().subVectors(b, a); dir.y = 0; dir.normalize();
           const perp = new THREE.Vector3(-dir.z, 0, dir.x);
           const perpA = a.crossarmDir || perp;
@@ -1867,10 +1930,10 @@
           return { w: tie(gW[1][0]), e: tie(gE[1][0]) };
         }
         const subTie = substation(23.5, 27.2);
-        const gridDefs = [[27, 27, 10.8], [18.5, 26.8, 10.8], [12.5, 27.0, 10.8], [8.1, 22.0, 10.8], [7.0, 29.0, 10.8]];
-        const gridPoles = gridDefs.map(c => poleAt(c[0], c[1], c[2]));
+        const gridDefs = [[27, 27, 10.8], [18.5, 26.8, 10.8], [15.4, 27.0, 10.8], [8.1, 22.0, 10.8], [8.25, 29.0, 10.8]];
+        const gridPoles = gridDefs.map((c, k) => poleAt(c[0], c[1], c[2], null, { tx: k >= 2 }));
         const buildingTies = [worldCell(13, 27, 7.6 * ARCHITECTURE_SCALE), worldCell(7, 19, 8.5 * ARCHITECTURE_SCALE), worldCell(6, 29, 7.5 * ARCHITECTURE_SCALE)];
-        wire(gridPoles[0], subTie.e, 0.3); wire(subTie.w, gridPoles[1], 0.5); wire(gridPoles[1], gridPoles[2], 0.55); wire(gridPoles[2], buildingTies[0], 0.45); wire(gridPoles[2], gridPoles[3], 0.7); wire(gridPoles[3], buildingTies[1], 0.45); wire(gridPoles[2], gridPoles[4], 0.65);
+        wire(gridPoles[0], subTie.e, 0.3); wire(subTie.w, gridPoles[1], 0.5); wire(gridPoles[1], gridPoles[2], 0.55); wire(gridPoles[2], buildingTies[0], 0.45); wire(gridPoles[2], gridPoles[3], 0.7); wire(gridPoles[3], buildingTies[1], 0.45); wire(gridPoles[2], gridPoles[4], 0.65); wire(gridPoles[4], buildingTies[2], 0.45);
 
         function batteryBank() {
           const g = new THREE.Group();
@@ -1911,7 +1974,9 @@
             const curve = new THREE.QuadraticBezierCurve3(p0, p1, p2);
             scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(curve.getPoints(18)), cableMat));
           }
+          batPole.links.push(bp);
         }
+        poleGuys();
 
         const stationTan = new THREE.MeshLambertMaterial({ color: 0xa99d80 }), stationAlu = new THREE.MeshLambertMaterial({ color: 0xb4bbbf });
         const stationBox = new THREE.MeshLambertMaterial({ color: 0xc8cdc6 }), stationDark = new THREE.MeshLambertMaterial({ color: 0x30353a });
@@ -7308,25 +7373,26 @@
           R((W * 1000 - 160) / 2, 248.1 - 13 - 100, 160, 100, 7, '#75787e'); x.strokeStyle = 'rgba(40,40,44,0.35)'; x.lineWidth = 2; x.beginPath(); x.roundRect((W * 1000 - 160) / 2 * k, (248.1 - 113) * k, 160 * k, 100 * k, 7 * k); x.stroke();
           const tt = new THREE.CanvasTexture(top), gt = new THREE.CanvasTexture(glow); tt.colorSpace = gt.colorSpace = THREE.SRGBColorSpace; tt.anisotropy = 4;
           for (const t of [tt, gt]) { t.repeat.set(1 / W, 1 / D); t.offset.set(0.5, 0.5); }
-          const keyMat = new THREE.MeshPhongMaterial({ map: tt, emissiveMap: gt, emissive: 0xfff4e0, emissiveIntensity: 0, specular: 0x333333, shininess: 30 });
-          const deck = new THREE.Mesh(new THREE.ShapeGeometry(rr(W - 0.0006, D - 0.0006, 0.0098), 4), keyMat); deck.rotation.x = -Math.PI / 2; deck.position.y = HB + 0.00005; g.add(deck);
+          const near = { polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 };
+          const keyMat = new THREE.MeshPhongMaterial({ map: tt, emissiveMap: gt, emissive: 0xfff4e0, emissiveIntensity: 0, specular: 0x333333, shininess: 30, ...near });
+          const deck = new THREE.Mesh(new THREE.ShapeGeometry(rr(W - 0.0006, D - 0.0006, 0.0098), 4), keyMat); deck.rotation.x = -Math.PI / 2; deck.position.y = HB + 0.0003; g.add(deck);
           for (const [sx, list] of [[-1, [[-0.075, 0.016], [-0.045, 0.008], [-0.028, 0.008], [0.03, 0.004]]], [1, [[-0.07, 0.014], [-0.045, 0.008], [0.04, 0.024]]]]) for (const [z, w] of list) { const p = new THREE.Mesh(new THREE.BoxGeometry(0.0012, 0.0032, w), dark); p.position.set(sx * (W / 2 + 0.0002), HB * 0.48, z); g.add(p); }
           const hingeBar = new THREE.Mesh(new THREE.CylinderGeometry(0.0045, 0.0045, W - 0.06, 10), dark); hingeBar.rotation.z = Math.PI / 2; hingeBar.position.set(0, HB - 0.001, -D / 2 + 0.006); g.add(hingeBar);
           const hinge = new THREE.Group(); hinge.position.set(0, HB, -D / 2 + 0.006); g.add(hinge);
           const lid = new THREE.Mesh(slab(HL), alu); lid.position.z = D / 2 - 0.006; lid.castShadow = true; hinge.add(lid);
-          const glass = new THREE.Mesh(new THREE.ShapeGeometry(rr(W - 0.0016, D - 0.0016, 0.0092), 4), new THREE.MeshPhongMaterial({ color: 0x08080a, specular: 0x555555, shininess: 140 }));
-          glass.rotation.x = Math.PI / 2; glass.position.set(0, -0.0002, D / 2 - 0.006); hinge.add(glass);
+          const glass = new THREE.Mesh(new THREE.ShapeGeometry(rr(W - 0.0016, D - 0.0016, 0.0092), 4), new THREE.MeshPhongMaterial({ color: 0x08080a, specular: 0x555555, shininess: 140, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }));
+          glass.rotation.x = Math.PI / 2; glass.position.set(0, -0.0003, D / 2 - 0.006); hinge.add(glass);
           const sc = cv(MBP.CW, MBP.CH), sx2 = sc.getContext('2d'); sx2.fillStyle = '#000'; sx2.fillRect(0, 0, MBP.CW, MBP.CH);
           const scrTex = new THREE.CanvasTexture(sc); scrTex.colorSpace = THREE.SRGBColorSpace; scrTex.anisotropy = 4;
-          const screenMat = new THREE.MeshBasicMaterial({ map: scrTex, color: 0x101214 });
-          const scr = new THREE.Mesh(new THREE.PlaneGeometry(SW, SH), screenMat); scr.rotation.x = Math.PI / 2; scr.position.set(0, -0.0004, D - 0.006 - 0.0035 - SH / 2); hinge.add(scr);
+          const screenMat = new THREE.MeshBasicMaterial({ map: scrTex, color: 0x101214, ...near });
+          const scr = new THREE.Mesh(new THREE.PlaneGeometry(SW, SH), screenMat); scr.rotation.x = Math.PI / 2; scr.position.set(0, -0.0006, D - 0.006 - 0.0035 - SH / 2); hinge.add(scr);
           const ap = new THREE.Shape(), A = 0.0125;
           ap.moveTo(0, -0.98 * A); ap.bezierCurveTo(-0.45 * A, -1.12 * A, -1.02 * A, -0.55 * A, -0.98 * A, 0.12 * A); ap.bezierCurveTo(-0.95 * A, 0.62 * A, -0.55 * A, 0.86 * A, -0.2 * A, 0.72 * A);
           ap.quadraticCurveTo(0, 0.66 * A, 0.2 * A, 0.72 * A); ap.bezierCurveTo(0.55 * A, 0.86 * A, 0.86 * A, 0.62 * A, 0.9 * A, 0.42 * A); ap.quadraticCurveTo(0.62 * A, 0.18 * A, 0.66 * A, -0.12 * A);
           ap.quadraticCurveTo(0.7 * A, -0.38 * A, 0.95 * A, -0.48 * A); ap.bezierCurveTo(0.8 * A, -0.92 * A, 0.4 * A, -1.12 * A, 0, -0.98 * A);
           const leaf = new THREE.Shape(); leaf.moveTo(0.02 * A, 0.8 * A); leaf.quadraticCurveTo(0.05 * A, 1.25 * A, 0.42 * A, 1.32 * A); leaf.quadraticCurveTo(0.42 * A, 0.92 * A, 0.02 * A, 0.8 * A);
-          const logo = new THREE.Mesh(new THREE.ShapeGeometry([ap, leaf], 6), new THREE.MeshPhongMaterial({ color: 0x3a3c40, specular: 0xbbbbbb, shininess: 160 }));
-          logo.rotation.set(-Math.PI / 2, 0, Math.PI); logo.position.set(0, HL + 0.0002, D / 2 - 0.006); hinge.add(logo);
+          const logo = new THREE.Mesh(new THREE.ShapeGeometry([ap, leaf], 6), new THREE.MeshPhongMaterial({ color: 0x3a3c40, specular: 0xbbbbbb, shininess: 160, ...near }));
+          logo.rotation.set(-Math.PI / 2, 0, Math.PI); logo.position.set(0, HL + 0.0004, D / 2 - 0.006); hinge.add(logo);
           return { g, hinge, screenMat, keyMat, canvas: sc, ctx: sx2, tex: scrTex };
         }
         function engHelmetProp() {
@@ -8093,7 +8159,7 @@
         const campCupSteam = []; let campPanRig = null;
         function campTable() {
           const g = new THREE.Group();
-          const L = 0.66, W = 0.48, H = 0.45, beech = new THREE.MeshLambertMaterial({ color: 0xd9b98a }), beech2 = new THREE.MeshLambertMaterial({ color: 0xcaa774 });
+          const L = 0.825, W = 0.6, H = 0.5625, beech = new THREE.MeshLambertMaterial({ color: 0xd9b98a }), beech2 = new THREE.MeshLambertMaterial({ color: 0xcaa774 });
           const ironBlack = new THREE.MeshLambertMaterial({ color: 0x1e1f21 });
           const slatN = 9, slatW = (W - (slatN - 1) * 0.006) / slatN;
           for (let i = 0; i < slatN; i++) { const s2 = bx(L, 0.018, slatW, i % 2 ? beech2 : beech, true, true, lineDark); s2.position.set(0, H - 0.009, -W / 2 + slatW / 2 + i * (slatW + 0.006)); g.add(s2); }
@@ -8108,13 +8174,13 @@
           const pot = new THREE.MeshLambertMaterial({ color: 0x2c2d31 }), potIn = new THREE.MeshLambertMaterial({ color: 0x4a4c50 });
           const wire = (pts, r = 0.0035) => new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(...p))), 24, r, 5, false), pot);
           const lathe = (pts, mat) => { const m = new THREE.Mesh(new THREE.LatheGeometry(pts.map(([r, y]) => new THREE.Vector2(r, y)), 20), mat); m.castShadow = true; return m; };
-          const cup = new THREE.Group(); cup.position.set(0.16, H, 0.07); g.add(cup);
+          const cup = new THREE.Group(); cup.position.set(0.2, H, 0.09); g.add(cup);
           cup.add(lathe([[0, 0], [0.043, 0], [0.045, 0.006], [0.045, 0.108], [0.047, 0.11]], pot));
           cup.add(lathe([[0.047, 0.11], [0.042, 0.106], [0.042, 0.008], [0, 0.008]], potIn));
           const tea = new THREE.Mesh(new THREE.CircleGeometry(0.041, 18), new THREE.MeshLambertMaterial({ color: 0x5a3a1c })); tea.rotation.x = -Math.PI / 2; tea.position.y = 0.09; cup.add(tea);
           const spout = bx(0.018, 0.012, 0.02, pot, false, false); spout.position.set(0, 0.108, 0.048); spout.rotation.x = -0.5; cup.add(spout);
           cup.add(wire([[-0.045, 0.085, 0], [-0.085, 0.085, 0], [-0.1, 0.06, 0], [-0.085, 0.035, 0], [-0.045, 0.035, 0]]));
-          const pan = new THREE.Group(); pan.position.set(-0.13, H, -0.06); pan.rotation.y = 0.5; pan.userData.noBake = true; pan.visible = false; pan.name = 'Chảo cơm chiên'; g.add(pan);
+          const pan = new THREE.Group(); pan.position.set(-0.08, H, 0.07); pan.rotation.y = 0.5; pan.userData.noBake = true; pan.visible = false; pan.name = 'Chảo cơm chiên'; g.add(pan);
           pan.add(lathe([[0, 0], [0.075, 0], [0.08, 0.008], [0.086, 0.04], [0.088, 0.042]], pot));
           pan.add(lathe([[0.088, 0.042], [0.083, 0.039], [0.077, 0.01], [0, 0.01]], potIn));
           pan.add(wire([[0.086, 0.035, 0.02], [0.2, 0.05, 0.016], [0.215, 0.05, 0], [0.2, 0.05, -0.016], [0.086, 0.035, -0.02]], 0.004));
@@ -8124,6 +8190,7 @@
             const puff = new THREE.Mesh(new THREE.IcosahedronGeometry(0.018, 1), new THREE.MeshBasicMaterial({ color: 0xf2efe8, transparent: true, opacity: 0, depthWrite: false }));
             steam.add(puff); campCupSteam.push({ m: puff, ph: n / 5 });
           }
+          g.userData.top = H; g.userData.size = [L, W];
           return bakeStatic(g);
         }
         function woodCamp() {
@@ -8231,7 +8298,7 @@
           const rg = new THREE.CylinderGeometry(0.16, W / 2 * Math.SQRT2, 0.075, 4, 1); rg.rotateY(Math.PI / 4); rg.scale(1, 1, D / W);
           add(new THREE.Mesh(rg, ironFlat), 0, YB + H + 0.0375, 0);
           add(new THREE.Mesh(new THREE.CylinderGeometry(0.128, 0.15, 0.06, 24), iron), 0, roofTop + 0.03, 0);
-          const PIPE = 1.32, pipeTop = roofTop + 0.06 + PIPE;
+          const PIPE = 1.98, pipeTop = roofTop + 0.06 + PIPE;
           add(new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.112, PIPE, 24, 1, true), ironDS), 0, roofTop + 0.06 + PIPE / 2, 0);
           const ring = add(new THREE.Mesh(new THREE.TorusGeometry(0.112, 0.008, 6, 24), bronze), 0, pipeTop - 0.006, 0); ring.rotation.x = Math.PI / 2;
           for (let k = 0; k < 3; k++) { const a = k / 3 * 6.283; add(new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.036, 5), iron), Math.cos(a) * 0.1, pipeTop + 0.018, Math.sin(a) * 0.1); }
@@ -8265,7 +8332,7 @@
           });
           const light = new THREE.PointLight(0xff7a2a, 0, 6, 2); light.position.set(0, YB + 0.2, D / 2 + 0.1); g.add(light);
           scene.add(bakeStatic(g));
-          obstacleCoords.push({ x: X, y: g.position.y, z: Z, r: 0.45, h: 2.3 });
+          obstacleCoords.push({ x: X, y: g.position.y, z: Z, r: 0.45, h: 3.0 });
           const SC = CAMP_SCALE, smoke = fluids.addSmoke({ NR: 36, NZ: 110, H: 0.032, NP: 600, NS: 0, NT: 14, buoy: 4, kNu: 0.03, nu0: 0.002, tauT: 6, iters: 30, dens: 0.8,
             inlet: { r: 0.11 * SC }, lid: { r: 0.19 * SC, z0: 0.036 * SC, z1: 0.086 * SC } }, { name: 'Khói ống khói lò chiminea (sợi khói Navier–Stokes)', opacity: 0.6 });
           smoke.on = false;
@@ -8499,7 +8566,7 @@
           for (const C of [FISH_SEAT, CAMP_SEAT]) ENG_PROPS.push(Object.assign({ r: 0.75 }, (({ x, z }) => ({ x, z }))(seatW(C, 0, -0.03))));
           push(FISH_SEAT, seatW(FISH_SEAT, -0.83, -0.05), 0.15);
           if (lanternObj) push(FISH_SEAT, lanternObj.g.position, 0.22);
-          const table = scene.getObjectByName('Bàn trà (Camp Table)'); if (table) push(CAMP_SEAT, table.position, 0.6);
+          const table = scene.getObjectByName('Bàn trà (Camp Table)'); if (table) push(CAMP_SEAT, table.position, 0.66);
           for (const C of [FISH_SEAT, CAMP_SEAT]) {
             const i0 = Math.max(0, Math.floor(x2gi(C.pos.x - 1.2))), i1 = Math.min(GX - 1, Math.ceil(x2gi(C.pos.x + 1.2)));
             const j0 = Math.max(0, Math.floor(z2gj(C.pos.z - 1.2))), j1 = Math.min(GZ - 1, Math.ceil(z2gj(C.pos.z + 1.2)));
@@ -10056,8 +10123,8 @@
           for (let k = 0; k < 4; k++) { const ch = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.004, 9), chipM); ch.scale.z = 0.75; ch.position.set(-0.03 + k * 0.02, 0.163 + (k % 2) * 0.006, (k - 1.5) * 0.008); ch.rotation.set(0.9 + k * 0.3, k, 0.4 * (k - 1.5)); g.add(ch); }
           table.add(g); table.updateMatrixWorld(true);
           const chair = table.worldToLocal(campChairPos.clone()); let best = null, bd = 1e9;
-          for (const s of [[0.17, -0.15], [0.18, 0.16], [-0.2, 0.16]]) { const d = Math.hypot(s[0] - chair.x, s[1] - chair.z); if (d < bd) { bd = d; best = s; } }
-          g.position.set(best[0], 0.45, best[1]); g.rotation.y = Math.atan2(chair.x - best[0], chair.z - best[1]);
+          for (const s of [[0.21, -0.19], [0.22, 0.2], [-0.25, 0.2]]) { const d = Math.hypot(s[0] - chair.x, s[1] - chair.z); if (d < bd) { bd = d; best = s; } }
+          g.position.set(best[0], table.userData.top ?? 0.45, best[1]); g.rotation.y = Math.atan2(chair.x - best[0], chair.z - best[1]);
           return g;
         })();
         const LAP_NOTE = ['Đối chiếu sản lượng thủy điện với mực hồ…', 'Tấm pin: −0,4%/°C khi nóng; kiểm nhiệt độ tấm', 'Tuabin: cắt vào 3 m/s, định mức 12 m/s', 'Pin lưu trữ san tải giờ cao điểm 17–20 h', 'Mai kiểm tra cánh tuabin #2'];
@@ -10327,13 +10394,17 @@
             scr.scale.set(SW, SH, 1); osd.scale.set(SW, SH, 1); cloud.scale.set(SW * 1.5, SH * 1.75, 1);
           }
           const D = { st: 'idle', k: 0, home: new THREE.Vector3(), stand: new THREE.Vector3(), table: new THREE.Vector3(), pos: new THREE.Vector3(), vel: new THREE.Vector3(), yaw: 0, gp: -0.3, wp: [], wi: 0,
-            spin: 0, fold: 0, bat: 100, rec: 0, orbit: null, tilt: new THREE.Vector2(), stick: [0, 0, 0, 0], frame: 0, hold: null, lookDown: 0 };
+            spin: 0, fold: 0, bat: 100, rec: 0, orbit: null, tilt: new THREE.Vector2(), stick: [0, 0, 0, 0], frame: 0, hold: null, lookDown: 0, rcSpot: new THREE.Vector3(), standT: new THREE.Vector3() };
           const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _q = new THREE.Quaternion(), UP = new THREE.Vector3(0, 1, 0);
-          const tableSpot = () => { const t = scene.getObjectByName('Bàn trà (Camp Table)'); t.updateMatrixWorld(true); const b = new THREE.Box3().setFromObject(t); return new THREE.Vector3(b.min.x + 0.2, b.max.y + 0.005, (b.min.z + b.max.z) / 2 + 0.13); };
+          const tableLay = () => { const t = scene.getObjectByName('Bàn trà (Camp Table)'); t.updateMatrixWorld(true); const top = t.userData.top ?? 0.45, W = (t.userData.size || [0.66, 0.48])[1];
+            const stand = t.localToWorld(new THREE.Vector3(-0.03, 0, -W / 2 - 0.62)); stand.y = cowY(stand.x, stand.z);
+            return { yaw: t.rotation.y, dr: t.localToWorld(new THREE.Vector3(-0.2, top, -0.13)), rc: t.localToWorld(new THREE.Vector3(0.16, top, -0.15)), stand }; };
+          const _bb = new THREE.Box3();
+          function restOn(o, y) { o.updateMatrixWorld(true); _bb.setFromObject(o, true); o.position.y += y + 0.001 - _bb.min.y; o.updateMatrixWorld(true); }
           function park() {
-            const p = tableSpot(); D.table.copy(p);
-            scene.add(g); g.position.copy(p); g.rotation.set(0, 0.6, 0); setFold(0); spinTo(0, 1);
-            scene.add(rc); rc.position.set(p.x + 0.04, p.y + 0.02 * S, p.z - 0.33); rc.rotation.set(0, 1.35, 0); bub.visible = false; phoneM.color.setScalar(0);
+            const T = tableLay(); D.table.copy(T.dr); D.rcSpot.copy(T.rc); D.standT.copy(T.stand);
+            scene.add(g); g.position.copy(T.dr); g.rotation.set(0, T.yaw + Math.PI / 2, 0); core.rotation.set(0, 0, 0); setFold(0); spinTo(0, 1); restOn(g, T.dr.y);
+            scene.add(rc); rc.position.copy(T.rc); rc.rotation.set(0, T.yaw, 0); restOn(rc, T.rc.y); bub.visible = false; phoneM.color.setScalar(0);
           }
           function setFold(f) { D.fold = f; arms.forEach((a, i) => { a.piv.rotation.y = a.fold + (a.open - a.fold) * f; if (D.spin < 0.05) props[i].rotation.y = Math.PI / 2 * (1 - f); }); }
           function spinTo(w, dt) { D.spin += (w - D.spin) * Math.min(1, dt * 2.5); }
@@ -10419,9 +10490,9 @@
           }
           function update(e, dt, t) {
             D.k += dt; const H = e.hold || (e.hold = {});
-            if (D.st === 'idle') { sizeBubble(); D.table.copy(tableSpot()); const z = dogBrain.zoomSpot(); D.home.set(z.x, cowY(z.x, z.z) + 0.003, z.z);
+            if (D.st === 'idle') { sizeBubble(); { const T = tableLay(); D.table.copy(T.dr); D.rcSpot.copy(T.rc); D.standT.copy(T.stand); } const z = dogBrain.zoomSpot(); D.home.set(z.x, cowY(z.x, z.z) + 0.003, z.z);
               _v.set(D.table.x - D.home.x, 0, D.table.z - D.home.z).normalize(); D.stand.copy(D.home).addScaledVector(_v, 2.8); D.stand.y = cowY(D.stand.x, D.stand.z); go('toTable'); }
-            if (D.st === 'toTable') { if (engStep(e, _w.set(D.table.x - 0.1, 0, D.table.z - 1.0), dt, t, pf, FIRE_AVOID_R) || D.k > 90) go('grab'); }
+            if (D.st === 'toTable') { if (engStep(e, D.standT, dt, t, pf, FIRE_AVOID_R) || D.k > 90) go('grab'); }
             else if (D.st === 'grab') {
               engStandStill(e); face(e, D.table); look(e, D.table); const R = e.reachT || (e.reachT = [null, null]);
               R[1] = g.position.clone().setY(g.position.y + 0.03); R[0] = rc.position.clone().setY(rc.position.y + 0.03);
@@ -10456,8 +10527,8 @@
               if (D.k > 2.4) hold(e, { drone: 1 });
               if (D.k > 3.4) { e.noFootIK = false; go('home'); }
             }
-            else if (D.st === 'home') { hold(e, { drone: 1, rc: 1 }); if (engStep(e, _w.set(D.table.x - 0.1, 0, D.table.z - 1.0), dt, t, pf, FIRE_AVOID_R) || D.k > 120) go('park'); }
-            else if (D.st === 'park') { engStandStill(e); face(e, D.table); look(e, D.table); const R = e.reachT || (e.reachT = [null, null]); R[1] = D.table.clone().setY(D.table.y + 0.05); R[0] = D.table.clone().add(_v.set(0.04, 0.05, -0.33));
+            else if (D.st === 'home') { hold(e, { drone: 1, rc: 1 }); if (engStep(e, D.standT, dt, t, pf, FIRE_AVOID_R) || D.k > 120) go('park'); }
+            else if (D.st === 'park') { engStandStill(e); face(e, D.table); look(e, D.table); const R = e.reachT || (e.reachT = [null, null]); R[1] = D.table.clone().setY(D.table.y + 0.05); R[0] = D.rcSpot.clone().setY(D.rcSpot.y + 0.05);
               if (D.k > 1.0) { park(); go('done'); } }
             if (D.st === 'done') { D.st = 'idle'; return true; }
             if (D.st !== 'grab' && D.st !== 'park' && D.st !== 'toTable' && !(D.st === 'place' && D.k > 0.8) && D.st !== 'pick') e.armsBusy = true;
@@ -10879,7 +10950,7 @@
           })();
           if (!plan) { pole.visible = basket.visible = false; return { update() {}, tick() {}, busy: false }; }
           const table = scene.getObjectByName('Bàn trà (Camp Table)');
-          const basketDrop = (() => { const tp = table ? table.position.clone() : pf.clone(); const away = tp.clone().sub(campChairPos).setY(0).normalize(); const p = tp.clone().addScaledVector(away, 0.62); p.y = cowY(p.x, p.z); return p; })();
+          const basketDrop = (() => { const tp = table ? table.position.clone() : pf.clone(); const away = tp.clone().sub(campChairPos).setY(0).normalize(); const p = tp.clone().addScaledVector(away, 0.75); p.y = cowY(p.x, p.z); return p; })();
           const basketStand = basketDrop.clone().add(plan.S.clone().sub(basketDrop).setY(0).normalize().multiplyScalar(0.62)); basketStand.y = cowY(basketStand.x, basketStand.z);
           const St = { st: 'idle', k: 0, cfg: cfgNew(), c0: cfgNew(), c1: cfgNew(), cur: null, picked: 0, inBasket: [], basketAt: 'home', day: '', handApple: null, cupApple: null, swing: [] };
           const placeBasket = (p, yaw) => { basket.position.copy(p); basket.rotation.set(0, yaw, 0); basket.updateMatrixWorld(true); };

@@ -86,6 +86,6 @@ Các mẫu sau chỉ dùng để đo dáng, tỉ lệ hoặc học kiểu vẽ:
 - Cành cây rừng: "Low Poly Tree Scene Free" của Nicholas-3D (CC-BY-4.0)
 - Laptop: "MacBook Pro 2021" của KangaroOz 3D (CC-BY-NC)
 - Drone: "Drone" của Kira (CC-BY-4.0)
-- Chất liệu công trình: "Inakaya" của Jellepostma (CC-BY-4.0) và "Forest House" của peachyroyalty (CC-BY-NC-4.0)
+- Chất liệu công trình và cột điện: "Inakaya" của Jellepostma (CC-BY-4.0); chất liệu công trình còn học "Forest House" của peachyroyalty (CC-BY-NC-4.0)
 
 Bướm vẽ theo hình thái và hoa văn của 5 loài thật ở Tây Nguyên.

@@ -38,7 +38,7 @@
           for (const C of [FISH_SEAT, CAMP_SEAT]) ENG_PROPS.push(Object.assign({ r: 0.75 }, (({ x, z }) => ({ x, z }))(seatW(C, 0, -0.03))));   // vòng đẩy phủ cả 4 góc ghế (tay vịn, chân sau)
           push(FISH_SEAT, seatW(FISH_SEAT, -0.83, -0.05), 0.15);                         // xô tôn
           if (lanternObj) push(FISH_SEAT, lanternObj.g.position, 0.22);                  // cọc đèn lồng
-          const table = scene.getObjectByName('Bàn trà (Camp Table)'); if (table) push(CAMP_SEAT, table.position, 0.6);
+          const table = scene.getObjectByName('Bàn trà (Camp Table)'); if (table) push(CAMP_SEAT, table.position, 0.66);   // bàn trà to thêm 25% (17/10): nửa đường chéo 0,51 m
           // ghế vào lưới cấm của bảng DP (mọi bảng dựng sau đây — cột khí tượng, gấu mèo, chó, thỏ, bò — đều đi vòng ghế)
           for (const C of [FISH_SEAT, CAMP_SEAT]) {
             const i0 = Math.max(0, Math.floor(x2gi(C.pos.x - 1.2))), i1 = Math.min(GX - 1, Math.ceil(x2gi(C.pos.x + 1.2)));

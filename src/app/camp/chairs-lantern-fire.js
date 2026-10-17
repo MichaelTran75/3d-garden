@@ -313,9 +313,9 @@
         const woodEndM = new THREE.MeshLambertMaterial({ color: 0xc8a878 });   // mặt cắt gỗ nhạt
         // Bàn gỗ nan cuộn (roll-top) chân chữ X; ca & chảo cắm trại dựng bằng code: nhôm sơn đen, quai dây thép gập.
         const campCupSteam = []; let campPanRig = null;   // chảo trên bàn trà: chỉ hiện khi bữa tối được mang ra
-        function campTable() {
+        function campTable() {   // G 17/10: to thêm 25% (0,66 × 0,48 × 0,45 → 0,825 × 0,6 × 0,5625 m) cho drone + tay cầm nằm gọn trên mặt bàn · userData.top / size cho đồ đặt lên
           const g = new THREE.Group();
-          const L = 0.66, W = 0.48, H = 0.45, beech = new THREE.MeshLambertMaterial({ color: 0xd9b98a }), beech2 = new THREE.MeshLambertMaterial({ color: 0xcaa774 });
+          const L = 0.825, W = 0.6, H = 0.5625, beech = new THREE.MeshLambertMaterial({ color: 0xd9b98a }), beech2 = new THREE.MeshLambertMaterial({ color: 0xcaa774 });
           const ironBlack = new THREE.MeshLambertMaterial({ color: 0x1e1f21 });
           const slatN = 9, slatW = (W - (slatN - 1) * 0.006) / slatN;
           for (let i = 0; i < slatN; i++) { const s2 = bx(L, 0.018, slatW, i % 2 ? beech2 : beech, true, true, lineDark); s2.position.set(0, H - 0.009, -W / 2 + slatW / 2 + i * (slatW + 0.006)); g.add(s2); }   // nan mặt bàn
@@ -331,14 +331,14 @@
           const wire = (pts, r = 0.0035) => new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(...p))), 24, r, 5, false), pot);
           const lathe = (pts, mat) => { const m = new THREE.Mesh(new THREE.LatheGeometry(pts.map(([r, y]) => new THREE.Vector2(r, y)), 20), mat); m.castShadow = true; return m; };
           // ca nấu (boiler): thân trụ Ø9 cm cao 11 cm, vành cuộn, mỏ rót, quai dây gập bên hông
-          const cup = new THREE.Group(); cup.position.set(0.16, H, 0.07); g.add(cup);
+          const cup = new THREE.Group(); cup.position.set(0.2, H, 0.09); g.add(cup);
           cup.add(lathe([[0, 0], [0.043, 0], [0.045, 0.006], [0.045, 0.108], [0.047, 0.11]], pot));
           cup.add(lathe([[0.047, 0.11], [0.042, 0.106], [0.042, 0.008], [0, 0.008]], potIn));
           const tea = new THREE.Mesh(new THREE.CircleGeometry(0.041, 18), new THREE.MeshLambertMaterial({ color: 0x5a3a1c })); tea.rotation.x = -Math.PI / 2; tea.position.y = 0.09; cup.add(tea);   // nước trà nóng
           const spout = bx(0.018, 0.012, 0.02, pot, false, false); spout.position.set(0, 0.108, 0.048); spout.rotation.x = -0.5; cup.add(spout);
           cup.add(wire([[-0.045, 0.085, 0], [-0.085, 0.085, 0], [-0.1, 0.06, 0], [-0.085, 0.035, 0], [-0.045, 0.035, 0]]));
           // chảo: đáy Ø15 cm loe lên Ø17 cm, thành 4 cm, cán dây gập
-          const pan = new THREE.Group(); pan.position.set(-0.13, H, -0.06); pan.rotation.y = 0.5; pan.userData.noBake = true; pan.visible = false; pan.name = 'Chảo cơm chiên'; g.add(pan);
+          const pan = new THREE.Group(); pan.position.set(-0.08, H, 0.07); pan.rotation.y = 0.5; pan.userData.noBake = true; pan.visible = false; pan.name = 'Chảo cơm chiên'; g.add(pan);
           pan.add(lathe([[0, 0], [0.075, 0], [0.08, 0.008], [0.086, 0.04], [0.088, 0.042]], pot));
           pan.add(lathe([[0.088, 0.042], [0.083, 0.039], [0.077, 0.01], [0, 0.01]], potIn));
           pan.add(wire([[0.086, 0.035, 0.02], [0.2, 0.05, 0.016], [0.215, 0.05, 0], [0.2, 0.05, -0.016], [0.086, 0.035, -0.02]], 0.004));
@@ -349,6 +349,7 @@
             const puff = new THREE.Mesh(new THREE.IcosahedronGeometry(0.018, 1), new THREE.MeshBasicMaterial({ color: 0xf2efe8, transparent: true, opacity: 0, depthWrite: false }));
             steam.add(puff); campCupSteam.push({ m: puff, ph: n / 5 });
           }
+          g.userData.top = H; g.userData.size = [L, W];
           return bakeStatic(g);
         }
         function woodCamp() {   // đống củi xếp tháp + cọc gỗ đóng đất
@@ -410,7 +411,7 @@
         { const ch = campChair(campFabricYellow, campFrameWood); ch.position.copy(campChairPos); ch.rotation.y = campChairFaceY; ch.name = 'Ghế cắm trại (Camp Chair)'; scene.add(ch); }   // ghế dã ngoại dạng gấp tương tự ghế câu cá
         { const tb = campTable(); tb.position.set(X0 + 65, cowY(X0 + 65, Z0 + 99.85), Z0 + 99.85);   // toạ độ hover (65, _, 100), lùi 15 cm khỏi tay ghế cắm trại cho khỏi chạm; xa cột chống bạt ~1,4 m
            tb.rotation.y = Math.PI * 0.15; tb.name = 'Bàn trà (Camp Table)'; scene.add(tb); }
-        // ---- CỐC TRÀ của kỹ sư (G 15/10): cốc men trắng có nước trà, đặt trong VÒNG KHAY CỐC trên tay vịn trái ghế cắm trại — bàn trà thấp 0,45 m, cách ghế
+        // ---- CỐC TRÀ của kỹ sư (G 15/10): cốc men trắng có nước trà, đặt trong VÒNG KHAY CỐC trên tay vịn trái ghế cắm trại — bàn trà thấp 0,56 m, cách ghế
         //      ~1 m (gần nhất 0,92 m tới vai, tay với 0,57 m) nên ngồi không với tới; ca đen trên bàn là ca nấu nước. Khói trà bốc từ cốc. Uống: engTea
         //      (engineer/meal-read.js) nhấc cốc khỏi vòng, uống xong đặt lại đúng chỗ ----
         let campTeaCup = null;

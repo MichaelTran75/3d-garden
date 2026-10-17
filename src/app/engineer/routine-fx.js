@@ -121,8 +121,8 @@
           for (let k = 0; k < 4; k++) { const ch = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.004, 9), chipM); ch.scale.z = 0.75; ch.position.set(-0.03 + k * 0.02, 0.163 + (k % 2) * 0.006, (k - 1.5) * 0.008); ch.rotation.set(0.9 + k * 0.3, k, 0.4 * (k - 1.5)); g.add(ch); }
           table.add(g); table.updateMatrixWorld(true);
           const chair = table.worldToLocal(campChairPos.clone()); let best = null, bd = 1e9;
-          for (const s of [[0.17, -0.15], [0.18, 0.16], [-0.2, 0.16]]) { const d = Math.hypot(s[0] - chair.x, s[1] - chair.z); if (d < bd) { bd = d; best = s; } }
-          g.position.set(best[0], 0.45, best[1]); g.rotation.y = Math.atan2(chair.x - best[0], chair.z - best[1]);   // mặt nhãn quay về phía ghế
+          for (const s of [[0.21, -0.19], [0.22, 0.2], [-0.25, 0.2]]) { const d = Math.hypot(s[0] - chair.x, s[1] - chair.z); if (d < bd) { bd = d; best = s; } }
+          g.position.set(best[0], table.userData.top ?? 0.45, best[1]); g.rotation.y = Math.atan2(chair.x - best[0], chair.z - best[1]);   // mặt nhãn quay về phía ghế
           return g;
         })();
         // ---- MÀN HÌNH MacBook (G 15/10 "add animation vào laptop screen" · G 17/10 "keep and improve the screen animation"): màn 3456×2234 ⇒ canvas 512×331,

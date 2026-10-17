@@ -309,6 +309,20 @@ lò xo) ⇒ lên bậc voxel 0,6 đv thì chân trước lên trước, thân ng
   trong `droneToy.render()` NGAY TRƯỚC lượt vẽ chính (main-loop-rest), 1/3 khung (cảm ứng 1/5), bỏ khi bong bóng < 50 px; tắt shadowMap.autoUpdate
   trong lượt đó (dùng lại bóng khung chính), ẩn bong bóng + drone + TAY CẦM (màn điện thoại đọc chính `rt` ⇒ vòng lặp khung). Bong bóng: màn = 2 ×
   màn laptop thế giới (MBP.SW × tỉ lệ laptop), mây canvas + 3 chấm, quay theo camera; bong bóng thời tiết cũ ẩn khi bay. Đo: +4 ms/khung khi vẽ 1/2 khung.
+  Chỗ để trên bàn (17/10, G "đặt drone lên bàn correctly"): `tableLay()` tính theo TOẠ ĐỘ BÀN (x dọc bàn, z ngang, ghế phía +z): drone gập càng nằm dọc
+  bàn (−0,2; −0,13), tay cầm (0,16; −0,15), kỹ sư đứng lấy / cất ở (−0,03; −W/2 − 0,62); `restOn(o, y)` hạ vật cho ĐÁY LƯỚI THẬT (`Box3.setFromObject(o, true)`)
+  chạm mặt bàn. Bàn trà (`campTable`, camp/chairs-lantern-fire.js) to thêm 25% (0,825 × 0,6 × 0,5625 m), ghi `userData.top` / `size` — đồ đặt lên bàn
+  (gói khoai tây, drone) đọc từ đó. **Bẫy** (bản đầu): lấy đỉnh hộp bao CẢ NHÓM bàn (gồm ca nấu, làn hơi) làm mặt bàn ⇒ drone lơ lửng; "đầu bàn" theo hộp
+  bao trục thế giới của bàn xoay 27° ⇒ rơi ra ngoài mép.
+- Cột điện (`poleAt`, world/substation-bess.js, G 17/10 "improve cột điện structure", học cột trong GLB "Inakaya"): cột bê tông thuôn Ø 0,36 → 0,2 m +
+  mố + nắp đỉnh; xà 2,7 m + 2 thanh chống chéo + đai ôm; 2 pha trên sứ có tán ở 2 đầu xà, pha giữa trên sứ ĐỈNH CỘT (bản cũ: thân cột vươn qua xà, dây
+  pha giữa chui qua thân); bu lông leo so le; biển cấm trèo (polygonOffset); `opts.tx` máy biến áp treo cột (cột 3, 4, 5 — có nhánh vào nhà, dây nối
+  lên 2 pha). `wire()` ghi `links` ⇒ `poleGuys()` (cuối tệp, sau khi nối hết dây) thêm dây néo + ống bảo vệ vàng cho cột lệch lực (tổng hướng dây ≥ 0,7),
+  neo cách 3,2 m, né nước / đường (thử lệch ±20°, ±40°). Điểm nối dây (conn) giữ nguyên. Cột 3, 5 dời ra mép đông 2 nhà (bản cũ cắm trong nền nhà ⇒
+  xuyên mái); cột 5 giờ có dây vào Nhà thiết bị (`buildingTies[2]` trước bỏ trống).
+- Laptop nhấp nháy phím (17/10): mặt phím chỉ cao hơn mặt đế 0,05 mm, nhỏ hơn 1 bước độ sâu của camera trực giao (gần 0,1 – xa 4.000 m ⇒ ~0,24 mm);
+  đế gộp lượt vẽ (vị trí qua ma trận xương trong shader) còn mặt phím vẽ riêng ⇒ thắng thua đổi theo góc nhìn. Sửa: mặt phím / logo / kính / màn
+  `polygonOffset` + cách ≥ 0,3 mm. **Quy tắc**: mặt dán (decal) nằm sát mặt khác dưới ~1 mm thì luôn dùng polygonOffset.
 - Chó (G 17/10 "remove its motion đứng 1 chỗ xoay vòng"): bỏ xoay 1–2 vòng trước khi nằm (`'circle'` giờ chỉ xoay ngắn ≤ 2 s quay mặt về bếp lửa).
   Xoay thật sự là do KẸT: bảng DP chung ô 0,6 m dẫn qua khe 12 cm giữa lò chiminea và đống củi (đích nằm sát vòng tránh bếp lửa ⇒ vùng luôn-mở
   quanh đích nới tới 2,2 m) và `ffDir` ở ô cấm chỉ sang ô rẻ nhất 5×5 xuyên qua đống củi. Sửa: `dogNavBuild` (lớp va chạm xong) dựng lưới cấm từ

@@ -1,8 +1,8 @@
         // ===== LÒ SƯỞI CHIMINEA (G 15/10: "learn glb data, then create new one follow reference image at x 67 z 99, khi trời mưa thì chuyển sang dùng cái này") =====
         //  GLB "Rustic chimenea" (archiesmitham, CC-BY-NC-SA-4.0) chỉ để ĐO: 1 lưới quét 3D (8k đỉnh, 1 texture unlit) — bầu đất cao 1,23 m, bụng 0,6 m,
         //  cổ 0,15 m, nón 0,16 m. Dựng theo ẢNH MẪU (lò thép kiểu hộp): 4 chân thép dẹt xoè · bát hứng tro · buồng đốt hộp 0,52 × 0,42 × 0,5 m,
-        //  viền đồng + đinh tán · cửa trước mở rộng, cửa lưới bản lề phải mở ra · mái chóp thấp · ống khói Ø 0,22 m cổ loe, dài 1,32 m (G: ×2 rồi
-        //  ×2 lần nữa) · nón che mưa trên 3 trụ + quai xách. Thép rèn đen vân búa (canvas lốm đốm). Cửa lò (lửa) quay về GHẾ CẮM TRẠI (G 15/10).
+        //  viền đồng + đinh tán · cửa trước mở rộng, cửa lưới bản lề phải mở ra · mái chóp thấp · ống khói Ø 0,22 m cổ loe, dài 1,98 m (G: ×2, ×2
+        //  rồi 17/10 thêm 50%) · nón che mưa trên 3 trụ + quai xách. Thép rèn đen vân búa (canvas lốm đốm). Cửa lò (lửa) quay về GHẾ CẮM TRẠI (G 15/10).
         //  Lòng lò = hộp lót mặt trong (BackSide) màu muội, ửng đỏ theo lửa.
         //  KHÓI = sợi khói Navier–Stokes như lửa trại (nature/fluids.js, nguồn thứ 2): đáy miền = miệng ống, NÓN là ô đặc trong lưới ⇒ khói dội
         //  vào mặt dưới nón, toả ra theo khe giữa miệng ống và nón, vòng qua mép nón rồi mới bốc lên (không xuyên qua nón).
@@ -46,7 +46,7 @@
           const rg = new THREE.CylinderGeometry(0.16, W / 2 * Math.SQRT2, 0.075, 4, 1); rg.rotateY(Math.PI / 4); rg.scale(1, 1, D / W);   // chóp 4 mặt khớp đúng miệng hộp W × D
           add(new THREE.Mesh(rg, ironFlat), 0, YB + H + 0.0375, 0);
           add(new THREE.Mesh(new THREE.CylinderGeometry(0.128, 0.15, 0.06, 24), iron), 0, roofTop + 0.03, 0);
-          const PIPE = 1.32, pipeTop = roofTop + 0.06 + PIPE;
+          const PIPE = 1.98, pipeTop = roofTop + 0.06 + PIPE;   // G 17/10: ống cao thêm 50% (1,32 → 1,98 m) — nón, quai, miền khói đi theo pipeTop
           add(new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.112, PIPE, 24, 1, true), ironDS), 0, roofTop + 0.06 + PIPE / 2, 0);
           const ring = add(new THREE.Mesh(new THREE.TorusGeometry(0.112, 0.008, 6, 24), bronze), 0, pipeTop - 0.006, 0); ring.rotation.x = Math.PI / 2;
           for (let k = 0; k < 3; k++) { const a = k / 3 * 6.283; add(new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.036, 5), iron), Math.cos(a) * 0.1, pipeTop + 0.018, Math.sin(a) * 0.1); }
@@ -83,7 +83,7 @@
           });
           const light = new THREE.PointLight(0xff7a2a, 0, 6, 2); light.position.set(0, YB + 0.2, D / 2 + 0.1); g.add(light);
           scene.add(bakeStatic(g));
-          obstacleCoords.push({ x: X, y: g.position.y, z: Z, r: 0.45, h: 2.3 });   // người, chó, côn trùng đi vòng
+          obstacleCoords.push({ x: X, y: g.position.y, z: Z, r: 0.45, h: 3.0 });   // người, chó, côn trùng đi vòng
           // khói: miền 1,15 × 3,5 m ô 3,2 cm (khe dưới nón ~1 ô), miệng ống r 0,1 · nón r 0,17 cao 3,2 → 6,4 cm trên miệng ống (đv thế giới, đã nhân CAMP_SCALE)
           const SC = CAMP_SCALE, smoke = fluids.addSmoke({ NR: 36, NZ: 110, H: 0.032, NP: 600, NS: 0, NT: 14, buoy: 4, kNu: 0.03, nu0: 0.002, tauT: 6, iters: 30, dens: 0.8,
             inlet: { r: 0.11 * SC }, lid: { r: 0.19 * SC, z0: 0.036 * SC, z1: 0.086 * SC } }, { name: 'Khói ống khói lò chiminea (sợi khói Navier–Stokes)', opacity: 0.6 });
