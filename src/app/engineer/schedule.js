@@ -38,9 +38,9 @@
           const end = k + 1 < ENG_DAY.length ? ENG_DAY[k + 1][0] : 24, n = (k + 1) % ENG_DAY.length;
           return { act: ENG_DAY[k][1], end, left: (end - h) * 3600, next: ENG_DAY[n][1], nextEnd: n + 1 < ENG_DAY.length ? ENG_DAY[n + 1][0] : 24 };
         }
-        let engForceAct = null;   // người xem bấm "▶ Chơi" trên drone / tay cầm (ui/xray-lifecycle.js): làm ngay việc này, xong thì về lịch cũ
+        let engForceAct = null;   // người xem bấm dụng cụ (ui/xray-lifecycle.js): 'drone' (▶ Chơi) · 'apples' (Hái táo) — làm ngay việc này, xong thì về lịch cũ
         function engWantAct(e, hh) {   // việc cần làm lúc này (đặt e.actLeft = số giây còn lại của khung giờ)
-          if (engForceAct === 'drone') { const w = liveWeather.state; if (w.raining || (w.windSpeed || 0) / 3.6 > 9) engForceAct = null; else { e.actLeft = 900; return 'drone'; } }
+          if (engForceAct) { const w = liveWeather.state; if (w.raining || (engForceAct === 'drone' && (w.windSpeed || 0) / 3.6 > 9)) engForceAct = null; else { e.actLeft = 900; return engForceAct; } }
           const s = engScheduleAt(hh); let act = s.act, left = s.left;
           if (ENG_ACTS[act].once) {
             const key = act + '@' + s.end + '@' + new Date().toDateString();   // theo ngày: hôm sau vẫn đi vệ sinh, vẫn tắm

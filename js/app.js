@@ -9360,7 +9360,7 @@
         }
         let engForceAct = null;
         function engWantAct(e, hh) {
-          if (engForceAct === 'drone') { const w = liveWeather.state; if (w.raining || (w.windSpeed || 0) / 3.6 > 9) engForceAct = null; else { e.actLeft = 900; return 'drone'; } }
+          if (engForceAct) { const w = liveWeather.state; if (w.raining || (engForceAct === 'drone' && (w.windSpeed || 0) / 3.6 > 9)) engForceAct = null; else { e.actLeft = 900; return engForceAct; } }
           const s = engScheduleAt(hh); let act = s.act, left = s.left;
           if (ENG_ACTS[act].once) {
             const key = act + '@' + s.end + '@' + new Date().toDateString();
@@ -11176,7 +11176,8 @@
             const handle = new THREE.Mesh(new THREE.TorusGeometry(0.34 * BK, 0.014, 6, 20, Math.PI), rimM); handle.position.y = 0.27 * BK; handle.scale.y = 0.75; basket.add(handle);
           }
           const BASKET_TOP = 0.53 * BK;
-          const SLOTS = [[0.115, 0.11, 0], [-0.058, 0.11, 0.1], [-0.058, 0.11, -0.1], [0.03, 0.27, 0.02], [-0.06, 0.31, -0.05]].map(p => new THREE.Vector3(...p).multiplyScalar(0.7));
+          const SLOTS = [[0.115, 0.11, 0], [-0.058, 0.11, 0.1], [-0.058, 0.11, -0.1], [0.03, 0.27, 0.02]].map(p => new THREE.Vector3(...p).multiplyScalar(0.7))
+            .concat([[0.085, 0.16, 0.147], [-0.17, 0.16, 0], [0.085, 0.16, -0.147], [-0.07, 0.3, 0.06], [0.07, 0.3, -0.06]].map(p => new THREE.Vector3(...p)));
           const trees = appleTrees.map(T => { T.updateMatrixWorld(true); return { T, base: T.getWorldPosition(new THREE.Vector3()), rA: T.userData.appleR * T.scale.x, apples: T.userData.apples }; });
           for (const tr of trees) for (const a of tr.apples) { a.tr = tr; a.st = 'tree'; a.world = a.g.getWorldPosition(new THREE.Vector3()); a.stemL = tr.rA * 1.1; }
           const yawTo = (from, to) => Math.atan2(to.x - from.x, to.z - from.z);
@@ -11206,7 +11207,7 @@
             const stow = { B: tr.base.clone().addScaledVector(out, 0.5).addScaledVector(r, -0.25).setY(gy + 0.02), H: tr.base.clone().addScaledVector(out, 0.17).addScaledVector(r, -0.1).setY(gy + 1.86) };
             return { tr, S, yaw, f, r, basketHome: bk, stow };
           })();
-          if (!plan) { pole.visible = basket.visible = false; return { update() {}, tick() {}, busy: false }; }
+          if (!plan) { pole.visible = basket.visible = false; return { update() { return true; }, tick() {}, busy: false, pole, basket, avail: () => 0, room: () => 0 }; }
           const table = scene.getObjectByName('Bàn trà (Camp Table)');
           const basketDrop = (() => { const tp = table ? table.position.clone() : pf.clone(); const away = tp.clone().sub(campChairPos).setY(0).normalize(); const p = tp.clone().addScaledVector(away, 0.75); p.y = cowY(p.x, p.z); return p; })();
           const basketStand = basketDrop.clone().add(plan.S.clone().sub(basketDrop).setY(0).normalize().multiplyScalar(0.62)); basketStand.y = cowY(basketStand.x, basketStand.z);
@@ -11249,7 +11250,14 @@
             const lookAt = p => { _a.copy(e.g.position); _a.y += 1.45; const dy = p.y - _a.y, dh = Math.hypot(p.x - _a.x, p.z - _a.z); e.head.rotation.x = Math.max(-0.75, Math.min(0.6, -Math.atan2(dy, dh))); };
             const grips2 = () => { R[0] = onPole(St.cfg, GRIP_LO, new THREE.Vector3()); R[1] = onPole(St.cfg, GRIP_HI, new THREE.Vector3()); };
             const stand = () => { engStandStill(e); e.vel = 0; e.g.position.y = cowY(e.g.position.x, e.g.position.z) - ENG_FEET; e.g.rotation.y = plan.yaw; };
-            if (St.st === 'idle') { St.picked = 0; go('walk'); }
+            if (St.st === 'idle') { St.picked = 0; go(St.basketAt === 'table' ? 'toBasket' : 'walk'); }
+            if (St.st === 'toBasket') { H.pole = false; if (engStep(e, basketStand, dt, t, pf, FIRE_AVOID_R)) go('liftT'); return false; }
+            if (St.st === 'bring') {
+              H.pole = false;
+              if (engStep(e, plan.S, dt, t, pf, FIRE_AVOID_R)) { e.g.position.x = plan.S.x; e.g.position.z = plan.S.z; go('setB'); }
+              else { e.arms[1].rotation.x = 0.04 + 0.04 * Math.sin(e.gait || 0); (e.armRollT || (e.armRollT = [0, 0]))[1] = 0.2; e.elbowFlexT = [0, -0.03]; }
+              return false;
+            }
             if (St.st === 'walk') {
               H.pole = false;
               if (engStep(e, plan.S, dt, t, pf, FIRE_AVOID_R)) { e.g.position.x = plan.S.x; e.g.position.z = plan.S.z; go('grab'); }
@@ -11265,10 +11273,20 @@
             St.k += dt;
             const A = St.cur;
             switch (St.st) {
+              case 'liftT': case 'setB': {
+                const at = St.st === 'liftT' ? basket.position : plan.basketHome; H.pole = false; e.g.rotation.y = yawTo(e.g.position, at);
+                const sq = Math.min(ease(St.k / 0.6), 1 - ease((St.k - 0.9) / 0.6));
+                e.noFootIK = true; e.g.position.y -= 0.2 * CAMP_SCALE * ENGINEER_SIZE * sq;
+                e.legs[0].rotation.x = e.legs[1].rotation.x = -0.9 * sq; e.knees[0].rotation.x = e.knees[1].rotation.x = 1.5 * sq; e.lean = 0.1 * sq; e.spineT = { x: 0.4 * sq, y: 0.2 * sq };
+                R[1] = (St.st === 'liftT' ? basket.localToWorld(_a.set(0, BASKET_TOP, 0)) : _a.copy(at).addScaledVector(UP, BASKET_TOP + 0.3 * (1 - sq))).clone(); lookAt(at);
+                if (St.k > 0.8) { if (St.st === 'liftT') St.basketAt = 'hand'; else if (St.basketAt === 'hand') { St.basketAt = 'home'; placeBasket(plan.basketHome, plan.yaw + 0.6); } }
+                if (St.k > 1.5) { e.noFootIK = false; go(St.st === 'liftT' ? 'bring' : 'grab'); }
+                break;
+              }
               case 'grab': {
                 const k = ease(St.k / 1.6); readyCfg(St.c1); cfgLerp(St.c0, St.c1, ease((St.k - 0.5) / 1.1), St.cfg); grips2(); lookAt(St.cfg.H);
                 e.spineT = { x: 0.12 * Math.sin(Math.PI * k), y: 0 };
-                if (St.k > 1.6) { St.cur = nextApple(); go(St.cur ? 'look' : 'stow'); }
+                if (St.k > 1.6) { St.cur = St.inBasket.length < SLOTS.length ? nextApple() : null; go(St.cur ? 'look' : 'stow'); }
                 break;
               }
               case 'look': {
@@ -11331,7 +11349,7 @@
                 const slot = basket.localToWorld(SLOTS[Math.min(SLOTS.length - 1, St.inBasket.length)].clone());
                 R[0] = slot.clone().addScaledVector(UP, 0.12 * (1 - sq)); lookAt(slot);
                 if (St.k > 1.0 && St.handApple) { St.handApple.st = 'basket'; St.inBasket.push(St.handApple); St.handApple = null; St.picked++; }
-                if (St.k > 1.9) { e.noFootIK = false; St.cur = St.picked < N_PICK ? nextApple() : null; go(St.cur ? 'lift' : 'stow'); }
+                if (St.k > 1.9) { e.noFootIK = false; St.cur = St.picked < N_PICK && St.inBasket.length < SLOTS.length ? nextApple() : null; go(St.cur ? 'lift' : 'stow'); }
                 break;
               }
               case 'lift': {
@@ -11387,7 +11405,8 @@
               if (Math.abs(a.sw) + Math.abs(a.sv) + Math.abs(a.swy) + Math.abs(a.svy) < 1e-3) { a.sw = a.sv = a.swy = a.svy = 0; a.g.position.copy(a.home); a.g.rotation.set(0, a.rot, 0); }
             }
           }
-          return { update, tick, get busy() { return St.st !== 'idle'; }, state: St, plan };
+          const avail = () => Math.min(N_PICK, SLOTS.length - St.inBasket.length, plan.tr.apples.filter(a => a.st === 'tree' && reachable(plan.S, a.world)).length);
+          return { update, tick, get busy() { return St.st !== 'idle'; }, state: St, plan, pole, basket, avail, room: () => SLOTS.length - St.inBasket.length };
         })();
         const raccoonBrain = (() => {
           const O = raccoonObj, U = O.userData, s = U.s, H0 = U.H0;
@@ -15793,28 +15812,37 @@
           if (e.button !== 0 || pickMode || Math.hypot(e.clientX - pickDownX, e.clientY - pickDownY) > 6) return;
           const r = dom.getBoundingClientRect();
           pickRay.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), camera);
-          const h = pickRay.intersectObjects([caravanObj, droneToy.g, droneToy.rc], true)[0];
+          const h = pickRay.intersectObjects([caravanObj, ...TOOLS.flatMap(T => T.objs)], true)[0];
           let onVan = false; for (let p = h && h.object; p; p = p.parent) if (p === caravanObj) { onVan = true; break; }
           setCaravanXray(onVan ? !caravanXray : false);
         });
-        const dPop = document.getElementById('dronePop'), dMsg = document.getElementById('dronePopMsg'), dPlay = document.getElementById('dronePlay'), dClose = document.getElementById('dronePopClose');
-        const droneWhyNot = () => { const h = liveWeather.localHour, w = liveWeather.state;
-          return h >= 21 || h < 6 ? 'Kỹ sư đang ngủ (21:00 – 6:00).' : w.raining ? 'Đang mưa, drone không bay được.' : (w.windSpeed || 0) / 3.6 > 9 ? 'Gió mạnh quá (> 9 m/s).'
-            : droneToy.state.st !== 'idle' || engForceAct ? 'Kỹ sư đang bay drone.' : !droneToy.ready() ? 'Mẫu drone đang tải…' : ''; };
-        function showDronePop(x, y) {
-          const r = dom.getBoundingClientRect(), why = droneWhyNot();
-          dMsg.textContent = why || 'Gọi kỹ sư ra bàn trà lấy drone bay 1 vòng quanh đảo.'; dPlay.disabled = !!why; dPlay.style.opacity = why ? '0.45' : '1';
-          dPop.style.left = Math.max(8, Math.min(r.width - 222, x - r.left + 14)) + 'px'; dPop.style.top = Math.max(8, Math.min(r.height - 130, y - r.top - 24)) + 'px'; dPop.style.display = 'block';
+        const tPop = document.getElementById('toolPop'), tTitle = document.getElementById('toolPopTitle'), tMsg = document.getElementById('toolPopMsg'), tGo = document.getElementById('toolPopGo'), tClose = document.getElementById('toolPopClose');
+        const toolBusy = () => liveWeather.localHour >= 21 || liveWeather.localHour < 6 ? 'Kỹ sư đang ngủ (21:00 – 6:00).'
+          : engForceAct === 'drone' || droneToy.state.st !== 'idle' ? 'Kỹ sư đang bay drone.' : engForceAct === 'apples' || applePick.busy ? 'Kỹ sư đang hái táo.' : '';
+        const TOOLS = [
+          { objs: [droneToy.g, droneToy.rc], title: 'Drone DJI Mini 3', go: '▶ Chơi', act: 'drone', ok: () => 'Gọi kỹ sư ra bàn trà lấy drone bay 1 vòng quanh đảo.',
+            why: () => { const w = liveWeather.state; return toolBusy() || (w.raining ? 'Đang mưa, drone không bay được.' : (w.windSpeed || 0) / 3.6 > 9 ? 'Gió mạnh quá (> 9 m/s).' : !droneToy.ready() ? 'Mẫu drone đang tải…' : ''); } },
+          { objs: [applePick.pole, applePick.basket], title: 'Sào hái trái · giỏ táo', go: '🍎 Hái táo', act: 'apples',
+            ok: () => 'Gọi kỹ sư ra gốc cây hái ' + applePick.avail() + ' quả táo bằng sào' + (applePick.state && applePick.state.basketAt === 'table' ? ' (lấy giỏ ở bàn trà mang ra trước).' : '.'),
+            why: () => toolBusy() || (liveWeather.state.raining ? 'Đang mưa, đợi tạnh rồi hái.' : !applePick.room() ? 'Giỏ đầy rồi; 5:00 sáng giỏ được dọn, cây đủ quả lại.' : !applePick.avail() ? 'Táo trong tầm sào đã hái hết; 5:00 sáng cây đủ quả lại.' : '') },
+        ];
+        const toolOf = o => { for (let p = o; p; p = p.parent) for (const T of TOOLS) if (T.objs.includes(p)) return T; return null; };
+        let tCur = null;
+        function showToolPop(T, x, y) {
+          const r = dom.getBoundingClientRect(), why = T.why(); tCur = T;
+          tTitle.textContent = T.title; tGo.textContent = T.go; tMsg.textContent = why || T.ok(); tGo.disabled = !!why; tGo.style.opacity = why ? '0.45' : '1';
+          tPop.style.left = Math.max(8, Math.min(r.width - 222, x - r.left + 14)) + 'px'; tPop.style.top = Math.max(8, Math.min(r.height - 130, y - r.top - 24)) + 'px'; tPop.style.display = 'block';
         }
-        if (dPop) {
+        if (tPop) {
           listen(dom, 'pointerup', e => {
             if (e.button !== 0 || pickMode || Math.hypot(e.clientX - pickDownX, e.clientY - pickDownY) > 6) return;
             const r = dom.getBoundingClientRect();
             pickRay.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), camera);
-            if (pickRay.intersectObjects([droneToy.g, droneToy.rc], true).length) showDronePop(e.clientX, e.clientY); else dPop.style.display = 'none';
+            const h = pickRay.intersectObjects(TOOLS.flatMap(T => T.objs), true)[0], T = h && toolOf(h.object);
+            if (T) showToolPop(T, e.clientX, e.clientY); else { tPop.style.display = 'none'; tCur = null; }
           });
-          listen(dPlay, 'click', () => { if (droneWhyNot()) return; engForceAct = 'drone'; dPop.style.display = 'none'; });
-          listen(dClose, 'click', () => { dPop.style.display = 'none'; });
+          listen(tGo, 'click', () => { if (!tCur || tCur.why()) return; engForceAct = tCur.act; tPop.style.display = 'none'; tCur = null; });
+          listen(tClose, 'click', () => { tPop.style.display = 'none'; tCur = null; });
         }
         const pickCopyBtn = document.getElementById('pickCopy'), pickCloseBtn = document.getElementById('pickClose');
         function copyFallback(txt) {
@@ -16507,7 +16535,7 @@
                 if (e.timer <= 0 || !dogPettable()) { e.phase = (e.loopN = (e.loopN || 0) + 1) % 2 ? 'toMast' : 'toChair'; engPetting = false; }
               }
               else if (e.phase === 'apple') {
-                if (applePick.update(e, dt, t)) e.doneAct = e.onceKey;
+                if (applePick.update(e, dt, t)) { if (!engForceAct || (e.onceKey || '').startsWith('apples@')) e.doneAct = e.onceKey; engForceAct = null; }
               }
               else if (e.phase === 'drone') {
                 if (droneToy.update(e, dt, t)) { if (!engForceAct || (e.onceKey || '').startsWith('drone@')) e.doneAct = e.onceKey; engForceAct = null; }

@@ -49,7 +49,8 @@
             const handle = new THREE.Mesh(new THREE.TorusGeometry(0.34 * BK, 0.014, 6, 20, Math.PI), rimM); handle.position.y = 0.27 * BK; handle.scale.y = 0.75; basket.add(handle);   // quai cong qua miệng giỏ
           }
           const BASKET_TOP = 0.53 * BK;   // đỉnh quai (đv thế giới, tính từ đáy giỏ)
-          const SLOTS = [[0.115, 0.11, 0], [-0.058, 0.11, 0.1], [-0.058, 0.11, -0.1], [0.03, 0.27, 0.02], [-0.06, 0.31, -0.05]].map(p => new THREE.Vector3(...p).multiplyScalar(0.7));   // × 0,7: quả nhỏ 30% (G 17/10) vẫn chạm nhau, tựa đáy giỏ   // giỏ nhỏ: 3 quả đáy xếp tam giác chạm nhau, quả thứ 4 chồng lên khe giữa (ló khỏi miệng giỏ)
+          const SLOTS = [[0.115, 0.11, 0], [-0.058, 0.11, 0.1], [-0.058, 0.11, -0.1], [0.03, 0.27, 0.02]].map(p => new THREE.Vector3(...p).multiplyScalar(0.7))
+            .concat([[0.085, 0.16, 0.147], [-0.17, 0.16, 0], [0.085, 0.16, -0.147], [-0.07, 0.3, 0.06], [0.07, 0.3, -0.06]].map(p => new THREE.Vector3(...p)));   // G 17/10 "click … select pick apple": hái thêm lượt ⇒ lớp 2 vòng 3 quả sát thành giỏ + 2 quả chất ngọn (9 quả)   // × 0,7: quả nhỏ 30% (G 17/10) vẫn chạm nhau, tựa đáy giỏ   // giỏ nhỏ: 3 quả đáy xếp tam giác chạm nhau, quả thứ 4 chồng lên khe giữa (ló khỏi miệng giỏ)
           // ---- cây, quả, chỗ đứng ----
           const trees = appleTrees.map(T => { T.updateMatrixWorld(true); return { T, base: T.getWorldPosition(new THREE.Vector3()), rA: T.userData.appleR * T.scale.x, apples: T.userData.apples }; });
           for (const tr of trees) for (const a of tr.apples) { a.tr = tr; a.st = 'tree'; a.world = a.g.getWorldPosition(new THREE.Vector3()); a.stemL = tr.rA * 1.1; }
@@ -80,7 +81,7 @@
             const stow = { B: tr.base.clone().addScaledVector(out, 0.5).addScaledVector(r, -0.25).setY(gy + 0.02), H: tr.base.clone().addScaledVector(out, 0.17).addScaledVector(r, -0.1).setY(gy + 1.86) };   // dựa vào thân cây
             return { tr, S, yaw, f, r, basketHome: bk, stow };
           })();
-          if (!plan) { pole.visible = basket.visible = false; return { update() {}, tick() {}, busy: false }; }
+          if (!plan) { pole.visible = basket.visible = false; return { update() { return true; }, tick() {}, busy: false, pole, basket, avail: () => 0, room: () => 0 }; }
           // chỗ đặt giỏ sau khi hái: trên đất cạnh bàn trà, phía xa ghế cắm trại
           const table = scene.getObjectByName('Bàn trà (Camp Table)');
           const basketDrop = (() => { const tp = table ? table.position.clone() : pf.clone(); const away = tp.clone().sub(campChairPos).setY(0).normalize(); const p = tp.clone().addScaledVector(away, 0.75); p.y = cowY(p.x, p.z); return p; })();
@@ -125,7 +126,14 @@
             const lookAt = p => { _a.copy(e.g.position); _a.y += 1.45; const dy = p.y - _a.y, dh = Math.hypot(p.x - _a.x, p.z - _a.z); e.head.rotation.x = Math.max(-0.75, Math.min(0.6, -Math.atan2(dy, dh))); };
             const grips2 = () => { R[0] = onPole(St.cfg, GRIP_LO, new THREE.Vector3()); R[1] = onPole(St.cfg, GRIP_HI, new THREE.Vector3()); };
             const stand = () => { engStandStill(e); e.vel = 0; e.g.position.y = cowY(e.g.position.x, e.g.position.z) - ENG_FEET; e.g.rotation.y = plan.yaw; };
-            if (St.st === 'idle') { St.picked = 0; go('walk'); }
+            if (St.st === 'idle') { St.picked = 0; go(St.basketAt === 'table' ? 'toBasket' : 'walk'); }   // giỏ đang ở cạnh bàn trà (lượt trước): đi lấy giỏ mang ra gốc cây trước
+            if (St.st === 'toBasket') { H.pole = false; if (engStep(e, basketStand, dt, t, pf, FIRE_AVOID_R)) go('liftT'); return false; }
+            if (St.st === 'bring') {   // xách giỏ ra gốc cây
+              H.pole = false;
+              if (engStep(e, plan.S, dt, t, pf, FIRE_AVOID_R)) { e.g.position.x = plan.S.x; e.g.position.z = plan.S.z; go('setB'); }
+              else { e.arms[1].rotation.x = 0.04 + 0.04 * Math.sin(e.gait || 0); (e.armRollT || (e.armRollT = [0, 0]))[1] = 0.2; e.elbowFlexT = [0, -0.03]; }
+              return false;
+            }
             if (St.st === 'walk') {   // tới chỗ đứng dưới tán (né thân cây, bếp lửa)
               H.pole = false;
               if (engStep(e, plan.S, dt, t, pf, FIRE_AVOID_R)) { e.g.position.x = plan.S.x; e.g.position.z = plan.S.z; go('grab'); }
@@ -141,10 +149,20 @@
             St.k += dt;
             const A = St.cur;
             switch (St.st) {
+              case 'liftT': case 'setB': {   // cúi xách giỏ cạnh bàn trà · đặt giỏ xuống bên phải chỗ đứng hái (như 'lift-b' / 'put')
+                const at = St.st === 'liftT' ? basket.position : plan.basketHome; H.pole = false; e.g.rotation.y = yawTo(e.g.position, at);
+                const sq = Math.min(ease(St.k / 0.6), 1 - ease((St.k - 0.9) / 0.6));
+                e.noFootIK = true; e.g.position.y -= 0.2 * CAMP_SCALE * ENGINEER_SIZE * sq;
+                e.legs[0].rotation.x = e.legs[1].rotation.x = -0.9 * sq; e.knees[0].rotation.x = e.knees[1].rotation.x = 1.5 * sq; e.lean = 0.1 * sq; e.spineT = { x: 0.4 * sq, y: 0.2 * sq };
+                R[1] = (St.st === 'liftT' ? basket.localToWorld(_a.set(0, BASKET_TOP, 0)) : _a.copy(at).addScaledVector(UP, BASKET_TOP + 0.3 * (1 - sq))).clone(); lookAt(at);
+                if (St.k > 0.8) { if (St.st === 'liftT') St.basketAt = 'hand'; else if (St.basketAt === 'hand') { St.basketAt = 'home'; placeBasket(plan.basketHome, plan.yaw + 0.6); } }
+                if (St.k > 1.5) { e.noFootIK = false; go(St.st === 'liftT' ? 'bring' : 'grab'); }
+                break;
+              }
               case 'grab': {   // với lấy sào đang dựa gốc cây, dựng thẳng trước ngực
                 const k = ease(St.k / 1.6); readyCfg(St.c1); cfgLerp(St.c0, St.c1, ease((St.k - 0.5) / 1.1), St.cfg); grips2(); lookAt(St.cfg.H);
                 e.spineT = { x: 0.12 * Math.sin(Math.PI * k), y: 0 };
-                if (St.k > 1.6) { St.cur = nextApple(); go(St.cur ? 'look' : 'stow'); }
+                if (St.k > 1.6) { St.cur = St.inBasket.length < SLOTS.length ? nextApple() : null; go(St.cur ? 'look' : 'stow'); }
                 break;
               }
               case 'look': {   // ngước nhìn chọn quả chín (quả thấp nhất còn trên cành, trong tầm sào)
@@ -207,7 +225,7 @@
                 const slot = basket.localToWorld(SLOTS[Math.min(SLOTS.length - 1, St.inBasket.length)].clone());
                 R[0] = slot.clone().addScaledVector(UP, 0.12 * (1 - sq)); lookAt(slot);
                 if (St.k > 1.0 && St.handApple) { St.handApple.st = 'basket'; St.inBasket.push(St.handApple); St.handApple = null; St.picked++; }
-                if (St.k > 1.9) { e.noFootIK = false; St.cur = St.picked < N_PICK ? nextApple() : null; go(St.cur ? 'lift' : 'stow'); }
+                if (St.k > 1.9) { e.noFootIK = false; St.cur = St.picked < N_PICK && St.inBasket.length < SLOTS.length ? nextApple() : null; go(St.cur ? 'lift' : 'stow'); }
                 break;
               }
               case 'lift': {   // nhấc sào khỏi đất, hai tay nắm lại, dựng thẳng
@@ -264,5 +282,6 @@
               if (Math.abs(a.sw) + Math.abs(a.sv) + Math.abs(a.swy) + Math.abs(a.svy) < 1e-3) { a.sw = a.sv = a.swy = a.svy = 0; a.g.position.copy(a.home); a.g.rotation.set(0, a.rot, 0); }
             }
           }
-          return { update, tick, get busy() { return St.st !== 'idle'; }, state: St, plan };
+          const avail = () => Math.min(N_PICK, SLOTS.length - St.inBasket.length, plan.tr.apples.filter(a => a.st === 'tree' && reachable(plan.S, a.world)).length);   // số quả lượt tới sẽ hái
+          return { update, tick, get busy() { return St.st !== 'idle'; }, state: St, plan, pole, basket, avail, room: () => SLOTS.length - St.inBasket.length };
         })();

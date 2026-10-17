@@ -17,31 +17,41 @@
           if (e.button !== 0 || pickMode || Math.hypot(e.clientX - pickDownX, e.clientY - pickDownY) > 6) return;
           const r = dom.getBoundingClientRect();
           pickRay.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), camera);
-          const h = pickRay.intersectObjects([caravanObj, droneToy.g, droneToy.rc], true)[0];   // drone / tay cầm đứng trước xe: bấm là mở bảng "Chơi", không bật xem xuyên
+          const h = pickRay.intersectObjects([caravanObj, ...TOOLS.flatMap(T => T.objs)], true)[0];   // dụng cụ (drone, giỏ, sào) đứng trước xe: bấm là mở bảng việc, không bật xem xuyên
           let onVan = false; for (let p = h && h.object; p; p = p.parent) if (p === caravanObj) { onVan = true; break; }
           setCaravanXray(onVan ? !caravanXray : false);
         });
-        // ---- BẤM DRONE / TAY CẦM → bảng nhỏ "▶ Chơi" (G 17/10 "add option to click to the drone/rc to select 'play' then engineer will come and use drone"):
-        //      kỹ sư bỏ việc đang làm như khi đổi việc thường (đứng dậy, ra khỏi xe…), tới bàn trà lấy drone bay 1 vòng quanh đảo, cất về, rồi về lịch cũ
-        //      (engForceAct — engineer/schedule.js). Không chơi được thì ghi lý do: ngủ, mưa, gió > 9 m/s, đang bay, mẫu drone chưa tải ----
-        const dPop = document.getElementById('dronePop'), dMsg = document.getElementById('dronePopMsg'), dPlay = document.getElementById('dronePlay'), dClose = document.getElementById('dronePopClose');
-        const droneWhyNot = () => { const h = liveWeather.localHour, w = liveWeather.state;
-          return h >= 21 || h < 6 ? 'Kỹ sư đang ngủ (21:00 – 6:00).' : w.raining ? 'Đang mưa, drone không bay được.' : (w.windSpeed || 0) / 3.6 > 9 ? 'Gió mạnh quá (> 9 m/s).'
-            : droneToy.state.st !== 'idle' || engForceAct ? 'Kỹ sư đang bay drone.' : !droneToy.ready() ? 'Mẫu drone đang tải…' : ''; };
-        function showDronePop(x, y) {
-          const r = dom.getBoundingClientRect(), why = droneWhyNot();
-          dMsg.textContent = why || 'Gọi kỹ sư ra bàn trà lấy drone bay 1 vòng quanh đảo.'; dPlay.disabled = !!why; dPlay.style.opacity = why ? '0.45' : '1';
-          dPop.style.left = Math.max(8, Math.min(r.width - 222, x - r.left + 14)) + 'px'; dPop.style.top = Math.max(8, Math.min(r.height - 130, y - r.top - 24)) + 'px'; dPop.style.display = 'block';
+        // ---- BẤM DỤNG CỤ → bảng nhỏ gọi kỹ sư làm việc đó, rồi về lịch cũ (engForceAct — engineer/schedule.js; kỹ sư bỏ việc đang làm như khi đổi việc thường):
+        //      drone / tay cầm → "▶ Chơi" (G 17/10 "click to the drone/rc to select play"): lấy drone ở bàn trà bay 1 vòng quanh đảo, cất về
+        //      giỏ / sào hái trái → "Hái táo" (G 17/10 "làm tương tự cho hái táo"): giỏ đang ở bàn trà thì xách ra gốc cây trước, hái ≤ 4 quả, xách giỏ về
+        //      Không làm được thì ghi lý do: ngủ, mưa, gió > 9 m/s (drone), đang làm việc khác vừa gọi, hết táo trong tầm sào / giỏ đầy, mẫu drone chưa tải ----
+        const tPop = document.getElementById('toolPop'), tTitle = document.getElementById('toolPopTitle'), tMsg = document.getElementById('toolPopMsg'), tGo = document.getElementById('toolPopGo'), tClose = document.getElementById('toolPopClose');
+        const toolBusy = () => liveWeather.localHour >= 21 || liveWeather.localHour < 6 ? 'Kỹ sư đang ngủ (21:00 – 6:00).'
+          : engForceAct === 'drone' || droneToy.state.st !== 'idle' ? 'Kỹ sư đang bay drone.' : engForceAct === 'apples' || applePick.busy ? 'Kỹ sư đang hái táo.' : '';
+        const TOOLS = [
+          { objs: [droneToy.g, droneToy.rc], title: 'Drone DJI Mini 3', go: '▶ Chơi', act: 'drone', ok: () => 'Gọi kỹ sư ra bàn trà lấy drone bay 1 vòng quanh đảo.',
+            why: () => { const w = liveWeather.state; return toolBusy() || (w.raining ? 'Đang mưa, drone không bay được.' : (w.windSpeed || 0) / 3.6 > 9 ? 'Gió mạnh quá (> 9 m/s).' : !droneToy.ready() ? 'Mẫu drone đang tải…' : ''); } },
+          { objs: [applePick.pole, applePick.basket], title: 'Sào hái trái · giỏ táo', go: '🍎 Hái táo', act: 'apples',
+            ok: () => 'Gọi kỹ sư ra gốc cây hái ' + applePick.avail() + ' quả táo bằng sào' + (applePick.state && applePick.state.basketAt === 'table' ? ' (lấy giỏ ở bàn trà mang ra trước).' : '.'),
+            why: () => toolBusy() || (liveWeather.state.raining ? 'Đang mưa, đợi tạnh rồi hái.' : !applePick.room() ? 'Giỏ đầy rồi; 5:00 sáng giỏ được dọn, cây đủ quả lại.' : !applePick.avail() ? 'Táo trong tầm sào đã hái hết; 5:00 sáng cây đủ quả lại.' : '') },
+        ];
+        const toolOf = o => { for (let p = o; p; p = p.parent) for (const T of TOOLS) if (T.objs.includes(p)) return T; return null; };
+        let tCur = null;
+        function showToolPop(T, x, y) {
+          const r = dom.getBoundingClientRect(), why = T.why(); tCur = T;
+          tTitle.textContent = T.title; tGo.textContent = T.go; tMsg.textContent = why || T.ok(); tGo.disabled = !!why; tGo.style.opacity = why ? '0.45' : '1';
+          tPop.style.left = Math.max(8, Math.min(r.width - 222, x - r.left + 14)) + 'px'; tPop.style.top = Math.max(8, Math.min(r.height - 130, y - r.top - 24)) + 'px'; tPop.style.display = 'block';
         }
-        if (dPop) {
+        if (tPop) {
           listen(dom, 'pointerup', e => {
             if (e.button !== 0 || pickMode || Math.hypot(e.clientX - pickDownX, e.clientY - pickDownY) > 6) return;
             const r = dom.getBoundingClientRect();
             pickRay.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), camera);
-            if (pickRay.intersectObjects([droneToy.g, droneToy.rc], true).length) showDronePop(e.clientX, e.clientY); else dPop.style.display = 'none';
+            const h = pickRay.intersectObjects(TOOLS.flatMap(T => T.objs), true)[0], T = h && toolOf(h.object);
+            if (T) showToolPop(T, e.clientX, e.clientY); else { tPop.style.display = 'none'; tCur = null; }
           });
-          listen(dPlay, 'click', () => { if (droneWhyNot()) return; engForceAct = 'drone'; dPop.style.display = 'none'; });
-          listen(dClose, 'click', () => { dPop.style.display = 'none'; });
+          listen(tGo, 'click', () => { if (!tCur || tCur.why()) return; engForceAct = tCur.act; tPop.style.display = 'none'; tCur = null; });
+          listen(tClose, 'click', () => { tPop.style.display = 'none'; tCur = null; });
         }
         const pickCopyBtn = document.getElementById('pickCopy'), pickCloseBtn = document.getElementById('pickClose');
         function copyFallback(txt) {   // execCommand dự phòng khi Clipboard API bị chặn (mở file cục bộ file://, không có HTTPS)

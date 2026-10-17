@@ -174,7 +174,7 @@
                 if (e.timer <= 0 || !dogPettable()) { e.phase = (e.loopN = (e.loopN || 0) + 1) % 2 ? 'toMast' : 'toChair'; engPetting = false; }
               }
               else if (e.phase === 'apple') {              // hái táo bằng sào rút: nhắm · luồn rổ · vặn bứt · lấy quả bỏ giỏ · xách giỏ về (engineer/apple-pick.js)
-                if (applePick.update(e, dt, t)) e.doneAct = e.onceKey;
+                if (applePick.update(e, dt, t)) { if (!engForceAct || (e.onceKey || '').startsWith('apples@')) e.doneAct = e.onceKey; engForceAct = null; }   // hái theo yêu cầu (bấm giỏ / sào)
               }
               else if (e.phase === 'drone') {              // bay drone khảo sát: lấy trên bàn trà · đặt, mở càng · cất cánh · bay · hạ · gập · cất (engineer/drone.js)
                 if (droneToy.update(e, dt, t)) { if (!engForceAct || (e.onceKey || '').startsWith('drone@')) e.doneAct = e.onceKey; engForceAct = null; }   // bay theo yêu cầu ngoài giờ: không đánh dấu xong việc 1-lần khác

@@ -378,10 +378,14 @@ lò xo) ⇒ lên bậc voxel 0,6 đv thì chân trước lên trước, thân ng
   bàn ~4 cm (bản cũ: vai cách hàng phím 0,62 m > tầm tay 0,57 m). Hết giờ / bấm "Chơi": `lapDone` (stDesk) uống nốt ngụm, hạ tay về kê cổ tay rồi
   mới nhích ghế. Đo (scratchpad `lapwork.js`: `lwGallery`, `lwRun`): sai lệch IK 0 cm, 10 phút tay ≤ 1,7 m/s, không NaN.
 - Nút "▶ Chơi" drone (G 17/10 "click to the drone/rc to select play then engineer will come and use drone"): bấm drone / tay cầm (khi nằm trên bàn)
-  ⇒ bảng `#dronePop` (page.html, xử lý ở ui/xray-lifecycle.js, chung kiểu `.panel`); chặn kèm lý do: ngủ 21–6 h, mưa, gió > 9 m/s, đang bay, mẫu chưa
+  ⇒ bảng `#toolPop` (page.html, xử lý ở ui/xray-lifecycle.js — danh sách `TOOLS`, chung kiểu `.panel`); chặn kèm lý do: ngủ 21–6 h, mưa, gió > 9 m/s, đang bay, mẫu chưa
   tải. Bấm Chơi ⇒ `engForceAct = 'drone'` (engineer/schedule.js, `engWantAct` trả 'drone' trước lịch) ⇒ đổi việc như thường (đứng dậy, ra xe, tới bàn
   trà, bay 1 vòng ~165 s, cất) ⇒ xong thì xoá, về lịch cũ; chỉ đánh dấu xong việc 1-lần khi đang trong khung `drone@` của lịch. Tới giờ ngủ xoá lệnh.
   Bấm drone có xe van phía sau không bật xem xuyên xe.
+- Bấm giỏ táo / sào hái trái → "🍎 Hái táo" (G 17/10 "làm tương tự cho hái táo"): cùng bảng `#toolPop` (mục `TOOLS` thứ 2), `engForceAct = 'apples'`.
+  Giỏ đang ở cạnh bàn trà (lượt trước) ⇒ `applePick` thêm pha `toBasket` → `liftT` (cúi xách) → `bring` (xách ra chỗ đứng hái) → `setB` (đặt bên phải)
+  rồi mới cầm sào. Giỏ chứa 9 quả (3 đáy + 1 giữa + 3 sát thành + 2 chất ngọn); mỗi lượt ≤ 4 quả, `avail()` = số quả lượt tới sẽ hái. Chỉ 1 chỗ đứng
+  cố định/ngày (`plan`, 6 quả trong tầm sào) ⇒ sau lịch 16:10 (4 quả) bấm thêm chỉ còn 2, rồi báo "hết táo trong tầm sào" tới 5:00 sáng.
 - Cột điện (`poleAt`, world/substation-bess.js, G 17/10 "improve cột điện structure", học cột trong GLB "Inakaya"): cột bê tông thuôn Ø 0,36 → 0,2 m +
   mố + nắp đỉnh; xà 2,7 m + 2 thanh chống chéo + đai ôm; 2 pha trên sứ có tán ở 2 đầu xà, pha giữa trên sứ ĐỈNH CỘT (bản cũ: thân cột vươn qua xà, dây
   pha giữa chui qua thân); bu lông leo so le; biển cấm trèo (polygonOffset); `opts.tx` máy biến áp treo cột (cột 3, 4, 5 — có nhánh vào nhà, dây nối

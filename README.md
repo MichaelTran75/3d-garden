@@ -1,7 +1,7 @@
 # GHC · Thủy điện Gia Lai — vườn năng lượng tái tạo 3D
 
 Cảnh three.js (WebGL): thủy điện, cánh đồng pin mặt trời, tua-bin gió, trạm khí tượng với thời tiết Open-Meteo thật, mặt trời theo mùa ở Pleiku.
-Kỹ sư sinh hoạt theo lịch cả ngày (bấm drone hoặc tay cầm trên bàn trà rồi chọn "▶ Chơi" để gọi kỹ sư ra bay); đàn bò, chó, cò, chim sẻ, ong, bướm sống quanh trại.
+Kỹ sư sinh hoạt theo lịch cả ngày (bấm drone hoặc tay cầm trên bàn trà rồi chọn "▶ Chơi" để gọi kỹ sư ra bay; bấm giỏ hoặc sào cạnh cây táo rồi chọn "Hái táo"); đàn bò, chó, cò, chim sẻ, ong, bướm sống quanh trại.
 
 Trang: https://michaeltran75.github.io/3d-garden/ (nhúng Wix bằng iframe).
 
