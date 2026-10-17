@@ -723,6 +723,8 @@
             const phase = seconds * gaitSpeed + side * Math.PI;
             let ty = -68.3 + Math.max(0, Math.sin(phase)) * 7 * stride + b.perch.footOffsets[side] * feet + crouch, tz = STORK_FOOT_Z + Math.cos(phase) * 12 * stride;
             let dx = 0; if (gw > 0) { const g = b.gl[side]; ty += (g.y - ty) * gw; tz += (g.z - tz) * gw; dx = Math.max(-8, Math.min(8, g.x - STORK_SIDE_X[side])) * gw; }
+            const ol = b.oneLeg || 0;   // ĐỨNG 1 CHÂN lúc nghỉ: chân phải co, bàn chân trái dồn vào dưới tâm thân
+            if (ol > 0) { if (side) { ty += (-15 - ty) * ol; tz += (-9 - tz) * ol; dx *= 1 - ol; } else dx += (5.5 - dx) * ol; }   // co: bàn chân gập ngược lên sát bụng (cao hơn khớp), khớp cổ chân chĩa ra sau – xuống
             storkLegSolve(ty, tz, _skLeg[side]).dx = dx;   // dx: bàn chân lệch ngang (xoay thân khi đang trụ) — chân nghiêng dần từ hông
           }
           const { hy, hz, L1 } = STORK_LEG, jy0 = hy - L1;
@@ -771,7 +773,7 @@
           b.foldedWings.scale.setScalar(b.groundMix * (1 - wingSpread));
           for (let side = 0; side < 2; side++) {   // ngón chân ở bàn chân thực (sau IK); chân đang bước thì ngón cụp xuống
             const toe = b.toes[side], K = _skLeg[side];
-            toe.position.set(STORK_SIDE_X[side] + K.dx, K.fy, K.fz); toe.rotation.x = gw ? (b.gc ? b.gc[side] : 0) : 0;
+            toe.position.set(STORK_SIDE_X[side] + K.dx, K.fy, K.fz); toe.rotation.x = Math.max(gw ? (b.gc ? b.gc[side] : 0) : 0, side ? 1.3 * (b.oneLeg || 0) : 0);   // chân co: ngón quắp
             toe.scale.setScalar(b.groundMix);
           }
           const tip = storkBeakTip * 3; b.caughtFish.position.set(p[tip], p[tip + 1] - 2, p[tip + 2] - 1);
@@ -912,7 +914,7 @@
             b.state = 'sleep'; b.m.rotation.y = b.perch.heading; b.m.position.copy(b.roostTarget).add(treeWindAt(oldTreeWind, b.perchFoot, _storkSway));
             poseStandingStork(b, 0, 1, 0, 0, true);
           } else {
-            b.state = 'wade'; b.wadeRemaining = b.dayWalkingOnly ? Infinity : 44 + b.index * 11; b.peckElapsed = -1; b.nextPeck = 4 + b.index * 2; pickStorkWadeTarget(b);
+            b.state = 'wade'; b.wadeRemaining = b.dayWalkingOnly ? Infinity : 44 + b.index * 11; b.peckElapsed = -1; b.nextPeck = 4 + b.index * 2; b.fg = null; b.oneLeg = 0; pickStorkWadeTarget(b);
             storkBodyAtFoot(b, b.foot, b.m.position); poseStandingStork(b, 0, 0, 0, 0, true);
           }
         }
@@ -949,7 +951,7 @@
           }
           b.launchDestination = destination; b.launchOnBranch = b.state === 'sleep';
           b.launchSleep = b.poseSleep || 0; b.launchPeck = b.posePeck || 0;
-          b.launchElapsed = 0; b.launchYaw = b.m.rotation.y; b.caughtFish.visible = false; b.peckElapsed = -1;
+          b.launchElapsed = 0; b.launchYaw = b.m.rotation.y; b.caughtFish.visible = false; b.peckElapsed = -1; b.fg = null; b.oneLeg = 0;
           if (b.launchOnBranch) {
             b.launchStartFoot.copy(b.perch.localContact).applyMatrix4(oldTreeGroup.matrixWorld);
             b.launchEndFoot.copy(b.perch.runLocalEnd).applyMatrix4(oldTreeGroup.matrixWorld);
@@ -1097,31 +1099,56 @@
                 poseStandingStork(b, 0, (b.state === 'join' || (b.dayWalkingOnly && b.state === 'landing')) ? b.tripSleep * departureMix : 0, 0, seconds, false, arriving && arrivalMix >= departureMix ? 1 : 0);
               }
             } else if (b.state === 'wade') {
-              b.wadeRemaining -= dt; b.nextPeck -= dt;
-              let stride = 0, peck = 0, moved = 0;
-              if (b.peckElapsed >= 0) {
-                b.peckElapsed += dt;
-                if (b.peckElapsed >= .85 && b.peckElapsed - dt < .85) { const ry = b.m.rotation.y; fluids?.splash(b.foot.x + Math.sin(ry) * .6, b.foot.z + Math.cos(ry) * .6, .55, .14); }   // mỏ cắm xuống nước
-                if (b.peckElapsed <= 1.65) peck = 1.8 * Math.sin(Math.PI * b.peckElapsed / 1.65);
-                b.caughtFish.visible = b.peckSuccess && b.peckElapsed >= .9 && b.peckElapsed < 2.4;
-                if (b.peckElapsed >= 2.8) { b.peckElapsed = -1; b.caughtFish.visible = false; b.nextPeck = 6 + b.rng() * 4; }
-              } else if (b.nextPeck <= 0 && !(b.col && colMoverHits(b.col, b.foot.x, b.foot.z, b.col.ang()) > 0.02)) {   // đang chồng cò khác: lội ra chỗ khác đã
-                b.peckElapsed = 0; b.strikes++; b.peckSuccess = b.strikes % 3 === 0;
-                if (b.peckSuccess) b.catches++;
-              } else {
+              // ---- KIẾM ĂN DƯỚI NƯỚC (G 17/10 "do research about 3 con cò behavior, then improve their movements"): chim lội săn kiểu "đi chậm – đứng rình"
+              //      (Kushlan 1976, Feeding behavior of North American herons; cò trắng Ciconia ciconia — Cramp & Simmons BWP): vài bước chậm, chủ ý (~0,35 m/s)
+              //      → đứng im rình 1,5–5 s, cổ vươn, mắt nhìn nước → MỔ CHỚP NHOÁNG (lao mỏ ~0,18 s, giữ dưới nước ~0,2 s) hoặc bước tiếp; trúng ~1/3 lần ⇒
+              //      NGỬA MỎ HẤT ĐẦU NUỐT (2 lần hất). Xen đợt NGHỈ 25–65 s mỗi 1–2,5 phút: ĐỨNG 1 CHÂN (chân kia co sát bụng, ngón quắp), rụt cổ, RỈA LÔNG
+              //      từng đợt ~3,5 s, có khi DUỖI CÁNH. Bản cũ: đi liên tục không dừng, mổ chậm như gật đầu (1,65 s), không nuốt, không nghỉ ----
+              b.wadeRemaining -= dt; b.footMix = 0;
+              const F = b.fg || (b.fg = { st: 'walk', t: 0, dur: 1.5, rest: 50 + b.rng() * 90, pre: 4 }), r = () => b.rng();
+              F.t += dt; F.rest -= dt;
+              const go = (st, dur = 0) => { F.st = st; F.t = 0; F.dur = dur; };
+              let peck = 0, moved = 0, sleep = 0, wing = 0, legT = 0;
+              const walkTo = sp => {   // bước lội tới wadeTarget, giữ khoảng cách cò khác (core/collide.js); tới nơi → true
                 const dx = b.wadeTarget.x - b.foot.x, dz = b.wadeTarget.z - b.foot.z, distance = Math.hypot(dx, dz);
-                if (distance < .12 || (b.col && b.nextPeck <= 0 && colMoverHits(b.col, b.foot.x, b.foot.z, b.col.ang()) > 0.02 && b.rng() < dt * 2)) pickStorkWadeTarget(b);
-                else {
-                  const step = Math.min(distance, dt * .48), nx = b.foot.x + dx / distance * step, nz = b.foot.z + dz / distance * step;
-                  if (b.col && !colStepOK(b.col, b.foot.x, b.foot.z, nx, nz, Math.atan2(dz, dx))) pickStorkWadeTarget(b);   // sắp chạm cò khác: đổi hướng lội (core/collide.js)
-                  else { b.foot.x = nx; b.foot.z = nz; moved = step; }
-                  const heading = Math.atan2(dx, dz), turn = Math.atan2(Math.sin(heading - b.m.rotation.y), Math.cos(heading - b.m.rotation.y)); b.m.rotation.y += turn * Math.min(1, dt * 3);
-                }
+                if (distance < .12) return true;
+                const step = Math.min(distance, dt * sp), nx = b.foot.x + dx / distance * step, nz = b.foot.z + dz / distance * step;
+                if (b.col && !colStepOK(b.col, b.foot.x, b.foot.z, nx, nz, Math.atan2(dz, dx))) { pickStorkWadeTarget(b); return false; }
+                b.foot.x = nx; b.foot.z = nz; moved = step;
+                const heading = Math.atan2(dx, dz), turn = Math.atan2(Math.sin(heading - b.m.rotation.y), Math.cos(heading - b.m.rotation.y)); b.m.rotation.y += turn * Math.min(1, dt * 3);
+                return false;
+              };
+              if (F.st === 'walk') {
+                if (walkTo(0.35)) { pickStorkWadeTarget(b); go('wait', 1.5 + r() * 3.5); }
+                else if (F.t > F.dur) go(F.rest <= 0 ? 'rest' : 'wait', F.rest <= 0 ? 25 + r() * 40 : 1.5 + r() * 3.5);
+              } else if (F.st === 'wait') {   // đứng rình: cổ vươn chúc nhìn nước, gần như bất động (khẽ nghiêng đầu dò)
+                peck = 0.34 + 0.05 * Math.sin(seconds * 0.9 + b.index);
+                if (F.t > F.dur) { const crowd = b.col && colMoverHits(b.col, b.foot.x, b.foot.z, b.col.ang()) > 0.02; if (!crowd && r() < 0.55) go('strike'); else go('walk', 1.4 + r() * 2.2); }
+              } else if (F.st === 'strike') {   // lao mỏ chớp nhoáng → giữ dưới nước → rút lên
+                const k = F.t;
+                if (k < 0.18) peck = 0.34 + (2.0 - 0.34) * (k / 0.18) ** 2;
+                else if (k < 0.4) { peck = 2.0; if (k - dt < 0.18) { const ry = b.m.rotation.y; fluids?.splash(b.foot.x + Math.sin(ry) * .6, b.foot.z + Math.cos(ry) * .6, .55, .16); b.strikes++; b.peckSuccess = b.strikes % 3 === 0; if (b.peckSuccess) b.catches++; } }
+                else peck = 2.0 + (0.1 - 2.0) * storkSmooth((k - 0.4) / 0.45);
+                b.caughtFish.visible = b.peckSuccess && k >= 0.4;
+                if (k >= 0.85) { if (b.peckSuccess) go('swallow'); else go('wait', 1 + r() * 2); }
+              } else if (F.st === 'swallow') {   // ngửa mỏ lên trời, hất đầu 2 lần cho cá trôi xuống
+                const k = F.t; peck = k < 0.35 ? -0.8 * storkSmooth(k / 0.35) : k < 0.75 ? -0.8 + 0.18 * Math.sin((k - 0.35) * Math.PI * 5) : -0.8 * (1 - storkSmooth((k - 0.75) / 0.4));
+                b.caughtFish.visible = k < 0.6;
+                if (k >= 1.15) { b.caughtFish.visible = false; b.peckSuccess = false; go('walk', 1.4 + r() * 2.2); }
+              } else {   // NGHỈ: đứng 1 chân, rụt cổ; rỉa lông từng đợt; có khi duỗi cánh; hết giờ thì hạ chân, đi tiếp
+                const end = F.t > F.dur;
+                legT = end ? 0 : storkSmooth((F.t - 0.4) / 0.8);
+                sleep = 0.42;
+                if ((F.pre -= dt) < 0) { if (F.pre < -3.5) F.pre = 5 + r() * 4; else sleep = 0.6 + 0.22 * Math.abs(Math.sin(seconds * 4.2)); }   // rỉa lông: mỏ lùa lông lưng, cánh
+                if (!F.ws && F.t > F.dur * 0.45) F.ws = 1;
+                if (F.ws === 1) { F.wk = (F.wk || 0) + dt; wing = 0.55 * Math.sin(Math.PI * Math.min(1, F.wk / 1.6)); if (F.wk > 1.6) F.ws = 2; }   // duỗi cánh 1 lần
+                if (end && (b.oneLeg || 0) < 0.03) { F.rest = 60 + r() * 90; F.ws = 0; F.wk = 0; go('walk', 1.4 + r() * 2.2); }
               }
+              b.oneLeg = (b.oneLeg || 0) + (legT - (b.oneLeg || 0)) * Math.min(1, dt * 2.5);
               storkBodyAtFoot(b, b.foot, b.m.position); b.groundMix = 1; b.m.rotation.x = b.m.rotation.z = 0;
               storkWalk(b, dt, moved, moved / Math.max(dt, 1e-3), false);
-              poseStandingStork(b, peck, 0, stride, seconds);
-              if (!b.dayWalkingOnly && b.wadeRemaining <= 0 && b.peckElapsed < 0) storkTakeoff(b, seconds);
+              poseStandingStork(b, peck, sleep, 0, seconds, false, wing);
+              if (!b.dayWalkingOnly && b.wadeRemaining <= 0 && (F.st === 'walk' || F.st === 'wait') && (b.oneLeg || 0) < 0.05) storkTakeoff(b, seconds);
             }
             {   // hạ độ cao → lượn (thôi vỗ), lấy lại độ cao → vỗ; cuối chặng đáp (hạ cánh / về cành) luôn giữ cánh lượn tới khi chạm chân
               const airborne = (b.state === 'fly' || b.state === 'landing' || b.state === 'return' || b.state === 'join') && !(b.settle >= 0);

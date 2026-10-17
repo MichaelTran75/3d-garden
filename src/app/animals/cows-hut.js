@@ -66,8 +66,8 @@
           const tail = makeSoftTail(body, { base: new THREE.Vector3(-0.86, 1.72, 0), dir: new THREE.Vector3(-0.14, -1, 0).normalize(), n: 5, len: 0.15, w: 0.085, mat: cowWhite, stiff: [0.1, 0.025] });
           const tuft = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), cowDark); tuft.scale.set(1.3, 0.85, 0.85); tuft.position.x = 0.11; tail.segs[4].add(tuft);
           // ---- BẦU VÚ ----
-          P(body, 0.34, 0.26, 0.46, cowPink, -0.18, 0.95, 0, false);
-          g.scale.setScalar((k || 1.053) * NATURE_SCALE); g.userData = { torso, body, neck, head: hg, muzzle, legs, tail, jaw, ears }; return g;
+          const udder = P(body, 0.34, 0.26, 0.46, cowPink, -0.18, 0.95, 0, false);
+          g.scale.setScalar((k || 1.053) * NATURE_SCALE); g.userData = { torso, body, neck, head: hg, muzzle, legs, tail, jaw, ears, udder }; return g;
         }
         const cowCells = [[16, 5], [27, 6], [45, 5], [21, 8], [41, 6]];
         const x2gi = x => x / BLOCK + cx - 0.5, z2gj = z => z / BLOCK + cz - 0.5;
@@ -97,12 +97,27 @@
           const m = cow((1.053 + Math.random() * 0.2835) * 0.9), x = wx(i), z = wz(j), ang = Math.random() * 6.28; m.position.set(x, surfaceY(i, j), z); m.rotation.y = -ang; scene.add(m);
           const _cs = ['graze', 'rest', 'walk'][Math.floor(Math.random() * 3)];
           const cw = { g: m, head: m.userData.head, legs: m.userData.legs, tail: m.userData.tail, x, z, ang, spd: 0.65 + Math.random() * 0.45, ph: Math.random() * 6, tmr: 2 + Math.random() * 5, state: _cs, restY: 0 };
-          const Sc = m.scale.y;
-          cw.rig = quadRig(m, { legs: cw.legs, gaits: {   // đi bộ 4 phách trình tự bên (sau-T → trước-T → sau-P → trước-P), chạm đất ~65%; nước kiệu khi vội
+          cowRig(cw); cows.push(cw);
+        }
+        function cowRig(cw) {
+          const Sc = cw.g.scale.y;
+          cw.rig = quadRig(cw.g, { legs: cw.legs, gaits: {   // đi bộ 4 phách trình tự bên (sau-T → trước-T → sau-P → trước-P), chạm đất ~65%; nước kiệu khi vội
             walk: { off: [0.27, 0.77, 0, 0.5], duty: 0.65, stride: 1.15 * Sc, lift: 0.085, vRef: 1.0 },
             trot: { off: [0, 0.5, 0.5, 0], duty: 0.45, stride: 1.9 * Sc, lift: 0.12, vRef: 1.8 } },
             home: (L, out) => out.set(L.hip.position.x, 0, L.hip.position.z), ground: (x, z) => colWalkY(x, z, cowY(cw.x, cw.z), 0.3 * Sc), size: Sc, settleT: 0.45, settleLift: 0.07 });   // mặt đứng: đất hoặc sàn chuồng / bậc thấp (core/collide.js)
-          cows.push(cw);
+        }
+        // ---- BÊ CON (G 17/10 "mở rộng chuồng bò cho thêm bò con"): 2 bê theo 2 bò mẹ; chuồng thêm 2 ô (dựng theo số con), ô bê sát ô mẹ.
+        //  Tập tính bê (BCRC / UNL Beef, Jensen 2011, von Keyserlingk & Weary 2007): bám mẹ 1–3 m, đi cạnh hông / sau mẹ; nằm nghỉ 60–80% thời gian, cạnh
+        //  mẹ; BÚ 5–8 lần/ngày, mỗi lần 5–10 phút — đứng song song NGƯỢC CHIỀU bên hông mẹ, đầu tới bầu vú, HÚC lên từng đợt, đuôi ngoe nguẩy; mẹ đứng yên
+        //  ngoảnh lại ngửi con; CHƠI từng đợt ngắn (chạy vòng, nhảy hất chân sau), hay vào chiều muộn; tập gặm cỏ theo mẹ. Nhịp trong cảnh dồn lại
+        //  cho người xem kịp thấy (đói sữa ~15 phút, bú 2–4 phút). Mô hình: bò thu 0,5, đầu to hơn tỉ lệ, không bầu vú ----
+        for (const mi of [1, 3]) {
+          const dam = cows[mi]; if (!dam) continue;
+          const m = cow(dam.g.scale.y / NATURE_SCALE * 0.5); m.userData.udder.visible = false; m.userData.head.scale.setScalar(1.22);
+          let x = dam.x + 1.5, z = dam.z; for (const a of [1.6, -1.6, 2.6, -2.6]) { const tx = dam.x + Math.cos(dam.ang + a) * 1.6, tz = dam.z + Math.sin(dam.ang + a) * 1.6; if (cowOK(tx, tz)) { x = tx; z = tz; break; } }
+          m.position.set(x, cowY(x, z), z); m.rotation.y = -dam.ang; scene.add(m);
+          const cw = { g: m, head: m.userData.head, legs: m.userData.legs, tail: m.userData.tail, x, z, ang: dam.ang, spd: 0.8, ph: Math.random() * 6, tmr: 3, state: 'follow', restY: 0, dam, side: Math.random() < 0.5 ? 1 : -1, milk: Math.random() * 0.7 };
+          cowRig(cw); dam.calf = cw; cows.push(cw);
         }
 
         // ---- CHUỒNG BÒ tại ghim (54, 7, 49): khung cột gỗ, mái tôn một mái dốc ra sau, mặt trước mở hướng nam (+Z) để nhìn thấy bò bên trong;
@@ -230,7 +245,8 @@
           cowHutRect = { x0: hx - W / 2 - 1.7, x1: hx + W / 2 + 1.45, z0: hz - D / 2 - 0.35, z1: hz + D / 2 + 0.25 };
           return { g, x: hx, z: hz, y: y0, W, D, Hf, Hb, stalls, light, lampTick, door: { x: hx, z: hz + D / 2 + 2.2 } };
         })();
-        cows.forEach((c, k) => { c.stall = k; c.mode = 'free'; c.leg = ''; c.sub = 'stand'; });
+        { let k = 0; for (const c of cows) if (!c.dam) { c.stall = k++; if (c.calf) c.calf.stall = k++; } }   // bê nằm ô sát ô mẹ
+        cows.forEach(c => { c.mode = 'free'; c.leg = ''; c.sub = 'stand'; });
         const cowHutWanted = () => { const h = liveWeather.localHour; return liveWeather.state.raining || h >= 17.9 || h < 6.2; };   // chiều tối hoặc mưa → về chuồng
         let hutField = null;   // trường dòng chảy về cửa chuồng (dựng sau khi lưới cấm sẵn sàng); mỗi con có thêm c.homeField về bãi quen
         const COW_SLIDE = [0, 0.35, -0.35, 0.7, -0.7, 1.1, -1.1, 1.5, -1.5];
@@ -321,7 +337,7 @@
         //  uống từng đợt, giữa chừng ngẩng lên, xong về bãi; trưa nóng ≥ 28 °C tìm bóng cây gần nằm.
         const cowGrazeDrive = h => h < 9.5 ? 0.85 : h < 11 ? 0.5 : h < 14.5 ? 0.1 : h < 16 ? 0.45 : 0.85;   // mức muốn gặm theo giờ (sáng / chiều cao, trưa thấp)
         const _cwT = new THREE.Vector3(), _cwM = new THREE.Vector3();
-        function cowNear(c) { let best = null, bd = 1e9; for (const o of cows) { if (o === c || o.mode !== 'free') continue; const d = Math.hypot(o.x - c.x, o.z - c.z); if (d < bd) { bd = d; best = o; } } return [best, bd]; }
+        function cowNear(c) { let best = null, bd = 1e9; for (const o of cows) { if (o === c || o.mode !== 'free' || o.dam) continue; const d = Math.hypot(o.x - c.x, o.z - c.z); if (d < bd) { bd = d; best = o; } } return [best, bd]; }
         function cowThreat(c) {   // người / chó tới gần (vùng bỏ chạy ~3,5 m)
           const e = engObj && !engObj.inVan && engObj.g.parent === scene ? engObj.g.position : null;
           if (e && Math.hypot(e.x - c.x, e.z - c.z) < 3.5) return e;
@@ -398,6 +414,11 @@
           return pick;
         }
         function cowFreeTick(c, dt, t) {
+          if (c.dam) return calfFree(c, dt, t);
+          if (c.calf && c.calf.suck) {   // bê đang bú: đứng yên, ngoảnh đầu về phía bê ngửi / liếm
+            c.vk = 0; c.restY = Math.max(0, c.restY - dt * 0.5); const B = c.calf, lz = (B.x - c.x) * -Math.sin(c.ang) + (B.z - c.z) * Math.cos(c.ang);
+            c.hz = -0.16 + 0.05 * Math.sin(t * 1.3); c.hx = -0.85 * Math.sign(lz); c.chew = 0.3; return;
+          }
           c.thirst = (c.thirst ?? Math.random() * 0.9) + dt / 14400;   // cữ uống ~4 giờ thả bãi ⇒ 2–3 lần/ngày (OSU: 2–5 lần)
           const thr = cowThreat(c);
           if (thr && c.state !== 'flee') { c.state = 'flee'; c.rub = null; c.slot = null; c.tmr = 4 + Math.random() * 2; c.angT = Math.atan2(c.z - thr.z, c.x - thr.x); }
@@ -485,6 +506,52 @@
             default: if (up()) cowWander(c, dt, c.spd); else c.vk = 0; c.hz = -0.18; c.hx = 0;
           }
         }
+        function calfFree(c, dt, t) {   // bê ngoài bãi: theo mẹ · bú · nằm cạnh mẹ · chơi · tập gặm
+          const M = c.dam, Sd = M.g.scale.y, Sc = c.g.scale.y, ca = Math.cos(M.ang), sa = Math.sin(M.ang), s = c.side;
+          const up = () => { c.restY = Math.max(0, c.restY - dt * 0.6); return c.restY <= 0; };
+          const at = (f, l) => _cwT.set(M.x + ca * f - sa * l * s, 0, M.z + sa * f + ca * l * s);   // điểm trong hệ mẹ: f tới trước, l sang bên bê
+          c.tmr -= dt; c.chew = 0; c.suck = false; c.milk = (c.milk || 0) + dt / 900;
+          const mStill = M.mode === 'free' && M.restY < 0.05 && (M.vk || 0) < 0.2 && !['flee', 'drink', 'scratch', 'walk'].includes(M.state), mLie = M.restY > 0.5;
+          if (cowThreat(c) || M.state === 'flee') { if (c.state === 'nurse' || c.state === 'lie') c.tmr = 0; c.state = 'follow'; }
+          if (c.tmr <= 0 && c.state !== 'nurse') {
+            const h = liveWeather.localHour, r = Math.random();
+            c.state = c.milk >= 1 && mStill ? 'nurse' : mLie && r < 0.75 ? 'lie' : r < (h > 15 && h < 18.5 ? 0.3 : 0.1) ? 'play' : r < 0.45 ? 'lie' : 'follow';
+            c.tmr = { nurse: 120 + Math.random() * 120, lie: 60 + Math.random() * 120, play: 6 + Math.random() * 5, follow: 15 + Math.random() * 25 }[c.state]; c.pa = Math.atan2(c.z - M.z, c.x - M.x);
+          }
+          if (c.state === 'nurse') {   // tới hông sau của mẹ, đứng song song ngược chiều, đầu ngoảnh vào bầu vú, húc lên từng đợt, đuôi ngoe nguẩy
+            if (!mStill) { c.state = 'follow'; c.tmr = 5; return; }
+            const P = at(0.1 * Sd, 0.62 * Sd + 0.3 * Sc).clone(), d = Math.hypot(P.x - c.x, P.z - c.z);
+            if (c.col) c.col.ghost = Math.max(c.col.ghost || 0, d < 1.5 ? 0.3 : 0);
+            if (d > 0.1) { if (up()) { c.spd = 0.6; cowSteer(c, P.x, P.z, dt, null); } c.hz = -0.15; c.hx = 0; return; }
+            c.x = P.x; c.z = P.z; c.vk = 0; let da = M.ang + Math.PI - c.ang; da = Math.atan2(Math.sin(da), Math.cos(da)); c.ang += da * Math.min(1, dt * 3);
+            if (Math.abs(da) > 0.25) return;
+            c.suck = true; const bump = Math.pow(Math.max(0, Math.sin(t * 2.3 + c.ph)), 6);
+            c.hz = 0.02 + 0.16 * bump; c.hx = -0.75 * s; c.chew = 0.6;   // đầu ngoảnh về phía mẹ: bê đứng ngược chiều ⇒ mẹ ở phía +z của bê khi s = 1 (hx > 0 quay đầu về −z)
+            if (c.ps) c.ps.swat = Math.min(c.ps.swat, 0.28);   // đuôi ngoe nguẩy liên tục
+            if (c.tmr <= 0) { c.milk = 0; c.state = Math.random() < 0.5 ? 'lie' : 'follow'; c.tmr = 40 + Math.random() * 60; }
+            return;
+          }
+          if (c.state === 'lie') {   // nằm sát bên mẹ (mẹ nằm hay đứng gặm gần đó), đầu gục; mẹ đi xa thì dậy theo
+            const P = at(-0.2 * Sd, 1.35 * Sd), d = Math.hypot(P.x - c.x, P.z - c.z);
+            if (d > 3.5 && c.restY > 0.5) { c.state = 'follow'; c.tmr = 10; return; }
+            if (d > 0.3 && c.restY < 0.05) { c.spd = 0.7; cowSteer(c, P.x, P.z, dt, null); c.hz = -0.15; c.hx = 0; return; }
+            c.vk = 0; c.restY = Math.min(1, c.restY + dt * 0.45); c.hz = -0.3 + Math.sin(t * 0.6 + c.ph) * 0.04; c.hx = 0.3 * s; return;
+          }
+          if (!up()) { c.vk = 0; return; }
+          if (c.state === 'play') {   // chạy vòng quanh mẹ (nước kiệu), thỉnh thoảng nhảy hất chân sau (cowPose: c.buck)
+            const R = 3.2 * Sd; c.pa += 1.9 / R * dt; c.spd = 1.9;
+            const gx = M.x + Math.cos(c.pa) * R, gz = M.z + Math.sin(c.pa) * R;
+            if (cowOK(gx, gz)) cowSteer(c, gx, gz, dt, null); else c.pa += 0.6;
+            if ((c.bk = (c.bk ?? 1) - dt) <= 0) { c.bk = 1.2 + Math.random() * 1.8; c.buck = 0.45; }
+            c.hz = -0.05; c.hx = 0.2 * Math.sin(t * 3); return;
+          }
+          // theo mẹ: giữ chỗ cạnh hông / sau mẹ; xa thì chạy nước kiệu tới; gần mà mẹ gặm thì tập gặm theo
+          const P = at(-0.75 * Sd, 1.25 * Sd), d = Math.hypot(P.x - c.x, P.z - c.z);
+          if (d > 0.45) { c.spd = d > 4 ? 1.9 : 0.8; cowSteer(c, P.x, P.z, dt, null); c.hz = -0.15; c.hx = 0; return; }
+          c.vk = 0;
+          if (M.state === 'graze') { const bp = (t * 0.7 + c.ph) % 1; c.hz = -0.1; c.reach = 0.02; c.bite = bp < 0.25 ? Math.sin(Math.PI * bp / 0.25) : 0; c.hx = 0.2 * Math.sin(t * 0.8 + c.ph); c.chew = 0.4; }
+          else { c.hz = -0.12; c.hx = 0.35 * Math.sin(t * 0.5 + c.ph); }
+        }
         function cowWander(c, dt, sp) {   // đi theo hướng c.angT (quay dần ≤ 1,2 rad/s); vướng (nước, chuồng, mép bãi) thì quay sang hướng khác; né con khác (cách ≥ 1,8 m)
           if (c.angT === undefined) c.angT = c.ang;
           for (const o of cows) { if (o === c) continue; const dx = o.x - c.x, dz = o.z - c.z, d = Math.hypot(dx, dz); if (d < 1.8 && dx * Math.cos(c.ang) + dz * Math.sin(c.ang) > 0) { c.angT = c.ang + (dx * Math.sin(c.ang) - dz * Math.cos(c.ang) > 0 ? 0.6 : -0.6); break; } }
@@ -501,7 +568,7 @@
           }
         }
         function cowUnstick(c, dt) {   // thân lỡ lấn vào vật (sau lượt xuyên khi kẹt, mở trang có cây mọc chỗ bò đứng…) ⇒ đẩy dần ra chỗ thoáng (core/collide.js)
-          if (!c.col || c.state === 'scratch') return;
+          if (!c.col || c.state === 'scratch' || c.suck) return;
           const p = colPushOut(c.col, c.x, c.z, c.ang, dt); if (p && cowOK(p[0], p[1])) { c.x = p[0]; c.z = p[1]; }
         }
         // ---- DÁNG BÒ mỗi khung (sau hành vi): tốc độ thật từ quãng đã đi → bộ chân IK · thân theo chỗ chân đứng · nảy / lắc theo nhịp chân ·
@@ -529,13 +596,14 @@
           const psi = rig.psi, walkA = Math.min(1, sp / 0.35) * (1 - Math.max(fF, fH));
           const bF = 0.03 * walkA * Math.cos(4 * Math.PI * (psi - 0.06)), bH = 0.03 * walkA * Math.cos(4 * Math.PI * (psi - 0.33));   // con lắc ngược: vai cao lúc chân trước giữa pha trụ, hông cao lúc chân sau giữa pha trụ
           const dF = 0.86 * fF, dH = 0.86 * fH, h = COW_H0 + (bF + bH - dF - dH) / 2, pitch = P.p.x + Math.atan2((bF - dF) - (bH - dH), COW_SPAN);
-          U.torso.position.y = h; U.torso.rotation.z = pitch;
+          let bk = 0; if (c.buck > 0) { c.buck = Math.max(0, c.buck - dt); bk = Math.sin(Math.PI * c.buck / 0.45); }   // bê nhảy hất chân sau: mông bật lên, đầu chúc
+          U.torso.position.y = h + 0.1 * bk; U.torso.rotation.z = pitch - 0.38 * bk;
           for (let i = 0; i < 4; i++) {   // quỳ / nằm: khớp vai/hông lùi vào gần giữa thân, ngang mặt bụng; góc khớp gập sẵn hoà với IK
             const fr = i < 2, L = c.legs[i], w = fr ? fF : fH, K = rig.fk[i] || (rig.fk[i] = { a: 0, b: 0, p: 0, w: 0 });   // trước: gối ló trước ngực, cẳng gập ra sau · sau: khuỷu ló sau mông, móng thu dưới bụng
             L.hip.position.x = L.x0 + ((fr ? 0.25 : -0.3) - L.x0) * w; L.hip.position.y = COW_PIV * (1 - w);
             K.a = fr ? 1.45 : -1.45; K.b = fr ? -2.9 : 2.9; K.p = 0; K.w = w;
           }
-          rig.step(dt, dist, P.v, c.gait, h, pitch, fF + fH > 0.02);
+          rig.step(dt, dist, P.v, c.gait, h, pitch - 0.38 * bk, fF + fH > 0.02);
           // khối thân lắc ngang về phía 2 chân cùng bên đang trụ (1 lần/chu kỳ); nằm thì nghiêng về bên gập chân sau
           const lat = Math.sin(2 * Math.PI * (psi + 0.055)) * walkA;
           P.rb = (P.rb || 0) + ((c.rub && c.rub.st === 'rub' ? 0.07 * c.rub.side : 0) - (P.rb || 0)) * Math.min(1, dt * 2);   // gãi ngứa: ép mình vào thân cây

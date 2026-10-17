@@ -15,7 +15,8 @@
             if (reach(hutField, c.x, c.z)) continue;
             for (let k = 0; k < 300; k++) { const a = Math.random() * Math.PI, r = 9 + Math.random() * 18, x = cowHut.x + Math.cos(a) * r, z = cowHut.z - Math.sin(a) * r; if (cowOK(x, z) && reach(hutField, x, z)) { c.x = x; c.z = z; c.g.position.set(x, cowY(x, z), z); break; } }
           }
-          for (const c of cows) { c.homeX = c.x; c.homeZ = c.z; c.homeField = buildFlowField(c.x, c.z, cowBlocked); }   // bãi gặm quen = chỗ xuất phát
+          for (const c of cows) if (!c.dam) { c.homeX = c.x; c.homeZ = c.z; c.homeField = buildFlowField(c.x, c.z, cowBlocked); }   // bãi gặm quen = chỗ xuất phát
+          for (const c of cows) if (c.dam) { c.homeX = c.dam.homeX; c.homeZ = c.dam.homeZ; c.homeField = c.dam.homeField; }   // bê ra khỏi chuồng thì về bãi của mẹ
           if (cowHutWanted()) for (const c of cows) {   // mở trang lúc tối / mưa: bò đã nằm sẵn trong chuồng
             const st = cowHut.stalls[c.stall % cowHut.stalls.length]; c.mode = 'home'; c.leg = 'in'; c.sub = 'rest'; c.tmr = 30 + Math.random() * 60; c.restY = 1;
             c.x = st.x; c.z = st.z; c.ang = -Math.PI / 2; c.g.position.set(c.x, cowY(c.x, c.z) - 0.8 * NATURE_SCALE, c.z); c.g.rotation.y = Math.PI / 2;

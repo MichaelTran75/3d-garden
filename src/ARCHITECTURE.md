@@ -181,9 +181,24 @@ lò xo) ⇒ lên bậc voxel 0,6 đv thì chân trước lên trước, thân ng
   đất; không đích thì ngóc (1,6/s). Quét đầu khi gặm = xoay cổ quanh N (`hx`), đầu chỉ nghiêng 0,35·hx; giật cắn `c.bite` cộng thẳng, không qua
   lò xo. Hàm `U.jaw` há–ngậm + nghiến ngang 1,1 lần/s theo `c.chew`; tai giật đuổi ruồi, đuôi phẩy dày hơn khi nóng + nắng. Máng nước = đáy +
   4 thành (khối đặc cũ che mất mặt nước).
+- Bê con (G 17/10 "mở rộng chuồng bò cho thêm bò con", cows-hut.js): 2 bê (`cow(k)` thu 0,5 so với mẹ, đầu ×1,22, giấu `udder`) đẩy vào CHUNG mảng
+  `cows` ⇒ có va chạm, về chuồng (`cowHome`), dáng (`cowPose`), cùng `cowRig` (bộ chân dùng chung). Chuồng dựng theo `n = cows.length` ⇒ tự rộng thêm
+  (4 → 6 ô, 6 → 9 m; máng nước, kiện rơm, hộp tổ vách tây theo `cowHut.W`); ô bê sát ô mẹ (gán `stall` theo thứ tự mẹ → bê). Bê ra khỏi chuồng thì về
+  bãi của mẹ (cow-routing.js dùng `homeField` của mẹ). Hành vi bê `calfFree` (thay `cowFreeTick` khi `c.dam`): theo mẹ (chỗ cạnh hông–sau, xa > 4 m
+  thì nước kiệu) · tập gặm khi mẹ gặm · nằm sát mẹ (mẹ nằm ⇒ 75%) · BÚ khi `milk` ≥ 1 (đói sữa ~15 phút cảnh, bú 2–4 phút): tới hông sau của mẹ, đứng
+  song song NGƯỢC CHIỀU, đầu ngoảnh vào bầu vú, húc lên từng đợt, đuôi ngoe nguẩy (`ps.swat` ngắn), bỏ va chạm với mẹ (`col.ghost`, `cowUnstick` bỏ
+  qua); mẹ đứng yên ngoảnh lại ngửi con (đầu cổ chiều về bê: `hx` = −0,85·sign(z cục bộ của bê)) · CHƠI (chiều 15–18:30 hay hơn): chạy vòng quanh mẹ
+  + nhảy hất chân sau (`c.buck` → `cowPose`: mông bật 0,1, chúc 0,38). `cowNear` không bắt chước bê. Quy ước hướng cổ: `hx` > 0 quay đầu về −z cục bộ.
 - Cò (`animals/storks.js`): lưới đỉnh GLB ⇒ chân biến dạng theo **2 đoạn cứng** (`storkLegSolve`: hông → khớp cổ chân gập RA SAU → bàn), mọi dáng
   (đứng, đậu cành, chùn khi đáp) đi qua IK; `storkWalk`: bàn chân trụ cố định khi lội / chạy lấy đà, thân hạ 5 đv khi đi, **gật đầu kiểu chim**
   (đẩy 35% / giữ 65% mỗi bước, đầu đứng yên trong không gian lúc giữ — Necker 2007), mỗi bước đặt chân → gợn nước.
+- Cò kiếm ăn dưới nước (`wade`, storks.js, G 17/10 "research about 3 con cò behavior, then improve their movements"): máy pha `b.fg` theo chiến
+  thuật chim lội "đi chậm – đứng rình" (Kushlan 1976; cò trắng — Cramp & Simmons): walk (vài bước ~0,35 m/s) → wait (đứng im 1,5–5 s, cổ vươn chúc
+  nhìn nước) → strike (lao mỏ 0,18 s · giữ 0,22 s · rút 0,45 s; trúng 1/3) → swallow (ngửa mỏ, hất đầu 2 lần, cá biến mất) · rest 25–65 s mỗi
+  1–2,5 phút: ĐỨNG 1 CHÂN (`b.oneLeg` → `poseStandingStork`: chân phải đích (−15, −9) — bàn chân gập NGƯỢC lên sát bụng, cao hơn khớp; đích −36 cũ
+  cho cẳng chĩa xuống như đang bước), rụt cổ (sleep 0,42), rỉa lông từng đợt 3,5 s (sleep dao động 0,6–0,82), duỗi cánh 1 lần (wingSpread 0,55).
+  Trong lúc lội `b.footMix = 0` (không lẫn độ lệch chân đậu cành khi sleep > 0). Cất cánh chỉ khi đang walk / wait và đã hạ chân. Thử: scratchpad
+  `storktest.js` (`skTrace`, `skShots` — góc ngang th = −yaw, cắt vật chắn `snap(400 − 2,2)`).
 - Kỹ sư (`engWalkFeet` + `engFootIK`): gót chạm (mũi hếch 13°) → cả bàn → nhón gót lăn qua mũi (32°); chậu hông hạ 3 cm + nảy ±2 cm (cao nhất
   giữa pha 1 chân), lắc ngang, xoay ±4°, nghiêng ±2,5°; ngực vặn/nghiêng ngược (`e.pelvisYaw/List` → eo). Hông dạng/khép + xoay trong/ngoài
   (thứ tự Euler hông **XZY**: xoay quanh trục chân trước, rồi dạng, rồi vung). `e.walkW` hoà IK đi bộ (đủ trọng số ngay, không chờ IK địa hình).

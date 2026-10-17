@@ -4629,8 +4629,8 @@
           }
           const tail = makeSoftTail(body, { base: new THREE.Vector3(-0.86, 1.72, 0), dir: new THREE.Vector3(-0.14, -1, 0).normalize(), n: 5, len: 0.15, w: 0.085, mat: cowWhite, stiff: [0.1, 0.025] });
           const tuft = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), cowDark); tuft.scale.set(1.3, 0.85, 0.85); tuft.position.x = 0.11; tail.segs[4].add(tuft);
-          P(body, 0.34, 0.26, 0.46, cowPink, -0.18, 0.95, 0, false);
-          g.scale.setScalar((k || 1.053) * NATURE_SCALE); g.userData = { torso, body, neck, head: hg, muzzle, legs, tail, jaw, ears }; return g;
+          const udder = P(body, 0.34, 0.26, 0.46, cowPink, -0.18, 0.95, 0, false);
+          g.scale.setScalar((k || 1.053) * NATURE_SCALE); g.userData = { torso, body, neck, head: hg, muzzle, legs, tail, jaw, ears, udder }; return g;
         }
         const cowCells = [[16, 5], [27, 6], [45, 5], [21, 8], [41, 6]];
         const x2gi = x => x / BLOCK + cx - 0.5, z2gj = z => z / BLOCK + cz - 0.5;
@@ -4656,12 +4656,22 @@
           const m = cow((1.053 + Math.random() * 0.2835) * 0.9), x = wx(i), z = wz(j), ang = Math.random() * 6.28; m.position.set(x, surfaceY(i, j), z); m.rotation.y = -ang; scene.add(m);
           const _cs = ['graze', 'rest', 'walk'][Math.floor(Math.random() * 3)];
           const cw = { g: m, head: m.userData.head, legs: m.userData.legs, tail: m.userData.tail, x, z, ang, spd: 0.65 + Math.random() * 0.45, ph: Math.random() * 6, tmr: 2 + Math.random() * 5, state: _cs, restY: 0 };
-          const Sc = m.scale.y;
-          cw.rig = quadRig(m, { legs: cw.legs, gaits: {
+          cowRig(cw); cows.push(cw);
+        }
+        function cowRig(cw) {
+          const Sc = cw.g.scale.y;
+          cw.rig = quadRig(cw.g, { legs: cw.legs, gaits: {
             walk: { off: [0.27, 0.77, 0, 0.5], duty: 0.65, stride: 1.15 * Sc, lift: 0.085, vRef: 1.0 },
             trot: { off: [0, 0.5, 0.5, 0], duty: 0.45, stride: 1.9 * Sc, lift: 0.12, vRef: 1.8 } },
             home: (L, out) => out.set(L.hip.position.x, 0, L.hip.position.z), ground: (x, z) => colWalkY(x, z, cowY(cw.x, cw.z), 0.3 * Sc), size: Sc, settleT: 0.45, settleLift: 0.07 });
-          cows.push(cw);
+        }
+        for (const mi of [1, 3]) {
+          const dam = cows[mi]; if (!dam) continue;
+          const m = cow(dam.g.scale.y / NATURE_SCALE * 0.5); m.userData.udder.visible = false; m.userData.head.scale.setScalar(1.22);
+          let x = dam.x + 1.5, z = dam.z; for (const a of [1.6, -1.6, 2.6, -2.6]) { const tx = dam.x + Math.cos(dam.ang + a) * 1.6, tz = dam.z + Math.sin(dam.ang + a) * 1.6; if (cowOK(tx, tz)) { x = tx; z = tz; break; } }
+          m.position.set(x, cowY(x, z), z); m.rotation.y = -dam.ang; scene.add(m);
+          const cw = { g: m, head: m.userData.head, legs: m.userData.legs, tail: m.userData.tail, x, z, ang: dam.ang, spd: 0.8, ph: Math.random() * 6, tmr: 3, state: 'follow', restY: 0, dam, side: Math.random() < 0.5 ? 1 : -1, milk: Math.random() * 0.7 };
+          cowRig(cw); dam.calf = cw; cows.push(cw);
         }
 
         const cowHut = (() => {
@@ -4770,7 +4780,8 @@
           cowHutRect = { x0: hx - W / 2 - 1.7, x1: hx + W / 2 + 1.45, z0: hz - D / 2 - 0.35, z1: hz + D / 2 + 0.25 };
           return { g, x: hx, z: hz, y: y0, W, D, Hf, Hb, stalls, light, lampTick, door: { x: hx, z: hz + D / 2 + 2.2 } };
         })();
-        cows.forEach((c, k) => { c.stall = k; c.mode = 'free'; c.leg = ''; c.sub = 'stand'; });
+        { let k = 0; for (const c of cows) if (!c.dam) { c.stall = k++; if (c.calf) c.calf.stall = k++; } }
+        cows.forEach(c => { c.mode = 'free'; c.leg = ''; c.sub = 'stand'; });
         const cowHutWanted = () => { const h = liveWeather.localHour; return liveWeather.state.raining || h >= 17.9 || h < 6.2; };
         let hutField = null;
         const COW_SLIDE = [0, 0.35, -0.35, 0.7, -0.7, 1.1, -1.1, 1.5, -1.5];
@@ -4846,7 +4857,7 @@
         }
         const cowGrazeDrive = h => h < 9.5 ? 0.85 : h < 11 ? 0.5 : h < 14.5 ? 0.1 : h < 16 ? 0.45 : 0.85;
         const _cwT = new THREE.Vector3(), _cwM = new THREE.Vector3();
-        function cowNear(c) { let best = null, bd = 1e9; for (const o of cows) { if (o === c || o.mode !== 'free') continue; const d = Math.hypot(o.x - c.x, o.z - c.z); if (d < bd) { bd = d; best = o; } } return [best, bd]; }
+        function cowNear(c) { let best = null, bd = 1e9; for (const o of cows) { if (o === c || o.mode !== 'free' || o.dam) continue; const d = Math.hypot(o.x - c.x, o.z - c.z); if (d < bd) { bd = d; best = o; } } return [best, bd]; }
         function cowThreat(c) {
           const e = engObj && !engObj.inVan && engObj.g.parent === scene ? engObj.g.position : null;
           if (e && Math.hypot(e.x - c.x, e.z - c.z) < 3.5) return e;
@@ -4913,6 +4924,11 @@
           return pick;
         }
         function cowFreeTick(c, dt, t) {
+          if (c.dam) return calfFree(c, dt, t);
+          if (c.calf && c.calf.suck) {
+            c.vk = 0; c.restY = Math.max(0, c.restY - dt * 0.5); const B = c.calf, lz = (B.x - c.x) * -Math.sin(c.ang) + (B.z - c.z) * Math.cos(c.ang);
+            c.hz = -0.16 + 0.05 * Math.sin(t * 1.3); c.hx = -0.85 * Math.sign(lz); c.chew = 0.3; return;
+          }
           c.thirst = (c.thirst ?? Math.random() * 0.9) + dt / 14400;
           const thr = cowThreat(c);
           if (thr && c.state !== 'flee') { c.state = 'flee'; c.rub = null; c.slot = null; c.tmr = 4 + Math.random() * 2; c.angT = Math.atan2(c.z - thr.z, c.x - thr.x); }
@@ -4999,6 +5015,51 @@
             default: if (up()) cowWander(c, dt, c.spd); else c.vk = 0; c.hz = -0.18; c.hx = 0;
           }
         }
+        function calfFree(c, dt, t) {
+          const M = c.dam, Sd = M.g.scale.y, Sc = c.g.scale.y, ca = Math.cos(M.ang), sa = Math.sin(M.ang), s = c.side;
+          const up = () => { c.restY = Math.max(0, c.restY - dt * 0.6); return c.restY <= 0; };
+          const at = (f, l) => _cwT.set(M.x + ca * f - sa * l * s, 0, M.z + sa * f + ca * l * s);
+          c.tmr -= dt; c.chew = 0; c.suck = false; c.milk = (c.milk || 0) + dt / 900;
+          const mStill = M.mode === 'free' && M.restY < 0.05 && (M.vk || 0) < 0.2 && !['flee', 'drink', 'scratch', 'walk'].includes(M.state), mLie = M.restY > 0.5;
+          if (cowThreat(c) || M.state === 'flee') { if (c.state === 'nurse' || c.state === 'lie') c.tmr = 0; c.state = 'follow'; }
+          if (c.tmr <= 0 && c.state !== 'nurse') {
+            const h = liveWeather.localHour, r = Math.random();
+            c.state = c.milk >= 1 && mStill ? 'nurse' : mLie && r < 0.75 ? 'lie' : r < (h > 15 && h < 18.5 ? 0.3 : 0.1) ? 'play' : r < 0.45 ? 'lie' : 'follow';
+            c.tmr = { nurse: 120 + Math.random() * 120, lie: 60 + Math.random() * 120, play: 6 + Math.random() * 5, follow: 15 + Math.random() * 25 }[c.state]; c.pa = Math.atan2(c.z - M.z, c.x - M.x);
+          }
+          if (c.state === 'nurse') {
+            if (!mStill) { c.state = 'follow'; c.tmr = 5; return; }
+            const P = at(0.1 * Sd, 0.62 * Sd + 0.3 * Sc).clone(), d = Math.hypot(P.x - c.x, P.z - c.z);
+            if (c.col) c.col.ghost = Math.max(c.col.ghost || 0, d < 1.5 ? 0.3 : 0);
+            if (d > 0.1) { if (up()) { c.spd = 0.6; cowSteer(c, P.x, P.z, dt, null); } c.hz = -0.15; c.hx = 0; return; }
+            c.x = P.x; c.z = P.z; c.vk = 0; let da = M.ang + Math.PI - c.ang; da = Math.atan2(Math.sin(da), Math.cos(da)); c.ang += da * Math.min(1, dt * 3);
+            if (Math.abs(da) > 0.25) return;
+            c.suck = true; const bump = Math.pow(Math.max(0, Math.sin(t * 2.3 + c.ph)), 6);
+            c.hz = 0.02 + 0.16 * bump; c.hx = -0.75 * s; c.chew = 0.6;
+            if (c.ps) c.ps.swat = Math.min(c.ps.swat, 0.28);
+            if (c.tmr <= 0) { c.milk = 0; c.state = Math.random() < 0.5 ? 'lie' : 'follow'; c.tmr = 40 + Math.random() * 60; }
+            return;
+          }
+          if (c.state === 'lie') {
+            const P = at(-0.2 * Sd, 1.35 * Sd), d = Math.hypot(P.x - c.x, P.z - c.z);
+            if (d > 3.5 && c.restY > 0.5) { c.state = 'follow'; c.tmr = 10; return; }
+            if (d > 0.3 && c.restY < 0.05) { c.spd = 0.7; cowSteer(c, P.x, P.z, dt, null); c.hz = -0.15; c.hx = 0; return; }
+            c.vk = 0; c.restY = Math.min(1, c.restY + dt * 0.45); c.hz = -0.3 + Math.sin(t * 0.6 + c.ph) * 0.04; c.hx = 0.3 * s; return;
+          }
+          if (!up()) { c.vk = 0; return; }
+          if (c.state === 'play') {
+            const R = 3.2 * Sd; c.pa += 1.9 / R * dt; c.spd = 1.9;
+            const gx = M.x + Math.cos(c.pa) * R, gz = M.z + Math.sin(c.pa) * R;
+            if (cowOK(gx, gz)) cowSteer(c, gx, gz, dt, null); else c.pa += 0.6;
+            if ((c.bk = (c.bk ?? 1) - dt) <= 0) { c.bk = 1.2 + Math.random() * 1.8; c.buck = 0.45; }
+            c.hz = -0.05; c.hx = 0.2 * Math.sin(t * 3); return;
+          }
+          const P = at(-0.75 * Sd, 1.25 * Sd), d = Math.hypot(P.x - c.x, P.z - c.z);
+          if (d > 0.45) { c.spd = d > 4 ? 1.9 : 0.8; cowSteer(c, P.x, P.z, dt, null); c.hz = -0.15; c.hx = 0; return; }
+          c.vk = 0;
+          if (M.state === 'graze') { const bp = (t * 0.7 + c.ph) % 1; c.hz = -0.1; c.reach = 0.02; c.bite = bp < 0.25 ? Math.sin(Math.PI * bp / 0.25) : 0; c.hx = 0.2 * Math.sin(t * 0.8 + c.ph); c.chew = 0.4; }
+          else { c.hz = -0.12; c.hx = 0.35 * Math.sin(t * 0.5 + c.ph); }
+        }
         function cowWander(c, dt, sp) {
           if (c.angT === undefined) c.angT = c.ang;
           for (const o of cows) { if (o === c) continue; const dx = o.x - c.x, dz = o.z - c.z, d = Math.hypot(dx, dz); if (d < 1.8 && dx * Math.cos(c.ang) + dz * Math.sin(c.ang) > 0) { c.angT = c.ang + (dx * Math.sin(c.ang) - dz * Math.cos(c.ang) > 0 ? 0.6 : -0.6); break; } }
@@ -5015,7 +5076,7 @@
           }
         }
         function cowUnstick(c, dt) {
-          if (!c.col || c.state === 'scratch') return;
+          if (!c.col || c.state === 'scratch' || c.suck) return;
           const p = colPushOut(c.col, c.x, c.z, c.ang, dt); if (p && cowOK(p[0], p[1])) { c.x = p[0]; c.z = p[1]; }
         }
         const cowSm = (a, b, x) => { const k = Math.max(0, Math.min(1, (x - a) / (b - a))); return k * k * (3 - 2 * k); };
@@ -5040,13 +5101,14 @@
           const psi = rig.psi, walkA = Math.min(1, sp / 0.35) * (1 - Math.max(fF, fH));
           const bF = 0.03 * walkA * Math.cos(4 * Math.PI * (psi - 0.06)), bH = 0.03 * walkA * Math.cos(4 * Math.PI * (psi - 0.33));
           const dF = 0.86 * fF, dH = 0.86 * fH, h = COW_H0 + (bF + bH - dF - dH) / 2, pitch = P.p.x + Math.atan2((bF - dF) - (bH - dH), COW_SPAN);
-          U.torso.position.y = h; U.torso.rotation.z = pitch;
+          let bk = 0; if (c.buck > 0) { c.buck = Math.max(0, c.buck - dt); bk = Math.sin(Math.PI * c.buck / 0.45); }
+          U.torso.position.y = h + 0.1 * bk; U.torso.rotation.z = pitch - 0.38 * bk;
           for (let i = 0; i < 4; i++) {
             const fr = i < 2, L = c.legs[i], w = fr ? fF : fH, K = rig.fk[i] || (rig.fk[i] = { a: 0, b: 0, p: 0, w: 0 });
             L.hip.position.x = L.x0 + ((fr ? 0.25 : -0.3) - L.x0) * w; L.hip.position.y = COW_PIV * (1 - w);
             K.a = fr ? 1.45 : -1.45; K.b = fr ? -2.9 : 2.9; K.p = 0; K.w = w;
           }
-          rig.step(dt, dist, P.v, c.gait, h, pitch, fF + fH > 0.02);
+          rig.step(dt, dist, P.v, c.gait, h, pitch - 0.38 * bk, fF + fH > 0.02);
           const lat = Math.sin(2 * Math.PI * (psi + 0.055)) * walkA;
           P.rb = (P.rb || 0) + ((c.rub && c.rub.st === 'rub' ? 0.07 * c.rub.side : 0) - (P.rb || 0)) * Math.min(1, dt * 2);
           U.body.position.z = 0.022 * lat; U.body.rotation.x = 0.035 * lat + 0.1 * fH * P.lieSide + P.rb;
@@ -11391,7 +11453,8 @@
             if (reach(hutField, c.x, c.z)) continue;
             for (let k = 0; k < 300; k++) { const a = Math.random() * Math.PI, r = 9 + Math.random() * 18, x = cowHut.x + Math.cos(a) * r, z = cowHut.z - Math.sin(a) * r; if (cowOK(x, z) && reach(hutField, x, z)) { c.x = x; c.z = z; c.g.position.set(x, cowY(x, z), z); break; } }
           }
-          for (const c of cows) { c.homeX = c.x; c.homeZ = c.z; c.homeField = buildFlowField(c.x, c.z, cowBlocked); }
+          for (const c of cows) if (!c.dam) { c.homeX = c.x; c.homeZ = c.z; c.homeField = buildFlowField(c.x, c.z, cowBlocked); }
+          for (const c of cows) if (c.dam) { c.homeX = c.dam.homeX; c.homeZ = c.dam.homeZ; c.homeField = c.dam.homeField; }
           if (cowHutWanted()) for (const c of cows) {
             const st = cowHut.stalls[c.stall % cowHut.stalls.length]; c.mode = 'home'; c.leg = 'in'; c.sub = 'rest'; c.tmr = 30 + Math.random() * 60; c.restY = 1;
             c.x = st.x; c.z = st.z; c.ang = -Math.PI / 2; c.g.position.set(c.x, cowY(c.x, c.z) - 0.8 * NATURE_SCALE, c.z); c.g.rotation.y = Math.PI / 2;
@@ -13871,6 +13934,8 @@
             const phase = seconds * gaitSpeed + side * Math.PI;
             let ty = -68.3 + Math.max(0, Math.sin(phase)) * 7 * stride + b.perch.footOffsets[side] * feet + crouch, tz = STORK_FOOT_Z + Math.cos(phase) * 12 * stride;
             let dx = 0; if (gw > 0) { const g = b.gl[side]; ty += (g.y - ty) * gw; tz += (g.z - tz) * gw; dx = Math.max(-8, Math.min(8, g.x - STORK_SIDE_X[side])) * gw; }
+            const ol = b.oneLeg || 0;
+            if (ol > 0) { if (side) { ty += (-15 - ty) * ol; tz += (-9 - tz) * ol; dx *= 1 - ol; } else dx += (5.5 - dx) * ol; }
             storkLegSolve(ty, tz, _skLeg[side]).dx = dx;
           }
           const { hy, hz, L1 } = STORK_LEG, jy0 = hy - L1;
@@ -13916,7 +13981,7 @@
           b.foldedWings.scale.setScalar(b.groundMix * (1 - wingSpread));
           for (let side = 0; side < 2; side++) {
             const toe = b.toes[side], K = _skLeg[side];
-            toe.position.set(STORK_SIDE_X[side] + K.dx, K.fy, K.fz); toe.rotation.x = gw ? (b.gc ? b.gc[side] : 0) : 0;
+            toe.position.set(STORK_SIDE_X[side] + K.dx, K.fy, K.fz); toe.rotation.x = Math.max(gw ? (b.gc ? b.gc[side] : 0) : 0, side ? 1.3 * (b.oneLeg || 0) : 0);
             toe.scale.setScalar(b.groundMix);
           }
           const tip = storkBeakTip * 3; b.caughtFish.position.set(p[tip], p[tip + 1] - 2, p[tip + 2] - 1);
@@ -14043,7 +14108,7 @@
             b.state = 'sleep'; b.m.rotation.y = b.perch.heading; b.m.position.copy(b.roostTarget).add(treeWindAt(oldTreeWind, b.perchFoot, _storkSway));
             poseStandingStork(b, 0, 1, 0, 0, true);
           } else {
-            b.state = 'wade'; b.wadeRemaining = b.dayWalkingOnly ? Infinity : 44 + b.index * 11; b.peckElapsed = -1; b.nextPeck = 4 + b.index * 2; pickStorkWadeTarget(b);
+            b.state = 'wade'; b.wadeRemaining = b.dayWalkingOnly ? Infinity : 44 + b.index * 11; b.peckElapsed = -1; b.nextPeck = 4 + b.index * 2; b.fg = null; b.oneLeg = 0; pickStorkWadeTarget(b);
             storkBodyAtFoot(b, b.foot, b.m.position); poseStandingStork(b, 0, 0, 0, 0, true);
           }
         }
@@ -14078,7 +14143,7 @@
           }
           b.launchDestination = destination; b.launchOnBranch = b.state === 'sleep';
           b.launchSleep = b.poseSleep || 0; b.launchPeck = b.posePeck || 0;
-          b.launchElapsed = 0; b.launchYaw = b.m.rotation.y; b.caughtFish.visible = false; b.peckElapsed = -1;
+          b.launchElapsed = 0; b.launchYaw = b.m.rotation.y; b.caughtFish.visible = false; b.peckElapsed = -1; b.fg = null; b.oneLeg = 0;
           if (b.launchOnBranch) {
             b.launchStartFoot.copy(b.perch.localContact).applyMatrix4(oldTreeGroup.matrixWorld);
             b.launchEndFoot.copy(b.perch.runLocalEnd).applyMatrix4(oldTreeGroup.matrixWorld);
@@ -14222,31 +14287,51 @@
                 poseStandingStork(b, 0, (b.state === 'join' || (b.dayWalkingOnly && b.state === 'landing')) ? b.tripSleep * departureMix : 0, 0, seconds, false, arriving && arrivalMix >= departureMix ? 1 : 0);
               }
             } else if (b.state === 'wade') {
-              b.wadeRemaining -= dt; b.nextPeck -= dt;
-              let stride = 0, peck = 0, moved = 0;
-              if (b.peckElapsed >= 0) {
-                b.peckElapsed += dt;
-                if (b.peckElapsed >= .85 && b.peckElapsed - dt < .85) { const ry = b.m.rotation.y; fluids?.splash(b.foot.x + Math.sin(ry) * .6, b.foot.z + Math.cos(ry) * .6, .55, .14); }
-                if (b.peckElapsed <= 1.65) peck = 1.8 * Math.sin(Math.PI * b.peckElapsed / 1.65);
-                b.caughtFish.visible = b.peckSuccess && b.peckElapsed >= .9 && b.peckElapsed < 2.4;
-                if (b.peckElapsed >= 2.8) { b.peckElapsed = -1; b.caughtFish.visible = false; b.nextPeck = 6 + b.rng() * 4; }
-              } else if (b.nextPeck <= 0 && !(b.col && colMoverHits(b.col, b.foot.x, b.foot.z, b.col.ang()) > 0.02)) {
-                b.peckElapsed = 0; b.strikes++; b.peckSuccess = b.strikes % 3 === 0;
-                if (b.peckSuccess) b.catches++;
-              } else {
+              b.wadeRemaining -= dt; b.footMix = 0;
+              const F = b.fg || (b.fg = { st: 'walk', t: 0, dur: 1.5, rest: 50 + b.rng() * 90, pre: 4 }), r = () => b.rng();
+              F.t += dt; F.rest -= dt;
+              const go = (st, dur = 0) => { F.st = st; F.t = 0; F.dur = dur; };
+              let peck = 0, moved = 0, sleep = 0, wing = 0, legT = 0;
+              const walkTo = sp => {
                 const dx = b.wadeTarget.x - b.foot.x, dz = b.wadeTarget.z - b.foot.z, distance = Math.hypot(dx, dz);
-                if (distance < .12 || (b.col && b.nextPeck <= 0 && colMoverHits(b.col, b.foot.x, b.foot.z, b.col.ang()) > 0.02 && b.rng() < dt * 2)) pickStorkWadeTarget(b);
-                else {
-                  const step = Math.min(distance, dt * .48), nx = b.foot.x + dx / distance * step, nz = b.foot.z + dz / distance * step;
-                  if (b.col && !colStepOK(b.col, b.foot.x, b.foot.z, nx, nz, Math.atan2(dz, dx))) pickStorkWadeTarget(b);
-                  else { b.foot.x = nx; b.foot.z = nz; moved = step; }
-                  const heading = Math.atan2(dx, dz), turn = Math.atan2(Math.sin(heading - b.m.rotation.y), Math.cos(heading - b.m.rotation.y)); b.m.rotation.y += turn * Math.min(1, dt * 3);
-                }
+                if (distance < .12) return true;
+                const step = Math.min(distance, dt * sp), nx = b.foot.x + dx / distance * step, nz = b.foot.z + dz / distance * step;
+                if (b.col && !colStepOK(b.col, b.foot.x, b.foot.z, nx, nz, Math.atan2(dz, dx))) { pickStorkWadeTarget(b); return false; }
+                b.foot.x = nx; b.foot.z = nz; moved = step;
+                const heading = Math.atan2(dx, dz), turn = Math.atan2(Math.sin(heading - b.m.rotation.y), Math.cos(heading - b.m.rotation.y)); b.m.rotation.y += turn * Math.min(1, dt * 3);
+                return false;
+              };
+              if (F.st === 'walk') {
+                if (walkTo(0.35)) { pickStorkWadeTarget(b); go('wait', 1.5 + r() * 3.5); }
+                else if (F.t > F.dur) go(F.rest <= 0 ? 'rest' : 'wait', F.rest <= 0 ? 25 + r() * 40 : 1.5 + r() * 3.5);
+              } else if (F.st === 'wait') {
+                peck = 0.34 + 0.05 * Math.sin(seconds * 0.9 + b.index);
+                if (F.t > F.dur) { const crowd = b.col && colMoverHits(b.col, b.foot.x, b.foot.z, b.col.ang()) > 0.02; if (!crowd && r() < 0.55) go('strike'); else go('walk', 1.4 + r() * 2.2); }
+              } else if (F.st === 'strike') {
+                const k = F.t;
+                if (k < 0.18) peck = 0.34 + (2.0 - 0.34) * (k / 0.18) ** 2;
+                else if (k < 0.4) { peck = 2.0; if (k - dt < 0.18) { const ry = b.m.rotation.y; fluids?.splash(b.foot.x + Math.sin(ry) * .6, b.foot.z + Math.cos(ry) * .6, .55, .16); b.strikes++; b.peckSuccess = b.strikes % 3 === 0; if (b.peckSuccess) b.catches++; } }
+                else peck = 2.0 + (0.1 - 2.0) * storkSmooth((k - 0.4) / 0.45);
+                b.caughtFish.visible = b.peckSuccess && k >= 0.4;
+                if (k >= 0.85) { if (b.peckSuccess) go('swallow'); else go('wait', 1 + r() * 2); }
+              } else if (F.st === 'swallow') {
+                const k = F.t; peck = k < 0.35 ? -0.8 * storkSmooth(k / 0.35) : k < 0.75 ? -0.8 + 0.18 * Math.sin((k - 0.35) * Math.PI * 5) : -0.8 * (1 - storkSmooth((k - 0.75) / 0.4));
+                b.caughtFish.visible = k < 0.6;
+                if (k >= 1.15) { b.caughtFish.visible = false; b.peckSuccess = false; go('walk', 1.4 + r() * 2.2); }
+              } else {
+                const end = F.t > F.dur;
+                legT = end ? 0 : storkSmooth((F.t - 0.4) / 0.8);
+                sleep = 0.42;
+                if ((F.pre -= dt) < 0) { if (F.pre < -3.5) F.pre = 5 + r() * 4; else sleep = 0.6 + 0.22 * Math.abs(Math.sin(seconds * 4.2)); }
+                if (!F.ws && F.t > F.dur * 0.45) F.ws = 1;
+                if (F.ws === 1) { F.wk = (F.wk || 0) + dt; wing = 0.55 * Math.sin(Math.PI * Math.min(1, F.wk / 1.6)); if (F.wk > 1.6) F.ws = 2; }
+                if (end && (b.oneLeg || 0) < 0.03) { F.rest = 60 + r() * 90; F.ws = 0; F.wk = 0; go('walk', 1.4 + r() * 2.2); }
               }
+              b.oneLeg = (b.oneLeg || 0) + (legT - (b.oneLeg || 0)) * Math.min(1, dt * 2.5);
               storkBodyAtFoot(b, b.foot, b.m.position); b.groundMix = 1; b.m.rotation.x = b.m.rotation.z = 0;
               storkWalk(b, dt, moved, moved / Math.max(dt, 1e-3), false);
-              poseStandingStork(b, peck, 0, stride, seconds);
-              if (!b.dayWalkingOnly && b.wadeRemaining <= 0 && b.peckElapsed < 0) storkTakeoff(b, seconds);
+              poseStandingStork(b, peck, sleep, 0, seconds, false, wing);
+              if (!b.dayWalkingOnly && b.wadeRemaining <= 0 && (F.st === 'walk' || F.st === 'wait') && (b.oneLeg || 0) < 0.05) storkTakeoff(b, seconds);
             }
             {
               const airborne = (b.state === 'fly' || b.state === 'landing' || b.state === 'return' || b.state === 'join') && !(b.settle >= 0);
