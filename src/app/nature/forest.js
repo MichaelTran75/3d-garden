@@ -38,7 +38,7 @@
         // ---- 2 cây táo (ĐỆ QUY) cạnh caravan ----
         function fruitTree(s, seed) {
           const g = new THREE.Group();
-          const barkMat = surfaceStyle(new THREE.MeshLambertMaterial({ color: 0x5f5347, transparent: true, opacity: 0.90 }), 'bark');   // thân cây rõ hơn 20% (0.75 * 1.2 = 0.90) · vân vỏ cây · G 17/10 nâu xám như bản quét
+          const barkMat = new THREE.MeshLambertMaterial({ color: 0x5f5347, transparent: true, opacity: 0.90 }); barkMat.userData.sfTex = 1; surfaceStyle(barkMat, 'bark');   // ảnh vỏ quét   // thân cây rõ hơn 20% (0.75 * 1.2 = 0.90) · vân vỏ cây · G 17/10 nâu xám như bản quét
           const { tips, rnd, segs } = recTree(g, { seed, s, barkMat, trunkLen: 1.7 * s, trunkR: 0.125 * s, maxDepth: 4, nMin: 2, nMax: 3, lenK: 0.74, radK: 0.6, spread: 0.72, upBias: 0.22, firstSplitN: 4 });
           const pts = []; for (const tp of tips) cloudPts(rnd, tp.x, tp.y + 0.08 * s, tp.z, 0.62 * s, 40, pts);
           cloudPts(rnd, 0, 2.7 * s, 0, 1.05 * s, 130, pts);   // chùm trung tâm cho tán dày ruột
@@ -320,7 +320,7 @@
         })();
 
         // ---- cây HOA ANH ĐÀO (cherry blossom) — tán hoa hồng dày bằng hàng trăm cube tí hon ----
-        const cherryBark = new THREE.MeshLambertMaterial({ color: 0x6b4f3a, transparent: true, opacity: 0.75 }); cherryBark.userData.sfL = 0.55;   // anh đào: vỏ nâu đỏ nhẵn, địa y thưa
+        const cherryBark = new THREE.MeshLambertMaterial({ color: 0x6b4f3a, transparent: true, opacity: 0.75 }); cherryBark.userData.sfL = 0.55; Object.assign(cherryBark.userData, { sfTex: 1, sfTint: new THREE.Vector3(1.12, 0.9, 0.8) });   // anh đào: ảnh vỏ quét nhuộm nâu đỏ
         const cherryPinks = [0xffd1dc, 0xffb7c5, 0xffc0cb, 0xf6a5c0, 0xffe3ec, 0xff9fb6];
         function cherryTree(s) {   // cây anh đào ĐỆ QUY — tán hoa cube instanced ở cành tận cùng + chùm trung tâm
           const g = new THREE.Group();

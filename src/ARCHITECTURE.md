@@ -434,6 +434,12 @@ lò xo) ⇒ lên bậc voxel 0,6 đv thì chân trước lên trước, thân ng
   BÁN KÍNH (× 0,5 m, barkTubes) ⇒ `thin` cho cành non; `uSfL` = `mat.userData.sfL` (cổ thụ 1,25 · táo 1 · anh đào 0,55 · cành chết 0,35). Mắt cành:
   barkTubes phình bán kính +18% ~30 cm một (cành < 7 cm, băm theo chiều dài, KHÔNG gọi rnd() ⇒ táo / hoa / tổ / chỗ đậu không đổi). Bẫy: mảng nhiễu
   quanh thân phải có chu kỳ NGUYÊN (12·hệ số nguyên) mới không lộ đường may; tần số dọc thân thấp ⇒ địa y thành vệt dọc (bản đầu) — dọc ×4.
+- Ảnh vân vỏ THẬT từ bản quét (G 17/10 "file glb đó là 3D hay chỉ là ảnh, nếu 3D thì apply vào luôn"): GLB là 3D (cây non 2 m, 22k tam giác, trơ
+  cành) nhưng chi tiết vỏ nằm ở 3 ảnh vân ⇒ dáng cây mình giữ, lấy ẢNH VÂN: 4 dải vỏ thân trong atlas 1024² ghép ngang thành ô 160 × 480
+  (`src/models/bark-scan.jpg`, 35 KB, cắt trong trình duyệt — dữ liệu tải về không chạy Python có PIL). Tải sau khi cảnh chạy (`sfBarkTex`,
+  `window.__barkTex` cho bản debug, địa chỉ tuyệt đối Pages); vật liệu có `userData.sfTex` (cổ thụ, táo, anh đào) đọc ảnh theo `aBk` (3 ô quanh mỗi
+  bm, ~0,75 m dọc / ô, lặp gương dọc), nhuộm `sfTint` (anh đào nâu đỏ); cổ thụ `sfDk` nhuộm mảng địa y sáng thành nâu đen (G muốn) nhưng giữ vân;
+  độ lồi = độ sáng ảnh (sfBump). Chưa tải / lỗi ⇒ vân thủ tục cũ.
 - Gấu mèo: thân 2 nửa `U.fore`/`U.aft` gập quanh giữa lưng khi phi nhảy (hông chân vẫn gắn `torso` ⇒ IK không đổi).
 - Đo được (trượt TB của bàn chân trụ, đv/khung ở 30 hình/giây): bò 0,0003–0,0007 · hươu 0,0003 · cò 0,0013 · gấu mèo ~0,003 (ngoặt gắt) ·
   kỹ sư ~0,003 (chưa tính lúc ngoặt). Thử: `slipTest`/`ikErr` (công cụ nháp) — đọc `rig.feet`, so điểm đế thật với `F.w`.

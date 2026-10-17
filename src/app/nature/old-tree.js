@@ -29,7 +29,8 @@
           const TOP = 0.85;
           const barkMat = new THREE.MeshLambertMaterial({ color: 0x4a4036, transparent: true, opacity: TOP }), deadMat = new THREE.MeshLambertMaterial({ color: 0xE2D6C0, transparent: true, opacity: TOP });
           barkMat.userData.sfL = 1.25; deadMat.userData.sfL = 0.35;   // G 17/10 theo bản quét: nâu xám, địa y phủ dày (cây già) · cành chết ít
-          barkMat.userData.sfLC = new THREE.Color(0.05, 0.032, 0.02);   // (tuyến tính ≈ sRGB #3d3127)   // G 17/10: vết loang trên thân cổ thụ màu NÂU ĐEN (không xám trắng)
+          barkMat.userData.sfLC = new THREE.Color(0.05, 0.032, 0.02);   // (tuyến tính ≈ sRGB #3d3127)
+          Object.assign(barkMat.userData, { sfTex: 1, sfDk: 1, sfTint: new THREE.Vector3(0.9, 0.86, 0.82) });   // ảnh vỏ quét; mảng địa y sáng đổi nâu đen (G 17/10)   // G 17/10: vết loang trên thân cổ thụ màu NÂU ĐEN (không xám trắng)
           // cây cổ thụ: thân to, tán nặng → dao động riêng chậm ~0,32 Hz, cản nhỏ (gỗ già ít tắt dần); cành xa thân rung ~1 Hz
           const tw = makeTreeWind({ freq: 0.32, zeta: 0.08, lean: 0.45, branchAmp: 0.07 });
           windShader(barkMat, tw, 0); windShader(deadMat, tw, 0); g.userData.treeWind = tw;

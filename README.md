@@ -21,7 +21,7 @@ Chỉ sửa trong `src/`. Đọc `src/ARCHITECTURE.md` trước: khung hình ch�
 | `src/app/engineer/` | kỹ sư: dáng người, tư thế, lịch ngày, ăn, ngủ, câu cá, hái táo, drone |
 | `src/app/van/`, `camp/`, `fishing/` | xe van, đồ cắm trại, cần câu |
 | `src/app/ui/`, `src/app/loop/` | điều khiển camera, nhãn, vòng lặp khung hình |
-| `src/models/` | mẫu 3D dùng nguyên (hiện chỉ có drone + tay cầm DJI Mini 3), trang tải sau khi cảnh chạy |
+| `src/models/` | mẫu dùng nguyên (drone + tay cầm DJI Mini 3, ảnh vân vỏ cây cắt từ bản quét), trang tải sau khi cảnh chạy |
 
 Các mảnh trong `src/app/` được nối nguyên văn theo `manifest.txt` thành một khối script, dùng chung phạm vi biến (không `import`/`export`).
 Thêm tệp mới thì thêm một dòng vào manifest, đúng thứ tự.
@@ -58,7 +58,7 @@ Trước khi sửa, đọc README.md rồi src/ARCHITECTURE.md.
 Quy tắc:
 - Chỉ sửa trong src/. index.html, css/, js/, models/ là tệp dựng ra. Tệp mới trong src/app/ phải thêm vào src/app/manifest.txt đúng thứ tự.
 - Mã src/app/ nối thành một phạm vi biến: không import/export; không chèn chú thích // giữa một dòng nhiều lệnh (nuốt phần sau).
-- Mọi vật dựng bằng code three.js. GLB hoặc ảnh mẫu chỉ dùng để đo, không nhúng; mẫu mới ghi công vào mục Mô hình của README. Ngoại lệ duy nhất: drone + tay cầm DJI (src/models/dji-mini3.glb, G cho dùng nguyên mẫu).
+- Mọi vật dựng bằng code three.js. GLB hoặc ảnh mẫu chỉ dùng để đo, không nhúng; mẫu mới ghi công vào mục Mô hình của README. Ngoại lệ: drone + tay cầm DJI (src/models/dji-mini3.glb) và ảnh vân vỏ cây từ bản quét (src/models/bark-scan.jpg) — G cho dùng nguyên.
 - Giữ ngân sách gzip của python3 build.py --check (js/app.js ≤ 420 KB, cả trang ≤ 440 KB); muốn nâng thì hỏi trước.
 - Cây, cành, lá dùng rnd() có hạt giống: giữ đúng thứ tự gọi rnd() để táo, hoa, tổ, chỗ chim đậu không đổi chỗ.
 - Không viết lại lịch sử git.
@@ -70,9 +70,10 @@ Việc cần làm: ...
 
 ## Mô hình
 
-Mọi vật thể dựng bằng code three.js, nhãn vẽ bằng canvas, trừ một mẫu dùng nguyên:
+Mọi vật thể dựng bằng code three.js, nhãn vẽ bằng canvas, trừ hai mẫu dùng nguyên:
 
 - Drone và tay cầm: ["DJI Mini 3 Drone with Remote Controller"](https://sketchfab.com/3d-models/dji-mini-3-drone-with-remote-controller-24ce5dcfced44e3d9da46167da720603) của [Marco Workspace](https://sketchfab.com/MarcoWorkspace), giấy phép [CC-BY-4.0](http://creativecommons.org/licenses/by/4.0/). Đã sửa: tách thân, cánh quạt, tay cầm, cần điều khiển thành phần riêng; giảm lưới; nén (`src/models/dji-mini3.glb`).
+- Vân vỏ cây cổ thụ, cây táo, anh đào: ảnh vân cắt từ ["Tree 3D Scan - Retopo"](https://sketchfab.com/3d-models/tree-3d-scan-retopo-9e6778e11ad2413dab940e23bb0b89df) của [grafi](https://sketchfab.com/zdenkoroman), giấy phép [CC-BY-4.0](http://creativecommons.org/licenses/by/4.0/). Đã sửa: ghép 4 dải vỏ thân thành 1 ô lặp 160 × 480 (`src/models/bark-scan.jpg`).
 
 Các mẫu sau chỉ dùng để đo dáng, tỉ lệ hoặc học kiểu vẽ:
 
@@ -88,7 +89,6 @@ Các mẫu sau chỉ dùng để đo dáng, tỉ lệ hoặc học kiểu vẽ:
 - Bóng đèn sợi đốt: "Incandescent Light Bulb" của AleixoAlonso (CC-BY-4.0)
 - Lò chiminea (chiều cao): "Rustic chimenea" của archiesmitham (CC-BY-NC-SA-4.0)
 - Cành cây rừng: "Low Poly Tree Scene Free" của Nicholas-3D (CC-BY-4.0)
-- Vỏ cây (địa y, mắt cành): "Tree 3D Scan - Retopo" của grafi (CC-BY-4.0)
 - Laptop: "MacBook Pro 2021" của KangaroOz 3D (CC-BY-NC)
 - Ghế văn phòng, bảng ghim: "60's Office Props" của SeanNicolas (CC-BY-NC-4.0)
 - Drone (bản dựng bằng code trước 17/10): "Drone" của Kira (CC-BY-4.0)
