@@ -9,5 +9,5 @@ python3 build.py --check
 git add -A
 if git diff --cached --quiet; then echo "Không có thay đổi."; exit 0; fi
 git commit -q -m "${1:-Cập nhật trang}"
-git push -q
+git -c http.postBuffer=157286400 push -q   # bộ đệm gửi lớn: lần đẩy có tệp mẫu GLB ~1,4 MB từng bị GitHub ngắt ("unexpected disconnect")
 echo "Đã đẩy lên. Trang cập nhật sau ~1 phút: https://michaeltran75.github.io/3d-garden/"
