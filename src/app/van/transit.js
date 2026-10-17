@@ -19,29 +19,36 @@
         const trArchFront = y => TR.xF - Math.sqrt(Math.max(0, TR.archR ** 2 - (y - TR.archY) ** 2));
         const trXh = z => -1.513 + 0.10 * (z / 0.949) ** 2;                   // mép trên kính chắn gió cong lùi ra 2 bên
         const TR_ROOF_X = [-1.30, -1.20, -1.10, -1.0, -0.9, -0.8, -0.6, -0.35, 0.0, 0.5, 1.0, 1.6, 2.2, 2.93];
-        // mũi xe: từng mức cao Y (đv) → X mặt trước tại z = 0 · 0,33 · 0,55 · 0,715 · 0,88 · 0,99 (cột cuối = mép vách hông, tính theo hốc bánh / chân trụ A)
-        const TR_NOSE = [[0.575, [-3.128, -3.129, -3.183, -3.149, -3.054, -2.886]], [0.663, [-3.236, -3.218, -3.221, -3.185, -3.064, -2.92]], [0.773, [-3.264, -3.257, -3.241, -3.202, -3.059, -2.926]],
-          [0.883, [-3.216, -3.205, -3.218, -3.164, -3.076, -2.962]], [0.993, [-3.199, -3.188, -3.153, -3.112, -3.015, -2.823]], [1.103, [-3.213, -3.176, -3.155, -3.09, -3.001, -2.809]],
-          [1.213, [-3.169, -3.154, -3.131, -3.03, -2.93, -2.729]], [1.323, [-3.151, -3.133, -3.081, -2.986, -2.89, -2.694]], [1.433, [-3.031, -3.009, -2.966, -2.909, -2.814, -2.621]],
-          [1.488, [-2.904, -2.875, -2.843, -2.777, -2.743, -2.589]], [1.543, [-2.75, -2.723, -2.67, -2.637, -2.592, -2.483]], [1.598, [-2.592, -2.568, -2.541, -2.5, -2.451, -2.41]],
-          [1.642, [-2.393, -2.385, -2.339, -2.304, -2.258, -2.252]]];
-        const TR_NZ = [0, 0.33, 0.55, 0.715, 0.88, 0.99];
+        // MŨI XE ĐO DÀY từ GLB (Transit bản nâng cấp 2019+: ga-lăng bát giác đen viền mạ + logo bầu dục, đèn pha mảnh vuốt ngược có viền LED, cản trên sơn
+        //  màu thân, cản dưới đen, đèn sương mù chữ nhật trong hốc đen, 2 hốc gió trên ca-pô — G 18/10 "đầu xe giống glb 100%"): mỗi hàng = đường đồng mức
+        //  mặt trước ở độ cao yg (m GLB), tia toả vào trục (0, yg, zc) theo K + 1 góc 0 → 90° (thẳng mũi → hông); r = khoảng cách trục → mặt vỏ (mm);
+        //  c = vật liệu ở TÂM từng ô (b vỏ sơn · k nhựa đen · c mạ · l kính đèn · L bóng đèn · u logo · w kính). Đổi sang đv: X = 0,0272 − 1,1·z, Y = 0,1128 + 1,1·y, Z = 1,1·x
+        const TR_MUI = { K: 24, yg: [0.4, 0.425, 0.45, 0.475, 0.5, 0.525, 0.55, 0.575, 0.6, 0.625, 0.65, 0.675, 0.7, 0.725, 0.75, 0.775, 0.8, 0.825, 0.85, 0.875, 0.9, 0.925, 0.95, 0.975, 1, 1.025, 1.05, 1.075, 1.1, 1.125, 1.15, 1.175, 1.2, 1.225, 1.25, 1.275, 1.3, 1.325, 1.35, 1.375, 1.39], zc: [2.4374, 2.4353, 2.4318, 2.4269, 2.4207, 2.4131, 2.4039, 2.3931, 2.3806, 2.3663, 2.3498, 2.331, 2.3094, 2.2846, 2.2558, 2.2216, 2.2002, 2.2002, 2.2002, 2.2002, 2.2002, 2.2002, 2.2002, 2.2002, 2.2002, 2.2002, 2.2002, 2.2002, 2.2002, 2.2002, 2.2002, 2.2002, 2.2002, 2.2002, 2.2002, 2.2002, 2.2002, 2.2002, 2.2002, 2.0611, 2.0611],
+          r: '431 432 435 439 446 455 467 481 549 518 624 653 683 720 763 800 845 867 888 905 919 927 931 933 940|523 523 497 443 450 459 470 484 501 521 637 665 697 735 775 813 853 875 895 913 927 934 937 939 946|529 529 532 448 455 464 475 489 505 621 551 681 712 743 788 830 862 884 903 922 936 940 943 947 954|536 537 540 454 460 469 481 495 512 621 558 698 730 766 804 848 860 874 896 919 936 947 948 953 959|545 546 549 462 468 477 488 502 520 540 566 714 740 780 820 850 862 888 908 928 939 954 952 949 967|555 556 559 565 572 583 597 613 643 664 689 715 762 796 837 853 872 882 898 930 946 960 959 959 971|581 582 586 591 599 611 625 642 671 694 719 746 777 813 849 857 875 872 889 918 953 966 966 964 976|595 596 599 605 614 625 639 657 687 710 735 763 795 831 854 864 881 873 898 927 960 972 971 969 981|611 612 615 621 630 641 656 675 704 728 752 781 814 851 860 877 895 917 939 950 965 977 976 973 986|628 629 632 638 647 659 674 693 723 746 771 801 833 862 880 898 912 928 948 965 978 983 980 977 991|646 647 650 657 666 678 694 721 743 766 792 821 852 872 897 922 940 958 971 979 985 988 984 981 994|650 650 654 660 669 681 697 716 749 779 807 837 869 887 913 937 954 970 982 989 992 992 988 985 998|638 639 643 649 657 668 683 700 715 731 808 843 877 887 916 943 965 982 993 997 999 996 992 989 1001|613 496 500 505 513 523 536 552 707 762 809 841 875 891 920 948 966 978 987 991 994 996 996 993 1004|640 526 529 535 543 677 568 585 735 789 808 842 879 899 928 954 971 976 978 979 979 984 997 719 1007|716 716 719 726 736 749 765 770 769 823 843 872 903 927 952 973 983 980 974 970 968 978 992 1005 1011|733 733 736 743 753 767 783 800 814 844 866 895 923 946 969 985 994 986 979 974 971 979 992 1002 1014|689 670 674 681 692 726 723 745 789 843 866 893 924 944 966 982 991 984 978 974 969 977 988 997 1016|686 583 586 593 602 726 629 648 787 805 863 892 920 943 962 979 989 983 977 973 964 972 983 992 1006|684 583 587 593 602 614 630 649 785 804 861 889 910 943 965 977 986 982 977 971 961 956 975 986 1001|746 738 721 731 741 754 771 790 801 824 862 887 903 931 955 976 990 982 975 970 961 951 960 979 994|740 742 748 718 728 742 759 778 798 819 861 878 897 920 944 965 980 978 975 969 960 951 945 971 987|736 737 742 697 603 615 630 649 776 796 857 872 878 889 917 954 969 972 971 966 960 950 944 954 978|732 735 725 676 603 616 631 650 673 792 849 863 851 881 910 933 949 956 968 964 959 950 944 942 964|706 706 710 716 722 735 750 768 791 798 844 851 843 874 902 926 943 950 954 951 959 949 943 942 947|698 699 702 708 718 731 746 764 784 815 838 838 836 866 895 919 936 946 950 948 944 948 942 941 944|688 646 639 666 604 616 700 651 674 808 828 827 829 859 888 912 930 940 947 945 946 947 941 940 944|668 641 634 595 604 617 702 651 674 798 815 810 818 849 881 905 924 936 943 943 943 946 940 940 944|689 689 693 699 706 717 730 748 770 792 800 805 798 833 862 891 916 931 940 940 940 945 940 940 944|678 677 680 685 693 703 718 736 759 778 782 790 803 816 843 873 898 917 933 937 938 943 937 937 942|657 657 659 664 671 682 695 713 734 757 765 771 785 807 826 855 881 901 922 928 932 928 933 931 935|629 628 631 636 643 653 666 683 703 728 745 749 758 784 812 842 865 889 912 921 925 928 930 927 928|580 579 582 586 592 601 612 626 644 666 689 713 726 741 780 820 852 881 902 914 920 925 927 924 925|529 529 530 534 539 546 556 568 584 603 626 650 675 696 714 750 807 860 888 907 919 921 917 922 923|465 464 466 469 466 473 483 494 508 527 548 573 599 628 660 680 712 770 846 888 908 917 908 919 921|398 397 398 401 406 390 399 409 422 437 456 478 505 536 566 602 644 671 730 811 877 901 911 915 919|325 325 326 328 331 336 330 317 326 336 342 358 378 402 433 466 521 599 640 688 773 850 893 910 916|253 252 253 255 257 261 267 272 264 258 268 281 297 316 339 367 403 448 505 599 649 740 824 879 911|181 181 181 182 184 187 191 196 202 210 219 229 241 256 274 296 322 354 395 448 519 615 686 802 867|177 177 177 178 180 183 187 192 198 205 214 224 237 252 271 294 319 347 384 430 492 574 833 894 914|151 151 151 152 154 157 160 165 170 176 184 193 204 216 232 251 275 303 339 385 443 515 613 859 904',
+          c: 'kkkkkkkkkkkkkkbbbbbbbbbb|kkkkkkkkkkkkkbbbbbbbbbbb|kkkkkkkkkkkkkbbbbbbbbbbb|kkkkkkkkkkkkkbbbkkkkbbbb|kkkkkkkkkkkkbbbbkkkkbbbb|bbbbbbbbbbbbbbbkkllkbbbb|bbbbbbbbbbbbbbbkkllkbbbk|bbbbbbbbbbbbbbbkkllkbbbk|bbbbbbbbbbbbbbbkkkkkbbbk|bbbbbbbbbbbbbbbbbbbbbbbk|bbbbbbbbbbbbbbbbbbbbbbbk|cccccccccbbbbbbbbbbbbbbk|kkkkkkkkccbbbbbbbbbbbbbk|kkkkkkkkkcbbbbbbbbbbbbbk|kkkkkkkkkcbbbbbbbbbbbbbk|kkkkkkkkkcbbbbbbbbbbbbbk|kkkkkkkkkcbbbbbbbbbbbbbk|kkkkkkkkkcbbbbbbbbbbbbbb|kkkkkkkkkcbbbbbbbbbbbbbb|kkkkkkkkkcbbbbbbbbbbbbbb|uukkkkkkkkbbbbbbbbbbbbbb|cukkkkkkkkbbbkbbbbbbbbbb|cukkkkkkkcbbllllbbbbbbbb|kkkkkkkkkcbblllllllkbbbb|kkkkkkkkkcbbllllllllbbbb|kkkkkkkkkcbbllllllllbbbb|kkkkkkkkccbbllllllllbbbb|cccccccccbbbllllllllbbbb|bbcbbbbbbbbbllllllllkbbb|bbbbbbbbbbbbbblllllllbbb|bbbbbbbbbbbbbbbblllllbbb|bbbbbbbbbbbbbbbbbblllkbb|bbbbbbbbbbbbbbbbbbblllbb|bbbbbbbbbbbbbbbbbbbbbkbb|bbbbbbbbbbbbbbbbbbbbbbbb|bbbbbbbbbbbbbbbbbbbbbbbb|bbbbbbbkkkkkkkkkkkbbbbbb|bbbbbbbbkkkkkkkkkkkkbbbb|bbbbbbbbbbbbbbbbbbbbbkbb|kkkkkkkkkkkkkkkkkkkwwwbb' };
         const trNoseEnd = y => y < 0.98 ? trArchFront(y) : y < 1.62 ? -2.393 : -2.24;
+        const TR_NR = (() => {   // → [{ Y, P: [[Z, X] × (K + 1)] }] nửa +z, từ giữa ra hông
+          const K = TR_MUI.K, R = TR_MUI.r.split('|').map(s => s.split(' ').map(Number)), C = TR_MUI.c.split('|');
+          // lưới MỞ (khe ga-lăng, hốc gió cản dưới): tia lọt khe chạm nền phía sau ⇒ lấy mặt trước nhất trong lân cận 3×3 (mặt các nan)
+          const F = R.map((row, i) => row.map((r, k) => { if (C[Math.min(i, C.length - 1)][Math.min(k, K - 1)] !== 'k' || k > 13) return r; let m = r; for (let di = -1; di <= 1; di++) for (let dk = -1; dk <= 1; dk++) { const q = R[i + di] && R[i + di][k + dk]; if (q > m) m = q; } return m; }));
+          return F.map((row, i) => ({ Y: 0.1128 + 1.1 * TR_MUI.yg[i], ax: 0.0272 - 1.1 * TR_MUI.zc[i], P: row.map((r, k) => { const f = k / K * Math.PI / 2; return [1.1 * Math.sin(f) * r / 1000, 0.0272 - 1.1 * (TR_MUI.zc[i] + Math.cos(f) * r / 1000)]; }) }));
+        })();
         // kính chắn gió + trụ A: hàng Y → X tại z = 0 · 0,33 · 0,55 · 0,715 · 0,825 · 0,902, cột cuối = trụ A (mép trước vách hông)
         const TR_WS = [[[-2.393, -2.385, -2.339, -2.304, -2.275, -2.258], 1.642, [-2.24, 1.642]], [[-2.137, -2.117, -2.086, -2.054, -2.025, -2.005], 1.873, [-1.98, 1.873]],
           [[-1.88, -1.861, -1.834, -1.804, -1.778, -1.758], 2.093, [-1.735, 2.093]], [[-1.57, -1.555, -1.53, -1.505, -1.48, -1.46], [2.36, 2.36, 2.355, 2.35, 2.34, 2.33], [-1.44, 2.33]]];
         const TR_WZ = [0, 0.33, 0.55, 0.715, 0.825, 0.902];
-        const trNoseX = (z, y) => {   // X mặt trước mũi xe tại (|z|, y) — để gắn đèn, lưới, biển số đúng mặt cong
-          const at = (row, end) => { const zs = [...TR_NZ, trSideZ(end, row[0])], xs = [...row[1], end]; z = Math.abs(z); for (let i = 1; i < zs.length; i++) if (z <= zs[i]) return xs[i - 1] + (xs[i] - xs[i - 1]) * (z - zs[i - 1]) / (zs[i] - zs[i - 1]); return xs[xs.length - 1]; };
-          for (let i = 1; i < TR_NOSE.length; i++) if (y <= TR_NOSE[i][0]) { const a = TR_NOSE[i - 1], b = TR_NOSE[i], k = Math.max(0, (y - a[0]) / (b[0] - a[0])); return at(a, trNoseEnd(a[0])) * (1 - k) + at(b, trNoseEnd(b[0])) * k; }
-          return at(TR_NOSE[TR_NOSE.length - 1], -2.24);
+        const trNoseX = (z, y) => {   // X mặt trước mũi xe tại (|z|, y) — nội suy lưới đo (gắn đèn, logo, biển số đúng mặt cong)
+          z = Math.abs(z); const at = P => { for (let i = 1; i < P.length; i++) if (z <= P[i][0]) { const [z0, x0] = P[i - 1], [z1, x1] = P[i]; return x0 + (x1 - x0) * (z - z0) / Math.max(1e-6, z1 - z0); } return P[P.length - 1][1]; };
+          for (let i = 1; i < TR_NR.length; i++) if (y <= TR_NR[i].Y) { const a = TR_NR[i - 1], b = TR_NR[i], k = Math.max(0, (y - a.Y) / (b.Y - a.Y)); return at(a.P) * (1 - k) + at(b.P) * k; }
+          return at(TR_NR[TR_NR.length - 1].P);
         };
+        TR_WS[0][0] = TR_WZ.map((z, i) => Math.min(trNoseX(z, 1.642), -2.25 - 0.002 * (6 - i)));   // hàng chân kính chắn gió = hàng đo trên cùng của mũi (khép đường nối)
 
         function transitBody(g) {
           const V3 = (x, y, z) => new THREE.Vector3(x, y, z), V2 = (x, y) => new THREE.Vector2(x, y), lam = (c, o = {}) => new THREE.MeshLambertMaterial({ color: c, ...o }), two = { side: THREE.DoubleSide };
           const M = { body: lam(0xE2D6C0, { transparent: true, opacity: 0.5, depthWrite: false, side: THREE.DoubleSide }), glass: lam(0x8fc1e3, { transparent: true, opacity: 0.25, depthWrite: false, side: THREE.DoubleSide }),
             frost: lam(0xdfe9ec, { transparent: true, opacity: 0.6, depthWrite: false, side: THREE.DoubleSide }), black: lam(0x3a3f41, two), grille: lam(0x24292b, two), lamp: lam(0xdde4e6, two),
-            chrome: lam(0xc9cdd0), red: lam(0xb8322a, two), amber: lam(0xe39a32, two), mirror: lam(0xb3ccd0), blue: lam(0x1f3f7a), dark: lam(0x4a5052) };
+            chrome: lam(0xc9cdd0, two), red: lam(0xb8322a, two), amber: lam(0xe39a32, two), mirror: lam(0xb3ccd0), blue: lam(0x1f3f7a, two), dark: lam(0x4a5052), led: new THREE.MeshBasicMaterial({ color: 0xf2f6ff, side: THREE.DoubleSide }), blackD: lam(0x2c3133, { side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }), lampD: lam(0x59636b, { side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 }) };
           const shell = new THREE.Group(); shell.name = 'Vỏ Ford Transit L3H2'; shell.userData.xray = 'shell'; g.add(shell);
           const T = TR.T, IN = V3(0.4, 1.6, 0), seam = [];
           const triGeo = (p, n) => { const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(p, 3)); if (n) geo.setAttribute('normal', new THREE.Float32BufferAttribute(n, 3)); else geo.computeVertexNormals(); geo.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(p.length / 3 * 2), 2)); return geo; };
@@ -69,11 +76,11 @@
           }
           const full = (half, mk) => [...half.slice(1).reverse().map(p => mk(p, -1)), ...half.map(p => mk(p, 1))];   // nửa phải (z ≥ 0, từ giữa ra) → cả bề ngang
 
-          // ===== MŨI XE: cản dưới đen · ga-lăng 3 nan · đèn pha vuốt ngược lên vè · nắp ca-pô · hốc gạt mưa đen =====
-          const noseRows = TR_NOSE.map(([y, xs]) => { const xe = trNoseEnd(y), half = [...TR_NZ.map((z, i) => [z, Math.min(xs[i], xe - 0.012)]), [trSideZ(xe, y), xe]]; return full(half, ([z, x], s) => V3(x, y, s * z)); });
-          const NC = TR_NZ.length + 1, nKey = (r, c) => { const h = Math.abs(c - (NC - 1) + 0.5) - 0.5;   // h: cột tính từ giữa ra (0 … 6)
-            if (r <= 2 || r === 11) return 'black'; if (r <= 6 && h <= 1) return 'grille'; if (r >= 5 && r <= 7 && h >= 2) return 'lamp'; return 'body'; };
-          gridMeshes(noseRows, nKey, 'Mũi xe');
+          // ===== MŨI XE theo lưới đo GLB (TR_MUI): vật liệu từng ô đúng mẫu — cản dưới + hốc đèn sương mù đen, cản trên sơn, ga-lăng đen viền mạ, đèn pha,
+          //       2 hốc gió ca-pô, hốc gạt mưa đen. Cột cuối = mép vách hông (khép với vách) =====
+          const nK = TR_MUI.K, NCL = TR_MUI.c.split('|');
+          const noseRows = TR_NR.map(({ Y, P }) => { const xe = trNoseEnd(Y); return full(P.map(([z, x], k) => k === nK ? [trSideZ(xe, Y), xe] : [z, x]), ([z, x], s) => V3(x, Y, s * z)); });
+          gridMeshes(noseRows, () => 'body', 'Mũi xe');   // lưới nền chỉ màu vỏ — vùng đen / kính đèn dán bám mặt bằng đề can mép trơn (dưới, sau OCT)
           // ===== KÍNH CHẮN GIÓ + TRỤ A + mép trên kính (hàng cuối = mặt cắt đầu tiên của mui) =====
           const roofSec = (x, z) => trRoofY(x) - trLerp(TR_DROP, Math.abs(z)) * trS(x), RZ = [...TR_WZ, 0.949];
           const wsRows = [...TR_WS.map(([xs, ys, end]) => full([...TR_WZ.map((z, i) => [z, xs[i], Array.isArray(ys) ? ys[i] : ys]), [trSideZ(end[0], end[1]), end[0], end[1]]], ([z, x, y], s) => V3(x, y, s * z))),
@@ -180,22 +187,70 @@
             box('Cản sau', 0.27, 0.22, 1.98, TR.rear + 0.12, 0.56, 0, M.black, true);
             box('Bậc giẫm cản sau', 0.2, 0.02, 0.8, TR.rear + 0.15, 0.68, 0, M.dark);
           }
-          // ===== CHI TIẾT ĐẦU XE: 3 nan ga-lăng mạ, logo bầu dục xanh, đèn sương mù, biển số "Jade", gạt mưa, viền hốc gạt mưa =====
-          for (const y of [1.04, 1.15, 1.26]) loop('Nan ga-lăng mạ', [-0.56, -0.42, -0.2, 0, 0.2, 0.42, 0.56].map(z => V3(trNoseX(z, y) - 0.018, y, z)), 0.035, M.chrome, false);
-          const badge = new THREE.Mesh(new THREE.CircleGeometry(0.07, 20), M.blue); badge.scale.set(1, 0.48, 1); badge.rotation.y = -Math.PI / 2; badge.position.set(trNoseX(0, 1.2) - 0.03, 1.2, 0); badge.name = 'Logo bầu dục'; shell.add(badge);
-          for (const s of [-1, 1]) {
-            const fz = s * 0.80, fx = trNoseX(0.8, 0.72) - 0.006, fog = new THREE.Mesh(new THREE.CircleGeometry(0.05, 16), M.lamp); fog.rotation.y = -Math.PI / 2 + s * 0.35; fog.position.set(fx, 0.72, fz); fog.name = 'Đèn sương mù'; shell.add(fog);
-            const ring = new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.008, 5, 16), M.chrome); ring.rotation.y = Math.PI / 2 + s * 0.35; ring.position.copy(fog.position); shell.add(ring);
+          // ===== CHI TIẾT ĐẦU XE theo GLB: viền mạ bát giác ga-lăng · 4 nan ngang · logo bầu dục · đèn pha: viền LED chữ Γ (mép trong + mép trên) + 2 thấu kính ·
+          //       dải LED đèn sương mù · 2 nan hốc cản dưới · biển số "Jade" trên cản sơn · gạt mưa =====
+          const OCT = [[0, 0.681], [0.318, 0.681], [0.397, 0.69], [0.442, 0.709], [0.476, 0.755], [0.51, 0.838], [0.536, 0.913], [0.536, 0.954], [0.51, 0.997], [0.479, 1.043], [0.446, 1.08], [0.406, 1.109], [0.132, 1.113], [0, 1.113]];   // GLB (x, y) viền mạ, nửa phải
+          const onNose = (xg, yg, d = 0.012) => { const Y = 0.1128 + 1.1 * yg, Z = 1.1 * xg; return V3(trNoseX(Z, Y) - d, Y, Z); };
+          const octHalf = y => { const S2 = OCT.slice(1, 13); for (let i = 1; i < S2.length; i++) if (y <= S2[i][1]) { const [x0, y0] = S2[i - 1], [x1, y1] = S2[i]; return x0 + (x1 - x0) * (y - y0) / (y1 - y0); } return 0.406; };
+          loop('Viền mạ ga-lăng', [...OCT.map(([x, y]) => onNose(x, y)), ...OCT.slice(1, -1).reverse().map(([x, y]) => onNose(-x, y))], 0.03, M.chrome);
+          for (const yg of [0.775, 0.85, 1.0, 1.06]) { const hw = octHalf(yg) - 0.025; loop('Nan ga-lăng', [-1, -0.5, 0, 0.5, 1].map(f => onNose(f * hw, yg, 0.006)), 0.02, M.dark, false); }
+          for (const yg of [0.44, 0.485]) loop('Nan hốc cản dưới', [-1, -0.5, 0, 0.5, 1].map(f => onNose(f * 0.4, yg, 0.006)), 0.018, M.dark, false);
+          const lp = onNose(0, 0.945, 0.022), logo = new THREE.Mesh(new THREE.CircleGeometry(0.13, 24), M.blue); logo.scale.set(1, 0.4, 1); logo.rotation.y = -Math.PI / 2; logo.position.copy(lp); logo.name = 'Logo bầu dục'; shell.add(logo);
+          const lr = new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.009, 4, 28), M.chrome); lr.scale.set(1, 0.4, 1); lr.rotation.y = Math.PI / 2; lr.position.copy(lp); shell.add(lr);
+          // ===== MẢNG VẬT LIỆU MŨI XE dán bám mặt (đề can): biên từng vùng trên bản đồ vật liệu đo (ô 24 × 40) → dò mép ô → làm trơn Chaikin ×3 → chia tam giác →
+          //       đặt lên mặt lưới mũi, đẩy ra vài mm theo pháp tuyến ⇒ mép cản dưới, hốc đèn sương mù, kính đèn pha, hốc gió ca-pô, hốc gạt mưa trơn (không răng cưa ô);
+          //       ga-lăng = đúng viền bát giác đo trên GLB (OCT) =====
+          const nR = TR_NR.length, NP = TR_NR.map(({ Y, P }) => { const xe = trNoseEnd(Y); return P.map(([z, x], k) => k === nK ? [trSideZ(xe, Y), xe] : [z, x]); });
+          const surf = (u, v) => {   // u: −K…K (cột, âm = nửa −z) · v: 0…số hàng − 1 → điểm trên lưới mũi (nội suy song tuyến)
+            const s = u < 0 ? -1 : 1, a = Math.min(nK - 1e-6, Math.abs(u)), i = Math.min(nR - 2, Math.max(0, Math.floor(v))), fv = Math.min(1, Math.max(0, v - i)), k = Math.floor(a), fu = a - k, A = NP[i], B = NP[i + 1];
+            const L2 = j => (A[k][j] * (1 - fu) + A[k + 1][j] * fu) * (1 - fv) + (B[k][j] * (1 - fu) + B[k + 1][j] * fu) * fv;
+            return V3(L2(1), TR_NR[i].Y + (TR_NR[i + 1].Y - TR_NR[i].Y) * fv, s * L2(0)); };
+          const surfN = (u, v, d) => { const e = 0.05, p = surf(u, v), n = new THREE.Vector3().crossVectors(surf(u + e, v).sub(surf(u - e, v)), surf(u, v + e).sub(surf(u, v - e))).normalize(); if (n.dot(p.clone().sub(V3(-2.0, 1.2, 0))) < 0) n.negate(); return p.addScaledVector(n, d); };
+          const toUV = (xg, yg) => {   // (x, y) GLB → (u, v) tham số lưới (ngược surf — cho viền ga-lăng đo)
+            const Y = 0.1128 + 1.1 * yg, Z = 1.1 * Math.abs(xg); let i = 0; while (i < nR - 2 && TR_NR[i + 1].Y < Y) i++; const fv = Math.max(0, Math.min(1, (Y - TR_NR[i].Y) / (TR_NR[i + 1].Y - TR_NR[i].Y)));
+            const zAt = k => NP[i][k][0] * (1 - fv) + NP[i + 1][k][0] * fv; let k = 0; while (k < nK - 1 && zAt(k + 1) < Z) k++; return [(xg < 0 ? -1 : 1) * (k + Math.max(0, Math.min(1, (Z - zAt(k)) / Math.max(1e-6, zAt(k + 1) - zAt(k))))), i + fv]; };
+          const OCTUV = [...OCT.map(([x, y]) => toUV(x, y)), ...OCT.slice(1, -1).reverse().map(([x, y]) => toUV(-x, y))];
+          const inPolyUV = (u, v, P) => { let c = false; for (let a = 0, b = P.length - 1; a < P.length; b = a++) { const [ua, va] = P[a], [ub, vb] = P[b]; if ((va > v) !== (vb > v) && u < (ub - ua) * (v - va) / (vb - va) + ua) c = !c; } return c; };
+          const CG = (r, c) => r < 0 || r >= nR - 1 || c < -nK || c >= nK ? '.' : NCL[r][c >= 0 ? c : -c - 1];   // ô (hàng r, cột c −K…K−1)
+          function regions(test) {   // vùng ô thoả test → vòng kín (u, v) đã làm trơn; vùng ở bên trái ⇒ vòng ngoài ngược kim (A > 0), lỗ thuận kim
+            const nx = new Map(), key = (u, v) => u + ',' + v, loops = [];
+            for (let r = 0; r < nR - 1; r++) for (let c = -nK; c < nK; c++) { if (!test(CG(r, c), r, c)) continue;
+              for (const [dr, dc, a, b] of [[-1, 0, [c, r], [c + 1, r]], [0, 1, [c + 1, r], [c + 1, r + 1]], [1, 0, [c + 1, r + 1], [c, r + 1]], [0, -1, [c, r + 1], [c, r]]])
+                if (!test(CG(r + dr, c + dc), r + dr, c + dc)) { const k = key(...a); (nx.get(k) || nx.set(k, []).get(k)).push(b); } }
+            for (const [k0, outs] of nx) while (outs.length) {
+              const L = [k0.split(',').map(Number)]; let cur = outs.pop();
+              for (let g2 = 0; g2 < 4000; g2++) { const kk = key(...cur); if (kk === k0) break; L.push(cur); const o = nx.get(kk); if (!o || !o.length) break; cur = o.pop(); }
+              let P2 = L.filter((p, i) => { const a = L[(i - 1 + L.length) % L.length], b = L[(i + 1) % L.length]; return (p[0] - a[0]) * (b[1] - p[1]) !== (p[1] - a[1]) * (b[0] - p[0]); });   // bỏ điểm thẳng hàng
+              for (let it = 0; it < 3; it++) P2 = P2.flatMap((p, i) => { const q = P2[(i + 1) % P2.length]; return [[0.75 * p[0] + 0.25 * q[0], 0.75 * p[1] + 0.25 * q[1]], [0.25 * p[0] + 0.75 * q[0], 0.25 * p[1] + 0.75 * q[1]]]; });
+              let A = 0; for (let i = 0; i < P2.length; i++) { const p = P2[i], q = P2[(i + 1) % P2.length]; A += p[0] * q[1] - q[0] * p[1]; }
+              if (Math.abs(A) > 2.4 && P2.length > 3) loops.push({ P: P2, A }); }   // bỏ vùng < 1,2 ô (nhiễu)
+            return loops;
           }
+          function decal(loops, mat, d, name) {   // vòng ngoài + lỗ nằm trong → tam giác dán lên mặt mũi, cách d theo pháp tuyến
+            const holes = loops.filter(l => l.A < 0), p = [];
+            for (const o of loops) { if (o.A < 0) continue; const hs = holes.filter(h => inPolyUV(h.P[0][0], h.P[0][1], o.P)).map(h => h.P), all = [o.P, ...hs].flat().map(([u, v]) => surfN(u, v, d));
+              for (const f of THREE.ShapeUtils.triangulateShape(o.P.map(q => V2(...q)), hs.map(h => h.map(q => V2(...q))))) for (const i of f) p.push(all[i].x, all[i].y, all[i].z); }
+            if (p.length) mesh(triGeo(p), mat, name, true);
+          }
+          decal(regions((x, r, c) => x === 'k' && !inPolyUV(c + 0.5, r + 0.5, OCTUV)), M.blackD, 0.004, 'Nhựa đen mũi xe');
+          decal([{ P: OCTUV, A: 1 }], M.blackD, 0.005, 'Ga-lăng bát giác');
+          const lamps = regions(x => x === 'l' || x === 'L'); decal(lamps, M.lampD, 0.007, 'Kính đèn pha + sương mù');
+          for (const l of lamps) if (l.A > 0) loop('Viền LED đèn', l.P.filter((_, i) => i % 3 === 0).map(([u, v]) => surfN(u, v, 0.011)), 0.012, M.led);
+          // 2 thấu kính tròn trong mỗi đèn pha (hàng giữa vùng kính đèn)
+          const lampRows = []; NCL.forEach((row, r) => { if (r < 16) return; const ks = [...row].map((c, k) => c === 'l' ? k : -1).filter(k => k >= 0); if (ks.length) lampRows.push([r, ks[0], ks[ks.length - 1]]); });
+          if (lampRows.length) for (const s of [1, -1]) { const mid = lampRows[Math.floor(lampRows.length * 0.45)];
+            for (const dk of [1.6, 4.4]) { const u = s * (mid[1] + dk), c = surfN(u, mid[0] + 0.5, 0.009), n = surfN(u, mid[0] + 0.5, 0.05).sub(c).normalize();
+              const pj = new THREE.Mesh(new THREE.CircleGeometry(0.036, 16), M.chrome); pj.position.copy(c); pj.lookAt(c.clone().add(n)); pj.name = 'Thấu kính đèn pha'; shell.add(pj); } }
           const pc = document.createElement('canvas'); pc.width = 256; pc.height = 128; const pk = pc.getContext('2d');
           pk.fillStyle = '#e4dbc5'; pk.fillRect(0, 0, 256, 128); pk.strokeStyle = '#243240'; pk.lineWidth = 6; pk.strokeRect(6, 6, 244, 116);
           pk.font = '700 84px Arial, sans-serif'; pk.textAlign = 'center'; pk.textBaseline = 'middle'; pk.fillStyle = '#243240'; pk.fillText('Jade', 128, 68);
           const plateTex = new THREE.CanvasTexture(pc); plateTex.colorSpace = THREE.SRGBColorSpace; const plateM = new THREE.MeshLambertMaterial({ map: plateTex });
-          for (const [x, y, ry] of [[trNoseX(0, 0.75) - 0.012, 0.75, -Math.PI / 2], [TR.rear + 0.012, 0.86, Math.PI / 2]]) { const pl = new THREE.Mesh(new THREE.PlaneGeometry(0.40, 0.2), plateM); pl.rotation.y = ry; pl.position.set(x, y, 0); pl.name = 'Biển số · Jade'; shell.add(pl); }
+          const plates = new THREE.Group(); plates.name = 'Biển số · Jade'; plates.userData.xray = 'shell'; plates.userData.noBake = true; g.add(plates);   // nhóm riêng (không gộp): còn lại khi vỏ GLB thay vỏ code, biển sau dời được
+          for (const [p, ry] of [[onNose(0, 0.6, 0.014), -Math.PI / 2], [V3(TR.rear + 0.012, 0.86, 0), Math.PI / 2]]) { const pl = new THREE.Mesh(new THREE.PlaneGeometry(0.40, 0.2), plateM); pl.rotation.y = ry; pl.position.copy(p); pl.name = 'Biển số · Jade'; plates.add(pl); }
           for (const z0 of [0.06, -0.78]) bar('Cần gạt mưa', V3(-2.37, 1.66, z0), V3(-2.12, 1.86, z0 + 0.66), 0.016, M.black);
           // đường ron: viền ca-pô · ray cửa lùa (lộ sau cửa đã mở)
-          const hood = [[0, 1.433], [0.55, 1.433], [0.88, 1.40], [0.99, 1.43], [1.03, 1.55], [1.04, 1.62]].map(([z, y]) => [trNoseX(z, y) + 0.004, y + 0.004, z]);
-          for (let i = 0; i < hood.length - 1; i++) for (const s of [-1, 1]) seam.push(hood[i][0], hood[i][1], s * hood[i][2], hood[i + 1][0], hood[i + 1][1], s * hood[i + 1][2]);
+          const hood = [[0, 1.122], [0.4, 1.122], [0.55, 1.15], [0.7, 1.2], [0.82, 1.25], [0.9, 1.3], [0.92, 1.37]].map(([x, y]) => onNose(x, y, -0.003));   // mép ca-pô: trên viền ga-lăng, vòng qua đỉnh đèn pha
+          for (let i = 0; i < hood.length - 1; i++) for (const s of [-1, 1]) seam.push(hood[i].x, hood[i].y, s * hood[i].z, hood[i + 1].x, hood[i + 1].y, s * hood[i + 1].z);
           box('Ray cửa lùa', 1.9, 0.045, 0.03, (DOOR[1] + 2.75) / 2, 1.80, trSideZ(1.8, 1.80) + 0.012, M.black);
           const seamL = new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(seam, 3)), lineDark); seamL.name = 'Ron vỏ xe'; shell.add(seamL);
 
@@ -212,7 +267,7 @@
             const ky = [0.75, 1.80, 2.70]; for (const y of ky) box('Giá trượt cửa lùa', 0.05, 0.04, off, x0 + 0.04, y, trSideZ(x0, y) + off / 2, M.black, false, sd);
           }
           bakeStatic(shell);
-          return { shell, M };
+          return { shell, M, plates };
         }
 
         // ==== CABIN LÁI (tay lái nghịch: vô-lăng −z), 4 BÁNH (lốp AT 31", mâm thép đen) & TỦ BẾP — trả về nhóm tủ bếp (van/kitchen.js dựng mặt bếp lên đó) ====
@@ -231,7 +286,7 @@
           const shaped = (w, h, d, segs, fn) => { const g = new THREE.BoxGeometry(w, h, d, ...segs), p = g.attributes.position, v = new THREE.Vector3(); for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i); fn(v); p.setXYZ(i, v.x, v.y, v.z); } g.computeVertexNormals(); return g; };
           const Y0 = TR.yIn;
           // sàn cabin: thảm đen trên tấm sàn (tấm sàn khoang ở van/caravan.js)
-          box(inner, 'Thảm sàn cabin', 1.62, 0.012, 1.86, -1.43, Y0 + 0.006, 0, M.mat);
+          box(cab, 'Thảm sàn cabin', 1.62, 0.012, 1.86, -1.43, Y0 + 0.006, 0, M.mat);   // (ngoài nhóm nội thất: còn lại khi cabin GLB thay)
           // táp-lô kiểu Transit 2014+: vách lửa dưới chân kính, mặt trên rộng phẳng, cụm đồng hồ có mái che trước ghế lái, cụm giữa có màn hình + cần số gắn táp-lô
           const prof = [[-2.33, 1.64], [-2.05, 1.715], [-1.93, 1.70], [-1.87, 1.62], [-1.85, 1.44], [-1.93, 1.26], [-2.04, 1.08], [-2.16, Y0], [-2.36, Y0]];
           const dg = new THREE.ExtrudeGeometry(new THREE.Shape(prof.map(([x, y]) => new THREE.Vector2(x, y))), { depth: 1.84, bevelEnabled: false }).translate(0, 0, -0.92);
@@ -303,4 +358,52 @@
           bakeStatic(inner); bakeStatic(dash); bakeStatic(wheels);   // gai lốp 192 mảnh: gộp sẵn theo vật liệu (để bộ gộp lượt vẽ không tách ra)
           parent.add(cab);
           return galley;
+        }
+
+        // ==== MẪU GLB "Ford Transit L2H2" DÙNG NGUYÊN (G 18/10 "nếu xe van copy đc thì mang vào luôn khỏi vẽ lại rồi modified") ====
+        //  src/models/transit.bin = mẫu của geyges (Sketchfab Standard) đã sửa: giữ vỏ ngoài + cabin (táp-lô, vô-lăng, ghế, dây đai), bỏ khoang hàng + băng ghế đôi;
+        //  lật trái–phải ra tay lái nghịch (logo, chữ TRANSIT lật lại tại chỗ cho đọc đúng); L3 = chèn 0,45 m vào GIỮA ô cửa lùa (ô cửa 0,95 → 1,40 m, đúng ô cửa
+        //  TR.door của nội thất); nâng mui 6 cm như vỏ code; khoét 3 cửa sổ nhà xe + cửa sổ cửa lùa (kính, viền cao su, má cửa); cửa lùa đặt ở thế mở (trượt về
+        //  sau, ra ngoài 8,5 cm); 1 ghế lái dùng 2 lần (ghế phụ = ảnh gương), 1 bánh dùng 4 lần (quay, không lật — logo nắp mâm đọc đúng), bánh phóng ×1,1 cho
+        //  lốp chạm đất khi tâm ở Y 0,44 (gầm nâng như cũ). 83 nghìn tam giác, lượng tử hoá + nén meshopt, 575 KB; tệp là GLB đã XOR theo dòng xorshift32
+        //  (giấy phép Standard cho dùng trong trang nhưng không cho để mẫu thành 1 tệp mở được). Đơn vị + trục = đv xe (mũi −X, cửa lùa +Z).
+        //  Nạp sau khi cảnh chạy; tới lúc đó vỏ code (transitBody) làm bản tạm. Nạp xong: gộp theo (vai trò xem xuyên, lớp vật liệu) → ~20 lượt vẽ, dùng chung
+        //  vật liệu vỏ code (sơn kem bán trong suốt như cũ ở khoang ở; mũi xe + 2 cửa cabin sơn đục — khoang máy không có gì để xem), ẩn vỏ + táp-lô + nội thất cabin + bánh code; giữ thảm sàn cabin, biển số Jade (dời biển sau ra cửa
+        //  sau thật), thang leo nóc dời theo cửa sau. Va chạm (core/collide.js) vẫn đọc vỏ code lúc khởi động — 2 vỏ cùng số đo.
+        const VAN_GLB = window.__vanBin || 'https://michaeltran75.github.io/3d-garden/models/transit.bin';   // đường dẫn tuyệt đối: bản một tệp nhúng Wix cũng nạp được
+        const vanGlb = { ready: false };
+        function transitGlb(g, body) {
+          const M = body.M, lam = (c, o = {}) => new THREE.MeshLambertMaterial({ color: c, side: THREE.DoubleSide, ...o });
+          const MAT = { paint: M.body, paintO: lam(M.body.color.getHex()), black: M.black, chrome: M.chrome, glass: M.glass, frost: M.frost, lens: lam(0xdde4e6, { transparent: true, opacity: 0.55, depthWrite: false }),
+            bulb: M.led, red: M.red, blue: M.blue, steel: lam(0x9a9d9f), tire: lam(0x2b2925), trim: lam(0xcfccc4), dash: lam(0x5d6163), dashTop: lam(0x46494b), ctrl: lam(0x3e4244),
+            seat: lam(0x6f706c), yellow: lam(0xe8cf3a) };
+          Promise.all([import('https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js'), import('https://esm.sh/three@0.160.0/examples/jsm/libs/meshopt_decoder.module.js'),
+            fetch(VAN_GLB).then(r => r.ok ? r.arrayBuffer() : Promise.reject(new Error('HTTP ' + r.status)))]).then(([{ GLTFLoader }, { MeshoptDecoder }, buf]) => {
+            const b = new Uint8Array(buf); let s = 0x2545F491;   // bỏ lớp XOR (cùng dòng với công cụ ghi tệp)
+            for (let i = 0; i < b.length; i++) { s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0; b[i] ^= s & 255; }
+            new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parse(b.buffer, '', gl => attach(gl.scene), err => console.warn('Transit GLB:', err));
+          }).catch(err => console.warn('Transit GLB:', err));
+          function attach(src) {
+            src.updateMatrixWorld(true);
+            const bins = new Map(), m4 = new THREE.Matrix4(), nm = new THREE.Matrix3(), v = new THREE.Vector3();
+            src.traverse(o => {
+              if (!o.isMesh) return; let role = 'shell'; for (let p = o; p; p = p.parent) if (p.userData && p.userData.role) { role = p.userData.role; break; }
+              const cls = o.material.name, key = role + '|' + cls; let bin = bins.get(key); if (!bin) bins.set(key, bin = { role, cls, P: [], N: [], I: [], n: 0 });
+              const geo = o.geometry, P = geo.attributes.position, N = geo.attributes.normal, I = geo.index; m4.copy(o.matrixWorld); nm.getNormalMatrix(m4); const flip = m4.determinant() < 0;
+              for (let i = 0; i < P.count; i++) { v.fromBufferAttribute(P, i).applyMatrix4(m4); bin.P.push(v.x, v.y, v.z); v.fromBufferAttribute(N, i).applyMatrix3(nm).normalize(); bin.N.push(v.x, v.y, v.z); }
+              for (let i = 0; i < I.count; i += 3) { const a = bin.n + I.getX(i), b2 = bin.n + I.getX(i + 1), c = bin.n + I.getX(i + 2); if (flip) bin.I.push(a, c, b2); else bin.I.push(a, b2, c); }   // nút lật (ghế phụ) ⇒ đảo thứ tự đỉnh
+              bin.n += P.count;
+            });
+            const grp = { shell: new THREE.Group(), keep: new THREE.Group() };
+            grp.shell.name = 'Vỏ Ford Transit (mẫu GLB)'; grp.shell.userData.xray = 'shell'; grp.keep.name = 'Cabin + bánh Ford Transit (mẫu GLB)'; grp.keep.userData.xray = 'keep';
+            for (const bin of bins.values()) {
+              const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(bin.P, 3)); geo.setAttribute('normal', new THREE.Float32BufferAttribute(bin.N, 3)); geo.setIndex(bin.I);
+              const mat = MAT[bin.cls] || M.black, mesh = new THREE.Mesh(geo, mat); mesh.name = 'Transit · ' + bin.cls; mesh.castShadow = !mat.transparent || mat === M.body; mesh.receiveShadow = true; (grp[bin.role] || grp.shell).add(mesh);
+            }
+            for (const nm2 of ['Vỏ Ford Transit L3H2', 'Táp-lô', 'Nội thất cabin', 'Bánh xe']) { const o = g.getObjectByName(nm2); if (o) o.visible = false; }
+            const rearPlate = body.plates.children[1]; if (rearPlate) rearPlate.position.x = 3.174;   // cửa sau GLB ở X 3,162 (vỏ code 3,05)
+            const lad = g.getObjectByName('Thang leo nóc'); if (lad) lad.position.x += 0.105;
+            g.add(grp.shell, grp.keep); xrayAdopt(grp.shell);
+            vanGlb.ready = true; vanGlb.groups = grp;
+          }
         }

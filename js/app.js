@@ -1014,7 +1014,7 @@
           const t = new THREE.DataTexture(d, GX, GZ, THREE.RedFormat, THREE.FloatType); t.magFilter = t.minFilter = THREE.NearestFilter; t.needsUpdate = true; return t;
         }
         const SF_GLSL = `
-          uniform sampler2D uSfH; uniform vec4 uSfG; uniform float uSfL; uniform vec3 uSfLC; uniform sampler2D uSfT; uniform float uSfTk; uniform vec3 uSfTt; uniform float uSfDk; uniform float uSfOld; varying vec3 vSfP; varying vec3 vSfN;
+          uniform sampler2D uSfH; uniform vec4 uSfG; uniform float uSfL; uniform vec3 uSfLC; uniform sampler2D uSfT; uniform float uSfTk; uniform vec3 uSfTt; uniform float uSfDk; uniform float uSfOld; uniform float uSfMs; varying vec3 vSfP; varying vec3 vSfN;
           float sfR(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
           float sfN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(sfR(i), sfR(i + vec2(1.0, 0.0)), f.x), mix(sfR(i + vec2(0.0, 1.0)), sfR(i + vec2(1.0, 1.0)), f.x), f.y); }
           float sfNw(vec2 p, float P) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); float i0 = mod(i.x, P), i1 = mod(i.x + 1.0, P);   // nhiễu tuần hoàn theo x (chu kỳ P ô) — vòng quanh thân không lộ đường may
@@ -1026,7 +1026,7 @@
           mat.onBeforeCompile = (sh, r) => {
             prev.call(mat, sh, r);
             SF_H = SF_H || sfHeightTex();
-            sh.uniforms.uSfH = { value: SF_H }; sh.uniforms.uSfG = { value: new THREE.Vector4(1 / BLOCK, cx, cz, 0) }; sh.uniforms.uSfL = { value: mat.userData.sfL ?? 1 }; const U = mat.userData; if (K === 5 && U.sfTex) sfBarkTex(); sh.uniforms.uSfT = SF_BT; sh.uniforms.uSfTk = U.sfTex ? SF_BTK : { value: 0 }; sh.uniforms.uSfTt = { value: U.sfTint || new THREE.Vector3(1, 1, 1) }; sh.uniforms.uSfDk = { value: U.sfDk || 0 }; sh.uniforms.uSfOld = { value: U.sfOld ? 1 : 0 }; sh.uniforms.uSfLC = { value: mat.userData.sfLC || new THREE.Color(0.58, 0.6, 0.53) };
+            sh.uniforms.uSfH = { value: SF_H }; sh.uniforms.uSfG = { value: new THREE.Vector4(1 / BLOCK, cx, cz, 0) }; sh.uniforms.uSfL = { value: mat.userData.sfL ?? 1 }; const U = mat.userData; if (K === 5 && U.sfTex) sfBarkTex(); sh.uniforms.uSfT = SF_BT; sh.uniforms.uSfTk = U.sfTex ? SF_BTK : { value: 0 }; sh.uniforms.uSfTt = { value: U.sfTint || new THREE.Vector3(1, 1, 1) }; sh.uniforms.uSfDk = { value: U.sfDk || 0 }; sh.uniforms.uSfOld = { value: U.sfOld ? 1 : 0 }; sh.uniforms.uSfMs = { value: U.sfMoss ?? 1 }; sh.uniforms.uSfLC = { value: mat.userData.sfLC || new THREE.Color(0.58, 0.6, 0.53) };
             sh.vertexShader = 'varying vec3 vSfP; varying vec3 vSfN;\n' + (K === 5 ? 'attribute vec3 aBk; varying vec3 vSfB; attribute float aBd; varying float vSfD;\n' : '') + sh.vertexShader.replace('#include <fog_vertex>', `#include <fog_vertex>${K === 5 ? '\n vSfB = aBk; vSfD = aBd;' : ''}
               vec3 sfN3 = objectNormal;
               #ifdef USE_INSTANCING
@@ -1077,7 +1077,7 @@
                     float fb = rope * (1.0 - smoothstep(0.015, 0.07, abs(sfNw(vec2(ba * 3.0 + 0.6 * bw, bl * 0.35), 36.0 * bm) - 0.5)));   // thớ sợi dài mảnh chạy xoắn theo sợi (vSfB.x đã cộng độ xoắn)
                     c *= 1.0 - 0.14 * fb * (1.0 - gd); sfHg -= 0.003 * fb;
                     c = mix(c, vec3(0.40, 0.46, 0.34), 0.3 * smoothstep(0.78, 0.92, sfNw(vec2(ba * 2.0, bl * 12.0) + 11.0, 24.0 * bm)) * (1.0 - g0));
-                    c = mix(c, vec3(0.30, 0.40, 0.18), 0.5 * (1.0 - smoothstep(0.0, 0.9, hA)) * smoothstep(0.3, 0.7, sfNw(vec2(ba * 0.5, bl * 3.0) + 5.0, 6.0 * bm)));
+                    c = mix(c, vec3(0.30, 0.40, 0.18), 0.5 * uSfMs * (1.0 - smoothstep(0.0, 0.9, hA)) * smoothstep(0.3, 0.7, sfNw(vec2(ba * 0.5, bl * 3.0) + 5.0, 6.0 * bm)));   // rêu chân thân (uSfMs = mat.userData.sfMoss: rễ bò mặt đất ít rêu)
                     sfHg = -0.012 * g0 + 0.003 * pl;
                   } else {
                   c *= mix(0.95 + 0.14 * pl, 0.3, gv);
@@ -1087,7 +1087,7 @@
                   c = mix(c, uSfLC * (0.9 + 0.2 * pl), min(1.0, 0.7 * uSfL) * lp);   // địa y vảy (mặc định xám trắng–xanh; cổ thụ: nâu đen)
                   c = mix(c, vec3(0.86, 0.6, 0.12), 0.9 * smoothstep(0.955, 0.985, sfNw(vec2(ba * 3.0, bl * 30.0) + 23.0, 36.0 * bm)) * (1.0 - gv) * min(1.0, uSfL));   // địa y vàng
                   c = mix(c, c * vec3(0.84, 0.95, 0.66), 0.4 * uSfL * smoothstep(0.45, 0.8, sfNw(vec2(ba * 0.25, bl * 0.5) + 29.0, 3.0 * bm)));   // tảo lục
-                  c = mix(c, vec3(0.30, 0.40, 0.18), 0.5 * (1.0 - smoothstep(0.0, 0.9, hA)) * smoothstep(0.3, 0.7, sfNw(vec2(ba * 0.5, bl * 3.0) + 5.0, 6.0 * bm)));
+                  c = mix(c, vec3(0.30, 0.40, 0.18), 0.5 * uSfMs * (1.0 - smoothstep(0.0, 0.9, hA)) * smoothstep(0.3, 0.7, sfNw(vec2(ba * 0.5, bl * 3.0) + 5.0, 6.0 * bm)));   // rêu chân thân (uSfMs = mat.userData.sfMoss: rễ bò mặt đất ít rêu)
                   sfHg = -0.014 * gv + 0.003 * pl + 0.0025 * lp;
                   if (uSfTk > 0.5) {   // ảnh vỏ quét: 3 ô quanh mỗi bm, ~0,75 m dọc / ô (lặp gương dọc) · nhuộm theo cây · cổ thụ: mảng địa y sáng → nâu đen (uSfDk)
                     vec3 bt = texture2D(uSfT, vec2(vSfB.x * 3.0, vSfB.y * 1.2)).rgb; float bL = dot(bt, vec3(0.3, 0.59, 0.11));
@@ -5540,7 +5540,7 @@
         (function oldTree() {
           const g = new THREE.Group(); g.position.set(X0 + 89, 7, Z0 + 117); g.scale.setScalar(2.76); g.rotation.set(0, 0, 0.62); g.name = 'Cây cổ thụ (Old Tree)'; scene.add(g);
           oldTreeGroup = g;
-          const TOP = 0.85;
+          const TOP = 0.935;
           const barkMat = new THREE.MeshLambertMaterial({ color: 0x4a3420, transparent: true, opacity: TOP }), deadMat = new THREE.MeshLambertMaterial({ color: 0xE2D6C0, transparent: true, opacity: TOP });
           barkMat.userData.sfOld = deadMat.userData.sfOld = 1;
           const tw = makeTreeWind({ freq: 0.32, zeta: 0.08, lean: 0.45, branchAmp: 0.07 });
@@ -5712,7 +5712,7 @@
             }
             cloudPts(rnd, tp.pos.x, tp.pos.y + 0.08, tp.pos.z, radius, count, pts);
           }
-          tuftInstanced(g, rnd, pts, leafHexGeo(0.05), leafCols, 0.76, 0.7, tw, 0.04);
+          tuftInstanced(g, rnd, pts, leafHexGeo(0.05), leafCols, 0.836, 0.7, tw, 0.04);
           g.userData.leafPts = pts;
 
           bakeStatic(g);
@@ -5726,7 +5726,7 @@
           } else {
             scene.add(g);
           }
-          const barkMat = new THREE.MeshLambertMaterial({ color: 0x4a3420, transparent: true, opacity: 0.65 }); barkMat.userData.sfOld = 1; surfaceStyle(barkMat, 'bark');
+          const barkMat = new THREE.MeshLambertMaterial({ color: 0x4a3420, transparent: true, opacity: 0.715 }); barkMat.userData.sfOld = 1; surfaceStyle(barkMat, 'bark');
           const leafCols = [0x4e7a39, 0x5e8c44, 0x6fa052, 0x42692f];
           const V = (x, y, z) => new THREE.Vector3(x, y, z);
 
@@ -5800,7 +5800,7 @@
           const sLeafPts = [];
           const perTip = Math.max(20, Math.round(810 / sTips.length));
           for (const tp of sTips) cloudPts(rnd, tp.x, tp.y + 0.05, tp.z, 0.55, perTip, sLeafPts);
-          tuftInstanced(g, rnd, sLeafPts, leafHexGeo(0.05), leafCols, 0.85);
+          tuftInstanced(g, rnd, sLeafPts, leafHexGeo(0.05), leafCols, 0.935);
           const hiveAnchor = new THREE.Object3D(); hiveAnchor.position.set(-3.4425, 3.5108, 0.3995); g.add(hiveAnchor); g.userData.hiveAnchor = hiveAnchor;
 
           bakeStatic(g);
@@ -5813,10 +5813,39 @@
           oldTreeGroup.updateMatrixWorld(true);
           oldTreeWind = oldTreeGroup.userData.treeWind; finalizeTreeWind(oldTreeWind, oldTreeGroup);
           oldTreeLeafCtl = makeLeafFall({ name: 'Lá cây cổ thụ rụng theo gió', group: oldTreeGroup, pts: oldTreeGroup.userData.leafPts, n: 16,
-            geo: new THREE.CylinderGeometry(0.045 * 2.3, 0.045 * 2.3, 0.0015 * 2.3, 6), opacity: 0.76, color: () => Math.random() < 0.85 ? 0xe5b82c : 0x5e8c44,
+            geo: new THREE.CylinderGeometry(0.045 * 2.3, 0.045 * 2.3, 0.0015 * 2.3, 6), opacity: 0.836, color: () => Math.random() < 0.85 ? 0xe5b82c : 0x5e8c44,
             scale: NATURE_SCALE, tw: oldTreeWind, g: 3.5, vTerm: 0.7, flutA: 0.7, flutW: [2.2, 3.2], tumble: 0.35, tumbleW: [6, 10], slideU: 0.6, rate0: 0.05, rateK: 3.0, shake0: 0.012, restLife: [12, 24], floatLife: [30, 55], sinkP: 0.35, sinkV: [0.06, 0.1], leeway: 0.03 });
         }
 
+        (function oldTreeRoots() {
+          const cx = X0 + 89, cz = Z0 + 117, gy = cowY(cx, cz), g = new THREE.Group(); g.name = 'Rễ cây cổ thụ'; g.position.set(cx, gy, cz); scene.add(g); flightRoots.push(g);
+          const mat = new THREE.MeshLambertMaterial({ color: 0x4a3420, transparent: true, opacity: 0.935 }); mat.userData.sfOld = 1; mat.userData.sfMoss = 0.15; surfaceStyle(mat, 'bark');
+          const rnd = mulberry32(4242), V = (x, y, z) => new THREE.Vector3(x, y, z), L = [];
+          const STONES = [[0.3, 1.25, 1.2], [1.5, -0.4, 0.82], [-1.35, 0.5, 0.52]];
+          const water = (x, z) => isWater(Math.round(x2gi(cx + x)), Math.round(z2gj(cz + z)));
+          function grow(x, z, ang, len, r0, h0, par, pr, pT, depth) {
+            const P = [], R = [], step = 0.32, wob = rnd() * 6.28; let a = ang, dive = 0;
+            for (let s = 0, i = 0; s <= len; s += step, i++) {
+              const t = s / len, r = Math.max(0.04, r0 * Math.pow(1 - 0.7 * t, 1.1));
+              let h = r * (0.32 + 0.24 * Math.sin(s * 2.1 + wob));
+              if (i === 0) h = h0; else if (s < 1.1 && h0 > h) h = h0 + (h - h0) * s / 1.1;
+              if (t > 0.72) h -= (t - 0.72) / 0.28 * 1.5 * r;
+              for (const [sx, sz, sr] of STONES) { const d = Math.hypot(x - sx, z - sz) - sr; if (d < 0.25) h = Math.min(h, -1.4 * r + Math.max(0, d) * 2 * r); }
+              if (dive > 0) { h = Math.min(h, -0.6 * r); dive--; } else if (i > 3 && rnd() < 0.06) dive = 1 + (rnd() * 2 | 0);
+              P.push(V(x, h, z)); R.push(r);
+              if (water(x + Math.cos(a) * step * 2, z + Math.sin(a) * step * 2)) { P.push(V(x + Math.cos(a) * step, -2 * r, z + Math.sin(a) * step)); R.push(r * 0.8); break; }
+              a += (rnd() - 0.5) * 0.45 + 0.12 * Math.sin(s * 1.3 + wob); x += Math.cos(a) * step; z += Math.sin(a) * step;
+            }
+            const l = { P, R, par, kids: [], atEnd: false, pr, pT }; L.push(l); if (par) par.kids.push(l);
+            if (depth < 1 + (len > 4 ? 1 : 0) && P.length > 5) for (let b = 0, nb = depth ? 1 : 1 + (rnd() < 0.6 ? 1 : 0); b < nb; b++) {
+              const k = Math.min(P.length - 2, 2 + ((P.length - 3) * (0.3 + 0.4 * rnd())) | 0), p = P[k], d = P[k + 1].clone().sub(P[k - 1]).setY(0).normalize();
+              grow(p.x, p.z, Math.atan2(d.z, d.x) + (rnd() < 0.5 ? -1 : 1) * (0.45 + 0.4 * rnd()), len * (0.45 + 0.25 * rnd()), R[k] * 0.68, Math.max(0, p.y), l, R[k], d, depth + 1);
+            }
+          }
+          for (let i = 0, N = 12; i < N; i++) { const ang = (i + 0.35 * rnd()) / N * Math.PI * 2; grow(Math.cos(ang) * 0.95, Math.sin(ang) * 0.95, ang + (rnd() - 0.5) * 0.4, 2.4 + 2.4 * rnd(), 0.24 + 0.14 * rnd(), 0.5, null, undefined, undefined, 0); }
+          g.add(...barkMesh(barkTubes(L, { wS: 1, flare: 0, nodes: false, rope: { minR: 0.12, nTrunk: 6, D: 0.45, twist: 0.35 } }), mat));
+          bakeStatic(g);
+        })();
         const hiVis = new THREE.MeshLambertMaterial({ color: 0xf0a500 }), engPants = new THREE.MeshLambertMaterial({ color: 0x3a4a63 }),
           engSkin = new THREE.MeshLambertMaterial({ color: 0xe0ac80 }), engHelm = new THREE.MeshLambertMaterial({ color: 0xf4f2ec }),
           engBoot = new THREE.MeshLambertMaterial({ color: 0x2a2622 }), engPad = new THREE.MeshLambertMaterial({ color: 0xE2D6C0 }),
@@ -7082,27 +7111,30 @@
         const trArchFront = y => TR.xF - Math.sqrt(Math.max(0, TR.archR ** 2 - (y - TR.archY) ** 2));
         const trXh = z => -1.513 + 0.10 * (z / 0.949) ** 2;
         const TR_ROOF_X = [-1.30, -1.20, -1.10, -1.0, -0.9, -0.8, -0.6, -0.35, 0.0, 0.5, 1.0, 1.6, 2.2, 2.93];
-        const TR_NOSE = [[0.575, [-3.128, -3.129, -3.183, -3.149, -3.054, -2.886]], [0.663, [-3.236, -3.218, -3.221, -3.185, -3.064, -2.92]], [0.773, [-3.264, -3.257, -3.241, -3.202, -3.059, -2.926]],
-          [0.883, [-3.216, -3.205, -3.218, -3.164, -3.076, -2.962]], [0.993, [-3.199, -3.188, -3.153, -3.112, -3.015, -2.823]], [1.103, [-3.213, -3.176, -3.155, -3.09, -3.001, -2.809]],
-          [1.213, [-3.169, -3.154, -3.131, -3.03, -2.93, -2.729]], [1.323, [-3.151, -3.133, -3.081, -2.986, -2.89, -2.694]], [1.433, [-3.031, -3.009, -2.966, -2.909, -2.814, -2.621]],
-          [1.488, [-2.904, -2.875, -2.843, -2.777, -2.743, -2.589]], [1.543, [-2.75, -2.723, -2.67, -2.637, -2.592, -2.483]], [1.598, [-2.592, -2.568, -2.541, -2.5, -2.451, -2.41]],
-          [1.642, [-2.393, -2.385, -2.339, -2.304, -2.258, -2.252]]];
-        const TR_NZ = [0, 0.33, 0.55, 0.715, 0.88, 0.99];
+        const TR_MUI = { K: 24, yg: [0.4, 0.425, 0.45, 0.475, 0.5, 0.525, 0.55, 0.575, 0.6, 0.625, 0.65, 0.675, 0.7, 0.725, 0.75, 0.775, 0.8, 0.825, 0.85, 0.875, 0.9, 0.925, 0.95, 0.975, 1, 1.025, 1.05, 1.075, 1.1, 1.125, 1.15, 1.175, 1.2, 1.225, 1.25, 1.275, 1.3, 1.325, 1.35, 1.375, 1.39], zc: [2.4374, 2.4353, 2.4318, 2.4269, 2.4207, 2.4131, 2.4039, 2.3931, 2.3806, 2.3663, 2.3498, 2.331, 2.3094, 2.2846, 2.2558, 2.2216, 2.2002, 2.2002, 2.2002, 2.2002, 2.2002, 2.2002, 2.2002, 2.2002, 2.2002, 2.2002, 2.2002, 2.2002, 2.2002, 2.2002, 2.2002, 2.2002, 2.2002, 2.2002, 2.2002, 2.2002, 2.2002, 2.2002, 2.2002, 2.0611, 2.0611],
+          r: '431 432 435 439 446 455 467 481 549 518 624 653 683 720 763 800 845 867 888 905 919 927 931 933 940|523 523 497 443 450 459 470 484 501 521 637 665 697 735 775 813 853 875 895 913 927 934 937 939 946|529 529 532 448 455 464 475 489 505 621 551 681 712 743 788 830 862 884 903 922 936 940 943 947 954|536 537 540 454 460 469 481 495 512 621 558 698 730 766 804 848 860 874 896 919 936 947 948 953 959|545 546 549 462 468 477 488 502 520 540 566 714 740 780 820 850 862 888 908 928 939 954 952 949 967|555 556 559 565 572 583 597 613 643 664 689 715 762 796 837 853 872 882 898 930 946 960 959 959 971|581 582 586 591 599 611 625 642 671 694 719 746 777 813 849 857 875 872 889 918 953 966 966 964 976|595 596 599 605 614 625 639 657 687 710 735 763 795 831 854 864 881 873 898 927 960 972 971 969 981|611 612 615 621 630 641 656 675 704 728 752 781 814 851 860 877 895 917 939 950 965 977 976 973 986|628 629 632 638 647 659 674 693 723 746 771 801 833 862 880 898 912 928 948 965 978 983 980 977 991|646 647 650 657 666 678 694 721 743 766 792 821 852 872 897 922 940 958 971 979 985 988 984 981 994|650 650 654 660 669 681 697 716 749 779 807 837 869 887 913 937 954 970 982 989 992 992 988 985 998|638 639 643 649 657 668 683 700 715 731 808 843 877 887 916 943 965 982 993 997 999 996 992 989 1001|613 496 500 505 513 523 536 552 707 762 809 841 875 891 920 948 966 978 987 991 994 996 996 993 1004|640 526 529 535 543 677 568 585 735 789 808 842 879 899 928 954 971 976 978 979 979 984 997 719 1007|716 716 719 726 736 749 765 770 769 823 843 872 903 927 952 973 983 980 974 970 968 978 992 1005 1011|733 733 736 743 753 767 783 800 814 844 866 895 923 946 969 985 994 986 979 974 971 979 992 1002 1014|689 670 674 681 692 726 723 745 789 843 866 893 924 944 966 982 991 984 978 974 969 977 988 997 1016|686 583 586 593 602 726 629 648 787 805 863 892 920 943 962 979 989 983 977 973 964 972 983 992 1006|684 583 587 593 602 614 630 649 785 804 861 889 910 943 965 977 986 982 977 971 961 956 975 986 1001|746 738 721 731 741 754 771 790 801 824 862 887 903 931 955 976 990 982 975 970 961 951 960 979 994|740 742 748 718 728 742 759 778 798 819 861 878 897 920 944 965 980 978 975 969 960 951 945 971 987|736 737 742 697 603 615 630 649 776 796 857 872 878 889 917 954 969 972 971 966 960 950 944 954 978|732 735 725 676 603 616 631 650 673 792 849 863 851 881 910 933 949 956 968 964 959 950 944 942 964|706 706 710 716 722 735 750 768 791 798 844 851 843 874 902 926 943 950 954 951 959 949 943 942 947|698 699 702 708 718 731 746 764 784 815 838 838 836 866 895 919 936 946 950 948 944 948 942 941 944|688 646 639 666 604 616 700 651 674 808 828 827 829 859 888 912 930 940 947 945 946 947 941 940 944|668 641 634 595 604 617 702 651 674 798 815 810 818 849 881 905 924 936 943 943 943 946 940 940 944|689 689 693 699 706 717 730 748 770 792 800 805 798 833 862 891 916 931 940 940 940 945 940 940 944|678 677 680 685 693 703 718 736 759 778 782 790 803 816 843 873 898 917 933 937 938 943 937 937 942|657 657 659 664 671 682 695 713 734 757 765 771 785 807 826 855 881 901 922 928 932 928 933 931 935|629 628 631 636 643 653 666 683 703 728 745 749 758 784 812 842 865 889 912 921 925 928 930 927 928|580 579 582 586 592 601 612 626 644 666 689 713 726 741 780 820 852 881 902 914 920 925 927 924 925|529 529 530 534 539 546 556 568 584 603 626 650 675 696 714 750 807 860 888 907 919 921 917 922 923|465 464 466 469 466 473 483 494 508 527 548 573 599 628 660 680 712 770 846 888 908 917 908 919 921|398 397 398 401 406 390 399 409 422 437 456 478 505 536 566 602 644 671 730 811 877 901 911 915 919|325 325 326 328 331 336 330 317 326 336 342 358 378 402 433 466 521 599 640 688 773 850 893 910 916|253 252 253 255 257 261 267 272 264 258 268 281 297 316 339 367 403 448 505 599 649 740 824 879 911|181 181 181 182 184 187 191 196 202 210 219 229 241 256 274 296 322 354 395 448 519 615 686 802 867|177 177 177 178 180 183 187 192 198 205 214 224 237 252 271 294 319 347 384 430 492 574 833 894 914|151 151 151 152 154 157 160 165 170 176 184 193 204 216 232 251 275 303 339 385 443 515 613 859 904',
+          c: 'kkkkkkkkkkkkkkbbbbbbbbbb|kkkkkkkkkkkkkbbbbbbbbbbb|kkkkkkkkkkkkkbbbbbbbbbbb|kkkkkkkkkkkkkbbbkkkkbbbb|kkkkkkkkkkkkbbbbkkkkbbbb|bbbbbbbbbbbbbbbkkllkbbbb|bbbbbbbbbbbbbbbkkllkbbbk|bbbbbbbbbbbbbbbkkllkbbbk|bbbbbbbbbbbbbbbkkkkkbbbk|bbbbbbbbbbbbbbbbbbbbbbbk|bbbbbbbbbbbbbbbbbbbbbbbk|cccccccccbbbbbbbbbbbbbbk|kkkkkkkkccbbbbbbbbbbbbbk|kkkkkkkkkcbbbbbbbbbbbbbk|kkkkkkkkkcbbbbbbbbbbbbbk|kkkkkkkkkcbbbbbbbbbbbbbk|kkkkkkkkkcbbbbbbbbbbbbbk|kkkkkkkkkcbbbbbbbbbbbbbb|kkkkkkkkkcbbbbbbbbbbbbbb|kkkkkkkkkcbbbbbbbbbbbbbb|uukkkkkkkkbbbbbbbbbbbbbb|cukkkkkkkkbbbkbbbbbbbbbb|cukkkkkkkcbbllllbbbbbbbb|kkkkkkkkkcbblllllllkbbbb|kkkkkkkkkcbbllllllllbbbb|kkkkkkkkkcbbllllllllbbbb|kkkkkkkkccbbllllllllbbbb|cccccccccbbbllllllllbbbb|bbcbbbbbbbbbllllllllkbbb|bbbbbbbbbbbbbblllllllbbb|bbbbbbbbbbbbbbbblllllbbb|bbbbbbbbbbbbbbbbbblllkbb|bbbbbbbbbbbbbbbbbbblllbb|bbbbbbbbbbbbbbbbbbbbbkbb|bbbbbbbbbbbbbbbbbbbbbbbb|bbbbbbbbbbbbbbbbbbbbbbbb|bbbbbbbkkkkkkkkkkkbbbbbb|bbbbbbbbkkkkkkkkkkkkbbbb|bbbbbbbbbbbbbbbbbbbbbkbb|kkkkkkkkkkkkkkkkkkkwwwbb' };
         const trNoseEnd = y => y < 0.98 ? trArchFront(y) : y < 1.62 ? -2.393 : -2.24;
+        const TR_NR = (() => {
+          const K = TR_MUI.K, R = TR_MUI.r.split('|').map(s => s.split(' ').map(Number)), C = TR_MUI.c.split('|');
+          const F = R.map((row, i) => row.map((r, k) => { if (C[Math.min(i, C.length - 1)][Math.min(k, K - 1)] !== 'k' || k > 13) return r; let m = r; for (let di = -1; di <= 1; di++) for (let dk = -1; dk <= 1; dk++) { const q = R[i + di] && R[i + di][k + dk]; if (q > m) m = q; } return m; }));
+          return F.map((row, i) => ({ Y: 0.1128 + 1.1 * TR_MUI.yg[i], ax: 0.0272 - 1.1 * TR_MUI.zc[i], P: row.map((r, k) => { const f = k / K * Math.PI / 2; return [1.1 * Math.sin(f) * r / 1000, 0.0272 - 1.1 * (TR_MUI.zc[i] + Math.cos(f) * r / 1000)]; }) }));
+        })();
         const TR_WS = [[[-2.393, -2.385, -2.339, -2.304, -2.275, -2.258], 1.642, [-2.24, 1.642]], [[-2.137, -2.117, -2.086, -2.054, -2.025, -2.005], 1.873, [-1.98, 1.873]],
           [[-1.88, -1.861, -1.834, -1.804, -1.778, -1.758], 2.093, [-1.735, 2.093]], [[-1.57, -1.555, -1.53, -1.505, -1.48, -1.46], [2.36, 2.36, 2.355, 2.35, 2.34, 2.33], [-1.44, 2.33]]];
         const TR_WZ = [0, 0.33, 0.55, 0.715, 0.825, 0.902];
         const trNoseX = (z, y) => {
-          const at = (row, end) => { const zs = [...TR_NZ, trSideZ(end, row[0])], xs = [...row[1], end]; z = Math.abs(z); for (let i = 1; i < zs.length; i++) if (z <= zs[i]) return xs[i - 1] + (xs[i] - xs[i - 1]) * (z - zs[i - 1]) / (zs[i] - zs[i - 1]); return xs[xs.length - 1]; };
-          for (let i = 1; i < TR_NOSE.length; i++) if (y <= TR_NOSE[i][0]) { const a = TR_NOSE[i - 1], b = TR_NOSE[i], k = Math.max(0, (y - a[0]) / (b[0] - a[0])); return at(a, trNoseEnd(a[0])) * (1 - k) + at(b, trNoseEnd(b[0])) * k; }
-          return at(TR_NOSE[TR_NOSE.length - 1], -2.24);
+          z = Math.abs(z); const at = P => { for (let i = 1; i < P.length; i++) if (z <= P[i][0]) { const [z0, x0] = P[i - 1], [z1, x1] = P[i]; return x0 + (x1 - x0) * (z - z0) / Math.max(1e-6, z1 - z0); } return P[P.length - 1][1]; };
+          for (let i = 1; i < TR_NR.length; i++) if (y <= TR_NR[i].Y) { const a = TR_NR[i - 1], b = TR_NR[i], k = Math.max(0, (y - a.Y) / (b.Y - a.Y)); return at(a.P) * (1 - k) + at(b.P) * k; }
+          return at(TR_NR[TR_NR.length - 1].P);
         };
+        TR_WS[0][0] = TR_WZ.map((z, i) => Math.min(trNoseX(z, 1.642), -2.25 - 0.002 * (6 - i)));
 
         function transitBody(g) {
           const V3 = (x, y, z) => new THREE.Vector3(x, y, z), V2 = (x, y) => new THREE.Vector2(x, y), lam = (c, o = {}) => new THREE.MeshLambertMaterial({ color: c, ...o }), two = { side: THREE.DoubleSide };
           const M = { body: lam(0xE2D6C0, { transparent: true, opacity: 0.5, depthWrite: false, side: THREE.DoubleSide }), glass: lam(0x8fc1e3, { transparent: true, opacity: 0.25, depthWrite: false, side: THREE.DoubleSide }),
             frost: lam(0xdfe9ec, { transparent: true, opacity: 0.6, depthWrite: false, side: THREE.DoubleSide }), black: lam(0x3a3f41, two), grille: lam(0x24292b, two), lamp: lam(0xdde4e6, two),
-            chrome: lam(0xc9cdd0), red: lam(0xb8322a, two), amber: lam(0xe39a32, two), mirror: lam(0xb3ccd0), blue: lam(0x1f3f7a), dark: lam(0x4a5052) };
+            chrome: lam(0xc9cdd0, two), red: lam(0xb8322a, two), amber: lam(0xe39a32, two), mirror: lam(0xb3ccd0), blue: lam(0x1f3f7a, two), dark: lam(0x4a5052), led: new THREE.MeshBasicMaterial({ color: 0xf2f6ff, side: THREE.DoubleSide }), blackD: lam(0x2c3133, { side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }), lampD: lam(0x59636b, { side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 }) };
           const shell = new THREE.Group(); shell.name = 'Vỏ Ford Transit L3H2'; shell.userData.xray = 'shell'; g.add(shell);
           const T = TR.T, IN = V3(0.4, 1.6, 0), seam = [];
           const triGeo = (p, n) => { const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(p, 3)); if (n) geo.setAttribute('normal', new THREE.Float32BufferAttribute(n, 3)); else geo.computeVertexNormals(); geo.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(p.length / 3 * 2), 2)); return geo; };
@@ -7128,10 +7160,9 @@
           }
           const full = (half, mk) => [...half.slice(1).reverse().map(p => mk(p, -1)), ...half.map(p => mk(p, 1))];
 
-          const noseRows = TR_NOSE.map(([y, xs]) => { const xe = trNoseEnd(y), half = [...TR_NZ.map((z, i) => [z, Math.min(xs[i], xe - 0.012)]), [trSideZ(xe, y), xe]]; return full(half, ([z, x], s) => V3(x, y, s * z)); });
-          const NC = TR_NZ.length + 1, nKey = (r, c) => { const h = Math.abs(c - (NC - 1) + 0.5) - 0.5;
-            if (r <= 2 || r === 11) return 'black'; if (r <= 6 && h <= 1) return 'grille'; if (r >= 5 && r <= 7 && h >= 2) return 'lamp'; return 'body'; };
-          gridMeshes(noseRows, nKey, 'Mũi xe');
+          const nK = TR_MUI.K, NCL = TR_MUI.c.split('|');
+          const noseRows = TR_NR.map(({ Y, P }) => { const xe = trNoseEnd(Y); return full(P.map(([z, x], k) => k === nK ? [trSideZ(xe, Y), xe] : [z, x]), ([z, x], s) => V3(x, Y, s * z)); });
+          gridMeshes(noseRows, () => 'body', 'Mũi xe');
           const roofSec = (x, z) => trRoofY(x) - trLerp(TR_DROP, Math.abs(z)) * trS(x), RZ = [...TR_WZ, 0.949];
           const wsRows = [...TR_WS.map(([xs, ys, end]) => full([...TR_WZ.map((z, i) => [z, xs[i], Array.isArray(ys) ? ys[i] : ys]), [trSideZ(end[0], end[1]), end[0], end[1]]], ([z, x, y], s) => V3(x, y, s * z))),
             full(RZ.map(z => [z, trXh(z), roofSec(trXh(z), z)]), ([z, x, y], s) => V3(x, y, s * z))];
@@ -7224,20 +7255,63 @@
             box('Cản sau', 0.27, 0.22, 1.98, TR.rear + 0.12, 0.56, 0, M.black, true);
             box('Bậc giẫm cản sau', 0.2, 0.02, 0.8, TR.rear + 0.15, 0.68, 0, M.dark);
           }
-          for (const y of [1.04, 1.15, 1.26]) loop('Nan ga-lăng mạ', [-0.56, -0.42, -0.2, 0, 0.2, 0.42, 0.56].map(z => V3(trNoseX(z, y) - 0.018, y, z)), 0.035, M.chrome, false);
-          const badge = new THREE.Mesh(new THREE.CircleGeometry(0.07, 20), M.blue); badge.scale.set(1, 0.48, 1); badge.rotation.y = -Math.PI / 2; badge.position.set(trNoseX(0, 1.2) - 0.03, 1.2, 0); badge.name = 'Logo bầu dục'; shell.add(badge);
-          for (const s of [-1, 1]) {
-            const fz = s * 0.80, fx = trNoseX(0.8, 0.72) - 0.006, fog = new THREE.Mesh(new THREE.CircleGeometry(0.05, 16), M.lamp); fog.rotation.y = -Math.PI / 2 + s * 0.35; fog.position.set(fx, 0.72, fz); fog.name = 'Đèn sương mù'; shell.add(fog);
-            const ring = new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.008, 5, 16), M.chrome); ring.rotation.y = Math.PI / 2 + s * 0.35; ring.position.copy(fog.position); shell.add(ring);
+          const OCT = [[0, 0.681], [0.318, 0.681], [0.397, 0.69], [0.442, 0.709], [0.476, 0.755], [0.51, 0.838], [0.536, 0.913], [0.536, 0.954], [0.51, 0.997], [0.479, 1.043], [0.446, 1.08], [0.406, 1.109], [0.132, 1.113], [0, 1.113]];
+          const onNose = (xg, yg, d = 0.012) => { const Y = 0.1128 + 1.1 * yg, Z = 1.1 * xg; return V3(trNoseX(Z, Y) - d, Y, Z); };
+          const octHalf = y => { const S2 = OCT.slice(1, 13); for (let i = 1; i < S2.length; i++) if (y <= S2[i][1]) { const [x0, y0] = S2[i - 1], [x1, y1] = S2[i]; return x0 + (x1 - x0) * (y - y0) / (y1 - y0); } return 0.406; };
+          loop('Viền mạ ga-lăng', [...OCT.map(([x, y]) => onNose(x, y)), ...OCT.slice(1, -1).reverse().map(([x, y]) => onNose(-x, y))], 0.03, M.chrome);
+          for (const yg of [0.775, 0.85, 1.0, 1.06]) { const hw = octHalf(yg) - 0.025; loop('Nan ga-lăng', [-1, -0.5, 0, 0.5, 1].map(f => onNose(f * hw, yg, 0.006)), 0.02, M.dark, false); }
+          for (const yg of [0.44, 0.485]) loop('Nan hốc cản dưới', [-1, -0.5, 0, 0.5, 1].map(f => onNose(f * 0.4, yg, 0.006)), 0.018, M.dark, false);
+          const lp = onNose(0, 0.945, 0.022), logo = new THREE.Mesh(new THREE.CircleGeometry(0.13, 24), M.blue); logo.scale.set(1, 0.4, 1); logo.rotation.y = -Math.PI / 2; logo.position.copy(lp); logo.name = 'Logo bầu dục'; shell.add(logo);
+          const lr = new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.009, 4, 28), M.chrome); lr.scale.set(1, 0.4, 1); lr.rotation.y = Math.PI / 2; lr.position.copy(lp); shell.add(lr);
+          const nR = TR_NR.length, NP = TR_NR.map(({ Y, P }) => { const xe = trNoseEnd(Y); return P.map(([z, x], k) => k === nK ? [trSideZ(xe, Y), xe] : [z, x]); });
+          const surf = (u, v) => {
+            const s = u < 0 ? -1 : 1, a = Math.min(nK - 1e-6, Math.abs(u)), i = Math.min(nR - 2, Math.max(0, Math.floor(v))), fv = Math.min(1, Math.max(0, v - i)), k = Math.floor(a), fu = a - k, A = NP[i], B = NP[i + 1];
+            const L2 = j => (A[k][j] * (1 - fu) + A[k + 1][j] * fu) * (1 - fv) + (B[k][j] * (1 - fu) + B[k + 1][j] * fu) * fv;
+            return V3(L2(1), TR_NR[i].Y + (TR_NR[i + 1].Y - TR_NR[i].Y) * fv, s * L2(0)); };
+          const surfN = (u, v, d) => { const e = 0.05, p = surf(u, v), n = new THREE.Vector3().crossVectors(surf(u + e, v).sub(surf(u - e, v)), surf(u, v + e).sub(surf(u, v - e))).normalize(); if (n.dot(p.clone().sub(V3(-2.0, 1.2, 0))) < 0) n.negate(); return p.addScaledVector(n, d); };
+          const toUV = (xg, yg) => {
+            const Y = 0.1128 + 1.1 * yg, Z = 1.1 * Math.abs(xg); let i = 0; while (i < nR - 2 && TR_NR[i + 1].Y < Y) i++; const fv = Math.max(0, Math.min(1, (Y - TR_NR[i].Y) / (TR_NR[i + 1].Y - TR_NR[i].Y)));
+            const zAt = k => NP[i][k][0] * (1 - fv) + NP[i + 1][k][0] * fv; let k = 0; while (k < nK - 1 && zAt(k + 1) < Z) k++; return [(xg < 0 ? -1 : 1) * (k + Math.max(0, Math.min(1, (Z - zAt(k)) / Math.max(1e-6, zAt(k + 1) - zAt(k))))), i + fv]; };
+          const OCTUV = [...OCT.map(([x, y]) => toUV(x, y)), ...OCT.slice(1, -1).reverse().map(([x, y]) => toUV(-x, y))];
+          const inPolyUV = (u, v, P) => { let c = false; for (let a = 0, b = P.length - 1; a < P.length; b = a++) { const [ua, va] = P[a], [ub, vb] = P[b]; if ((va > v) !== (vb > v) && u < (ub - ua) * (v - va) / (vb - va) + ua) c = !c; } return c; };
+          const CG = (r, c) => r < 0 || r >= nR - 1 || c < -nK || c >= nK ? '.' : NCL[r][c >= 0 ? c : -c - 1];
+          function regions(test) {
+            const nx = new Map(), key = (u, v) => u + ',' + v, loops = [];
+            for (let r = 0; r < nR - 1; r++) for (let c = -nK; c < nK; c++) { if (!test(CG(r, c), r, c)) continue;
+              for (const [dr, dc, a, b] of [[-1, 0, [c, r], [c + 1, r]], [0, 1, [c + 1, r], [c + 1, r + 1]], [1, 0, [c + 1, r + 1], [c, r + 1]], [0, -1, [c, r + 1], [c, r]]])
+                if (!test(CG(r + dr, c + dc), r + dr, c + dc)) { const k = key(...a); (nx.get(k) || nx.set(k, []).get(k)).push(b); } }
+            for (const [k0, outs] of nx) while (outs.length) {
+              const L = [k0.split(',').map(Number)]; let cur = outs.pop();
+              for (let g2 = 0; g2 < 4000; g2++) { const kk = key(...cur); if (kk === k0) break; L.push(cur); const o = nx.get(kk); if (!o || !o.length) break; cur = o.pop(); }
+              let P2 = L.filter((p, i) => { const a = L[(i - 1 + L.length) % L.length], b = L[(i + 1) % L.length]; return (p[0] - a[0]) * (b[1] - p[1]) !== (p[1] - a[1]) * (b[0] - p[0]); });
+              for (let it = 0; it < 3; it++) P2 = P2.flatMap((p, i) => { const q = P2[(i + 1) % P2.length]; return [[0.75 * p[0] + 0.25 * q[0], 0.75 * p[1] + 0.25 * q[1]], [0.25 * p[0] + 0.75 * q[0], 0.25 * p[1] + 0.75 * q[1]]]; });
+              let A = 0; for (let i = 0; i < P2.length; i++) { const p = P2[i], q = P2[(i + 1) % P2.length]; A += p[0] * q[1] - q[0] * p[1]; }
+              if (Math.abs(A) > 2.4 && P2.length > 3) loops.push({ P: P2, A }); }
+            return loops;
           }
+          function decal(loops, mat, d, name) {
+            const holes = loops.filter(l => l.A < 0), p = [];
+            for (const o of loops) { if (o.A < 0) continue; const hs = holes.filter(h => inPolyUV(h.P[0][0], h.P[0][1], o.P)).map(h => h.P), all = [o.P, ...hs].flat().map(([u, v]) => surfN(u, v, d));
+              for (const f of THREE.ShapeUtils.triangulateShape(o.P.map(q => V2(...q)), hs.map(h => h.map(q => V2(...q))))) for (const i of f) p.push(all[i].x, all[i].y, all[i].z); }
+            if (p.length) mesh(triGeo(p), mat, name, true);
+          }
+          decal(regions((x, r, c) => x === 'k' && !inPolyUV(c + 0.5, r + 0.5, OCTUV)), M.blackD, 0.004, 'Nhựa đen mũi xe');
+          decal([{ P: OCTUV, A: 1 }], M.blackD, 0.005, 'Ga-lăng bát giác');
+          const lamps = regions(x => x === 'l' || x === 'L'); decal(lamps, M.lampD, 0.007, 'Kính đèn pha + sương mù');
+          for (const l of lamps) if (l.A > 0) loop('Viền LED đèn', l.P.filter((_, i) => i % 3 === 0).map(([u, v]) => surfN(u, v, 0.011)), 0.012, M.led);
+          const lampRows = []; NCL.forEach((row, r) => { if (r < 16) return; const ks = [...row].map((c, k) => c === 'l' ? k : -1).filter(k => k >= 0); if (ks.length) lampRows.push([r, ks[0], ks[ks.length - 1]]); });
+          if (lampRows.length) for (const s of [1, -1]) { const mid = lampRows[Math.floor(lampRows.length * 0.45)];
+            for (const dk of [1.6, 4.4]) { const u = s * (mid[1] + dk), c = surfN(u, mid[0] + 0.5, 0.009), n = surfN(u, mid[0] + 0.5, 0.05).sub(c).normalize();
+              const pj = new THREE.Mesh(new THREE.CircleGeometry(0.036, 16), M.chrome); pj.position.copy(c); pj.lookAt(c.clone().add(n)); pj.name = 'Thấu kính đèn pha'; shell.add(pj); } }
           const pc = document.createElement('canvas'); pc.width = 256; pc.height = 128; const pk = pc.getContext('2d');
           pk.fillStyle = '#e4dbc5'; pk.fillRect(0, 0, 256, 128); pk.strokeStyle = '#243240'; pk.lineWidth = 6; pk.strokeRect(6, 6, 244, 116);
           pk.font = '700 84px Arial, sans-serif'; pk.textAlign = 'center'; pk.textBaseline = 'middle'; pk.fillStyle = '#243240'; pk.fillText('Jade', 128, 68);
           const plateTex = new THREE.CanvasTexture(pc); plateTex.colorSpace = THREE.SRGBColorSpace; const plateM = new THREE.MeshLambertMaterial({ map: plateTex });
-          for (const [x, y, ry] of [[trNoseX(0, 0.75) - 0.012, 0.75, -Math.PI / 2], [TR.rear + 0.012, 0.86, Math.PI / 2]]) { const pl = new THREE.Mesh(new THREE.PlaneGeometry(0.40, 0.2), plateM); pl.rotation.y = ry; pl.position.set(x, y, 0); pl.name = 'Biển số · Jade'; shell.add(pl); }
+          const plates = new THREE.Group(); plates.name = 'Biển số · Jade'; plates.userData.xray = 'shell'; plates.userData.noBake = true; g.add(plates);
+          for (const [p, ry] of [[onNose(0, 0.6, 0.014), -Math.PI / 2], [V3(TR.rear + 0.012, 0.86, 0), Math.PI / 2]]) { const pl = new THREE.Mesh(new THREE.PlaneGeometry(0.40, 0.2), plateM); pl.rotation.y = ry; pl.position.copy(p); pl.name = 'Biển số · Jade'; plates.add(pl); }
           for (const z0 of [0.06, -0.78]) bar('Cần gạt mưa', V3(-2.37, 1.66, z0), V3(-2.12, 1.86, z0 + 0.66), 0.016, M.black);
-          const hood = [[0, 1.433], [0.55, 1.433], [0.88, 1.40], [0.99, 1.43], [1.03, 1.55], [1.04, 1.62]].map(([z, y]) => [trNoseX(z, y) + 0.004, y + 0.004, z]);
-          for (let i = 0; i < hood.length - 1; i++) for (const s of [-1, 1]) seam.push(hood[i][0], hood[i][1], s * hood[i][2], hood[i + 1][0], hood[i + 1][1], s * hood[i + 1][2]);
+          const hood = [[0, 1.122], [0.4, 1.122], [0.55, 1.15], [0.7, 1.2], [0.82, 1.25], [0.9, 1.3], [0.92, 1.37]].map(([x, y]) => onNose(x, y, -0.003));
+          for (let i = 0; i < hood.length - 1; i++) for (const s of [-1, 1]) seam.push(hood[i].x, hood[i].y, s * hood[i].z, hood[i + 1].x, hood[i + 1].y, s * hood[i + 1].z);
           box('Ray cửa lùa', 1.9, 0.045, 0.03, (DOOR[1] + 2.75) / 2, 1.80, trSideZ(1.8, 1.80) + 0.012, M.black);
           const seamL = new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(seam, 3)), lineDark); seamL.name = 'Ron vỏ xe'; shell.add(seamL);
 
@@ -7253,7 +7327,7 @@
             const ky = [0.75, 1.80, 2.70]; for (const y of ky) box('Giá trượt cửa lùa', 0.05, 0.04, off, x0 + 0.04, y, trSideZ(x0, y) + off / 2, M.black, false, sd);
           }
           bakeStatic(shell);
-          return { shell, M };
+          return { shell, M, plates };
         }
 
         function transitCab(parent) {
@@ -7270,7 +7344,7 @@
             m.quaternion.setFromUnitVectors(V3(0, 1, 0), v.normalize()); m.position.copy(a).add(b).multiplyScalar(0.5); m.name = name; par.add(m); return m; };
           const shaped = (w, h, d, segs, fn) => { const g = new THREE.BoxGeometry(w, h, d, ...segs), p = g.attributes.position, v = new THREE.Vector3(); for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i); fn(v); p.setXYZ(i, v.x, v.y, v.z); } g.computeVertexNormals(); return g; };
           const Y0 = TR.yIn;
-          box(inner, 'Thảm sàn cabin', 1.62, 0.012, 1.86, -1.43, Y0 + 0.006, 0, M.mat);
+          box(cab, 'Thảm sàn cabin', 1.62, 0.012, 1.86, -1.43, Y0 + 0.006, 0, M.mat);
           const prof = [[-2.33, 1.64], [-2.05, 1.715], [-1.93, 1.70], [-1.87, 1.62], [-1.85, 1.44], [-1.93, 1.26], [-2.04, 1.08], [-2.16, Y0], [-2.36, Y0]];
           const dg = new THREE.ExtrudeGeometry(new THREE.Shape(prof.map(([x, y]) => new THREE.Vector2(x, y))), { depth: 1.84, bevelEnabled: false }).translate(0, 0, -0.92);
           const dm = new THREE.Mesh(dg, M.dash); dm.name = 'Táp-lô'; dm.castShadow = dm.receiveShadow = true; edge(dm, dg, lineDark); dash.add(dm);
@@ -7337,6 +7411,44 @@
           bakeStatic(inner); bakeStatic(dash); bakeStatic(wheels);
           parent.add(cab);
           return galley;
+        }
+
+        const VAN_GLB = window.__vanBin || 'https://michaeltran75.github.io/3d-garden/models/transit.bin';
+        const vanGlb = { ready: false };
+        function transitGlb(g, body) {
+          const M = body.M, lam = (c, o = {}) => new THREE.MeshLambertMaterial({ color: c, side: THREE.DoubleSide, ...o });
+          const MAT = { paint: M.body, paintO: lam(M.body.color.getHex()), black: M.black, chrome: M.chrome, glass: M.glass, frost: M.frost, lens: lam(0xdde4e6, { transparent: true, opacity: 0.55, depthWrite: false }),
+            bulb: M.led, red: M.red, blue: M.blue, steel: lam(0x9a9d9f), tire: lam(0x2b2925), trim: lam(0xcfccc4), dash: lam(0x5d6163), dashTop: lam(0x46494b), ctrl: lam(0x3e4244),
+            seat: lam(0x6f706c), yellow: lam(0xe8cf3a) };
+          Promise.all([import('https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js'), import('https://esm.sh/three@0.160.0/examples/jsm/libs/meshopt_decoder.module.js'),
+            fetch(VAN_GLB).then(r => r.ok ? r.arrayBuffer() : Promise.reject(new Error('HTTP ' + r.status)))]).then(([{ GLTFLoader }, { MeshoptDecoder }, buf]) => {
+            const b = new Uint8Array(buf); let s = 0x2545F491;
+            for (let i = 0; i < b.length; i++) { s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0; b[i] ^= s & 255; }
+            new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parse(b.buffer, '', gl => attach(gl.scene), err => console.warn('Transit GLB:', err));
+          }).catch(err => console.warn('Transit GLB:', err));
+          function attach(src) {
+            src.updateMatrixWorld(true);
+            const bins = new Map(), m4 = new THREE.Matrix4(), nm = new THREE.Matrix3(), v = new THREE.Vector3();
+            src.traverse(o => {
+              if (!o.isMesh) return; let role = 'shell'; for (let p = o; p; p = p.parent) if (p.userData && p.userData.role) { role = p.userData.role; break; }
+              const cls = o.material.name, key = role + '|' + cls; let bin = bins.get(key); if (!bin) bins.set(key, bin = { role, cls, P: [], N: [], I: [], n: 0 });
+              const geo = o.geometry, P = geo.attributes.position, N = geo.attributes.normal, I = geo.index; m4.copy(o.matrixWorld); nm.getNormalMatrix(m4); const flip = m4.determinant() < 0;
+              for (let i = 0; i < P.count; i++) { v.fromBufferAttribute(P, i).applyMatrix4(m4); bin.P.push(v.x, v.y, v.z); v.fromBufferAttribute(N, i).applyMatrix3(nm).normalize(); bin.N.push(v.x, v.y, v.z); }
+              for (let i = 0; i < I.count; i += 3) { const a = bin.n + I.getX(i), b2 = bin.n + I.getX(i + 1), c = bin.n + I.getX(i + 2); if (flip) bin.I.push(a, c, b2); else bin.I.push(a, b2, c); }
+              bin.n += P.count;
+            });
+            const grp = { shell: new THREE.Group(), keep: new THREE.Group() };
+            grp.shell.name = 'Vỏ Ford Transit (mẫu GLB)'; grp.shell.userData.xray = 'shell'; grp.keep.name = 'Cabin + bánh Ford Transit (mẫu GLB)'; grp.keep.userData.xray = 'keep';
+            for (const bin of bins.values()) {
+              const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(bin.P, 3)); geo.setAttribute('normal', new THREE.Float32BufferAttribute(bin.N, 3)); geo.setIndex(bin.I);
+              const mat = MAT[bin.cls] || M.black, mesh = new THREE.Mesh(geo, mat); mesh.name = 'Transit · ' + bin.cls; mesh.castShadow = !mat.transparent || mat === M.body; mesh.receiveShadow = true; (grp[bin.role] || grp.shell).add(mesh);
+            }
+            for (const nm2 of ['Vỏ Ford Transit L3H2', 'Táp-lô', 'Nội thất cabin', 'Bánh xe']) { const o = g.getObjectByName(nm2); if (o) o.visible = false; }
+            const rearPlate = body.plates.children[1]; if (rearPlate) rearPlate.position.x = 3.174;
+            const lad = g.getObjectByName('Thang leo nóc'); if (lad) lad.position.x += 0.105;
+            g.add(grp.shell, grp.keep); xrayAdopt(grp.shell);
+            vanGlb.ready = true; vanGlb.groups = grp;
+          }
         }
         const studyDeskLighting = { light: null, bulb: null, on: null };
         const studyLaptop = { hinge: null, screen: null, light: null, open: 0, target: 0 };
@@ -7418,8 +7530,9 @@
           const exh = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 2.9, 8), metalMat); exh.rotation.z = Math.PI / 2; exh.position.set(1.3, 0.40, -0.35); under.add(exh);
           const spare = new THREE.Mesh(new THREE.CylinderGeometry(0.37, 0.37, 0.22, 16), tyreMat); spare.position.set(2.6, 0.45, 0); under.add(spare);
           const floor = bx(5.24, 0.12, 1.98, floorMat); floor.position.set(0.37, base + 0.06, 0); floor.receiveShadow = true; g.add(floor);
-          transitBody(g);
+          const trBody = transitBody(g);
           const galley = transitCab(g);
+          transitGlb(g, trBody);
           galley.position.set(1.60, yIn - 1.07, -1.99);
           const axles = new THREE.Group(); axles.name = 'Cầu bánh xe';
           const axleGeo = new THREE.CylinderGeometry(0.055, 0.055, 1, 8);
@@ -7798,11 +7911,11 @@
           const wifi = new THREE.Mesh(wifiGeo, new THREE.MeshBasicMaterial({ color: 0x243240, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }));
           wifi.name = 'Wi-Fi trên mặt đĩa'; wifi.userData.noBake = true;
           wifi.position.copy(slDish.position); wifi.quaternion.copy(slDish.quaternion); g.add(wifi);
-          const ladX = TR.rear + 0.07, ladY0 = 0.74, ladY1 = roofTop(2.9, -0.5) + 0.04;
-          for (const lz of [-0.32, -0.74]) { const lr = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, ladY1 - ladY0, 6), metalMat); lr.castShadow = true; lr.position.set(ladX, (ladY0 + ladY1) / 2, lz); g.add(lr);
-            const hook = bx(0.2, 0.03, 0.03, metalMat, true, false); hook.position.set(ladX - 0.09, ladY1, lz); g.add(hook);
-            for (const y of [0.95, 2.2]) { const st = bx(0.07, 0.03, 0.03, metalMat, true, false); st.position.set(ladX - 0.035, y, lz); g.add(st); } }
-          for (let r = 0; r < 7; r++) { const rung = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.42, 6), metalMat); rung.rotation.x = Math.PI / 2; rung.position.set(ladX, 0.9 + r * 0.3, -0.53); g.add(rung); }
+          const ladX = TR.rear + 0.07, ladY0 = 0.74, ladY1 = roofTop(2.9, -0.5) + 0.04, ladder = new THREE.Group(); ladder.name = 'Thang leo nóc'; ladder.userData.noBake = true; g.add(ladder);
+          for (const lz of [-0.32, -0.74]) { const lr = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, ladY1 - ladY0, 6), metalMat); lr.castShadow = true; lr.position.set(ladX, (ladY0 + ladY1) / 2, lz); ladder.add(lr);
+            const hook = bx(0.2, 0.03, 0.03, metalMat, true, false); hook.position.set(ladX - 0.09, ladY1, lz); ladder.add(hook);
+            for (const y of [0.95, 2.2]) { const st = bx(0.07, 0.03, 0.03, metalMat, true, false); st.position.set(ladX - 0.035, y, lz); ladder.add(st); } }
+          for (let r = 0; r < 7; r++) { const rung = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.42, 6), metalMat); rung.rotation.x = Math.PI / 2; rung.position.set(ladX, 0.9 + r * 0.3, -0.53); ladder.add(rung); }
           for (const sz of [-1, 1]) { const flap = bx(0.03, 0.3, 0.26, tyreMat, true, false); flap.position.set(TR.xR + 0.6, 0.3, sz * TR.wz); g.add(flap); }
           const wIn = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.04, 10), rimMat); wIn.rotation.x = Math.PI / 2; wIn.position.set(2.55, 1.25, -1.075); g.add(wIn);
           const shore = bx(0.18, 0.22, 0.04, caravanDark, false, true, lineDark); shore.position.set(2.25, 1.25, -1.08); g.add(shore);
@@ -15812,6 +15925,9 @@
         caravanObj.traverse(o => { if (o.isMesh && caravanRole(o) === 'shell') caravanShell.push(o); });
         const shellHidden = new THREE.MeshBasicMaterial({ visible: false });
         let caravanXray = false;
+        function xrayAdopt(root) {
+          root.traverse(o => { if (o.isMesh && caravanRole(o) === 'shell') { caravanShell.push(o); if (caravanXray) { o.userData.xrayMaterial = o.material; o.material = shellHidden; } } });
+        }
         function setCaravanXray(on) {
           if (on === caravanXray) return;
           caravanXray = on;

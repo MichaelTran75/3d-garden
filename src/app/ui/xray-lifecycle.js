@@ -5,6 +5,9 @@
         caravanObj.traverse(o => { if (o.isMesh && caravanRole(o) === 'shell') caravanShell.push(o); });
         const shellHidden = new THREE.MeshBasicMaterial({ visible: false });   // ẩn mặt nhưng nét viền con vẫn vẽ, và vẫn bấm trúng được
         let caravanXray = false;
+        function xrayAdopt(root) {   // vỏ nạp sau (mẫu GLB Transit): đưa vào danh sách vỏ, đang xem xuyên thì ẩn luôn
+          root.traverse(o => { if (o.isMesh && caravanRole(o) === 'shell') { caravanShell.push(o); if (caravanXray) { o.userData.xrayMaterial = o.material; o.material = shellHidden; } } });
+        }
         function setCaravanXray(on) {
           if (on === caravanXray) return;
           caravanXray = on;

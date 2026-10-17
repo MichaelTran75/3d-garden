@@ -92,8 +92,9 @@
           const exh = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 2.9, 8), metalMat); exh.rotation.z = Math.PI / 2; exh.position.set(1.3, 0.40, -0.35); under.add(exh);
           const spare = new THREE.Mesh(new THREE.CylinderGeometry(0.37, 0.37, 0.22, 16), tyreMat); spare.position.set(2.6, 0.45, 0); under.add(spare);
           const floor = bx(5.24, 0.12, 1.98, floorMat); floor.position.set(0.37, base + 0.06, 0); floor.receiveShadow = true; g.add(floor);   // sàn cả cabin (thảm đen phủ phía trước) lẫn khoang
-          transitBody(g);
+          const trBody = transitBody(g);
           const galley = transitCab(g);
+          transitGlb(g, trBody);   // mẫu GLB Transit nạp sau: thay vỏ, táp-lô, ghế, bánh code (van/transit.js)
           galley.position.set(1.60, yIn - 1.07, -1.99);   // tủ bếp (cục bộ: mặt tủ x 2,37 → z 0,38, lưng 2,97 → z 0,98 sát vách; dài 1,82 → x 0,69 … 2,51)
           const axles = new THREE.Group(); axles.name = 'Cầu bánh xe';
           const axleGeo = new THREE.CylinderGeometry(0.055, 0.055, 1, 8);
@@ -512,11 +513,11 @@
           wifi.name = 'Wi-Fi trên mặt đĩa'; wifi.userData.noBake = true;
           wifi.position.copy(slDish.position); wifi.quaternion.copy(slDish.quaternion); g.add(wifi);
           // ---- thang leo nóc trên cánh cửa sau bên tài (móc qua mép mui) · chắn bùn sau bánh sau ----
-          const ladX = TR.rear + 0.07, ladY0 = 0.74, ladY1 = roofTop(2.9, -0.5) + 0.04;
-          for (const lz of [-0.32, -0.74]) { const lr = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, ladY1 - ladY0, 6), metalMat); lr.castShadow = true; lr.position.set(ladX, (ladY0 + ladY1) / 2, lz); g.add(lr);
-            const hook = bx(0.2, 0.03, 0.03, metalMat, true, false); hook.position.set(ladX - 0.09, ladY1, lz); g.add(hook);
-            for (const y of [0.95, 2.2]) { const st = bx(0.07, 0.03, 0.03, metalMat, true, false); st.position.set(ladX - 0.035, y, lz); g.add(st); } }
-          for (let r = 0; r < 7; r++) { const rung = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.42, 6), metalMat); rung.rotation.x = Math.PI / 2; rung.position.set(ladX, 0.9 + r * 0.3, -0.53); g.add(rung); }
+          const ladX = TR.rear + 0.07, ladY0 = 0.74, ladY1 = roofTop(2.9, -0.5) + 0.04, ladder = new THREE.Group(); ladder.name = 'Thang leo nóc'; ladder.userData.noBake = true; g.add(ladder);   // nhóm không gộp: dời theo cửa sau khi vỏ GLB nạp xong
+          for (const lz of [-0.32, -0.74]) { const lr = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, ladY1 - ladY0, 6), metalMat); lr.castShadow = true; lr.position.set(ladX, (ladY0 + ladY1) / 2, lz); ladder.add(lr);
+            const hook = bx(0.2, 0.03, 0.03, metalMat, true, false); hook.position.set(ladX - 0.09, ladY1, lz); ladder.add(hook);
+            for (const y of [0.95, 2.2]) { const st = bx(0.07, 0.03, 0.03, metalMat, true, false); st.position.set(ladX - 0.035, y, lz); ladder.add(st); } }
+          for (let r = 0; r < 7; r++) { const rung = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.42, 6), metalMat); rung.rotation.x = Math.PI / 2; rung.position.set(ladX, 0.9 + r * 0.3, -0.53); ladder.add(rung); }
           for (const sz of [-1, 1]) { const flap = bx(0.03, 0.3, 0.26, tyreMat, true, false); flap.position.set(TR.xR + 0.6, 0.3, sz * TR.wz); g.add(flap); }
           // ---- họng nạp nước sạch + hộp điện bờ (vách −z sau) · bình ga LPG treo gầm phía tài ----
           const wIn = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.04, 10), rimMat); wIn.rotation.x = Math.PI / 2; wIn.position.set(2.55, 1.25, -1.075); g.add(wIn);

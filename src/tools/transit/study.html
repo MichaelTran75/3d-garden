@@ -1,0 +1,38 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>GLB study</title>
+<style>html,body{margin:0;background:#888}canvas{display:block}</style></head>
+<body>
+<script type="module">
+// trang NGHIÊN CỨU mẫu GLB (xem + đo; cùng van*.js thì dựng transit.bin — xem README.md cạnh đây): ?f=đường dẫn glb
+const THREE = await import('https://esm.sh/three@0.160.0');
+const { GLTFLoader } = await import('https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js');
+const W = 900, H = 700;
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); renderer.setSize(W, H); renderer.setPixelRatio(1); document.body.appendChild(renderer.domElement);
+renderer.localClippingEnabled = true;
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0xb8c4cc);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x667788, 1.6)); const sun = new THREE.DirectionalLight(0xffffff, 1.6); sun.position.set(2, 4, 3); scene.add(sun);
+const cam = new THREE.PerspectiveCamera(30, W / H, 0.01, 1000);
+const f = new URLSearchParams(location.search).get('f');
+const gltf = await new GLTFLoader().loadAsync('/' + f);
+const root = gltf.scene; scene.add(root);
+const box = new THREE.Box3().setFromObject(root), size = box.getSize(new THREE.Vector3()), ctr = box.getCenter(new THREE.Vector3());
+const mixer = new THREE.AnimationMixer(root);
+window.S = { THREE, scene, root, gltf, box, size, ctr, mixer, cam, renderer,
+  clips: gltf.animations.map(a => [a.name, +a.duration.toFixed(3), a.tracks.length]),
+  pose(clipName, t) { mixer.stopAllAction(); const c = gltf.animations.find(a => a.name === clipName); if (!c) return 'no clip'; const a = mixer.clipAction(c); a.play(); mixer.setTime(t); root.updateMatrixWorld(true); return 'ok'; },
+  view(dir, dist = 1.0, target = ctr, up = [0, 1, 0]) { const d = new THREE.Vector3(...dir).normalize(); const R = Math.max(size.x, size.y, size.z) * 2.2 * dist; cam.position.copy(target).addScaledVector(d, R); cam.up.set(...up); cam.lookAt(target); cam.updateProjectionMatrix(); },
+  async grid(name, views, cols = 3, cw = 450, ch = 350) {   // views: [{dir, dist, clip?, t?, label, clip planes?, wire?}]
+    const cv = document.createElement('canvas'), rows = Math.ceil(views.length / cols); cv.width = cols * cw; cv.height = rows * ch; const c = cv.getContext('2d');
+    for (let k = 0; k < views.length; k++) {
+      const v = views[k]; if (v.clip !== undefined) S.pose(v.clip, v.t || 0);
+      renderer.clippingPlanes = v.planes ? v.planes.map(([nx, ny, nz, d]) => new THREE.Plane(new THREE.Vector3(nx, ny, nz), d)) : [];
+      root.traverse(o => { if (o.isMesh) { const ms = Array.isArray(o.material) ? o.material : [o.material]; ms.forEach(m => { m.wireframe = !!v.wire; m.side = THREE.DoubleSide; }); } });
+      S.view(v.dir, v.dist ?? 1, v.target ? new THREE.Vector3(...v.target) : ctr, v.up || [0, 1, 0]); renderer.render(scene, cam);
+      c.drawImage(renderer.domElement, (k % cols) * cw, Math.floor(k / cols) * ch, cw, ch); c.fillStyle = '#000'; c.font = 'bold 18px sans-serif'; c.fillText(v.label || String(k), (k % cols) * cw + 6, Math.floor(k / cols) * ch + 20);
+    }
+    renderer.clippingPlanes = [];
+    const blob = await new Promise(r => cv.toBlob(r, 'image/png')); await fetch('/upload?name=' + name + '.png', { method: 'POST', body: blob }); return name;
+  } };
+window.ready = true;
+</script>
+</body></html>

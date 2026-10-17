@@ -21,7 +21,8 @@ Chỉ sửa trong `src/`. Đọc `src/ARCHITECTURE.md` trước: khung hình ch�
 | `src/app/engineer/` | kỹ sư: dáng người, tư thế, lịch ngày, ăn, ngủ, câu cá, hái táo, drone |
 | `src/app/van/`, `camp/`, `fishing/` | xe van, đồ cắm trại, cần câu |
 | `src/app/ui/`, `src/app/loop/` | điều khiển camera, nhãn, vòng lặp khung hình |
-| `src/models/` | mẫu dùng nguyên (drone + tay cầm DJI Mini 3, ảnh vân vỏ cây cắt từ bản quét), trang tải sau khi cảnh chạy |
+| `src/models/` | mẫu dùng nguyên (drone + tay cầm DJI Mini 3, xe Ford Transit, ảnh vân vỏ cây cắt từ bản quét), trang tải sau khi cảnh chạy |
+| `src/tools/` | công cụ dựng lại mẫu dùng nguyên (`transit/`: xe Transit → `transit.bin`) |
 
 Các mảnh trong `src/app/` được nối nguyên văn theo `manifest.txt` thành một khối script, dùng chung phạm vi biến (không `import`/`export`).
 Thêm tệp mới thì thêm một dòng vào manifest, đúng thứ tự.
@@ -37,7 +38,7 @@ Khi thêm vật mới:
 - Xem thử trên máy: `./preview.sh`
 - Đăng: `./publish.sh "mô tả"` (kéo bản mới, dựng, kiểm ngân sách, commit, push). Pages cập nhật sau khoảng 1 phút.
 - Sửa ngay trên web GitHub: commit vào `src/`, GitHub Actions tự dựng.
-- `build.py --check` báo lỗi khi vượt ngân sách gzip: `js/app.js` ≤ 440 KB, cả trang ≤ 460 KB; thư mục `models/` ≤ 1,5 MB (chưa nén, không tính vào ngân sách gzip).
+- `build.py --check` báo lỗi khi vượt ngân sách gzip: `js/app.js` ≤ 440 KB, cả trang ≤ 460 KB; thư mục `models/` ≤ 2,2 MB (chưa nén, không tính vào ngân sách gzip).
 - Trên máy, `build.py` còn dựng bản một tệp `../3D garden.html` cho bộ test `../tests/` (mốc: 14 đạt, 5 lỗi có sẵn).
 
 ## Nhúng vào Wix
@@ -58,7 +59,7 @@ Trước khi sửa, đọc README.md rồi src/ARCHITECTURE.md.
 Quy tắc:
 - Chỉ sửa trong src/. index.html, css/, js/, models/ là tệp dựng ra. Tệp mới trong src/app/ phải thêm vào src/app/manifest.txt đúng thứ tự.
 - Mã src/app/ nối thành một phạm vi biến: không import/export; không chèn chú thích // giữa một dòng nhiều lệnh (nuốt phần sau).
-- Mọi vật dựng bằng code three.js. GLB hoặc ảnh mẫu chỉ dùng để đo, không nhúng; mẫu mới ghi công vào mục Mô hình của README. Ngoại lệ: drone + tay cầm DJI (src/models/dji-mini3.glb) và ảnh vân vỏ cây từ bản quét (src/models/bark-scan.jpg) — G cho dùng nguyên.
+- Mọi vật dựng bằng code three.js. GLB hoặc ảnh mẫu chỉ dùng để đo, không nhúng; mẫu mới ghi công vào mục Mô hình của README. Ngoại lệ: drone + tay cầm DJI (src/models/dji-mini3.glb), xe Ford Transit (src/models/transit.bin, dựng lại bằng src/tools/transit/) và ảnh vân vỏ cây từ bản quét (src/models/bark-scan.jpg) — G cho dùng nguyên.
 - Giữ ngân sách gzip của python3 build.py --check (js/app.js ≤ 440 KB, cả trang ≤ 460 KB); muốn nâng thì hỏi trước.
 - Cây, cành, lá dùng rnd() có hạt giống: giữ đúng thứ tự gọi rnd() để táo, hoa, tổ, chỗ chim đậu không đổi chỗ.
 - Không viết lại lịch sử git.
@@ -70,14 +71,14 @@ Việc cần làm: ...
 
 ## Mô hình
 
-Mọi vật thể dựng bằng code three.js, nhãn vẽ bằng canvas, trừ hai mẫu dùng nguyên:
+Mọi vật thể dựng bằng code three.js, nhãn vẽ bằng canvas, trừ ba mẫu dùng nguyên:
 
 - Drone và tay cầm: ["DJI Mini 3 Drone with Remote Controller"](https://sketchfab.com/3d-models/dji-mini-3-drone-with-remote-controller-24ce5dcfced44e3d9da46167da720603) của [Marco Workspace](https://sketchfab.com/MarcoWorkspace), giấy phép [CC-BY-4.0](http://creativecommons.org/licenses/by/4.0/). Đã sửa: tách thân, cánh quạt, tay cầm, cần điều khiển thành phần riêng; giảm lưới; nén (`src/models/dji-mini3.glb`).
+- Xe nhà (vỏ ngoài, cabin, bánh): ["Ford Transit L2H2"](https://sketchfab.com/3d-models/ford-transit-l2h2-7ba3c31431f34104902c5efcc112d4af) của [geyges](https://sketchfab.com/geyges), giấy phép [Sketchfab Standard](https://sketchfab.com/licenses). Đã sửa: bỏ khoang hàng và băng ghế đôi; lật ra tay lái nghịch (logo, chữ lật lại cho đọc đúng); kéo dài thành L3 (+0,45 m giữa ô cửa lùa); nâng mui 6 cm; khoét cửa sổ nhà xe; cửa lùa đặt ở thế mở; giảm lưới; nén; tô màu trong code (`src/models/transit.bin`). Theo giấy phép này mẫu chỉ được dùng trong trang, không được tách ra, đăng lại hay phát tán; `transit.bin` không phải tệp mẫu mở được.
 - Vân vỏ cây táo, anh đào: ảnh vân cắt từ ["Tree 3D Scan - Retopo"](https://sketchfab.com/3d-models/tree-3d-scan-retopo-9e6778e11ad2413dab940e23bb0b89df) của [grafi](https://sketchfab.com/zdenkoroman), giấy phép [CC-BY-4.0](http://creativecommons.org/licenses/by/4.0/). Đã sửa: ghép 4 dải vỏ thân thành 1 ô lặp 160 × 480 (`src/models/bark-scan.jpg`).
 
 Các mẫu sau chỉ dùng để đo dáng, tỉ lệ hoặc học kiểu vẽ:
 
-- Xe nhà Ford Transit L3H2 (dáng thân, mũi xe, kính, mui cao, hốc bánh): "Ford Transit L2H2" của geyges (Sketchfab Standard)
 - Thân sợi bện của cây cổ thụ (mặt cắt, độ xoắn, rãnh, bạnh gốc): "Pohutukawa tree closeup" của b_nealie (CC-BY-4.0)
 - Cò: `Stork.glb` trong bộ ví dụ three.js (MIT)
 - Cá koi: "Koi Fish" của Xfdfgd (CC-BY-4.0)

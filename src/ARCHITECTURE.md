@@ -332,8 +332,8 @@ lò xo) ⇒ lên bậc voxel 0,6 đv thì chân trước lên trước, thân ng
   nhiễu quanh thân TUẦN HOÀN (`sfNw`, chu kỳ 12·bm ô) ⇒ không lộ đường may. **Bẫy**: shader gió THAY `#include <project_vertex>` ⇒ chèn vị trí ở `fog_vertex`, lấy ngược từ mvPosition; `windShader` GHI ĐÈ
   onBeforeCompile (không nối) ⇒ gọi surfaceStyle SAU windShader; khoá chương trình nối khoá cũ (`|sf` + kind). Vật liệu có shader riêng không gộp lượt vẽ.
 - Drone đồ chơi (`engineer/drone.js`, G 17/10): drone + tay cầm là MẪU GLB dùng nguyên — "DJI Mini 3 Drone with Remote Controller" (Marco Workspace,
-  CC-BY-4.0), G "lấy 100% ra sử dụng, ko phải vẽ lại" ⇒ ngoại lệ DUY NHẤT của luật "mọi vật dựng bằng code". Tệp `src/models/dji-mini3.glb` (build.py chép
-  nguyên byte sang `models/`, trần `MODELS_KB` 1500, không tính vào ngân sách gzip); trang nạp SAU khi cảnh chạy bằng GLTFLoader + MeshoptDecoder (esm.sh
+  CC-BY-4.0), G "lấy 100% ra sử dụng, ko phải vẽ lại" ⇒ ngoại lệ đầu tiên của luật "mọi vật dựng bằng code" (sau đó: xe Transit 18/10, xem mục xe nhà). Tệp `src/models/dji-mini3.glb` (build.py chép
+  nguyên byte sang `models/`, trần `MODELS_KB` 1500 → 2200 từ 18/10, không tính vào ngân sách gzip); trang nạp SAU khi cảnh chạy bằng GLTFLoader + MeshoptDecoder (esm.sh
   three@0.160.0), địa chỉ tuyệt đối Pages (bản một tệp / Wix cũng nạp được), bản debug đặt `window.__droneGlb`. Mẫu gốc 27 MB, 433k tam giác, 1 lưới liền
   ⇒ đã xử lý 1 lần (không có trong repo): tách phần theo vùng nối + màu (thân drone · 4 cánh quanh đúng trục mô-tơ (PCA lá cánh) · thân tay cầm · 2 cần ·
   ô màn), giảm lưới meshoptimizer, lượng tử hoá KHR_mesh_quantization + nén EXT_meshopt_compression, ảnh JPEG 1024/512 (chất lượng 0,88) ⇒ 1,4 MB.
@@ -411,9 +411,10 @@ lò xo) ⇒ lên bậc voxel 0,6 đv thì chân trước lên trước, thân ng
   lên 2 pha). `wire()` ghi `links` ⇒ `poleGuys()` (cuối tệp, sau khi nối hết dây) thêm dây néo + ống bảo vệ vàng cho cột lệch lực (tổng hướng dây ≥ 0,7),
   neo cách 3,2 m, né nước / đường (thử lệch ±20°, ±40°). Điểm nối dây (conn) giữ nguyên. Cột 3, 5 dời ra mép đông 2 nhà (bản cũ cắm trong nền nhà ⇒
   xuyên mái); cột 5 giờ có dây vào Nhà thiết bị (`buildingTies[2]` trước bỏ trống).
-- Xe nhà = FORD TRANSIT L3H2 (G 17/10 khuya, đo GLB "Ford Transit L2H2" — geyges, Sketchfab Standard, chỉ đo): van/transit.js dựng vỏ từ bảng số đo
+- Xe nhà = FORD TRANSIT L3H2 (G 17/10 khuya, đo GLB "Ford Transit L2H2" — geyges, Sketchfab Standard; từ 18/10 vỏ code chỉ là bản tạm trước khi mẫu GLB
+  nạp xong + lớp va chạm, xem mục dưới): van/transit.js dựng vỏ từ bảng số đo
   (bắn tia quanh mẫu): `TR_SEC` mặt cắt thân theo độ cao (gờ vai 1,54–1,63, khum trên vai), `TR_ROOF` đỉnh mui theo x (mui cao H2 vươn qua cabin),
-  `TR_DROP` mui khum + bo góc, `TR_NOSE` mũi xe từng mức (cản đen · ga-lăng 3 nan · đèn pha vuốt lên vè · ca-pô · hốc gạt mưa) và `TR_WS` kính chắn gió
+  `TR_DROP` mui khum + bo góc, `TR_MUI` mũi xe đo dày (41 hàng độ cao × 25 tia, mã vật liệu từng ô ⇒ đề can bám mặt: ga-lăng bát giác + logo, đèn pha + viền LED, đèn sương mù) và `TR_WS` kính chắn gió
   + trụ A. Vách hông = 1 tấm (x, y) chia tam giác có điểm Steiner (`ShapeUtils.triangulateShape`, lỗ 1 điểm = Steiner) rồi uốn `z = trSideZ(x, y)`
   ⇒ khoét được hốc bánh, kính cabin, cửa lùa, cửa sổ nhà xe mà vẫn giữ gờ vai. Vỏ 2 lớp (lớp trong lùi T theo pháp tuyến) như vỏ cũ.
   Tỉ lệ **1,1 đv/m theo người** (kỹ sư cao 1,95 đv kể cả mũ ≈ 1,75 m; bản xe cũ to quá cỡ ~1,22). L3 = L2 + 0,45 m chèn giữa cửa lùa và hốc sau.
@@ -424,6 +425,23 @@ lò xo) ⇒ lên bậc voxel 0,6 đv thì chân trước lên trước, thân ng
   scoot → work …). Vách ngang trong xe (`xWall`) cắt theo lòng xe để không thò qua vách khum / góc mui. Ổ chó trú mưa: sàn cabin giữa 2 đế ghế.
   Bẫy: cột chống bạt nằm trên đường thẳng tới `dogDoorFar` ⇒ `colSlide` trượt qua lại tại chỗ (kỹ sư kẹt ngoài xe) — bạt kéo dài ra trước x −1,15.
   Gai lốp 192 mảnh để bộ gộp lượt vẽ tách ⇒ hiện màu trắng: `bakeStatic(wheels)` trước.
+- Xe nhà dùng NGUYÊN MẪU GLB (G 18/10 "nếu xe van copy đc thì mang vào luôn khỏi vẽ lại rồi modified"): `src/models/transit.bin` = "Ford Transit L2H2"
+  (geyges, Sketchfab Standard) đã sửa bằng `src/tools/transit/` (chạy trong trang study.html, xem README ở đó): giữ vỏ ngoài + cabin, bỏ khoang hàng +
+  băng ghế đôi; đổi đv xe X = 0,0272 − 1,1·z (z < −0,1 dời −0,45 m), Y = 0,1128 + 1,1·y + 0,06·smoothstep(1,9, 2,4, y), **Z = −1,1·x** (LẬT: mẫu tay lái
+  thuận, xe mình tay lái nghịch kiểu Úc — đảo thứ tự đỉnh; logo Ford, chữ TRANSIT, logo vô-lăng lật lại quanh tâm của chúng cho đọc đúng). L3 chèn
+  GIỮA Ô CỬA LÙA (z = −0,1): ô cửa của mẫu chỉ 0,95 m (X −0,655 … 0,39) ⇒ thành 1,40 m (X −0,655 … 0,885) khớp `TR.door` của nội thất; cửa lùa kéo
+  dài cùng nhát cắt, đặt thế mở (+1,63 X, ra ngoài 8,5 cm; mép gập trong lấn vào vỏ / ray / ốp / lốp thì ép phẳng). Cửa sổ nhà xe khoét thẳng vào vỏ
+  ngoài + vỏ trong (`cutHoles`: tam giác ∖ đa giác lồi = các mảnh nửa mặt phẳng) + kính, viền cao su, má cửa; cửa lùa GLB dài 1,74 che đoạn X 0,9 …
+  2,65 vách +z ⇒ cửa sổ phòng tắm (kính mờ) dời sang vách −z. 1 ghế lái dùng 2 lần (ghế phụ = nút scale z −1), 1 bánh dùng 4 lần (quay π, không lật),
+  bánh ×1,096 cho lốp chạm đất khi tâm Y 0,44 (gầm nâng như vỏ code). Hàn đỉnh → giảm lưới meshoptimizer (khoá mép, sai số tuyệt đối 0,8–1,2 mm, lốp
+  4 mm) → lượng tử hoá + meshopt → GLB → **XOR dòng xorshift32** (như cat.bin của Hidden Library: giấy phép Standard không cho để mẫu thành 1 tệp mở
+  được) ⇒ 81k tam giác (chạy 115k sau khi nhân ghế, bánh), 550 KB. Chạy (`transitGlb`, van/transit.js): nạp SAU khi cảnh chạy (địa chỉ tuyệt đối Pages,
+  bản debug `window.__vanBin`), bỏ XOR, GLTFLoader + MeshoptDecoder, nướng ma trận nút vào hình (nút lật ⇒ đảo đỉnh), gộp theo (vai trò xem xuyên,
+  lớp vật liệu) ⇒ 25 lượt vẽ; dùng vật liệu vỏ code (`M.body` kem bán trong suốt cho khoang ở; mũi + 2 cửa cabin lớp `paintO` sơn đục — bán trong
+  suốt làm lộ ruột khoang máy thành vệt loang). Nạp xong ẩn nhóm vỏ code / Táp-lô / Nội thất cabin / Bánh xe; giữ thảm sàn cabin (nhóm cab), biển số
+  Jade (nhóm riêng noBake, biển sau dời ra cửa sau GLB X 3,174), thang leo nóc (nhóm noBake, +0,105). `xrayAdopt()` (ui/xray-lifecycle.js) đưa vỏ GLB
+  vào danh sách xem xuyên. Vỏ code giữ làm bản tạm trước khi nạp + làm lớp va chạm (core/collide.js đọc lúc khởi động — cùng số đo). **Bẫy**:
+  `bakeStatic(g)` cuối caravan() gộp xuyên nhóm theo vật liệu ⇒ nhóm nào cần dời / ẩn riêng về sau phải `userData.noBake`.
 - Laptop nhấp nháy phím (17/10): mặt phím chỉ cao hơn mặt đế 0,05 mm, nhỏ hơn 1 bước độ sâu của camera trực giao (gần 0,1 – xa 4.000 m ⇒ ~0,24 mm);
   đế gộp lượt vẽ (vị trí qua ma trận xương trong shader) còn mặt phím vẽ riêng ⇒ thắng thua đổi theo góc nhìn. Sửa: mặt phím / logo / kính / màn
   `polygonOffset` + cách ≥ 0,3 mm. **Quy tắc**: mặt dán (decal) nằm sát mặt khác dưới ~1 mm thì luôn dùng polygonOffset.

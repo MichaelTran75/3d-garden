@@ -26,7 +26,7 @@
         (function oldTree() {
           const g = new THREE.Group(); g.position.set(X0 + 89, 7, Z0 + 117); g.scale.setScalar(2.76); g.rotation.set(0, 0, 0.62); g.name = 'Cây cổ thụ (Old Tree)'; scene.add(g);   // ngả thân về phía dòng sông (-x)
           oldTreeGroup = g;
-          const TOP = 0.85;
+          const TOP = 0.935;   // G 18/10 "cây cổ thụ 10% more visible": vỏ 0,85 → 0,935 (lá 0,76 → 0,836, cây con theo cùng tỉ lệ)
           const barkMat = new THREE.MeshLambertMaterial({ color: 0x4a3420, transparent: true, opacity: TOP }), deadMat = new THREE.MeshLambertMaterial({ color: 0xE2D6C0, transparent: true, opacity: TOP });
           barkMat.userData.sfOld = deadMat.userData.sfOld = 1;   // G 17/10 "cây cổ thụ render tệ, nhìn giả, sửa lại về render cũ": vân vỏ bản trước (không ảnh quét, không địa y loang)   // G 17/10: vết loang trên thân cổ thụ màu NÂU ĐEN (không xám trắng)
           // cây cổ thụ: thân to, tán nặng → dao động riêng chậm ~0,32 Hz, cản nhỏ (gỗ già ít tắt dần); cành xa thân rung ~1 Hz
@@ -219,7 +219,7 @@
             }
             cloudPts(rnd, tp.pos.x, tp.pos.y + 0.08, tp.pos.z, radius, count, pts);
           }
-          tuftInstanced(g, rnd, pts, leafHexGeo(0.05), leafCols, 0.76, 0.7, tw, 0.04);   // lá cây cổ thụ trong suốt hơn 10% (0.85 * 0.9 = 0.76)
+          tuftInstanced(g, rnd, pts, leafHexGeo(0.05), leafCols, 0.836, 0.7, tw, 0.04);   // lá cây cổ thụ trong suốt hơn 10% (0.85 * 0.9 = 0.76)
           g.userData.leafPts = pts;   // lá vàng rụng sinh từ chính các chùm lá (toạ độ cục bộ)
 
           bakeStatic(g);
@@ -234,7 +234,7 @@
           } else {
             scene.add(g);
           }
-          const barkMat = new THREE.MeshLambertMaterial({ color: 0x4a3420, transparent: true, opacity: 0.65 }); barkMat.userData.sfOld = 1; surfaceStyle(barkMat, 'bark');   // vân vỏ như cây mẹ (bản cũ)
+          const barkMat = new THREE.MeshLambertMaterial({ color: 0x4a3420, transparent: true, opacity: 0.715 }); barkMat.userData.sfOld = 1; surfaceStyle(barkMat, 'bark');   // vân vỏ như cây mẹ (bản cũ)
           const leafCols = [0x4e7a39, 0x5e8c44, 0x6fa052, 0x42692f];
           const V = (x, y, z) => new THREE.Vector3(x, y, z);
 
@@ -315,7 +315,7 @@
           const sLeafPts = [];
           const perTip = Math.max(20, Math.round(810 / sTips.length));   // tổng ~810 điểm lá = gấp 3 lần trước (3 cụm × 90 = 270)
           for (const tp of sTips) cloudPts(rnd, tp.x, tp.y + 0.05, tp.z, 0.55, perTip, sLeafPts);
-          tuftInstanced(g, rnd, sLeafPts, leafHexGeo(0.05), leafCols, 0.85);
+          tuftInstanced(g, rnd, sLeafPts, leafHexGeo(0.05), leafCols, 0.935);
           // ---- điểm treo TỔ ONG trên cành cây con (tổ ong giỏ rơm dựng ở animals/beehive.js, treo thẳng đứng từ điểm này) ----
           const hiveAnchor = new THREE.Object3D(); hiveAnchor.position.set(-3.4425, 3.5108, 0.3995); g.add(hiveAnchor); g.userData.hiveAnchor = hiveAnchor;
 
@@ -329,7 +329,39 @@
           oldTreeGroup.updateMatrixWorld(true);
           oldTreeWind = oldTreeGroup.userData.treeWind; finalizeTreeWind(oldTreeWind, oldTreeGroup);   // gốc/chiều cao/tán đo SAU khi thu theo NATURE_SCALE
           oldTreeLeafCtl = makeLeafFall({ name: 'Lá cây cổ thụ rụng theo gió', group: oldTreeGroup, pts: oldTreeGroup.userData.leafPts, n: 16,
-            geo: new THREE.CylinderGeometry(0.045 * 2.3, 0.045 * 2.3, 0.0015 * 2.3, 6), opacity: 0.76, color: () => Math.random() < 0.85 ? 0xe5b82c : 0x5e8c44,   // 85% lá vàng, 15% lá xanh
+            geo: new THREE.CylinderGeometry(0.045 * 2.3, 0.045 * 2.3, 0.0015 * 2.3, 6), opacity: 0.836, color: () => Math.random() < 0.85 ? 0xe5b82c : 0x5e8c44,   // 85% lá vàng, 15% lá xanh
             scale: NATURE_SCALE, tw: oldTreeWind, g: 3.5, vTerm: 0.7, flutA: 0.7, flutW: [2.2, 3.2], tumble: 0.35, tumbleW: [6, 10], slideU: 0.6, rate0: 0.05, rateK: 3.0, shake0: 0.012, restLife: [12, 24], floatLife: [30, 55], sinkP: 0.35, sinkV: [0.06, 0.1], leeway: 0.03 });
         }
 
+        // ---- RỄ BÒ NGANG trên mặt đất quanh gốc cây cổ thụ (G 18/10 kèm ảnh gốc pohutukawa: rễ to bện sợi toả ra, rẽ nhánh, đè lên nhau, chìm nổi
+        //      trong đất). Nhóm riêng theo toạ độ thế giới (đất quanh gốc phẳng y 7,2 trong 4 m), KHÔNG gắn shader gió (gió lệch theo khoảng cách
+        //      ngang tới gốc ⇒ rễ sẽ lắc như cành). Ống vỏ cùng barkTubes + sợi bện (minR 0,12) · đi dưới 3 hòn đá (lặn rồi trồi) · gặp nước thì lặn hẳn ----
+        (function oldTreeRoots() {
+          const cx = X0 + 89, cz = Z0 + 117, gy = cowY(cx, cz), g = new THREE.Group(); g.name = 'Rễ cây cổ thụ'; g.position.set(cx, gy, cz); scene.add(g); flightRoots.push(g);
+          const mat = new THREE.MeshLambertMaterial({ color: 0x4a3420, transparent: true, opacity: 0.935 }); mat.userData.sfOld = 1; mat.userData.sfMoss = 0.15; surfaceStyle(mat, 'bark');   // sát đất cả rễ ⇒ rêu gốc phủ kín nếu để mặc định
+          const rnd = mulberry32(4242), V = (x, y, z) => new THREE.Vector3(x, y, z), L = [];
+          const STONES = [[0.3, 1.25, 1.2], [1.5, -0.4, 0.82], [-1.35, 0.5, 0.52]];   // (x, z, bán kính) — 3 hòn đá của stoneRing (cùng gốc)
+          const water = (x, z) => isWater(Math.round(x2gi(cx + x)), Math.round(z2gj(cz + z)));
+          function grow(x, z, ang, len, r0, h0, par, pr, pT, depth) {   // 1 rễ: uốn lượn, thuôn dần, nổi ~nửa thân, thỉnh thoảng lặn rồi trồi; rẽ 1–2 rễ con
+            const P = [], R = [], step = 0.32, wob = rnd() * 6.28; let a = ang, dive = 0;
+            for (let s = 0, i = 0; s <= len; s += step, i++) {
+              const t = s / len, r = Math.max(0.04, r0 * Math.pow(1 - 0.7 * t, 1.1));
+              let h = r * (0.32 + 0.24 * Math.sin(s * 2.1 + wob));
+              if (i === 0) h = h0; else if (s < 1.1 && h0 > h) h = h0 + (h - h0) * s / 1.1;   // trồi ra từ bạnh gốc
+              if (t > 0.72) h -= (t - 0.72) / 0.28 * 1.5 * r;   // cuối rễ lặn dần xuống đất (không lộ ngọn mảnh như cành khô)
+              for (const [sx, sz, sr] of STONES) { const d = Math.hypot(x - sx, z - sz) - sr; if (d < 0.25) h = Math.min(h, -1.4 * r + Math.max(0, d) * 2 * r); }   // chui dưới đá
+              if (dive > 0) { h = Math.min(h, -0.6 * r); dive--; } else if (i > 3 && rnd() < 0.06) dive = 1 + (rnd() * 2 | 0);
+              P.push(V(x, h, z)); R.push(r);
+              if (water(x + Math.cos(a) * step * 2, z + Math.sin(a) * step * 2)) { P.push(V(x + Math.cos(a) * step, -2 * r, z + Math.sin(a) * step)); R.push(r * 0.8); break; }   // tới mép nước: lặn hẳn
+              a += (rnd() - 0.5) * 0.45 + 0.12 * Math.sin(s * 1.3 + wob); x += Math.cos(a) * step; z += Math.sin(a) * step;
+            }
+            const l = { P, R, par, kids: [], atEnd: false, pr, pT }; L.push(l); if (par) par.kids.push(l);
+            if (depth < 1 + (len > 4 ? 1 : 0) && P.length > 5) for (let b = 0, nb = depth ? 1 : 1 + (rnd() < 0.6 ? 1 : 0); b < nb; b++) {
+              const k = Math.min(P.length - 2, 2 + ((P.length - 3) * (0.3 + 0.4 * rnd())) | 0), p = P[k], d = P[k + 1].clone().sub(P[k - 1]).setY(0).normalize();
+              grow(p.x, p.z, Math.atan2(d.z, d.x) + (rnd() < 0.5 ? -1 : 1) * (0.45 + 0.4 * rnd()), len * (0.45 + 0.25 * rnd()), R[k] * 0.68, Math.max(0, p.y), l, R[k], d, depth + 1);
+            }
+          }
+          for (let i = 0, N = 12; i < N; i++) { const ang = (i + 0.35 * rnd()) / N * Math.PI * 2; grow(Math.cos(ang) * 0.95, Math.sin(ang) * 0.95, ang + (rnd() - 0.5) * 0.4, 2.4 + 2.4 * rnd(), 0.24 + 0.14 * rnd(), 0.5, null, undefined, undefined, 0); }
+          g.add(...barkMesh(barkTubes(L, { wS: 1, flare: 0, nodes: false, rope: { minR: 0.12, nTrunk: 6, D: 0.45, twist: 0.35 } }), mat));
+          bakeStatic(g);
+        })();

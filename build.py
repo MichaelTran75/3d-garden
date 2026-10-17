@@ -6,12 +6,12 @@
   src/js/weather.js        thời tiết Open-Meteo + đồng hồ Pleiku (window.gardenWeather)
   src/js/flight-nav.js     dẫn đường bay cho ong/bướm (createFlightNavigator)
   src/app/manifest.txt     thứ tự ghép các mảnh mã cảnh chính src/app/**.js
-  src/models/              mẫu 3D dùng nguyên (G 17/10: drone + tay cầm DJI Mini 3 — dji-mini3.glb), chép nguyên byte sang models/
+  src/models/              mẫu 3D dùng nguyên (G 17/10: drone + tay cầm DJI Mini 3 — dji-mini3.glb; G 18/10: xe Ford Transit — transit.bin = GLB đã XOR), chép nguyên byte sang models/
 
 Đầu ra:
   index.html, css/app.css, js/weather.js, js/flight-nav.js, js/app.js   — trang nhiều tệp cho GitHub Pages (js/app.js bỏ dòng chú thích)
                                                                           (mỗi tệp đóng dấu ?v=<băm>: tệp nào không đổi thì trình duyệt giữ bản đã lưu)
-  models/*.glb                                                          — mẫu 3D trang tải sau khi cảnh chạy (bản một tệp tải từ địa chỉ Pages tuyệt đối)
+  models/*.glb, *.bin, *.jpg                                            — mẫu 3D / ảnh trang tải sau khi cảnh chạy (bản một tệp tải từ địa chỉ Pages tuyệt đối)
   ../3D garden.html                                                     — bản một tệp tự chứa (chỉ khi chạy trên máy, cạnh thư mục tests/)
 
   python3 build.py           dựng
@@ -24,7 +24,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 SRC = HERE / 'src'
 SINGLE = HERE.parent / '3D garden.html'
 STAMP = HERE / '.single-stamp'          # băm của bản một tệp dựng lần trước (không đưa lên git)
-MODELS_KB = 1500                         # trần dung lượng THÔ của models/ (KB) — mẫu tải sau, không tính vào ngân sách gzip bên dưới
+MODELS_KB = 2200                         # trần dung lượng THÔ của models/ (KB) — mẫu tải sau, không tính vào ngân sách gzip bên dưới (18/10: 1500 → 2200 khi thêm xe Transit GLB transit.bin ~550 KB)
 BUDGET_KB = {'js/app.js': 440, 'tổng': 460}   # ngân sách dung lượng NÉN gzip (KB) người xem phải tải — vượt thì --check báo lỗi (14/10: 380 → 400 khi thêm chim sẻ + thuyền; 15/10: G nâng 420/440; 16/10: bỏ cả chú thích cuối dòng ⇒ app.js 420 → 359 KB, còn trống ~60 KB; 17/10 khuya: G nâng 440/460 để dựng lại xe theo Ford Transit L3H2)
 args = set(sys.argv[1:])
 
