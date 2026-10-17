@@ -310,7 +310,7 @@ lò xo) ⇒ lên bậc voxel 0,6 đv thì chân trước lên trước, thân ng
   ⇒ 1 MB. Cây nút: `Drone` {DroneBody, PropFL/FR/RL/RR (trục y = trục mô-tơ, `userData.r`), Camera} và `RC` {RCBody, StickL, StickR (gốc = chân cần),
   Screen (`userData.w/h` ô màn 0,1248 × 0,0521 m)}; đơn vị m, drone mũi +z gốc đáy càng; tay cầm X · Y pháp tuyến mặt · Z phía màn (người cầm: PHẢI = −X ⇒
   StickR nằm bên TRÁI người cầm = cần ga + xoay Mode 2). `attach()`: hạ kim loại 0,25 (cảnh không có ảnh môi trường), noBatch, cánh quay trong nhóm con,
-  đĩa mờ + đèn tự thêm, gimbal tại nút Camera, màn sống `ScreenLive` (rt 384 × 160 = tỉ lệ màn, ống kính ~82° ngang) phủ ô Screen. Càng không gập
+  đĩa mờ + đèn tự thêm, gimbal tại nút Camera, màn sống `ScreenLive` (rt 768 × 320 = tỉ lệ màn, ống kính ~82° ngang) phủ ô Screen. Càng không gập
   (`setFold` chỉ giữ nhịp). Mẫu chưa nạp / lỗi mạng ⇒ `update()` trả true ngay (bỏ lượt bay hôm đó).
   Việc `drone` 15:20 (once; mưa ⇒ trú hiên, gió > 9 m/s ⇒ nghỉ; xong sớm ⇒ `rest` tới 16:00). Máy trạng thái `D.st`: toTable → grab → carry → place
   (ngồi xổm) → back (lùi 2,8 m) → ready (bật máy, chờ vệ tinh) → arm (CSC) → flying → land → fetch → pick → home → park. Lộ trình (`plan()`, mỗi điểm có
@@ -325,13 +325,16 @@ lò xo) ⇒ lên bậc voxel 0,6 đv thì chân trước lên trước, thân ng
   40 m" = độ cao so với điểm nhà) + đường dẫn xuống tâm thân + vòng tròn đánh dấu (chỉ khi drone < 14 px), nhưng CỠ CỐ ĐỊNH TRÊN MÀN HÌNH (thẻ 24 px,
   đường dẫn 60 px — đổi theo `(camera.right − camera.left) / camera.zoom / W()`); hiện từ lúc drone nằm trên cỏ tới lúc nhặt lên; nằm trong `labelGroup`
   (nút "Nhãn" tắt cùng). Tạo ở lần cần đầu tiên vì labels-controls.js chạy SAU drone.js (`labelGroup` còn TDZ lúc dựng).
-  Ảnh camera: `rt` vẽ trong `droneToy.render()` NGAY TRƯỚC lượt vẽ chính (main-loop-rest), 1/3 khung (cảm ứng 1/5), bỏ khi bong bóng < 50 px; tắt
-  shadowMap.autoUpdate trong lượt đó, ẩn bong bóng + drone + tay cầm (màn tay cầm đọc chính `rt` ⇒ vòng lặp khung) + `labelGroup` (ống kính thật
+  Ảnh camera: `rt` vẽ trong `droneToy.render()` NGAY TRƯỚC lượt vẽ chính (main-loop-rest), 1/3 khung (cảm ứng 1/5), bỏ khi màn trong khung < 50 px; tắt
+  shadowMap.autoUpdate trong lượt đó, ẩn khung trên đầu (`bub`) + drone + tay cầm (màn tay cầm đọc chính `rt` ⇒ vòng lặp khung) + `labelGroup` (ống kính thật
   không thấy nhãn; nhãn vẽ đè mọi thứ nên lọt vào ảnh).
-  Bong bóng suy nghĩ (G 17/10 "trong engineer thought đặt thêm remote control frame của glb"): mây canvas · KHUNG TAY CẦM = bản sao nút RC (ẩn màn sống)
-  trong cảnh riêng `fScene` (đèn bán cầu + nắng), camera trực giao úp mặt (rotation (π/2, π, 0) ⇒ phải người cầm sang phải ảnh, phía màn lên trên), vẽ
-  vào `frameRT` 640 × 424 MSAA nền trong suốt (premultipliedAlpha) cùng nhịp ảnh camera, 2 cần trong khung nghiêng theo lệnh · ảnh camera + OSD
-  (512 × 214) đặt đúng ô màn trong khung (`fOff`) · rộng màn = 2 × màn laptop thế giới. Bong bóng thời tiết cũ ẩn khi bay.
+  KHUNG TAY CẦM trên đầu kỹ sư khi bay (G 17/10: lúc đầu khung nằm trong bong bóng suy nghĩ; sau đó "remove bong bóng thought… chỉ để remote control
+  frame, x2 bigger" ⇒ bỏ mây + 3 chấm, khung to gấp đôi): bản sao nút RC (ẩn màn sống) trong cảnh riêng `fScene` (đèn bán cầu + nắng), camera trực
+  giao úp mặt (rotation (π/2, π, 0) ⇒ phải người cầm sang phải ảnh, phía màn lên trên), vẽ vào `frameRT` 1024 × 678 MSAA (cảm ứng 2 mẫu) nền trong
+  suốt (premultipliedAlpha) bằng `renderFrame()` cùng nhịp ảnh camera — 2 cần trong khung nghiêng theo lệnh · ảnh camera (`rt` 768 × 320) + OSD
+  (canvas 1024 × 428, vẽ ở toạ độ 512 × 214 với setTransform ×2) đặt đúng ô màn trong khung (`fOff`) · rộng màn = 4 × màn laptop thế giới (khung
+  ~2,0 × 1,33 đv, kỹ sư cao ~3,5 đv); đáy khung cách đỉnh mũ ~0,25. `frameDirty`: khung vẽ ngay lần đầu hiện, KHÔNG chờ luật 50 px (bẫy bản có mây:
+  zoom vừa phải thì khung trống, chỉ thấy mây). Bong bóng thời tiết cũ (`checkBubbleSprite`) ẩn suốt pha drone.
   Chỗ để trên bàn (`tableLay()`, TOẠ ĐỘ BÀN: x dọc bàn, z ngang, ghế cắm trại phía +z đầu tây): drone (càng mở ~0,42 × 0,44 m) nửa ĐÔNG (0,2; −0,01),
   tay cầm ngửa góc tây mép −z (−0,2; −0,19); ca nấu (−0,3; 0,03), chảo (−0,12; 0,06, cán về phía ghế), gói khoai tây (−0,25; 0,2) ở nửa tây gần ghế
   (đã đo hộp bao từng món trong toạ độ bàn: không chồng nhau, không thò mép). `restOn(o, y)`: ĐÁY LƯỚI THẬT (`Box3.setFromObject(o, true)`) chạm mặt bàn

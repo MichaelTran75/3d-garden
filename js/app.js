@@ -10348,7 +10348,7 @@
           scene.add(g);
           const rc = new THREE.Group(); rc.name = 'Tay cầm điều khiển drone'; rc.scale.setScalar(S); scene.add(rc);
           const sticks = [new THREE.Object3D(), new THREE.Object3D()];
-          const rt = new THREE.WebGLRenderTarget(384, 160, { depthBuffer: true }); rt.texture.name = 'Ảnh camera drone';
+          const rt = new THREE.WebGLRenderTarget(768, 320, { depthBuffer: true }); rt.texture.name = 'Ảnh camera drone';
           const phoneM = new THREE.MeshBasicMaterial({ map: rt.texture, color: 0x000000, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 });
           let SCR = { w: 0.1248, h: 0.0521 }, rcSrc = null;
           import('https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js').then(async ({ GLTFLoader }) => {
@@ -10370,21 +10370,15 @@
             const live = new THREE.Mesh(new THREE.PlaneGeometry(SCR.w, SCR.h), phoneM); live.name = 'ScreenLive'; live.rotation.x = -Math.PI / 2; live.position.copy(sn.position); live.position.y += 0.0004; rn.add(live);
             rcSrc = rn; buildFrame(); if (D.st === 'idle') park();
           }
-          const bub = new THREE.Group(); bub.name = 'Bong bóng màn hình drone'; bub.visible = false; scene.add(bub);
-          const cloudC = document.createElement('canvas'); cloudC.width = 512; cloudC.height = 400;
-          { const x = cloudC.getContext('2d'); x.fillStyle = '#fff'; x.strokeStyle = 'rgba(70,80,95,0.55)'; x.lineWidth = 6;
-            const blobs = [[256, 200, 205, 150], [120, 150, 95, 80], [390, 145, 100, 82], [110, 270, 90, 75], [400, 268, 92, 74], [256, 70, 110, 60], [256, 335, 120, 58]];
-            for (const pass of [0, 1]) for (const [bx2, by, rx, ry] of blobs) { x.beginPath(); x.ellipse(bx2, by, rx, ry, 0, 0, TAU); pass ? x.fill() : x.stroke(); } }
-          const cloudT = new THREE.CanvasTexture(cloudC); cloudT.colorSpace = THREE.SRGBColorSpace;
-          const osdC = document.createElement('canvas'); osdC.width = 512; osdC.height = 214; const ox = osdC.getContext('2d'), osdT = new THREE.CanvasTexture(osdC); osdT.colorSpace = THREE.SRGBColorSpace;
-          const frameRT = new THREE.WebGLRenderTarget(640, 424, { samples: 4 }), fScene = new THREE.Scene(), fCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.01, 3);
+          const bub = new THREE.Group(); bub.name = 'Khung tay cầm drone (trên đầu kỹ sư)'; bub.visible = false; scene.add(bub);
+          const osdC = document.createElement('canvas'); osdC.width = 1024; osdC.height = 428; const ox = osdC.getContext('2d'), osdT = new THREE.CanvasTexture(osdC); osdT.colorSpace = THREE.SRGBColorSpace;
+          const FRW = 1024, FRH = 678, frameRT = new THREE.WebGLRenderTarget(FRW, FRH, { samples: matchMedia('(pointer: coarse)').matches ? 2 : 4 }), fScene = new THREE.Scene(), fCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.01, 3);
           fScene.add(new THREE.HemisphereLight(0xffffff, 0x8a96a3, 2.4)); { const l = new THREE.DirectionalLight(0xffffff, 1.5); l.position.set(0.4, 1, 0.8); fScene.add(l); }
           const mk = (map, ro) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map, transparent: true, depthWrite: false, depthTest: false })); m.renderOrder = ro; bub.add(m); return m; };
-          const cloud = mk(cloudT, 990), frame = mk(frameRT.texture, 990.5), scr = mk(rt.texture, 991), osd = mk(osdT, 992);
-          cloud.material.opacity = 0.96; frame.visible = false;
-          const dots = [0.07, 0.05, 0.034].map((r, i) => { const d = new THREE.Mesh(new THREE.CircleGeometry(r, 16), cloud.material); d.renderOrder = 990; bub.add(d); return d; });
-          let SW = 0.7, SH = 0.3, FW = 1, FH = 0.66, frameRC = null, fSticks = null, fOff = [0, 0];
-          const fAsp = 640 / 424; frame.material.premultipliedAlpha = true;
+          const frame = mk(frameRT.texture, 990.5), scr = mk(rt.texture, 991), osd = mk(osdT, 992);
+          frame.visible = false;
+          let SW = 0.7, SH = 0.3, FW = 1, FH = 0.66, frameRC = null, fSticks = null, fOff = [0, 0], frameDirty = true;
+          const fAsp = FRW / FRH; frame.material.premultipliedAlpha = true;
           function buildFrame() {
             frameRC = rcSrc.clone(true); frameRC.rotation.set(Math.PI / 2, Math.PI, 0); fScene.add(frameRC); frameRC.getObjectByName('ScreenLive').visible = false;
             fSticks = [frameRC.getObjectByName('StickL'), frameRC.getObjectByName('StickR')];
@@ -10395,10 +10389,9 @@
             frame.userData.k = fw / SCR.w; frame.visible = true; sizeBubble();
           }
           function sizeBubble() {
-            const kL = studyLaptop.group ? studyLaptop.group.getWorldScale(new THREE.Vector3()).x : 1; SW = 2 * MBP.SW * kL; SH = SW * SCR.h / SCR.w;
+            const kL = studyLaptop.group ? studyLaptop.group.getWorldScale(new THREE.Vector3()).x : 1; SW = 4 * MBP.SW * kL; SH = SW * SCR.h / SCR.w;
             FW = frameRC ? SW * frame.userData.k : SW * 1.25; FH = FW / fAsp;
             scr.scale.set(SW, SH, 1); osd.scale.set(SW, SH, 1); frame.scale.set(FW, FH, 1); scr.position.set(fOff[0] * FW, fOff[1] * FH, 0); osd.position.copy(scr.position);
-            cloud.scale.set(FW * 1.32, FH * 1.62, 1);
           }
           const D = { st: 'idle', k: 0, home: new THREE.Vector3(), stand: new THREE.Vector3(), table: new THREE.Vector3(), pos: new THREE.Vector3(), vel: new THREE.Vector3(), yaw: 0, gp: -0.3, wp: [], wi: 0,
             spin: 0, fold: 0, bat: 100, rec: 0, orbit: null, tilt: new THREE.Vector2(), stick: [0, 0, 0, 0], frame: 0, held: null, heldE: null, lookDown: 0, rcSpot: new THREE.Vector3(), standT: new THREE.Vector3(), reachP: new THREE.Vector3(), tableMid: new THREE.Vector3() };
@@ -10509,7 +10502,7 @@
           const ease = x => { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); };
           function go(st) { D.st = st; D.k = 0; }
           function osdDraw(t) {
-            const x = ox, W = 512, H = 214; x.clearRect(0, 0, W, H);
+            const x = ox, W = 512, H = 214; x.setTransform(2, 0, 0, 2, 0, 0); x.clearRect(0, 0, W, H);
             const T = (s, X, Y, al = 'left', sz = 15, col = '#fff') => { x.font = 'bold ' + sz + 'px Arial, sans-serif'; x.textAlign = al; x.lineWidth = 3.5; x.strokeStyle = 'rgba(0,0,0,0.65)'; x.strokeText(s, X, Y); x.fillStyle = col; x.fillText(s, X, Y); };
             x.fillStyle = 'rgba(0,0,0,0.28)'; x.fillRect(0, 0, W, 26);
             if (t % 1 < 0.6) { x.fillStyle = '#ff3b30'; x.beginPath(); x.arc(16, 13, 6, 0, TAU); x.fill(); }
@@ -10601,11 +10594,15 @@
             tag.dot.visible = 0.5 / upp < 14; tag.dot.position.copy(_p); tag.dot.scale.setScalar(11 * upp);
           }
           let rtK = 0; const _p = new THREE.Vector3(), _cc = new THREE.Color(), COARSE = matchMedia('(pointer: coarse)').matches;
+          function renderFrame() {
+            stickPose(fSticks); renderer.getClearColor(_cc); const ca = renderer.getClearAlpha(), auto = renderer.shadowMap.autoUpdate; renderer.shadowMap.autoUpdate = false; renderer.setClearColor(0x000000, 0);
+            renderer.setRenderTarget(frameRT); renderer.render(fScene, fCam); renderer.setRenderTarget(null); renderer.setClearColor(_cc, ca); renderer.shadowMap.autoUpdate = auto; frameDirty = false;
+          }
           function render() {
             placeHeld(); tagUpdate(); if (!bub.visible) return;
-            const e = engObj; e.head.getWorldPosition(_p); const top = FH * 0.81 + 0.32;
-            bub.position.set(_p.x, _p.y + 0.42 + top, _p.z); bub.quaternion.copy(camera.quaternion);
-            dots.forEach((d, i) => d.position.set(0.05 + i * 0.04, -FH * 0.81 - 0.12 - i * 0.17, 0));
+            const e = engObj; e.head.getWorldPosition(_p);
+            bub.position.set(_p.x, _p.y + 0.42 + FH * 0.5 + 0.25, _p.z); bub.quaternion.copy(camera.quaternion);
+            if (frameDirty && frameRC) renderFrame();
             _v.copy(bub.position).project(camera); if (Math.abs(_v.x) > 1.2 || Math.abs(_v.y) > 1.2 || _v.z > 1) return;
             _w.copy(bub.position); _w.y += SH * 0.5; _w.project(camera); if (Math.abs(_w.y - _v.y) * 0.5 * renderer.domElement.height < 50) return;
             if ((rtK++ % (COARSE ? 5 : 3))) return;
@@ -10613,8 +10610,7 @@
             const auto = renderer.shadowMap.autoUpdate, lgv = labelGroup.visible; renderer.shadowMap.autoUpdate = false; bub.visible = false; g.visible = false; rc.visible = false;
             labelGroup.visible = false;
             renderer.setRenderTarget(rt); renderer.render(scene, fpv); renderer.setRenderTarget(null);
-            if (frameRC) { stickPose(fSticks); renderer.getClearColor(_cc); const ca = renderer.getClearAlpha(); renderer.setClearColor(0x000000, 0);
-              renderer.setRenderTarget(frameRT); renderer.render(fScene, fCam); renderer.setRenderTarget(null); renderer.setClearColor(_cc, ca); }
+            if (frameRC) renderFrame();
             renderer.shadowMap.autoUpdate = auto; labelGroup.visible = lgv; bub.visible = true; g.visible = true; rc.visible = true;
           }
           park();
