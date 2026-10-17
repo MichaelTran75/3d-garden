@@ -1,7 +1,9 @@
         // ===== DRONE ĐỒ CHƠI CỦA KỸ SƯ (G 17/10) — drone + tay cầm là MẪU GLB "DJI Mini 3 Drone with Remote Controller" (Marco Workspace, CC-BY-4.0;
         //  G 17/10 "lấy 100% ra sử dụng, ko phải vẽ lại"): src/models/dji-mini3.glb — đã tách phần (thân drone · 4 cánh quạt quanh đúng trục mô-tơ ·
-        //  thân tay cầm · 2 cần · ô màn hình), giảm lưới 433k → 56k tam giác, lượng tử hoá + nén meshopt, ảnh JPEG (27 MB → 1 MB), tải sau khi cảnh chạy.
-        //  Đơn vị m: drone mũi +z, gốc ở đáy càng (càng mở sẵn — mẫu không gập được); tay cầm: mặt +Y, phía màn +Z, phía cần −Z, PHẢI người cầm = −X, gốc giữa mặt ở đáy lưng =====
+        //  thân tay cầm · 2 cần · ô màn hình), giảm lưới giữ ảnh vân + pháp tuyến 433k → 96k tam giác (tay cầm 40k, 2 cần nguyên lưới gốc), lượng tử hoá +
+        //  nén meshopt, ảnh JPEG (27 MB → 1,4 MB), tải sau khi cảnh chạy.
+        //  Đơn vị m: drone mũi +z, gốc ở đáy càng (càng mở sẵn — mẫu không gập được); tay cầm (DJI RC: 2 CẦN Ở TRÊN, MÀN Ở DƯỚI — ảnh trên màn gốc chỉ
+        //  đứng thẳng theo chiều này): mặt +Y, phía cần −Z (xa người cầm), phía màn +Z (gần người), PHẢI người cầm = +X, gốc giữa mặt ở đáy lưng =====
         //  Nghiên cứu cách điều khiển (tay cầm Mode 2 — mặc định phổ biến): cần TRÁI = ga (đẩy lên: lên cao) + xoay đầu (yaw); cần PHẢI = tới / lui
         //  (pitch) + nghiêng trái / phải (roll). Quy trình: đặt drone trên nền phẳng, bật drone (đèn nháy) rồi tay cầm, chờ định vị vệ tinh + ghi ĐIỂM NHÀ;
         //  khởi động mô-tơ bằng gạt 2 cần chụm xuống-vào (CSC) → cánh quạt quay không tải; đẩy ga: cất cánh treo ~1,2 m rồi bay. Khi bay: drone NGHIÊNG
@@ -27,9 +29,11 @@
           const sticks = [new THREE.Object3D(), new THREE.Object3D()];   // 2 cần của mẫu thay vào khi nạp xong
           const rt = new THREE.WebGLRenderTarget(768, 320, { depthBuffer: true }); rt.texture.name = 'Ảnh camera drone';
           const phoneM = new THREE.MeshBasicMaterial({ map: rt.texture, color: 0x000000, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 });
-          let SCR = { w: 0.1248, h: 0.0521 }, rcSrc = null;
+          let SCR = { w: 0.1248, h: 0.0521 }, rcSrc = null, rcScr = null;
+          let RoomEnv = null;
           import('https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js').then(async ({ GLTFLoader }) => {
             const { MeshoptDecoder } = await import('https://esm.sh/three@0.160.0/examples/jsm/libs/meshopt_decoder.module.js');
+            RoomEnv = (await import('https://esm.sh/three@0.160.0/examples/jsm/environments/RoomEnvironment.js')).RoomEnvironment;
             attach((await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(DRONE_GLB)).scene);
           }).catch(err => console.warn('Drone GLB:', err));
           function attach(src) {
@@ -44,7 +48,7 @@
             });
             const cam = dn.getObjectByName('Camera'); gim.position.set(cam.position.x, cam.position.y + dn.position.y, cam.position.z);
             rc.add(rn); sticks[0] = rn.getObjectByName('StickL'); sticks[1] = rn.getObjectByName('StickR');
-            const sn = rn.getObjectByName('Screen'); SCR = { w: sn.userData.w, h: sn.userData.h };
+            const sn = rn.getObjectByName('Screen'); SCR = { w: sn.userData.w, h: sn.userData.h }; rcScr = sn;
             const live = new THREE.Mesh(new THREE.PlaneGeometry(SCR.w, SCR.h), phoneM); live.name = 'ScreenLive'; live.rotation.x = -Math.PI / 2; live.position.copy(sn.position); live.position.y += 0.0004; rn.add(live);
             rcSrc = rn; buildFrame(); if (D.st === 'idle') park();
           }
@@ -55,14 +59,15 @@
           const bub = new THREE.Group(); bub.name = 'Khung tay cầm drone (trên đầu kỹ sư)'; bub.visible = false; scene.add(bub);
           const osdC = document.createElement('canvas'); osdC.width = 1024; osdC.height = 428; const ox = osdC.getContext('2d'), osdT = new THREE.CanvasTexture(osdC); osdT.colorSpace = THREE.SRGBColorSpace;
           const FRW = 1024, FRH = 678, frameRT = new THREE.WebGLRenderTarget(FRW, FRH, { samples: matchMedia('(pointer: coarse)').matches ? 2 : 4 }), fScene = new THREE.Scene(), fCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.01, 3);
-          fScene.add(new THREE.HemisphereLight(0xffffff, 0x8a96a3, 2.4)); { const l = new THREE.DirectionalLight(0xffffff, 1.5); l.position.set(0.4, 1, 0.8); fScene.add(l); }
+          fScene.add(new THREE.HemisphereLight(0xffffff, 0x8a96a3, 1.2)); { const l = new THREE.DirectionalLight(0xffffff, 1.2); l.position.set(0.4, 1, 0.8); fScene.add(l); }   // + ảnh môi trường phòng studio (buildFrame) ⇒ nhựa trắng sạch, cần / nút ánh kim nhẹ như ảnh sản phẩm
           const mk = (map, ro) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map, transparent: true, depthWrite: false, depthTest: false })); m.renderOrder = ro; bub.add(m); return m; };
           const frame = mk(frameRT.texture, 990.5), scr = mk(rt.texture, 991), osd = mk(osdT, 992);
           frame.visible = false;
           let SW = 0.7, SH = 0.3, FW = 1, FH = 0.66, frameRC = null, fSticks = null, fOff = [0, 0], frameDirty = true;
           const fAsp = FRW / FRH; frame.material.premultipliedAlpha = true;   // ảnh vẽ trên nền trong suốt: mép khử răng cưa đã nhân alpha
-          function buildFrame() {   // bản sao tay cầm nhìn đúng như người cầm (phải = −X, phía màn +Z lên trên, mặt +Y về camera); đo ô màn trong khung
-            frameRC = rcSrc.clone(true); frameRC.rotation.set(Math.PI / 2, Math.PI, 0); fScene.add(frameRC); frameRC.getObjectByName('ScreenLive').visible = false;
+          function buildFrame() {   // bản sao tay cầm nhìn đúng như người cầm (phải = +X, phía cần −Z lên trên, màn ở dưới, mặt +Y về camera); đo ô màn trong khung
+            frameRC = rcSrc.clone(true); frameRC.rotation.set(Math.PI / 2, 0, 0); fScene.add(frameRC); frameRC.getObjectByName('ScreenLive').visible = false;
+            if (RoomEnv) { const pm = new THREE.PMREMGenerator(renderer), room = new RoomEnv(); fScene.environment = pm.fromScene(room, 0.04).texture; pm.dispose(); room.dispose?.(); }   // chỉ cảnh khung, cảnh chính giữ nguyên
             fSticks = [frameRC.getObjectByName('StickL'), frameRC.getObjectByName('StickR')];
             frameRC.updateMatrixWorld(true); const bb = new THREE.Box3().setFromObject(frameRC, true), c = bb.getCenter(new THREE.Vector3());
             let fw = (bb.max.x - bb.min.x) * 1.04, fh = (bb.max.y - bb.min.y) * 1.04; if (fw / fh > fAsp) fh = fw / fAsp; else fw = fh * fAsp;
@@ -80,7 +85,7 @@
             spin: 0, fold: 0, bat: 100, rec: 0, orbit: null, tilt: new THREE.Vector2(), stick: [0, 0, 0, 0], frame: 0, held: null, heldE: null, lookDown: 0, rcSpot: new THREE.Vector3(), standT: new THREE.Vector3(), reachP: new THREE.Vector3(), tableMid: new THREE.Vector3() };
           const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _q = new THREE.Quaternion(), _q2 = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
           // chỗ trên MẶT bàn trà theo toạ độ của bàn (x dọc bàn, z ngang; ghế cắm trại phía +z, đầu tây): drone mẫu GLB càng mở (~0,42 × 0,44 m) chiếm nửa ĐÔNG,
-          // mũi dọc bàn; tay cầm nằm ngửa ở góc tây mép −z (phía màn quay ra xa người đứng lấy); ca nấu, chảo, gói khoai tây ở nửa tây gần ghế. Kỹ sư đi tới
+          // mũi dọc bàn; tay cầm nằm ngửa ở góc tây mép −z (phía cần quay ra xa người đứng lấy, màn ở gần); ca nấu, chảo, gói khoai tây ở nửa tây gần ghế. Kỹ sư đi tới
           // (0; −W/2 − 0,55) phía −z (vòng né bàn không cho lại gần hơn) rồi tableReach() bước sát (0; −W/2 − 0,32) + gập eo. Bản cũ lấy đỉnh hộp bao cả nhóm bàn
           // (gồm ca nấu, làn hơi) ⇒ drone lơ lửng; góc "đầu bàn" theo hộp bao trục thế giới (bàn xoay 27°) rơi ra ngoài mép (G 17/10 "đặt drone lên bàn correctly")
           const tableLay = () => { const t = scene.getObjectByName('Bàn trà (Camp Table)'); t.updateMatrixWorld(true); const top = t.userData.top ?? 0.45, W = (t.userData.size || [0.66, 0.48])[1];
@@ -92,7 +97,7 @@
           function park() {   // trên mặt bàn trà: drone nửa đông (mũi dọc bàn), tay cầm ngửa góc tây — đáy lưới thật chạm mặt bàn
             const T = tableLay(); layOut(T); D.held = null;
             scene.add(g); g.position.copy(T.dr); g.rotation.set(0, T.yaw + Math.PI / 2, 0); core.rotation.set(0, 0, 0); setFold(0); spinTo(0, 1); restOn(g, T.dr.y);
-            scene.add(rc); rc.position.copy(T.rc); rc.rotation.set(0, T.yaw, 0); restOn(rc, T.rc.y); bub.visible = false; phoneM.color.setScalar(0);
+            scene.add(rc); rc.position.copy(T.rc); rc.rotation.set(0, T.yaw + Math.PI, 0); restOn(rc, T.rc.y);   // cần quay ra xa người đứng lấy, màn gần bub.visible = false; phoneM.color.setScalar(0);
           }
           function setFold(f) { D.fold = f; }   // mẫu GLB càng mở cố định (không gập) — giữ nhịp gập / mở của lịch cho tay kỹ sư
           function spinTo(w, dt) { D.spin += (w - D.spin) * Math.min(1, dt * 2.5); }
@@ -171,21 +176,21 @@
           }
           function rcPose(e) {   // tay cầm trước ngực (hệ eo), 2 tay nắm 2 tay cầm, cần nghiêng theo lệnh
             const sp = e.spine; sp.updateWorldMatrix(true, false);
-            rc.position.copy(sp.localToWorld(_v.set(0, 0.36, 0.44))); rc.quaternion.copy(sp.getWorldQuaternion(_q)); rc.rotateX(-0.75 - 0.35 * D.lookDown);   // mặt tay cầm ngửa về phía mắt
+            rc.position.copy(sp.localToWorld(_v.set(0, 0.36, 0.44))); rc.quaternion.copy(sp.getWorldQuaternion(_q)); rc.rotateY(Math.PI); rc.rotateX(0.75 + 0.35 * D.lookDown);   // cần ra xa, màn gần người; mặt ngửa về phía mắt
             stickPose(sticks);
             rc.updateMatrixWorld(true);
-            const R = e.reachT || (e.reachT = [null, null]);   // cổ tay ôm 2 đầu tay cầm, ngang hàng 2 cần (người cầm: phải = −X)
-            R[0] = rc.localToWorld(new THREE.Vector3(-0.088, 0.03, -0.03)); R[1] = rc.localToWorld(new THREE.Vector3(0.088, 0.03, -0.03));
+            const R = e.reachT || (e.reachT = [null, null]);   // cổ tay ôm 2 đầu tay cầm ở nửa gần người, ngón cái vươn tới 2 cần (người cầm: phải = +X)
+            R[0] = rc.localToWorld(new THREE.Vector3(0.104, 0.02, 0.03)); R[1] = rc.localToWorld(new THREE.Vector3(-0.104, 0.02, 0.03));   // bàn tay to (kiểu LEGO): nắm hẳn ra ngoài 2 đầu cho khỏi che màn
           }
-          // cần mẫu: StickR nằm bên TRÁI người cầm (+X) = ga (đẩy về phía màn) + xoay đầu; StickL bên phải = tới / lui + nghiêng ngang
-          function stickPose(st) { st[1].rotation.set(0.45 * D.stick[1], 0, -0.45 * D.stick[0]); st[0].rotation.set(0.45 * D.stick[3], 0, -0.45 * D.stick[2]); }
+          // cần mẫu (Mode 2): StickL bên TRÁI người cầm (−X) = ga (đẩy ra xa = −Z) + xoay đầu; StickR bên phải = tới / lui + nghiêng ngang
+          function stickPose(st) { st[0].rotation.set(-0.45 * D.stick[1], 0, 0.45 * D.stick[0]); st[1].rotation.set(-0.45 * D.stick[3], 0, 0.45 * D.stick[2]); }
           // xách: chỉ GHI LẠI ở đây — cổ tay lúc update() còn ở dáng đầu khung (tay đung đưa, IK chạy sau) ⇒ đặt vật theo cổ tay ở placeHeld(), đầu render() (dáng cuối khung)
           function hold(e, which) { D.held = Object.assign(D.held || {}, which); D.heldE = e; }
           function placeHeld() {   // xách lúc đi: drone tay trái dựng đứng (bụng quay vào đùi, mũi tới trước — càng mở không chạm chân), tay cầm tay phải nắm đầu phải, buông dọc thân
             const which = D.held, e = D.heldE; if (!which) return;
             const yaw = e.g.rotation.y; e.wrists[1].updateWorldMatrix(true, false); e.wrists[0].updateWorldMatrix(true, false);
             if (which.drone) { e.wrists[1].getWorldPosition(g.position); g.position.add(_v.set(-0.039 * S, -0.05, 0).applyAxisAngle(UP, yaw)); g.rotation.set(0, yaw, -Math.PI / 2); core.rotation.set(0, 0, 0); }
-            if (which.rc) { e.wrists[0].getWorldPosition(rc.position); rc.position.add(_v.set(-0.03 * S, -0.04 - 0.088 * S, 0.03 * S).applyAxisAngle(UP, yaw)); rc.rotation.set(0, yaw, -Math.PI / 2); }
+            if (which.rc) { e.wrists[0].getWorldPosition(rc.position); rc.position.add(_v.set(0.03 * S, -0.04 - 0.088 * S, 0).applyAxisAngle(UP, yaw)); rc.rotation.set(0, yaw, Math.PI / 2); }   // nắm đầu phải (+X) ở trên, mặt quay ra ngoài
           }
           function tableReach(e, dt, k) {   // vai cao hơn mặt bàn ~0,73 m mà tay dài 0,57 m ⇒ bước sát bàn (vòng né bàn giữ người cách tâm bàn ~0,85 m) rồi gập eo (e.lean lớn → lớp tư thế gập ở eo)
             const p = e.g.position, dx = D.reachP.x - p.x, dz = D.reachP.z - p.z, d = Math.hypot(dx, dz);
@@ -307,9 +312,11 @@
             const e = engObj; e.head.getWorldPosition(_p);
             bub.position.set(_p.x, _p.y + 0.42 + FH * 0.5 + 0.25, _p.z); bub.quaternion.copy(camera.quaternion);   // đáy khung cách đỉnh mũ ~0,25
             if (frameDirty && frameRC) renderFrame();   // khung luôn có ảnh kể cả khi còn nhỏ trên màn hình (bản có mây: khung trống tới khi màn đủ 50 px)
-            _v.copy(bub.position).project(camera); if (Math.abs(_v.x) > 1.2 || Math.abs(_v.y) > 1.2 || _v.z > 1) return;
-            // ảnh camera tốn ~8 ms / lần (vẽ lại cả cảnh) ⇒ 1/3 khung (máy cảm ứng 1/5), màn trong khung < 50 px trên màn hình thì giữ ảnh cũ
-            _w.copy(bub.position); _w.y += SH * 0.5; _w.project(camera); if (Math.abs(_w.y - _v.y) * 0.5 * renderer.domElement.height < 50) return;
+            // ảnh camera tốn ~8 ms / lần (vẽ lại cả cảnh) ⇒ 1/3 khung (máy cảm ứng 1/5), và chỉ khi 1 trong 2 màn (khung trên đầu · tay cầm trong tay)
+            // nằm trong khung nhìn và cao ≥ 40 px — không thì giữ ảnh cũ (bản trước chỉ xét khung ⇒ zoom thẳng vào tay kỹ sư thì màn tay cầm đứng hình / đen)
+            const upp = (camera.right - camera.left) / camera.zoom / Math.max(1, W());
+            const seen = (p, px) => { _v.copy(p).project(camera); return px >= 40 && Math.abs(_v.x) < 1.1 && Math.abs(_v.y) < 1.1 && _v.z < 1; };
+            if (!seen(bub.position, SH / upp) && !(rcScr && seen(rcScr.getWorldPosition(_w), SCR.h * S / upp))) return;
             if ((rtK++ % (COARSE ? 5 : 3))) return;
             g.updateMatrixWorld(true);
             const auto = renderer.shadowMap.autoUpdate, lgv = labelGroup.visible; renderer.shadowMap.autoUpdate = false; bub.visible = false; g.visible = false; rc.visible = false;   // ẩn cả tay cầm: màn tay cầm đọc chính ảnh đang vẽ (vòng lặp khung)
@@ -319,5 +326,5 @@
             renderer.shadowMap.autoUpdate = auto; labelGroup.visible = lgv; bub.visible = true; g.visible = true; rc.visible = true;
           }
           park();
-          return { update, abort, render, park, state: D, g, rc, bub, rt, osdC };
+          return { update, abort, render, park, state: D, g, rc, bub, rt, osdC, frame: { rt: frameRT, scene: fScene, cam: fCam, draw: () => renderFrame() } };
         })();

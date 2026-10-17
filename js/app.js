@@ -10350,9 +10350,11 @@
           const sticks = [new THREE.Object3D(), new THREE.Object3D()];
           const rt = new THREE.WebGLRenderTarget(768, 320, { depthBuffer: true }); rt.texture.name = 'Ảnh camera drone';
           const phoneM = new THREE.MeshBasicMaterial({ map: rt.texture, color: 0x000000, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 });
-          let SCR = { w: 0.1248, h: 0.0521 }, rcSrc = null;
+          let SCR = { w: 0.1248, h: 0.0521 }, rcSrc = null, rcScr = null;
+          let RoomEnv = null;
           import('https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js').then(async ({ GLTFLoader }) => {
             const { MeshoptDecoder } = await import('https://esm.sh/three@0.160.0/examples/jsm/libs/meshopt_decoder.module.js');
+            RoomEnv = (await import('https://esm.sh/three@0.160.0/examples/jsm/environments/RoomEnvironment.js')).RoomEnvironment;
             attach((await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(DRONE_GLB)).scene);
           }).catch(err => console.warn('Drone GLB:', err));
           function attach(src) {
@@ -10366,21 +10368,22 @@
             });
             const cam = dn.getObjectByName('Camera'); gim.position.set(cam.position.x, cam.position.y + dn.position.y, cam.position.z);
             rc.add(rn); sticks[0] = rn.getObjectByName('StickL'); sticks[1] = rn.getObjectByName('StickR');
-            const sn = rn.getObjectByName('Screen'); SCR = { w: sn.userData.w, h: sn.userData.h };
+            const sn = rn.getObjectByName('Screen'); SCR = { w: sn.userData.w, h: sn.userData.h }; rcScr = sn;
             const live = new THREE.Mesh(new THREE.PlaneGeometry(SCR.w, SCR.h), phoneM); live.name = 'ScreenLive'; live.rotation.x = -Math.PI / 2; live.position.copy(sn.position); live.position.y += 0.0004; rn.add(live);
             rcSrc = rn; buildFrame(); if (D.st === 'idle') park();
           }
           const bub = new THREE.Group(); bub.name = 'Khung tay cầm drone (trên đầu kỹ sư)'; bub.visible = false; scene.add(bub);
           const osdC = document.createElement('canvas'); osdC.width = 1024; osdC.height = 428; const ox = osdC.getContext('2d'), osdT = new THREE.CanvasTexture(osdC); osdT.colorSpace = THREE.SRGBColorSpace;
           const FRW = 1024, FRH = 678, frameRT = new THREE.WebGLRenderTarget(FRW, FRH, { samples: matchMedia('(pointer: coarse)').matches ? 2 : 4 }), fScene = new THREE.Scene(), fCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.01, 3);
-          fScene.add(new THREE.HemisphereLight(0xffffff, 0x8a96a3, 2.4)); { const l = new THREE.DirectionalLight(0xffffff, 1.5); l.position.set(0.4, 1, 0.8); fScene.add(l); }
+          fScene.add(new THREE.HemisphereLight(0xffffff, 0x8a96a3, 1.2)); { const l = new THREE.DirectionalLight(0xffffff, 1.2); l.position.set(0.4, 1, 0.8); fScene.add(l); }
           const mk = (map, ro) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map, transparent: true, depthWrite: false, depthTest: false })); m.renderOrder = ro; bub.add(m); return m; };
           const frame = mk(frameRT.texture, 990.5), scr = mk(rt.texture, 991), osd = mk(osdT, 992);
           frame.visible = false;
           let SW = 0.7, SH = 0.3, FW = 1, FH = 0.66, frameRC = null, fSticks = null, fOff = [0, 0], frameDirty = true;
           const fAsp = FRW / FRH; frame.material.premultipliedAlpha = true;
           function buildFrame() {
-            frameRC = rcSrc.clone(true); frameRC.rotation.set(Math.PI / 2, Math.PI, 0); fScene.add(frameRC); frameRC.getObjectByName('ScreenLive').visible = false;
+            frameRC = rcSrc.clone(true); frameRC.rotation.set(Math.PI / 2, 0, 0); fScene.add(frameRC); frameRC.getObjectByName('ScreenLive').visible = false;
+            if (RoomEnv) { const pm = new THREE.PMREMGenerator(renderer), room = new RoomEnv(); fScene.environment = pm.fromScene(room, 0.04).texture; pm.dispose(); room.dispose?.(); }
             fSticks = [frameRC.getObjectByName('StickL'), frameRC.getObjectByName('StickR')];
             frameRC.updateMatrixWorld(true); const bb = new THREE.Box3().setFromObject(frameRC, true), c = bb.getCenter(new THREE.Vector3());
             let fw = (bb.max.x - bb.min.x) * 1.04, fh = (bb.max.y - bb.min.y) * 1.04; if (fw / fh > fAsp) fh = fw / fAsp; else fw = fh * fAsp;
@@ -10405,7 +10408,7 @@
           function park() {
             const T = tableLay(); layOut(T); D.held = null;
             scene.add(g); g.position.copy(T.dr); g.rotation.set(0, T.yaw + Math.PI / 2, 0); core.rotation.set(0, 0, 0); setFold(0); spinTo(0, 1); restOn(g, T.dr.y);
-            scene.add(rc); rc.position.copy(T.rc); rc.rotation.set(0, T.yaw, 0); restOn(rc, T.rc.y); bub.visible = false; phoneM.color.setScalar(0);
+            scene.add(rc); rc.position.copy(T.rc); rc.rotation.set(0, T.yaw + Math.PI, 0); restOn(rc, T.rc.y);
           }
           function setFold(f) { D.fold = f; }
           function spinTo(w, dt) { D.spin += (w - D.spin) * Math.min(1, dt * 2.5); }
@@ -10475,19 +10478,19 @@
           }
           function rcPose(e) {
             const sp = e.spine; sp.updateWorldMatrix(true, false);
-            rc.position.copy(sp.localToWorld(_v.set(0, 0.36, 0.44))); rc.quaternion.copy(sp.getWorldQuaternion(_q)); rc.rotateX(-0.75 - 0.35 * D.lookDown);
+            rc.position.copy(sp.localToWorld(_v.set(0, 0.36, 0.44))); rc.quaternion.copy(sp.getWorldQuaternion(_q)); rc.rotateY(Math.PI); rc.rotateX(0.75 + 0.35 * D.lookDown);
             stickPose(sticks);
             rc.updateMatrixWorld(true);
             const R = e.reachT || (e.reachT = [null, null]);
-            R[0] = rc.localToWorld(new THREE.Vector3(-0.088, 0.03, -0.03)); R[1] = rc.localToWorld(new THREE.Vector3(0.088, 0.03, -0.03));
+            R[0] = rc.localToWorld(new THREE.Vector3(0.104, 0.02, 0.03)); R[1] = rc.localToWorld(new THREE.Vector3(-0.104, 0.02, 0.03));
           }
-          function stickPose(st) { st[1].rotation.set(0.45 * D.stick[1], 0, -0.45 * D.stick[0]); st[0].rotation.set(0.45 * D.stick[3], 0, -0.45 * D.stick[2]); }
+          function stickPose(st) { st[0].rotation.set(-0.45 * D.stick[1], 0, 0.45 * D.stick[0]); st[1].rotation.set(-0.45 * D.stick[3], 0, 0.45 * D.stick[2]); }
           function hold(e, which) { D.held = Object.assign(D.held || {}, which); D.heldE = e; }
           function placeHeld() {
             const which = D.held, e = D.heldE; if (!which) return;
             const yaw = e.g.rotation.y; e.wrists[1].updateWorldMatrix(true, false); e.wrists[0].updateWorldMatrix(true, false);
             if (which.drone) { e.wrists[1].getWorldPosition(g.position); g.position.add(_v.set(-0.039 * S, -0.05, 0).applyAxisAngle(UP, yaw)); g.rotation.set(0, yaw, -Math.PI / 2); core.rotation.set(0, 0, 0); }
-            if (which.rc) { e.wrists[0].getWorldPosition(rc.position); rc.position.add(_v.set(-0.03 * S, -0.04 - 0.088 * S, 0.03 * S).applyAxisAngle(UP, yaw)); rc.rotation.set(0, yaw, -Math.PI / 2); }
+            if (which.rc) { e.wrists[0].getWorldPosition(rc.position); rc.position.add(_v.set(0.03 * S, -0.04 - 0.088 * S, 0).applyAxisAngle(UP, yaw)); rc.rotation.set(0, yaw, Math.PI / 2); }
           }
           function tableReach(e, dt, k) {
             const p = e.g.position, dx = D.reachP.x - p.x, dz = D.reachP.z - p.z, d = Math.hypot(dx, dz);
@@ -10603,8 +10606,9 @@
             const e = engObj; e.head.getWorldPosition(_p);
             bub.position.set(_p.x, _p.y + 0.42 + FH * 0.5 + 0.25, _p.z); bub.quaternion.copy(camera.quaternion);
             if (frameDirty && frameRC) renderFrame();
-            _v.copy(bub.position).project(camera); if (Math.abs(_v.x) > 1.2 || Math.abs(_v.y) > 1.2 || _v.z > 1) return;
-            _w.copy(bub.position); _w.y += SH * 0.5; _w.project(camera); if (Math.abs(_w.y - _v.y) * 0.5 * renderer.domElement.height < 50) return;
+            const upp = (camera.right - camera.left) / camera.zoom / Math.max(1, W());
+            const seen = (p, px) => { _v.copy(p).project(camera); return px >= 40 && Math.abs(_v.x) < 1.1 && Math.abs(_v.y) < 1.1 && _v.z < 1; };
+            if (!seen(bub.position, SH / upp) && !(rcScr && seen(rcScr.getWorldPosition(_w), SCR.h * S / upp))) return;
             if ((rtK++ % (COARSE ? 5 : 3))) return;
             g.updateMatrixWorld(true);
             const auto = renderer.shadowMap.autoUpdate, lgv = labelGroup.visible; renderer.shadowMap.autoUpdate = false; bub.visible = false; g.visible = false; rc.visible = false;
@@ -10614,7 +10618,7 @@
             renderer.shadowMap.autoUpdate = auto; labelGroup.visible = lgv; bub.visible = true; g.visible = true; rc.visible = true;
           }
           park();
-          return { update, abort, render, park, state: D, g, rc, bub, rt, osdC };
+          return { update, abort, render, park, state: D, g, rc, bub, rt, osdC, frame: { rt: frameRT, scene: fScene, cam: fCam, draw: () => renderFrame() } };
         })();
         const _mrA = new THREE.Vector3(), _mrB = new THREE.Vector3(), _mrC = new THREE.Vector3(), _mrD = new THREE.Vector3(), _mrE = new THREE.Vector3(), _mrF = new THREE.Vector3();
         const _mrM = new THREE.Matrix4(), _mrQ = new THREE.Quaternion(), _mrQ2 = new THREE.Quaternion(), _mrUp = new THREE.Vector3(0, 1, 0);
