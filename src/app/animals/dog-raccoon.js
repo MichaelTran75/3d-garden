@@ -15,7 +15,9 @@
           const skull = bx(0.2 * s, 0.19 * s, 0.2 * s, fur, true, true, lineDark); head.add(skull);
           const snout = bx(0.13 * s, 0.1 * s, 0.12 * s, furL, true, true, lineDark); snout.position.set(0.15 * s, -0.04 * s, 0); head.add(snout);
           const nose = bx(0.04 * s, 0.04 * s, 0.05 * s, black, false, false); nose.position.set(0.22 * s, -0.02 * s, 0); head.add(nose);
-          for (const sz of [-1, 1]) { const eye = bx(0.015 * s, 0.03 * s, 0.03 * s, black, false, false); eye.position.set(0.1 * s, 0.03 * s, sz * 0.055 * s); head.add(eye); }
+          const eyes = [];   // mắt: scale.y = độ mở (chớp, nhắm khi ngủ — animals/dog-brain.js)
+          for (const sz of [-1, 1]) { const eye = bx(0.015 * s, 0.03 * s, 0.03 * s, black, false, false); eye.position.set(0.1 * s, 0.03 * s, sz * 0.055 * s); head.add(eye); eyes.push(eye); }
+          const tongue = bx(0.06 * s, 0.012 * s, 0.045 * s, new THREE.MeshLambertMaterial({ color: 0xd9788a }), false, false); tongue.position.set(0.2 * s, -0.085 * s, 0); tongue.visible = false; head.add(tongue);   // lưỡi: liếm mép
           const ears = [];
           for (const sz of [-1, 1]) { const ep = new THREE.Group(); ep.position.set(-0.02 * s, 0.09 * s, sz * 0.1 * s); head.add(ep); const ear = bx(0.07 * s, 0.14 * s, 0.035 * s, dark, true, false); ear.position.y = -0.06 * s; ep.add(ear); ears.push(ep); }
           const legs = [];   // thứ tự: trước-trái, trước-phải, sau-trái, sau-phải (trái = +z)
@@ -29,7 +31,7 @@
             legs.push({ hip, knee, paw: pawG, front: fx > 0, side: sz });
           }
           const tail = bx(0.18 * s, 0.06 * s, 0.06 * s, dark, true, false); tail.position.set(-0.3 * s, 0.08 * s, 0); tail.visible = false; torso.add(tail);   // giữ "lệnh vẫy" (rotation.y) cho đuôi mềm đọc
-          g.userData = { torso, neck, head, ears, legs, tail, body: chest, s, L1: 0.12 * s, L2: 0.1225 * s, H0: 0.32 * s };
+          g.userData = { torso, neck, head, ears, eyes, tongue, legs, tail, body: chest, s, L1: 0.12 * s, L2: 0.1225 * s, H0: 0.32 * s };
           return g;
         }
         const dogObj = dogModel(1.1); dogObj.scale.multiplyScalar(CAMP_SCALE * 1.1); dogObj.name = 'Chó (Dog)';

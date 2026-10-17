@@ -31,7 +31,7 @@
           bowl.position.copy(bowlP); scene.add(bowl);
           let drinkF = null;   // bảng DP tới chỗ uống (dựng lần đầu chó đi uống)
           // ---- trạng thái thân + chân ----
-          const P = { h: spr(0.12 * s), pitch: spr(0), hp: spr(0.1), hy: spr(0), fold: spr(1), sit: spr(0), bow: spr(0), roll: spr(0), ear: spr(0), wag: spr(0) };
+          const P = { h: spr(0.12 * s), pitch: spr(0), hp: spr(0.1), hy: spr(0), fold: spr(1), sit: spr(0), bow: spr(0), roll: spr(0), ear: spr(0), wag: spr(0), tilt: spr(0), eye: spr(1), wagB: spr(0) };
           let v = 0, gait = 'walk', ground = (x, z) => cowY(x, z), turnRate = 0, prevYaw = 0;
           const GAITS = {   // độ lệch pha 4 chân [trước-T, trước-P, sau-T, sau-P] · tỉ lệ chạm đất · sải (đv thế giới) · biên độ nhấc chân
             walk: { off: [0.25, 0.75, 0, 0.5], duty: 0.65, stride: 0.42, lift: 0.05 },
@@ -101,15 +101,74 @@
             if (v > 0.06 && gait === 'walk') hp += 0.05 * c2;
             hp -= P.pitch.x * 0.85;   // giữ đầu gần thẳng khi thân chúc/ngóc
             damp(P.hp, hp, 7, dt); damp(P.hy, hy + (B.sniff ? 0.25 * Math.sin(t * 5.3) : 0), 6, dt);
-            U.neck.rotation.set(0, P.hy.x * 0.6, P.hp.x * 0.7); U.head.rotation.set(0, P.hy.x * 0.4, P.hp.x * 0.3);
-            // tai cụp: lò xo theo nhịp nảy + gió khi chạy (bay ra sau)
-            damp(P.ear, -bob / s * 6 - Math.min(0.7, v * 0.22), 14, dt);
-            U.ears.forEach((ep, i) => { const sd = i ? 1 : -1; ep.rotation.set(sd * (0.12 + 0.12 * B.shake * Math.sin(t * 28)), 0, P.ear.x); });
+            damp(P.tilt, B.tilt || 0, 7, dt);   // nghiêng đầu (quanh trục mõm)
+            U.neck.rotation.set(0, P.hy.x * 0.6, P.hp.x * 0.7); U.head.rotation.set(P.tilt.x, P.hy.x * 0.4, P.hp.x * 0.3);
+            // tai cụp: lò xo theo nhịp nảy + gió khi chạy (bay ra sau); chú ý thì gốc tai nhích ra trước (B.earT > 0), xoa dịu thì cụp ra sau + dạt 2 bên; giật 1 tai khi đang ngủ
+            damp(P.ear, -bob / s * 6 - Math.min(0.7, v * 0.22) + (B.earT || 0), 14, dt);
+            U.ears.forEach((ep, i) => { const sd = i ? 1 : -1; ep.rotation.set(sd * (0.12 + 0.12 * B.shake * Math.sin(t * 28) + Math.max(0, -(B.earT || 0)) * 0.5), 0, P.ear.x + (!i && B.earF ? 0.45 * Math.sin(t * 31) : 0)); });
             // giũ lông: thân xoắn quanh trục dọc ~4,5 lần/giây, đầu theo trước
-            if (B.shake > 0) { U.torso.rotation.x = 0.35 * B.shake * Math.sin(t * 28); U.head.rotation.x = 0.6 * B.shake * Math.sin(t * 28 + 0.6); } else U.torso.rotation.x = 0;
-            // đuôi: lệnh vẫy cho đuôi mềm XPBD
-            damp(P.wag, B.wagAmp, 4, dt); U.tail.rotation.y = P.wag.x * Math.sin(t * B.wagF * 6.2832);
+            if (B.shake > 0) { U.torso.rotation.x = 0.35 * B.shake * Math.sin(t * 28); U.head.rotation.x = P.tilt.x + 0.6 * B.shake * Math.sin(t * 28 + 0.6); } else U.torso.rotation.x = 0;
+            // đuôi: lệnh vẫy cho đuôi mềm XPBD (+ lệch sang phải thân khi vui với người quen: B.wagB < 0)
+            damp(P.wag, B.wagAmp, 4, dt); damp(P.wagB, B.wagB || 0, 3, dt); U.tail.rotation.y = P.wag.x * Math.sin(t * B.wagF * 6.2832) + P.wagB.x;
+            // mắt: chớp 2,5–6,5 s một lần, nhắm khi lim dim / ngủ (trừ lúc hé mắt nhìn người xem) · lưỡi liếm mép (DW.lick)
+            if ((DW.blink -= dt) < 0) DW.blink = 2.5 + Math.random() * 4;
+            damp(P.eye, B.dozing && !B.wake ? 0.12 : DW.blink < 0.14 ? 0.15 : 1, 30, dt); U.eyes[0].scale.y = U.eyes[1].scale.y = Math.max(0.1, P.eye.x);
+            const lk = DW.lick; U.tongue.visible = lk > 0; if (lk > 0) { const u = Math.sin(Math.PI * (1 - lk / 0.45)); U.tongue.position.x = (0.2 + 0.035 * u) * s; U.tongue.rotation.z = 0.9 * u; }
             U.body.scale.y = B.mode === 'lie' && B.doze ? 1 + 0.04 * Math.sin(t * 1.6) : 1;   // thở chậm khi lim dim
+          }
+          // ---- NGƯỜI XEM ZOOM CẬN CHÓ (G 17/10 "khi close up vào chú chó, research dog behaviour so what it should react then improve") ----
+          //  Nghiên cứu: chó nhận ra người đang CHÚ Ý tới mình (hướng mặt, ánh nhìn — Call et al. 2003; Gácsi et al. 2004) và cử động mặt nhiều hơn khi
+          //  được nhìn (Kaminski et al. 2017). Với người quen đang nhìn: khựng lại, DỰNG TAI quay đầu nhìn (phản xạ định hướng) → NGHIÊNG ĐẦU (hay gặp khi
+          //  chó tập trung vào kích thích có nghĩa — Sommese et al. 2022) → đuôi vẫy LỆCH SANG PHẢI thân (cảm xúc tích cực — Quaranta et al. 2007) →
+          //  ngồi nhìn chờ, CÚI CHÀO mời chơi (chó chỉ cúi chào khi bạn chơi đang nhìn mình — Horowitz 2009) hoặc bước lại gần. Bị nhìn chằm chằm lâu:
+          //  DẤU HIỆU XOA DỊU — nhìn tránh đi, liếm mép, cụp tai (Firnkes et al. 2017), rồi lại nhìn mềm (nhìn nhau với chủ ⇒ oxytocin — Nagasawa
+          //  et al. 2015). Đang ngủ: giật 1 tai, hé mắt ngóc đầu nhìn rồi ngủ tiếp (14 s một lần). Đang chạy vòng / uống / đậu đống củi / dậy: chỉ liếc.
+          //  "Cận" = chó dài ≥ 120 px trên màn hình và đầu trong 60% giữa khung ≥ 0,5 s; rời khung > 1,2 s thì thôi ----
+          const DW = { seen: 0, off: 9, ep: null, blink: 3, lick: 0 }, _vw = new THREE.Vector3(), _wl = new THREE.Vector3(), _vu = new THREE.Vector3(0, 1, 0);
+          let dogLen = 0;
+          function watchSeen() {
+            if (!dogLen) { const b = new THREE.Box3().setFromObject(dogObj).getSize(_vw); dogLen = Math.max(b.x, b.z); }
+            if (!dogObj.visible || dogLen / ((camera.right - camera.left) / camera.zoom / W()) < 120) return false;
+            U.head.getWorldPosition(_vw).project(camera); return Math.abs(_vw.x) < 0.6 && Math.abs(_vw.y) < 0.6;
+          }
+          function viewerPt(away, out) {   // điểm "người xem" cho chó nhìn: từ đầu chó ngược hướng nhìn của máy ảnh (trực giao); away: lệch ngang (rad) để nhìn tránh
+            U.head.getWorldPosition(out); camera.getWorldDirection(_vw).negate(); if (away) _vw.applyAxisAngle(_vu, away); return out.addScaledVector(_vw, 3);
+          }
+          function watchTick(dt, t) {
+            B.tilt = 0; B.earT = 0; B.wagB = 0; B.earF = 0; B.wake = false; DW.lick = Math.max(0, DW.lick - dt);
+            if (watchSeen()) { DW.seen += dt; DW.off = 0; } else if ((DW.off += dt) > 1.2) { DW.seen = 0; DW.ep = null; }
+            const D = dogRain, inBed = D.st === 'in';
+            if (D.st && !inBed) { if (DW.ep) DW.ep.kind = 'none'; }   // đang vào / ra xe tránh mưa, tối: không đối đáp
+            else if (!DW.ep && DW.seen > 0.5) DW.ep = { kind: inBed || B.st === 'lie' ? (B.dozing ? 'peek' : 'lie') : B.st === 'zoom' || B.st === 'perch' || B.st === 'drink' || B.st === 'getup' || (B.st === 'follow' && B.patAt) ? 'glance' : 'stand',
+              k: 0, side: Math.random() < 0.5 ? 1 : -1, act: null, A: dogObj.position.clone(), lk: -1 };
+            const E = DW.ep; if (!E || E.kind === 'none') return;
+            E.k += dt; const k = E.k;
+            if (E.kind === 'glance') { if (k < 1.4 && !B.air) { B.look = viewerPt(0, _wl); B.earT = 0.3; } return; }
+            if (E.kind === 'peek') {   // đang ngủ: giật tai → hé mắt → ngóc đầu nhìn → gục xuống ngủ tiếp
+              const c = k % 14; B.earF = c < 0.4 ? 1 : 0; B.wake = c > 0.35 && c < 3.6;
+              if (c > 0.6 && c < 3.3) { B.headP = -0.12; B.look = viewerPt(0, _wl); B.wagAmp = 0.12; B.wagF = 1.2; dogZzzGroup.visible = false; }
+              return;
+            }
+            // xoa dịu khi bị nhìn lâu (> 9 s): mỗi 7 s nhìn tránh 2,2 s + liếm mép + cụp tai, rồi lại nhìn mềm
+            const ap = DW.seen > 9 ? (DW.seen - 9) % 7 : 9, away = ap < 2.2 ? E.side * 0.9 : 0, cyc = DW.seen > 9 ? Math.floor((DW.seen - 9) / 7) : -1;
+            if (ap > 0.35 && ap < 2.2 && E.lk !== cyc) { E.lk = cyc; DW.lick = 0.45; }
+            const tiltNow = (k > 0.7 && k < 2.2) ? E.side * (k < 1.45 ? 0.34 : -0.34) : (k % 4.5 > 3.6 && ap >= 2.2 ? E.side * 0.3 : 0);   // nghiêng đầu dò xét (trái rồi phải), về sau thỉnh thoảng nghiêng lại
+            B.look = viewerPt(away, _wl); B.earT = ap < 2.2 ? -0.3 : 0.3; B.tilt = tiltNow;
+            if (E.kind === 'lie') { B.headP = null; B.wake = true; B.wagAmp = ap < 2.2 ? 0.1 : 0.3; B.wagF = 1.8; B.wagB = -0.1; return; }   // nằm: ngẩng nhìn (còn bị nhìn thì không lim dim), đuôi đập đất
+            // đứng: khựng lại 0,7 s (đuôi gần như ngừng), dò xét 1,5 s, rồi ngồi chờ / cúi chào mời chơi / bước lại gần
+            B.sniff = 0; B.headP = null; B.want = 0; B.shake = Math.max(0, B.shake - dt * 1.2);   // việc chính đang tạm dừng: tự tắt giũ lông
+            camera.getWorldDirection(_vw); const vy = yawOf(-_vw.x, -_vw.z);
+            if (k < 0.7) { B.mode = 'stand'; B.wagAmp = 0.04; B.wagF = 1; }
+            else if (k < 2.2) { B.mode = 'stand'; B.wagAmp = 0.3; B.wagF = 2.2; }
+            else {
+              if (!E.act) E.act = Math.random() < 0.55 ? 'sit' : Math.random() < 0.55 ? 'bow' : 'come';
+              if (E.act === 'come') {   // bước lại gần người xem ~0,9 m rồi ngồi
+                B.mode = 'stand'; B.wagAmp = 0.45; B.wagF = 2.6; B.wagB = -0.12;
+                if (steer(E.A.x - _vw.x * 0.9, E.A.z - _vw.z * 0.9, 0.6, dt, null, 0.12) || k > 6) E.act = 'sit';
+              } else if (E.act === 'bow' && (E.bk = (E.bk || 0) + dt) < 1.5) { B.mode = 'bow'; B.wagAmp = 0.6; B.wagF = 3.4; B.wagB = -0.12; B.earT = 0.35; }   // cúi chào: ngực sát đất, mông cao, đuôi vẫy nhanh
+              else { E.act = 'sit'; B.mode = 'sit'; B.wagAmp = ap < 2.2 ? 0.12 : 0.45; B.wagF = 2.6; B.wagB = ap < 2.2 ? 0 : -0.12; }
+            }
+            if (E.act !== 'come') { let dy = vy - dogObj.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); if (Math.abs(dy) > 0.7) dogTurn(vy, dt * 2.5); }   // người xem ở sau lưng: xoay cả thân
           }
           // ---- HÀNH VI ----
           const restP = dogLie.clone();
@@ -247,21 +306,21 @@
               let dy = yawOf(dogInside.x - dogBed.x, dogInside.z - dogBed.z) - dogObj.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); dogObj.rotation.y += dy * Math.min(1, dt * 2);
             }
             const sleeping = D.st === 'in' && night;
-            B.doze = sleeping; B.headP = sleeping ? -0.5 : D.st === 'in' ? 0.05 : null; B.wagAmp = sleeping ? 0.25 : 0.2; B.wagF = sleeping ? 0 : 3;
+            B.doze = sleeping; B.dozing = sleeping; B.headP = sleeping ? -0.5 : D.st === 'in' ? 0.05 : null; B.wagAmp = sleeping ? 0.25 : 0.2; B.wagF = sleeping ? 0 : 3;
             dogZzzGroup.visible = sleeping;
             if (sleeping) { U.head.getWorldPosition(_dogHead); for (const z of dogZzz) { const k = (t * 0.32 + z.ph) % 1; z.m.position.set(_dogHead.x + Math.sin(t * 1.7 + z.ph * 6) * 0.07, _dogHead.y + 0.12 + k * 1.3, _dogHead.z); z.m.material.opacity = 0.9 * Math.min(1, (1 - k) * 2.6); z.m.scale.setScalar(0.15 + k * 0.28); } }
             if (B.want > 0 && v < 0.9 && gait !== 'walk') gait = 'walk';
             return true;
           }
           function behave(dt, t) {
-            const E = eng(), p = dogObj.position; B.k += dt; B.t -= dt; B.look = null; B.headP = null; B.sniff = 0; B.shake = Math.max(0, B.shake - dt * 1.2);
+            const E = eng(), p = dogObj.position; B.k += dt; B.t -= dt; B.look = null; B.headP = null; B.sniff = 0; B.dozing = false; B.shake = Math.max(0, B.shake - dt * 1.2);
             const petting = engObj && (engObj.phase === 'toDog' || engObj.phase === 'pet');
             switch (B.st) {
               case 'lie': {   // nằm sưởi cạnh bếp lửa: lúc ngẩng nhìn quanh / nhìn chủ, lúc gục mõm lim dim
                 B.mode = 'lie'; B.want = 0;
                 if ((B.doze -= dt) < -14 - Math.random() * 10) B.doze = 8 + Math.random() * 14;
                 const near = E && E.g.position.distanceTo(p) < 5;
-                if (B.doze > 0 && !near && !petting) { B.headP = -0.45; B.wagAmp = 0.03; B.wagF = 1; }
+                if (B.doze > 0 && !near && !petting) { B.headP = -0.45; B.wagAmp = 0.03; B.wagF = 1; B.dozing = true; }
                 else { if (E) B.look = _hp.copy(E.g.position).setY(E.g.position.y + 1.2); B.wagAmp = engPetting ? 0.6 : near ? 0.3 : 0.08; B.wagF = engPetting ? 2.8 : near ? 2 : 1.5; }
                 if (petting) B.t = Math.max(B.t, 6);
                 if (B.t <= 0) setSt('getup');
@@ -376,7 +435,8 @@
             update(dt, t) {
               dt = Math.min(dt, 0.05);
               if (!dogBlk && COL.ready && COL_M.dog) dogNavBuild();
-              if (!shelterTick(dt, t)) behave(dt, t);
+              if (!shelterTick(dt, t) && !(DW.ep && DW.ep.kind === 'stand')) behave(dt, t);   // đang "đối đáp" với người xem (đứng): tạm dừng việc đang làm
+              watchTick(dt, t);
               // lưới an toàn: đứng 1 chỗ (< 0,4 m / 3 s) mà thân xoay > 5,5 rad ⇒ đang kẹt giữa vật (khe lọt lưới) — cho đi xuyên 1,5 s thoát ra
               { const y = dogObj.rotation.y, p = dogObj.position; let d = y - (B.spinY ?? y); d = Math.atan2(Math.sin(d), Math.cos(d)); B.spinY = y; B.spin = (B.spin || 0) * Math.exp(-dt / 3) + Math.abs(d);
                 if (!B.spinP || (B.spinT = (B.spinT || 0) + dt) > 3) { B.spinP = p.clone(); B.spinT = 0; }
@@ -390,7 +450,7 @@
             },
             pettable: () => !dogRain.st && B.st === 'lie' && dogObj.position.distanceTo(restP) < 0.8,
             perchSpot: () => dogPerchSpot(), zoomSpot: () => zoomCenter(),
-            state: B, rig, stairY
+            state: B, rig, stairY, watch: DW
           };
         })();
         const dogPettable = () => dogBrain.pettable();

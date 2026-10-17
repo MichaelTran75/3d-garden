@@ -409,6 +409,15 @@ lò xo) ⇒ lên bậc voxel 0,6 đv thì chân trước lên trước, thân ng
   1 − (1 − u)², cao u² + vồng 0,28 (chân sau qua ngưỡng rồi mới hạ). Thân ngóc khi bật (`B.slope`), chúc khi rơi; chân co (`rig.plant`) lúc bay.
   Đo (scratchpad `dogstair.js`: `dsTrace2`, `dsPhaseShots`): chân trụ lệch mặt bậc 0 mm, chân lúc bay không xuống dưới mặt bậc, bụng cách mép ≥ 10,6 cm.
   Trong lúc đi trú, lớp va chạm của chó TẮT (`!dogRain.st`) ⇒ lộ trình quanh bậc phải tự đúng hình học.
+- Chó khi người xem zoom cận (`watchTick` trong animals/dog-brain.js, G 17/10 "khi close up vào chú chó… dog behaviour"): "cận" = chó dài
+  ≥ 120 px trên màn hình (`dogLen / upp`) + đầu trong 60% giữa khung ≥ 0,5 s; rời khung > 1,2 s thì thôi (`DW` — `dogBrain.watch`). Theo trạng thái lúc
+  bắt đầu: `stand` (đánh hơi / về chỗ / theo chủ: TẠM DỪNG `behave` — khựng 0,7 s, dựng tai quay nhìn, nghiêng đầu 2 bên, rồi ngồi nhìn 55% / cúi chào
+  mời chơi / bước lại gần ~0,7 m rồi ngồi; người xem sau lưng thì xoay thân) · `lie` (ngẩng nhìn, đuôi đập đất, không lim dim) · `peek` (đang ngủ:
+  giật 1 tai, hé mắt ngóc đầu nhìn ~3 s rồi ngủ tiếp, 14 s/lần, ẩn Zzz) · `glance` (đang chạy vòng / uống / đống củi / dậy: liếc 1,4 s). Bị nhìn > 9 s:
+  mỗi 7 s nhìn tránh + liếm mép (lưỡi `U.tongue`) + cụp tai. Đuôi lệch phải (`B.wagB` < 0 = phải thân), nghiêng đầu `P.tilt` (head.rotation.x),
+  mắt chớp 2,5–6,5 s + nhắm khi `B.dozing` (scale.y `U.eyes`). Nguồn: Call 2003, Gácsi 2004, Kaminski 2017, Sommese 2022, Quaranta 2007,
+  Horowitz 2009, Firnkes 2017, Nagasawa 2015. Bẫy thử: máy ảnh bám theo hướng chó ⇒ chó quay mãi đuổi máy ảnh — giữ hướng máy ảnh cố định
+  (scratchpad `dogwatch.js`: dwView/dwRun/dwShots/dwAway).
 - Gấu mèo: thân 2 nửa `U.fore`/`U.aft` gập quanh giữa lưng khi phi nhảy (hông chân vẫn gắn `torso` ⇒ IK không đổi).
 - Đo được (trượt TB của bàn chân trụ, đv/khung ở 30 hình/giây): bò 0,0003–0,0007 · hươu 0,0003 · cò 0,0013 · gấu mèo ~0,003 (ngoặt gắt) ·
   kỹ sư ~0,003 (chưa tính lúc ngoặt). Thử: `slipTest`/`ikErr` (công cụ nháp) — đọc `rig.feet`, so điểm đế thật với `F.w`.
