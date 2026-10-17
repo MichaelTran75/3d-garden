@@ -7404,7 +7404,9 @@
 
         const studyDeskLighting = { light: null, bulb: null, on: null };
         const studyLaptop = { hinge: null, screen: null, light: null, open: 0, target: 0 };
-        const studyChairRig = { obj: null, home: 0, off: 0 };
+        const studyChairRig = { obj: null, home: 0, off: 0, sx: 0, sw: 0 };
+        const studyBoard = { g: null };
+        const LAP_K = 1.3;
         function updateStudyLamp() {
           const hh = liveWeather.localHour, on = hh >= 18.5 || hh < 6;
           if (!studyDeskLighting.light || on === studyDeskLighting.on) return;
@@ -7592,16 +7594,62 @@
           const DESK_K = 1.2; desk.scale.setScalar(DESK_K); desk.position.set(2.88 * (1 - DESK_K), yIn * (1 - DESK_K), -1.37 * (1 - DESK_K));
           const dX = 2.88 - (2.88 - deskX) * DESK_K, dZ = -1.37 + (deskZ + 1.37) * DESK_K, dH = deskHeight * DESK_K;
 
-          const studyChair = new THREE.Group(); studyChair.name = 'Ghế bàn học';
-          const chairX = dX - .02, chairZ = -.38;
-          studyBox(studyChair, 'Đệm ghế học', .43, .065, .43, chairX, yIn + .455, chairZ, caravanRoofM, true);
-          for (const sx of [-1, 1]) for (const sz of [-1, 1])
-            studyBox(studyChair, 'Chân ghế học', .035, .425, .035, chairX + sx * .17, yIn + .2125, chairZ + sz * .17, metalMat);
-          for (const sx of [-1, 1])
-            studyBox(studyChair, 'Trụ tựa ghế', .035, .37, .035, chairX + sx * .17, yIn + .635, chairZ + .195, metalMat);
-          studyBox(studyChair, 'Lưng ghế học', .43, .25, .045, chairX, yIn + .73, chairZ + .195, woodMat, true);
-          bakeStudyFurniture(studyChair); study.add(studyChair); studyChairRig.obj = studyChair; studyChairRig.home = studyChair.position.z;
+          const studyChair = new THREE.Group(); studyChair.name = 'Ghế bàn học'; studyChair.userData.noBatch = true;
+          const chairX = dX - .02, chairZ = -.38, SEAT_TOP = .4875;
+          {
+            const leather = new THREE.MeshLambertMaterial({ color: 0x6e4129 }), seam = new THREE.MeshLambertMaterial({ color: 0x3f2416 }), chrome = new THREE.MeshLambertMaterial({ color: 0xd4d8dc }), dark = new THREE.MeshLambertMaterial({ color: 0x35383b });
+            const base = new THREE.Group(); base.position.set(chairX, yIn, chairZ); studyChair.add(base);
+            const part = (geo, mat, p, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; p.add(m); return m; };
+            part(new THREE.CylinderGeometry(.045, .055, .06, 10), dark, base, 0, .09, 0);
+            for (let k = 0; k < 5; k++) {
+              const a = k / 5 * Math.PI * 2 + Math.PI / 10, arm = part(new THREE.BoxGeometry(.27, .028, .04), dark, base, Math.cos(a) * .15, .075, Math.sin(a) * .15);
+              arm.rotation.set(0, -a, -.1);
+              const cg = new THREE.Group(); cg.position.set(Math.cos(a) * .285, .05, Math.sin(a) * .285); base.add(cg);
+              part(new THREE.BoxGeometry(.03, .026, .03), dark, cg, -.01, 0, 0);
+              const wh = part(new THREE.CylinderGeometry(.023, .023, .03, 10), dark, cg, -.024, -.026, 0); wh.rotation.x = Math.PI / 2;
+            }
+            part(new THREE.CylinderGeometry(.035, .035, .14, 10), dark, base, 0, .18, 0);
+            part(new THREE.CylinderGeometry(.022, .022, .2, 10), chrome, base, 0, .33, 0);
+            const swivel = new THREE.Group(); swivel.position.set(chairX, yIn + SEAT_TOP, chairZ); studyChair.add(swivel);
+            part(new THREE.BoxGeometry(.2, .04, .22), dark, swivel, 0, -.105, .02);
+            studyBox(swivel, 'Đệm ghế học', .5, .085, .48, 0, -.0425, 0, leather, true);
+            studyBox(swivel, 'Đường may đệm', .502, .012, .01, 0, -.004, -.07, seam);
+            const backPivot = new THREE.Group(); backPivot.position.set(0, -.02, .23); backPivot.rotation.x = .12; backPivot.userData.noBake = true; swivel.add(backPivot);
+            studyBox(backPivot, 'Lưng ghế học', .48, .7, .075, 0, .4, .03, leather, true);
+            for (const y of [.3, .53]) studyBox(backPivot, 'Đường may lưng', .482, .01, .077, 0, y, .03, seam);
+            part(new THREE.BoxGeometry(.07, .26, .025), chrome, backPivot, 0, .07, .085);
+            for (const sx of [-1, 1]) {
+              const pts = [[-.17, -.03], [-.18, .1], [-.15, .2], [-.05, .225], [.08, .22], [.17, .17], [.19, .05], [.16, -.035], [.0, -.045]].map(([z, y]) => new THREE.Vector3(sx * .275, y, z));
+              const tube = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts, true), 48, .012, 6, true), chrome); tube.castShadow = true; tube.name = 'Tay vịn crôm'; swivel.add(tube);
+            }
+            bakeStudyFurniture(base); bakeStudyFurniture(swivel); bakeStudyFurniture(backPivot);
+            Object.assign(studyChairRig, { base, swivel, back: backPivot, arm: { x: .275, y: .22 } });
+          }
+          study.add(studyChair); studyChairRig.obj = studyChair; studyChairRig.home = studyChair.position.z;
 
+          {
+            const BW = .72, BH = .5, bd = new THREE.Group(); bd.name = 'Bảng ghim ghi chú'; bd.position.set(2.86 - .016, yIn + 1.32, -.82); bd.rotation.y = -Math.PI / 2;
+            const frameM = new THREE.MeshLambertMaterial({ color: 0x5b3a22 }), pinM = new THREE.MeshLambertMaterial({ color: 0xc4362b });
+            const cork = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'); x.fillStyle = '#b48c5c'; x.fillRect(0, 0, 64, 64);
+              for (let i = 0; i < 420; i++) { x.fillStyle = ['#9c7446', '#c9a272', '#a98050'][i % 3]; x.fillRect(Math.random() * 64, Math.random() * 64, 1 + Math.random() * 2, 1 + Math.random() * 2); }
+              const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(3, 2); return new THREE.MeshLambertMaterial({ map: t }); })();
+            const paperTex = (() => { const c = document.createElement('canvas'); c.width = 48; c.height = 64; const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, 48, 64);
+              x.strokeStyle = 'rgba(40,40,60,.55)'; x.lineWidth = 1.2; for (let l = 0; l < 7; l++) { x.beginPath(); let px = 6; x.moveTo(px, 9 + l * 7.5); while (px < 42 - (l % 3) * 6) { px += 3; x.lineTo(px, 9 + l * 7.5 + Math.sin(px * 1.7 + l) * 1.2); } x.stroke(); }
+              const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; })();
+            const paperM = col => new THREE.MeshLambertMaterial({ color: col, map: paperTex });
+            studyBox(bd, 'Mặt bần', BW - .04, BH - .04, .012, 0, 0, .006, cork);
+            for (const [w, h, x, y] of [[BW, .03, 0, BH / 2 - .015], [BW, .03, 0, -BH / 2 + .015], [.03, BH, -BW / 2 + .015, 0], [.03, BH, BW / 2 - .015, 0]]) studyBox(bd, 'Khung bảng', w, h, .03, x, y, .015, frameM);
+            const pin = (x, y, z) => { const p = new THREE.Mesh(new THREE.CylinderGeometry(.007, .009, .014, 8), pinM); p.rotation.x = Math.PI / 2; p.position.set(x, y, z + .007); bd.add(p); return p; };
+            for (const [x, y, w, h, r, c] of [[-.24, .1, .13, .16, .06, 0xece6d6], [-.07, .12, .12, .15, -.04, 0xf5f0e6], [.1, .09, .13, .17, .03, 0xe9e2d0], [-.2, -.12, .1, .1, -.08, 0xf2d46b], [.24, .1, .1, .1, .1, 0xf0b8c4], [.0, -.13, .14, .11, .05, 0xd6e6f2]]) {
+              const pp = new THREE.Mesh(new THREE.BoxGeometry(w, h, .002), paperM(c)); pp.position.set(x, y, .014); pp.rotation.z = r; bd.add(pp); pin(x + Math.sin(r) * h * .4, y + h * .4, .015);
+            }
+            const slots = [[.2, -.12], [.27, -.03], [.15, -.04], [.08, -.18]], notes = [];
+            for (let i = 0; i < 4; i++) { const n = new THREE.Mesh(new THREE.BoxGeometry(.075, .075, .002), paperM(0xf3d35e)); n.visible = false; n.userData.noBatch = true; bd.add(n); const pn = pin(0, 0, .015); pn.visible = false; pn.userData.noBatch = true; notes.push({ n, pn }); }
+            const held = new THREE.Mesh(new THREE.BoxGeometry(.075, .002, .075), paperM(0xf3d35e)); held.visible = false; held.userData.noBatch = true; study.add(held);
+            const pad = new THREE.Mesh(new THREE.BoxGeometry(.085, .014, .085), paperM(0xf3d35e)); pad.name = 'Tập giấy dán'; pad.position.set(dX + .33, yIn + dH + .008, dZ + .2); pad.rotation.y = -.25;
+            study.add(bd);
+            Object.assign(studyBoard, { g: bd, BW, BH, slots, notes, held, pad, padP: pad.position.clone(), next: 0 });
+          }
           const lamp = workLamp(study), lampHead = WORK_LAMP_HEAD;
           lamp.position.set(dX + .28 * DESK_K, yIn + dH + .001, dZ - .13 * DESK_K); lamp.rotation.y = -1.0;
           const bulbMat = new THREE.MeshStandardMaterial({ color: 0xE2D6C0, emissive: 0xffc46d, emissiveIntensity: 0, roughness: .65 });
@@ -7613,7 +7661,7 @@
           studyDeskLighting.light = studyLight; studyDeskLighting.bulb = bulbMat;
           const coke = sodaCan(); coke.scale.setScalar(1.155); coke.position.set(dX - .37 * DESK_K, yIn + dH + .001, dZ + .09 * DESK_K); coke.rotation.y = -.6; coke.name = 'Lon coke trên bàn học'; study.add(coke);
           {
-            const M = macbookPro(), lap = M.g; lap.name = 'Laptop'; lap.position.set(dX - .01, yIn + dH + .001, dZ + .1 * DESK_K); lap.scale.setScalar(1.11); study.add(lap);
+            const M = macbookPro(), lap = M.g; lap.name = 'Laptop'; lap.position.set(dX - .01, yIn + dH + .001, dZ + .076 * DESK_K); lap.scale.setScalar(1.11 * LAP_K); study.add(lap);
             const glow = new THREE.PointLight(0x9fc8ff, 0, 1.4 * CAMP_SCALE, 2); glow.position.set(0, .14, .02); lap.add(glow);
             lap.traverse(o => { o.userData.noBake = true; });
             Object.assign(studyLaptop, { hinge: M.hinge, screen: M.screenMat, keys: M.keyMat, light: glow, group: lap, canvas: M.canvas, ctx: M.ctx, tex: M.tex, mode: 'dash', drawnAt: -1 });
@@ -9387,9 +9435,11 @@
         const STUDY_PULL = 0.45, STUDY_FZ = 0.37;
         const STUDY_SEAT = makeSeat({ name: 'study', indoor: true, pos: new THREE.Vector3(), yaw: engStudyPts.yaw, seatZ: 0, standZ: STUDY_FZ * CAMP_SCALE, contactZ: 0.09,
           seatDrop: 0.56, legs: [-1.48, -1.44], knees: [0.98, 0.94], arm: null, ground: () => dogInside.y });
-        function studyChairAt(off) {
-          studyChairRig.off = off; if (studyChairRig.obj) studyChairRig.obj.position.z = studyChairRig.home + off;
-          STUDY_SEAT.pos.copy(vanPt(engStudyPts.cx, 1.07, engStudyPts.cz + off));
+        function studyChairAt(off, sx = studyChairRig.sx, sw = studyChairRig.sw) {
+          const R = studyChairRig; R.off = off; R.sx = sx; R.sw = sw;
+          if (R.obj) { R.obj.position.z = R.home + off; R.obj.position.x = sx; R.swivel.rotation.y = sw; }
+          STUDY_SEAT.pos.copy(vanPt(engStudyPts.cx + sx, 1.07, engStudyPts.cz + off));
+          const y = engStudyPts.yaw + sw, C = STUDY_SEAT; C.yaw = y; C.fx = Math.sin(y); C.fz = Math.cos(y); C.xx = Math.cos(y); C.xz = -Math.sin(y);
         }
         studyChairAt(0);
         const ENG_DAY = [[0, 'sleep'], [6, 'toilet'], [6.2, 'breakfast'], [6 + 40 / 60, 'outdoor'], [7.25, 'research'], [10.75, 'toilet'], [10 + 55 / 60, 'cook'], [11 + 25 / 60, 'lunch'],
@@ -9560,7 +9610,7 @@
         function lapPt(x, y, z, out) { return studyLaptop.group.localToWorld(out.set(x, MBP.HB + y, z)); }
         const LW_KB = -MBP.D / 2 + 0.122, LW_REST = MBP.D / 2 - 0.074, LW_PAD = MBP.D / 2 - 0.062;
         let lwClaw = null;
-        const LW_FAR = new Set(['think', 'rest', 'stretch']);
+        const LW_FAR = new Set(['think', 'rest', 'stretch', 'note']);
         function lapHandQ(e, i, dir, psi) {
           const f = e.foreW && e.foreW[i]; if (!f || f.lengthSq() < 0.5) return null;
           const y = _lwA.copy(f).negate(), z = _lwB.copy(dir).multiplyScalar(Math.cos(psi)); z.y -= Math.sin(psi); z.addScaledVector(y, -z.dot(y)).normalize();
@@ -9575,7 +9625,7 @@
           if (cyc < 6) return ['stretch', 5.5];
           const r = Math.random();
           if (L.st === 'think' || L.st === 'rest') return r < 0.6 ? ['type', 4 + Math.random() * 8] : ['read', 3 + Math.random() * 5];
-          return r < 0.4 ? ['type', 4 + Math.random() * 9] : r < 0.65 ? ['read', 3 + Math.random() * 6] : r < 0.86 ? ['point', 2 + Math.random() * 4] : r < 0.96 ? ['think', 3 + Math.random() * 4] : ['rest', 6 + Math.random() * 4];
+          return r < 0.36 ? ['type', 4 + Math.random() * 9] : r < 0.58 ? ['read', 3 + Math.random() * 6] : r < 0.78 ? ['point', 2 + Math.random() * 4] : r < 0.86 ? ['note', 9.4] : r < 0.96 ? ['think', 3 + Math.random() * 4] : ['rest', 6 + Math.random() * 4];
         }
         function lapPulse(x, a, b, r) {
           const u = Math.min(1, Math.max(0, (x - a) / r), Math.max(0, (b - x) / r)); return u * u * (3 - 2 * u);
@@ -9601,7 +9651,7 @@
             if (L.st === 'rest' || L.st === 'stretch') L.qOut = 1;
             else if (L.st !== 'read') { const bd = L.st === 'think' ? 0.95 : 0.45; L.st = 'read'; L.t = 0; L.dur = 99; lapFrom(e, L, bd); }
           }
-          if ((!L.sip && L.st === 'read' && L.b >= L.bd) || now - L.leave > 10) { V.lw = null; return true; }
+          const C = studyChairRig; if ((!L.sip && L.st === 'read' && L.b >= L.bd && Math.abs(C.sx) < 0.01 && Math.abs(C.sw) < 0.02) || now - L.leave > 12) { V.lw = null; studyChairAt(C.off, 0, 0); return true; }
           return false;
         }
         function lapWork(e, V, dt, t, rt) {
@@ -9645,6 +9695,29 @@
             R[0] = sw < 1 ? ch.clone().lerp(F[0], 1 - sw) : ch.clone();
             hand(1, -0.13, LW_REST + 0.02, 0.002, 0.3);
             e.seatLean = -0.04; hp = -0.02; e.headYawT = 0.22 * Math.sin(V.ph * 7 + 1);
+          } else if (L.st === 'note') {
+            const T = L.t, Bd = studyBoard, C = studyChairRig, ph = T < 2.6 ? 0 : T < 4.4 ? 1 : T < 6.2 ? 2 : 3;
+            if (L.np !== ph) { L.np = ph; lapFrom(e, L, 0.7); if (!ph) L.slotI = Bd.next; }
+            const sl = Bd.slots[L.slotI % Bd.slots.length];
+            C.swivel.updateWorldMatrix(true, false); Bd.g.updateWorldMatrix(true, false);
+            const arm = (i, out) => C.swivel.localToWorld(out.set(i ? -C.arm.x : C.arm.x, C.arm.y + 0.03, -0.02));
+            if (T < 2.6) {
+              caravanObj.localToWorld(_lwR.copy(Bd.padP)); const lift = 0.035; hand(1, -0.11, LW_REST, 0.002, 0.3);
+              R[0] = _lwP[0].copy(_lwR).add(_lwIn.set(0.015 + 0.012 * Math.cos(t * 9), lift + 0.006 * Math.max(0, Math.sin(t * 18)), 0.01 * Math.sin(t * 9 + 1)));
+              hp = 0.5; L.hold = T > 2.2;
+            } else {
+              const pinAt = 5.2, pinned = Bd.notes[L.slotI % Bd.notes.length];
+              if (T < 4.4 || T >= 6.2) { arm(1, _lwP[1]); R[1] = _lwP[1]; R[0] = T < 4.4 ? C.swivel.localToWorld(_lwP[0].set(0.1, 0.36, -0.24)) : arm(0, _lwP[0]); }
+              else {
+                const press = T > pinAt - 0.35 && T < pinAt + 0.25 ? 0.015 * Math.sin(Math.PI * (T - pinAt + 0.35) / 0.6) : 0;
+                R[0] = Bd.g.localToWorld(_lwP[0].set(sl[0], sl[1], 0.095 - press)); arm(1, _lwP[1]); R[1] = _lwP[1];
+                if (T > pinAt && L.hold) { L.hold = false; pinned.n.position.set(sl[0], sl[1], 0.016); pinned.n.rotation.z = (Math.random() - 0.5) * 0.3; pinned.n.visible = true; pinned.pn.position.set(sl[0], sl[1] + 0.025, 0.022); pinned.pn.visible = true; Bd.next++; }
+              }
+              Bd.g.localToWorld(_lwM.set(T > 6.2 && T < 7.6 ? 0.25 * Math.sin((T - 6.2) * 2.2) : sl[0], 0, 0.05)); e.g.worldToLocal(_lwM);
+              e.headYawT = T < 7.6 ? Math.max(-0.9, Math.min(0.9, Math.atan2(_lwM.x, _lwM.z))) : 0; hp = T < 7.6 ? 0.05 : 0.2;
+            }
+            { const k2 = Math.min(1, L.b / L.bd), s2 = k2 * k2 * (3 - 2 * k2); if (s2 < 1) for (let i = 0; i < 2; i++) if (R[i]) R[i] = _lwP[i].copy(R[i]).lerp(F[i], 1 - s2); }
+            e.seatLean = 0.04;
           } else if (L.st === 'rest') {
             let q = Math.min(1, Math.sin(Math.PI * Math.min(1, L.t / L.dur)) * 1.6); const P = L.pole || (L.pole = [new THREE.Vector3(), new THREE.Vector3()]);
             if (L.leave) { L.qOut = Math.min(L.qOut, q) - dt; q = Math.max(0, L.qOut); if (q <= 0) { L.st = 'read'; L.t = 0; L.dur = 99; lapFrom(e, L, 0.45); } }
@@ -9668,6 +9741,14 @@
             e.seatLean = -0.12 * q; hp = 0.05 - 0.3 * q;
           }
           e.head.rotation.x = hp;
+          const C = studyChairRig, out = L.st === 'note' && !L.leave ? lapPulse(L.t, 2.6, 9.2, 1.6) : 0, fid = L.st === 'think' ? 0.07 * Math.sin(t * 0.55) : L.st === 'read' ? 0.03 * Math.sin(t * 0.3) : 0, kc = 1 - Math.exp(-dt * 4);
+          studyChairAt(C.off, C.sx + (0.17 * out - C.sx) * kc, C.sw + (-0.95 * out + fid - C.sw) * kc);
+          C.back.rotation.x += (0.12 + Math.max(0, -(e.seatLean || 0)) * 1.6 - C.back.rotation.x) * Math.min(1, dt * 3);
+        }
+        function lapHeldTick(e) {
+          const Bd = studyBoard, V = e.van, L = V && V.lw; if (!Bd.held) return;
+          const on = !!(L && L.st === 'note' && L.hold && e.act === 'research' && V.st === 'work'); Bd.held.visible = on; if (!on) return;
+          e.wrists[0].updateWorldMatrix(true, false); const p = e.wrists[0].localToWorld(_lwV.set(0, -0.06, 0.05)); Bd.held.parent.worldToLocal(p); Bd.held.position.copy(p);
         }
         const stDesk = { node: 'mid', tick(e, V, dt, t, keep) {
           const g = e.g, P = engStudyPts, C = STUDY_SEAT, off = studyChairRig.off;
@@ -10635,7 +10716,7 @@
             frame.userData.k = fw / SCR.w; frame.visible = true; sizeBubble();
           }
           function sizeBubble() {
-            const kL = studyLaptop.group ? studyLaptop.group.getWorldScale(new THREE.Vector3()).x : 1; SW = 4 * MBP.SW * kL; SH = SW * SCR.h / SCR.w;
+            const kL = studyLaptop.group ? studyLaptop.group.getWorldScale(new THREE.Vector3()).x / LAP_K : 1; SW = 4 * MBP.SW * kL;
             FW = frameRC ? SW * frame.userData.k : SW * 1.25; FH = FW / fAsp;
             scr.scale.set(SW, SH, 1); osd.scale.set(SW, SH, 1); frame.scale.set(FW, FH, 1); scr.position.set(fOff[0] * FW, fOff[1] * FH, 0); osd.position.copy(scr.position);
           }
@@ -16648,6 +16729,7 @@
             engReactArms(e, dt, t);
             engArmPost(e, dt);
             applePick.tick(e, dt);
+            lapHeldTick(e);
             if (e.act === 'sleep' && e.g.parent === caravanObj) engSleepPost(e);
             if (e.phase !== 'drone' && droneToy.state.st !== 'idle') droneToy.abort();
           }

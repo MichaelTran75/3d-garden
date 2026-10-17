@@ -8,9 +8,11 @@
         const STUDY_PULL = 0.45, STUDY_FZ = 0.37;
         const STUDY_SEAT = makeSeat({ name: 'study', indoor: true, pos: new THREE.Vector3(), yaw: engStudyPts.yaw, seatZ: 0, standZ: STUDY_FZ * CAMP_SCALE, contactZ: 0.09,
           seatDrop: 0.56, legs: [-1.48, -1.44], knees: [0.98, 0.94], arm: null, ground: () => dogInside.y });   // ghế thấp hơn ghế xếp: cẳng chân chếch ra trước dưới gầm bàn
-        function studyChairAt(off) {   // dời ghế bàn học dọc trục trước–sau của nó (đv xe) + cập nhật mô tả ghế cho bộ điều khiển ngồi
-          studyChairRig.off = off; if (studyChairRig.obj) studyChairRig.obj.position.z = studyChairRig.home + off;
-          STUDY_SEAT.pos.copy(vanPt(engStudyPts.cx, 1.07, engStudyPts.cz + off));
+        function studyChairAt(off, sx = studyChairRig.sx, sw = studyChairRig.sw) {   // ghế văn phòng: lăn dọc trục trước–sau (off) + ngang (sx) (đv xe), xoay mâm sw (rad)
+          const R = studyChairRig; R.off = off; R.sx = sx; R.sw = sw;                  // + cập nhật mô tả ghế (vị trí, hướng) cho bộ điều khiển ngồi: người xoay / lăn theo ghế
+          if (R.obj) { R.obj.position.z = R.home + off; R.obj.position.x = sx; R.swivel.rotation.y = sw; }
+          STUDY_SEAT.pos.copy(vanPt(engStudyPts.cx + sx, 1.07, engStudyPts.cz + off));
+          const y = engStudyPts.yaw + sw, C = STUDY_SEAT; C.yaw = y; C.fx = Math.sin(y); C.fz = Math.cos(y); C.xx = Math.cos(y); C.xz = -Math.sin(y);
         }
         studyChairAt(0);
         // ====== LỊCH SINH HOẠT CẢ NGÀY CỦA KỸ SƯ (theo giờ Pleiku thật) ======

@@ -377,6 +377,16 @@ lò xo) ⇒ lên bậc voxel 0,6 đv thì chân trước lên trước, thân ng
   (`lapHandQ` → `e.handQ`), nâng tâm tay bằng điểm thấp nhất của lưới tay (`lapClawLow`, 153 đỉnh) ⇒ móng vừa chạm mặt phím. Laptop dời ra cách mép
   bàn ~4 cm (bản cũ: vai cách hàng phím 0,62 m > tầm tay 0,57 m). Hết giờ / bấm "Chơi": `lapDone` (stDesk) uống nốt ngụm, hạ tay về kê cổ tay rồi
   mới nhích ghế. Đo (scratchpad `lapwork.js`: `lwGallery`, `lwRun`): sai lệch IK 0 cm, 10 phút tay ≤ 1,7 m/s, không NaN.
+- Ghế văn phòng + bảng ghim + ghi chú (G 17/10 "macbook 30% bigger, add wall board và office chair, research how office chair work…"): dựng bằng code
+  theo GLB "60's Office Props" (SeanNicolas, CC-BY-NC, chỉ đo). Ghế (van/caravan.js): chân sao 5 nhánh + bánh, ben hơi, mâm XOAY, lưng NGẢ (nhóm
+  `studyChairRig.base / swivel / back`, mỗi nhóm gộp lưới riêng); mặt đệm giữ cao 0,4875 đv. `studyChairAt(off, sx, sw)` (engineer/schedule.js) lăn
+  dọc (off) / ngang (sx) + xoay (sw) và CẬP NHẬT `STUDY_SEAT.pos / yaw / fx fz xx xz` ⇒ người xoay, lăn theo ghế. Lưng ngả theo `e.seatLean` < 0,
+  nghĩ / đọc thì xoay nhẹ qua lại. Bảng bần 0,72 × 0,5 đv treo vách phòng tắm (x 2,86 đv xe) giữa bàn và cửa lùa, mép dưới hơn mặt bàn 9 cm.
+  Việc nhỏ `note` (laptop-work.js, ~8%, 9,4 s): viết giấy dán bên phải laptop (tay phải) → xoay ghế −0,95 rad + lăn 0,17 đv (đầu gối không chạm
+  chân bàn / vách) → ghim (tay phải tới `studyBoard.slots`, ấn 1,5 cm, giấy hiện + đinh) → đọc lướt → lăn, xoay về; mỗi bước tay đi mượt 0,7 s từ
+  chỗ đang ở (bản đầu nhảy đích ⇒ tay 19 m/s). Laptop × `LAP_K` 1,3 (drone.js chia lại để khung tay cầm giữ cỡ). **Bẫy**: tập giấy tĩnh bị GỘP LƯỢT
+  VẼ ⇒ rời cây cảnh, `getWorldPosition` trả toạ độ xe — lưu `padP` (toạ độ xe) rồi `caravanObj.localToWorld`; ma trận nhóm ghế cũ khi chạy không vẽ
+  (noRender) ⇒ `updateWorldMatrix` trước khi đọc. Đo: IK 0 cm, tay ≤ 1,35 m/s, không NaN.
 - Nút "▶ Chơi" drone (G 17/10 "click to the drone/rc to select play then engineer will come and use drone"): bấm drone / tay cầm (khi nằm trên bàn)
   ⇒ bảng `#toolPop` (page.html, xử lý ở ui/xray-lifecycle.js — danh sách `TOOLS`, chung kiểu `.panel`); chặn kèm lý do: ngủ 21–6 h, mưa, gió > 9 m/s, đang bay, mẫu chưa
   tải. Bấm Chơi ⇒ `engForceAct = 'drone'` (engineer/schedule.js, `engWantAct` trả 'drone' trước lịch) ⇒ đổi việc như thường (đứng dậy, ra xe, tới bàn

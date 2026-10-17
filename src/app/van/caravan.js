@@ -1,6 +1,8 @@
         const studyDeskLighting = { light: null, bulb: null, on: null };
         const studyLaptop = { hinge: null, screen: null, light: null, open: 0, target: 0 };   // laptop bàn học: nắp mở/đóng + màn hình sáng khi kỹ sư làm việc
-        const studyChairRig = { obj: null, home: 0, off: 0 };   // ghế bàn học: kéo ra / đẩy vào dọc trục trước–sau (đv xe)
+        const studyChairRig = { obj: null, home: 0, off: 0, sx: 0, sw: 0 };   // ghế văn phòng bàn học: kéo ra / đẩy vào dọc trục trước–sau + trượt ngang (sx) + xoay mâm (sw) (đv xe)
+        const studyBoard = { g: null };   // bảng ghim ghi chú cạnh bàn học (G 17/10)
+        const LAP_K = 1.3;   // G 17/10 "macbook 30% bigger" (khung tay cầm drone giữ cỡ cũ: engineer/drone.js chia lại)
         function updateStudyLamp() {
           const hh = liveWeather.localHour, on = hh >= 18.5 || hh < 6;
           if (!studyDeskLighting.light || on === studyDeskLighting.on) return;
@@ -212,16 +214,71 @@
           const DESK_K = 1.2; desk.scale.setScalar(DESK_K); desk.position.set(2.88 * (1 - DESK_K), yIn * (1 - DESK_K), -1.37 * (1 - DESK_K));
           const dX = 2.88 - (2.88 - deskX) * DESK_K, dZ = -1.37 + (deskZ + 1.37) * DESK_K, dH = deskHeight * DESK_K;   // tâm + chiều cao mới
 
-          const studyChair = new THREE.Group(); studyChair.name = 'Ghế bàn học';
-          const chairX = dX - .02, chairZ = -.38;   // ghế theo bàn: vẫn cách mép bàn 17,5 cm
-          studyBox(studyChair, 'Đệm ghế học', .43, .065, .43, chairX, yIn + .455, chairZ, caravanRoofM, true);
-          for (const sx of [-1, 1]) for (const sz of [-1, 1])
-            studyBox(studyChair, 'Chân ghế học', .035, .425, .035, chairX + sx * .17, yIn + .2125, chairZ + sz * .17, metalMat);
-          for (const sx of [-1, 1])
-            studyBox(studyChair, 'Trụ tựa ghế', .035, .37, .035, chairX + sx * .17, yIn + .635, chairZ + .195, metalMat);
-          studyBox(studyChair, 'Lưng ghế học', .43, .25, .045, chairX, yIn + .73, chairZ + .195, woodMat, true);
-          bakeStudyFurniture(studyChair); study.add(studyChair); studyChairRig.obj = studyChair; studyChairRig.home = studyChair.position.z;
+          // ---- GHẾ VĂN PHÒNG (G 17/10 "add … office chair": dáng ghế giám đốc da nâu tay vịn ống crôm trong GLB "60's Office Props" — SeanNicolas,
+          //      CC-BY-NC, chỉ đo). Cơ cấu ghế văn phòng: chân sao 5 nhánh có bánh xe (5 nhánh mới không lật — BIFMA X5.1), trụ ben hơi nâng hạ, mâm XOAY
+          //      360°, cơ cấu NGẢ: lưng ngả theo người tựa ra sau (lò xo căng); tay vịn để chống khi ngồi xuống / đứng lên. Người ngồi ghế xoay thường
+          //      XOAY + LĂN tới đồ trong tầm 1 m thay vì đứng dậy, đổi tư thế vài phút một lần, xoay nhẹ khi nghĩ. Mặt đệm giữ cao độ ghế cũ (0,4875 đv)
+          //      cho bộ điều khiển ngồi. Nhóm: ghế (lăn: z kéo ra / đẩy vào, x trượt ngang) ⊃ chân sao + bánh (càng xoay theo hướng lăn) · mâm xoay ⊃ lưng ngả ----
+          const studyChair = new THREE.Group(); studyChair.name = 'Ghế bàn học'; studyChair.userData.noBatch = true;
+          const chairX = dX - .02, chairZ = -.38, SEAT_TOP = .4875;   // ghế theo bàn: mép đệm cách mép bàn ~15 cm
+          {
+            const leather = new THREE.MeshLambertMaterial({ color: 0x6e4129 }), seam = new THREE.MeshLambertMaterial({ color: 0x3f2416 }), chrome = new THREE.MeshLambertMaterial({ color: 0xd4d8dc }), dark = new THREE.MeshLambertMaterial({ color: 0x35383b });
+            const base = new THREE.Group(); base.position.set(chairX, yIn, chairZ); studyChair.add(base);
+            const part = (geo, mat, p, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; p.add(m); return m; };
+            part(new THREE.CylinderGeometry(.045, .055, .06, 10), dark, base, 0, .09, 0);
+            for (let k = 0; k < 5; k++) {   // 5 nhánh chân sao chúc xuống đầu bánh + bánh xe
+              const a = k / 5 * Math.PI * 2 + Math.PI / 10, arm = part(new THREE.BoxGeometry(.27, .028, .04), dark, base, Math.cos(a) * .15, .075, Math.sin(a) * .15);
+              arm.rotation.set(0, -a, -.1);
+              const cg = new THREE.Group(); cg.position.set(Math.cos(a) * .285, .05, Math.sin(a) * .285); base.add(cg);
+              part(new THREE.BoxGeometry(.03, .026, .03), dark, cg, -.01, 0, 0);
+              const wh = part(new THREE.CylinderGeometry(.023, .023, .03, 10), dark, cg, -.024, -.026, 0); wh.rotation.x = Math.PI / 2;
+            }
+            part(new THREE.CylinderGeometry(.035, .035, .14, 10), dark, base, 0, .18, 0);   // vỏ ben hơi
+            part(new THREE.CylinderGeometry(.022, .022, .2, 10), chrome, base, 0, .33, 0);  // cần ben (crôm)
+            const swivel = new THREE.Group(); swivel.position.set(chairX, yIn + SEAT_TOP, chairZ); studyChair.add(swivel);
+            part(new THREE.BoxGeometry(.2, .04, .22), dark, swivel, 0, -.105, .02);   // mâm cơ cấu ngả
+            studyBox(swivel, 'Đệm ghế học', .5, .085, .48, 0, -.0425, 0, leather, true);
+            studyBox(swivel, 'Đường may đệm', .502, .012, .01, 0, -.004, -.07, seam);
+            const backPivot = new THREE.Group(); backPivot.position.set(0, -.02, .23); backPivot.rotation.x = .12; backPivot.userData.noBake = true; swivel.add(backPivot);
+            studyBox(backPivot, 'Lưng ghế học', .48, .7, .075, 0, .4, .03, leather, true);
+            for (const y of [.3, .53]) studyBox(backPivot, 'Đường may lưng', .482, .01, .077, 0, y, .03, seam);
+            part(new THREE.BoxGeometry(.07, .26, .025), chrome, backPivot, 0, .07, .085);   // thanh đỡ lưng
+            for (const sx of [-1, 1]) {   // tay vịn: ống crôm uốn vòng, chân trước + chân sau bắt vào hông đệm
+              const pts = [[-.17, -.03], [-.18, .1], [-.15, .2], [-.05, .225], [.08, .22], [.17, .17], [.19, .05], [.16, -.035], [.0, -.045]].map(([z, y]) => new THREE.Vector3(sx * .275, y, z));
+              const tube = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts, true), 48, .012, 6, true), chrome); tube.castShadow = true; tube.name = 'Tay vịn crôm'; swivel.add(tube);
+            }
+            bakeStudyFurniture(base); bakeStudyFurniture(swivel); bakeStudyFurniture(backPivot);   // gộp lưới theo vật liệu (lưng ngả riêng)
+            Object.assign(studyChairRig, { base, swivel, back: backPivot, arm: { x: .275, y: .22 } });
+          }
+          study.add(studyChair); studyChairRig.obj = studyChair; studyChairRig.home = studyChair.position.z;
 
+          // ---- BẢNG GHIM (G 17/10 "add wall board", theo bảng bần trong "60's Office Props"): khung gỗ sẫm, mặt bần, giấy ghi + đinh ghim đỏ. Treo vách phòng
+          //      tắm bên phải bàn học (khoảng tường giữa bàn và cửa lùa), mép dưới cao hơn mặt bàn ~9 cm: ngồi ghế xoay sang + lăn tới là với tới
+          //      (engineer/laptop-work.js 'note'). Toạ độ bảng: +x dọc bảng (về phía cửa lùa), +y lên, +z ra khỏi vách ----
+          {
+            const BW = .72, BH = .5, bd = new THREE.Group(); bd.name = 'Bảng ghim ghi chú'; bd.position.set(2.86 - .016, yIn + 1.32, -.82); bd.rotation.y = -Math.PI / 2;
+            const frameM = new THREE.MeshLambertMaterial({ color: 0x5b3a22 }), pinM = new THREE.MeshLambertMaterial({ color: 0xc4362b });
+            const cork = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'); x.fillStyle = '#b48c5c'; x.fillRect(0, 0, 64, 64);
+              for (let i = 0; i < 420; i++) { x.fillStyle = ['#9c7446', '#c9a272', '#a98050'][i % 3]; x.fillRect(Math.random() * 64, Math.random() * 64, 1 + Math.random() * 2, 1 + Math.random() * 2); }
+              const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(3, 2); return new THREE.MeshLambertMaterial({ map: t }); })();
+            const paperTex = (() => { const c = document.createElement('canvas'); c.width = 48; c.height = 64; const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, 48, 64);
+              x.strokeStyle = 'rgba(40,40,60,.55)'; x.lineWidth = 1.2; for (let l = 0; l < 7; l++) { x.beginPath(); let px = 6; x.moveTo(px, 9 + l * 7.5); while (px < 42 - (l % 3) * 6) { px += 3; x.lineTo(px, 9 + l * 7.5 + Math.sin(px * 1.7 + l) * 1.2); } x.stroke(); }
+              const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; })();
+            const paperM = col => new THREE.MeshLambertMaterial({ color: col, map: paperTex });
+            studyBox(bd, 'Mặt bần', BW - .04, BH - .04, .012, 0, 0, .006, cork);
+            for (const [w, h, x, y] of [[BW, .03, 0, BH / 2 - .015], [BW, .03, 0, -BH / 2 + .015], [.03, BH, -BW / 2 + .015, 0], [.03, BH, BW / 2 - .015, 0]]) studyBox(bd, 'Khung bảng', w, h, .03, x, y, .015, frameM);
+            const pin = (x, y, z) => { const p = new THREE.Mesh(new THREE.CylinderGeometry(.007, .009, .014, 8), pinM); p.rotation.x = Math.PI / 2; p.position.set(x, y, z + .007); bd.add(p); return p; };
+            for (const [x, y, w, h, r, c] of [[-.24, .1, .13, .16, .06, 0xece6d6], [-.07, .12, .12, .15, -.04, 0xf5f0e6], [.1, .09, .13, .17, .03, 0xe9e2d0], [-.2, -.12, .1, .1, -.08, 0xf2d46b], [.24, .1, .1, .1, .1, 0xf0b8c4], [.0, -.13, .14, .11, .05, 0xd6e6f2]]) {
+              const pp = new THREE.Mesh(new THREE.BoxGeometry(w, h, .002), paperM(c)); pp.position.set(x, y, .014); pp.rotation.z = r; bd.add(pp); pin(x + Math.sin(r) * h * .4, y + h * .4, .015);
+            }
+            // giấy kỹ sư ghim thêm: 4 tờ dán (vàng) dùng xoay vòng · tờ trong tay · tập giấy dán trên bàn (phải laptop)
+            const slots = [[.2, -.12], [.27, -.03], [.15, -.04], [.08, -.18]], notes = [];
+            for (let i = 0; i < 4; i++) { const n = new THREE.Mesh(new THREE.BoxGeometry(.075, .075, .002), paperM(0xf3d35e)); n.visible = false; n.userData.noBatch = true; bd.add(n); const pn = pin(0, 0, .015); pn.visible = false; pn.userData.noBatch = true; notes.push({ n, pn }); }
+            const held = new THREE.Mesh(new THREE.BoxGeometry(.075, .002, .075), paperM(0xf3d35e)); held.visible = false; held.userData.noBatch = true; study.add(held);
+            const pad = new THREE.Mesh(new THREE.BoxGeometry(.085, .014, .085), paperM(0xf3d35e)); pad.name = 'Tập giấy dán'; pad.position.set(dX + .33, yIn + dH + .008, dZ + .2); pad.rotation.y = -.25;   // bên phải laptop: tay phải viết study.add(pad);
+            study.add(bd);
+            Object.assign(studyBoard, { g: bd, BW, BH, slots, notes, held, pad, padP: pad.position.clone(), next: 0 });   // padP: toạ độ xe (tập giấy tĩnh bị gộp lượt vẽ, rời cây cảnh)
+          }
           // Đèn bàn: đế gỗ ở góc sau-phải mặt bàn, tay đèn vươn chéo về phía cuốn sổ; mặt LED nằm trong lòng chụp.
           const lamp = workLamp(study), lampHead = WORK_LAMP_HEAD;
           lamp.position.set(dX + .28 * DESK_K, yIn + dH + .001, dZ - .13 * DESK_K); lamp.rotation.y = -1.0;
@@ -236,7 +293,7 @@
           const coke = sodaCan(); coke.scale.setScalar(1.155); coke.position.set(dX - .37 * DESK_K, yIn + dH + .001, dZ + .09 * DESK_K); coke.rotation.y = -.6; coke.name = 'Lon coke trên bàn học'; study.add(coke);   // lon to thêm 5% rồi thêm 10% (G 15/10), gốc ở tâm đáy nên vẫn đứng sát mặt bàn
           // Laptop giữa bàn, trước ghế: MacBook Pro 16" (macbookPro ở trên) — nắp gắn bản lề mép sau (gập phẳng khi rảnh, mở ~106° khi làm việc)
           {
-            const M = macbookPro(), lap = M.g; lap.name = 'Laptop'; lap.position.set(dX - .01, yIn + dH + .001, dZ + .1 * DESK_K); lap.scale.setScalar(1.11); study.add(lap);   // G 15/10 cho to thêm 20% ⇒ máy 16" thật × 1,11 vẫn rộng ~0,4 m như cũ; gốc ở đáy giữa · 17/10 kéo ra cách mép bàn ~4 cm cho tay kỹ sư với tới bàn phím
+            const M = macbookPro(), lap = M.g; lap.name = 'Laptop'; lap.position.set(dX - .01, yIn + dH + .001, dZ + .076 * DESK_K); lap.scale.setScalar(1.11 * LAP_K); study.add(lap);   // G 15/10 cho to thêm 20% ⇒ máy 16" thật × 1,11 vẫn rộng ~0,4 m như cũ; gốc ở đáy giữa · 17/10 kéo ra cách mép bàn ~3 cm cho tay kỹ sư với tới bàn phím, to thêm 30% (LAP_K)
             const glow = new THREE.PointLight(0x9fc8ff, 0, 1.4 * CAMP_SCALE, 2); glow.position.set(0, .14, .02); lap.add(glow);
             lap.traverse(o => { o.userData.noBake = true; });
             Object.assign(studyLaptop, { hinge: M.hinge, screen: M.screenMat, keys: M.keyMat, light: glow, group: lap, canvas: M.canvas, ctx: M.ctx, tex: M.tex, mode: 'dash', drawnAt: -1 });

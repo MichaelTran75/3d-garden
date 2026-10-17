@@ -76,7 +76,7 @@
             frame.userData.k = fw / SCR.w; frame.visible = true; sizeBubble();
           }
           function sizeBubble() {   // màn laptop thế giới: rộng MBP.SW × tỉ lệ laptop (bàn học × xe) ⇒ màn tay cầm = 4 × (bản có mây: 2 ×; G 17/10 khung to gấp đôi)
-            const kL = studyLaptop.group ? studyLaptop.group.getWorldScale(new THREE.Vector3()).x : 1; SW = 4 * MBP.SW * kL; SH = SW * SCR.h / SCR.w;
+            const kL = studyLaptop.group ? studyLaptop.group.getWorldScale(new THREE.Vector3()).x / LAP_K : 1; SW = 4 * MBP.SW * kL;   // laptop to thêm 30% (LAP_K) nhưng khung giữ cỡ cũ SH = SW * SCR.h / SCR.w;
             FW = frameRC ? SW * frame.userData.k : SW * 1.25; FH = FW / fAsp;
             scr.scale.set(SW, SH, 1); osd.scale.set(SW, SH, 1); frame.scale.set(FW, FH, 1); scr.position.set(fOff[0] * FW, fOff[1] * FH, 0); osd.position.copy(scr.position);
           }

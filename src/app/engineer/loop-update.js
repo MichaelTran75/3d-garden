@@ -237,6 +237,7 @@
             engReactArms(e, dt, t); // phản ứng: đích tay cử chỉ — sau khi đầu đã quay / cúi xong khung này
             engArmPost(e, dt);      // khuỷu tay + cổ tay (IK 2 đoạn giữ đúng chỗ bàn tay) · eo vặn theo nhịp bước
             applePick.tick(e, dt);  // sào, quả trong rổ / tay / giỏ theo bàn tay đã đặt xong · quả trên cây đung đưa
+            lapHeldTick(e);         // tờ giấy dán trong tay khi đi ghim lên bảng (engineer/laptop-work.js)
             if (e.act === 'sleep' && e.g.parent === caravanObj) engSleepPost(e);   // chăn phủ theo thân đã hiển thị (engineer/sleep.js)
             if (e.phase !== 'drone' && droneToy.state.st !== 'idle') droneToy.abort();   // đổi việc giữa chừng (mưa, giờ): cất drone về bàn
           }

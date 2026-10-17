@@ -14,7 +14,7 @@
         function lapPt(x, y, z, out) { return studyLaptop.group.localToWorld(out.set(x, MBP.HB + y, z)); }   // điểm trên mặt bàn phím (toạ độ MacBook)
         const LW_KB = -MBP.D / 2 + 0.122, LW_REST = MBP.D / 2 - 0.074, LW_PAD = MBP.D / 2 - 0.062;   // tâm bàn tay khi gõ (ngón trên hàng phím nhà) · kê cổ tay · tâm trackpad (z)
         let lwClaw = null;   // đỉnh lưới bàn tay chữ C (hệ cổ tay, đã nhân tỉ lệ người)
-        const LW_FAR = new Set(['think', 'rest', 'stretch']);   // việc nhỏ mà tay phải đi xa (lên cằm, sau gáy, vươn vai)
+        const LW_FAR = new Set(['think', 'rest', 'stretch', 'note']);   // việc nhỏ mà tay phải đi xa (lên cằm, sau gáy, vươn vai)
         function lapHandQ(e, i, dir, psi) {   // khung cổ tay i: dọc cẳng tay, xoay quanh cẳng tay cho miệng chữ C về dir, nghiêng xuống psi (rad) → e.handQ[i]
           const f = e.foreW && e.foreW[i]; if (!f || f.lengthSq() < 0.5) return null;
           const y = _lwA.copy(f).negate(), z = _lwB.copy(dir).multiplyScalar(Math.cos(psi)); z.y -= Math.sin(psi); z.addScaledVector(y, -z.dot(y)).normalize();
@@ -29,7 +29,7 @@
           if (cyc < 6) return ['stretch', 5.5];
           const r = Math.random();
           if (L.st === 'think' || L.st === 'rest') return r < 0.6 ? ['type', 4 + Math.random() * 8] : ['read', 3 + Math.random() * 5];
-          return r < 0.4 ? ['type', 4 + Math.random() * 9] : r < 0.65 ? ['read', 3 + Math.random() * 6] : r < 0.86 ? ['point', 2 + Math.random() * 4] : r < 0.96 ? ['think', 3 + Math.random() * 4] : ['rest', 6 + Math.random() * 4];
+          return r < 0.36 ? ['type', 4 + Math.random() * 9] : r < 0.58 ? ['read', 3 + Math.random() * 6] : r < 0.78 ? ['point', 2 + Math.random() * 4] : r < 0.86 ? ['note', 9.4] : r < 0.96 ? ['think', 3 + Math.random() * 4] : ['rest', 6 + Math.random() * 4];
         }
         function lapPulse(x, a, b, r) {   // 0 → 1 → 0 mượt: lên dần trong [a, a + r], xuống dần trong [b − r, b]
           const u = Math.min(1, Math.max(0, (x - a) / r), Math.max(0, (b - x) / r)); return u * u * (3 - 2 * u);
@@ -55,7 +55,7 @@
             if (L.st === 'rest' || L.st === 'stretch') L.qOut = 1;   // hạ tay theo đường cũ (nhánh rest / stretch)
             else if (L.st !== 'read') { const bd = L.st === 'think' ? 0.95 : 0.45; L.st = 'read'; L.t = 0; L.dur = 99; lapFrom(e, L, bd); }
           }
-          if ((!L.sip && L.st === 'read' && L.b >= L.bd) || now - L.leave > 10) { V.lw = null; return true; }
+          const C = studyChairRig; if ((!L.sip && L.st === 'read' && L.b >= L.bd && Math.abs(C.sx) < 0.01 && Math.abs(C.sw) < 0.02) || now - L.leave > 12) { V.lw = null; studyChairAt(C.off, 0, 0); return true; }   // ghế đã lăn / xoay về
           return false;
         }
         function lapWork(e, V, dt, t, rt) {
@@ -99,6 +99,29 @@
             R[0] = sw < 1 ? ch.clone().lerp(F[0], 1 - sw) : ch.clone();
             hand(1, -0.13, LW_REST + 0.02, 0.002, 0.3);
             e.seatLean = -0.04; hp = -0.02; e.headYawT = 0.22 * Math.sin(V.ph * 7 + 1);
+          } else if (L.st === 'note') {   // GHI CHÚ: viết giấy dán trên bàn → xoay ghế + lăn sang bảng ghim → ghim → đọc lướt bảng → lăn, xoay về (9,4 s)
+            const T = L.t, Bd = studyBoard, C = studyChairRig, ph = T < 2.6 ? 0 : T < 4.4 ? 1 : T < 6.2 ? 2 : 3;
+            if (L.np !== ph) { L.np = ph; lapFrom(e, L, 0.7); if (!ph) L.slotI = Bd.next; }   // mỗi bước tay đi mượt từ chỗ đang ở (0,7 s) · chỗ ghim chọn 1 lần mỗi tờ
+            const sl = Bd.slots[L.slotI % Bd.slots.length];
+            C.swivel.updateWorldMatrix(true, false); Bd.g.updateWorldMatrix(true, false);
+            const arm = (i, out) => C.swivel.localToWorld(out.set(i ? -C.arm.x : C.arm.x, C.arm.y + 0.03, -0.02));   // tay đặt trên tay vịn crôm
+            if (T < 2.6) {   // viết: tay phải viết lên tập giấy dán bên phải laptop (vòng nhỏ), tay trái kê cổ tay trên máy, cúi nhìn
+              caravanObj.localToWorld(_lwR.copy(Bd.padP)); const lift = 0.035; hand(1, -0.11, LW_REST, 0.002, 0.3);
+              R[0] = _lwP[0].copy(_lwR).add(_lwIn.set(0.015 + 0.012 * Math.cos(t * 9), lift + 0.006 * Math.max(0, Math.sin(t * 18)), 0.01 * Math.sin(t * 9 + 1)));
+              hp = 0.5; L.hold = T > 2.2;
+            } else {
+              const pinAt = 5.2, pinned = Bd.notes[L.slotI % Bd.notes.length];
+              if (T < 4.4 || T >= 6.2) { arm(1, _lwP[1]); R[1] = _lwP[1]; R[0] = T < 4.4 ? C.swivel.localToWorld(_lwP[0].set(0.1, 0.36, -0.24)) : arm(0, _lwP[0]); }   // lăn: tay phải cầm giấy trước ngực · về: 2 tay trên tay vịn
+              else {   // ghim: với tới chỗ trống trên bảng, ấn đinh (nhích vào 1,5 cm)
+                const press = T > pinAt - 0.35 && T < pinAt + 0.25 ? 0.015 * Math.sin(Math.PI * (T - pinAt + 0.35) / 0.6) : 0;
+                R[0] = Bd.g.localToWorld(_lwP[0].set(sl[0], sl[1], 0.095 - press)); arm(1, _lwP[1]); R[1] = _lwP[1];
+                if (T > pinAt && L.hold) { L.hold = false; pinned.n.position.set(sl[0], sl[1], 0.016); pinned.n.rotation.z = (Math.random() - 0.5) * 0.3; pinned.n.visible = true; pinned.pn.position.set(sl[0], sl[1] + 0.025, 0.022); pinned.pn.visible = true; Bd.next++; }
+              }
+              Bd.g.localToWorld(_lwM.set(T > 6.2 && T < 7.6 ? 0.25 * Math.sin((T - 6.2) * 2.2) : sl[0], 0, 0.05)); e.g.worldToLocal(_lwM);
+              e.headYawT = T < 7.6 ? Math.max(-0.9, Math.min(0.9, Math.atan2(_lwM.x, _lwM.z))) : 0; hp = T < 7.6 ? 0.05 : 0.2;   // nhìn bảng (đọc lướt từ trái sang phải)
+            }
+            { const k2 = Math.min(1, L.b / L.bd), s2 = k2 * k2 * (3 - 2 * k2); if (s2 < 1) for (let i = 0; i < 2; i++) if (R[i]) R[i] = _lwP[i].copy(R[i]).lerp(F[i], 1 - s2); }
+            e.seatLean = 0.04;
           } else if (L.st === 'rest') {   // ngả lưng, 2 tay đan sau gáy (dưới vành mũ), khuỷu dang rộng, mắt vẫn nhìn màn hình; đầu + cuối: tay từ kê cổ tay lên / xuống
             let q = Math.min(1, Math.sin(Math.PI * Math.min(1, L.t / L.dur)) * 1.6); const P = L.pole || (L.pole = [new THREE.Vector3(), new THREE.Vector3()]);
             if (L.leave) { L.qOut = Math.min(L.qOut, q) - dt; q = Math.max(0, L.qOut); if (q <= 0) { L.st = 'read'; L.t = 0; L.dur = 99; lapFrom(e, L, 0.45); } }   // rời bàn: hạ tay ngay theo đường cũ
@@ -122,4 +145,13 @@
             e.seatLean = -0.12 * q; hp = 0.05 - 0.3 * q;
           }
           e.head.rotation.x = hp;   // lớp tư thế (lò xo) làm mượt khi đổi việc
+          // ghế văn phòng theo người: đi ghi chú thì lăn + xoay sang bảng (lăn ra 2,6–4,2 s, về 7,6–9,2 s), nghĩ thì xoay nhẹ qua lại; lưng ngả theo người tựa ra sau
+          const C = studyChairRig, out = L.st === 'note' && !L.leave ? lapPulse(L.t, 2.6, 9.2, 1.6) : 0, fid = L.st === 'think' ? 0.07 * Math.sin(t * 0.55) : L.st === 'read' ? 0.03 * Math.sin(t * 0.3) : 0, kc = 1 - Math.exp(-dt * 4);
+          studyChairAt(C.off, C.sx + (0.17 * out - C.sx) * kc, C.sw + (-0.95 * out + fid - C.sw) * kc);
+          C.back.rotation.x += (0.12 + Math.max(0, -(e.seatLean || 0)) * 1.6 - C.back.rotation.x) * Math.min(1, dt * 3);
+        }
+        function lapHeldTick(e) {   // sau IK tay: tờ giấy dán đang cầm ở tay phải (đọc đúng chỗ bàn tay đã giải xong)
+          const Bd = studyBoard, V = e.van, L = V && V.lw; if (!Bd.held) return;
+          const on = !!(L && L.st === 'note' && L.hold && e.act === 'research' && V.st === 'work'); Bd.held.visible = on; if (!on) return;
+          e.wrists[0].updateWorldMatrix(true, false); const p = e.wrists[0].localToWorld(_lwV.set(0, -0.06, 0.05)); Bd.held.parent.worldToLocal(p); Bd.held.position.copy(p);
         }
