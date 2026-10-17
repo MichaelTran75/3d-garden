@@ -21,11 +21,12 @@ Chỉ sửa trong `src/`. Đọc `src/ARCHITECTURE.md` trước: khung hình ch�
 | `src/app/engineer/` | kỹ sư: dáng người, tư thế, lịch ngày, ăn, ngủ, câu cá, hái táo, drone |
 | `src/app/van/`, `camp/`, `fishing/` | xe van, đồ cắm trại, cần câu |
 | `src/app/ui/`, `src/app/loop/` | điều khiển camera, nhãn, vòng lặp khung hình |
+| `src/models/` | mẫu 3D dùng nguyên (hiện chỉ có drone + tay cầm DJI Mini 3), trang tải sau khi cảnh chạy |
 
 Các mảnh trong `src/app/` được nối nguyên văn theo `manifest.txt` thành một khối script, dùng chung phạm vi biến (không `import`/`export`).
 Thêm tệp mới thì thêm một dòng vào manifest, đúng thứ tự.
 
-`index.html`, `css/`, `js/` là tệp dựng ra từ `src/`, đừng sửa tay.
+`index.html`, `css/`, `js/`, `models/` là tệp dựng ra từ `src/`, đừng sửa tay.
 
 Khi thêm vật mới:
 - Vật dựng lúc mở trang tự được gộp lượt vẽ. Vật biến dạng mỗi khung hoặc bị mang đi xa chỗ cũ thì gắn `userData.noBatch = true`.
@@ -36,7 +37,7 @@ Khi thêm vật mới:
 - Xem thử trên máy: `./preview.sh`
 - Đăng: `./publish.sh "mô tả"` (kéo bản mới, dựng, kiểm ngân sách, commit, push). Pages cập nhật sau khoảng 1 phút.
 - Sửa ngay trên web GitHub: commit vào `src/`, GitHub Actions tự dựng.
-- `build.py --check` báo lỗi khi vượt ngân sách gzip: `js/app.js` ≤ 420 KB, cả trang ≤ 440 KB.
+- `build.py --check` báo lỗi khi vượt ngân sách gzip: `js/app.js` ≤ 420 KB, cả trang ≤ 440 KB; thư mục `models/` ≤ 1,5 MB (chưa nén, không tính vào ngân sách gzip).
 - Trên máy, `build.py` còn dựng bản một tệp `../3D garden.html` cho bộ test `../tests/` (mốc: 14 đạt, 5 lỗi có sẵn).
 
 ## Nhúng vào Wix
@@ -55,9 +56,9 @@ Dán vào một phiên Claude mới (hoặc phiên Remote Control) để làm ti
 Dự án 3d-garden (repo MichaelTran75/3d-garden, trang https://michaeltran75.github.io/3d-garden/): cảnh three.js r160 một trang.
 Trước khi sửa, đọc README.md rồi src/ARCHITECTURE.md.
 Quy tắc:
-- Chỉ sửa trong src/. index.html, css/, js/ là tệp dựng ra. Tệp mới trong src/app/ phải thêm vào src/app/manifest.txt đúng thứ tự.
+- Chỉ sửa trong src/. index.html, css/, js/, models/ là tệp dựng ra. Tệp mới trong src/app/ phải thêm vào src/app/manifest.txt đúng thứ tự.
 - Mã src/app/ nối thành một phạm vi biến: không import/export; không chèn chú thích // giữa một dòng nhiều lệnh (nuốt phần sau).
-- Mọi vật dựng bằng code three.js. GLB hoặc ảnh mẫu chỉ dùng để đo, không nhúng; mẫu mới ghi công vào mục Mô hình của README.
+- Mọi vật dựng bằng code three.js. GLB hoặc ảnh mẫu chỉ dùng để đo, không nhúng; mẫu mới ghi công vào mục Mô hình của README. Ngoại lệ duy nhất: drone + tay cầm DJI (src/models/dji-mini3.glb, G cho dùng nguyên mẫu).
 - Giữ ngân sách gzip của python3 build.py --check (js/app.js ≤ 420 KB, cả trang ≤ 440 KB); muốn nâng thì hỏi trước.
 - Cây, cành, lá dùng rnd() có hạt giống: giữ đúng thứ tự gọi rnd() để táo, hoa, tổ, chỗ chim đậu không đổi chỗ.
 - Không viết lại lịch sử git.
@@ -69,7 +70,10 @@ Việc cần làm: ...
 
 ## Mô hình
 
-Mọi vật thể dựng bằng code three.js, nhãn vẽ bằng canvas; không nhúng lưới hay ảnh tải từ ngoài.
+Mọi vật thể dựng bằng code three.js, nhãn vẽ bằng canvas, trừ một mẫu dùng nguyên:
+
+- Drone và tay cầm: ["DJI Mini 3 Drone with Remote Controller"](https://sketchfab.com/3d-models/dji-mini-3-drone-with-remote-controller-24ce5dcfced44e3d9da46167da720603) của [Marco Workspace](https://sketchfab.com/MarcoWorkspace), giấy phép [CC-BY-4.0](http://creativecommons.org/licenses/by/4.0/). Đã sửa: tách thân, cánh quạt, tay cầm, cần điều khiển thành phần riêng; giảm lưới; nén (`src/models/dji-mini3.glb`).
+
 Các mẫu sau chỉ dùng để đo dáng, tỉ lệ hoặc học kiểu vẽ:
 
 - Cò: `Stork.glb` trong bộ ví dụ three.js (MIT)
@@ -85,7 +89,7 @@ Các mẫu sau chỉ dùng để đo dáng, tỉ lệ hoặc học kiểu vẽ:
 - Lò chiminea (chiều cao): "Rustic chimenea" của archiesmitham (CC-BY-NC-SA-4.0)
 - Cành cây rừng: "Low Poly Tree Scene Free" của Nicholas-3D (CC-BY-4.0)
 - Laptop: "MacBook Pro 2021" của KangaroOz 3D (CC-BY-NC)
-- Drone: "Drone" của Kira (CC-BY-4.0)
+- Drone (bản dựng bằng code trước 17/10): "Drone" của Kira (CC-BY-4.0)
 - Chất liệu công trình và cột điện: "Inakaya" của Jellepostma (CC-BY-4.0); chất liệu công trình còn học "Forest House" của peachyroyalty (CC-BY-NC-4.0)
 
 Bướm vẽ theo hình thái và hoa văn của 5 loài thật ở Tây Nguyên.

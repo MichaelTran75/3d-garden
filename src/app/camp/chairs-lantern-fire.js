@@ -331,14 +331,14 @@
           const wire = (pts, r = 0.0035) => new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(...p))), 24, r, 5, false), pot);
           const lathe = (pts, mat) => { const m = new THREE.Mesh(new THREE.LatheGeometry(pts.map(([r, y]) => new THREE.Vector2(r, y)), 20), mat); m.castShadow = true; return m; };
           // ca nấu (boiler): thân trụ Ø9 cm cao 11 cm, vành cuộn, mỏ rót, quai dây gập bên hông
-          const cup = new THREE.Group(); cup.position.set(0.2, H, 0.09); g.add(cup);
+          const cup = new THREE.Group(); cup.position.set(-0.3, H, 0.03); g.add(cup);   // 17/10: nửa TÂY bàn (gần ghế) cho ca, chảo, gói khoai; nửa đông là chỗ drone DJI (càng mở, ~0,42 × 0,44 m)
           cup.add(lathe([[0, 0], [0.043, 0], [0.045, 0.006], [0.045, 0.108], [0.047, 0.11]], pot));
           cup.add(lathe([[0.047, 0.11], [0.042, 0.106], [0.042, 0.008], [0, 0.008]], potIn));
           const tea = new THREE.Mesh(new THREE.CircleGeometry(0.041, 18), new THREE.MeshLambertMaterial({ color: 0x5a3a1c })); tea.rotation.x = -Math.PI / 2; tea.position.y = 0.09; cup.add(tea);   // nước trà nóng
           const spout = bx(0.018, 0.012, 0.02, pot, false, false); spout.position.set(0, 0.108, 0.048); spout.rotation.x = -0.5; cup.add(spout);
           cup.add(wire([[-0.045, 0.085, 0], [-0.085, 0.085, 0], [-0.1, 0.06, 0], [-0.085, 0.035, 0], [-0.045, 0.035, 0]]));
           // chảo: đáy Ø15 cm loe lên Ø17 cm, thành 4 cm, cán dây gập
-          const pan = new THREE.Group(); pan.position.set(-0.08, H, 0.07); pan.rotation.y = 0.5; pan.userData.noBake = true; pan.visible = false; pan.name = 'Chảo cơm chiên'; g.add(pan);
+          const pan = new THREE.Group(); pan.position.set(-0.12, H, 0.06); pan.rotation.y = -Math.PI / 2; pan.userData.noBake = true; pan.visible = false; pan.name = 'Chảo cơm chiên'; g.add(pan);   // cán chảo quay về phía ghế
           pan.add(lathe([[0, 0], [0.075, 0], [0.08, 0.008], [0.086, 0.04], [0.088, 0.042]], pot));
           pan.add(lathe([[0.088, 0.042], [0.083, 0.039], [0.077, 0.01], [0, 0.01]], potIn));
           pan.add(wire([[0.086, 0.035, 0.02], [0.2, 0.05, 0.016], [0.215, 0.05, 0], [0.2, 0.05, -0.016], [0.086, 0.035, -0.02]], 0.004));

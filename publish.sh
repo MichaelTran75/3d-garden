@@ -3,7 +3,7 @@
 # Nơi sửa mã: src/ (xem src/app/manifest.txt). Script: kéo bản mới nhất về · dựng lại (trang Pages + "../3D garden.html") · commit · push.
 set -e
 cd "$(dirname "$0")"
-git checkout -q -- index.html css js 2>/dev/null || true   # tệp dựng sẵn sẽ dựng lại, bỏ bản cũ để kéo về không vướng
+for p in index.html css js models; do git checkout -q -- "$p" 2>/dev/null || true; done   # tệp dựng sẵn sẽ dựng lại, bỏ bản cũ để kéo về không vướng
 git pull -q --rebase --autostash
 python3 build.py --check
 git add -A

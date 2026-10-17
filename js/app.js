@@ -8174,13 +8174,13 @@
           const pot = new THREE.MeshLambertMaterial({ color: 0x2c2d31 }), potIn = new THREE.MeshLambertMaterial({ color: 0x4a4c50 });
           const wire = (pts, r = 0.0035) => new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(...p))), 24, r, 5, false), pot);
           const lathe = (pts, mat) => { const m = new THREE.Mesh(new THREE.LatheGeometry(pts.map(([r, y]) => new THREE.Vector2(r, y)), 20), mat); m.castShadow = true; return m; };
-          const cup = new THREE.Group(); cup.position.set(0.2, H, 0.09); g.add(cup);
+          const cup = new THREE.Group(); cup.position.set(-0.3, H, 0.03); g.add(cup);
           cup.add(lathe([[0, 0], [0.043, 0], [0.045, 0.006], [0.045, 0.108], [0.047, 0.11]], pot));
           cup.add(lathe([[0.047, 0.11], [0.042, 0.106], [0.042, 0.008], [0, 0.008]], potIn));
           const tea = new THREE.Mesh(new THREE.CircleGeometry(0.041, 18), new THREE.MeshLambertMaterial({ color: 0x5a3a1c })); tea.rotation.x = -Math.PI / 2; tea.position.y = 0.09; cup.add(tea);
           const spout = bx(0.018, 0.012, 0.02, pot, false, false); spout.position.set(0, 0.108, 0.048); spout.rotation.x = -0.5; cup.add(spout);
           cup.add(wire([[-0.045, 0.085, 0], [-0.085, 0.085, 0], [-0.1, 0.06, 0], [-0.085, 0.035, 0], [-0.045, 0.035, 0]]));
-          const pan = new THREE.Group(); pan.position.set(-0.08, H, 0.07); pan.rotation.y = 0.5; pan.userData.noBake = true; pan.visible = false; pan.name = 'Chảo cơm chiên'; g.add(pan);
+          const pan = new THREE.Group(); pan.position.set(-0.12, H, 0.06); pan.rotation.y = -Math.PI / 2; pan.userData.noBake = true; pan.visible = false; pan.name = 'Chảo cơm chiên'; g.add(pan);
           pan.add(lathe([[0, 0], [0.075, 0], [0.08, 0.008], [0.086, 0.04], [0.088, 0.042]], pot));
           pan.add(lathe([[0.088, 0.042], [0.083, 0.039], [0.077, 0.01], [0, 0.01]], potIn));
           pan.add(wire([[0.086, 0.035, 0.02], [0.2, 0.05, 0.016], [0.215, 0.05, 0], [0.2, 0.05, -0.016], [0.086, 0.035, -0.02]], 0.004));
@@ -10122,8 +10122,7 @@
           const chipM = new THREE.MeshLambertMaterial({ color: 0xe8c25a });
           for (let k = 0; k < 4; k++) { const ch = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.004, 9), chipM); ch.scale.z = 0.75; ch.position.set(-0.03 + k * 0.02, 0.163 + (k % 2) * 0.006, (k - 1.5) * 0.008); ch.rotation.set(0.9 + k * 0.3, k, 0.4 * (k - 1.5)); g.add(ch); }
           table.add(g); table.updateMatrixWorld(true);
-          const chair = table.worldToLocal(campChairPos.clone()); let best = null, bd = 1e9;
-          for (const s of [[0.21, -0.19], [0.22, 0.2], [-0.25, 0.2]]) { const d = Math.hypot(s[0] - chair.x, s[1] - chair.z); if (d < bd) { bd = d; best = s; } }
+          const chair = table.worldToLocal(campChairPos.clone()), best = [-0.25, 0.2];
           g.position.set(best[0], table.userData.top ?? 0.45, best[1]); g.rotation.y = Math.atan2(chair.x - best[0], chair.z - best[1]);
           return g;
         })();
@@ -10339,74 +10338,83 @@
         }
         const droneToy = (() => {
           const S = 1.3;
-          const grey = new THREE.MeshPhongMaterial({ color: 0x8e9399, specular: 0x555555, shininess: 55 }), dark = new THREE.MeshLambertMaterial({ color: 0x2a2c30 }), black = new THREE.MeshLambertMaterial({ color: 0x141518 });
-          const chrome = new THREE.MeshPhongMaterial({ color: 0xd9dbe0, specular: 0xffffff, shininess: 120 }), lensM = new THREE.MeshPhongMaterial({ color: 0x0b1428, specular: 0xffffff, shininess: 180 });
-          const B = (w, h, d, m, x, y, z, par) => { const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); o.position.set(x, y, z); o.castShadow = true; par.add(o); return o; };
-          const C = (r1, r2, h, m, x, y, z, par, n = 12) => { const o = new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, n), m); o.position.set(x, y, z); o.castShadow = true; par.add(o); return o; };
+          const DRONE_GLB = window.__droneGlb || 'https://michaeltran75.github.io/3d-garden/models/dji-mini3.glb';
           const g = new THREE.Group(); g.name = 'Drone đồ chơi'; g.scale.setScalar(S);
-          const core = new THREE.Group(); core.position.y = 0.035; g.add(core);
-          B(0.075, 0.042, 0.12, grey, 0, 0, 0, core); B(0.062, 0.016, 0.1, grey, 0, 0.026, -0.005, core);
-          const nose = B(0.06, 0.034, 0.035, grey, 0, -0.002, 0.07, core); nose.rotation.x = 0.28;
-          B(0.066, 0.036, 0.04, dark, 0, 0.002, -0.07, core);
-          const gim = new THREE.Group(); gim.position.set(0, -0.026, 0.078); core.add(gim);
-          B(0.03, 0.026, 0.026, black, 0, -0.006, 0.004, gim); const lens = C(0.0085, 0.0085, 0.008, lensM, 0, -0.006, 0.019, gim, 14); lens.rotation.x = Math.PI / 2;
-          const fpv = new THREE.PerspectiveCamera(48, MBP.CW / MBP.CH, 0.1, 900); fpv.position.set(0, -0.006, 0.03); fpv.rotation.y = Math.PI; gim.add(fpv);
-          const arms = [], props = [], blurs = [], leds = [];
-          const propGeo = new THREE.BoxGeometry(0.062, 0.0025, 0.013), blurM = new THREE.MeshBasicMaterial({ color: 0x9aa0a8, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide });
-          for (const [sx, front] of [[1, 1], [-1, 1], [1, 0], [-1, 0]]) {
-            const piv = new THREE.Group(); piv.position.set(sx * 0.034, front ? 0.004 : -0.01, front ? 0.04 : -0.045); core.add(piv);
-            const L = front ? 0.088 : 0.094, arm = B(0.012, 0.01, L, grey, 0, 0, L / 2, piv);
-            const tip = new THREE.Group(); tip.position.z = L; piv.add(tip);
-            C(0.013, 0.013, 0.018, dark, 0, 0.006, 0, tip); C(0.011, 0.012, 0.005, chrome, 0, 0.017, 0, tip);
-            if (front) { B(0.005, 0.034, 0.005, grey, 0, -0.02, 0.004, tip); const led = new THREE.Mesh(new THREE.SphereGeometry(0.004, 6, 4), new THREE.MeshBasicMaterial({ color: 0x40ff60 })); led.position.set(0, -0.004, 0.012); tip.add(led); leds.push(led); }
-            const pr = new THREE.Group(); pr.position.y = 0.021; tip.add(pr);
-            for (const k of [0, 1]) { const bl = new THREE.Mesh(propGeo, black); bl.position.x = (k ? -1 : 1) * 0.031; bl.rotation.x = (k ? -1 : 1) * 0.12; pr.add(bl); }
-            const bd = new THREE.Mesh(new THREE.CircleGeometry(0.066, 20), blurM); bd.rotation.x = -Math.PI / 2; bd.position.y = 0.022; tip.add(bd);
-            arms.push({ piv, front, sx, open: front ? sx * 0.62 : Math.PI - sx * 0.62, fold: front ? sx * 2.75 : sx * 0.3 }); props.push(pr); blurs.push(bd);
+          const core = new THREE.Group(); core.position.y = 0.039; g.add(core);
+          const gim = new THREE.Group(); core.add(gim);
+          const fpv = new THREE.PerspectiveCamera(41, 2.4, 0.1, 900); fpv.rotation.y = Math.PI; gim.add(fpv);
+          const props = [], blurs = [], leds = [], blurM = new THREE.MeshBasicMaterial({ color: 0x9aa0a8, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide });
+          const tail = new THREE.Mesh(new THREE.SphereGeometry(0.003, 6, 4), new THREE.MeshBasicMaterial({ color: 0xffb030 })); tail.position.set(0, 0.004, -0.092); tail.visible = false; core.add(tail);
+          scene.add(g);
+          const rc = new THREE.Group(); rc.name = 'Tay cầm điều khiển drone'; rc.scale.setScalar(S); scene.add(rc);
+          const sticks = [new THREE.Object3D(), new THREE.Object3D()];
+          const rt = new THREE.WebGLRenderTarget(384, 160, { depthBuffer: true }); rt.texture.name = 'Ảnh camera drone';
+          const phoneM = new THREE.MeshBasicMaterial({ map: rt.texture, color: 0x000000, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 });
+          let SCR = { w: 0.1248, h: 0.0521 }, rcSrc = null;
+          import('https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js').then(async ({ GLTFLoader }) => {
+            const { MeshoptDecoder } = await import('https://esm.sh/three@0.160.0/examples/jsm/libs/meshopt_decoder.module.js');
+            attach((await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(DRONE_GLB)).scene);
+          }).catch(err => console.warn('Drone GLB:', err));
+          function attach(src) {
+            src.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.material.metalness = 0.25; } o.userData.noBatch = true; });
+            const dn = src.getObjectByName('Drone'), rn = src.getObjectByName('RC');
+            dn.position.y = -core.position.y; core.add(dn);
+            ['PropFL', 'PropFR', 'PropRL', 'PropRR'].forEach((nm, i) => {
+              const n = dn.getObjectByName(nm), sp = new THREE.Group(); [...n.children].forEach(c => sp.add(c)); n.add(sp); props[i] = sp;
+              const bd = new THREE.Mesh(new THREE.CircleGeometry(n.userData.r || 0.072, 24), blurM); bd.rotation.x = -Math.PI / 2; bd.position.y = 0.003; n.add(bd); blurs[i] = bd;
+              if (i < 2) { const led = new THREE.Mesh(new THREE.SphereGeometry(0.003, 6, 4), new THREE.MeshBasicMaterial({ color: 0x40ff60 })); led.position.set(n.position.x, 0.006, n.position.z); led.visible = false; dn.add(led); leds.push(led); }
+            });
+            const cam = dn.getObjectByName('Camera'); gim.position.set(cam.position.x, cam.position.y + dn.position.y, cam.position.z);
+            rc.add(rn); sticks[0] = rn.getObjectByName('StickL'); sticks[1] = rn.getObjectByName('StickR');
+            const sn = rn.getObjectByName('Screen'); SCR = { w: sn.userData.w, h: sn.userData.h };
+            const live = new THREE.Mesh(new THREE.PlaneGeometry(SCR.w, SCR.h), phoneM); live.name = 'ScreenLive'; live.rotation.x = -Math.PI / 2; live.position.copy(sn.position); live.position.y += 0.0004; rn.add(live);
+            rcSrc = rn; buildFrame(); if (D.st === 'idle') park();
           }
-          const tail = new THREE.Mesh(new THREE.SphereGeometry(0.004, 6, 4), new THREE.MeshBasicMaterial({ color: 0xffb030 })); tail.position.set(0, 0.012, -0.091); core.add(tail);
-          g.traverse(o => { o.userData.noBatch = true; }); scene.add(g);
-          const rc = new THREE.Group(); rc.name = 'Tay cầm điều khiển drone'; rc.scale.setScalar(S * 1.15);
-          B(0.15, 0.03, 0.085, dark, 0, 0, 0, rc); for (const sx of [-1, 1]) { const gp = C(0.019, 0.017, 0.075, dark, sx * 0.068, -0.012, -0.028, rc); gp.rotation.x = 0.9; }
-          const sticks = [];
-          for (const sx of [-1, 1]) { const pv = new THREE.Group(); pv.position.set(sx * 0.042, 0.016, 0.004); rc.add(pv); C(0.0035, 0.0035, 0.016, black, 0, 0.008, 0, pv, 6); C(0.009, 0.008, 0.005, black, 0, 0.017, 0, pv, 10); sticks.push(pv); }
-          const clamp = B(0.07, 0.07, 0.012, dark, 0, 0.04, -0.038, rc); clamp.rotation.x = -0.35;
-          const phone = new THREE.Group(); phone.position.set(0, 0.085, -0.052); phone.rotation.set(0.35, Math.PI, 0); rc.add(phone);
-          B(0.152, 0.074, 0.008, black, 0, 0, 0, phone);
-          const rt = new THREE.WebGLRenderTarget(288, 186, { depthBuffer: true }); rt.texture.name = 'Ảnh camera drone';
-          const phoneM = new THREE.MeshBasicMaterial({ map: rt.texture, color: 0x000000 }), phoneScr = new THREE.Mesh(new THREE.PlaneGeometry(0.142, 0.066), phoneM); phoneScr.position.z = 0.0045; phone.add(phoneScr);
-          rc.traverse(o => { o.userData.noBatch = true; }); scene.add(rc);
           const bub = new THREE.Group(); bub.name = 'Bong bóng màn hình drone'; bub.visible = false; scene.add(bub);
           const cloudC = document.createElement('canvas'); cloudC.width = 512; cloudC.height = 400;
           { const x = cloudC.getContext('2d'); x.fillStyle = '#fff'; x.strokeStyle = 'rgba(70,80,95,0.55)'; x.lineWidth = 6;
             const blobs = [[256, 200, 205, 150], [120, 150, 95, 80], [390, 145, 100, 82], [110, 270, 90, 75], [400, 268, 92, 74], [256, 70, 110, 60], [256, 335, 120, 58]];
             for (const pass of [0, 1]) for (const [bx2, by, rx, ry] of blobs) { x.beginPath(); x.ellipse(bx2, by, rx, ry, 0, 0, TAU); pass ? x.fill() : x.stroke(); } }
           const cloudT = new THREE.CanvasTexture(cloudC); cloudT.colorSpace = THREE.SRGBColorSpace;
-          const osdC = document.createElement('canvas'); osdC.width = 512; osdC.height = 331; const ox = osdC.getContext('2d'), osdT = new THREE.CanvasTexture(osdC); osdT.colorSpace = THREE.SRGBColorSpace;
-          const scrM = new THREE.MeshBasicMaterial({ map: rt.texture, depthWrite: false, depthTest: false, transparent: true }), cloudM = new THREE.MeshBasicMaterial({ map: cloudT, transparent: true, depthWrite: false, depthTest: false, opacity: 0.96 });
-          const osdM = new THREE.MeshBasicMaterial({ map: osdT, transparent: true, depthWrite: false, depthTest: false });
-          let SW = 0.7, SH = 0.45;
-          const cloud = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), cloudM), scr = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), scrM), osd = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), osdM);
-          cloud.renderOrder = 990; scr.renderOrder = 991; osd.renderOrder = 992; bub.add(cloud, scr, osd);
-          const dots = [0.07, 0.05, 0.034].map((r, i) => { const d = new THREE.Mesh(new THREE.CircleGeometry(r, 16), cloudM); d.renderOrder = 990; bub.add(d); return d; });
+          const osdC = document.createElement('canvas'); osdC.width = 512; osdC.height = 214; const ox = osdC.getContext('2d'), osdT = new THREE.CanvasTexture(osdC); osdT.colorSpace = THREE.SRGBColorSpace;
+          const frameRT = new THREE.WebGLRenderTarget(640, 424, { samples: 4 }), fScene = new THREE.Scene(), fCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.01, 3);
+          fScene.add(new THREE.HemisphereLight(0xffffff, 0x8a96a3, 2.4)); { const l = new THREE.DirectionalLight(0xffffff, 1.5); l.position.set(0.4, 1, 0.8); fScene.add(l); }
+          const mk = (map, ro) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map, transparent: true, depthWrite: false, depthTest: false })); m.renderOrder = ro; bub.add(m); return m; };
+          const cloud = mk(cloudT, 990), frame = mk(frameRT.texture, 990.5), scr = mk(rt.texture, 991), osd = mk(osdT, 992);
+          cloud.material.opacity = 0.96; frame.visible = false;
+          const dots = [0.07, 0.05, 0.034].map((r, i) => { const d = new THREE.Mesh(new THREE.CircleGeometry(r, 16), cloud.material); d.renderOrder = 990; bub.add(d); return d; });
+          let SW = 0.7, SH = 0.3, FW = 1, FH = 0.66, frameRC = null, fSticks = null, fOff = [0, 0];
+          const fAsp = 640 / 424; frame.material.premultipliedAlpha = true;
+          function buildFrame() {
+            frameRC = rcSrc.clone(true); frameRC.rotation.set(Math.PI / 2, Math.PI, 0); fScene.add(frameRC); frameRC.getObjectByName('ScreenLive').visible = false;
+            fSticks = [frameRC.getObjectByName('StickL'), frameRC.getObjectByName('StickR')];
+            frameRC.updateMatrixWorld(true); const bb = new THREE.Box3().setFromObject(frameRC, true), c = bb.getCenter(new THREE.Vector3());
+            let fw = (bb.max.x - bb.min.x) * 1.04, fh = (bb.max.y - bb.min.y) * 1.04; if (fw / fh > fAsp) fh = fw / fAsp; else fw = fh * fAsp;
+            Object.assign(fCam, { left: -fw / 2, right: fw / 2, top: fh / 2, bottom: -fh / 2 }); fCam.position.set(c.x, c.y, bb.max.z + 1); fCam.lookAt(c); fCam.updateProjectionMatrix();
+            const sp = frameRC.getObjectByName('Screen').getWorldPosition(new THREE.Vector3()); fOff = [(sp.x - c.x) / fw, (sp.y - c.y) / fh];
+            frame.userData.k = fw / SCR.w; frame.visible = true; sizeBubble();
+          }
           function sizeBubble() {
-            const k = studyLaptop.group ? studyLaptop.group.getWorldScale(new THREE.Vector3()).x : 1; SW = 2 * MBP.SW * k; SH = 2 * MBP.SH * k;
-            scr.scale.set(SW, SH, 1); osd.scale.set(SW, SH, 1); cloud.scale.set(SW * 1.5, SH * 1.75, 1);
+            const kL = studyLaptop.group ? studyLaptop.group.getWorldScale(new THREE.Vector3()).x : 1; SW = 2 * MBP.SW * kL; SH = SW * SCR.h / SCR.w;
+            FW = frameRC ? SW * frame.userData.k : SW * 1.25; FH = FW / fAsp;
+            scr.scale.set(SW, SH, 1); osd.scale.set(SW, SH, 1); frame.scale.set(FW, FH, 1); scr.position.set(fOff[0] * FW, fOff[1] * FH, 0); osd.position.copy(scr.position);
+            cloud.scale.set(FW * 1.32, FH * 1.62, 1);
           }
           const D = { st: 'idle', k: 0, home: new THREE.Vector3(), stand: new THREE.Vector3(), table: new THREE.Vector3(), pos: new THREE.Vector3(), vel: new THREE.Vector3(), yaw: 0, gp: -0.3, wp: [], wi: 0,
-            spin: 0, fold: 0, bat: 100, rec: 0, orbit: null, tilt: new THREE.Vector2(), stick: [0, 0, 0, 0], frame: 0, hold: null, lookDown: 0, rcSpot: new THREE.Vector3(), standT: new THREE.Vector3() };
+            spin: 0, fold: 0, bat: 100, rec: 0, orbit: null, tilt: new THREE.Vector2(), stick: [0, 0, 0, 0], frame: 0, held: null, heldE: null, lookDown: 0, rcSpot: new THREE.Vector3(), standT: new THREE.Vector3(), reachP: new THREE.Vector3(), tableMid: new THREE.Vector3() };
           const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _q = new THREE.Quaternion(), UP = new THREE.Vector3(0, 1, 0);
           const tableLay = () => { const t = scene.getObjectByName('Bàn trà (Camp Table)'); t.updateMatrixWorld(true); const top = t.userData.top ?? 0.45, W = (t.userData.size || [0.66, 0.48])[1];
-            const stand = t.localToWorld(new THREE.Vector3(-0.03, 0, -W / 2 - 0.62)); stand.y = cowY(stand.x, stand.z);
-            return { yaw: t.rotation.y, dr: t.localToWorld(new THREE.Vector3(-0.2, top, -0.13)), rc: t.localToWorld(new THREE.Vector3(0.16, top, -0.15)), stand }; };
+            const stand = t.localToWorld(new THREE.Vector3(0, 0, -W / 2 - 0.55)), reach = t.localToWorld(new THREE.Vector3(0, 0, -W / 2 - 0.32));
+            return { yaw: t.rotation.y, dr: t.localToWorld(new THREE.Vector3(0.2, top, -0.01)), rc: t.localToWorld(new THREE.Vector3(-0.2, top, -0.19)), stand, reach, mid: t.localToWorld(new THREE.Vector3(0, top, 0)) }; };
+          const layOut = T => { D.table.copy(T.dr); D.rcSpot.copy(T.rc); D.standT.copy(T.stand); D.reachP.copy(T.reach); D.tableMid.copy(T.mid); };
           const _bb = new THREE.Box3();
-          function restOn(o, y) { o.updateMatrixWorld(true); _bb.setFromObject(o, true); o.position.y += y + 0.001 - _bb.min.y; o.updateMatrixWorld(true); }
+          function restOn(o, y) { o.updateMatrixWorld(true); _bb.setFromObject(o, true); if (_bb.isEmpty()) return; o.position.y += y + 0.001 - _bb.min.y; o.updateMatrixWorld(true); }
           function park() {
-            const T = tableLay(); D.table.copy(T.dr); D.rcSpot.copy(T.rc); D.standT.copy(T.stand);
+            const T = tableLay(); layOut(T); D.held = null;
             scene.add(g); g.position.copy(T.dr); g.rotation.set(0, T.yaw + Math.PI / 2, 0); core.rotation.set(0, 0, 0); setFold(0); spinTo(0, 1); restOn(g, T.dr.y);
             scene.add(rc); rc.position.copy(T.rc); rc.rotation.set(0, T.yaw, 0); restOn(rc, T.rc.y); bub.visible = false; phoneM.color.setScalar(0);
           }
-          function setFold(f) { D.fold = f; arms.forEach((a, i) => { a.piv.rotation.y = a.fold + (a.open - a.fold) * f; if (D.spin < 0.05) props[i].rotation.y = Math.PI / 2 * (1 - f); }); }
+          function setFold(f) { D.fold = f; }
           function spinTo(w, dt) { D.spin += (w - D.spin) * Math.min(1, dt * 2.5); }
           const ground = (x, z) => cowY(x, z);
           function plan() {
@@ -10455,17 +10463,26 @@
           }
           function rcPose(e) {
             const sp = e.spine; sp.updateWorldMatrix(true, false);
-            rc.position.copy(sp.localToWorld(_v.set(0, 0.36, 0.44))); rc.quaternion.copy(sp.getWorldQuaternion(_q)); rc.rotateX(-0.6 - 0.35 * D.lookDown);
-            sticks[0].rotation.set(-0.45 * D.stick[1], 0, -0.45 * D.stick[0]); sticks[1].rotation.set(-0.45 * D.stick[3], 0, -0.45 * D.stick[2]);
+            rc.position.copy(sp.localToWorld(_v.set(0, 0.36, 0.44))); rc.quaternion.copy(sp.getWorldQuaternion(_q)); rc.rotateX(-0.75 - 0.35 * D.lookDown);
+            stickPose(sticks);
             rc.updateMatrixWorld(true);
             const R = e.reachT || (e.reachT = [null, null]);
-            R[0] = rc.localToWorld(new THREE.Vector3(-0.075, -0.015, -0.02)); R[1] = rc.localToWorld(new THREE.Vector3(0.075, -0.015, -0.02));
+            R[0] = rc.localToWorld(new THREE.Vector3(-0.088, 0.03, -0.03)); R[1] = rc.localToWorld(new THREE.Vector3(0.088, 0.03, -0.03));
           }
-          function hold(e, which) {
-            e.wrists[1].updateWorldMatrix(true, false); e.wrists[0].updateWorldMatrix(true, false);
-            if (which.drone) { e.wrists[1].getWorldPosition(g.position); g.position.y -= 0.04; g.rotation.set(0, e.g.rotation.y, 0); core.rotation.set(0, 0, 0); }
-            if (which.rc) { e.wrists[0].getWorldPosition(rc.position); rc.position.y += 0.02; rc.rotation.set(0.9, e.g.rotation.y, 0); }
+          function stickPose(st) { st[1].rotation.set(0.45 * D.stick[1], 0, -0.45 * D.stick[0]); st[0].rotation.set(0.45 * D.stick[3], 0, -0.45 * D.stick[2]); }
+          function hold(e, which) { D.held = Object.assign(D.held || {}, which); D.heldE = e; }
+          function placeHeld() {
+            const which = D.held, e = D.heldE; if (!which) return;
+            const yaw = e.g.rotation.y; e.wrists[1].updateWorldMatrix(true, false); e.wrists[0].updateWorldMatrix(true, false);
+            if (which.drone) { e.wrists[1].getWorldPosition(g.position); g.position.add(_v.set(-0.039 * S, -0.05, 0).applyAxisAngle(UP, yaw)); g.rotation.set(0, yaw, -Math.PI / 2); core.rotation.set(0, 0, 0); }
+            if (which.rc) { e.wrists[0].getWorldPosition(rc.position); rc.position.add(_v.set(-0.03 * S, -0.04 - 0.088 * S, 0.03 * S).applyAxisAngle(UP, yaw)); rc.rotation.set(0, yaw, -Math.PI / 2); }
           }
+          function tableReach(e, dt, k) {
+            const p = e.g.position, dx = D.reachP.x - p.x, dz = D.reachP.z - p.z, d = Math.hypot(dx, dz);
+            if (d > 0.005) { const st = Math.min(d, 0.7 * dt); p.x += dx / d * st; p.z += dz / d * st; e.vel = 0.7; engGait(e, st); e.walking = true; }
+            p.y = cowY(p.x, p.z) - ENG_FEET; e.lean = 0.65 * k;
+          }
+          const nearPt = (p, e, d, h) => _w.set(e.g.position.x - p.x, 0, e.g.position.z - p.z).normalize().multiplyScalar(d).add(p).setY(p.y + h).clone();
           function look(e, p) { _v.copy(e.g.position); _v.y += 1.6; const dy = p.y - _v.y, dh = Math.hypot(p.x - _v.x, p.z - _v.z); e.head.rotation.x = Math.max(-1.0, Math.min(0.6, -Math.atan2(dy, dh))); }
           function face(e, p) { e.g.rotation.y = Math.atan2(p.x - e.g.position.x, p.z - e.g.position.z); }
           function crouch(e, sq) { e.noFootIK = true; e.g.position.y = cowY(e.g.position.x, e.g.position.z) - ENG_FEET - 0.24 * CAMP_SCALE * ENGINEER_SIZE * sq;
@@ -10473,7 +10490,7 @@
           const ease = x => { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); };
           function go(st) { D.st = st; D.k = 0; }
           function osdDraw(t) {
-            const x = ox, W = 512, H = 331; x.clearRect(0, 0, W, H);
+            const x = ox, W = 512, H = 214; x.clearRect(0, 0, W, H);
             const T = (s, X, Y, al = 'left', sz = 15, col = '#fff') => { x.font = 'bold ' + sz + 'px Arial, sans-serif'; x.textAlign = al; x.lineWidth = 3.5; x.strokeStyle = 'rgba(0,0,0,0.65)'; x.strokeText(s, X, Y); x.fillStyle = col; x.fillText(s, X, Y); };
             x.fillStyle = 'rgba(0,0,0,0.28)'; x.fillRect(0, 0, W, 26);
             if (t % 1 < 0.6) { x.fillStyle = '#ff3b30'; x.beginPath(); x.arc(16, 13, 6, 0, TAU); x.fill(); }
@@ -10489,14 +10506,16 @@
             osdT.needsUpdate = true;
           }
           function update(e, dt, t) {
-            D.k += dt; const H = e.hold || (e.hold = {});
-            if (D.st === 'idle') { sizeBubble(); { const T = tableLay(); D.table.copy(T.dr); D.rcSpot.copy(T.rc); D.standT.copy(T.stand); } const z = dogBrain.zoomSpot(); D.home.set(z.x, cowY(z.x, z.z) + 0.003, z.z);
+            D.k += dt; D.held = null; const H = e.hold || (e.hold = {});
+            if (D.st === 'idle' && !rcSrc) return true;
+            if (D.st === 'idle') { sizeBubble(); layOut(tableLay()); const z = dogBrain.zoomSpot(); D.home.set(z.x, cowY(z.x, z.z) + 0.003, z.z);
               _v.set(D.table.x - D.home.x, 0, D.table.z - D.home.z).normalize(); D.stand.copy(D.home).addScaledVector(_v, 2.8); D.stand.y = cowY(D.stand.x, D.stand.z); go('toTable'); }
             if (D.st === 'toTable') { if (engStep(e, D.standT, dt, t, pf, FIRE_AVOID_R) || D.k > 90) go('grab'); }
             else if (D.st === 'grab') {
-              engStandStill(e); face(e, D.table); look(e, D.table); const R = e.reachT || (e.reachT = [null, null]);
-              R[1] = g.position.clone().setY(g.position.y + 0.03); R[0] = rc.position.clone().setY(rc.position.y + 0.03);
-              if (D.k > 1.2) go('carry');
+              engStandStill(e); tableReach(e, dt, ease((D.k - 0.3) / 0.6) * (1 - ease((D.k - 1.3) / 0.5))); face(e, D.tableMid); look(e, D.tableMid);
+              if (D.k < 1.2) { const R = e.reachT || (e.reachT = [null, null]); R[1] = nearPt(g.position, e, 0.14, 0.05); R[0] = nearPt(rc.position, e, 0.06, 0.03); }
+              else hold(e, { drone: 1, rc: 1 });
+              if (D.k > 1.8) go('carry');
             }
             else if (D.st === 'carry') { hold(e, { drone: 1, rc: 1 }); if (engStep(e, _w.copy(D.home).addScaledVector(_v.set(D.stand.x - D.home.x, 0, D.stand.z - D.home.z).normalize(), 0.5), dt, t, pf, FIRE_AVOID_R) || D.k > 120) go('place'); }
             else if (D.st === 'place') {
@@ -10528,8 +10547,12 @@
               if (D.k > 3.4) { e.noFootIK = false; go('home'); }
             }
             else if (D.st === 'home') { hold(e, { drone: 1, rc: 1 }); if (engStep(e, D.standT, dt, t, pf, FIRE_AVOID_R) || D.k > 120) go('park'); }
-            else if (D.st === 'park') { engStandStill(e); face(e, D.table); look(e, D.table); const R = e.reachT || (e.reachT = [null, null]); R[1] = D.table.clone().setY(D.table.y + 0.05); R[0] = D.rcSpot.clone().setY(D.rcSpot.y + 0.05);
-              if (D.k > 1.0) { park(); go('done'); } }
+            else if (D.st === 'park') {
+              engStandStill(e); tableReach(e, dt, ease((D.k - 0.2) / 0.6) * (1 - ease((D.k - 1.2) / 0.5))); face(e, D.tableMid); look(e, D.tableMid);
+              if (D.k < 1.0) { hold(e, { drone: 1, rc: 1 }); const R = e.reachT || (e.reachT = [null, null]); R[1] = nearPt(D.table, e, 0.14, 0.05); R[0] = nearPt(D.rcSpot, e, 0.06, 0.05); }
+              else if (!D.parked) { park(); D.parked = true; }
+              if (D.k > 1.8) { D.parked = false; go('done'); }
+            }
             if (D.st === 'done') { D.st = 'idle'; return true; }
             if (D.st !== 'grab' && D.st !== 'park' && D.st !== 'toTable' && !(D.st === 'place' && D.k > 0.8) && D.st !== 'pick') e.armsBusy = true;
             if (D.st === 'flying' || D.st === 'arm' || D.st === 'land') pose(dt, t); else if (D.st === 'place' || D.st === 'pick' || D.st === 'ready' || D.st === 'back') { D.pos.copy(g.position); pose(dt, t); }
@@ -10537,18 +10560,20 @@
             return false;
           }
           function abort() { if (D.st !== 'idle') { D.st = 'idle'; park(); } }
-          let rtK = 0; const _p = new THREE.Vector3(), COARSE = matchMedia('(pointer: coarse)').matches;
+          let rtK = 0; const _p = new THREE.Vector3(), _cc = new THREE.Color(), COARSE = matchMedia('(pointer: coarse)').matches;
           function render() {
-            if (!bub.visible) return;
-            const e = engObj; e.head.getWorldPosition(_p); const top = SH * 0.875 + 0.32;
+            placeHeld(); if (!bub.visible) return;
+            const e = engObj; e.head.getWorldPosition(_p); const top = FH * 0.81 + 0.32;
             bub.position.set(_p.x, _p.y + 0.42 + top, _p.z); bub.quaternion.copy(camera.quaternion);
-            dots.forEach((d, i) => d.position.set(0.05 + i * 0.04, -SH * 0.875 - 0.12 - i * 0.17, 0));
+            dots.forEach((d, i) => d.position.set(0.05 + i * 0.04, -FH * 0.81 - 0.12 - i * 0.17, 0));
             _v.copy(bub.position).project(camera); if (Math.abs(_v.x) > 1.2 || Math.abs(_v.y) > 1.2 || _v.z > 1) return;
             _w.copy(bub.position); _w.y += SH * 0.5; _w.project(camera); if (Math.abs(_w.y - _v.y) * 0.5 * renderer.domElement.height < 50) return;
             if ((rtK++ % (COARSE ? 5 : 3))) return;
             g.updateMatrixWorld(true);
             const auto = renderer.shadowMap.autoUpdate; renderer.shadowMap.autoUpdate = false; bub.visible = false; g.visible = false; rc.visible = false;
             renderer.setRenderTarget(rt); renderer.render(scene, fpv); renderer.setRenderTarget(null);
+            if (frameRC) { stickPose(fSticks); renderer.getClearColor(_cc); const ca = renderer.getClearAlpha(); renderer.setClearColor(0x000000, 0);
+              renderer.setRenderTarget(frameRT); renderer.render(fScene, fCam); renderer.setRenderTarget(null); renderer.setClearColor(_cc, ca); }
             renderer.shadowMap.autoUpdate = auto; bub.visible = true; g.visible = true; rc.visible = true;
           }
           park();

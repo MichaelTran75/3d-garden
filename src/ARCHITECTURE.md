@@ -301,19 +301,35 @@ lò xo) ⇒ lên bậc voxel 0,6 đv thì chân trước lên trước, thân ng
   `bkAttr(geo, L)` cho khúc gỗ — rãnh nứt dọc = đường đồng mức của nhiễu kéo dài theo thân (2 lớp), nứt ngang chia mảng, địa y đốm tròn, rêu gốc;
   nhiễu quanh thân TUẦN HOÀN (`sfNw`, chu kỳ 12·bm ô) ⇒ không lộ đường may. **Bẫy**: shader gió THAY `#include <project_vertex>` ⇒ chèn vị trí ở `fog_vertex`, lấy ngược từ mvPosition; `windShader` GHI ĐÈ
   onBeforeCompile (không nối) ⇒ gọi surfaceStyle SAU windShader; khoá chương trình nối khoá cũ (`|sf` + kind). Vật liệu có shader riêng không gộp lượt vẽ.
-- Drone đồ chơi (`engineer/drone.js`, G 17/10, GLB "Drone" chỉ đo dáng): việc `drone` 15:20 (once; mưa ⇒ trú hiên, gió > 9 m/s ⇒ nghỉ; xong sớm ⇒
-  `rest` tới 16:00). Máy trạng thái `D.st`: toTable → grab → carry → place (ngồi xổm, mở càng) → back (lùi 2,8 m) → ready (bật máy, chờ vệ tinh) →
-  arm (CSC) → flying (bám 11 điểm: cất 1,2 m · đầm sen · cánh đồng pin camera chúc thẳng · đập phía hạ lưu · vòng tua-bin #3 ở 26 m, R 24 m, dưới tầm
-  quét cánh · chuồng bò · về · 1,2 m) → land → fetch → pick (gập càng) → home → park. Bay: vận tốc mong muốn → gia tốc ≤ 3 m/s² → nghiêng thân theo
-  gia tốc + vào gió, yaw ≤ 1,2 rad/s, gimbal bù nghiêng; cần Mode 2 (trái: yaw + ga, phải: ngang + tới) suy từ lệnh. Ảnh camera: `rt` 288 × 186 vẽ
-  trong `droneToy.render()` NGAY TRƯỚC lượt vẽ chính (main-loop-rest), 1/3 khung (cảm ứng 1/5), bỏ khi bong bóng < 50 px; tắt shadowMap.autoUpdate
-  trong lượt đó (dùng lại bóng khung chính), ẩn bong bóng + drone + TAY CẦM (màn điện thoại đọc chính `rt` ⇒ vòng lặp khung). Bong bóng: màn = 2 ×
-  màn laptop thế giới (MBP.SW × tỉ lệ laptop), mây canvas + 3 chấm, quay theo camera; bong bóng thời tiết cũ ẩn khi bay. Đo: +4 ms/khung khi vẽ 1/2 khung.
-  Chỗ để trên bàn (17/10, G "đặt drone lên bàn correctly"): `tableLay()` tính theo TOẠ ĐỘ BÀN (x dọc bàn, z ngang, ghế phía +z): drone gập càng nằm dọc
-  bàn (−0,2; −0,13), tay cầm (0,16; −0,15), kỹ sư đứng lấy / cất ở (−0,03; −W/2 − 0,62); `restOn(o, y)` hạ vật cho ĐÁY LƯỚI THẬT (`Box3.setFromObject(o, true)`)
-  chạm mặt bàn. Bàn trà (`campTable`, camp/chairs-lantern-fire.js) to thêm 25% (0,825 × 0,6 × 0,5625 m), ghi `userData.top` / `size` — đồ đặt lên bàn
-  (gói khoai tây, drone) đọc từ đó. **Bẫy** (bản đầu): lấy đỉnh hộp bao CẢ NHÓM bàn (gồm ca nấu, làn hơi) làm mặt bàn ⇒ drone lơ lửng; "đầu bàn" theo hộp
-  bao trục thế giới của bàn xoay 27° ⇒ rơi ra ngoài mép.
+- Drone đồ chơi (`engineer/drone.js`, G 17/10): drone + tay cầm là MẪU GLB dùng nguyên — "DJI Mini 3 Drone with Remote Controller" (Marco Workspace,
+  CC-BY-4.0), G "lấy 100% ra sử dụng, ko phải vẽ lại" ⇒ ngoại lệ DUY NHẤT của luật "mọi vật dựng bằng code". Tệp `src/models/dji-mini3.glb` (build.py chép
+  nguyên byte sang `models/`, trần `MODELS_KB` 1500, không tính vào ngân sách gzip); trang nạp SAU khi cảnh chạy bằng GLTFLoader + MeshoptDecoder (esm.sh
+  three@0.160.0), địa chỉ tuyệt đối Pages (bản một tệp / Wix cũng nạp được), bản debug đặt `window.__droneGlb`. Mẫu gốc 27 MB, 433k tam giác, 1 lưới liền
+  ⇒ đã xử lý 1 lần (không có trong repo): tách phần theo vùng nối + màu (thân drone · 4 cánh quanh đúng trục mô-tơ (PCA lá cánh) · thân tay cầm · 2 cần ·
+  ô màn), giảm lưới meshoptimizer giữ đường may UV (56k tam giác), lượng tử hoá KHR_mesh_quantization + nén EXT_meshopt_compression, ảnh JPEG 1024/512
+  ⇒ 1 MB. Cây nút: `Drone` {DroneBody, PropFL/FR/RL/RR (trục y = trục mô-tơ, `userData.r`), Camera} và `RC` {RCBody, StickL, StickR (gốc = chân cần),
+  Screen (`userData.w/h` ô màn 0,1248 × 0,0521 m)}; đơn vị m, drone mũi +z gốc đáy càng; tay cầm X · Y pháp tuyến mặt · Z phía màn (người cầm: PHẢI = −X ⇒
+  StickR nằm bên TRÁI người cầm = cần ga + xoay Mode 2). `attach()`: hạ kim loại 0,25 (cảnh không có ảnh môi trường), noBatch, cánh quay trong nhóm con,
+  đĩa mờ + đèn tự thêm, gimbal tại nút Camera, màn sống `ScreenLive` (rt 384 × 160 = tỉ lệ màn, ống kính ~82° ngang) phủ ô Screen. Càng không gập
+  (`setFold` chỉ giữ nhịp). Mẫu chưa nạp / lỗi mạng ⇒ `update()` trả true ngay (bỏ lượt bay hôm đó).
+  Việc `drone` 15:20 (once; mưa ⇒ trú hiên, gió > 9 m/s ⇒ nghỉ; xong sớm ⇒ `rest` tới 16:00). Máy trạng thái `D.st`: toTable → grab → carry → place
+  (ngồi xổm) → back (lùi 2,8 m) → ready (bật máy, chờ vệ tinh) → arm (CSC) → flying (bám 11 điểm: cất 1,2 m · đầm sen · cánh đồng pin camera chúc thẳng ·
+  đập phía hạ lưu · vòng tua-bin #3 ở 26 m, R 24 m, dưới tầm quét cánh · chuồng bò · về · 1,2 m; ~157 s) → land → fetch → pick → home → park. Bay: vận tốc
+  mong muốn → gia tốc ≤ 3 m/s² → nghiêng thân theo gia tốc + vào gió, yaw ≤ 1,2 rad/s, gimbal bù nghiêng; cần Mode 2 suy từ lệnh (`stickPose`).
+  Ảnh camera: `rt` vẽ trong `droneToy.render()` NGAY TRƯỚC lượt vẽ chính (main-loop-rest), 1/3 khung (cảm ứng 1/5), bỏ khi bong bóng < 50 px; tắt
+  shadowMap.autoUpdate trong lượt đó, ẩn bong bóng + drone + tay cầm (màn tay cầm đọc chính `rt` ⇒ vòng lặp khung).
+  Bong bóng suy nghĩ (G 17/10 "trong engineer thought đặt thêm remote control frame của glb"): mây canvas · KHUNG TAY CẦM = bản sao nút RC (ẩn màn sống)
+  trong cảnh riêng `fScene` (đèn bán cầu + nắng), camera trực giao úp mặt (rotation (π/2, π, 0) ⇒ phải người cầm sang phải ảnh, phía màn lên trên), vẽ
+  vào `frameRT` 640 × 424 MSAA nền trong suốt (premultipliedAlpha) cùng nhịp ảnh camera, 2 cần trong khung nghiêng theo lệnh · ảnh camera + OSD
+  (512 × 214) đặt đúng ô màn trong khung (`fOff`) · rộng màn = 2 × màn laptop thế giới. Bong bóng thời tiết cũ ẩn khi bay.
+  Chỗ để trên bàn (`tableLay()`, TOẠ ĐỘ BÀN: x dọc bàn, z ngang, ghế cắm trại phía +z đầu tây): drone (càng mở ~0,42 × 0,44 m) nửa ĐÔNG (0,2; −0,01),
+  tay cầm ngửa góc tây mép −z (−0,2; −0,19); ca nấu (−0,3; 0,03), chảo (−0,12; 0,06, cán về phía ghế), gói khoai tây (−0,25; 0,2) ở nửa tây gần ghế
+  (đã đo hộp bao từng món trong toạ độ bàn: không chồng nhau, không thò mép). `restOn(o, y)`: ĐÁY LƯỚI THẬT (`Box3.setFromObject(o, true)`) chạm mặt bàn
+  (nhóm rỗng thì bỏ qua). Lấy / cất: vai cao hơn mặt bàn ~0,73 m mà tay dài 0,57 m, vòng né bàn (ENG_PROPS r 0,66 + 0,32) giữ người cách tâm bàn
+  ~0,85 m ⇒ `tableReach()`: bước sát tới (0; −W/2 − 0,32) rồi gập eo (`e.lean` 0,65 → lớp tư thế gập ở eo ~0,7 rad), với tới MÉP VẬT phía người
+  (`nearPt`) — đo sai lệch cổ tay ≤ 1 mm. Xách khi đi (`hold` → `placeHeld()` ở ĐẦU `render()`): drone tay trái dựng đứng bụng quay vào đùi, tay cầm
+  tay phải nắm đầu phải buông dọc thân. **Bẫy**: đặt vật theo cổ tay ngay trong `update()` ⇒ lệch ~0,4 m (lúc đó tay còn ở dáng đầu khung; đung đưa
+  + IK chạy sau) — phải đặt sau khi tư thế cuối khung xong. Bàn trà (`campTable`) 0,825 × 0,6 × 0,5625 m, ghi `userData.top` / `size`.
 - Cột điện (`poleAt`, world/substation-bess.js, G 17/10 "improve cột điện structure", học cột trong GLB "Inakaya"): cột bê tông thuôn Ø 0,36 → 0,2 m +
   mố + nắp đỉnh; xà 2,7 m + 2 thanh chống chéo + đai ôm; 2 pha trên sứ có tán ở 2 đầu xà, pha giữa trên sứ ĐỈNH CỘT (bản cũ: thân cột vươn qua xà, dây
   pha giữa chui qua thân); bu lông leo so le; biển cấm trèo (polygonOffset); `opts.tx` máy biến áp treo cột (cột 3, 4, 5 — có nhánh vào nhà, dây nối
