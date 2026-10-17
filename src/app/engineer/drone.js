@@ -9,8 +9,8 @@
         //  ngẩng / cúi); tầm mắt — người điều khiển đứng yên, 2 tay giữ tay cầm trước ngực, ngón cái trên 2 cần, mắt dõi theo drone, thỉnh thoảng cúi xem
         //  màn hình tay cầm. Hạ cánh: về điểm nhà, xuống 1,2 m, kéo ga xuống tới khi chạm đất, giữ thêm 2 s → mô-tơ tắt. Không bay khi mưa hay gió
         //  > 9 m/s (giới hạn của loại drone 249 g ~10,7 m/s).
-        //  Lịch: 15:20 lấy drone + tay cầm trên bàn trà → ra bãi cỏ trống (bãi chó chạy vòng) → đặt → lùi 2,8 m → cất cánh → khảo sát: đầm sen →
-        //  bay ngang cánh đồng pin (camera chúc thẳng xuống) → đập thủy điện → vòng quanh tua-bin #3 → chuồng bò → về hạ cánh → cất về bàn.
+        //  Lịch: 15:20 lấy drone + tay cầm trên bàn trà → ra bãi cỏ trống (bãi chó chạy vòng) → đặt → lùi 2,8 m → cất cánh → lên 40 m → bay 1 VÒNG
+        //  QUANH ĐẢO (G 17/10 "drone bay 1 vòng quanh land", ngoài mép 18 m, camera hướng tâm đảo) → về hạ cánh → cất về bàn. Nhãn + đường dẫn chỉ xuống drone.
         //  Ảnh camera (FPV, 384 × 160 = đúng tỉ lệ màn tay cầm, ống kính ~82° ngang như Mini 3) hiện trên MÀN TAY CẦM và trong BONG BÓNG SUY NGHĨ:
         //  bong bóng chứa KHUNG TAY CẦM của mẫu (G 17/10 "trong engineer thought đặt thêm remote control frame của glb"), màn = 2× màn laptop ----
         const droneToy = (() => {
@@ -84,7 +84,7 @@
           // ---- trạng thái ----
           const D = { st: 'idle', k: 0, home: new THREE.Vector3(), stand: new THREE.Vector3(), table: new THREE.Vector3(), pos: new THREE.Vector3(), vel: new THREE.Vector3(), yaw: 0, gp: -0.3, wp: [], wi: 0,
             spin: 0, fold: 0, bat: 100, rec: 0, orbit: null, tilt: new THREE.Vector2(), stick: [0, 0, 0, 0], frame: 0, held: null, heldE: null, lookDown: 0, rcSpot: new THREE.Vector3(), standT: new THREE.Vector3(), reachP: new THREE.Vector3(), tableMid: new THREE.Vector3() };
-          const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _q = new THREE.Quaternion(), UP = new THREE.Vector3(0, 1, 0);
+          const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _q = new THREE.Quaternion(), _q2 = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
           // chỗ trên MẶT bàn trà theo toạ độ của bàn (x dọc bàn, z ngang; ghế cắm trại phía +z, đầu tây): drone mẫu GLB càng mở (~0,42 × 0,44 m) chiếm nửa ĐÔNG,
           // mũi dọc bàn; tay cầm nằm ngửa ở góc tây mép −z (phía màn quay ra xa người đứng lấy); ca nấu, chảo, gói khoai tây ở nửa tây gần ghế. Kỹ sư đi tới
           // (0; −W/2 − 0,55) phía −z (vòng né bàn không cho lại gần hơn) rồi tableReach() bước sát (0; −W/2 − 0,32) + gập eo. Bản cũ lấy đỉnh hộp bao cả nhóm bàn
@@ -103,13 +103,30 @@
           function setFold(f) { D.fold = f; }   // mẫu GLB càng mở cố định (không gập) — giữ nhịp gập / mở của lịch cho tay kỹ sư
           function spinTo(w, dt) { D.spin += (w - D.spin) * Math.min(1, dt * 2.5); }
           const ground = (x, z) => cowY(x, z);
-          function plan() {   // điểm khảo sát (toạ độ ghim + X0/Z0), độ cao tương đối điểm nhà, góc gimbal, kiểu (đi / vòng quanh / treo)
-            const H = D.home, P = (x, z, alt, gp, o = {}) => Object.assign({ p: new THREE.Vector3(X0 + x, H.y + alt, Z0 + z), gp }, o);
-            // cất cánh treo 1,2 m (tự động) → 12 m → đầm sen → cánh đồng pin (camera chúc thẳng) → đập (treo phía hạ lưu, nhìn ngược vào mặt tràn) → vòng tua-bin #3 ở 26 m (dưới tầm quét cánh thấp nhất ~32 m
-            // trên bệ, cách trụ 24 m) → chuồng bò → về điểm nhà 14 m → xuống 1,2 m treo 2 s → hạ
-            D.wp = [P(H.x - X0, H.z - Z0, 1.2, -0.2, { hover: 2, v: 1.5 }), P(H.x - X0, H.z - Z0, 12, -0.35, { hover: 1 }), P(73.8, 113, 12, -0.6, { look: [73.8, 114.7] }), P(118, 100, 30, -0.9), P(176, 100.5, 30, -1.5, { v: 4 }),
-              P(150, 88, 32, -1.2), P(94, 93, 18, -0.42, { look: [93.3, 73.3], hover: 5 }), P(85.5, 25.3, 26, -0.15, { orbit: 24 }), P(54, 55, 18, -0.55, { look: [54, 49.1] }),
-              P(H.x - X0, H.z - Z0, 14, -0.35, { hover: 1 }), P(H.x - X0, H.z - Z0, 1.2, -0.2, { hover: 2, v: 1.2 })];
+          // đường bay QUANH ĐẢO (G 17/10 "drone bay 1 vòng quanh land"): hình chữ nhật của đảo nở ra m mét — 4 cạnh thẳng + 4 góc cung tròn bán kính m
+          // (luôn cách mép đảo đúng m), tham số theo độ dài cung s. Bay NGOÀI mép: 6 tua-bin gió đứng sát mép bắc, đỉnh cánh tới y 72, cánh thò ra
+          // ngoài mép ~5 m ⇒ m = 18 m còn cách ≥ 13 m. Mặt + camera hướng tâm đảo (kiểu POI quay phim) ⇒ màn tay cầm thấy cả đảo xoay dần
+          function rimPath(cx, cz, a, b, m) {
+            const q = Math.PI / 2 * m, L = [2 * b, q, 2 * a, q, 2 * b, q, 2 * a, q], tot = 4 * a + 4 * b + 4 * q;
+            const at = (s, out) => {   // cạnh đông (đi +z) → góc → cạnh nam (−x) → góc → cạnh tây (−z) → góc → cạnh bắc (+x) → góc
+              s = ((s % tot) + tot) % tot; let i = 0; while (i < 7 && s > L[i]) { s -= L[i]; i++; }
+              let x, z;
+              if (i === 0) { x = a + m; z = -b + s; } else if (i === 2) { x = a - s; z = b + m; } else if (i === 4) { x = -a - m; z = b - s; } else if (i === 6) { x = -a + s; z = -b - m; }
+              else { const f = (i - 1) * Math.PI / 4 + s / m; x = (i === 1 || i === 7 ? a : -a) + m * Math.cos(f); z = (i < 4 ? b : -b) + m * Math.sin(f); }
+              return out.set(cx + x, 0, cz + z);
+            };
+            const near = p => { let bs = 0, bd = 1e9; for (let s = 0; s < tot; s += 2) { at(s, _w); const d = Math.hypot(_w.x - p.x, _w.z - p.z); if (d < bd) { bd = d; bs = s; } } return bs; };
+            return { cx, cz, tot, at, near };
+          }
+          function plan() {   // điểm bay (toạ độ ghim + X0/Z0), độ cao tương đối điểm nhà, góc gimbal, kiểu (đi / vòng quanh đảo / treo), tên hiện trên OSD
+            const H = D.home, P = (x, z, alt, gp, o = {}) => Object.assign({ p: new THREE.Vector3(X0 + x, H.y + alt, Z0 + z), gp }, o), hx = H.x - X0, hz = H.z - Z0;
+            const tb = new THREE.Box3(); terrainMeshes.forEach(m => tb.expandByObject(m));   // mép đảo thật (thế giới: x ±122,4 · z ±110,4)
+            const rim = rimPath((tb.min.x + tb.max.x) / 2, (tb.min.z + tb.max.z) / 2, (tb.max.x - tb.min.x) / 2, (tb.max.z - tb.min.z) / 2, 18);
+            // cất cánh treo 1,2 m (tự động) → 12 m → lên thẳng 40 m (cao hơn đồi 31 m, dưới mây ~82 m) → lùi ra mép đảo (camera vẫn nhìn tâm) → 1 vòng ~1 km
+            // ở 10 m/s (chế độ thường của Mini 3) → về điểm nhà ở 40 m → xuống thẳng 14 m → 1,2 m treo 2 s → hạ
+            D.wp = [P(hx, hz, 1.2, -0.2, { hover: 2, v: 1.5, name: 'Cất cánh' }), P(hx, hz, 12, -0.35, { hover: 1, name: 'Lên 12 m' }), P(hx, hz, 40, -0.35, { hover: 1, v: 4.5, name: 'Lên 40 m' }),
+              P(hx, hz, 40, -0.38, { loop: rim, v: 10, name: 'Vòng quanh đảo' }), P(hx, hz, 40, -0.35, { hover: 1, v: 10, name: 'Về điểm nhà' }),
+              P(hx, hz, 14, -0.35, { hover: 1, v: 3, name: 'Xuống 14 m' }), P(hx, hz, 1.2, -0.2, { hover: 2, v: 1.2, name: 'Hạ cánh' })];
             D.wi = 0;
           }
           function fly(dt, t) {   // bám điểm: vận tốc mong muốn → gia tốc giới hạn 3 m/s² → nghiêng thân theo gia tốc (+ nghiêng vào gió) · xoay đầu ≤ 1,2 rad/s
@@ -122,9 +139,14 @@
               if (Math.abs(r - W.orbit) < 3) { const da = (vmax * 0.8 / W.orbit) * dt; O.a += da; O.n += da; }
               tx = W.p.x + Math.cos(O.a) * W.orbit; tz = W.p.z + Math.sin(O.a) * W.orbit; faceX = W.p.x; faceZ = W.p.z;
               if (O.n > TAU) { D.orbit = null; D.wi++; }
+            } else if (W.loop) {   // 1 vòng quanh đảo: điểm dẫn chạy dọc đường với tốc độ v khi drone đã bám kịp (≤ 20 m; bám ổn định cách ~14 m), mặt hướng tâm đảo
+              const R = W.loop; if (W.s === undefined) { W.s = R.near(p); W.n = 0; }
+              R.at(W.s, _q2); if (Math.hypot(p.x - _q2.x, p.z - _q2.z) < 20) { W.s += vmax * dt; W.n += vmax * dt; }
+              tx = _q2.x; tz = _q2.z; faceX = R.cx; faceZ = R.cz;
+              if (W.n >= R.tot) D.wi++;
             } else if (W.look) { faceX = X0 + W.look[0]; faceZ = Z0 + W.look[1]; }
             _v.set(tx - p.x, ty - p.y, tz - p.z); const dist = _v.length();
-            if (!W.orbit && dist < 1.2) { W.hold = (W.hold || 0) + dt; if (W.hold > (W.hover || 0)) D.wi++; }
+            if (!W.orbit && !W.loop && dist < 1.2) { W.hold = (W.hold || 0) + dt; if (W.hold > (W.hover || 0)) D.wi++; }
             const sp = Math.min(vmax, dist * 0.7); if (dist > 1e-3) _v.multiplyScalar(sp / dist);
             _w.subVectors(_v, D.vel); const al = _w.length(), amax = 3 * dt; if (al > amax) _w.multiplyScalar(amax / al);
             D.vel.add(_w); p.addScaledVector(D.vel, dt);
@@ -196,7 +218,7 @@
             x.fillStyle = 'rgba(0,0,0,0.28)'; x.fillRect(0, H - 30, W, 30);
             T('H ' + hgt.toFixed(1) + ' m', 16, H - 10); T('D ' + dist.toFixed(0) + ' m', 140, H - 10); T('H.S ' + hs.toFixed(1) + ' m/s', 250, H - 10); T('V.S ' + D.vel.y.toFixed(1) + ' m/s', 392, H - 10);
             x.strokeStyle = 'rgba(255,255,255,0.8)'; x.lineWidth = 2; x.beginPath(); x.moveTo(W / 2 - 14, H / 2); x.lineTo(W / 2 - 5, H / 2); x.moveTo(W / 2 + 5, H / 2); x.lineTo(W / 2 + 14, H / 2); x.moveTo(W / 2, H / 2 - 5); x.lineTo(W / 2, H / 2 + 5); x.stroke();
-            T(['Cất cánh', 'Lên 12 m', 'Đầm sen', 'Cánh đồng pin', 'Cánh đồng pin', 'Cánh đồng pin', 'Đập thủy điện', 'Tua-bin #3', 'Chuồng bò', 'Về điểm nhà', 'Hạ cánh'][Math.min(10, D.wi)] || 'Hạ cánh', W - 14, 48, 'right', 14, '#ffd34a');
+            T((D.wp[D.wi] || {}).name || 'Hạ cánh', W - 14, 48, 'right', 14, '#ffd34a');
             osdT.needsUpdate = true;
           }
           // ---- mỗi khung trong pha 'drone' của kỹ sư: trả true khi xong việc ----
@@ -255,10 +277,35 @@
             return false;
           }
           function abort() { if (D.st !== 'idle') { D.st = 'idle'; park(); } }
+          // ---- NHÃN + ĐƯỜNG DẪN chỉ xuống drone (G 17/10 "leader line và label chỉ xuống trên drone để dễ xác định vị trí"): đúng kiểu nhãn của cảnh
+          //      (addLabel: thẻ bo màu be, chấm màu, đường dẫn mảnh, vẽ đè lên mọi thứ) nhưng GIỮ CỠ CỐ ĐỊNH TRÊN MÀN HÌNH — drone chỉ 0,5 m, zoom xa vẫn thấy;
+          //      chữ = độ cao so với điểm nhà; chấm tròn đánh dấu đúng chỗ drone khi nó nhỏ hơn ~14 px. Hiện từ lúc đặt drone xuống cỏ tới lúc nhặt lên; nằm
+          //      trong labelGroup ⇒ nút "Nhãn" tắt cùng các nhãn khác. Tạo ở lần cần đầu tiên (labels-controls.js chạy SAU tệp này) ----
+          let tag = null, tagK = 1;
+          const TAG_PX = 24, TAG_LEAD_PX = 60, TAG_OUT = new Set(['back', 'ready', 'arm', 'flying', 'land', 'fetch']);
+          function tagUpdate() {
+            const out = TAG_OUT.has(D.st) || (D.st === 'place' && D.k > 0.8) || (D.st === 'pick' && D.k < 2.4);
+            if (!tag) {
+              if (!out) return;
+              tag = addLabel('Drone DJI Mini 3', '#e0662b', new THREE.Vector3(), new THREE.Vector3(), true);
+              const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d');
+              x.beginPath(); x.arc(32, 32, 26, 0, TAU); x.fillStyle = 'rgba(226,214,192,0.55)'; x.fill(); x.lineWidth = 5; x.strokeStyle = 'rgba(58,53,48,0.75)'; x.stroke();
+              x.beginPath(); x.arc(32, 32, 10, 0, TAU); x.fillStyle = '#e0662b'; x.fill();
+              tag.dot = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthTest: false, depthWrite: false })); tag.dot.renderOrder = 20; labelGroup.add(tag.dot);
+            }
+            tag.sprite.visible = tag.line.visible = out; if (!out) { tag.dot.visible = false; return; }
+            const txt = 'Drone DJI Mini 3 · ' + Math.max(0, Math.round(g.position.y - D.home.y)) + ' m';
+            if (txt !== tag.text) { tag.update(txt); tagK = tag.sprite.scale.x / tag.sprite.scale.y; }
+            const upp = (camera.right - camera.left) / camera.zoom / Math.max(1, W()), h = TAG_PX * upp, lead = TAG_LEAD_PX * upp;   // đơn vị thế giới / 1 px CSS (camera trực giao)
+            core.getWorldPosition(_p);
+            tag.sprite.scale.set(h * tagK, h, 1); tag.sprite.position.set(_p.x, _p.y + lead + h / 2, _p.z);
+            const pa = tag.line.geometry.attributes.position; pa.setXYZ(0, _p.x, _p.y + lead, _p.z); pa.setXYZ(1, _p.x, _p.y + 6 * upp, _p.z); pa.needsUpdate = true; tag.line.geometry.computeBoundingSphere();
+            tag.dot.visible = 0.5 / upp < 14; tag.dot.position.copy(_p); tag.dot.scale.setScalar(11 * upp);
+          }
           // ---- trước lượt vẽ chính: bong bóng bám đầu (quay về camera) + dựng ảnh camera drone (cách 1 khung, chỉ khi bong bóng trên màn hình) ----
           let rtK = 0; const _p = new THREE.Vector3(), _cc = new THREE.Color(), COARSE = matchMedia('(pointer: coarse)').matches;
           function render() {
-            placeHeld(); if (!bub.visible) return;
+            placeHeld(); tagUpdate(); if (!bub.visible) return;
             const e = engObj; e.head.getWorldPosition(_p); const top = FH * 0.81 + 0.32;
             bub.position.set(_p.x, _p.y + 0.42 + top, _p.z); bub.quaternion.copy(camera.quaternion);
             dots.forEach((d, i) => d.position.set(0.05 + i * 0.04, -FH * 0.81 - 0.12 - i * 0.17, 0));   // 3 chấm to → nhỏ dần từ mép mây xuống đầu
@@ -267,11 +314,12 @@
             _w.copy(bub.position); _w.y += SH * 0.5; _w.project(camera); if (Math.abs(_w.y - _v.y) * 0.5 * renderer.domElement.height < 50) return;
             if ((rtK++ % (COARSE ? 5 : 3))) return;
             g.updateMatrixWorld(true);
-            const auto = renderer.shadowMap.autoUpdate; renderer.shadowMap.autoUpdate = false; bub.visible = false; g.visible = false; rc.visible = false;   // ẩn cả tay cầm: màn tay cầm đọc chính ảnh đang vẽ (vòng lặp khung)
+            const auto = renderer.shadowMap.autoUpdate, lgv = labelGroup.visible; renderer.shadowMap.autoUpdate = false; bub.visible = false; g.visible = false; rc.visible = false;   // ẩn cả tay cầm: màn tay cầm đọc chính ảnh đang vẽ (vòng lặp khung)
+            labelGroup.visible = false;   // ống kính thật không thấy nhãn (nhãn năng lượng, nhãn drone vẽ đè mọi thứ)
             renderer.setRenderTarget(rt); renderer.render(scene, fpv); renderer.setRenderTarget(null);
             if (frameRC) { stickPose(fSticks); renderer.getClearColor(_cc); const ca = renderer.getClearAlpha(); renderer.setClearColor(0x000000, 0);   // khung tay cầm: 2 cần nghiêng theo lệnh
               renderer.setRenderTarget(frameRT); renderer.render(fScene, fCam); renderer.setRenderTarget(null); renderer.setClearColor(_cc, ca); }
-            renderer.shadowMap.autoUpdate = auto; bub.visible = true; g.visible = true; rc.visible = true;
+            renderer.shadowMap.autoUpdate = auto; labelGroup.visible = lgv; bub.visible = true; g.visible = true; rc.visible = true;
           }
           park();
           return { update, abort, render, park, state: D, g, rc, bub, rt, osdC };

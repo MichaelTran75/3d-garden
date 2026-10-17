@@ -313,11 +313,21 @@ lò xo) ⇒ lên bậc voxel 0,6 đv thì chân trước lên trước, thân ng
   đĩa mờ + đèn tự thêm, gimbal tại nút Camera, màn sống `ScreenLive` (rt 384 × 160 = tỉ lệ màn, ống kính ~82° ngang) phủ ô Screen. Càng không gập
   (`setFold` chỉ giữ nhịp). Mẫu chưa nạp / lỗi mạng ⇒ `update()` trả true ngay (bỏ lượt bay hôm đó).
   Việc `drone` 15:20 (once; mưa ⇒ trú hiên, gió > 9 m/s ⇒ nghỉ; xong sớm ⇒ `rest` tới 16:00). Máy trạng thái `D.st`: toTable → grab → carry → place
-  (ngồi xổm) → back (lùi 2,8 m) → ready (bật máy, chờ vệ tinh) → arm (CSC) → flying (bám 11 điểm: cất 1,2 m · đầm sen · cánh đồng pin camera chúc thẳng ·
-  đập phía hạ lưu · vòng tua-bin #3 ở 26 m, R 24 m, dưới tầm quét cánh · chuồng bò · về · 1,2 m; ~157 s) → land → fetch → pick → home → park. Bay: vận tốc
-  mong muốn → gia tốc ≤ 3 m/s² → nghiêng thân theo gia tốc + vào gió, yaw ≤ 1,2 rad/s, gimbal bù nghiêng; cần Mode 2 suy từ lệnh (`stickPose`).
+  (ngồi xổm) → back (lùi 2,8 m) → ready (bật máy, chờ vệ tinh) → arm (CSC) → flying → land → fetch → pick → home → park. Lộ trình (`plan()`, mỗi điểm có
+  `name` hiện trên OSD): cất 1,2 m → 12 m → lên thẳng 40 m (đồi cao nhất y 31, mây ~82) → 1 VÒNG QUANH ĐẢO (G 17/10 "drone bay 1 vòng quanh land")
+  → về điểm nhà ở 40 m → xuống thẳng 14 m → 1,2 m → hạ; cả chuyến ~172 s. Vòng quanh đảo = `rimPath()`: hình chữ nhật đảo (hộp bao `terrainMeshes`,
+  x ±122,4 · z ±110,4) nở ra m = 18 m — 4 cạnh thẳng + 4 góc cung tròn, tham số theo độ dài cung (1.044 m, luôn cách mép đúng 18 m); BAY NGOÀI MÉP vì 6
+  tua-bin đứng sát mép bắc (đỉnh cánh y 60–72, cánh thò ra ngoài mép ~5 m) ⇒ đo khe hở cánh ≥ 12 m. Điểm dẫn chạy dọc đường với v = 10 m/s (chế độ
+  thường của Mini 3) khi drone bám kịp (≤ 20 m; bám ổn định cách ~14 m), nhập vòng ở điểm gần nhất (`near`), xong khi đi đủ `tot`; mặt + camera hướng
+  tâm đảo (kiểu POI) ⇒ lúc ra mép là cú lùi xa, màn tay cầm thấy cả đảo xoay dần. Bay: vận tốc mong muốn → gia tốc ≤ 3 m/s² → nghiêng thân theo gia
+  tốc + vào gió, yaw ≤ 1,2 rad/s, gimbal bù nghiêng; cần Mode 2 suy từ lệnh (`stickPose`).
+  Nhãn chỉ drone (`tagUpdate()` đầu `render()`, G 17/10 "leader line và label chỉ xuống trên drone"): `addLabel` của cảnh (chữ động "Drone DJI Mini 3 ·
+  40 m" = độ cao so với điểm nhà) + đường dẫn xuống tâm thân + vòng tròn đánh dấu (chỉ khi drone < 14 px), nhưng CỠ CỐ ĐỊNH TRÊN MÀN HÌNH (thẻ 24 px,
+  đường dẫn 60 px — đổi theo `(camera.right − camera.left) / camera.zoom / W()`); hiện từ lúc drone nằm trên cỏ tới lúc nhặt lên; nằm trong `labelGroup`
+  (nút "Nhãn" tắt cùng). Tạo ở lần cần đầu tiên vì labels-controls.js chạy SAU drone.js (`labelGroup` còn TDZ lúc dựng).
   Ảnh camera: `rt` vẽ trong `droneToy.render()` NGAY TRƯỚC lượt vẽ chính (main-loop-rest), 1/3 khung (cảm ứng 1/5), bỏ khi bong bóng < 50 px; tắt
-  shadowMap.autoUpdate trong lượt đó, ẩn bong bóng + drone + tay cầm (màn tay cầm đọc chính `rt` ⇒ vòng lặp khung).
+  shadowMap.autoUpdate trong lượt đó, ẩn bong bóng + drone + tay cầm (màn tay cầm đọc chính `rt` ⇒ vòng lặp khung) + `labelGroup` (ống kính thật
+  không thấy nhãn; nhãn vẽ đè mọi thứ nên lọt vào ảnh).
   Bong bóng suy nghĩ (G 17/10 "trong engineer thought đặt thêm remote control frame của glb"): mây canvas · KHUNG TAY CẦM = bản sao nút RC (ẩn màn sống)
   trong cảnh riêng `fScene` (đèn bán cầu + nắng), camera trực giao úp mặt (rotation (π/2, π, 0) ⇒ phải người cầm sang phải ảnh, phía màn lên trên), vẽ
   vào `frameRT` 640 × 424 MSAA nền trong suốt (premultipliedAlpha) cùng nhịp ảnh camera, 2 cần trong khung nghiêng theo lệnh · ảnh camera + OSD
