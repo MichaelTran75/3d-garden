@@ -161,8 +161,35 @@
         //    chỗ mọc ngang), pT (hướng cành mẹ chỗ đó) } · o: flare (độ loe gốc, 0,6) · flareH (cao loe × bán kính gốc, 1,1) · lobes (số múi, 5) · sink (gốc cắm
         //    đất, 0,1) · wS (tỉ lệ ra thế giới ⇒ số
         //    cạnh, số vòng, 0,9) · segMax (14) → 1 BufferGeometry (position · normal · uv · aBk)
+        // ---- SỢI BỆN (thân kiểu pohutukawa — G 18/10 học bản quét "Pohutukawa tree closeup", b_nealie, CC-BY-4.0, chỉ đo): thân già = nhiều sợi tròn dính
+        //      nhau, rãnh hẹp sâu giữa 2 sợi, cả bó XOẮN ~0,5 rad/m (đo pha các bậc điều hoà mặt cắt theo độ cao), sợi uốn lượn + phồng xẹp theo chiều dài;
+        //      bạnh gốc = sợi kéo dài loe ra (múi bạnh trùng sống sợi). Đo mặt cắt bản quét (đv cm, thân r ~1,4–1,8 m): lệch bậc 2–3 ~10–20%, 5–7 múi lớn
+        //      6–10%, 9–16 sợi nhỏ 3–5%, rãnh sâu tới 40% r. rp = cấu hình 1 chuỗi cành (ropeChain) · ropeAt → [hệ số bán kính, độ sâu rãnh 0–1 cho shader] ----
+        function ropeChain(R, kind, r0m, ci) {
+          const rnd = mulberry32(9001 + ci * 131), ns = kind === 0 ? R.nTrunk : Math.max(4, Math.min(7, Math.round(r0m * 9))), wt = [], t0 = [], h0 = [], ph = [];
+          for (let j = 0; j < ns; j++) { wt.push(0.35 + 1.35 * rnd() ** 1.5); h0.push(0.74 + 0.26 * rnd()); ph.push(rnd() * 6.2832); }   // sợi to nhỏ xen nhau (bản quét: múi lớn 1,2–1,6 m + sợi nhỏ 0,5–1 m)
+          const sw = wt.reduce((a, b) => a + b, 0), w = wt.map(x => Math.PI * x / sw * 1.05); let c = rnd() * 6.2832;
+          for (let j = 0; j < ns; j++) { t0.push(c); c += (w[j] + w[(j + 1) % ns]) / 1.05; }
+          return { ns, w, t0, h0, ph, D: R.D * (kind === 0 ? 1 : 0.75), tw: R.twist * (rnd() < 0.5 && kind ? -1 : 1), x: kind === 0 ? R.trunk : null };
+        }
+        function ropeAt(rp, s, a, rm, flK) {   // s: m dọc chuỗi · a: góc quanh trục · rm: bán kính vòng (m) · flK: 0–1 độ bạnh gốc ở vòng này
+          let mb = 0, uj = 0, jb = 0; const tw = rp.tw * s;
+          for (let j = 0; j < rp.ns; j++) {
+            let d = a - (rp.t0[j] + tw + 0.18 * Math.sin(s * 0.45 + rp.ph[j])); d -= 6.2832 * Math.round(d / 6.2832);
+            const u = d / rp.w[j]; if (u > -1 && u < 1) { const h = rp.h0[j] * (0.86 + 0.14 * Math.sin(s * 0.6 + rp.ph[j] * 2.3)) * Math.sqrt(1 - u * u); if (h > mb) { mb = h; uj = u; jb = j; } }
+          }
+          const k = Math.max(0, Math.min(1, (rm - 0.12) / 0.43)), dep = rp.D * k * k * (3 - 2 * k) * (1 + 1.5 * flK);
+          const sr = 0.5 + 0.5 * Math.cos(Math.PI * uj * (2 + (jb % 2)) + 0.6 * Math.sin(s * 1.3 + jb));   // 2–3 gờ phụ dọc theo mỗi sợi (thớ bó nhỏ trong sợi lớn — bản quét ~10 cm)
+          let m = 1 + dep * (mb - 0.8 + 0.12 * (sr - 0.5) * mb), gr = Math.min(1, (1 - mb) + 0.22 * (1 - sr) * mb) * Math.min(1, 1.4 * dep / rp.D);
+          if (rp.x) {
+            for (const [bs, ba, bz, bA] of rp.x.burls) { let d = a - ba; d -= 6.2832 * Math.round(d / 6.2832); const e = ((s - bs) ** 2 + (d * rm) ** 2) / (bz * bz); if (e < 9) m += bA * Math.exp(-e); }   // u lồi (bướu gỗ)
+            const [cs, ca, hs, ha] = rp.x.cav || [0, 0, 1, 1]; let d = a - ca; d -= 6.2832 * Math.round(d / 6.2832); const e = rp.x.cav ? ((s - cs) / hs) ** 2 + (d / ha) ** 2 : 9;   // hốc mục: lõm sâu, mép gờ
+            if (e < 1.7) { const q = e < 0.5 ? 1 : e < 1 ? 1 - (e - 0.5) / 0.5 : 0; m += -0.5 * q * q * (3 - 2 * q) + 0.1 * Math.max(0, 1 - Math.abs(e - 1.2) / 0.45); gr = Math.max(gr, 1.5 * q); }   // gr > 1 = lòng hốc (shader tô gần đen)
+          }
+          return [m, mb, gr];
+        }
         function barkTubes(L, o = {}) {
-          const P = [], N = [], UV = [], BK = [], I = [], FB = [], F = o.flare ?? 0.6, lobes = o.lobes ?? 5, wS = o.wS ?? 0.9;
+          const P = [], N = [], UV = [], BK = [], AD = [], I = [], FB = [], F = o.flare ?? 0.6, lobes = o.lobes ?? 5, wS = o.wS ?? 0.9, RP = o.rope;
           const T = new THREE.Vector3(), Nf = new THREE.Vector3(), Bf = new THREE.Vector3(), q = new THREE.Vector3();
           for (const me of L) {   // cành con nối tiếp = thẳng hướng nhất trong các cành mọc ở ngọn (lệch < 60°)
             let best = null, bd = 0.5; const n = me.P.length, d = T.subVectors(me.P[n - 1], me.P[n - 2]).normalize().clone();
@@ -185,11 +212,11 @@
             for (let i = 0; i < ch.length - 1; i++) { const e = ends[i]; R[e] = Math.min(R[e], 0.5 * (R[e - 1] + R[e + 1])); }
             const n = C.length, last = C[n - 1], dl = T.subVectors(last, C[n - 2]).normalize().clone();
             const Q = [C[0].clone().addScaledVector(T0, -(kind === 1 ? 1.4 * r0 : C[0].distanceTo(C[1]))), ...C, last.clone().addScaledVector(dl, last.distanceTo(C[n - 2]))];
-            const S = [], SR = [], cI = [];
+            const S = [], SR = [], cI = [], rp = RP && r0 * wS >= RP.minR ? ropeChain(RP, kind, r0 * wS, ci) : null;
             for (let j = 0; j < n - 1; j++) {
               // số vòng / đoạn theo cỡ thật: thân 4 · cành 3 · cành nhỏ 2 · ngọn mảnh 1 (đoạn ngọn Bézier đã đủ mịn) — đoạn đầu cành con dày hơn (chỗ tách)
-              const rw = R[j] * wS, k = rw >= 0.12 ? 4 : rw >= 0.035 ? 3 : rw >= 0.015 ? 2 : 1; cI.push(S.length);
-              const ts = j === 0 && kind === 0 ? [0] : j === 1 && kind === 0 ? [0, 0.06, 0.14, 0.25, 0.4, 0.6, 0.8]
+              const rw = R[j] * wS, k = rp && rw >= 0.3 ? 8 : rp && rw >= 0.18 ? 6 : rw >= 0.12 ? 4 : rw >= 0.035 ? 3 : rw >= 0.015 ? 2 : 1; cI.push(S.length);   // sợi bện: vòng dày hơn (~7 cm)
+              const ts = j === 0 && kind === 0 ? [0] : j === 1 && kind === 0 ? (rp ? [0, 0.04, 0.08, 0.13, 0.19, 0.26, 0.34, 0.43, 0.53, 0.64, 0.76, 0.88] : [0, 0.06, 0.14, 0.25, 0.4, 0.6, 0.8])
                 : j === 0 && kind ? (rw >= 0.09 ? [0, 0.12, 0.26, 0.42, 0.6, 0.8] : rw >= 0.03 ? [0, 0.2, 0.4, 0.65] : [0, 0.35, 0.7]) : Array.from({ length: k }, (_, i) => i / k);
               for (const t of ts) { S.push(crPt(Q[j], Q[j + 1], Q[j + 2], Q[j + 3], t, new THREE.Vector3())); SR.push(R[j] + (R[j + 1] - R[j]) * t); }
             }
@@ -202,7 +229,7 @@
                 for (let t = 0.2; t <= 0.8; t += 0.05) { crPt(Q[j], Q[j + 1], Q[j + 2], Q[j + 3], t, T); const dd = T.distanceToSquared(q); if (dd < bd) { bd = dd; sg[8] = T.x; sg[9] = T.y; sg[10] = T.z; } } } });
             const tE = ch[ch.length - 1].Te, nRing = S.length, rb = SR[nRing - 1], hc = 0.7 * rb;   // vòm khép ngọn chuỗi (cao 0,7 bán kính)
             for (const ph of [0.55, 1.05]) { S.push(last.clone().addScaledVector(tE, hc * Math.sin(ph))); SR.push(rb * Math.cos(ph)); }
-            const tip = last.clone().addScaledVector(tE, hc), M = S.length, seg = Math.max(5, Math.min(o.segMax ?? 14, Math.round(4 + r0 * wS * 45))), S1 = seg + 1;
+            const tip = last.clone().addScaledVector(tE, hc), M = S.length, seg = rp ? Math.max(18, Math.min(96, Math.round(r0 * wS * 56))) : Math.max(5, Math.min(o.segMax ?? 14, Math.round(4 + r0 * wS * 45))), S1 = seg + 1, GD = [];
             // khung vận chuyển song song + lưới đỉnh (gốc thân: bạnh múi tắt dần theo độ cao · cành mọc ngang: cổ cành phình ra ngoài mặt cành mẹ)
             const G = [], tan = S.map((s, i) => i >= nRing - 1 ? tE.clone() : new THREE.Vector3().subVectors(S[Math.min(M - 1, i + 1)], S[Math.max(0, i - 1)]).normalize());
             // cành con mọc ở ngọn: khung mặt cắt + toạ độ vân vỏ NỐI TỪ cành mẹ ⇒ vân chạy liền qua đường tách
@@ -213,7 +240,9 @@
               Nf.addScaledVector(tan[i], -Nf.dot(tan[i])).normalize(); Bf.crossVectors(tan[i], Nf); FN.push(Nf.clone());
               const fl = kind === 0 && i < nRing ? F * Math.exp(-Math.max(0, S[i].y - y0) / H) : 0, col = kind === 2 && i < nRing ? 1 + 0.3 * Math.exp(-Math.max(0, len[i] - sIn) / (1.5 * r0)) : 1;
               const rw = SR[i] * wS, nq = len[i] * wS / 0.3 + ci * 0.37, nd = o.nodes !== false && rw < 0.07 && Math.abs(Math.sin(Math.floor(nq) * 78.233) * 43758.55) % 1 > 0.3 ? 0.18 * (1 - rw / 0.07) * Math.exp(-((((nq % 1) - 0.5) * 7) ** 2)) : 0;   // mắt cành u lên ~30 cm một (cành non — bản quét)
-              for (let k = 0; k < seg; k++) { const a = k / seg * 6.2832, c = Math.cos(a), s = Math.sin(a), r = SR[i] * col * (1 + nd) * (1 + fl * (0.72 + 0.28 * Math.cos(lobes * a + 0.7)));
+              for (let k = 0; k < seg; k++) { const a = k / seg * 6.2832, c = Math.cos(a), s = Math.sin(a), rq = rp ? ropeAt(rp, len[i] * wS, a, SR[i] * wS, F ? fl / F : 0) : null;
+                if (rp) GD.push(0.02 + 0.98 * (i < nRing ? rq[2] : 0));   // 0,02–1,0 rãnh · tới 1,49 lòng hốc mục   // > 0,01 = chuỗi có sợi bện (shader phân biệt với cành thường = 0)
+                const r = SR[i] * col * (1 + nd) * (1 + fl * (rq ? 0.2 + 0.8 * rq[1] ** 1.8 : 0.72 + 0.28 * Math.cos(lobes * a + 0.7))) * (rq && i < nRing ? rq[0] : 1);   // bạnh = sống sợi loe thành gờ nhọn
                 G.push(new THREE.Vector3(S[i].x + (Nf.x * c + Bf.x * s) * r, S[i].y + (Nf.y * c + Bf.y * s) * r, S[i].z + (Nf.z * c + Bf.z * s) * r)); }
             }
             // hộp bao TỪNG ĐOẠN (bản đồ bay của ong / bướm: 1 lưới cả cây mà chỉ có 1 hộp thì chặn kín cả tán — bản cũ có hộp từng trụ / cầu đã gộp)
@@ -238,14 +267,15 @@
                 // vân vỏ: toạ độ quanh trục cành MẸ tại đỉnh này (nối liền vết nứt qua đường tách), hoà dần sang toạ độ riêng
                 if (pf) { const up = Math.atan2(q.dot(Bp), q.dot(pf.N)) / 6.2832 + 1, u1 = up + Math.round(bu - up); bu = u1 + (bu - u1) * sw; }
               }
-              P.push(g0.x, g0.y, g0.z); N.push(nv.x, nv.y, nv.z); UV.push(k / seg, len[i] / tot); BK.push(bu * bm, (len[i] + off) * vK, bm - 0.49 + Math.min(0.98, SR[i] * wS * 2));   // phần lẻ: bán kính (shader: cành non)
+              const tq = rp ? -rp.tw * len[i] * wS / 6.2832 : 0;   // vân nứt xoắn theo sợi
+              P.push(g0.x, g0.y, g0.z); N.push(nv.x, nv.y, nv.z); UV.push(k / seg, len[i] / tot); BK.push((bu + tq) * bm, (len[i] + off) * vK, bm - 0.49 + Math.min(0.98, SR[i] * wS * 2)); AD.push(rp ? GD[i * seg + kk] : 0);   // phần lẻ: bán kính (shader: cành non)
             }
-            P.push(tip.x, tip.y, tip.z); N.push(tE.x, tE.y, tE.z); UV.push(0.5, 1); BK.push(0.5 * bm, (len[M - 1] + hc * 0.3 + off) * vK, bm - 0.49 + Math.min(0.98, rb * wS * 2));
+            P.push(tip.x, tip.y, tip.z); N.push(tE.x, tE.y, tE.z); UV.push(0.5, 1); BK.push(0.5 * bm, (len[M - 1] + hc * 0.3 + off) * vK, bm - 0.49 + Math.min(0.98, rb * wS * 2)); AD.push(0);
             for (let i = 0; i < M - 1; i++) for (let k = 0; k < seg; k++) { const a = base + i * S1 + k, b = a + 1; I.push(a, b, a + S1, b, b + S1, a + S1); }
             for (let k = 0; k < seg; k++) I.push(base + (M - 1) * S1 + k, base + (M - 1) * S1 + k + 1, base + M * S1);
           }
           const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); geo.setAttribute('normal', new THREE.Float32BufferAttribute(N, 3));
-          geo.setAttribute('uv', new THREE.Float32BufferAttribute(UV, 2)); geo.setAttribute('aBk', new THREE.Float32BufferAttribute(BK, 3)); geo.setIndex(I);
+          geo.setAttribute('uv', new THREE.Float32BufferAttribute(UV, 2)); geo.setAttribute('aBk', new THREE.Float32BufferAttribute(BK, 3)); geo.setAttribute('aBd', new THREE.Float32BufferAttribute(AD, 1)); geo.setIndex(I);
           geo.userData.flightBounds = new Float64Array(FB); return geo;
         }
         const _barkDepth = new WeakMap();   // vật liệu vỏ → bản chỉ ghi độ sâu

@@ -132,6 +132,15 @@ cận cảnh, hiệu năng, cách thử và các bẫy đã dính. Chi tiết t�
   cành mẹ ⇒ đường cong chữ S lòi ra phía đối diện thành gờ ngang; 4 cành con cùng trồi ở 1 độ cao ⇒ vệt vòng ngang (hết nhờ chuỗi liền + hoà
   pháp tuyến / vân); vật liệu trong suốt chồng 2 lớp ở đoạn lồng nhau ⇒ vệt đậm (lượt độ sâu); `material.clone()` chết vì userData vòng tròn
   (treeWind ⇄ depthMat) ⇒ tạm gỡ userData khi clone. Soi chuỗi: vá `barkTubes` qua `__ev` để tô màu đỉnh theo chuỗi (scratchpad `forkshot.js`).
+- **Thân sợi bện** (`o.rope` của `barkTubes`, `ropeChain` / `ropeAt` cùng tệp — G 18/10 "study [Pohutukawa tree closeup, b_nealie, CC-BY-4.0]
+  and fine grain cây cổ thụ 100%"): cắt lát bản quét theo độ cao (đv cm, thân r 1,4–1,8 m) → mặt cắt lệch bậc 2–3 ~10–20%, 5–7 múi lớn 6–10%,
+  9–16 sợi nhỏ 3–5%, rãnh sâu tới 40% r; pha các bậc điều hoà trôi theo độ cao ⇒ cả bó XOẮN ~0,5 rad/m. Dựng: chuỗi cành bán kính ≥ `minR` (0,3 m)
+  có N sợi (thân 12, cành 4–7) mặt cắt bán nguyệt dính nhau ⇒ rãnh hẹp sâu ở chỗ 2 sợi gặp; tâm sợi trôi theo độ xoắn + uốn lượn, sợi phồng xẹp
+  theo chiều dài, 2–3 gờ phụ trong mỗi sợi; độ sâu giảm theo bán kính vòng (cành mảnh trơn như cũ), tăng ×2,5 ở bạnh gốc; múi bạnh = sống sợi
+  loe ra (`0,2 + 0,8·mb^1,8`). Thân có u lồi (`trunk.burls`) + 1 hốc mục (`trunk.cav`, lõm 50% r, gờ liền sẹo). Lưới: thân ~83 cạnh, vòng ~7 cm
+  (cổ thụ 37k → 88k đỉnh vỏ). Thuộc tính `aBd` (0 = cành thường · 0,02–1 = độ sâu rãnh · tới 1,49 = lòng hốc) → shader vỏ (nhánh `uSfOld`):
+  đáy rãnh tối, sống sợi mòn sáng, lòng hốc gần đen, thớ sợi dài mảnh chạy theo độ xoắn (vân `aBk.x` đã cộng độ xoắn). Độ sáng trung bình vỏ
+  đo giữ như bản cũ (~79), độ tương phản tăng (lệch chuẩn 21 → 23). Bẫy thử: `helpers.js` trong scratchpad ẩn cây cổ thụ (`ot.visible = false`).
 - **Thảm cỏ** (`nature/meadow.js`): cỏ mềm = 45% ô đất theo ngưỡng điểm nhiễu, KHÔNG mọc trên nền san phẳng (`padH`). **Thảm cỏ ngắn**
   (`LAWNS`, G 15/10: bãi khúc gỗ chết + 2 gốc cây, nằm trên nền san phẳng): ô trong elip mép loang luôn có cỏ, kể cả trên nền san
   phẳng; lá 9–15 cm, mảnh hơn 40%, 3 bản/ô; đánh dấu bằng độ tươi +2 trong `aCell.z` (shader: `lawn = step(1.5, aCell.z)`, gốc lá tối

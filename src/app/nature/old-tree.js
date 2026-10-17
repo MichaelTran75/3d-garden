@@ -177,6 +177,11 @@
           deadTwig(V(1.55, 3.6, -0.1), V(1.9, 4.3, -0.35), 0.09, 0.025, false, 0.2 * 0.68 * 0.68, dead[2].clone().sub(dead[1]).normalize());
           deadTwig(V(1.95, 4.0, 0.1), V(2.4, 4.5, 0.3), 0.08, 0.025, true);
 
+          // mấu cành cũ đã cưa / gãy, vỏ liền thành gờ tròn (thân pohutukawa trong bản quét có vài mấu như vậy) — số cố định, không lấy rnd() ⇒ dáng cũ giữ nguyên
+          for (const [y, ang, r] of [[1.15, 0.9, 0.11], [1.95, -2.3, 0.085]]) {
+            const tk = trunkAt(y), a = getTrunkPoint(y), d = V(Math.cos(ang), 0.45, Math.sin(ang)).normalize(), L = mkLimb(LB, a, r, TR, false, tk.r, tk.d);
+            crookedLimb(a, a.clone().addScaledVector(d, tk.r + 0.26), r, r * 0.8, L, 0, 1);
+          }
           // Refine only terminal twigs after the seeded scaffold has been generated.
           // A separate seed keeps the trunk, larger limbs and foliage random sequence unchanged.
           const tipRnd = mulberry32(7781);
@@ -198,7 +203,10 @@
           }
           for (const tp of tips) refineTerminalTwig(tp);
           for (const tp of deadTips) refineTerminalTwig(tp);
-          const OT = { flare: 0.42, flareH: 0.7, lobes: 6, sink: 0.55, wS: 2.76 * 0.9, segMax: 12, nodes: false };   // bạnh 6 múi ~2 m như 6 cầu dẹt cũ (đá cuội quanh gốc còn lộ) · gốc cắm sâu: thân ngả 35° ⇒ mép trên vòng chân thân vẫn chạm đất
+          // SỢI BỆN kiểu thân pohutukawa (nature/flowers-trees.js ropeChain/ropeAt): 12 sợi to nhỏ xoắn 0,5 rad/m, rãnh sâu ~21% r (gốc ×2,5) · u lồi + 1 hốc mục trên thân
+          //  (s: m dọc thân tính từ chân cắm đất 1,37 m · góc quanh thân: 0 = +x, −π/2 = +z cục bộ; hốc quay về hướng nhìn mặc định +x+z)
+          const ROPE = { minR: 0.3, nTrunk: 12, D: 0.26, twist: 0.5, trunk: { burls: [[2.25, 2.2, 0.32, 0.1], [4.7, 0.5, 0.3, 0.08], [5.9, -2.5, 0.38, 0.09], [3.3, -0.9, 0.22, 0.07]], cav: [5.2, -0.9, 0.45, 0.32] } };
+          const OT = { flare: 0.5, flareH: 0.85, lobes: 6, sink: 0.55, wS: 2.76 * 0.9, segMax: 12, nodes: false, rope: ROPE };   // bạnh 6 múi ~2 m như 6 cầu dẹt cũ (đá cuội quanh gốc còn lộ) · gốc cắm sâu: thân ngả 35° ⇒ mép trên vòng chân thân vẫn chạm đất
           g.add(...barkMesh(barkTubes(LB, OT), barkMat)); g.add(...barkMesh(barkTubes(LD, OT), deadMat));
           // ---- LÁ HEXAGON chỉ tập trung ở vùng cành đệ quy sub-branches và mở rộng không gian tán lá ----
           const pts = [];
@@ -302,7 +310,7 @@
             const e = br[br.length - 1], d0 = e.clone().sub(br[br.length - 2]).normalize();
             sSprout(e, d0, 0.5, rb, 0, BL, true);   // nối nhánh đệ quy theo hướng cành chính
           }
-          g.add(...barkMesh(barkTubes(LB, { flare: 0.5, sink: 0.25, wS: 1.75 * 0.9, nodes: false }), barkMat));   // cây con giữ cỡ thế giới ~1,75 × NATURE_SCALE khi gắn vào cây mẹ
+          g.add(...barkMesh(barkTubes(LB, { flare: 0.5, sink: 0.25, wS: 1.75 * 0.9, nodes: false, rope: { minR: 0.3, nTrunk: 6, D: 0.13, twist: 0.5, trunk: { burls: [[1.1, 1.0, 0.18, 0.08]] } } }), barkMat));   // sợi bện như thân mẹ (nhẹ hơn)   // cây con giữ cỡ thế giới ~1,75 × NATURE_SCALE khi gắn vào cây mẹ
           // ---- TÁN LÁ HEXAGON x3 rậm hơn — gom ở đầu các nhánh đệ quy (đĩa lá 6 cạnh instanced, giống cây cổ thụ) ----
           const sLeafPts = [];
           const perTip = Math.max(20, Math.round(810 / sTips.length));   // tổng ~810 điểm lá = gấp 3 lần trước (3 cụm × 90 = 270)

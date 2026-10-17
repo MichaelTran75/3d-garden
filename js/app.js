@@ -1027,13 +1027,13 @@
             prev.call(mat, sh, r);
             SF_H = SF_H || sfHeightTex();
             sh.uniforms.uSfH = { value: SF_H }; sh.uniforms.uSfG = { value: new THREE.Vector4(1 / BLOCK, cx, cz, 0) }; sh.uniforms.uSfL = { value: mat.userData.sfL ?? 1 }; const U = mat.userData; if (K === 5 && U.sfTex) sfBarkTex(); sh.uniforms.uSfT = SF_BT; sh.uniforms.uSfTk = U.sfTex ? SF_BTK : { value: 0 }; sh.uniforms.uSfTt = { value: U.sfTint || new THREE.Vector3(1, 1, 1) }; sh.uniforms.uSfDk = { value: U.sfDk || 0 }; sh.uniforms.uSfOld = { value: U.sfOld ? 1 : 0 }; sh.uniforms.uSfLC = { value: mat.userData.sfLC || new THREE.Color(0.58, 0.6, 0.53) };
-            sh.vertexShader = 'varying vec3 vSfP; varying vec3 vSfN;\n' + (K === 5 ? 'attribute vec3 aBk; varying vec3 vSfB;\n' : '') + sh.vertexShader.replace('#include <fog_vertex>', `#include <fog_vertex>${K === 5 ? '\n vSfB = aBk;' : ''}
+            sh.vertexShader = 'varying vec3 vSfP; varying vec3 vSfN;\n' + (K === 5 ? 'attribute vec3 aBk; varying vec3 vSfB; attribute float aBd; varying float vSfD;\n' : '') + sh.vertexShader.replace('#include <fog_vertex>', `#include <fog_vertex>${K === 5 ? '\n vSfB = aBk; vSfD = aBd;' : ''}
               vec3 sfN3 = objectNormal;
               #ifdef USE_INSTANCING
                 sfN3 = mat3(instanceMatrix) * sfN3;
               #endif
               vSfP = (inverse(viewMatrix) * vec4(mvPosition.xyz, 1.0)).xyz; vSfN = normalize(mat3(modelMatrix) * sfN3);`);
-            sh.fragmentShader = SF_GLSL + (K === 5 ? '\nvarying vec3 vSfB;' : '') + '\n' + sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
+            sh.fragmentShader = SF_GLSL + (K === 5 ? '\nvarying vec3 vSfB; varying float vSfD;' : '') + '\n' + sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
               float sfHg = 0.0;
               {
                 vec3 wn = normalize(vSfN); float wf = 1.0 - smoothstep(0.55, 0.85, abs(wn.y));   // mặt đứng
@@ -1072,6 +1072,10 @@
                   float gv = max(cr, 0.7 * hc) * (1.0 - 0.6 * thin), pl = sfNw(vec2(ba, bl * 1.1) + 2.0, 12.0 * bm);
                   if (uSfOld > 0.5) {   // G 17/10 "cây cổ thụ render tệ, nhìn giả, sửa lại về render cũ": vân thủ tục BẢN TRƯỚC (rãnh nứt + đốm địa y nhỏ + rêu gốc)
                     float g0 = max(cr, 0.7 * hc); c *= mix(0.95 + 0.14 * pl, 0.4, g0);
+                    float rope = step(0.01, vSfD), gr = max(0.0, vSfD - 0.02) / 0.98, gd = smoothstep(0.22, 0.85, gr), crown = 1.0 - smoothstep(0.0, 0.18, gr), cav = smoothstep(1.05, 1.4, gr);   // sợi bện (barkTubes rope, vSfD > 0,01)
+                    c *= mix(1.0, mix(1.06 + 0.24 * crown + 0.08 * pl, 0.28, gd) * (1.0 - 0.7 * cav), rope);   // chỉ đáy rãnh giữa 2 sợi tối · sống sợi mòn sáng · lòng hốc mục gần đen
+                    float fb = rope * (1.0 - smoothstep(0.015, 0.07, abs(sfNw(vec2(ba * 3.0 + 0.6 * bw, bl * 0.35), 36.0 * bm) - 0.5)));   // thớ sợi dài mảnh chạy xoắn theo sợi (vSfB.x đã cộng độ xoắn)
+                    c *= 1.0 - 0.14 * fb * (1.0 - gd); sfHg -= 0.003 * fb;
                     c = mix(c, vec3(0.40, 0.46, 0.34), 0.3 * smoothstep(0.78, 0.92, sfNw(vec2(ba * 2.0, bl * 12.0) + 11.0, 24.0 * bm)) * (1.0 - g0));
                     c = mix(c, vec3(0.30, 0.40, 0.18), 0.5 * (1.0 - smoothstep(0.0, 0.9, hA)) * smoothstep(0.3, 0.7, sfNw(vec2(ba * 0.5, bl * 3.0) + 5.0, 6.0 * bm)));
                     sfHg = -0.012 * g0 + 0.003 * pl;
@@ -2456,8 +2460,31 @@
           B2.copy(A2).multiplyScalar((t3 - u) / (t3 - t1)).addScaledVector(A3, (u - t1) / (t3 - t1));
           return out.copy(B1).multiplyScalar((t2 - u) / (t2 - t1)).addScaledVector(B2, (u - t1) / (t2 - t1));
         }
+        function ropeChain(R, kind, r0m, ci) {
+          const rnd = mulberry32(9001 + ci * 131), ns = kind === 0 ? R.nTrunk : Math.max(4, Math.min(7, Math.round(r0m * 9))), wt = [], t0 = [], h0 = [], ph = [];
+          for (let j = 0; j < ns; j++) { wt.push(0.35 + 1.35 * rnd() ** 1.5); h0.push(0.74 + 0.26 * rnd()); ph.push(rnd() * 6.2832); }
+          const sw = wt.reduce((a, b) => a + b, 0), w = wt.map(x => Math.PI * x / sw * 1.05); let c = rnd() * 6.2832;
+          for (let j = 0; j < ns; j++) { t0.push(c); c += (w[j] + w[(j + 1) % ns]) / 1.05; }
+          return { ns, w, t0, h0, ph, D: R.D * (kind === 0 ? 1 : 0.75), tw: R.twist * (rnd() < 0.5 && kind ? -1 : 1), x: kind === 0 ? R.trunk : null };
+        }
+        function ropeAt(rp, s, a, rm, flK) {
+          let mb = 0, uj = 0, jb = 0; const tw = rp.tw * s;
+          for (let j = 0; j < rp.ns; j++) {
+            let d = a - (rp.t0[j] + tw + 0.18 * Math.sin(s * 0.45 + rp.ph[j])); d -= 6.2832 * Math.round(d / 6.2832);
+            const u = d / rp.w[j]; if (u > -1 && u < 1) { const h = rp.h0[j] * (0.86 + 0.14 * Math.sin(s * 0.6 + rp.ph[j] * 2.3)) * Math.sqrt(1 - u * u); if (h > mb) { mb = h; uj = u; jb = j; } }
+          }
+          const k = Math.max(0, Math.min(1, (rm - 0.12) / 0.43)), dep = rp.D * k * k * (3 - 2 * k) * (1 + 1.5 * flK);
+          const sr = 0.5 + 0.5 * Math.cos(Math.PI * uj * (2 + (jb % 2)) + 0.6 * Math.sin(s * 1.3 + jb));
+          let m = 1 + dep * (mb - 0.8 + 0.12 * (sr - 0.5) * mb), gr = Math.min(1, (1 - mb) + 0.22 * (1 - sr) * mb) * Math.min(1, 1.4 * dep / rp.D);
+          if (rp.x) {
+            for (const [bs, ba, bz, bA] of rp.x.burls) { let d = a - ba; d -= 6.2832 * Math.round(d / 6.2832); const e = ((s - bs) ** 2 + (d * rm) ** 2) / (bz * bz); if (e < 9) m += bA * Math.exp(-e); }
+            const [cs, ca, hs, ha] = rp.x.cav || [0, 0, 1, 1]; let d = a - ca; d -= 6.2832 * Math.round(d / 6.2832); const e = rp.x.cav ? ((s - cs) / hs) ** 2 + (d / ha) ** 2 : 9;
+            if (e < 1.7) { const q = e < 0.5 ? 1 : e < 1 ? 1 - (e - 0.5) / 0.5 : 0; m += -0.5 * q * q * (3 - 2 * q) + 0.1 * Math.max(0, 1 - Math.abs(e - 1.2) / 0.45); gr = Math.max(gr, 1.5 * q); }
+          }
+          return [m, mb, gr];
+        }
         function barkTubes(L, o = {}) {
-          const P = [], N = [], UV = [], BK = [], I = [], FB = [], F = o.flare ?? 0.6, lobes = o.lobes ?? 5, wS = o.wS ?? 0.9;
+          const P = [], N = [], UV = [], BK = [], AD = [], I = [], FB = [], F = o.flare ?? 0.6, lobes = o.lobes ?? 5, wS = o.wS ?? 0.9, RP = o.rope;
           const T = new THREE.Vector3(), Nf = new THREE.Vector3(), Bf = new THREE.Vector3(), q = new THREE.Vector3();
           for (const me of L) {
             let best = null, bd = 0.5; const n = me.P.length, d = T.subVectors(me.P[n - 1], me.P[n - 2]).normalize().clone();
@@ -2478,10 +2505,10 @@
             for (let i = 0; i < ch.length - 1; i++) { const e = ends[i]; R[e] = Math.min(R[e], 0.5 * (R[e - 1] + R[e + 1])); }
             const n = C.length, last = C[n - 1], dl = T.subVectors(last, C[n - 2]).normalize().clone();
             const Q = [C[0].clone().addScaledVector(T0, -(kind === 1 ? 1.4 * r0 : C[0].distanceTo(C[1]))), ...C, last.clone().addScaledVector(dl, last.distanceTo(C[n - 2]))];
-            const S = [], SR = [], cI = [];
+            const S = [], SR = [], cI = [], rp = RP && r0 * wS >= RP.minR ? ropeChain(RP, kind, r0 * wS, ci) : null;
             for (let j = 0; j < n - 1; j++) {
-              const rw = R[j] * wS, k = rw >= 0.12 ? 4 : rw >= 0.035 ? 3 : rw >= 0.015 ? 2 : 1; cI.push(S.length);
-              const ts = j === 0 && kind === 0 ? [0] : j === 1 && kind === 0 ? [0, 0.06, 0.14, 0.25, 0.4, 0.6, 0.8]
+              const rw = R[j] * wS, k = rp && rw >= 0.3 ? 8 : rp && rw >= 0.18 ? 6 : rw >= 0.12 ? 4 : rw >= 0.035 ? 3 : rw >= 0.015 ? 2 : 1; cI.push(S.length);
+              const ts = j === 0 && kind === 0 ? [0] : j === 1 && kind === 0 ? (rp ? [0, 0.04, 0.08, 0.13, 0.19, 0.26, 0.34, 0.43, 0.53, 0.64, 0.76, 0.88] : [0, 0.06, 0.14, 0.25, 0.4, 0.6, 0.8])
                 : j === 0 && kind ? (rw >= 0.09 ? [0, 0.12, 0.26, 0.42, 0.6, 0.8] : rw >= 0.03 ? [0, 0.2, 0.4, 0.65] : [0, 0.35, 0.7]) : Array.from({ length: k }, (_, i) => i / k);
               for (const t of ts) { S.push(crPt(Q[j], Q[j + 1], Q[j + 2], Q[j + 3], t, new THREE.Vector3())); SR.push(R[j] + (R[j + 1] - R[j]) * t); }
             }
@@ -2492,7 +2519,7 @@
                 for (let t = 0.2; t <= 0.8; t += 0.05) { crPt(Q[j], Q[j + 1], Q[j + 2], Q[j + 3], t, T); const dd = T.distanceToSquared(q); if (dd < bd) { bd = dd; sg[8] = T.x; sg[9] = T.y; sg[10] = T.z; } } } });
             const tE = ch[ch.length - 1].Te, nRing = S.length, rb = SR[nRing - 1], hc = 0.7 * rb;
             for (const ph of [0.55, 1.05]) { S.push(last.clone().addScaledVector(tE, hc * Math.sin(ph))); SR.push(rb * Math.cos(ph)); }
-            const tip = last.clone().addScaledVector(tE, hc), M = S.length, seg = Math.max(5, Math.min(o.segMax ?? 14, Math.round(4 + r0 * wS * 45))), S1 = seg + 1;
+            const tip = last.clone().addScaledVector(tE, hc), M = S.length, seg = rp ? Math.max(18, Math.min(96, Math.round(r0 * wS * 56))) : Math.max(5, Math.min(o.segMax ?? 14, Math.round(4 + r0 * wS * 45))), S1 = seg + 1, GD = [];
             const G = [], tan = S.map((s, i) => i >= nRing - 1 ? tE.clone() : new THREE.Vector3().subVectors(S[Math.min(M - 1, i + 1)], S[Math.max(0, i - 1)]).normalize());
             const pf = kind === 1 && head.par.fr; if (pf) Nf.copy(pf.N); else { Nf.set(1, 0, 0); if (Math.abs(tan[0].x) > 0.9) Nf.set(0, 0, 1); }
             const y0 = head.P[0].y, H = (o.flareH ?? 1.1) * r0, sIn = head.pr != null ? head.pr / Math.max(0.35, head.pT ? q.crossVectors(T0, head.pT).length() : 1) : 1.5 * r0, len = [0], FN = [];
@@ -2501,7 +2528,9 @@
               Nf.addScaledVector(tan[i], -Nf.dot(tan[i])).normalize(); Bf.crossVectors(tan[i], Nf); FN.push(Nf.clone());
               const fl = kind === 0 && i < nRing ? F * Math.exp(-Math.max(0, S[i].y - y0) / H) : 0, col = kind === 2 && i < nRing ? 1 + 0.3 * Math.exp(-Math.max(0, len[i] - sIn) / (1.5 * r0)) : 1;
               const rw = SR[i] * wS, nq = len[i] * wS / 0.3 + ci * 0.37, nd = o.nodes !== false && rw < 0.07 && Math.abs(Math.sin(Math.floor(nq) * 78.233) * 43758.55) % 1 > 0.3 ? 0.18 * (1 - rw / 0.07) * Math.exp(-((((nq % 1) - 0.5) * 7) ** 2)) : 0;
-              for (let k = 0; k < seg; k++) { const a = k / seg * 6.2832, c = Math.cos(a), s = Math.sin(a), r = SR[i] * col * (1 + nd) * (1 + fl * (0.72 + 0.28 * Math.cos(lobes * a + 0.7)));
+              for (let k = 0; k < seg; k++) { const a = k / seg * 6.2832, c = Math.cos(a), s = Math.sin(a), rq = rp ? ropeAt(rp, len[i] * wS, a, SR[i] * wS, F ? fl / F : 0) : null;
+                if (rp) GD.push(0.02 + 0.98 * (i < nRing ? rq[2] : 0));
+                const r = SR[i] * col * (1 + nd) * (1 + fl * (rq ? 0.2 + 0.8 * rq[1] ** 1.8 : 0.72 + 0.28 * Math.cos(lobes * a + 0.7))) * (rq && i < nRing ? rq[0] : 1);
                 G.push(new THREE.Vector3(S[i].x + (Nf.x * c + Bf.x * s) * r, S[i].y + (Nf.y * c + Bf.y * s) * r, S[i].z + (Nf.z * c + Bf.z * s) * r)); }
             }
             for (let j = 0; j < n; j++) { const i0 = cI[j], i1 = j < n - 1 ? cI[j + 1] : M - 1, b = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity];
@@ -2523,14 +2552,15 @@
                 const w = Math.max(0, Math.min(1, (len[i] - w0) / (w1 - w0))), sw = w * w * (3 - 2 * w); q.subVectors(g0, bA); q.addScaledVector(bT, -q.dot(bT)).normalize(); nv.multiplyScalar(sw).addScaledVector(q, 1 - sw).normalize();
                 if (pf) { const up = Math.atan2(q.dot(Bp), q.dot(pf.N)) / 6.2832 + 1, u1 = up + Math.round(bu - up); bu = u1 + (bu - u1) * sw; }
               }
-              P.push(g0.x, g0.y, g0.z); N.push(nv.x, nv.y, nv.z); UV.push(k / seg, len[i] / tot); BK.push(bu * bm, (len[i] + off) * vK, bm - 0.49 + Math.min(0.98, SR[i] * wS * 2));
+              const tq = rp ? -rp.tw * len[i] * wS / 6.2832 : 0;
+              P.push(g0.x, g0.y, g0.z); N.push(nv.x, nv.y, nv.z); UV.push(k / seg, len[i] / tot); BK.push((bu + tq) * bm, (len[i] + off) * vK, bm - 0.49 + Math.min(0.98, SR[i] * wS * 2)); AD.push(rp ? GD[i * seg + kk] : 0);
             }
-            P.push(tip.x, tip.y, tip.z); N.push(tE.x, tE.y, tE.z); UV.push(0.5, 1); BK.push(0.5 * bm, (len[M - 1] + hc * 0.3 + off) * vK, bm - 0.49 + Math.min(0.98, rb * wS * 2));
+            P.push(tip.x, tip.y, tip.z); N.push(tE.x, tE.y, tE.z); UV.push(0.5, 1); BK.push(0.5 * bm, (len[M - 1] + hc * 0.3 + off) * vK, bm - 0.49 + Math.min(0.98, rb * wS * 2)); AD.push(0);
             for (let i = 0; i < M - 1; i++) for (let k = 0; k < seg; k++) { const a = base + i * S1 + k, b = a + 1; I.push(a, b, a + S1, b, b + S1, a + S1); }
             for (let k = 0; k < seg; k++) I.push(base + (M - 1) * S1 + k, base + (M - 1) * S1 + k + 1, base + M * S1);
           }
           const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); geo.setAttribute('normal', new THREE.Float32BufferAttribute(N, 3));
-          geo.setAttribute('uv', new THREE.Float32BufferAttribute(UV, 2)); geo.setAttribute('aBk', new THREE.Float32BufferAttribute(BK, 3)); geo.setIndex(I);
+          geo.setAttribute('uv', new THREE.Float32BufferAttribute(UV, 2)); geo.setAttribute('aBk', new THREE.Float32BufferAttribute(BK, 3)); geo.setAttribute('aBd', new THREE.Float32BufferAttribute(AD, 1)); geo.setIndex(I);
           geo.userData.flightBounds = new Float64Array(FB); return geo;
         }
         const _barkDepth = new WeakMap();
@@ -5647,6 +5677,10 @@
           deadTwig(V(1.55, 3.6, -0.1), V(1.9, 4.3, -0.35), 0.09, 0.025, false, 0.2 * 0.68 * 0.68, dead[2].clone().sub(dead[1]).normalize());
           deadTwig(V(1.95, 4.0, 0.1), V(2.4, 4.5, 0.3), 0.08, 0.025, true);
 
+          for (const [y, ang, r] of [[1.15, 0.9, 0.11], [1.95, -2.3, 0.085]]) {
+            const tk = trunkAt(y), a = getTrunkPoint(y), d = V(Math.cos(ang), 0.45, Math.sin(ang)).normalize(), L = mkLimb(LB, a, r, TR, false, tk.r, tk.d);
+            crookedLimb(a, a.clone().addScaledVector(d, tk.r + 0.26), r, r * 0.8, L, 0, 1);
+          }
           const tipRnd = mulberry32(7781);
           function refineTerminalTwig(tp) {
             const a = tp.from, axis = tp.pos.clone().sub(a), originalLength = axis.length();
@@ -5665,7 +5699,8 @@
           }
           for (const tp of tips) refineTerminalTwig(tp);
           for (const tp of deadTips) refineTerminalTwig(tp);
-          const OT = { flare: 0.42, flareH: 0.7, lobes: 6, sink: 0.55, wS: 2.76 * 0.9, segMax: 12, nodes: false };
+          const ROPE = { minR: 0.3, nTrunk: 12, D: 0.26, twist: 0.5, trunk: { burls: [[2.25, 2.2, 0.32, 0.1], [4.7, 0.5, 0.3, 0.08], [5.9, -2.5, 0.38, 0.09], [3.3, -0.9, 0.22, 0.07]], cav: [5.2, -0.9, 0.45, 0.32] } };
+          const OT = { flare: 0.5, flareH: 0.85, lobes: 6, sink: 0.55, wS: 2.76 * 0.9, segMax: 12, nodes: false, rope: ROPE };
           g.add(...barkMesh(barkTubes(LB, OT), barkMat)); g.add(...barkMesh(barkTubes(LD, OT), deadMat));
           const pts = [];
           for (const tp of tips) {
@@ -5761,7 +5796,7 @@
             const e = br[br.length - 1], d0 = e.clone().sub(br[br.length - 2]).normalize();
             sSprout(e, d0, 0.5, rb, 0, BL, true);
           }
-          g.add(...barkMesh(barkTubes(LB, { flare: 0.5, sink: 0.25, wS: 1.75 * 0.9, nodes: false }), barkMat));
+          g.add(...barkMesh(barkTubes(LB, { flare: 0.5, sink: 0.25, wS: 1.75 * 0.9, nodes: false, rope: { minR: 0.3, nTrunk: 6, D: 0.13, twist: 0.5, trunk: { burls: [[1.1, 1.0, 0.18, 0.08]] } } }), barkMat));
           const sLeafPts = [];
           const perTip = Math.max(20, Math.round(810 / sTips.length));
           for (const tp of sTips) cloudPts(rnd, tp.x, tp.y + 0.05, tp.z, 0.55, perTip, sLeafPts);

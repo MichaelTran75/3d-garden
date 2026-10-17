@@ -78,6 +78,7 @@ Mọi vật thể dựng bằng code three.js, nhãn vẽ bằng canvas, trừ h
 Các mẫu sau chỉ dùng để đo dáng, tỉ lệ hoặc học kiểu vẽ:
 
 - Xe nhà Ford Transit L3H2 (dáng thân, mũi xe, kính, mui cao, hốc bánh): "Ford Transit L2H2" của geyges (Sketchfab Standard)
+- Thân sợi bện của cây cổ thụ (mặt cắt, độ xoắn, rãnh, bạnh gốc): "Pohutukawa tree closeup" của b_nealie (CC-BY-4.0)
 - Cò: `Stork.glb` trong bộ ví dụ three.js (MIT)
 - Cá koi: "Koi Fish" của Xfdfgd (CC-BY-4.0)
 - Chim sẻ: "Bird 5 - Animated Low Poly" của WildPoly3D (CC-BY-NC-4.0)
