@@ -1014,7 +1014,7 @@
           const t = new THREE.DataTexture(d, GX, GZ, THREE.RedFormat, THREE.FloatType); t.magFilter = t.minFilter = THREE.NearestFilter; t.needsUpdate = true; return t;
         }
         const SF_GLSL = `
-          uniform sampler2D uSfH; uniform vec4 uSfG; uniform float uSfL; uniform vec3 uSfLC; uniform sampler2D uSfT; uniform float uSfTk; uniform vec3 uSfTt; uniform float uSfDk; varying vec3 vSfP; varying vec3 vSfN;
+          uniform sampler2D uSfH; uniform vec4 uSfG; uniform float uSfL; uniform vec3 uSfLC; uniform sampler2D uSfT; uniform float uSfTk; uniform vec3 uSfTt; uniform float uSfDk; uniform float uSfOld; varying vec3 vSfP; varying vec3 vSfN;
           float sfR(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
           float sfN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(sfR(i), sfR(i + vec2(1.0, 0.0)), f.x), mix(sfR(i + vec2(0.0, 1.0)), sfR(i + vec2(1.0, 1.0)), f.x), f.y); }
           float sfNw(vec2 p, float P) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); float i0 = mod(i.x, P), i1 = mod(i.x + 1.0, P);   // nhiễu tuần hoàn theo x (chu kỳ P ô) — vòng quanh thân không lộ đường may
@@ -1026,7 +1026,7 @@
           mat.onBeforeCompile = (sh, r) => {
             prev.call(mat, sh, r);
             SF_H = SF_H || sfHeightTex();
-            sh.uniforms.uSfH = { value: SF_H }; sh.uniforms.uSfG = { value: new THREE.Vector4(1 / BLOCK, cx, cz, 0) }; sh.uniforms.uSfL = { value: mat.userData.sfL ?? 1 }; const U = mat.userData; if (K === 5 && U.sfTex) sfBarkTex(); sh.uniforms.uSfT = SF_BT; sh.uniforms.uSfTk = U.sfTex ? SF_BTK : { value: 0 }; sh.uniforms.uSfTt = { value: U.sfTint || new THREE.Vector3(1, 1, 1) }; sh.uniforms.uSfDk = { value: U.sfDk || 0 }; sh.uniforms.uSfLC = { value: mat.userData.sfLC || new THREE.Color(0.58, 0.6, 0.53) };
+            sh.uniforms.uSfH = { value: SF_H }; sh.uniforms.uSfG = { value: new THREE.Vector4(1 / BLOCK, cx, cz, 0) }; sh.uniforms.uSfL = { value: mat.userData.sfL ?? 1 }; const U = mat.userData; if (K === 5 && U.sfTex) sfBarkTex(); sh.uniforms.uSfT = SF_BT; sh.uniforms.uSfTk = U.sfTex ? SF_BTK : { value: 0 }; sh.uniforms.uSfTt = { value: U.sfTint || new THREE.Vector3(1, 1, 1) }; sh.uniforms.uSfDk = { value: U.sfDk || 0 }; sh.uniforms.uSfOld = { value: U.sfOld ? 1 : 0 }; sh.uniforms.uSfLC = { value: mat.userData.sfLC || new THREE.Color(0.58, 0.6, 0.53) };
             sh.vertexShader = 'varying vec3 vSfP; varying vec3 vSfN;\n' + (K === 5 ? 'attribute vec3 aBk; varying vec3 vSfB;\n' : '') + sh.vertexShader.replace('#include <fog_vertex>', `#include <fog_vertex>${K === 5 ? '\n vSfB = aBk;' : ''}
               vec3 sfN3 = objectNormal;
               #ifdef USE_INSTANCING
@@ -1070,6 +1070,12 @@
                   float cr = max(1.0 - smoothstep(0.015, 0.085, abs(sfNw(vec2(ba + bw, bl * 0.45), 12.0 * bm) - 0.5)), 0.75 * (1.0 - smoothstep(0.01, 0.06, abs(sfNw(vec2(ba * 2.0 + bw + 4.0, bl * 0.8), 24.0 * bm) - 0.5))));
                   float hc = (1.0 - smoothstep(0.015, 0.05, abs(sfNw(vec2(ba * 0.5 + 3.0, bl * 2.4), 6.0 * bm) - 0.5))) * step(0.5, sfNw(vec2(ba * 0.5, bl * 0.8) + 9.0, 6.0 * bm));
                   float gv = max(cr, 0.7 * hc) * (1.0 - 0.6 * thin), pl = sfNw(vec2(ba, bl * 1.1) + 2.0, 12.0 * bm);
+                  if (uSfOld > 0.5) {   // G 17/10 "cây cổ thụ render tệ, nhìn giả, sửa lại về render cũ": vân thủ tục BẢN TRƯỚC (rãnh nứt + đốm địa y nhỏ + rêu gốc)
+                    float g0 = max(cr, 0.7 * hc); c *= mix(0.95 + 0.14 * pl, 0.4, g0);
+                    c = mix(c, vec3(0.40, 0.46, 0.34), 0.3 * smoothstep(0.78, 0.92, sfNw(vec2(ba * 2.0, bl * 12.0) + 11.0, 24.0 * bm)) * (1.0 - g0));
+                    c = mix(c, vec3(0.30, 0.40, 0.18), 0.5 * (1.0 - smoothstep(0.0, 0.9, hA)) * smoothstep(0.3, 0.7, sfNw(vec2(ba * 0.5, bl * 3.0) + 5.0, 6.0 * bm)));
+                    sfHg = -0.012 * g0 + 0.003 * pl;
+                  } else {
                   c *= mix(0.95 + 0.14 * pl, 0.3, gv);
                   c = mix(c, c * 1.3 + vec3(0.05, 0.05, 0.045), 0.7 * thin);   // cành non: xám sáng
                   float lm = 0.62 * sfNw(vec2(ba * 0.5, bl * 4.0) + 13.0, 6.0 * bm) + 0.38 * sfNw(vec2(ba * 1.5, bl * 12.0) + 17.0, 18.0 * bm);   // mảng gần tròn (hơi dài theo thân)
@@ -1084,6 +1090,7 @@
                     vec3 ct = bt * uSfTt * (1.0 + 0.25 * thin); ct = mix(ct, ct * vec3(0.34, 0.23, 0.15) + uSfLC * 0.3, uSfDk * smoothstep(0.14, 0.3, bL));   // nhuộm nâu đen, giữ vân
                     ct = mix(ct, vec3(0.30, 0.40, 0.18), 0.5 * (1.0 - smoothstep(0.0, 0.9, hA)) * smoothstep(0.3, 0.7, sfNw(vec2(ba * 0.5, bl * 3.0) + 5.0, 6.0 * bm)));   // rêu gốc
                     c = ct; sfHg = 0.03 * (bL - 0.2);   // mảng địa y nổi, khe vỏ lõm
+                  }
                   }
                 #endif
                 float ao = mix(0.56, 1.0, smoothstep(0.0, 1.3, hA));   // chân tường tối dần + ám bẩn nâu
@@ -2493,7 +2500,7 @@
               if (i) len.push(len[i - 1] + S[i].distanceTo(S[i - 1]));
               Nf.addScaledVector(tan[i], -Nf.dot(tan[i])).normalize(); Bf.crossVectors(tan[i], Nf); FN.push(Nf.clone());
               const fl = kind === 0 && i < nRing ? F * Math.exp(-Math.max(0, S[i].y - y0) / H) : 0, col = kind === 2 && i < nRing ? 1 + 0.3 * Math.exp(-Math.max(0, len[i] - sIn) / (1.5 * r0)) : 1;
-              const rw = SR[i] * wS, nq = len[i] * wS / 0.3 + ci * 0.37, nd = rw < 0.07 && Math.abs(Math.sin(Math.floor(nq) * 78.233) * 43758.55) % 1 > 0.3 ? 0.18 * (1 - rw / 0.07) * Math.exp(-((((nq % 1) - 0.5) * 7) ** 2)) : 0;
+              const rw = SR[i] * wS, nq = len[i] * wS / 0.3 + ci * 0.37, nd = o.nodes !== false && rw < 0.07 && Math.abs(Math.sin(Math.floor(nq) * 78.233) * 43758.55) % 1 > 0.3 ? 0.18 * (1 - rw / 0.07) * Math.exp(-((((nq % 1) - 0.5) * 7) ** 2)) : 0;
               for (let k = 0; k < seg; k++) { const a = k / seg * 6.2832, c = Math.cos(a), s = Math.sin(a), r = SR[i] * col * (1 + nd) * (1 + fl * (0.72 + 0.28 * Math.cos(lobes * a + 0.7)));
                 G.push(new THREE.Vector3(S[i].x + (Nf.x * c + Bf.x * s) * r, S[i].y + (Nf.y * c + Bf.y * s) * r, S[i].z + (Nf.z * c + Bf.z * s) * r)); }
             }
@@ -5504,10 +5511,8 @@
           const g = new THREE.Group(); g.position.set(X0 + 89, 7, Z0 + 117); g.scale.setScalar(2.76); g.rotation.set(0, 0, 0.62); g.name = 'Cây cổ thụ (Old Tree)'; scene.add(g);
           oldTreeGroup = g;
           const TOP = 0.85;
-          const barkMat = new THREE.MeshLambertMaterial({ color: 0x4a4036, transparent: true, opacity: TOP }), deadMat = new THREE.MeshLambertMaterial({ color: 0xE2D6C0, transparent: true, opacity: TOP });
-          barkMat.userData.sfL = 1.25; deadMat.userData.sfL = 0.35;
-          barkMat.userData.sfLC = new THREE.Color(0.05, 0.032, 0.02);
-          Object.assign(barkMat.userData, { sfTex: 1, sfDk: 1, sfTint: new THREE.Vector3(0.9, 0.86, 0.82) });
+          const barkMat = new THREE.MeshLambertMaterial({ color: 0x4a3420, transparent: true, opacity: TOP }), deadMat = new THREE.MeshLambertMaterial({ color: 0xE2D6C0, transparent: true, opacity: TOP });
+          barkMat.userData.sfOld = deadMat.userData.sfOld = 1;
           const tw = makeTreeWind({ freq: 0.32, zeta: 0.08, lean: 0.45, branchAmp: 0.07 });
           windShader(barkMat, tw, 0); windShader(deadMat, tw, 0); g.userData.treeWind = tw;
           surfaceStyle(barkMat, 'bark'); surfaceStyle(deadMat, 'bark');
@@ -5660,7 +5665,7 @@
           }
           for (const tp of tips) refineTerminalTwig(tp);
           for (const tp of deadTips) refineTerminalTwig(tp);
-          const OT = { flare: 0.42, flareH: 0.7, lobes: 6, sink: 0.55, wS: 2.76 * 0.9, segMax: 12 };
+          const OT = { flare: 0.42, flareH: 0.7, lobes: 6, sink: 0.55, wS: 2.76 * 0.9, segMax: 12, nodes: false };
           g.add(...barkMesh(barkTubes(LB, OT), barkMat)); g.add(...barkMesh(barkTubes(LD, OT), deadMat));
           const pts = [];
           for (const tp of tips) {
@@ -5686,7 +5691,7 @@
           } else {
             scene.add(g);
           }
-          const barkMat = surfaceStyle(new THREE.MeshLambertMaterial({ color: 0x4a4036, transparent: true, opacity: 0.65 }), 'bark');
+          const barkMat = new THREE.MeshLambertMaterial({ color: 0x4a3420, transparent: true, opacity: 0.65 }); barkMat.userData.sfOld = 1; surfaceStyle(barkMat, 'bark');
           const leafCols = [0x4e7a39, 0x5e8c44, 0x6fa052, 0x42692f];
           const V = (x, y, z) => new THREE.Vector3(x, y, z);
 
@@ -5756,7 +5761,7 @@
             const e = br[br.length - 1], d0 = e.clone().sub(br[br.length - 2]).normalize();
             sSprout(e, d0, 0.5, rb, 0, BL, true);
           }
-          g.add(...barkMesh(barkTubes(LB, { flare: 0.5, sink: 0.25, wS: 1.75 * 0.9 }), barkMat));
+          g.add(...barkMesh(barkTubes(LB, { flare: 0.5, sink: 0.25, wS: 1.75 * 0.9, nodes: false }), barkMat));
           const sLeafPts = [];
           const perTip = Math.max(20, Math.round(810 / sTips.length));
           for (const tp of sTips) cloudPts(rnd, tp.x, tp.y + 0.05, tp.z, 0.55, perTip, sLeafPts);

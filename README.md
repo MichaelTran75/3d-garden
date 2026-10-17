@@ -73,7 +73,7 @@ Việc cần làm: ...
 Mọi vật thể dựng bằng code three.js, nhãn vẽ bằng canvas, trừ hai mẫu dùng nguyên:
 
 - Drone và tay cầm: ["DJI Mini 3 Drone with Remote Controller"](https://sketchfab.com/3d-models/dji-mini-3-drone-with-remote-controller-24ce5dcfced44e3d9da46167da720603) của [Marco Workspace](https://sketchfab.com/MarcoWorkspace), giấy phép [CC-BY-4.0](http://creativecommons.org/licenses/by/4.0/). Đã sửa: tách thân, cánh quạt, tay cầm, cần điều khiển thành phần riêng; giảm lưới; nén (`src/models/dji-mini3.glb`).
-- Vân vỏ cây cổ thụ, cây táo, anh đào: ảnh vân cắt từ ["Tree 3D Scan - Retopo"](https://sketchfab.com/3d-models/tree-3d-scan-retopo-9e6778e11ad2413dab940e23bb0b89df) của [grafi](https://sketchfab.com/zdenkoroman), giấy phép [CC-BY-4.0](http://creativecommons.org/licenses/by/4.0/). Đã sửa: ghép 4 dải vỏ thân thành 1 ô lặp 160 × 480 (`src/models/bark-scan.jpg`).
+- Vân vỏ cây táo, anh đào: ảnh vân cắt từ ["Tree 3D Scan - Retopo"](https://sketchfab.com/3d-models/tree-3d-scan-retopo-9e6778e11ad2413dab940e23bb0b89df) của [grafi](https://sketchfab.com/zdenkoroman), giấy phép [CC-BY-4.0](http://creativecommons.org/licenses/by/4.0/). Đã sửa: ghép 4 dải vỏ thân thành 1 ô lặp 160 × 480 (`src/models/bark-scan.jpg`).
 
 Các mẫu sau chỉ dùng để đo dáng, tỉ lệ hoặc học kiểu vẽ:
 

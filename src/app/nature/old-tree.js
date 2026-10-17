@@ -27,10 +27,8 @@
           const g = new THREE.Group(); g.position.set(X0 + 89, 7, Z0 + 117); g.scale.setScalar(2.76); g.rotation.set(0, 0, 0.62); g.name = 'Cây cổ thụ (Old Tree)'; scene.add(g);   // ngả thân về phía dòng sông (-x)
           oldTreeGroup = g;
           const TOP = 0.85;
-          const barkMat = new THREE.MeshLambertMaterial({ color: 0x4a4036, transparent: true, opacity: TOP }), deadMat = new THREE.MeshLambertMaterial({ color: 0xE2D6C0, transparent: true, opacity: TOP });
-          barkMat.userData.sfL = 1.25; deadMat.userData.sfL = 0.35;   // G 17/10 theo bản quét: nâu xám, địa y phủ dày (cây già) · cành chết ít
-          barkMat.userData.sfLC = new THREE.Color(0.05, 0.032, 0.02);   // (tuyến tính ≈ sRGB #3d3127)
-          Object.assign(barkMat.userData, { sfTex: 1, sfDk: 1, sfTint: new THREE.Vector3(0.9, 0.86, 0.82) });   // ảnh vỏ quét; mảng địa y sáng đổi nâu đen (G 17/10)   // G 17/10: vết loang trên thân cổ thụ màu NÂU ĐEN (không xám trắng)
+          const barkMat = new THREE.MeshLambertMaterial({ color: 0x4a3420, transparent: true, opacity: TOP }), deadMat = new THREE.MeshLambertMaterial({ color: 0xE2D6C0, transparent: true, opacity: TOP });
+          barkMat.userData.sfOld = deadMat.userData.sfOld = 1;   // G 17/10 "cây cổ thụ render tệ, nhìn giả, sửa lại về render cũ": vân vỏ bản trước (không ảnh quét, không địa y loang)   // G 17/10: vết loang trên thân cổ thụ màu NÂU ĐEN (không xám trắng)
           // cây cổ thụ: thân to, tán nặng → dao động riêng chậm ~0,32 Hz, cản nhỏ (gỗ già ít tắt dần); cành xa thân rung ~1 Hz
           const tw = makeTreeWind({ freq: 0.32, zeta: 0.08, lean: 0.45, branchAmp: 0.07 });
           windShader(barkMat, tw, 0); windShader(deadMat, tw, 0); g.userData.treeWind = tw;
@@ -200,7 +198,7 @@
           }
           for (const tp of tips) refineTerminalTwig(tp);
           for (const tp of deadTips) refineTerminalTwig(tp);
-          const OT = { flare: 0.42, flareH: 0.7, lobes: 6, sink: 0.55, wS: 2.76 * 0.9, segMax: 12 };   // bạnh 6 múi ~2 m như 6 cầu dẹt cũ (đá cuội quanh gốc còn lộ) · gốc cắm sâu: thân ngả 35° ⇒ mép trên vòng chân thân vẫn chạm đất
+          const OT = { flare: 0.42, flareH: 0.7, lobes: 6, sink: 0.55, wS: 2.76 * 0.9, segMax: 12, nodes: false };   // bạnh 6 múi ~2 m như 6 cầu dẹt cũ (đá cuội quanh gốc còn lộ) · gốc cắm sâu: thân ngả 35° ⇒ mép trên vòng chân thân vẫn chạm đất
           g.add(...barkMesh(barkTubes(LB, OT), barkMat)); g.add(...barkMesh(barkTubes(LD, OT), deadMat));
           // ---- LÁ HEXAGON chỉ tập trung ở vùng cành đệ quy sub-branches và mở rộng không gian tán lá ----
           const pts = [];
@@ -228,7 +226,7 @@
           } else {
             scene.add(g);
           }
-          const barkMat = surfaceStyle(new THREE.MeshLambertMaterial({ color: 0x4a4036, transparent: true, opacity: 0.65 }), 'bark');   // vân vỏ như cây mẹ
+          const barkMat = new THREE.MeshLambertMaterial({ color: 0x4a3420, transparent: true, opacity: 0.65 }); barkMat.userData.sfOld = 1; surfaceStyle(barkMat, 'bark');   // vân vỏ như cây mẹ (bản cũ)
           const leafCols = [0x4e7a39, 0x5e8c44, 0x6fa052, 0x42692f];
           const V = (x, y, z) => new THREE.Vector3(x, y, z);
 
@@ -304,7 +302,7 @@
             const e = br[br.length - 1], d0 = e.clone().sub(br[br.length - 2]).normalize();
             sSprout(e, d0, 0.5, rb, 0, BL, true);   // nối nhánh đệ quy theo hướng cành chính
           }
-          g.add(...barkMesh(barkTubes(LB, { flare: 0.5, sink: 0.25, wS: 1.75 * 0.9 }), barkMat));   // cây con giữ cỡ thế giới ~1,75 × NATURE_SCALE khi gắn vào cây mẹ
+          g.add(...barkMesh(barkTubes(LB, { flare: 0.5, sink: 0.25, wS: 1.75 * 0.9, nodes: false }), barkMat));   // cây con giữ cỡ thế giới ~1,75 × NATURE_SCALE khi gắn vào cây mẹ
           // ---- TÁN LÁ HEXAGON x3 rậm hơn — gom ở đầu các nhánh đệ quy (đĩa lá 6 cạnh instanced, giống cây cổ thụ) ----
           const sLeafPts = [];
           const perTip = Math.max(20, Math.round(810 / sTips.length));   // tổng ~810 điểm lá = gấp 3 lần trước (3 cụm × 90 = 270)

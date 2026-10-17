@@ -440,6 +440,8 @@ lò xo) ⇒ lên bậc voxel 0,6 đv thì chân trước lên trước, thân ng
   `window.__barkTex` cho bản debug, địa chỉ tuyệt đối Pages); vật liệu có `userData.sfTex` (cổ thụ, táo, anh đào) đọc ảnh theo `aBk` (3 ô quanh mỗi
   bm, ~0,75 m dọc / ô, lặp gương dọc), nhuộm `sfTint` (anh đào nâu đỏ); cổ thụ `sfDk` nhuộm mảng địa y sáng thành nâu đen (G muốn) nhưng giữ vân;
   độ lồi = độ sáng ảnh (sfBump). Chưa tải / lỗi ⇒ vân thủ tục cũ.
+  G 17/10 khuya: "cây cổ thụ render tệ, nhìn giả, sửa lại về render cũ" ⇒ cổ thụ + cây con + cành chết dùng `userData.sfOld` (nhánh shader vân BẢN
+  TRƯỚC: rãnh + đốm địa y nhỏ + rêu gốc, màu 0x4a3420), `nodes: false` trong barkTubes (không mắt cành). Ảnh quét chỉ còn ở cây táo + anh đào.
 - Gấu mèo: thân 2 nửa `U.fore`/`U.aft` gập quanh giữa lưng khi phi nhảy (hông chân vẫn gắn `torso` ⇒ IK không đổi).
 - Đo được (trượt TB của bàn chân trụ, đv/khung ở 30 hình/giây): bò 0,0003–0,0007 · hươu 0,0003 · cò 0,0013 · gấu mèo ~0,003 (ngoặt gắt) ·
   kỹ sư ~0,003 (chưa tính lúc ngoặt). Thử: `slipTest`/`ikErr` (công cụ nháp) — đọc `rig.feet`, so điểm đế thật với `F.w`.

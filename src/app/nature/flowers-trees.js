@@ -212,7 +212,7 @@
               if (i) len.push(len[i - 1] + S[i].distanceTo(S[i - 1]));
               Nf.addScaledVector(tan[i], -Nf.dot(tan[i])).normalize(); Bf.crossVectors(tan[i], Nf); FN.push(Nf.clone());
               const fl = kind === 0 && i < nRing ? F * Math.exp(-Math.max(0, S[i].y - y0) / H) : 0, col = kind === 2 && i < nRing ? 1 + 0.3 * Math.exp(-Math.max(0, len[i] - sIn) / (1.5 * r0)) : 1;
-              const rw = SR[i] * wS, nq = len[i] * wS / 0.3 + ci * 0.37, nd = rw < 0.07 && Math.abs(Math.sin(Math.floor(nq) * 78.233) * 43758.55) % 1 > 0.3 ? 0.18 * (1 - rw / 0.07) * Math.exp(-((((nq % 1) - 0.5) * 7) ** 2)) : 0;   // mắt cành u lên ~30 cm một (cành non — bản quét)
+              const rw = SR[i] * wS, nq = len[i] * wS / 0.3 + ci * 0.37, nd = o.nodes !== false && rw < 0.07 && Math.abs(Math.sin(Math.floor(nq) * 78.233) * 43758.55) % 1 > 0.3 ? 0.18 * (1 - rw / 0.07) * Math.exp(-((((nq % 1) - 0.5) * 7) ** 2)) : 0;   // mắt cành u lên ~30 cm một (cành non — bản quét)
               for (let k = 0; k < seg; k++) { const a = k / seg * 6.2832, c = Math.cos(a), s = Math.sin(a), r = SR[i] * col * (1 + nd) * (1 + fl * (0.72 + 0.28 * Math.cos(lobes * a + 0.7)));
                 G.push(new THREE.Vector3(S[i].x + (Nf.x * c + Bf.x * s) * r, S[i].y + (Nf.y * c + Bf.y * s) * r, S[i].z + (Nf.z * c + Bf.z * s) * r)); }
             }
