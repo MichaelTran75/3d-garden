@@ -1008,7 +1008,7 @@
           const t = new THREE.DataTexture(d, GX, GZ, THREE.RedFormat, THREE.FloatType); t.magFilter = t.minFilter = THREE.NearestFilter; t.needsUpdate = true; return t;
         }
         const SF_GLSL = `
-          uniform sampler2D uSfH; uniform vec4 uSfG; uniform float uSfL; varying vec3 vSfP; varying vec3 vSfN;
+          uniform sampler2D uSfH; uniform vec4 uSfG; uniform float uSfL; uniform vec3 uSfLC; varying vec3 vSfP; varying vec3 vSfN;
           float sfR(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
           float sfN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(sfR(i), sfR(i + vec2(1.0, 0.0)), f.x), mix(sfR(i + vec2(0.0, 1.0)), sfR(i + vec2(1.0, 1.0)), f.x), f.y); }
           float sfNw(vec2 p, float P) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); float i0 = mod(i.x, P), i1 = mod(i.x + 1.0, P);   // nhiễu tuần hoàn theo x (chu kỳ P ô) — vòng quanh thân không lộ đường may
@@ -1020,7 +1020,7 @@
           mat.onBeforeCompile = (sh, r) => {
             prev.call(mat, sh, r);
             SF_H = SF_H || sfHeightTex();
-            sh.uniforms.uSfH = { value: SF_H }; sh.uniforms.uSfG = { value: new THREE.Vector4(1 / BLOCK, cx, cz, 0) }; sh.uniforms.uSfL = { value: mat.userData.sfL ?? 1 };
+            sh.uniforms.uSfH = { value: SF_H }; sh.uniforms.uSfG = { value: new THREE.Vector4(1 / BLOCK, cx, cz, 0) }; sh.uniforms.uSfL = { value: mat.userData.sfL ?? 1 }; sh.uniforms.uSfLC = { value: mat.userData.sfLC || new THREE.Color(0.58, 0.6, 0.53) };
             sh.vertexShader = 'varying vec3 vSfP; varying vec3 vSfN;\n' + (K === 5 ? 'attribute vec3 aBk; varying vec3 vSfB;\n' : '') + sh.vertexShader.replace('#include <fog_vertex>', `#include <fog_vertex>${K === 5 ? '\n vSfB = aBk;' : ''}
               vec3 sfN3 = objectNormal;
               #ifdef USE_INSTANCING
@@ -1068,7 +1068,7 @@
                   c = mix(c, c * 1.3 + vec3(0.05, 0.05, 0.045), 0.7 * thin);   // cành non: xám sáng
                   float lm = 0.62 * sfNw(vec2(ba * 0.5, bl * 4.0) + 13.0, 6.0 * bm) + 0.38 * sfNw(vec2(ba * 1.5, bl * 12.0) + 17.0, 18.0 * bm);   // mảng gần tròn (hơi dài theo thân)
                   float lp = smoothstep(0.6 - 0.08 * uSfL, 0.68 - 0.06 * uSfL, lm) * (1.0 - gv) * (0.68 + 0.32 * sfNw(vec2(ba * 6.0, bl * 40.0), 72.0 * bm));
-                  c = mix(c, vec3(0.58, 0.6, 0.53) * (0.9 + 0.2 * pl), min(1.0, 0.7 * uSfL) * lp);   // địa y vảy
+                  c = mix(c, uSfLC * (0.9 + 0.2 * pl), min(1.0, 0.7 * uSfL) * lp);   // địa y vảy (mặc định xám trắng–xanh; cổ thụ: nâu đen)
                   c = mix(c, vec3(0.86, 0.6, 0.12), 0.9 * smoothstep(0.955, 0.985, sfNw(vec2(ba * 3.0, bl * 30.0) + 23.0, 36.0 * bm)) * (1.0 - gv) * min(1.0, uSfL));   // địa y vàng
                   c = mix(c, c * vec3(0.84, 0.95, 0.66), 0.4 * uSfL * smoothstep(0.45, 0.8, sfNw(vec2(ba * 0.25, bl * 0.5) + 29.0, 3.0 * bm)));   // tảo lục
                   c = mix(c, vec3(0.30, 0.40, 0.18), 0.5 * (1.0 - smoothstep(0.0, 0.9, hA)) * smoothstep(0.3, 0.7, sfNw(vec2(ba * 0.5, bl * 3.0) + 5.0, 6.0 * bm)));
@@ -5494,6 +5494,7 @@
           const TOP = 0.85;
           const barkMat = new THREE.MeshLambertMaterial({ color: 0x4a4036, transparent: true, opacity: TOP }), deadMat = new THREE.MeshLambertMaterial({ color: 0xE2D6C0, transparent: true, opacity: TOP });
           barkMat.userData.sfL = 1.25; deadMat.userData.sfL = 0.35;
+          barkMat.userData.sfLC = new THREE.Color(0.05, 0.032, 0.02);
           const tw = makeTreeWind({ freq: 0.32, zeta: 0.08, lean: 0.45, branchAmp: 0.07 });
           windShader(barkMat, tw, 0); windShader(deadMat, tw, 0); g.userData.treeWind = tw;
           surfaceStyle(barkMat, 'bark'); surfaceStyle(deadMat, 'bark');
