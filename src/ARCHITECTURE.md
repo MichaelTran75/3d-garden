@@ -47,6 +47,12 @@ cận cảnh, hiệu năng, cách thử và các bẫy đã dính. Chi tiết t�
 - **Đọc vị trí đồ cầm tay giữa khung chỉ đúng sau khi tay đó đã giải** (câu cá gọi `engArmSolve(e, 1)` trước khi đọc ngọn cần —
   thiếu bước này dây câu lệch khỏi cần 0,74 đv). Hoặc dùng `e.handW[i]` (tâm bàn tay cuối khung trước).
 - Vector đích phải là vùng nhớ riêng (vd `A.rh`), không dùng biến nháp dùng chung bị ghi đè sau trong khung.
+- Chuyển IK ↔ FK: trọng số `e.reachW` hoà 7/s; khi < 0,999 cực khuỷu trượt dần về phía khuỷu của tư thế FK cùng θ, α (17/10) ⇒ lúc tắt / bật hẳn
+  IK khuỷu không nhảy. Tay về FK giữa chừng thì **đặt lại lò xo góc vai** của lớp tư thế (`e.pose.shown/raw[4 + i]`, xem `lapFKBase`): việc dùng IK lâu
+  (gõ phím) không ghi góc vai nên lò xo còn giữ góc FK cũ (lúc nhích ghế) ⇒ lần uống coke đầu tay vọt 12 cm trong 1 khung. Tư thế IK giơ tay quá đầu
+  (đan tay sau gáy) đọc lại góc Euler ra số rác ⇒ không chuyển thẳng sang FK từ đó, hạ tay về trước.
+- Tay đi từ chỗ cũ tới đích mới: nội suy từ ĐIỂM XUẤT PHÁT ĐÃ GHI (`lapFrom`) theo smoothstep; `đích.lerp(e.handW, 1 − sw)` mỗi khung thì dồn
+  ~70% quãng vào 0,13 s đầu (tay giật).
 
 ## 5. Vẽ và hiệu năng
 
@@ -363,6 +369,19 @@ lò xo) ⇒ lên bậc voxel 0,6 đv thì chân trước lên trước, thân ng
   (`nearPt`) — đo sai lệch cổ tay ≤ 1 mm. Xách khi đi (`hold` → `placeHeld()` ở ĐẦU `render()`): drone tay trái dựng đứng bụng quay vào đùi, tay cầm
   tay phải nắm đầu phải buông dọc thân. **Bẫy**: đặt vật theo cổ tay ngay trong `update()` ⇒ lệch ~0,4 m (lúc đó tay còn ở dáng đầu khung; đung đưa
   + IK chạy sau) — phải đặt sau khi tư thế cuối khung xong. Bàn trà (`campTable`) 0,825 × 0,6 × 0,5625 m, ghi `userData.top` / `size`.
+- Kỹ sư làm việc trên laptop (`engineer/laptop-work.js`, G 17/10 "research about engineer using laptop: behaviour, motion, movement"): việc nhỏ
+  `type` (2 tay trên bàn phím, nảy 4–7 Hz lệch pha, đợt gõ 4,4 s, với Enter mượt) · `read` (kê cổ tay, có lúc sang trackpad cuộn) · `point` (rê + nhấn
+  trackpad) · `think` (chống cằm, nhìn đi chỗ khác) · `rest` (đan tay sau gáy: đường cong kê cổ tay → cạnh thái dương → sau gáy, khuỷu dang) ·
+  `stretch` (~7 phút, FK từ đúng tư thế tay trên máy) · uống coke (~3 phút, CHỈ khi 2 tay đang trên máy). Tay = IK lên điểm thật của MacBook
+  (`lapPt`, toạ độ MBP: +x phải người ngồi, +z về phía người); bàn tay chữ C dọc cẳng tay, xoay quanh cẳng tay cho miệng chữ C úp vào trong – xuống
+  (`lapHandQ` → `e.handQ`), nâng tâm tay bằng điểm thấp nhất của lưới tay (`lapClawLow`, 153 đỉnh) ⇒ móng vừa chạm mặt phím. Laptop dời ra cách mép
+  bàn ~4 cm (bản cũ: vai cách hàng phím 0,62 m > tầm tay 0,57 m). Hết giờ / bấm "Chơi": `lapDone` (stDesk) uống nốt ngụm, hạ tay về kê cổ tay rồi
+  mới nhích ghế. Đo (scratchpad `lapwork.js`: `lwGallery`, `lwRun`): sai lệch IK 0 cm, 10 phút tay ≤ 1,7 m/s, không NaN.
+- Nút "▶ Chơi" drone (G 17/10 "click to the drone/rc to select play then engineer will come and use drone"): bấm drone / tay cầm (khi nằm trên bàn)
+  ⇒ bảng `#dronePop` (page.html, xử lý ở ui/xray-lifecycle.js, chung kiểu `.panel`); chặn kèm lý do: ngủ 21–6 h, mưa, gió > 9 m/s, đang bay, mẫu chưa
+  tải. Bấm Chơi ⇒ `engForceAct = 'drone'` (engineer/schedule.js, `engWantAct` trả 'drone' trước lịch) ⇒ đổi việc như thường (đứng dậy, ra xe, tới bàn
+  trà, bay 1 vòng ~165 s, cất) ⇒ xong thì xoá, về lịch cũ; chỉ đánh dấu xong việc 1-lần khi đang trong khung `drone@` của lịch. Tới giờ ngủ xoá lệnh.
+  Bấm drone có xe van phía sau không bật xem xuyên xe.
 - Cột điện (`poleAt`, world/substation-bess.js, G 17/10 "improve cột điện structure", học cột trong GLB "Inakaya"): cột bê tông thuôn Ø 0,36 → 0,2 m +
   mố + nắp đỉnh; xà 2,7 m + 2 thanh chống chéo + đai ôm; 2 pha trên sứ có tán ở 2 đầu xà, pha giữa trên sứ ĐỈNH CỘT (bản cũ: thân cột vươn qua xà, dây
   pha giữa chui qua thân); bu lông leo so le; biển cấm trèo (polygonOffset); `opts.tx` máy biến áp treo cột (cột 3, 4, 5 — có nhánh vào nhà, dây nối

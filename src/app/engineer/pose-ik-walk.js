@@ -60,7 +60,7 @@
         //  này): cao nhất giữa pha một chân trụ, thấp nhất lúc 2 chân cùng chạm (~2 cm); lắc ngang về chân trụ (~2 cm); xoay ngang ±4° (hông bên chân
         //  bước tới đi trước); chậu nghiêng ±2,5° (bên chân vung hạ xuống) — ngực vặn và nghiêng NGƯỢC lại để đầu giữ yên. Tay vung ngược chân cùng bên.
         //  Chạy SAU lớp tư thế, chỉ đổi phần hiển thị (khung sau lại lấy tư thế đích gốc).
-        const ENG_L1 = 0.42, ENG_L2 = 0.36, ENG_SOLE = 0.10, ENG_HIP_Y = 1.18, _ikW = new THREE.Vector3(), _ikQ = new THREE.Quaternion(), _ikM = new THREE.Matrix4(), _ikA = new THREE.Vector3(), _ikB = new THREE.Vector3(), _ikC = new THREE.Vector3(), _ikP = new THREE.Vector3();
+        const ENG_L1 = 0.42, ENG_L2 = 0.36, ENG_SOLE = 0.10, ENG_HIP_Y = 1.18, _ikW = new THREE.Vector3(), _ikQ = new THREE.Quaternion(), _ikM = new THREE.Matrix4(), _ikA = new THREE.Vector3(), _ikB = new THREE.Vector3(), _ikC = new THREE.Vector3(), _ikP = new THREE.Vector3(), _ikF = new THREE.Vector3();
         const ikSmooth = (a, b, x) => { const k = Math.max(0, Math.min(1, (x - a) / (b - a))); return k * k * (3 - 2 * k); };
         const ENG_HEEL = 0.135, ENG_BALL = 0.13, ENG_FP_STRIKE = -0.22, ENG_FP_OFF = 0.55, _wkH = new THREE.Vector3(), _wkT = new THREE.Vector3();
         function engAnkleAt(p, fx, fz, fp, S, out) {   // cổ chân (thế giới) của bàn chân đặt tại p (điểm đất dưới cổ chân khi phẳng), mũi hướng (fx, fz), góc bàn fp (+ = nhón gót, − = hếch mũi)
@@ -217,6 +217,10 @@
             const cg = Math.cos(A.rotation.z), u = _ikP.set(Math.sin(A.rotation.z), -cg * Math.cos(th), -cg * Math.sin(th));   // hướng vai→tay đã hoà (thứ tự XYZ)
             const a = (L1 * L1 - L2 * L2 + D * D) / (2 * D), hh = Math.sqrt(Math.max(0, L1 * L1 - a * a));
             const pole = e.elbowPole && e.elbowPole[i] ? _ikA.copy(e.elbowPole[i]) : _ikA.set(i ? 0.6 : -0.6, -1, -0.15); pole.addScaledVector(u, -pole.dot(u)).normalize();   // e.elbowPole: pha tự chọn hướng khuỷu (ăn: khép sát thân)
+            if (RW[i] < 0.999) {   // đang hoà IK ↔ FK: cực khuỷu trượt dần về phía khuỷu của tư thế FK (cùng θ, α) ⇒ lúc bật / tắt hẳn IK khuỷu không nhảy (17/10)
+              const s = RW[i] * RW[i] * (3 - 2 * RW[i]), q = th + al, F = _ikF.set(Math.sin(A.rotation.z), -cg * Math.cos(q), -cg * Math.sin(q)); F.addScaledVector(u, -F.dot(u));
+              if (F.lengthSq() > 1e-10) { F.normalize(); pole.multiplyScalar(s).addScaledVector(F, 1 - s); if (pole.lengthSq() < 1e-6) pole.copy(F); pole.normalize(); }
+            }
             const E = _ikB.copy(u).multiplyScalar(a).addScaledVector(pole, hh);                       // khuỷu (so với vai)
             const yA = _ikW.copy(E).negate().normalize(), f = _ikC.copy(u).multiplyScalar(D).sub(E).normalize();   // trục +y cánh tay trên · hướng cẳng tay
             (e.foreW || (e.foreW = [new THREE.Vector3(), new THREE.Vector3()]))[i].copy(f).transformDirection(sp.matrixWorld);   // hướng cẳng tay thế giới (khuỷu → tay) cho pha khung sau: cổ tay thẳng

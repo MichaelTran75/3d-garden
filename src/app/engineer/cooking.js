@@ -24,16 +24,18 @@
         }
         // ---- UỐNG COKE ở bàn học: với tay trái lấy lon trên góc bàn → đưa lên miệng, ngửa cổ uống (yết hầu nhấp nhô) → đặt lại đúng chỗ.
         //      Lon trên bàn ẩn khi đang cầm; lon cầm tay tạo lần đầu dùng (cùng mẫu lon), mặt lon thẳng đứng khi tay với ra bàn, nghiêng rót khi đưa lên miệng ----
-        function engCokeSip(e, k, t, rt) {   // k: giây trong lượt uống (0 → 7,4)
+        function engCokeSip(e, k, t, rt, b) {   // k: giây trong lượt uống (0 → 7,4) · b: tư thế FK tương đương lúc bắt đầu (laptop-work.js: tay đang đặt IK trên máy), không có = tư thế gõ cũ
           const ease = (a, b, q) => a + (b - a) * minJerk(Math.max(0, Math.min(1, q)));
+          const a0 = b ? b.th[1] : -1.1, z0 = b ? b.z[1] : 0;
           let ax, roll;
-          if (k < 1.0) { ax = ease(-1.1, -0.95, k); roll = ease(0, 0.35, k); }                        // với ra góc bàn
+          if (k < 1.0) { ax = ease(a0, -0.95, k); roll = ease(z0, 0.35, k); }                          // với ra góc bàn
           else if (k < 1.3) { ax = -0.95; roll = 0.35; }                                               // nắm lon
           else if (k < 2.4) { ax = ease(-0.95, -2.25, (k - 1.3) / 1.1); roll = ease(0.35, -0.2, (k - 1.3) / 1.1); }
           else if (k < 5.2) { ax = -2.25 + Math.sin(t * 6) * 0.03; roll = -0.2; }                     // uống 2–3 ngụm
           else if (k < 6.3) { ax = ease(-2.25, -0.95, (k - 5.2) / 1.1); roll = ease(-0.2, 0.35, (k - 5.2) / 1.1); }
-          else { ax = ease(-0.95, -1.1, (k - 6.3) / 1.1); roll = ease(0.35, 0, (k - 6.3) / 1.1); }     // tay về bàn phím
-          e.arms[1].rotation.x = ax; rt[1] = roll; e.arms[0].rotation.x = -1.05;
+          else { ax = ease(-0.95, a0, (k - 6.3) / 1.1); roll = ease(0.35, z0, (k - 6.3) / 1.1); }     // tay về bàn phím
+          e.arms[1].rotation.x = ax; rt[1] = roll; e.arms[0].rotation.x = b ? b.th[0] : -1.05;
+          if (b) { rt[0] = b.z[0]; const F = e.elbowFlexT || (e.elbowFlexT = [0, 0]); F[0] = b.fx[0]; F[1] = b.fx[1] * (k < 1 ? 1 - minJerk(k) : k > 6.3 ? minJerk(Math.min(1, (k - 6.3) / 1.1)) : 0); }   // tay phải nằm yên trên máy
           const drink = k < 1.3 ? 0 : k < 2.4 ? (k - 1.3) / 1.1 : k < 5.2 ? 1 : k < 6.3 ? 1 - (k - 5.2) / 1.1 : 0;
           e.head.rotation.x = 0.15 - 0.5 * minJerk(drink) + (k > 2.4 && k < 5.2 ? Math.sin(t * 6) * 0.02 : 0);
           e.seatLean = 0.06 - 0.1 * minJerk(drink);

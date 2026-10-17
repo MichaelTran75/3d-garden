@@ -27,7 +27,7 @@
             if (V.st === 'toBack') return 'released';
             if (V.st === 'aroundL' || V.st === 'aroundF') V.st = 'outB';
             else if (V.st === 'toStand' || V.st === 'turn') V.st = 'outF';
-            else if (V.st === 'work') { V.st = 'unscoot'; V.k = 0; }
+            else if (V.st === 'work' && lapDone(e, V)) { V.st = 'unscoot'; V.k = 0; }   // nghiên cứu: hạ tay về máy trước (engineer/laptop-work.js)
           }
           if (V.st === 'toBack') { if (walkIn(backPt(off), 0.6)) { V.st = 'pull'; V.k = 0; V.dragFrom = off; } }
           else if (V.st === 'pull') { if (drag(V.dragFrom, STUDY_PULL, false)) V.st = keep ? 'aroundL' : 'push0'; }
@@ -45,28 +45,14 @@
           else if (V.st === 'work') {
             e.seatCtl = true; engSeatHold(e, C, e.seat, dt, t);
             const rt = e.armRollT || (e.armRollT = [0, 0]), sipT = (t + V.ph * 3.1) % 190;
-            if (sipT < 7.4) engCokeSip(e, sipT, t, rt);   // ~3 phút một lần: uống coke
-            else if (e.act === 'music') {   // học bài với nhạc: gật gù theo nhịp ~87 bpm, lắc nhẹ đầu; mỗi 30 s ngả lưng gõ nhịp lên mép bàn
+            if (e.act !== 'music') lapWork(e, V, dt, t, rt);   // nghiên cứu: gõ phím · đọc · rê – bấm trackpad · chống cằm nghĩ · đan tay sau gáy · vươn vai · uống coke (engineer/laptop-work.js)
+            else if (sipT < 7.4) engCokeSip(e, sipT, t, rt);   // ~3 phút một lần: uống coke
+            else {   // học bài với nhạc: gật gù theo nhịp ~87 bpm, lắc nhẹ đầu; mỗi 30 s ngả lưng gõ nhịp lên mép bàn
               const beat = t * Math.PI * 2 * 1.45, cyc = (t + V.ph) % 30, rel = cyc > 21;
               e.seatLean = rel ? -0.07 : 0.09; e.headRollT = Math.sin(beat / 2) * 0.07;
               e.head.rotation.x = (rel ? 0.02 : 0.22) + Math.sin(beat) * 0.06;
               if (rel) { e.arms[0].rotation.x = -0.95 + Math.max(0, Math.sin(beat)) * 0.14; e.arms[1].rotation.x = -0.95 + Math.max(0, Math.sin(beat + Math.PI)) * 0.14; }
               else { const tap = (t % 6) < 3.8 ? 0.05 : 0; e.arms[0].rotation.x = -1.1 + Math.sin(t * 11) * tap; e.arms[1].rotation.x = -1.1 + Math.sin(t * 11 + 1.7) * tap; }
-            } else {   // nghiên cứu: gõ phím, thỉnh thoảng ngả lưng nhìn màn hình suy nghĩ; ~7 phút vươn vai 1 lần, ~1 phút đan tay sau gáy 1 lần
-              const cyc = (t + V.ph) % 400, cyc2 = (t + V.ph * 0.7) % 63;
-              if (cyc < 5.5) {
-                const k = Math.min(1, Math.sin(Math.PI * cyc / 5.5) * 1.6);
-                e.seatLean = -0.12 * k; e.arms[0].rotation.x = e.arms[1].rotation.x = -0.45 - 2.45 * k; e.head.rotation.x = 0.05 - 0.3 * k;
-              } else if (cyc2 < 8) {
-                const k = Math.min(1, Math.sin(Math.PI * cyc2 / 8) * 2.5);
-                e.seatLean = -0.1 * k + 0.1 * (1 - k); e.arms[0].rotation.x = e.arms[1].rotation.x = -1.1 - 1.5 * k; rt[0] = -0.55 * k; rt[1] = 0.55 * k; e.head.rotation.x = 0.24 - 0.26 * k;
-              } else {
-                const pause = (t % 11) < 2.2, tap = pause ? 0 : 0.06;
-                e.seatLean = pause ? -0.05 : 0.1;
-                e.arms[0].rotation.x = pause ? -0.55 : -1.1 + Math.sin(t * 13) * tap;
-                e.arms[1].rotation.x = pause ? -0.6 : -1.1 + Math.sin(t * 13 + 1.7) * tap;
-                e.head.rotation.x = pause ? 0.05 + Math.sin(t * 0.8) * 0.04 : 0.18 + Math.sin(t * 0.7) * 0.03;
-              }
             }
           }
           else if (V.st === 'rise') { e.seatCtl = true; if (engRiseStep(e, C, e.seat, dt, t)) { e.seat = null; V.st = 'outF'; } }

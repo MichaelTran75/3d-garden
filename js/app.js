@@ -6090,7 +6090,7 @@
           if (direct) P.shuf = 0;
           else if (P.shuf > 0.002) { const sh = P.shuf * Math.sin(t * 11); P.joints[0].rotation.x += sh; P.joints[1].rotation.x -= sh; }
         }
-        const ENG_L1 = 0.42, ENG_L2 = 0.36, ENG_SOLE = 0.10, ENG_HIP_Y = 1.18, _ikW = new THREE.Vector3(), _ikQ = new THREE.Quaternion(), _ikM = new THREE.Matrix4(), _ikA = new THREE.Vector3(), _ikB = new THREE.Vector3(), _ikC = new THREE.Vector3(), _ikP = new THREE.Vector3();
+        const ENG_L1 = 0.42, ENG_L2 = 0.36, ENG_SOLE = 0.10, ENG_HIP_Y = 1.18, _ikW = new THREE.Vector3(), _ikQ = new THREE.Quaternion(), _ikM = new THREE.Matrix4(), _ikA = new THREE.Vector3(), _ikB = new THREE.Vector3(), _ikC = new THREE.Vector3(), _ikP = new THREE.Vector3(), _ikF = new THREE.Vector3();
         const ikSmooth = (a, b, x) => { const k = Math.max(0, Math.min(1, (x - a) / (b - a))); return k * k * (3 - 2 * k); };
         const ENG_HEEL = 0.135, ENG_BALL = 0.13, ENG_FP_STRIKE = -0.22, ENG_FP_OFF = 0.55, _wkH = new THREE.Vector3(), _wkT = new THREE.Vector3();
         function engAnkleAt(p, fx, fz, fp, S, out) {
@@ -6236,6 +6236,10 @@
             const cg = Math.cos(A.rotation.z), u = _ikP.set(Math.sin(A.rotation.z), -cg * Math.cos(th), -cg * Math.sin(th));
             const a = (L1 * L1 - L2 * L2 + D * D) / (2 * D), hh = Math.sqrt(Math.max(0, L1 * L1 - a * a));
             const pole = e.elbowPole && e.elbowPole[i] ? _ikA.copy(e.elbowPole[i]) : _ikA.set(i ? 0.6 : -0.6, -1, -0.15); pole.addScaledVector(u, -pole.dot(u)).normalize();
+            if (RW[i] < 0.999) {
+              const s = RW[i] * RW[i] * (3 - 2 * RW[i]), q = th + al, F = _ikF.set(Math.sin(A.rotation.z), -cg * Math.cos(q), -cg * Math.sin(q)); F.addScaledVector(u, -F.dot(u));
+              if (F.lengthSq() > 1e-10) { F.normalize(); pole.multiplyScalar(s).addScaledVector(F, 1 - s); if (pole.lengthSq() < 1e-6) pole.copy(F); pole.normalize(); }
+            }
             const E = _ikB.copy(u).multiplyScalar(a).addScaledVector(pole, hh);
             const yA = _ikW.copy(E).negate().normalize(), f = _ikC.copy(u).multiplyScalar(D).sub(E).normalize();
             (e.foreW || (e.foreW = [new THREE.Vector3(), new THREE.Vector3()]))[i].copy(f).transformDirection(sp.matrixWorld);
@@ -7609,7 +7613,7 @@
           studyDeskLighting.light = studyLight; studyDeskLighting.bulb = bulbMat;
           const coke = sodaCan(); coke.scale.setScalar(1.155); coke.position.set(dX - .37 * DESK_K, yIn + dH + .001, dZ + .09 * DESK_K); coke.rotation.y = -.6; coke.name = 'Lon coke trên bàn học'; study.add(coke);
           {
-            const M = macbookPro(), lap = M.g; lap.name = 'Laptop'; lap.position.set(dX - .01, yIn + dH + .001, dZ + .05 * DESK_K); lap.scale.setScalar(1.11); study.add(lap);
+            const M = macbookPro(), lap = M.g; lap.name = 'Laptop'; lap.position.set(dX - .01, yIn + dH + .001, dZ + .1 * DESK_K); lap.scale.setScalar(1.11); study.add(lap);
             const glow = new THREE.PointLight(0x9fc8ff, 0, 1.4 * CAMP_SCALE, 2); glow.position.set(0, .14, .02); lap.add(glow);
             lap.traverse(o => { o.userData.noBake = true; });
             Object.assign(studyLaptop, { hinge: M.hinge, screen: M.screenMat, keys: M.keyMat, light: glow, group: lap, canvas: M.canvas, ctx: M.ctx, tex: M.tex, mode: 'dash', drawnAt: -1 });
@@ -9354,7 +9358,9 @@
           const end = k + 1 < ENG_DAY.length ? ENG_DAY[k + 1][0] : 24, n = (k + 1) % ENG_DAY.length;
           return { act: ENG_DAY[k][1], end, left: (end - h) * 3600, next: ENG_DAY[n][1], nextEnd: n + 1 < ENG_DAY.length ? ENG_DAY[n + 1][0] : 24 };
         }
+        let engForceAct = null;
         function engWantAct(e, hh) {
+          if (engForceAct === 'drone') { const w = liveWeather.state; if (w.raining || (w.windSpeed || 0) / 3.6 > 9) engForceAct = null; else { e.actLeft = 900; return 'drone'; } }
           const s = engScheduleAt(hh); let act = s.act, left = s.left;
           if (ENG_ACTS[act].once) {
             const key = act + '@' + s.end + '@' + new Date().toDateString();
@@ -9498,6 +9504,120 @@
         }
         const engNewSeat = (C, st) => ({ C, st, k: st === 'seated' ? 1 : 0, li: 0, lam: 0, sw: 0 });
 
+        const _lwP = [new THREE.Vector3(), new THREE.Vector3()], _lwM = new THREE.Vector3(), _lwV = new THREE.Vector3(), _lwIn = new THREE.Vector3();
+        const _lwQ = [new THREE.Quaternion(), new THREE.Quaternion()], _lwQ2 = new THREE.Quaternion(), _lwR = new THREE.Vector3(), _lwS = new THREE.Vector3(), _lwA = new THREE.Vector3(), _lwB = new THREE.Vector3(), _lwC = new THREE.Vector3(), _lwX = new THREE.Matrix4();
+        function lapPt(x, y, z, out) { return studyLaptop.group.localToWorld(out.set(x, MBP.HB + y, z)); }
+        const LW_KB = -MBP.D / 2 + 0.122, LW_REST = MBP.D / 2 - 0.074, LW_PAD = MBP.D / 2 - 0.062;
+        let lwClaw = null;
+        const LW_FAR = new Set(['think', 'rest', 'stretch']);
+        function lapHandQ(e, i, dir, psi) {
+          const f = e.foreW && e.foreW[i]; if (!f || f.lengthSq() < 0.5) return null;
+          const y = _lwA.copy(f).negate(), z = _lwB.copy(dir).multiplyScalar(Math.cos(psi)); z.y -= Math.sin(psi); z.addScaledVector(y, -z.dot(y)).normalize();
+          return ((e.handQ || (e.handQ = [null, null]))[i] = _lwQ[i].setFromRotationMatrix(_lwX.makeBasis(_lwC.crossVectors(y, z), y, z)));
+        }
+        function lapClawLow(e, q) {
+          if (!lwClaw) { const m = e.wrists[0].children.find(o => o.isMesh && o.geometry.type === 'TorusGeometry'), a = m.geometry.attributes.position, s = e.wrists[0].getWorldScale(_lwV).x; lwClaw = []; for (let k = 0; k < a.count; k++) lwClaw.push(new THREE.Vector3().fromBufferAttribute(a, k).multiplyScalar(s)); }
+          let lo = 0; for (const v of lwClaw) lo = Math.min(lo, _lwV.copy(v).applyQuaternion(q).y);
+          return lo;
+        }
+        function lapPick(L, cyc) {
+          if (cyc < 6) return ['stretch', 5.5];
+          const r = Math.random();
+          if (L.st === 'think' || L.st === 'rest') return r < 0.6 ? ['type', 4 + Math.random() * 8] : ['read', 3 + Math.random() * 5];
+          return r < 0.4 ? ['type', 4 + Math.random() * 9] : r < 0.65 ? ['read', 3 + Math.random() * 6] : r < 0.86 ? ['point', 2 + Math.random() * 4] : r < 0.96 ? ['think', 3 + Math.random() * 4] : ['rest', 6 + Math.random() * 4];
+        }
+        function lapPulse(x, a, b, r) {
+          const u = Math.min(1, Math.max(0, (x - a) / r), Math.max(0, (b - x) / r)); return u * u * (3 - 2 * u);
+        }
+        function lapFKBase(e, b) {
+          b = b || { th: [0, 0], z: [0, 0], fx: [0, 0] }; e.spine.updateWorldMatrix(true, false);
+          for (let i = 0; i < 2; i++) {
+            const v = e.spine.worldToLocal(_lwV.copy(e.handW[i])).sub(e.arms[i].position), d = v.length() || 1;
+            b.th[i] = Math.atan2(-v.z, -v.y); b.z[i] = Math.asin(Math.max(-1, Math.min(1, v.x / d))); b.fx[i] = ENG_ARM_D - d;
+          }
+          if (e.armRoll) { e.armRoll[0] = b.z[0]; e.armRoll[1] = b.z[1]; } if (e.elbowFlex) { e.elbowFlex[0] = b.fx[0]; e.elbowFlex[1] = b.fx[1]; }
+          const P = e.pose; if (P) for (let i = 0; i < 2; i++) { P.shown[4 + i] = P.raw[4 + i] = b.th[i]; P.jv[4 + i] = 0; }
+          return b;
+        }
+        function lapFrom(e, L, bd) {
+          L.b = 0; L.bd = bd; const F = L.f0 || (L.f0 = [new THREE.Vector3(), new THREE.Vector3()]); if (e.handW) { F[0].copy(e.handW[0]); F[1].copy(e.handW[1]); L.hf = 1; }
+        }
+        function lapDone(e, V) {
+          const L = V.lw, now = clock.elapsedTime;
+          if (!L || now - L.at > 1) { V.lw = null; return true; }
+          if (!L.leave) {
+            L.leave = now;
+            if (L.st === 'rest' || L.st === 'stretch') L.qOut = 1;
+            else if (L.st !== 'read') { const bd = L.st === 'think' ? 0.95 : 0.45; L.st = 'read'; L.t = 0; L.dur = 99; lapFrom(e, L, bd); }
+          }
+          if ((!L.sip && L.st === 'read' && L.b >= L.bd) || now - L.leave > 10) { V.lw = null; return true; }
+          return false;
+        }
+        function lapWork(e, V, dt, t, rt) {
+          let L = V.lw; const R = e.reachT || (e.reachT = [null, null]);
+          if (!L) { L = V.lw = { st: 'read', t: 0, dur: 2, gl: 0, b: 0, bd: 0.45, at: t }; lapFrom(e, L, 0.6); }
+          if (t - L.at > 0.25) lapFrom(e, L, 0.6);
+          L.at = t;
+          if (!L.sip && !L.leave && (t + V.ph * 3.1) % 190 < 0.5 && !LW_FAR.has(L.st) && e.handW) { L.sip = t; L.sb = lapFKBase(e, L.sb); }
+          if (L.sip) { const k = t - L.sip; if (k < 7.4) { engCokeSip(e, k, t, rt, L.sb); return; } L.sip = 0; lapFrom(e, L, 0.6); }
+          L.t += dt; L.b += dt;
+          if (L.t > L.dur && !L.leave) { const [st, dur] = lapPick(L, (t + V.ph) % 400), far = LW_FAR.has(st) || LW_FAR.has(L.st); L.st = st; L.t = 0; L.dur = dur; L.gl = 0; lapFrom(e, L, far ? 0.95 : 0.45); if (st === 'stretch') L.sb = lapFKBase(e, L.sb); }
+          const k = Math.min(1, L.b / L.bd), sw = L.hf ? k * k * (3 - 2 * k) : 1, F = L.f0;
+          const hand = (i, x, z, lift, psi) => {
+            const p = lapPt(x, 0.001, z, _lwP[i]), q = lapHandQ(e, i, _lwIn.set(i ? 1 : -1, 0, 0).transformDirection(studyLaptop.group.matrixWorld), psi); p.y += lift - (q ? lapClawLow(e, q) : 0.06);
+            if (sw < 1) p.lerp(F[i], 1 - sw); R[i] = p;
+          };
+          rt[0] = rt[1] = 0; e.headYawT = 0; let hp = 0.2;
+          if (L.st === 'type') {
+            const bc = L.t % 5.5, f = 0.15 + 0.85 * lapPulse(bc, 0, 4.4, 0.25);
+            const b0 = Math.max(0, Math.sin(t * 33 + 0.7 * Math.sin(t * 5.1))) ** 2 * 0.008 * f, b1 = Math.max(0, Math.sin(t * 29 + 1.9 + 0.8 * Math.sin(t * 4.3))) ** 2 * 0.008 * f;
+            const ec = L.t % 3.7, ent = ec > 3.25 ? Math.sin(Math.PI * (ec - 3.25) / 0.45) ** 2 : 0;
+            hand(0, 0.085 + 0.01 * Math.sin(t * 1.7) + (0.04 - 0.01 * Math.sin(t * 1.7)) * ent, LW_KB + 0.004 * Math.sin(t * 2.3) - 0.024 * ent, 0.003 + b0 * (1 - ent), 0.55);
+            hand(1, -0.085 + 0.01 * Math.sin(t * 1.3 + 1), LW_KB + 0.004 * Math.sin(t * 2.1 + 2), 0.003 + b1, 0.55);
+            if ((L.gl -= dt) < -2.5 - Math.random() * 3) L.gl = 0.55;
+            e.seatLean = 0.15; hp = L.gl > 0 ? 0.42 : 0.2 + Math.sin(t * 0.7) * 0.02;
+          } else if (L.st === 'read') {
+            const sc = lapPulse(L.t % 4.2, 2.5, 4.2, 0.3), s = Math.sin(t * 7.5) * 0.012 * sc;
+            hand(0, 0.11 - 0.09 * sc, LW_REST + (LW_PAD - LW_REST) * sc + s, 0.002, 0.3);
+            hand(1, -0.11, LW_REST, 0.002, 0.3);
+            e.seatLean = 0.06; hp = 0.17 + Math.sin(t * 0.5) * 0.015; e.headYawT = 0.06 * Math.sin((L.t % 3) / 3 * Math.PI * 2 - 1.2);
+          } else if (L.st === 'point') {
+            const pc = L.t % 1.3, cl = 0.004 * (1 - (pc < 0.16 ? Math.sin(Math.PI * pc / 0.16) : 0));
+            hand(0, 0.025 + 0.02 * Math.cos(t * 1.6) + 0.006 * Math.sin(t * 4.1), LW_PAD + 0.014 * Math.sin(t * 2.2), 0.001 + cl, 0.45);
+            hand(1, -0.14, LW_REST, 0.002, 0.3);
+            e.seatLean = 0.09; hp = 0.19;
+          } else if (L.st === 'think') {
+            const ch = engMouthW(e, _lwM); ch.y -= 0.09 * e.g.scale.y; e.head.getWorldPosition(_lwP[0]);
+            _lwP[0].sub(ch).setY(0).normalize(); ch.addScaledVector(_lwP[0], -0.06 * e.g.scale.y);
+            ch.y += Math.sin(t * 2.4) * 0.006 * (L.t > 1.2 ? 1 : 0);
+            lapHandQ(e, 0, _lwP[0], -0.3);
+            R[0] = sw < 1 ? ch.clone().lerp(F[0], 1 - sw) : ch.clone();
+            hand(1, -0.13, LW_REST + 0.02, 0.002, 0.3);
+            e.seatLean = -0.04; hp = -0.02; e.headYawT = 0.22 * Math.sin(V.ph * 7 + 1);
+          } else if (L.st === 'rest') {
+            let q = Math.min(1, Math.sin(Math.PI * Math.min(1, L.t / L.dur)) * 1.6); const P = L.pole || (L.pole = [new THREE.Vector3(), new THREE.Vector3()]);
+            if (L.leave) { L.qOut = Math.min(L.qOut, q) - dt; q = Math.max(0, L.qOut); if (q <= 0) { L.st = 'read'; L.t = 0; L.dur = 99; lapFrom(e, L, 0.45); } }
+            e.head.updateWorldMatrix(true, false); const c = e.head.localToWorld(_lwM.set(0, 0.05, -0.02));
+            for (let i = 0; i < 2; i++) {
+              const p = e.head.localToWorld(_lwP[i].set(i ? 0.085 : -0.085, 0.05, -0.27)), h = lapHandQ(e, i, _lwIn.copy(c).sub(p).normalize(), 0);
+              if (q < 1) {
+                const a = lapPt(i ? -0.11 : 0.11, 0.06, LW_REST, _lwR), m = e.head.localToWorld(_lwS.set(i ? 0.34 : -0.34, 0.08, 0.22)).multiplyScalar(2).addScaledVector(a, -0.5).addScaledVector(p, -0.5);
+                p.multiplyScalar(q * q).addScaledVector(m, 2 * q * (1 - q)).addScaledVector(a, (1 - q) * (1 - q));
+                if (h) { _lwQ2.copy(h); const qr = lapHandQ(e, i, _lwIn.set(i ? 1 : -1, 0, 0).transformDirection(studyLaptop.group.matrixWorld), 0.3); if (qr) qr.slerp(_lwQ2, q); }
+              }
+              R[i] = sw < 1 ? p.lerp(F[i], 1 - sw) : p;
+              P[i].set(i ? 0.6 : -0.6, -1, -0.15).lerp(_lwR.set(i ? 1 : -1, 0.45, 0.25), q);
+            }
+            e.elbowPole = P; e.seatLean = -0.1 * q + 0.1 * (1 - q); hp = 0.24 - 0.26 * q;
+          } else {
+            R[0] = R[1] = null; let q = Math.min(1, Math.sin(Math.PI * Math.min(1, L.t / L.dur)) * 1.6);
+            if (L.leave) { L.qOut = Math.min(L.qOut, q) - dt / 0.8; q = Math.max(0, L.qOut); if (q <= 0) { L.st = 'read'; L.t = 0; L.dur = 99; lapFrom(e, L, 0.6); } }
+            const B = L.sb || (L.sb = lapFKBase(e)), F = e.elbowFlexT || (e.elbowFlexT = [0, 0]);
+            for (let i = 0; i < 2; i++) { e.arms[i].rotation.x = B.th[i] + (-2.9 - B.th[i]) * q; rt[i] = B.z[i] * (1 - q); F[i] = B.fx[i] * (1 - q); }
+            e.seatLean = -0.12 * q; hp = 0.05 - 0.3 * q;
+          }
+          e.head.rotation.x = hp;
+        }
         const stDesk = { node: 'mid', tick(e, V, dt, t, keep) {
           const g = e.g, P = engStudyPts, C = STUDY_SEAT, off = studyChairRig.off;
           const face = (dx, dz, k = 8) => { let d = Math.atan2(dx, dz) - g.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); g.rotation.y += d * Math.min(1, dt * k); };
@@ -9525,7 +9645,7 @@
             if (V.st === 'toBack') return 'released';
             if (V.st === 'aroundL' || V.st === 'aroundF') V.st = 'outB';
             else if (V.st === 'toStand' || V.st === 'turn') V.st = 'outF';
-            else if (V.st === 'work') { V.st = 'unscoot'; V.k = 0; }
+            else if (V.st === 'work' && lapDone(e, V)) { V.st = 'unscoot'; V.k = 0; }
           }
           if (V.st === 'toBack') { if (walkIn(backPt(off), 0.6)) { V.st = 'pull'; V.k = 0; V.dragFrom = off; } }
           else if (V.st === 'pull') { if (drag(V.dragFrom, STUDY_PULL, false)) V.st = keep ? 'aroundL' : 'push0'; }
@@ -9543,28 +9663,14 @@
           else if (V.st === 'work') {
             e.seatCtl = true; engSeatHold(e, C, e.seat, dt, t);
             const rt = e.armRollT || (e.armRollT = [0, 0]), sipT = (t + V.ph * 3.1) % 190;
-            if (sipT < 7.4) engCokeSip(e, sipT, t, rt);
-            else if (e.act === 'music') {
+            if (e.act !== 'music') lapWork(e, V, dt, t, rt);
+            else if (sipT < 7.4) engCokeSip(e, sipT, t, rt);
+            else {
               const beat = t * Math.PI * 2 * 1.45, cyc = (t + V.ph) % 30, rel = cyc > 21;
               e.seatLean = rel ? -0.07 : 0.09; e.headRollT = Math.sin(beat / 2) * 0.07;
               e.head.rotation.x = (rel ? 0.02 : 0.22) + Math.sin(beat) * 0.06;
               if (rel) { e.arms[0].rotation.x = -0.95 + Math.max(0, Math.sin(beat)) * 0.14; e.arms[1].rotation.x = -0.95 + Math.max(0, Math.sin(beat + Math.PI)) * 0.14; }
               else { const tap = (t % 6) < 3.8 ? 0.05 : 0; e.arms[0].rotation.x = -1.1 + Math.sin(t * 11) * tap; e.arms[1].rotation.x = -1.1 + Math.sin(t * 11 + 1.7) * tap; }
-            } else {
-              const cyc = (t + V.ph) % 400, cyc2 = (t + V.ph * 0.7) % 63;
-              if (cyc < 5.5) {
-                const k = Math.min(1, Math.sin(Math.PI * cyc / 5.5) * 1.6);
-                e.seatLean = -0.12 * k; e.arms[0].rotation.x = e.arms[1].rotation.x = -0.45 - 2.45 * k; e.head.rotation.x = 0.05 - 0.3 * k;
-              } else if (cyc2 < 8) {
-                const k = Math.min(1, Math.sin(Math.PI * cyc2 / 8) * 2.5);
-                e.seatLean = -0.1 * k + 0.1 * (1 - k); e.arms[0].rotation.x = e.arms[1].rotation.x = -1.1 - 1.5 * k; rt[0] = -0.55 * k; rt[1] = 0.55 * k; e.head.rotation.x = 0.24 - 0.26 * k;
-              } else {
-                const pause = (t % 11) < 2.2, tap = pause ? 0 : 0.06;
-                e.seatLean = pause ? -0.05 : 0.1;
-                e.arms[0].rotation.x = pause ? -0.55 : -1.1 + Math.sin(t * 13) * tap;
-                e.arms[1].rotation.x = pause ? -0.6 : -1.1 + Math.sin(t * 13 + 1.7) * tap;
-                e.head.rotation.x = pause ? 0.05 + Math.sin(t * 0.8) * 0.04 : 0.18 + Math.sin(t * 0.7) * 0.03;
-              }
             }
           }
           else if (V.st === 'rise') { e.seatCtl = true; if (engRiseStep(e, C, e.seat, dt, t)) { e.seat = null; V.st = 'outF'; } }
@@ -9754,16 +9860,18 @@
           food.visible = k > 0.04; if (!food.visible) return;
           const s = 0.55 + 0.45 * k; food.scale.set(s, 0.5 + 0.5 * k, s); food.position.y = food.userData.y0 - (1 - k) * drop;
         }
-        function engCokeSip(e, k, t, rt) {
+        function engCokeSip(e, k, t, rt, b) {
           const ease = (a, b, q) => a + (b - a) * minJerk(Math.max(0, Math.min(1, q)));
+          const a0 = b ? b.th[1] : -1.1, z0 = b ? b.z[1] : 0;
           let ax, roll;
-          if (k < 1.0) { ax = ease(-1.1, -0.95, k); roll = ease(0, 0.35, k); }
+          if (k < 1.0) { ax = ease(a0, -0.95, k); roll = ease(z0, 0.35, k); }
           else if (k < 1.3) { ax = -0.95; roll = 0.35; }
           else if (k < 2.4) { ax = ease(-0.95, -2.25, (k - 1.3) / 1.1); roll = ease(0.35, -0.2, (k - 1.3) / 1.1); }
           else if (k < 5.2) { ax = -2.25 + Math.sin(t * 6) * 0.03; roll = -0.2; }
           else if (k < 6.3) { ax = ease(-2.25, -0.95, (k - 5.2) / 1.1); roll = ease(-0.2, 0.35, (k - 5.2) / 1.1); }
-          else { ax = ease(-0.95, -1.1, (k - 6.3) / 1.1); roll = ease(0.35, 0, (k - 6.3) / 1.1); }
-          e.arms[1].rotation.x = ax; rt[1] = roll; e.arms[0].rotation.x = -1.05;
+          else { ax = ease(-0.95, a0, (k - 6.3) / 1.1); roll = ease(0.35, z0, (k - 6.3) / 1.1); }
+          e.arms[1].rotation.x = ax; rt[1] = roll; e.arms[0].rotation.x = b ? b.th[0] : -1.05;
+          if (b) { rt[0] = b.z[0]; const F = e.elbowFlexT || (e.elbowFlexT = [0, 0]); F[0] = b.fx[0]; F[1] = b.fx[1] * (k < 1 ? 1 - minJerk(k) : k > 6.3 ? minJerk(Math.min(1, (k - 6.3) / 1.1)) : 0); }
           const drink = k < 1.3 ? 0 : k < 2.4 ? (k - 1.3) / 1.1 : k < 5.2 ? 1 : k < 6.3 ? 1 - (k - 5.2) / 1.1 : 0;
           e.head.rotation.x = 0.15 - 0.5 * minJerk(drink) + (k > 2.4 && k < 5.2 ? Math.sin(t * 6) * 0.02 : 0);
           e.seatLean = 0.06 - 0.1 * minJerk(drink);
@@ -10702,7 +10810,7 @@
             renderer.shadowMap.autoUpdate = auto; labelGroup.visible = lgv; bub.visible = true; g.visible = true; rc.visible = true;
           }
           park();
-          return { update, abort, render, park, state: D, g, rc, bub, rt, osdC, frame: { rt: frameRT, scene: fScene, cam: fCam, draw: () => renderFrame() } };
+          return { update, abort, render, park, ready: () => !!rcSrc, state: D, g, rc, bub, rt, osdC, frame: { rt: frameRT, scene: fScene, cam: fCam, draw: () => renderFrame() } };
         })();
         const _mrA = new THREE.Vector3(), _mrB = new THREE.Vector3(), _mrC = new THREE.Vector3(), _mrD = new THREE.Vector3(), _mrE = new THREE.Vector3(), _mrF = new THREE.Vector3();
         const _mrM = new THREE.Matrix4(), _mrQ = new THREE.Quaternion(), _mrQ2 = new THREE.Quaternion(), _mrUp = new THREE.Vector3(0, 1, 0);
@@ -15685,8 +15793,29 @@
           if (e.button !== 0 || pickMode || Math.hypot(e.clientX - pickDownX, e.clientY - pickDownY) > 6) return;
           const r = dom.getBoundingClientRect();
           pickRay.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), camera);
-          setCaravanXray(pickRay.intersectObject(caravanObj, true).length > 0 ? !caravanXray : false);
+          const h = pickRay.intersectObjects([caravanObj, droneToy.g, droneToy.rc], true)[0];
+          let onVan = false; for (let p = h && h.object; p; p = p.parent) if (p === caravanObj) { onVan = true; break; }
+          setCaravanXray(onVan ? !caravanXray : false);
         });
+        const dPop = document.getElementById('dronePop'), dMsg = document.getElementById('dronePopMsg'), dPlay = document.getElementById('dronePlay'), dClose = document.getElementById('dronePopClose');
+        const droneWhyNot = () => { const h = liveWeather.localHour, w = liveWeather.state;
+          return h >= 21 || h < 6 ? 'Kỹ sư đang ngủ (21:00 – 6:00).' : w.raining ? 'Đang mưa, drone không bay được.' : (w.windSpeed || 0) / 3.6 > 9 ? 'Gió mạnh quá (> 9 m/s).'
+            : droneToy.state.st !== 'idle' || engForceAct ? 'Kỹ sư đang bay drone.' : !droneToy.ready() ? 'Mẫu drone đang tải…' : ''; };
+        function showDronePop(x, y) {
+          const r = dom.getBoundingClientRect(), why = droneWhyNot();
+          dMsg.textContent = why || 'Gọi kỹ sư ra bàn trà lấy drone bay 1 vòng quanh đảo.'; dPlay.disabled = !!why; dPlay.style.opacity = why ? '0.45' : '1';
+          dPop.style.left = Math.max(8, Math.min(r.width - 222, x - r.left + 14)) + 'px'; dPop.style.top = Math.max(8, Math.min(r.height - 130, y - r.top - 24)) + 'px'; dPop.style.display = 'block';
+        }
+        if (dPop) {
+          listen(dom, 'pointerup', e => {
+            if (e.button !== 0 || pickMode || Math.hypot(e.clientX - pickDownX, e.clientY - pickDownY) > 6) return;
+            const r = dom.getBoundingClientRect();
+            pickRay.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), camera);
+            if (pickRay.intersectObjects([droneToy.g, droneToy.rc], true).length) showDronePop(e.clientX, e.clientY); else dPop.style.display = 'none';
+          });
+          listen(dPlay, 'click', () => { if (droneWhyNot()) return; engForceAct = 'drone'; dPop.style.display = 'none'; });
+          listen(dClose, 'click', () => { dPop.style.display = 'none'; });
+        }
         const pickCopyBtn = document.getElementById('pickCopy'), pickCloseBtn = document.getElementById('pickClose');
         function copyFallback(txt) {
           const ta = document.createElement('textarea'); ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta);
@@ -16216,7 +16345,7 @@
             const isSleeping = hh >= 21.0 || hh < 6.0;
             vanDoorsTick(dt);
             if (isSleeping) {
-              resetFishingBite(); studyLaptop.target = 0; e.seat = null; e.act = 'sleep'; e.phase = 'van'; e.inVan = true; e.van = null; e.enter = null;
+              resetFishingBite(); engForceAct = null; studyLaptop.target = 0; e.seat = null; e.act = 'sleep'; e.phase = 'van'; e.inVan = true; e.van = null; e.enter = null;
               if (studyChairRig.off) studyChairAt(0);
               if (e.g.parent !== caravanObj) {
                 caravanObj.add(e.g);
@@ -16381,7 +16510,7 @@
                 if (applePick.update(e, dt, t)) e.doneAct = e.onceKey;
               }
               else if (e.phase === 'drone') {
-                if (droneToy.update(e, dt, t)) e.doneAct = e.onceKey;
+                if (droneToy.update(e, dt, t)) { if (!engForceAct || (e.onceKey || '').startsWith('drone@')) e.doneAct = e.onceKey; engForceAct = null; }
               }
               else if (e.phase === 'toMast') {
                 if (engStep(e, e.wp[2], dt, t, pf, FIRE_AVOID_R, mastField)) { e.phase = 'check'; e.timer = 40; }

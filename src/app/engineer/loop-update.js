@@ -8,7 +8,7 @@
             const isSleeping = hh >= 21.0 || hh < 6.0;
             vanDoorsTick(dt);
             if (isSleeping) {
-              resetFishingBite(); studyLaptop.target = 0; e.seat = null; e.act = 'sleep'; e.phase = 'van'; e.inVan = true; e.van = null; e.enter = null;
+              resetFishingBite(); engForceAct = null; studyLaptop.target = 0; e.seat = null; e.act = 'sleep'; e.phase = 'van'; e.inVan = true; e.van = null; e.enter = null;
               if (studyChairRig.off) studyChairAt(0);   // (đã đẩy ghế vào trước khi lên giường)
               if (e.g.parent !== caravanObj) {
                 caravanObj.add(e.g);
@@ -177,7 +177,7 @@
                 if (applePick.update(e, dt, t)) e.doneAct = e.onceKey;
               }
               else if (e.phase === 'drone') {              // bay drone khảo sát: lấy trên bàn trà · đặt, mở càng · cất cánh · bay · hạ · gập · cất (engineer/drone.js)
-                if (droneToy.update(e, dt, t)) e.doneAct = e.onceKey;
+                if (droneToy.update(e, dt, t)) { if (!engForceAct || (e.onceKey || '').startsWith('drone@')) e.doneAct = e.onceKey; engForceAct = null; }   // bay theo yêu cầu ngoài giờ: không đánh dấu xong việc 1-lần khác
               }
               else if (e.phase === 'toMast') {             // đi tới cột khí tượng
                 if (engStep(e, e.wp[2], dt, t, pf, FIRE_AVOID_R, mastField)) { e.phase = 'check'; e.timer = 40; }

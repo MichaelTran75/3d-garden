@@ -50,6 +50,7 @@ animals/quadruped.js                   # BỘ CHÂN 4 CHI dùng chung: nhịp th
 animals/dog-brain.js                   # CHÓ: hành vi (nằm sưởi, vươn vai, đánh hơi, theo chủ, uống nước, chạy vòng) + dáng đi 4 chân IK
 engineer/schedule.js                   # LỊCH CẢ NGÀY: bàn học, giờ giấc, việc theo giờ
 engineer/van-nav.js                    # đi lại trong xe: nút, cửa lùa, bước ngang, ghế trong xe
+engineer/laptop-work.js                # LÀM VIỆC TRÊN LAPTOP: gõ phím · đọc · rê – bấm trackpad · chống cằm · đan tay sau gáy · vươn vai · uống coke (IK tay lên điểm thật trên MacBook)
 engineer/van-stations.js               # các trạm: bàn học, bàn ăn, giường, WC, lavabo, kệ mũ, vòi sen, khăn
 engineer/cooking.js                    # nấu udon, chiên cơm, rửa bát; điều phối các trạm (engVan)
 engineer/routine-fx.js                 # tia nước, hơi nước, nốt nhạc, Zzz ngủ trưa, gói snack, màn hình nhạc
