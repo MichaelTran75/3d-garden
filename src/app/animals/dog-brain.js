@@ -49,6 +49,7 @@
             if (mode === 'lie') { T.h = 0.12 * s; T.fold = 1; }
             else if (mode === 'sit') { T.h = 0.215 * s; T.pitch = 0.5; T.sit = 1; }
             else if (mode === 'bow') { T.h = 0.24 * s; T.pitch = -0.35; T.bow = 1; }
+            else if (mode === 'crouch') { T.h = H0 * 0.72; T.pitch = 0.08; }   // nhún trước khi bật nhảy (4 chân gập)
             return T;
           }
           for (const L of U.legs) { L.L1 = L1; L.L2 = L2; }
@@ -90,7 +91,7 @@
             const T = poseTargets(B.mode), psi = rig.psi, c2 = Math.cos(4 * Math.PI * psi), s1 = Math.sin(2 * Math.PI * psi);
             const bob = v > 0.06 ? (gait === 'trot' ? 0.012 * s * c2 : gait === 'gallop' ? 0.03 * s * s1 : 0.006 * s * c2) : 0;
             damp(P.fold, T.fold, 4, dt); damp(P.sit, T.sit, 4.5, dt); damp(P.bow, T.bow, 5, dt);
-            damp(P.h, T.h + bob, 9, dt); damp(P.pitch, T.pitch + (gait === 'gallop' && v > 0.06 ? 0.12 * Math.cos(2 * Math.PI * psi) : 0), 9, dt);
+            damp(P.h, T.h + bob, 9, dt); damp(P.pitch, T.pitch + (gait === 'gallop' && v > 0.06 ? 0.12 * Math.cos(2 * Math.PI * psi) : 0) + (B.slope || 0), 9, dt);
             U.torso.position.y = P.h.x; U.torso.rotation.z = P.pitch.x;
             let yr = dogObj.rotation.y - prevYaw; yr = Math.atan2(Math.sin(yr), Math.cos(yr)); prevYaw = dogObj.rotation.y; turnRate += (yr / Math.max(dt, 1e-3) - turnRate) * Math.min(1, dt * 6);
             damp(P.roll, Math.max(-0.14, Math.min(0.14, -turnRate * v * 0.05)), 8, dt); dogObj.rotation.x = P.roll.x;   // nghiêng vào khúc cua khi chạy
@@ -192,7 +193,36 @@
             if (r > 0.9 && dogPerchSpot()) return setSt('perch');   // nhảy lên đống củi đứng ngó (G 17/10, bước 3)
             B.n = 3 + Math.floor(Math.random() * 4); setSt('sniff');
           }
-          function shelterTick(dt, t) {   // mưa / tối: vào xe nằm gầm bàn vuông (giữ nguyên lộ trình cũ: tới cửa → bậc → nhảy lên → giường)
+          // ---- LÊN / XUỐNG BẬC CỬA XE (G 17/10 "improve dog physic, correct step and movement"): bậc dưới cao 0,25 m (lộ ra chỉ sâu 0,21 m), bậc trên
+          //      0,48 m (sâu 0,45 m), sàn xe 0,96 m so với đất — chân chó chỉ dài 0,26 m, mỗi bậc ≈ cả chân. Bản cũ: đứng chờ NGAY CHỖ BẬC (thân xuyên 2 bậc)
+          //      rồi 1 vòng cung đất → sàn (bay xuyên bậc). Thử đi bộ lên (mỗi chân đáp đúng mặt bậc): thân dựng ~50°, ngực xuyên mép sàn ⇒ chó nhỏ thật thì
+          //      NHẢY: đứng cách mép bậc dưới 0,42 m, quay vào cửa, nhún → BẬT lên bậc trên (đáp gọn 4 chân) → đứng ngó vào → nhún → bật vào sàn xe. Quỹ đạo lên
+          //      bậc: LÊN TRƯỚC – TỚI SAU (cao theo 1 − (1 − u)², ngang theo u²) cho bàn chân trước vượt mép bậc / ngưỡng cửa ngay trước mũi; xuống: TỚI TRƯỚC – RƠI SAU
+          //      (chân sau qua ngưỡng rồi mới hạ). Thân ngóc khi bật, chúc khi rơi; chân co trong lúc bay. Mặt bậc cho từng bàn chân: stairY ----
+          const STEPS = caravanObj.getObjectByName('Bậc cửa có khung đỡ').userData, DOOR = STEPS.door, _sv = new THREE.Vector3();
+          const treadTop = STEPS.treads.map(tr => caravanObj.localToWorld(_sv.set(0, tr.y + tr.height / 2, 0)).y);
+          function stairY(x, z) {   // mặt đặt chân quanh cửa hông (toạ độ thế giới): đất · bậc dưới · bậc trên · sàn xe
+            caravanObj.worldToLocal(_sv.set(x, 0, z));
+            if (_sv.z < DOOR.wall + 0.03 && _sv.x > DOOR.x0 && _sv.x < DOOR.x1) return dogInside.y;   // trong xe + ngưỡng cửa
+            let y = cowY(x, z);
+            if (Math.abs(_sv.x - DOOR.cx) < DOOR.w / 2) STEPS.treads.forEach((tr, i) => { if (Math.abs(_sv.z - tr.z) <= tr.depth / 2) y = Math.max(y, treadTop[i]); });
+            return y;
+          }
+          const doorAxis = m => vanPt(DOOR.cx, 0, DOOR.wall + m / caravanObj.scale.z);   // m: mét tính từ vách cửa ra ngoài, trên trục cửa
+          const topTr = STEPS.treads.reduce((a, b) => (b.y + b.height > a.y + a.height ? b : a)), outEdge = STEPS.treads.reduce((m, tr) => Math.max(m, tr.z + tr.depth / 2), 0);
+          const dogStairA = doorAxis((outEdge - DOOR.wall) * caravanObj.scale.z + 0.42), dogStairT = doorAxis((topTr.z - DOOR.wall) * caravanObj.scale.z);   // chỗ đứng bật · chỗ đáp trên bậc trên
+          function stairHop(D, A, Bp, up, T, dt) {   // 1 cú nhảy A → Bp (đáp đúng mặt bậc / sàn), trả true khi đáp
+            const p = dogObj.position; D.t = Math.min(1, D.t + dt / T); const u = D.t, ya = stairY(A.x, A.z), yb = stairY(Bp.x, Bp.z);
+            const ux = up ? u * u : 1 - (1 - u) * (1 - u), uy = up ? 1 - (1 - u) * (1 - u) : u * u;
+            p.x = A.x + (Bp.x - A.x) * ux; p.z = A.z + (Bp.z - A.z) * ux; p.y = ya + (yb - ya) * uy + Math.sin(Math.PI * u) * (up ? 0.2 : 0.28);   // xuống: vồng cao hơn — chân sau qua mép ngưỡng / bậc rồi mới hạ
+            dogObj.rotation.y = yawOf(Bp.x - A.x, Bp.z - A.z); B.want = 0; v = 0; B.air = true; B.mode = 'stand';
+            B.slope = up ? 0.55 * (1 - u) * (1 - u) : -0.45 * Math.sin(Math.PI * u);   // ngóc lúc bật · chúc lúc rơi
+            dogObj.updateMatrixWorld(true); rig.plant(() => p.y + 0.04 * Math.sin(Math.PI * u));   // chân co lên trong lúc bay
+            if (u >= 1) { B.air = false; B.slope = 0; D.t = 0; ground = stairY; rig.plant(stairY); return true; }
+            return false;
+          }
+          function faceTo(q, dt) { let dy = yawOf(q.x - dogObj.position.x, q.z - dogObj.position.z) - dogObj.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); dogObj.rotation.y += dy * Math.min(1, dt * 7); return Math.abs(dy) < 0.06; }
+          function shelterTick(dt, t) {   // mưa / tối: vào xe nằm gầm bàn vuông (tới cửa → đứng trước bậc → đi bộ lên bậc → giường)
             const D = dogRain, p = dogObj.position, rain = liveWeather.state.raining, night = !liveWeather.wildlifeAwake, want = rain || night;
             if (want && (!D.st || D.st === 'toFire')) D.st = 'toDoor';
             else if (!want && D.st) { if (D.st === 'toDoor') D.st = 'toFire'; else if (D.st === 'toBed' || D.st === 'in') D.st = 'toExit'; }
@@ -200,19 +230,17 @@
             B.look = null; B.headP = null; B.sniff = 0; B.shake = 0; B.mode = 'stand';
             const floorY = dogInside.y;
             if (D.st === 'toDoor') { B.inside = false; ground = cowY; if (steer(dogDoorFar.x, dogDoorFar.z, 1.5, dt, dogDoorField, 0.1)) D.st = 'toStep'; }
-            else if (D.st === 'toStep') { if (steer(dogDoorStep.x, dogDoorStep.z, 0.8, dt, null, 0.06)) { D.st = 'hopIn'; D.t = 0; } }
-            else if (D.st === 'hopIn' || D.st === 'hopOut') {   // nhảy lên / xuống bậc cửa hông: co chân, bật, duỗi chân trước đáp
-              D.t = Math.min(1, D.t + dt / 0.55); const inn = D.st === 'hopIn', A = inn ? dogDoorStep : dogInside, Bp = inn ? dogInside : dogDoorStep;
-              const ya = inn ? cowY(A.x, A.z) : floorY, yb = inn ? floorY : cowY(Bp.x, Bp.z);
-              p.x = A.x + (Bp.x - A.x) * D.t; p.z = A.z + (Bp.z - A.z) * D.t; p.y = ya + (yb - ya) * D.t + Math.sin(Math.PI * D.t) * 0.3;
-              dogObj.rotation.y = yawOf(Bp.x - A.x, Bp.z - A.z); B.want = 0; v = 0;
-              B.inside = D.t > 0.5 ? inn : !inn; ground = B.inside ? () => floorY : cowY;
-              dogObj.updateMatrixWorld(true); rig.plant(() => p.y - 0.01);
-              if (D.t >= 1) D.st = inn ? 'toBed' : 'toFire';
-              return true;
+            else if (D.st === 'toStep') { if (steer(dogStairA.x, dogStairA.z, 0.8, dt, null, 0.06)) { D.st = 'stairIn'; D.ph = 'face'; D.t = 0; } }
+            else if (D.st === 'stairIn' || D.st === 'stairOut') {   // quay vào trục cửa → nhún → bật → đáp bậc trên, ngó → nhún → bật (lên: vào sàn · xuống: ra đất)
+              const inn = D.st === 'stairIn', Tg = [dogStairT, inn ? dogInside : dogStairA], k = D.ph;
+              B.want = 0; v = 0; ground = stairY; B.inside = !inn ? (k === 'face' || k === 'crouch1' || k === 'hop1') : (k === 'hop2' && D.t > 0.4);
+              if (k === 'face') { B.mode = 'stand'; D.t += dt; if (faceTo(inn ? dogInside : dogStairA, dt) || D.t > 0.8) { D.ph = 'crouch1'; D.t = 0; } }
+              else if (k === 'crouch1' || k === 'crouch2') { B.mode = 'crouch'; D.t += dt; if (D.t > (k === 'crouch1' ? 0.32 : 0.24)) { D.ph = k === 'crouch1' ? 'hop1' : 'hop2'; D.t = 0; D.A = p.clone(); } }
+              else if (k === 'hop1' || k === 'hop2') { if (stairHop(D, D.A, Tg[k === 'hop1' ? 0 : 1], inn, inn ? (k === 'hop1' ? 0.42 : 0.46) : (k === 'hop1' ? 0.38 : 0.4), dt)) { if (k === 'hop1') { D.ph = 'look'; D.t = 0; } else { D.st = inn ? 'toBed' : 'toFire'; ground = inn ? () => floorY : cowY; B.inside = inn; } } return true; }
+              else { B.mode = 'stand'; D.t += dt; B.look = _hp.copy(inn ? dogInside : dogStairA).setY(inn ? dogInside.y + 0.3 : cowY(dogStairA.x, dogStairA.z) + 0.2); faceTo(inn ? dogInside : dogStairA, dt); if (D.t > 0.42) { D.ph = 'crouch2'; D.t = 0; } }   // đứng trên bậc trên ngó vào / ngó xuống
             }
             else if (D.st === 'toBed') { B.inside = true; ground = () => floorY; if (steer(dogBed.x, dogBed.z, 0.6, dt, null, 0.08)) D.st = 'in'; }
-            else if (D.st === 'toExit') { B.inside = true; ground = () => floorY; if (steer(dogInside.x, dogInside.z, 0.6, dt, null, 0.08)) { D.st = 'hopOut'; D.t = 0; } }
+            else if (D.st === 'toExit') { B.inside = true; ground = () => floorY; if (steer(dogInside.x, dogInside.z, 0.6, dt, null, 0.08)) { D.st = 'stairOut'; D.ph = 'face'; D.t = 0; } }
             else if (D.st === 'toFire') { B.inside = false; ground = cowY; if (steer(dogLie.x, dogLie.z, 1.2, dt, dogFireField, 0.1)) { D.st = null; setSt('circle'); return false; } }
             else {   // 'in': nằm gầm bàn vuông, mặt nhìn ra cửa; tối thì ngủ (gục mõm, thở chậm, Zzz)
               B.inside = true; ground = () => floorY; B.want = 0; B.mode = 'lie';
@@ -356,13 +384,13 @@
               // chọn dáng đi theo tốc độ (có trễ để khỏi đổi qua lại)
               if (gait === 'walk' && v > 1.0) gait = 'trot'; else if (gait === 'trot' && v < 0.8) gait = 'walk'; else if (gait === 'trot' && v > 2.3) gait = 'gallop'; else if (gait === 'gallop' && v < 2.0) gait = 'trot';
               const dist = move(dt);
-              if (dogRain.st !== 'hopIn' && dogRain.st !== 'hopOut' && !B.air) dogObj.position.y = ground(dogObj.position.x, dogObj.position.z);
+              if (!B.air) { B.slope = 0; dogObj.position.y = ground(dogObj.position.x, dogObj.position.z); }
               body(dt, t); rig.step(dt, dist, v, gait, P.h.x, P.pitch.x, P.fold.x + P.sit.x + P.bow.x > 0.05);
               updateSoftTail(dogTail, dt, U.tail.rotation.y, dogZzzGroup.visible ? 1 : 0);
             },
             pettable: () => !dogRain.st && B.st === 'lie' && dogObj.position.distanceTo(restP) < 0.8,
             perchSpot: () => dogPerchSpot(), zoomSpot: () => zoomCenter(),
-            state: B, rig
+            state: B, rig, stairY
           };
         })();
         const dogPettable = () => dogBrain.pettable();

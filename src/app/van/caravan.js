@@ -125,7 +125,7 @@
             stepBox(.12, .055, .14, sx, .0275, dz + .77, tyreMat);
             for (const t of stepTreads) stepBox(.08, .038, t.depth - .03, sx, t.y - t.height / 2 - .018, t.z, metalMat);
           }
-          entrySteps.userData.treads = stepTreads;
+          entrySteps.userData.treads = stepTreads; entrySteps.userData.door = { cx: stepCx, w: stepWidth, wall: dz, x0: dX0, x1: dX1 };   // chó lên / xuống bậc (animals/dog-brain.js — stairY)
           g.add(entrySteps);
           // ---- nội thất (nhìn qua cửa mở) ----
           // ---- giường: khung gỗ + nệm kem dày + chăn đỏ phủ chân giường + 2 gối đầu giường (sát vách sau) ----

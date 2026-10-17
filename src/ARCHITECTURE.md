@@ -363,6 +363,14 @@ lò xo) ⇒ lên bậc voxel 0,6 đv thì chân trước lên trước, thân ng
   va chạm thật quanh trại ± 40 m (ô có ≥ 2/5 điểm chạm vật tầm thân chó), `buildFlowField(…, unR 0,5)`; `ffDir` ở ô cấm chọn ô KỀ trước; điểm đánh hơi
   thử trên lớp va chạm + tối đa 12 s; chạy vòng 4 s không lại gần bãi thì thôi; lưới an toàn > 5,5 rad / 3 s tại chỗ ⇒ đi xuyên 1,5 s. Đo bằng
   `spinScan` (scratchpad): xoay > 230° / 6 s mà dịch < 0,5 m — trước 62 lần / 25 phút, sau 0 (chỉ còn quay đầu 250° lúc hết chạy vòng).
+- Chó lên / xuống bậc cửa xe (`shelterTick`, dog-brain.js, G 17/10 "improve dog physic, correct step and movement"): bậc dưới 0,25 m (lộ ra sâu 0,21 m),
+  bậc trên 0,48 m (sâu 0,45 m), sàn 0,96 m — chân chó 0,26 m. Bản cũ đứng chờ ngay chỗ bậc (`dogDoorStep` nằm trên bậc trên ⇒ thân xuyên 2 bậc) rồi
+  1 vòng cung đất → sàn (xuyên bậc). Thử đi bộ lên với mặt đặt chân `stairY` (đúng từng bàn chân) ⇒ thân dựng ~50°, ngực xuyên mép sàn ⇒ bỏ. Giờ: đứng
+  chờ `dogStairA` (cách mép bậc dưới 0,42 m) → quay vào trục cửa → nhún (`'crouch'`) → `stairHop` lên bậc trên `dogStairT` (đáp gọn 4 chân) → ngó vào →
+  nhún → bật vào sàn; ra thì ngược lại. Quỹ đạo lên: cao theo 1 − (1 − u)², ngang theo u² (vượt mép bậc / ngưỡng ngay trước mũi); xuống: ngang
+  1 − (1 − u)², cao u² + vồng 0,28 (chân sau qua ngưỡng rồi mới hạ). Thân ngóc khi bật (`B.slope`), chúc khi rơi; chân co (`rig.plant`) lúc bay.
+  Đo (scratchpad `dogstair.js`: `dsTrace2`, `dsPhaseShots`): chân trụ lệch mặt bậc 0 mm, chân lúc bay không xuống dưới mặt bậc, bụng cách mép ≥ 10,6 cm.
+  Trong lúc đi trú, lớp va chạm của chó TẮT (`!dogRain.st`) ⇒ lộ trình quanh bậc phải tự đúng hình học.
 - Gấu mèo: thân 2 nửa `U.fore`/`U.aft` gập quanh giữa lưng khi phi nhảy (hông chân vẫn gắn `torso` ⇒ IK không đổi).
 - Đo được (trượt TB của bàn chân trụ, đv/khung ở 30 hình/giây): bò 0,0003–0,0007 · hươu 0,0003 · cò 0,0013 · gấu mèo ~0,003 (ngoặt gắt) ·
   kỹ sư ~0,003 (chưa tính lúc ngoặt). Thử: `slipTest`/`ikErr` (công cụ nháp) — đọc `rig.feet`, so điểm đế thật với `F.w`.
