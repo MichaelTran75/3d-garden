@@ -38,11 +38,14 @@ engineer/thoughts.js                   # câu suy nghĩ theo việc, giờ, th�
 van/shell-cab.js                       # vật liệu xe (dùng chung cho trại)
 van/desk-lamp-soda-breakfast.js        # đèn bàn, lon nước ngọt, đồ ăn sáng
 van/kitchen.js                         # bếp: chậu, thớt, bảng treo, bếp ga, lò, đồ động
-van/transit.js                         # FORD TRANSIT L3H2: vỏ thân (mũi, kính, mui cao, vách hông có ô cửa, đuôi), cabin lái, bánh, tủ bếp
+van/transit.js                         # FORD TRANSIT L3H2: vỏ thân (mũi, kính, mui cao, vách hông có ô cửa, đuôi), cabin lái, bánh, tủ bếp — dựng bằng code (bản tạm + va chạm)
+van/transit-glb.js                     # MẪU GLB TRANSIT dùng nguyên (transit.bin): nạp, gộp theo lớp vật liệu, nhóm bộ phận có bản lề (cửa trước, ca-pô), động cơ engine.glb
 van/caravan.js                         # xe caravan: giường, bàn học, bàn ăn, phòng tắm, mái, bạt
 van/sleep-fx.js                        # Zzz + bảng đếm ngược giấc ngủ
 camp/chairs-lantern-fire.js            # ghế câu, đèn lồng, lửa trại, ấm, bàn trà, ghế cắm trại
 camp/chiminea.js                       # LÒ SƯỞI CHIMINEA (thép hộp, ống khói nón che mưa): mưa thì lửa chuyển từ lửa trại sang lò
+camp/trimmer.js                        # MÁY CẮT CỎ ĐEO LƯNG (mẫu GLB Xorshift CC-BY): ba lô · cần · lưỡi quay · ống mềm vẽ lại mỗi khung · vụn cỏ · khói xả
+camp/chicken-coop.js                   # CHUỒNG GÀ NHỎ (x61 z91): nhà gỗ trên 4 chân, mái tôn, cửa chui + cửa tự động, cầu thang, sào đậu, ổ đẻ — mặt 25%, nét viền 100%
 animals/dog-raccoon.js                 # chó (đuôi mềm), gấu mèo
 engineer/seats.js                      # ngồi xuống / đứng dậy / rời ghế theo sinh cơ học
 animals/rain-shelter.js                # thỏ trú mưa, tai thỏ, chó vào xe
@@ -55,6 +58,10 @@ engineer/van-stations.js               # các trạm: bàn học, bàn ăn, giư
 engineer/cooking.js                    # nấu udon, chiên cơm, rửa bát; điều phối các trạm (engVan)
 engineer/routine-fx.js                 # tia nước, hơi nước, nốt nhạc, Zzz ngủ trưa, gói snack, màn hình nhạc
 engineer/sleep.js                      # KỸ SƯ NGỦ: nằm nghiêng / ngửa theo lịch trở mình mỗi đêm, chăn phủ theo thân, thở, mặt ngủ
+engineer/autonomy.js                   # TỰ CHỦ THEO NHU CẦU: chấm điểm việc theo nhu cầu (giờ rảnh), nhu cầu cạn thì đi lấp, lệnh bấm thanh, đi dạo khám phá (Tò mò)
+engineer/engine-check.js               # KỸ SƯ KIỂM TRA ĐỘNG CƠ: ra đầu xe, tra chìa sau logo mở ca-pô, cúi xem máy, nổ máy từ xa 30 s, tắt, đóng ca-pô
+engineer/trim-grass.js                 # PHÁT CỎ QUANH TRẠI SAU MƯA: giật nổ máy · đeo ba lô · lia lưỡi theo vòng quanh bếp lửa · cất máy
+engineer/footprints.js                 # DẤU CHÂN TRÊN ĐẤT ƯỚT: độ ẩm đất sau mưa · mỗi bước đặt chân 1 dấu đế ủng · chỉ 2–3 dấu mới nhất còn thấy
 engineer/drone.js                      # DRONE ĐỒ CHƠI: mẫu GLB DJI Mini 3 + tay cầm Mode 2, quy trình bay, 1 vòng quanh đảo, nhãn chỉ drone, khung tay cầm + màn camera trong bong bóng
 engineer/meal-read.js                  # ĂN · ĐỌC SÁCH · CÁ NƯỚNG: tay mềm (IK khuỷu + hướng cổ tay), thìa vào miệng, sách 2 tay, cầm que cá ăn, quăng que, xiên & cắm cá mới
 engineer/apple-pick.js                 # HÁI TÁO: sào rút có rổ lưới, vặn bứt cuống, quả cùng chùm đung đưa, giỏ mây
@@ -69,10 +76,16 @@ animals/beehive.js                     # TỔ ONG GIỎ RƠM treo cành cây con
 animals/insects.js                     # đom đóm, bướm, ong
 animals/storks.js                      # cò trắng (dựng theo số đo Stork.glb, MIT)
 animals/songbird.js                    # CHIM SẺ: con ở trại (thanh treo đèn → cỏ → cây táo → nóc xe → dây điện; ngủ cây táo) + 2 hộp tổ (vách tây chuồng bò · treo cành cây táo), mỗi hộp 1 cặp mớm chim non
+animals/chickens.js                    # GÀ MÁI × 3 (mẫu GLB Maf'j Alvarez CC-BY): bộ trộn hoạt cảnh, đi không trượt chân, kiếm ăn – mổ – ngó, sợ người / máy cắt cỏ, tối lên sào trong chuồng – sáng ra, mưa chạy tới chỗ trú gần nhất
 engineer/reactions.js                  # KỸ SƯ PHẢN ỨNG: nhìn theo chó / lá / sét, giữ mũ khi gió giật, hứng mưa rồi đi vội vào hiên, bắt lá, phủi lá, xua khói, hơ tay, xoa đầu chó
 core/collide.js                        # LỚP VA CHẠM kiểu Recast: voxel hoá tam giác thật của lưới tĩnh (≤ 2,6 m) thành khoảng đặc theo cột 0,125 m · thử bước dấu chân elip · mặt đứng
 ui/labels-controls.js                  # nhãn, điều khiển camera, toạ độ, zoom
 ui/xray-lifecycle.js                   # xem xuyên xe, tạm dừng/tiếp tục, dọn dẹp
+ui/hover-select.js                     # RÊ CHUỘT = CHỌN: viền trắng quanh vật bấm được (tay nắm, logo, động cơ, drone, giỏ, sào, cần câu, laptop, bếp, chiminea)
+ui/follow-tags.js                      # NHÃN + ĐƯỜNG DẪN theo kỹ sư, gấu mèo, hươu (cỡ cố định trên màn hình)
+ui/sim-needs.js                        # CHỈ SỐ KỸ SƯ kiểu The Sims 4: nút ◆ Kỹ sư → cảm xúc + moodlet, 6 nhu cầu, kỹ năng, quan hệ với chó, hiệu suất (đọc việc đang làm thật)
+van/engine-run.js                      # ĐỘNG CƠ CHẠY: bấm động cơ → vỏ máy mờ 75%, cơ cấu V6 60° dựng bằng code (trục khuỷu, piston, tay biên, cam, xupap, lửa nổ) chạy, máy rung
+van/van-doors.js                       # CỬA TRƯỚC + CA-PÔ: nút tay nắm / logo Ford (rê chuột viền trắng, bấm mở), lò xo mở – đóng có nảy
 loop/close-up.js                       # CẬN CẢNH: bóng nắng ôm vùng nhìn, vật tròn đổi bản nhiều cạnh khi zoom gần · độ phân giải tự điều chỉnh
 core/draw-batch.js                     # GỘP LƯỢT VẼ: mảnh hình giữ làm "xương", vẽ chung 1 lưới da (thú, kỹ sư, xe, cảnh tĩnh)
 loop/main-loop.js                      # vòng lặp khung hình (phần đầu)

@@ -11,6 +11,23 @@
           [14, 'afternoon', 'Buổi chiều', '🌥'], [17, 'dusk', 'Chiều tà', '🌇'], [19, 'evening', 'Buổi tối', '🌙'], [22, 'night', 'Đêm khuya', '🌙']
         ];
         const ENG_THOUGHT_LINES = [
+          // ---- đi dạo khám phá (lấp Tò mò — engineer/autonomy.js) ----
+          'explore|||Ra xem trạm biến áp một vòng, nghe tiếng ù của máy biến áp.',
+          'explore|||Cây anh đào ra hoa đợt mới, chụp lại cho nhật ký trại.',
+          'explore|||Đèn đường này dùng bóng LED mấy oát nhỉ, ghi lại tra sau.',
+          'explore||wind||Gió thế này dây điện võng nhiều hơn, ghi vào sổ.',
+          // ---- kiểm tra động cơ xe (người xem bấm máy → "Khởi động máy") ----
+          'engine|||Ca-pô Transit mở bằng chìa sau logo Ford, ít ai để ý.',
+          'engine|||Nhớt còn giữa vạch, nước làm mát đủ.',
+          'engine|||Dây curoa còn căng, chưa thấy nứt.',
+          'engine|||Máy nổ êm, sáu máy đều, không nghe tiếng gõ.',
+          'engine|||Nổ máy nửa phút cho bình sạc lại, để lâu không chạy dễ hết điện.',
+          'trim|||Mưa xong cỏ lên nhanh thật, đợi ráo mới cắt cho đỡ bết lưỡi.',
+          'trim|||Lia từ phải sang trái, vụn cỏ văng ra ngoài, không bắn vào chân.',
+          'trim|||Để lưỡi sát đất, đừng cắm mũi xuống, dễ văng đá.',
+          'trim|||Chó ơi tránh xa ra, lưỡi này không đùa được đâu.',
+          'trim|||Ba lô máy nặng gần chục ký, đeo quai cho đều hai vai.',
+          'trim|||Cỏ thấp, quanh trại thoáng hẳn, rắn rết cũng ít chỗ nấp.',
           // ---- hái táo bằng sào (16:10) ----
           'apple|||Đưa rổ từ dưới lên, vặn nhẹ là cuống gãy, khỏi giật cả chồi.',
           'apple|||Quả thấp nhất chín đỏ rồi, hái trước.',
@@ -291,7 +308,7 @@
           evCast: ctx => ctx.event === 'cast', evBite: ctx => ctx.event === 'bite', evHook: ctx => ctx.event === 'hook', evRelease: ctx => ctx.event === 'release', evKeep: ctx => ctx.event === 'keep',
           evMiss: ctx => ctx.event === 'miss', evDrift: ctx => ctx.event === 'drift', evRebait: ctx => ctx.event === 'rebait'
         };
-        for (const l of ENG_THOUGHT_LINES) for (const [, n] of l.nd) if (!THOUGHT_NEED[n]) console.warn('Suy nghĩ kỹ sư: thiếu điều kiện', n, l.text);
+        for (const l of ENG_THOUGHT_LINES) for (const [, n] of l.nd) if (!THOUGHT_NEED[n]) console.warn('Suy nghĩ Engineer: thiếu điều kiện', n, l.text);
         function thoughtFits(l, act, ctx) {
           if (l.act !== act) return false;
           if (l.tw.length && !l.tw.some(w => typeof w === 'string' ? w === ctx.slot : ctx.h >= w[0] && ctx.h < w[1])) return false;
@@ -406,6 +423,9 @@
           else if (e.phase === 'tea' || e.phase === 'toChair') { act = 'tea'; label = e.act === 'rest' ? 'Nghỉ trưa' : ctx.slot === 'dusk' || ctx.slot === 'evening' ? 'Bên bếp lửa' : 'Giờ uống trà'; }
           else if (e.phase === 'wander') { act = 'wander'; label = 'Dạo quanh trại'; }
           else if (e.phase === 'apple') { act = 'apple'; label = 'Hái táo'; }
+          else if (e.phase === 'engine') { act = 'engine'; label = 'Kiểm tra máy xe'; }
+          else if (e.phase === 'trim') { act = 'trim'; label = 'Cắt cỏ quanh trại'; }
+          else if (e.phase === 'explore') { act = 'explore'; label = 'Đi dạo khám phá'; }
           else { act = 'walk'; label = 'Đang đi'; }
           if (act === 'fish' && !ctx.event && !['wait', 'approach', 'settle', 'rig', 'done'].includes(angling.stage)) { idleThoughtAt = now + 4000; return; }   // đang giật/dìu/thả/thay mồi: tập trung, chưa nghĩ vẩn vơ
           if (act !== 'fish') ctx.event = null;

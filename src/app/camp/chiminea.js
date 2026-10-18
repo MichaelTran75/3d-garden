@@ -45,13 +45,14 @@
           const roofTop = YB + H + 0.075;
           const rg = new THREE.CylinderGeometry(0.16, W / 2 * Math.SQRT2, 0.075, 4, 1); rg.rotateY(Math.PI / 4); rg.scale(1, 1, D / W);   // chóp 4 mặt khớp đúng miệng hộp W × D
           add(new THREE.Mesh(rg, ironFlat), 0, YB + H + 0.0375, 0);
-          add(new THREE.Mesh(new THREE.CylinderGeometry(0.128, 0.15, 0.06, 24), iron), 0, roofTop + 0.03, 0);
-          const PIPE = 1.98, pipeTop = roofTop + 0.06 + PIPE;   // G 17/10: ống cao thêm 50% (1,32 → 1,98 m) — nón, quai, miền khói đi theo pipeTop
+          const nChim = g.children.length; add(new THREE.Mesh(new THREE.CylinderGeometry(0.128, 0.15, 0.06, 24), iron), 0, roofTop + 0.03, 0);
+          const PIPE = 1.98, CH = 0.7, pipeTop = roofTop + 0.06 + PIPE, smokeTop = roofTop + CH * (0.06 + PIPE);   // G 17/10: ống cao thêm 50% (1,32 → 1,98 m); G 18/10: cả cụm ống khói nhỏ đi 30% (CH)
           add(new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.112, PIPE, 24, 1, true), ironDS), 0, roofTop + 0.06 + PIPE / 2, 0);
           const ring = add(new THREE.Mesh(new THREE.TorusGeometry(0.112, 0.008, 6, 24), bronze), 0, pipeTop - 0.006, 0); ring.rotation.x = Math.PI / 2;
           for (let k = 0; k < 3; k++) { const a = k / 3 * 6.283; add(new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.036, 5), iron), Math.cos(a) * 0.1, pipeTop + 0.018, Math.sin(a) * 0.1); }
           add(new THREE.Mesh(new THREE.ConeGeometry(0.19, 0.05, 24, 1, true), ironDS), 0, pipeTop + 0.036 + 0.025, 0);
           add(new THREE.Mesh(new THREE.TorusGeometry(0.055, 0.008, 6, 14, Math.PI), iron), 0, pipeTop + 0.07, 0);   // quai: 2 chân cắm vào mặt nón
+          { const chim = new THREE.Group(); chim.position.y = roofTop; chim.scale.setScalar(CH); for (const m of g.children.slice(nChim)) { chim.add(m); m.position.y -= roofTop; } g.add(chim); }   // cụm ống khói thu ×0,7 quanh chân ống trên mái
           // ---- 4 chân thép dẹt xoè từ góc đáy buồng đốt + đế chân · bát hứng tro treo dưới đáy ----
           const _up = new THREE.Vector3(0, 1, 0), _d = new THREE.Vector3();
           for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
@@ -86,7 +87,7 @@
           obstacleCoords.push({ x: X, y: g.position.y, z: Z, r: 0.45, h: 3.0 });   // người, chó, côn trùng đi vòng
           // khói: miền 1,15 × 3,5 m ô 3,2 cm (khe dưới nón ~1 ô), miệng ống r 0,1 · nón r 0,17 cao 3,2 → 6,4 cm trên miệng ống (đv thế giới, đã nhân CAMP_SCALE)
           const SC = CAMP_SCALE, smoke = fluids.addSmoke({ NR: 36, NZ: 110, H: 0.032, NP: 600, NS: 0, NT: 14, buoy: 4, kNu: 0.03, nu0: 0.002, tauT: 6, iters: 30, dens: 0.8,
-            inlet: { r: 0.11 * SC }, lid: { r: 0.19 * SC, z0: 0.036 * SC, z1: 0.086 * SC } }, { name: 'Khói ống khói lò chiminea (sợi khói Navier–Stokes)', opacity: 0.6 });
+            inlet: { r: 0.11 * CH * SC }, lid: { r: 0.19 * CH * SC, z0: 0.036 * CH * SC, z1: 0.086 * CH * SC } }, { name: 'Khói ống khói lò chiminea (sợi khói Navier–Stokes)', opacity: 0.6 });
           smoke.on = false;
           let L = 0, init = false;
           return { g, smoke, lit: () => L, update(dt, t) {
@@ -99,6 +100,6 @@
             light.intensity = 2.4 * L * fl;
             emberMat.color.setRGB(0.12 + 0.85 * e, 0.08 + 0.3 * e, 0.05 + 0.04 * e); logMat.emissiveIntensity = 1.4 * e; soot.emissiveIntensity = 0.7 * L * fl;
             smoke.on = L > 0.02;   // khói ống khói theo cỡ lửa: nhiệt, lượng khói, sức hút ống (khí phụt lên khỏi miệng ống)
-            if (smoke.on) { g.localToWorld(smoke.base.set(0, pipeTop, 0)); smoke.heat = 0.5 + 0.7 * L; smoke.smoke = 0.5 + 1.5 * L; smoke.rate = 0.15 + 0.7 * L; smoke.draft = 0.6 + 0.9 * L; plumeLight(smoke, PLUME_COL.smoke, PLUME_COL.steam, _plumeGlow.setRGB(0, 0, 0)); }
+            if (smoke.on) { g.localToWorld(smoke.base.set(0, smokeTop, 0)); smoke.heat = 0.5 + 0.7 * L; smoke.smoke = 0.5 + 1.5 * L; smoke.rate = 0.15 + 0.7 * L; smoke.draft = 0.6 + 0.9 * L; plumeLight(smoke, PLUME_COL.smoke, PLUME_COL.steam, _plumeGlow.setRGB(0, 0, 0)); }
           } };
         })();

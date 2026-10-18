@@ -1,7 +1,7 @@
-        // ---- trú mưa: thỏ nhảy về khoảng khô dưới mái hiên caravan (sát vách, xa ghế và lối cửa); chó chạy vào trong xe nằm giữa lối đi ----
+        // ---- trú mưa: thỏ nhảy về khoảng khô dưới mái hiên caravan (sát vách, khe sau bàn trà — 18/10 bàn ghế dời vào dưới bạt; xa lối cửa); chó chạy vào trong xe nằm giữa lối đi ----
         caravanObj.updateMatrixWorld(true);
         const vanPt = (x, y, z) => caravanObj.localToWorld(new THREE.Vector3(x, y, z)), vanOut = new THREE.Vector3(Math.sin(caravanObj.rotation.y), 0, Math.cos(caravanObj.rotation.y));
-        const bunnyShelter = vanPt(2.25, 0, 1.52), bunnyField = buildFlowField(bunnyShelter.x, bunnyShelter.z), bunnyShelterAng = Math.atan2(vanOut.z, vanOut.x);
+        const bunnyShelter = vanPt(2.3, 0, 1.45), bunnyField = buildFlowField(bunnyShelter.x, bunnyShelter.z), bunnyShelterAng = Math.atan2(vanOut.z, vanOut.x);
         // ---- TAI THỎ có quán tính: mỗi tai là con lắc lò xo tắt dần (~2 Hz) gắn trên đầu đang chuyển động — gia tốc tới/lui của thân làm tai
         //      ngả ngược chiều (bật nhảy: tai quặt ra sau; đáp đất: tai đổ về trước rồi dội lại), gia tốc đứng chỉ tạo mô-men khi tai đã nghiêng.
         //      Hai tai lệch tần số một chút nên không đung đưa như một khối ----

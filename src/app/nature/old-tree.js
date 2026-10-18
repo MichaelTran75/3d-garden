@@ -333,35 +333,97 @@
             scale: NATURE_SCALE, tw: oldTreeWind, g: 3.5, vTerm: 0.7, flutA: 0.7, flutW: [2.2, 3.2], tumble: 0.35, tumbleW: [6, 10], slideU: 0.6, rate0: 0.05, rateK: 3.0, shake0: 0.012, restLife: [12, 24], floatLife: [30, 55], sinkP: 0.35, sinkV: [0.06, 0.1], leeway: 0.03 });
         }
 
-        // ---- RỄ BÒ NGANG trên mặt đất quanh gốc cây cổ thụ (G 18/10 kèm ảnh gốc pohutukawa: rễ to bện sợi toả ra, rẽ nhánh, đè lên nhau, chìm nổi
-        //      trong đất). Nhóm riêng theo toạ độ thế giới (đất quanh gốc phẳng y 7,2 trong 4 m), KHÔNG gắn shader gió (gió lệch theo khoảng cách
-        //      ngang tới gốc ⇒ rễ sẽ lắc như cành). Ống vỏ cùng barkTubes + sợi bện (minR 0,12) · đi dưới 3 hòn đá (lặn rồi trồi) · gặp nước thì lặn hẳn ----
+        // ---- RỄ BÒ MẶT ĐẤT quanh gốc cây cổ thụ (G 18/10 ảnh gốc pohutukawa; dựng lại 18/10 "nghiên cứu cách rễ mọc trồi lên mặt đất … tránh rễ rời rạc
+        //      và ko kết nối"). Học: rễ chính (4–11, cây già nhiều hơn) mọc từ BẠNH GỐC (root collar · trunk flare) toả gần như nằm ngang trong lớp đất mặt
+        //      ~30 cm (nhiều ô-xy), lộ lên khi đất mòn / bị nén / rễ già to ra; ngay ngoài chân thân rễ thuôn rất nhanh (vùng thuôn nhanh — ZRT: cách gốc 2–3 m
+        //      chỉ còn 2–5 cm, Dobson) và lớn lệch lên trên (tiết diện chữ T / I gần gốc — Nicoll & Ray 1996) ⇒ gờ cao sát chân thân rồi chìm dần vào đất; gặp
+        //      đá thì lách / ôm theo mặt đá; rễ con tách ra từ rễ mẹ. Bản trước: rễ bắt đầu cách tâm 0,95 (không bám múi bạnh), lặn ngẫu nhiên rồi trồi, chui
+        //      dưới đá ⇒ nhiều khúc rời lơ lửng. Bây giờ: mỗi rễ chính mọc từ 1 MÚI BẠNH THẬT (đo bán kính chân thân theo góc trên lưới vỏ đã dựng), bắt đầu
+        //      TRONG LÒNG THÂN như cành mọc ngang (barkTubes: cổ rễ phình + pháp tuyến hoà theo mặt thân quanh trục ngả 35°); độ lộ e = (tâm − mặt đất) / r
+        //      giảm ĐƠN ĐIỆU tới chìm hẳn ⇒ phần nổi là 1 dải liền từ chân thân (gợn nhẹ chỉ khi còn lộ nhiều, tắt trước khi chìm); lách đá + gốc cây con theo
+        //      mép (điểm kế lấn vòng ôm thì chiếu ra mép, hướng đi bẻ theo); tới gần nước thì chìm hết trước mép nước; rễ con tách ở đoạn rễ mẹ còn lộ, mọc từ
+        //      TIM rễ mẹ ở đúng độ cao đó. Nhóm riêng theo toạ độ thế giới (đất quanh gốc phẳng + nền đất 0,12 của stoneRing), KHÔNG gắn shader gió ----
         (function oldTreeRoots() {
           const cx = X0 + 89, cz = Z0 + 117, gy = cowY(cx, cz), g = new THREE.Group(); g.name = 'Rễ cây cổ thụ'; g.position.set(cx, gy, cz); scene.add(g); flightRoots.push(g);
           const mat = new THREE.MeshLambertMaterial({ color: 0x4a3420, transparent: true, opacity: 0.935 }); mat.userData.sfOld = 1; mat.userData.sfMoss = 0.15; surfaceStyle(mat, 'bark');   // sát đất cả rễ ⇒ rêu gốc phủ kín nếu để mặc định
-          const rnd = mulberry32(4242), V = (x, y, z) => new THREE.Vector3(x, y, z), L = [];
-          const STONES = [[0.3, 1.25, 1.2], [1.5, -0.4, 0.82], [-1.35, 0.5, 0.52]];   // (x, z, bán kính) — 3 hòn đá của stoneRing (cùng gốc)
+          const rnd = mulberry32(4242), V = (x, y, z) => new THREE.Vector3(x, y, z), L = [], SAMP = [], STEP = 0.26, KE = 0.5, EM = -0.35, E1 = -2.0;   // rễ thuôn còn 50% ở đoạn nổi · nổi e 0,3 → −0,35 rồi cắm DỐC (~35°, quãng ~2,2 r) xuống −2 r · SAMP: mẫu các rễ đã dựng (rễ sau vắt qua)
           const water = (x, z) => isWater(Math.round(x2gi(cx + x)), Math.round(z2gj(cz + z)));
-          function grow(x, z, ang, len, r0, h0, par, pr, pT, depth) {   // 1 rễ: uốn lượn, thuôn dần, nổi ~nửa thân, thỉnh thoảng lặn rồi trồi; rẽ 1–2 rễ con
-            const P = [], R = [], step = 0.32, wob = rnd() * 6.28; let a = ang, dive = 0;
-            for (let s = 0, i = 0; s <= len; s += step, i++) {
-              const t = s / len, r = Math.max(0.04, r0 * Math.pow(1 - 0.7 * t, 1.1));
-              let h = r * (0.32 + 0.24 * Math.sin(s * 2.1 + wob));
-              if (i === 0) h = h0; else if (s < 1.1 && h0 > h) h = h0 + (h - h0) * s / 1.1;   // trồi ra từ bạnh gốc
-              if (t > 0.72) h -= (t - 0.72) / 0.28 * 1.5 * r;   // cuối rễ lặn dần xuống đất (không lộ ngọn mảnh như cành khô)
-              for (const [sx, sz, sr] of STONES) { const d = Math.hypot(x - sx, z - sz) - sr; if (d < 0.25) h = Math.min(h, -1.4 * r + Math.max(0, d) * 2 * r); }   // chui dưới đá
-              if (dive > 0) { h = Math.min(h, -0.6 * r); dive--; } else if (i > 3 && rnd() < 0.06) dive = 1 + (rnd() * 2 | 0);
-              P.push(V(x, h, z)); R.push(r);
-              if (water(x + Math.cos(a) * step * 2, z + Math.sin(a) * step * 2)) { P.push(V(x + Math.cos(a) * step, -2 * r, z + Math.sin(a) * step)); R.push(r * 0.8); break; }   // tới mép nước: lặn hẳn
-              a += (rnd() - 0.5) * 0.45 + 0.12 * Math.sin(s * 1.3 + wob); x += Math.cos(a) * step; z += Math.sin(a) * step;
+          const ground = (x, z) => cowY(cx + x, cz + z) - gy + 0.12 * Math.max(0, Math.min(1, (2.5 - Math.hypot(x, z)) / 0.3));   // + nền đất quanh gốc (stoneRing: trụ r 2,2 → 2,5, cao 0,12)
+          // vòng ôm (x, z, r): 3 đá của stoneRing (12 mặt r 0,85 × tỉ lệ ⇒ ~0,8 bán kính ngoại tiếp) + gốc cây con (x + 2)
+          const OBST = [[0.3, 1.25, 1.02], [1.5, -0.4, 0.68], [-1.35, 0.5, 0.42], [2.0, 0.0, 0.42]];
+          // ---- múi bạnh THẬT: bán kính chân thân theo góc (đỉnh lưới vỏ cao 0,05–0,55 trên đất; ô trống giữa 2 vòng lưới nội suy) → đỉnh cục bộ = chỗ rễ chính chui ra ----
+          const NB = 72, rho = new Float32Array(NB), v = V(0, 0, 0), sub = oldTreeGroup.getObjectByName('Cây con (Small Sub-Tree)');
+          oldTreeGroup.updateMatrixWorld(true);
+          oldTreeGroup.traverse(o => {
+            if (!o.isMesh || o.isInstancedMesh || !o.material || !o.material.colorWrite || !o.material.color || o.material.color.getHex() !== 0x4a3420) return; for (let p = o; p; p = p.parent) if (p === sub) return;
+            const P = o.geometry.attributes.position;
+            for (let i = 0; i < P.count; i++) { v.fromBufferAttribute(P, i).applyMatrix4(o.matrixWorld); const y = v.y - gy; if (y < 0.05 || y > 0.55) continue;
+              const x = v.x - cx, z = v.z - cz, d = Math.hypot(x, z); if (d > 3.5) continue; const b = Math.floor((Math.atan2(z, x) / 6.2832 + 1) * NB) % NB; if (d > rho[b]) rho[b] = d; }
+          });
+          for (let b = 0; b < NB; b++) if (!rho[b]) { let l = 1, r = 1; while (!rho[(b - l + NB) % NB] && l < NB) l++; while (!rho[(b + r) % NB] && r < NB) r++; rho[b] = ((rho[(b - l + NB) % NB] || 1.4) * r + (rho[(b + r) % NB] || 1.4) * l) / (l + r); }
+          const at = b => { b = ((b % NB) + NB) % NB; return (rho[(b + NB - 1) % NB] + 2 * rho[b] + rho[(b + 1) % NB]) / 4; }, peaks = [];
+          for (let b = 0; b < NB; b++) { let mx = true, mn = 9; for (let k = 1; k <= 2; k++) if (at(b - k) > at(b) || at(b + k) > at(b)) mx = false; for (let k = -5; k <= 5; k++) mn = Math.min(mn, at(b + k)); if (mx) peaks.push({ b, rr: at(b), pr: at(b) - mn }); }
+          peaks.sort((a, b) => b.pr - a.pr);
+          const lobes = []; for (const p of peaks) { if (lobes.length >= 11) break; if (!lobes.some(q => Math.min(Math.abs(q.b - p.b), NB - Math.abs(q.b - p.b)) < 4)) lobes.push(p); }
+          const axis = V(0, 1, 0).applyQuaternion(oldTreeGroup.quaternion).normalize();   // trục thân ngả về sông ⇒ pháp tuyến chỗ nối hoà theo mặt thân thật
+          // 1 rễ: x, z, y0 (độ cao tâm điểm đầu so với đất gốc) · a hướng · len (tới khi chìm hẳn) · r0 · sX (đoạn còn trong lòng thân / rễ mẹ) · zrt (quãng thuôn nhanh)
+          function root(x, z, y0, a, len, r0, sX, zrt, par, pr, pT, depth) {
+            const rAt = s => s <= sX ? r0 : r0 * (KE + (1 - KE) * Math.exp(-(s - sX) / zrt));   // rễ lộ là đoạn to (trong vùng thuôn nhanh) — rễ mảnh đã nằm dưới đất
+            // (1) đường đi trên mặt bằng: 2 sóng sin + trôi chậm, lách vật cản, dừng trước nước
+            const pts = [[x, z, 0]], ph1 = rnd() * 6.28, ph2 = rnd() * 6.28, A1 = 0.12 + 0.1 * rnd(), A2 = 0.05 + 0.04 * rnd(), dr = (rnd() - 0.5) * 0.08; let s = 0, steer = 0, hd = a;
+            while (s < len) {
+              const s1 = s + STEP; hd = a + A1 * Math.sin(s1 * 0.9 + ph1) + A2 * Math.sin(s1 * 2.3 + ph2) + dr * s1 + steer;
+              let nx = x + Math.cos(hd) * STEP, nz = z + Math.sin(hd) * STEP, hit = false;
+              for (const [ox, oz, orr] of OBST) { const ex = nx - ox, ez = nz - oz, d = Math.hypot(ex, ez), need = orr + 0.6 * rAt(s1); if (d < need) { nx = ox + ex / (d || 1) * need; nz = oz + ez / (d || 1) * need; hit = true; } }
+              if (hit) { const h2 = Math.atan2(nz - z, nx - x); steer += Math.atan2(Math.sin(h2 - hd), Math.cos(h2 - hd)); hd = h2; } else steer *= 0.96;   // bám mép đá rồi dần trở về hướng cũ (ôm ra sau đá)
+              if (water(nx + Math.cos(hd) * 0.3, nz + Math.sin(hd) * 0.3)) break;   // mép nước: rễ dừng (đã chìm hẳn ở điểm cuối — xem (2))
+              x = nx; z = nz; s = s1; pts.push([x, z, s]);
             }
-            const l = { P, R, par, kids: [], atEnd: false, pr, pT }; L.push(l); if (par) par.kids.push(l);
-            if (depth < 1 + (len > 4 ? 1 : 0) && P.length > 5) for (let b = 0, nb = depth ? 1 : 1 + (rnd() < 0.6 ? 1 : 0); b < nb; b++) {
-              const k = Math.min(P.length - 2, 2 + ((P.length - 3) * (0.3 + 0.4 * rnd())) | 0), p = P[k], d = P[k + 1].clone().sub(P[k - 1]).setY(0).normalize();
-              grow(p.x, p.z, Math.atan2(d.z, d.x) + (rnd() < 0.5 ? -1 : 1) * (0.45 + 0.4 * rnd()), len * (0.45 + 0.25 * rnd()), R[k] * 0.68, Math.max(0, p.y), l, R[k], d, depth + 1);
+            if (pts.length < 3) return null;
+            { const sE0 = pts[pts.length - 1][2], D = Math.max(0.2, Math.min(0.5, 2.2 * rAt(sE0))), fine = [pts[0]];   // đoạn cắm xuống đất: chia nhỏ 3 lần cho đường cong cắm đủ mịn
+              for (let i = 1; i < pts.length; i++) { const [ax, az, as] = pts[i - 1], [bx2, bz, bs] = pts[i], m = bs > sE0 - D - 0.01 ? 3 : 1; for (let k = 1; k <= m; k++) { const t = k / m; fine.push([ax + (bx2 - ax) * t, az + (bz - az) * t, as + (bs - as) * t]); } }
+              pts.length = 0; pts.push(...fine); pts.D = D; }
+            const n = pts.length;
+            // (2) độ cao: e giảm đơn điệu — nổi e0 → em tới chỗ cắm (cách ngọn ~2,2 r), rồi cắm dốc ~35° xuống E1 (ngọn tù chui vào đất, không thuôn thành gai);
+            //     trong lòng thân hạ dần từ y0 xuống mặt bạnh
+            const sE = pts[n - 1][2], sO = Math.min(sX, sE * 0.5), gX = ground(pts[0][0], pts[0][1]), e0 = sX > 0 ? 0.3 : Math.max(E1 + 0.5, (y0 - gX) / r0), em = Math.min(EM, e0 - 0.2);
+            const P = [], R = [], E = [];
+            for (const [px, pz, ps] of pts) {
+              const sD = Math.max(sO + 0.1, sE - pts.D), w = Math.max(0, Math.min(1, (ps - sD) / Math.max(0.05, sE - sD))), r = rAt(ps), gd = ground(px, pz);
+              const e = ps < sD ? e0 + (em - e0) * Math.max(0, ps - sO) / Math.max(0.1, sD - sO) : em + (E1 - em) * w * w * (3 - 2 * w);
+              let y = gd + r * e + 0.1 * r * Math.sin(ps * 2.6 + ph1) * Math.max(0, e + 0.2);   // gợn nhẹ khi còn lộ nhiều — tắt trước khi chìm (không trồi lại)
+              if (ps < sO) { const k = ps / sO, yO = ground(px, pz) + r0 * e0; y = yO + (y0 - yO) * (1 - k) * (1 - k); }   // trong lòng thân: từ chỗ khởi đầu hạ dần ra mặt bạnh
+              P.push(V(px, y, pz)); R.push(r * (1 + (r0 > 0.15 ? 0.1 : 0.05) * Math.sin(ps * 2.9 + ph2) * Math.min(1, Math.max(0, ps - sO) / 0.4))); E.push(e);   // phồng xẹp dọc rễ
             }
+            // rễ sau gặp rễ trước (khác mẹ) ở đoạn còn lộ ⇒ vắt qua bên trên (2 ống chạm nhau), nhô dần trong ±0,5 — đoạn đã chìm thì luồn dưới (không trồi lại)
+            { const need = new Float32Array(n);
+              for (let i = 0; i < n; i++) { if (E[i] < -0.8 || pts[i][2] < sO + 0.1) continue; const p = P[i], r = R[i];
+                for (const q of SAMP) { if (q.l === par) continue; const dh = Math.hypot(p.x - q.x, p.z - q.z), rr = r + q.r; if (dh >= rr * 0.95) continue; const yq = q.y + Math.sqrt(rr * rr - dh * dh) * 0.85; if (yq - p.y > need[i]) need[i] = yq - p.y; } }
+              const W = Math.round(0.5 / STEP); for (let i = 0; i < n; i++) { let lf = 0; for (let j = Math.max(0, i - 2 * W); j <= Math.min(n - 1, i + 2 * W); j++) if (need[j] > 0) lf = Math.max(lf, need[j] * Math.max(0, 1 - Math.abs(pts[i][2] - pts[j][2]) / 0.5)); P[i].y += lf; } }
+            const T0 = P[1].clone().sub(P[0]).normalize(), l = { P, R, par, kids: [], atEnd: false, pr: par ? pr : sO * Math.max(0.35, T0.clone().cross(pT).length()), pT };
+            L.push(l); if (par) par.kids.push(l);
+            for (let i = 0; i < n; i++) if (E[i] > -1 && pts[i][2] > sO) SAMP.push({ x: P[i].x, z: P[i].z, y: P[i].y, r: R[i], l });
+            // (3) rễ con: tách ở đoạn rễ mẹ còn lộ (e > −0,35), mọc từ tim rễ mẹ, lệch 0,5–0,85 rad
+            let k1 = 0; for (let i = 0; i < n; i++) if (pts[i][2] > sO && E[i] > -0.45) k1 = i;
+            const k0 = P.findIndex((_, i) => pts[i][2] > sO + 0.35), span = k1 - k0;
+            const nb = depth === 0 ? (r0 > 0.2 ? 2 + (rnd() < 0.4 ? 1 : 0) : 1 + (rnd() < 0.5 ? 1 : 0)) : depth === 1 && span > 3 && rnd() < 0.5 ? 1 : 0;
+            if (k0 > 0 && span >= 3) for (let b = 0, sd = rnd() < 0.5 ? -1 : 1; b < nb; b++, sd = -sd) {   // rễ con chỉ tách khỏi đoạn mẹ còn to (rễ mảnh nằm dưới đất)
+              const k = Math.min(n - 2, k0 + Math.round(span * ((b + 0.15 + 0.7 * rnd()) / nb))), p = P[k], tg = P[k + 1].clone().sub(P[k - 1]).normalize();
+              if (R[k] < 0.12) continue; const ha = Math.atan2(tg.z, tg.x) + sd * (0.5 + 0.5 * rnd()), rc = Math.min(0.8 * R[k], Math.max(0.09, (0.6 + 0.15 * rnd()) * R[k])), lc = Math.max(1.0, (sE - pts[k][2]) * (0.6 + 0.35 * rnd()) + 0.6);
+              root(p.x, p.z, p.y, ha, lc, rc, 0, zrt * 0.7, l, R[k], tg, depth + 1);
+            }
+            return l;
           }
-          for (let i = 0, N = 12; i < N; i++) { const ang = (i + 0.35 * rnd()) / N * Math.PI * 2; grow(Math.cos(ang) * 0.95, Math.sin(ang) * 0.95, ang + (rnd() - 0.5) * 0.4, 2.4 + 2.4 * rnd(), 0.24 + 0.14 * rnd(), 0.5, null, undefined, undefined, 0); }
+          // rễ chính ở các múi (to theo độ nhô của múi) + rễ phụ nhỏ hơn chen vào khe > 45° giữa 2 múi (cây già: rễ dày đặc, đè lên nhau như ảnh pohutukawa)
+          const starts = lobes.map(p => ({ a: (p.b + 0.5) / NB * 6.2832, rr: p.rr, r0: Math.min(0.28, 0.17 + 0.25 * Math.min(1, p.pr / 0.4) + 0.04 * rnd()) })).sort((p, q) => p.a - q.a);
+          for (let i = 0, m = starts.length; i < m; i++) { const A = starts[i], B = starts[(i + 1) % m], gap = ((B.a - A.a) + 6.2832) % 6.2832 || 6.2832;
+            for (let k = 1, nk = Math.floor(gap / 0.8); k <= nk; k++) { const a = A.a + gap * k / (nk + 1), b = Math.floor(a / 6.2832 * NB) % NB; starts.push({ a, rr: at(b), r0: 0.14 + 0.04 * rnd() }); } }
+          for (const st of starts) {
+            const ca = Math.cos(st.a), sa = Math.sin(st.a), rX = st.rr;   // góc · bán kính chân thân tại chỗ rễ chui ra
+            if (OBST.some(([ox, oz, orr]) => Math.hypot(ca * rX - ox, sa * rX - oz) < orr + 0.05)) continue;   // tì sát đá: rễ không chui ra được
+            root(ca * rX * 0.55, sa * rX * 0.55, 0.42, st.a + (rnd() - 0.5) * 0.2, (st.r0 > 0.15 ? 2.2 : 1.5) + 1.8 * rnd(), st.r0, rX * 0.45, 1.0, null, 0, axis, 0);
+          }
           g.add(...barkMesh(barkTubes(L, { wS: 1, flare: 0, nodes: false, rope: { minR: 0.12, nTrunk: 6, D: 0.45, twist: 0.35 } }), mat));
+          g.userData.roots = { lobes: lobes.map(p => [+((p.b + 0.5) / NB * 360).toFixed(0), +p.rr.toFixed(2), +p.pr.toFixed(3)]), n: L.length };
           bakeStatic(g);
         })();

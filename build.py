@@ -6,7 +6,7 @@
   src/js/weather.js        thời tiết Open-Meteo + đồng hồ Pleiku (window.gardenWeather)
   src/js/flight-nav.js     dẫn đường bay cho ong/bướm (createFlightNavigator)
   src/app/manifest.txt     thứ tự ghép các mảnh mã cảnh chính src/app/**.js
-  src/models/              mẫu 3D dùng nguyên (G 17/10: drone + tay cầm DJI Mini 3 — dji-mini3.glb; G 18/10: xe Ford Transit — transit.bin = GLB đã XOR), chép nguyên byte sang models/
+  src/models/              mẫu 3D dùng nguyên (G 17/10: drone + tay cầm DJI Mini 3 — dji-mini3.glb; G 18/10: xe Ford Transit — transit.bin = GLB đã XOR; động cơ engine.glb CC-BY; máy cắt cỏ đeo lưng trimmer.glb CC-BY; gà mái chicken.glb CC-BY), chép nguyên byte sang models/
 
 Đầu ra:
   index.html, css/app.css, js/weather.js, js/flight-nav.js, js/app.js   — trang nhiều tệp cho GitHub Pages (js/app.js bỏ dòng chú thích)
@@ -14,7 +14,7 @@
   models/*.glb, *.bin, *.jpg                                            — mẫu 3D / ảnh trang tải sau khi cảnh chạy (bản một tệp tải từ địa chỉ Pages tuyệt đối)
   ../3D garden.html                                                     — bản một tệp tự chứa (chỉ khi chạy trên máy, cạnh thư mục tests/)
 
-  python3 build.py           dựng
+  python3 build.py           dựng (luôn dừng nếu 1 chú thích // cuối dòng nuốt mất câu lệnh phía sau — xem swallowed())
   python3 build.py --check   dựng + kiểm tra cú pháp JS bằng node + NGÂN SÁCH dung lượng nén gzip (dùng trên GitHub Actions)
   python3 build.py --force   ghi đè "../3D garden.html" kể cả khi tệp đó đã bị sửa tay
 """
@@ -24,8 +24,8 @@ HERE = pathlib.Path(__file__).resolve().parent
 SRC = HERE / 'src'
 SINGLE = HERE.parent / '3D garden.html'
 STAMP = HERE / '.single-stamp'          # băm của bản một tệp dựng lần trước (không đưa lên git)
-MODELS_KB = 2200                         # trần dung lượng THÔ của models/ (KB) — mẫu tải sau, không tính vào ngân sách gzip bên dưới (18/10: 1500 → 2200 khi thêm xe Transit GLB transit.bin ~550 KB)
-BUDGET_KB = {'js/app.js': 440, 'tổng': 460}   # ngân sách dung lượng NÉN gzip (KB) người xem phải tải — vượt thì --check báo lỗi (14/10: 380 → 400 khi thêm chim sẻ + thuyền; 15/10: G nâng 420/440; 16/10: bỏ cả chú thích cuối dòng ⇒ app.js 420 → 359 KB, còn trống ~60 KB; 17/10 khuya: G nâng 440/460 để dựng lại xe theo Ford Transit L3H2)
+MODELS_KB = 2500                         # trần dung lượng THÔ của models/ (KB) — mẫu tải sau, không tính vào ngân sách gzip bên dưới (18/10: 1500 → 2200 khi thêm xe Transit GLB transit.bin ~550 KB; 2200 → 2500 cho tệp trọng số mạng nơ-ron của kỹ sư)
+BUDGET_KB = {'js/app.js': 490, 'tổng': 510}   # ngân sách dung lượng NÉN gzip (KB) người xem phải tải — vượt thì --check báo lỗi (14/10: 380 → 400 khi thêm chim sẻ + thuyền; 15/10: G nâng 420/440; 16/10: bỏ cả chú thích cuối dòng ⇒ app.js 420 → 359 KB, còn trống ~60 KB; 17/10 khuya: G nâng 440/460 để dựng lại xe theo Ford Transit L3H2; 18/10: G nâng 490/510 cho kỹ sư tự chủ + mạng nơ-ron)
 args = set(sys.argv[1:])
 
 def die(msg):
@@ -122,6 +122,26 @@ def strip_js_comments(src):
     except FileNotFoundError: pass   # máy không có Node: chỉ dựa vào kiểm chuỗi token
     finally: pathlib.Path(tf.name).unlink(missing_ok=True)
     return res
+# chú thích // chèn vào GIỮA dòng (trước câu lệnh có sẵn) nuốt luôn câu lệnh phía sau — mã vẫn chạy, chỉ lặng lẽ thiếu việc (18/10: gà không vào cảnh,
+# chim sẻ hết xù lông, màn tay cầm drone không tắt + hình camera bẹp, ý nghĩ "cá cắn câu" không bao giờ nảy) ⇒ dừng dựng khi chú thích cuối dòng
+# kết thúc bằng 1 câu lệnh ASCII `a.b(…);` / `a = …;` (ngoặc cân) — chữ Việt có dấu nên văn xuôi không bị bắt nhầm
+_ID = r'[A-Za-z_$][A-Za-z0-9_$]*'
+SWALLOW = re.compile(r'(?:^|[\s;:,(])(' + _ID + r'(?:\.' + _ID + r')*(?:\([\x20-\x7e]*\)|\s*[-+*/]?=\s*[^=;\s][\x20-\x7e]*?));\s*$')
+def _balanced(s):
+    d = 0
+    for ch in s:
+        d += ch in '([{'; d -= ch in ')]}'
+        if d < 0: return False
+    return d == 0
+def swallowed(rel, src):
+    txt = js_scan(src, False)[0]   # dòng giữ nguyên số thứ tự; chú thích // thành \x01
+    for i, (a, b) in enumerate(zip(txt.split('\n'), src.split('\n')), 1):
+        if '\x01' not in a or not a.replace('\x01', '').strip(): continue   # chỉ xét chú thích cuối dòng (sau mã), bỏ dòng chỉ có chú thích
+        k = b.find('//', len(a) - 1); m = SWALLOW.search(b[k + 2:]) if k >= 0 else None
+        if m and _balanced(m.group(1)): yield '%s:%d  …%s' % (rel, i, b[k:][-90:])
+sw = [w for r in parts for w in swallowed('src/app/' + r, read('app/' + r))]
+sw += [w for r, t in (('src/js/weather.js', weather), ('src/js/flight-nav.js', flight)) for w in swallowed(r, t)]
+if sw: die('chú thích // nuốt mất câu lệnh phía sau (đưa câu lệnh lên TRƯỚC chú thích):\n  ' + '\n  '.join(sw))
 web_app = strip_js_comments(app)
 files = {'css/app.css': css + '\n', 'js/weather.js': weather.strip('\n') + '\n', 'js/flight-nav.js': flight.strip('\n') + '\n', 'js/app.js': web_app.strip('\n') + '\n'}
 for rel, text in files.items():

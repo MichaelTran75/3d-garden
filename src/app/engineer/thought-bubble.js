@@ -6,7 +6,7 @@
         const cbCtx = checkBubbleCanvas.getContext('2d');
         const checkBubbleTex = new THREE.CanvasTexture(checkBubbleCanvas); checkBubbleTex.colorSpace = THREE.SRGBColorSpace;
         const checkBubbleSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: checkBubbleTex, transparent: true, opacity: 0.97, depthWrite: false, depthTest: false }));
-        checkBubbleSprite.name = 'Nhãn kỹ sư · câu cá và đám mây suy nghĩ';
+        checkBubbleSprite.name = 'Nhãn Engineer · câu cá và đám mây suy nghĩ';
         const BUBBLE_K = 0.65;   // cả nhãn (chữ + đám mây) nhỏ lại 35%
         checkBubbleSprite.scale.set(8.5 * BUBBLE_K / ENGINEER_SIZE, 4.675 * BUBBLE_K / ENGINEER_SIZE, 1.0); checkBubbleSprite.center.set(0.5, 0);   // chia ENGINEER_SIZE: không nhỏ thêm theo người
         checkBubbleSprite.position.set(0, 2.9, 0); checkBubbleSprite.visible = false; engObj.g.add(checkBubbleSprite);

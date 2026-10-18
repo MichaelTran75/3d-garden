@@ -249,12 +249,74 @@
         const roadWidth = 3.2, roadShoulder = .24, roadHalf = roadWidth / 2 + roadShoulder;
         const roadStartX = wx(-MX) - BLOCK / 2, roadCornerX = wx(17 * S);
         const roadCornerZ = wz(23.5 * S), roadEndZ = wz(33.5 * S);
+        // NHÁNH NỐI (G 18/10 "Connect the road"): từ mép nhựa ở góc đường chạy thẳng về đông tới đầu chiếu nghỉ dốc đập bờ trái (world/hydro-dam.js — chiếu
+        // nghỉ đã nằm đúng trục roadCornerZ, rộng 3,2 m = mặt nhựa) ⇒ đường nội bộ liền một mạch lên đỉnh đập. Ngã ba chữ T: nhánh cao hơn mặt đường chính
+        // 3 mm, phủ lên dải lề ở miệng nối (khỏi tranh độ sâu); đầu kia lấn 2 cm lên mặt chiếu nghỉ, hạ về đúng cao độ chiếu nghỉ
+        const damLanding = (() => { const g = scene.getObjectByName('Trạm thủy điện (Hydro Dam)'), a = g.userData.damApproaches.find(q => q.side < 0); return { x: g.position.x + a.endX - a.landingRun, y: a.landingY }; })();
+        const roadBranchX0 = roadCornerX + roadWidth / 2, roadBranchX1 = damLanding.x + 0.02;
         function roadContains(x, z, margin = 0) {
           const h = roadHalf + margin;
           return (x >= roadStartX - margin && x <= roadCornerX + h && Math.abs(z - roadCornerZ) <= h)
-            || (Math.abs(x - roadCornerX) <= h && z >= roadCornerZ - h && z <= roadEndZ + margin);
+            || (Math.abs(x - roadCornerX) <= h && z >= roadCornerZ - h && z <= roadEndZ + margin)
+            || (x >= roadCornerX && x <= roadBranchX1 + margin && Math.abs(z - roadCornerZ) <= h);
         }
         {
+          const point = (p, offset) => ({ x: p.x + p.nx * offset, z: p.z + p.nz * offset });
+          const maxGrade = .12;
+          const asphalt = new THREE.MeshLambertMaterial({ color: 0x73786f, flatShading: true });
+          const shoulder = new THREE.MeshLambertMaterial({ color: 0xb4a58a, flatShading: true });
+          const earth = new THREE.MeshLambertMaterial({ color: 0x867558, flatShading: true });
+          // 1 tuyến = dãy trạm {x, z, pháp tuyến ngang nx nz, lý trình s}: cao độ phủ mọi ô đất dưới mặt cắt, dốc ≤ 12 % (chỉ đắp, không đào), 3 dải mặt
+          // (nhựa + 2 lề) + nền đắp bám đất · fix(stations): ràng buộc cao độ riêng của tuyến, chạy trước khi san dốc
+          function roadLine(stations, fix) {
+            let bedY = Infinity;
+            // Cover every terrain voxel under each road cross-section, including the miter.
+            for (let i = 1; i < stations.length; i++) {
+              const a = stations[i - 1], b = stations[i], q = [point(a, -roadHalf), point(a, roadHalf), point(b, -roadHalf), point(b, roadHalf)];
+              const loI = Math.floor(Math.min(...q.map(p => p.x)) / BLOCK + cx), hiI = Math.floor(Math.max(...q.map(p => p.x)) / BLOCK + cx);
+              const loJ = Math.floor(Math.min(...q.map(p => p.z)) / BLOCK + cz), hiJ = Math.floor(Math.max(...q.map(p => p.z)) / BLOCK + cz);
+              let hi = -Infinity;
+              for (let gi = loI; gi <= hiI; gi++) for (let gj = loJ; gj <= hiJ; gj++) {
+                const y = surfaceY(gi, gj); hi = Math.max(hi, y); bedY = Math.min(bedY, y);
+              }
+              a.y = Math.max(a.y, hi + .07); b.y = Math.max(b.y, hi + .07);
+            }
+            if (fix) fix(stations);
+            // Grade above the existing stepped ground without modifying its height data.
+            for (let i = 1; i < stations.length; i++) stations[i].y = Math.max(stations[i].y, stations[i - 1].y - maxGrade * (stations[i].s - stations[i - 1].s));
+            for (let i = stations.length - 2; i >= 0; i--) stations[i].y = Math.max(stations[i].y, stations[i + 1].y - maxGrade * (stations[i + 1].s - stations[i].s));
+            bedY -= .15;
+            function strip(offset0, offset1, material, name, edgeDrop = false) {
+              const vertices = [], indices = [];
+              for (const p of stations) for (const offset of [offset0, offset1]) {
+                const q = point(p, offset), drop = edgeDrop && Math.abs(offset) > roadWidth / 2 ? .02 : 0;
+                vertices.push(q.x, p.y - drop, q.z);
+              }
+              for (let i = 1; i < stations.length; i++) { const a = (i - 1) * 2, b = i * 2; indices.push(a, a + 1, b, a + 1, b + 1, b); }
+              const geometry = new THREE.BufferGeometry(); geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3)); geometry.setIndex(indices); geometry.computeVertexNormals();
+              const mesh = new THREE.Mesh(geometry, material); mesh.name = name; mesh.receiveShadow = true; campusRoad.add(mesh);
+            }
+            strip(-roadWidth / 2, roadWidth / 2, asphalt, 'Mặt đường liên tục');
+            strip(-roadHalf, -roadWidth / 2, shoulder, 'Lề đường bên phải', true);
+            strip(roadWidth / 2, roadHalf, shoulder, 'Lề đường bên trái', true);
+            const vertices = [], indices = [], packed = new Float32Array((stations.length - 1) * 6);
+            const quad = (a, b, c, d) => { const k = vertices.length / 3; vertices.push(...a, ...b, ...c, ...d); indices.push(k, k + 1, k + 2, k, k + 2, k + 3); };
+            for (let i = 1; i < stations.length; i++) {
+              const a = stations[i - 1], b = stations[i], al = point(a, roadHalf), ar = point(a, -roadHalf), bl = point(b, roadHalf), br = point(b, -roadHalf);
+              const at = a.y - .021, bt = b.y - .021;
+              quad([al.x, bedY, al.z], [bl.x, bedY, bl.z], [bl.x, bt, bl.z], [al.x, at, al.z]);
+              quad([ar.x, bedY, ar.z], [ar.x, at, ar.z], [br.x, bt, br.z], [br.x, bedY, br.z]);
+              // Filled top sits below the asphalt/shoulders; the bank always supports the surface.
+              quad([al.x, at, al.z], [bl.x, bt, bl.z], [br.x, bt, br.z], [ar.x, at, ar.z]);
+              if (i === 1) quad([al.x, bedY, al.z], [al.x, at, al.z], [ar.x, at, ar.z], [ar.x, bedY, ar.z]);
+              if (i === stations.length - 1) quad([bl.x, bedY, bl.z], [br.x, bedY, br.z], [br.x, bt, br.z], [bl.x, bt, bl.z]);
+              packed.set([Math.min(al.x, ar.x, bl.x, br.x), bedY, Math.min(al.z, ar.z, bl.z, br.z), Math.max(al.x, ar.x, bl.x, br.x), Math.max(a.y, b.y), Math.max(al.z, ar.z, bl.z, br.z)], (i - 1) * 6);
+            }
+            const geometry = new THREE.BufferGeometry(); geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3)); geometry.setIndex(indices); geometry.computeVertexNormals();
+            const fill = new THREE.Mesh(geometry, earth); fill.name = 'Nền đường bám đất'; fill.receiveShadow = true; campusRoad.add(fill);
+            bakedFlightBounds.set(geometry, packed); flightRoots.push(fill);
+            return bedY;
+          }
           const stations = [], firstRun = roadCornerX - roadStartX, secondRun = roadEndZ - roadCornerZ;
           const turnGap = Math.ceil((roadHalf + .3) / BLOCK) * BLOCK;
           const station = (x, z, nx, nz, s) => stations.push({ x, z, nx, nz, s, y: -Infinity });
@@ -270,58 +332,13 @@
             const d = turnGap + (secondRun - turnGap) * i / secondSteps;
             station(roadCornerX, roadCornerZ + d, -1, 0, firstRun + d);
           }
-          const point = (p, offset) => ({ x: p.x + p.nx * offset, z: p.z + p.nz * offset });
-          let bedY = Infinity;
-          // Cover every terrain voxel under each road cross-section, including the miter.
-          for (let i = 1; i < stations.length; i++) {
-            const a = stations[i - 1], b = stations[i], q = [point(a, -roadHalf), point(a, roadHalf), point(b, -roadHalf), point(b, roadHalf)];
-            const loI = Math.floor(Math.min(...q.map(p => p.x)) / BLOCK + cx), hiI = Math.floor(Math.max(...q.map(p => p.x)) / BLOCK + cx);
-            const loJ = Math.floor(Math.min(...q.map(p => p.z)) / BLOCK + cz), hiJ = Math.floor(Math.max(...q.map(p => p.z)) / BLOCK + cz);
-            let hi = -Infinity;
-            for (let gi = loI; gi <= hiI; gi++) for (let gj = loJ; gj <= hiJ; gj++) {
-              const y = surfaceY(gi, gj); hi = Math.max(hi, y); bedY = Math.min(bedY, y);
-            }
-            a.y = Math.max(a.y, hi + .07); b.y = Math.max(b.y, hi + .07);
-          }
-          // Grade above the existing stepped ground without modifying its height data.
-          const maxGrade = .12;
-          for (let i = 1; i < stations.length; i++) stations[i].y = Math.max(stations[i].y, stations[i - 1].y - maxGrade * (stations[i].s - stations[i - 1].s));
-          for (let i = stations.length - 2; i >= 0; i--) stations[i].y = Math.max(stations[i].y, stations[i + 1].y - maxGrade * (stations[i + 1].s - stations[i].s));
-          bedY -= .15;
-          const asphalt = new THREE.MeshLambertMaterial({ color: 0x73786f, flatShading: true });
-          const shoulder = new THREE.MeshLambertMaterial({ color: 0xb4a58a, flatShading: true });
-          const earth = new THREE.MeshLambertMaterial({ color: 0x867558, flatShading: true });
-          function strip(offset0, offset1, material, name, edgeDrop = false) {
-            const vertices = [], indices = [];
-            for (const p of stations) for (const offset of [offset0, offset1]) {
-              const q = point(p, offset), drop = edgeDrop && Math.abs(offset) > roadWidth / 2 ? .02 : 0;
-              vertices.push(q.x, p.y - drop, q.z);
-            }
-            for (let i = 1; i < stations.length; i++) { const a = (i - 1) * 2, b = i * 2; indices.push(a, a + 1, b, a + 1, b + 1, b); }
-            const geometry = new THREE.BufferGeometry(); geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3)); geometry.setIndex(indices); geometry.computeVertexNormals();
-            const mesh = new THREE.Mesh(geometry, material); mesh.name = name; mesh.receiveShadow = true; campusRoad.add(mesh);
-          }
-          strip(-roadWidth / 2, roadWidth / 2, asphalt, 'Mặt đường liên tục');
-          strip(-roadHalf, -roadWidth / 2, shoulder, 'Lề đường bên phải', true);
-          strip(roadWidth / 2, roadHalf, shoulder, 'Lề đường bên trái', true);
-          const vertices = [], indices = [], packed = new Float32Array((stations.length - 1) * 6);
-          const quad = (a, b, c, d) => { const k = vertices.length / 3; vertices.push(...a, ...b, ...c, ...d); indices.push(k, k + 1, k + 2, k, k + 2, k + 3); };
-          for (let i = 1; i < stations.length; i++) {
-            const a = stations[i - 1], b = stations[i], al = point(a, roadHalf), ar = point(a, -roadHalf), bl = point(b, roadHalf), br = point(b, -roadHalf);
-            const at = a.y - .021, bt = b.y - .021;
-            quad([al.x, bedY, al.z], [bl.x, bedY, bl.z], [bl.x, bt, bl.z], [al.x, at, al.z]);
-            quad([ar.x, bedY, ar.z], [ar.x, at, ar.z], [br.x, bt, br.z], [br.x, bedY, br.z]);
-            // Filled top sits below the asphalt/shoulders; the bank always supports the surface.
-            quad([al.x, at, al.z], [bl.x, bt, bl.z], [br.x, bt, br.z], [ar.x, at, ar.z]);
-            if (i === 1) quad([al.x, bedY, al.z], [al.x, at, al.z], [ar.x, at, ar.z], [ar.x, bedY, ar.z]);
-            if (i === stations.length - 1) quad([bl.x, bedY, bl.z], [br.x, bedY, br.z], [br.x, bt, br.z], [bl.x, bt, bl.z]);
-            packed.set([Math.min(al.x, ar.x, bl.x, br.x), bedY, Math.min(al.z, ar.z, bl.z, br.z), Math.max(al.x, ar.x, bl.x, br.x), Math.max(a.y, b.y), Math.max(al.z, ar.z, bl.z, br.z)], (i - 1) * 6);
-          }
-          const geometry = new THREE.BufferGeometry(); geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3)); geometry.setIndex(indices); geometry.computeVertexNormals();
-          const fill = new THREE.Mesh(geometry, earth); fill.name = 'Nền đường bám đất'; fill.receiveShadow = true; campusRoad.add(fill);
-          bakedFlightBounds.set(geometry, packed); flightRoots.push(fill);
+          const bedY = roadLine(stations);
+          const branch = [], bRun = roadBranchX1 - roadBranchX0, bSteps = Math.ceil(bRun / BLOCK);
+          for (let i = 0; i <= bSteps; i++) branch.push({ x: roadBranchX0 + bRun * i / bSteps, z: roadCornerZ, nx: 0, nz: 1, s: bRun * i / bSteps, y: -Infinity });
+          const cornerY = stations.find(p => p.nx === -1 && p.nz === 1).y;
+          roadLine(branch, st => { for (const p of st) p.y += .003; st[0].y = Math.max(st[0].y, cornerY + .003); st[st.length - 1].y = damLanding.y + .005; });
           campusRoad.userData.road = {
-            width: roadWidth, shoulder: roadShoulder, maxGrade, bedY, stations,
+            width: roadWidth, shoulder: roadShoulder, maxGrade, bedY, stations, branch,
             route: [[roadStartX, roadCornerZ], [roadCornerX, roadCornerZ], [roadCornerX, roadEndZ]]
           };
           bakeStatic(campusRoad); scene.add(campusRoad);

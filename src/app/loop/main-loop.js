@@ -28,16 +28,18 @@
           }
           const dox = damMist.length ? damMist[0].wx : 0, doz = damMist.length ? damMist[0].wz : 0;
           for (const f of fallBlocks) {   // bọt/màn nước = instance: compose ma trận vào scratch rồi setMatrixAt (85 mesh lẻ → 4 draw call)
-            const p = (t * 0.16 + f.ph) % 1;
-            if (p < 0.62) {
-              const k = p / 0.62, smK = k * k * (3 - 2 * k);
-              _dmP.set(f.x, f.chuteTop - (f.chuteTop - f.chuteBot) * smK, f.z0 + f.dz * smK);
-              _dmQ.setFromEuler(_dmE.set(0.55, 0, 0)); _dmS.set(1, 1 + smK * 0.25, 1);
-            } else {
+            const p = (t * 0.16 + f.ph) % 1, P = f.path;
+            if (p < 0.62) {   // trượt bám mặt tràn ogee (world/hydro-dam.js path: dãy (z, y) từ mép cửa van tới đáy bể), nghiêng theo độ dốc mặt
+              const u = (p / 0.62) ** 1.35 * (P.length - 1), i = Math.min(P.length - 2, u | 0), k = u - i, A = P[i], B = P[i + 1];
+              _dmP.set(f.x, A[1] + (B[1] - A[1]) * k, A[0] + (B[0] - A[0]) * k);
+              _dmQ.setFromEuler(_dmE.set(Math.atan2(A[1] - B[1], B[0] - A[0]), 0, 0)); _dmS.set(1, 1 + k * 0.1, 1);
+            } else if (!f.foam) {   // màn nước: trườn phẳng dưới mặt nước hạ lưu về ngưỡng cuối, mỏng dần
+              const k = (p - 0.62) / 0.38; _dmP.set(f.x, downY - 0.32, f.toeZ + 0.3 + k * 4.8); _dmQ.identity(); _dmS.set(1, Math.max(0.05, 0.45 * (1 - k)), 1);
+            } else {   // bọt: nước nhảy trong bể tiêu năng: cuộn lên mặt nước hạ lưu rồi trôi về ngưỡng cuối, gió làm dạt bọt
               const k = (p - 0.62) / 0.38, smK = Math.sin(k * Math.PI * 0.5);
-              windAt(dox + f.x, f.chuteBot + 2, doz + f.z0 + f.dz, 2, _plA);   // bọt văng khỏi mũi phóng: bay trong gió nên dạt theo chiều gió
-              _dmP.set(f.x + _plA.x * k * 0.7, f.chuteBot + Math.sin(k * Math.PI * 0.75) * 2.2 - k * 0.8, f.z0 + f.dz + k * 4.2 + _plA.z * k * 0.7);
-              _dmQ.setFromEuler(_dmE.set(-0.45 + k * 0.95, 0, 0)); _dmS.set(1 + smK * 0.2, 1 - smK * 0.25, 1 + smK * 0.2);
+              windAt(dox + f.x, downY + 1, doz + f.toeZ, 1, _plA);
+              _dmP.set(f.x + _plA.x * k * 0.4 + Math.sin(f.ph * 40 + k * 6) * 0.3, downY - 0.25 + Math.sin(k * Math.PI) * 0.75, f.toeZ + 0.4 + k * 4.6 + _plA.z * k * 0.4);
+              _dmQ.setFromEuler(_dmE.set(-0.6 + k * 1.4, k * 2, 0)); _dmS.set(1 + smK * 0.3, 1 - smK * 0.35, 1 + smK * 0.3);
             }
             f.im.setMatrixAt(f.id, _dmM.compose(_dmP, _dmQ, _dmS));
           }

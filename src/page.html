@@ -55,38 +55,48 @@
       style="z-index:7;display:none;pointer-events:none;font:600 11.5px/1.5 'Inter',system-ui;background: rgba(226, 214, 192, 0.5);border:1px solid rgba(75,74,70,.26);border-radius:8px;padding:6px 9px;box-shadow:0 6px 16px rgba(80,70,45,.16);white-space:nowrap;">
     </div>
     <section class="ui weather-dock" id="weather-dock" aria-label="Thông tin GHC, giờ và dự báo thời tiết">
-      <div class="overview-ghc">
-        <div class="overview-title"><b>GHC</b> · Thủy điện Gia Lai</div>
-        <div class="ph">Vận hành trực tiếp</div>
-        <div class="overview-capacity">28,2 MW</div>
-        <div class="sub">Thủy điện H’Chan + H’Mun<br>Điện mặt trời: <b>51,58 MWp</b><br>1 nhà máy + 3 hệ thống áp mái
-        </div>
-        <p class="overview-note">Ảnh minh hoạ</p>
+      <div class="dock-ghc" title="Thủy điện H’Chan + H’Mun · điện mặt trời 51,58 MWp · 1 nhà máy + 3 hệ thống áp mái (ảnh minh hoạ)">
+        <span class="dock-name"><b>GHC</b>Thủy điện Gia Lai</span>
+        <span class="overview-capacity">28,2<small>MW</small></span>
       </div>
-      <div class="overview-weather">
-        <div class="weather-head">
-          <select id="weather-city" aria-label="Chọn thành phố xem thời tiết">
-            <option value="sydney">Sydney</option>
-          </select>
-          <div class="weather-time">
-            <time id="clock" aria-label="Giờ địa phương">--:--:--</time>
-            <span id="weather-date">Giờ Sydney</span>
+      <div class="weather-time">
+        <time id="clock" aria-label="Giờ địa phương">--:--:--</time>
+        <span id="weather-date">Giờ Sydney</span>
+      </div>
+      <div class="dock-now">
+        <span id="weather-current-icon" role="img" aria-label="Đang tải thời tiết">☁️</span>
+        <span id="weather-now-temp">—°</span>
+        <select id="weather-city" aria-label="Chọn thành phố xem thời tiết">
+          <option value="sydney">Sydney</option>
+        </select>
+      </div>
+      <ol id="weather-forecast" aria-label="Dự báo 5 ngày tiếp theo"></ol>
+      <details class="dock-more">
+        <summary title="Chi tiết · nguồn dữ liệu" aria-label="Chi tiết và nguồn dữ liệu"><i class="ti ti-info-circle"></i></summary>
+        <div class="dock-more-body">
+          <div class="ph">Vận hành trực tiếp</div>
+          <div class="sub">Thủy điện H’Chan + H’Mun: 28,2 MW + 51,58 MWp điện mặt trời<br>1 nhà máy + 3 hệ thống áp mái</div>
+          <p class="overview-note">Ảnh minh hoạ</p>
+          <div class="weather-foot">
+            <span id="weather-status" role="status">Đang tải thời tiết…</span>
+            <button id="weather-refresh" type="button" title="Cập nhật thời tiết" aria-label="Cập nhật thời tiết">↻</button>
           </div>
-          <span id="weather-current-icon" role="img" aria-label="Đang tải thời tiết">☁️</span>
+          <div class="dock-credits">
+            <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer"
+              title="Dữ liệu mô hình thời tiết Open-Meteo · tự cập nhật mỗi 15 phút">Thời tiết: Open-Meteo</a>
+            <a href="https://sketchfab.com/3d-models/dji-mini-3-drone-with-remote-controller-24ce5dcfced44e3d9da46167da720603" target="_blank" rel="noopener noreferrer"
+              title="Mẫu 3D drone + tay cầm: “DJI Mini 3 Drone with Remote Controller” của Marco Workspace, giấy phép CC BY 4.0 (đã tách phần, giảm lưới, nén)">Drone: Marco Workspace</a>
+            <a href="https://sketchfab.com/3d-models/ford-transit-l2h2-7ba3c31431f34104902c5efcc112d4af" target="_blank" rel="noopener noreferrer"
+              title="Mẫu 3D xe: “Ford Transit L2H2” của geyges, giấy phép Sketchfab Standard (đã sửa thành xe nhà L3 tay lái nghịch, giảm lưới, nén; không được tách mẫu ra khỏi trang)">Xe: geyges</a>
+            <a href="https://sketchfab.com/3d-models/nelson-racing-engine-b-d6049e7c74544f13b3247f7c597837fc" target="_blank" rel="noopener noreferrer"
+              title="Mẫu 3D động cơ: “Nelson Racing Engine B” của Rudy, giấy phép CC BY 4.0 (đã gộp, giảm lưới giữ màu, nén)">Động cơ: Rudy</a>
+            <a href="https://sketchfab.com/3d-models/grass-trimmer-machine-0f57fcf619a94150afc5202689fc0309" target="_blank" rel="noopener noreferrer"
+              title="Mẫu 3D máy cắt cỏ đeo lưng: “Grass Trimmer Machine” của Xorshift, giấy phép CC BY 4.0 (đã tách bộ phận, bỏ ống mềm vẽ lại bằng code, giảm lưới, nén)">Máy cắt cỏ: Xorshift</a>
+            <a href="https://sketchfab.com/3d-models/chicken-rigged-6e3b93c078114c52bfe4cfa08b9843eb" target="_blank" rel="noopener noreferrer"
+              title="Mẫu 3D gà mái: “Chicken - rigged” của Maf'j Alvarez, giấy phép CC BY 4.0 (đã gộp lưới, lược khung hoạt cảnh, bỏ chuyển động gốc của dáng đi)">Gà: Maf'j Alvarez</a>
+          </div>
         </div>
-        <ol id="weather-forecast" aria-label="Dự báo 5 ngày tiếp theo"></ol>
-        <div class="weather-foot">
-          <span id="weather-status" role="status">Đang tải thời tiết…</span>
-          <button id="weather-refresh" type="button" title="Cập nhật thời tiết"
-            aria-label="Cập nhật thời tiết">↻</button>
-          <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer"
-            title="Dữ liệu mô hình thời tiết Open-Meteo · tự cập nhật mỗi 15 phút">Open-Meteo</a>
-          <a href="https://sketchfab.com/3d-models/dji-mini-3-drone-with-remote-controller-24ce5dcfced44e3d9da46167da720603" target="_blank" rel="noopener noreferrer"
-            title="Mẫu 3D drone + tay cầm: “DJI Mini 3 Drone with Remote Controller” của Marco Workspace, giấy phép CC BY 4.0 (đã tách phần, giảm lưới, nén)">Drone: Marco Workspace</a>
-          <a href="https://sketchfab.com/3d-models/ford-transit-l2h2-7ba3c31431f34104902c5efcc112d4af" target="_blank" rel="noopener noreferrer"
-            title="Mẫu 3D xe: “Ford Transit L2H2” của geyges, giấy phép Sketchfab Standard (đã sửa thành xe nhà L3 tay lái nghịch, giảm lưới, nén; không được tách mẫu ra khỏi trang)">Xe: geyges</a>
-        </div>
-      </div>
+      </details>
     </section>
     <div id="weather-mast" aria-label="Số liệu trên cột khí tượng">
       <span id="weather-mast-city">Sydney · khí tượng</span>
@@ -95,17 +105,34 @@
       <small id="weather-mast-status">Đang tải…</small>
     </div>
 
+    <div class="ui panel sim-panel" id="simPanel" hidden aria-label="Chỉ số Engineer">
+      <div class="sim-head">
+        <span class="sim-plumbob" id="simPlumbob" aria-hidden="true"></span>
+        <div class="sim-who"><b>Engineer</b><span id="simDoing"></span></div>
+        <span class="sim-emo" id="simEmo"></span>
+        <button id="simClose" type="button" aria-label="Đóng bảng chỉ số">✕</button>
+      </div>
+      <div class="sim-moods" id="simMoods"></div>
+      <div class="ph">Nhu cầu</div>
+      <div class="sim-grid" id="simNeeds"></div>
+      <div class="ph">Kỹ năng</div>
+      <div id="simSkills"></div>
+      <div class="ph">Quan hệ · Công việc</div>
+      <div id="simRel"></div>
+    </div>
+
     <div id="loading">Đang ghép voxel + line-art…</div>
     <div id="err"></div>
 
     <footer class="ui toolbar">
-      <button id="btnRotate"><i class="ti ti-player-pause"></i>Tự xoay</button>
-      <button id="btnLabels"><i class="ti ti-tag"></i>Nhãn</button>
-      <button id="btnReset"><i class="ti ti-refresh"></i>Góc nhìn</button>
-      <button id="btnSky"><i class="ti ti-sun-moon"></i>Trời</button>
-      <button id="btnAxes"><i class="ti ti-axis-x"></i>Trục</button>
-      <button id="btnPick"><i class="ti ti-click"></i>Chọn</button>
-      <button id="zoomPct" type="button" title="Mức zoom so với góc nhìn mặc định · bấm để về 100%"><i class="ti ti-zoom-in"></i><span>100%</span></button>
+      <button id="btnRotate" type="button" title="Tự xoay" aria-label="Tự xoay"><i class="ti ti-player-pause"></i></button>
+      <button id="btnLabels" type="button" title="Nhãn" aria-label="Nhãn"><i class="ti ti-tag"></i></button>
+      <button id="btnReset" type="button" title="Góc nhìn mặc định" aria-label="Góc nhìn mặc định"><i class="ti ti-refresh"></i></button>
+      <button id="btnSky" type="button" title="Trời theo giờ thật" aria-label="Trời theo giờ thật"><i class="ti ti-sun-moon"></i></button>
+      <button id="btnAxes" type="button" title="Trục toạ độ" aria-label="Trục toạ độ"><i class="ti ti-axis-x"></i></button>
+      <button id="btnPick" type="button" title="Chọn vật thể" aria-label="Chọn vật thể"><i class="ti ti-click"></i></button>
+      <button id="btnSim" type="button" class="tb-text" title="Engineer — chỉ số kiểu The Sims 4: cảm xúc, nhu cầu, kỹ năng, quan hệ, công việc" aria-label="Engineer"><i class="ti ti-diamond"></i><span class="tb-emoji">👷🏻‍♂️</span></button>
+      <button id="zoomPct" type="button" title="Zoom 100% · bấm để về 100%" aria-label="Zoom 100%, bấm để về 100%"><i class="ti ti-zoom-in"></i><span>100%</span></button>
     </footer>
   </div>
 

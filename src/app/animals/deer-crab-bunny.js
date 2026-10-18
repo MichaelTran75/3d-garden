@@ -230,7 +230,7 @@
         const bunnyCarrotMat = new THREE.MeshLambertMaterial({ color: 0xe8762c }), bunnyLeafMat = new THREE.MeshLambertMaterial({ color: 0x4f8a3d }), bunnyMoundMat = new THREE.MeshLambertMaterial({ color: 0x6e5744 });
         (function () {
           const bx0 = X0 + 31, bz0 = Z0 + 110, g = bunny();
-          g.scale.setScalar(0.8 * 0.8 * 0.8 * NATURE_SCALE); // nhỏ đi thêm 20% (G 17/10: thêm 20% nữa)
+          g.scale.setScalar(0.8 * 0.8 * 0.8 * 0.9 * NATURE_SCALE); // nhỏ đi thêm 20% (G 17/10: thêm 20% nữa) · G 18/10: nhỏ thêm 10%
           g.position.set(bx0, cowY(bx0, bz0), bz0); g.rotation.y = Math.random() * 6.28; scene.add(g);
           bunnies.push({ g, ears: g.userData.ears, head: g.userData.head, paws: g.userData.paws, carrot: g.userData.carrot, mound: g.userData.mound, x: bx0, z: bz0, ang: Math.random() * 6.28, spd: 2.4, state: 'sniff', tmr: 1 + Math.random() * 2, ph: Math.random() * 6, hop: 0, digTmr: 60 });
         })();

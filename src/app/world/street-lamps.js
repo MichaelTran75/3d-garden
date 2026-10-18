@@ -1,7 +1,7 @@
         // ---- mặt đường nội bộ: cao độ + khoảng cách ngang tới tim tuyến (nội suy theo các trạm lúc dựng đường) ----
         function roadSurfaceAt(x, z) {
-          const st = campusRoad.userData.road.stations; let best = null;
-          for (let i = 1; i < st.length; i++) {
+          const R = campusRoad.userData.road; let best = null;
+          for (const st of [R.stations, R.branch]) for (let i = 1; i < st.length; i++) {   // tuyến chính + nhánh nối dốc đập (không nối trạm cuối tuyến này với trạm đầu tuyến kia)
             const a = st[i - 1], b = st[i], abx = b.x - a.x, abz = b.z - a.z, L2 = abx * abx + abz * abz;
             const k = L2 ? Math.max(0, Math.min(1, ((x - a.x) * abx + (z - a.z) * abz) / L2)) : 0, d = Math.hypot(x - (a.x + abx * k), z - (a.z + abz * k));
             if (!best || d < best.d) best = { d, y: a.y + (b.y - a.y) * k, tx: abx / Math.sqrt(L2 || 1), tz: abz / Math.sqrt(L2 || 1) };

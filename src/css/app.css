@@ -70,6 +70,10 @@
       box-shadow: 0 8px 22px rgba(80, 70, 45, .12);
     }
 
+    #toolPop.panel {
+      background: rgba(226, 214, 192, 0.75) !important;   /* id + class thắng luật 50% chung (.panel … !important) ở cuối tệp · G 18/10 "make these background 75% visible": bảng việc của dụng cụ (máy cắt cỏ, drone, giỏ táo, động cơ) */
+    }
+
     .panel.tl {
       top: 46px;
       left: 18px;
@@ -180,37 +184,59 @@
       color: #2f2d26;
     }
 
+    /* Thanh nút TỐI GIẢN (G 18/10 "minimalism các nút này trừ kỹ sư text"): 1 viên thuốc, nút chỉ có biểu tượng (tên ở chú thích title / aria-label),
+       riêng "Kỹ sư" giữ chữ; % zoom ở chú thích */
     .toolbar {
       bottom: 16px;
       left: 50%;
       transform: translateX(-50%);
       display: flex;
-      gap: 8px;
+      align-items: center;
+      gap: 2px;
       margin: 0;
+      padding: 4px;
+      border-radius: 12px;
       z-index: 6;
     }
 
     .toolbar button {
       font: 600 12px/1 inherit;
       color: #403d33;
-      background: rgba(226, 214, 192, 0.5);
-      border: 1px solid rgba(75, 74, 70, .26);
+      background: transparent;
+      border: 0;
       border-radius: 8px;
-      padding: 8px 11px;
+      width: 34px;
+      height: 32px;
+      padding: 0;
       cursor: pointer;
       display: flex;
       align-items: center;
+      justify-content: center;
       gap: 6px;
+      white-space: nowrap;
     }
 
-    .toolbar button:hover {
-      background: #E2D6C0;
+    .toolbar button i {
+      font-size: 17px;
     }
 
-    .toolbar button.active {
-      background: #34322c;
-      color: #E2D6C0;
-      border-color: #34322c;
+    .toolbar button.tb-text {
+      width: auto;
+      padding: 0 11px 0 9px;
+    }
+
+    .toolbar button .tb-emoji {
+      font-size: 17px;
+      line-height: 1;
+    }
+
+    #zoomPct span {
+      display: none;
+    }
+
+    .toolbar button:focus-visible {
+      outline: 2px solid #514b39;
+      outline-offset: 1px;
     }
 
     .hint {
@@ -258,125 +284,188 @@
       }
     }
 
-    /* Thời tiết: giờ địa phương, dự báo và số liệu gắn với cột khí tượng. */
+    /* Thanh tổng quan TỐI GIẢN (G 18/10 "minimalism cái bảng này"): 1 dải — GHC + công suất · giờ · thời tiết hiện tại + chọn thành phố ·
+       5 ngày (thứ, biểu tượng, nhiệt độ cao; thấp + mô tả ở chú thích) · ⓘ mở chi tiết nhà máy, trạng thái dữ liệu, ↻, ghi công. Không viền, không vạch chia. */
     .weather-dock {
       top: 12px;
       left: 50%;
       transform: translateX(-50%);
-      width: 432px;
+      display: flex;
+      align-items: center;
+      gap: 22px;
+      max-width: calc(100% - 24px);
       box-sizing: border-box;
-      padding: 10px 14px 8px;
+      padding: 8px 10px 8px 16px;
       color: #161511;
-      background: rgba(226, 214, 192, 0.5);
       border: none;
-      border-radius: 12px;
+      border-radius: 14px;
       box-shadow: none;
     }
 
-    .weather-head {
-      display: grid;
-      grid-template-columns: 1fr auto 1fr;
-      align-items: center;
-      gap: 10px;
-    }
-
-    #weather-city {
-      min-width: 0;
-      width: 100%;
-      max-width: 138px;
-      padding: 6px 4px;
-      color: #171610;
-      background: #E2D6C0;
-      border: none;
-      border-radius: 6px;
-      font: 500 12px/1.2 system-ui, sans-serif;
-      cursor: pointer;
-    }
-
-    #weather-city:focus-visible,
-    #weather-refresh:focus-visible {
-      outline: 2px solid #514b39;
-      outline-offset: 3px;
-    }
-
+    .dock-ghc,
     .weather-time {
-      text-align: center;
+      display: flex;
+      flex-direction: column;
+      line-height: 1.15;
+      white-space: nowrap;
+    }
+
+    .dock-name {
+      font-size: 10px;
+      color: #5a5644;
+    }
+
+    .dock-name b {
+      color: #2f2d26;
+      margin-right: 4px;
+    }
+
+    .overview-capacity {
+      color: #2f2d26;
+      font: 750 20px/1.1 system-ui, sans-serif;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .overview-capacity small {
+      margin-left: 3px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #5a5644;
     }
 
     #clock {
-      display: block;
       color: #000000;
-      font: 650 21px/1.1 system-ui, sans-serif;
+      font: 650 20px/1.1 system-ui, sans-serif;
       font-variant-numeric: tabular-nums;
-      letter-spacing: .7px;
+      letter-spacing: .3px;
     }
 
     #weather-date {
-      display: block;
-      margin-top: 3px;
       font-size: 10px;
-      color: #4e473a;
+      color: #5a5644;
+    }
+
+    .dock-now {
+      display: flex;
+      align-items: center;
+      gap: 5px;
       white-space: nowrap;
     }
 
     #weather-current-icon {
-      justify-self: end;
-      font-size: 28px;
+      font-size: 22px;
       line-height: 1;
     }
 
+    #weather-now-temp {
+      font: 650 18px/1 system-ui, sans-serif;
+      font-variant-numeric: tabular-nums;
+    }
+
+    #weather-city {
+      max-width: 112px;
+      padding: 3px 2px;
+      color: #4e473a;
+      background: transparent;
+      border: none;
+      border-radius: 6px;
+      font: 500 11px/1.2 system-ui, sans-serif;
+      cursor: pointer;
+    }
+
+    #weather-city:focus-visible,
+    #weather-refresh:focus-visible,
+    .dock-more summary:focus-visible {
+      outline: 2px solid #514b39;
+      outline-offset: 2px;
+    }
+
     #weather-forecast {
-      display: grid;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
-      gap: 5px;
+      display: flex;
+      gap: 12px;
       list-style: none;
-      margin: 10px 0 7px;
+      margin: 0;
       padding: 0;
     }
 
     .weather-day {
-      min-width: 0;
-      text-align: center;
-      border-left: 1px solid rgba(79, 69, 48, .15);
-    }
-
-    .weather-day:first-child {
-      border-left: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 24px;
+      line-height: 1.1;
     }
 
     .weather-day-label {
-      display: block;
-      color: #5a5040;
-      font-size: 10px;
+      font-size: 9.5px;
+      color: #6a6250;
     }
 
     .weather-day-icon {
-      display: block;
-      margin: 3px 0;
-      font-size: 23px;
-      line-height: 1.15;
+      margin: 1px 0;
+      font-size: 15px;
     }
 
     .weather-day-range {
-      display: block;
-      font-size: 11px;
+      font-size: 10.5px;
+      font-weight: 600;
       font-variant-numeric: tabular-nums;
-      white-space: nowrap;
-    }
-
-    .weather-day-range b {
-      font-weight: 650;
     }
 
     .weather-day-range span {
-      color: #655c4a;
+      display: none;
+    }
+
+    .dock-more {
+      position: relative;
+    }
+
+    .dock-more summary {
+      list-style: none;
+      display: flex;
+      padding: 4px;
+      color: #6a6250;
+      font-size: 17px;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    .dock-more summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .dock-more[open] summary,
+    .dock-more summary:hover {
+      color: #2f2d26;
+    }
+
+    .dock-more-body {
+      position: absolute;
+      top: calc(100% + 12px);
+      right: -10px;
+      width: 260px;
+      box-sizing: border-box;
+      padding: 12px 14px;
+      background: rgba(226, 214, 192, .94);
+      border-radius: 12px;
+      box-shadow: 0 8px 22px rgba(80, 70, 45, .16);
+    }
+
+    .dock-more-body .sub {
+      font-size: 11px;
+    }
+
+    .overview-note {
+      color: #5a5644;
+      font-size: 10px;
+      margin: 6px 0 8px;
     }
 
     .weather-foot {
       display: flex;
       align-items: center;
       gap: 6px;
-      font-size: 9px;
+      font-size: 10px;
       line-height: 1.3;
       color: #615643;
     }
@@ -384,12 +473,6 @@
     #weather-status {
       flex: 1;
       min-width: 0;
-    }
-
-    .weather-foot a {
-      color: #514733;
-      text-underline-offset: 2px;
-      white-space: nowrap;
     }
 
     #weather-refresh {
@@ -409,6 +492,19 @@
 
     .weather-dock[data-stale="true"] #weather-status {
       color: #85532d;
+    }
+
+    .dock-credits {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px 10px;
+      margin-top: 8px;
+      font-size: 10px;
+    }
+
+    .dock-credits a {
+      color: #514733;
+      text-underline-offset: 2px;
     }
 
     #weather-mast {
@@ -481,7 +577,7 @@
       }
 
       #pickPanel {
-        top: 210px !important;
+        top: 76px !important;
       }
     }
 
@@ -499,44 +595,16 @@
         max-height: calc(100% - 294px);
       }
 
-      .toolbar {
-        left: 12px;
-        right: 12px;
-        transform: none;
-        gap: 4px;
-        flex-wrap: wrap;
-        justify-content: center;
-      }
-
       .panel.tl {
         top: 246px;
       }
 
       #pickPanel {
-        top: 246px !important;
+        top: 76px !important;
       }
     }
 
     @media (max-width: 700px) {
-      .weather-dock {
-        top: 8px;
-        width: calc(100% - 24px);
-        max-width: 432px;
-        padding: 10px 10px 8px;
-      }
-
-      .weather-head {
-        gap: 6px;
-      }
-
-      #weather-city {
-        font-size: 11px;
-      }
-
-      #clock {
-        font-size: 19px;
-      }
-
       .title {
         top: 171px;
         left: 12px;
@@ -555,20 +623,6 @@
 
       .toolbar {
         bottom: 10px;
-        left: 12px;
-        right: 12px;
-        transform: none;
-        gap: 4px;
-        flex-wrap: wrap;
-        justify-content: center;
-      }
-
-      .toolbar button {
-        flex: 1 1 70px;
-        justify-content: center;
-        padding: 7px 5px;
-        font-size: 11px;
-        white-space: nowrap;
       }
 
       .panel.tl {
@@ -580,7 +634,7 @@
       }
 
       #pickPanel {
-        top: 269px !important;
+        top: 118px !important;
         right: 12px !important;
       }
 
@@ -593,6 +647,7 @@
     /* 50% card backgrounds; text/icons retain their own contrast. */
     .panel,
     .weather-dock,
+    .toolbar,
     #weather-mast,
     #coordTip,
     #err {
@@ -600,16 +655,17 @@
       backdrop-filter: none;
     }
 
-    .toolbar button,
-    .toolbar button:hover,
-    #weather-city,
+    .toolbar button:hover {
+      background: rgba(226, 214, 192, 0.85);
+    }
+
     #pickEditRow input,
     #pickPanel button {
       background: rgba(226, 214, 192, 0.5);
     }
 
     .toolbar button.active {
-      background: rgba(52, 50, 44, 0.5);
+      background: rgba(52, 50, 44, 0.55);
       color: #E2D6C0;
     }
 
@@ -632,96 +688,186 @@
       display: none;
     }
 
-    /* One shared overview: the GHC summary and live weather stay together. */
-    .weather-dock {
-      width: min(740px, calc(100% - 24px));
-      max-width: none;
-      display: grid;
-      grid-template-columns: 238px minmax(0, 1fr);
-      gap: 24px;
-      padding: 14px 18px;
+    /* Màn hẹp: dải xuống 2 hàng — GHC · giờ · thời tiết hiện tại ở trên, 5 ngày dàn đều ở dưới */
+    @media (max-width: 760px) {
+      .weather-dock {
+        top: 8px;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 8px 14px;
+        width: calc(100% - 24px);
+        padding: 8px 12px;
+      }
+
+      #weather-forecast {
+        order: 5;
+        flex-basis: 100%;
+        justify-content: space-around;
+      }
+
+      .dock-more-body {
+        right: -4px;
+      }
     }
 
-    .overview-ghc,
-    .overview-weather {
+    /* Bảng chỉ số kỹ sư kiểu The Sims 4 (ui/sim-needs.js): góc dưới phải, trên thanh công cụ */
+    .sim-panel {
+      right: 18px;
+      bottom: 64px;
+      width: 300px;
+      box-sizing: border-box;
+      max-height: calc(100% - 150px);
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      padding: 12px 14px 10px;
+      font: 12px/1.4 system-ui, sans-serif;
+      color: #171613;
+    }
+
+    /* G 18/10 "make 100% visible": bảng Kỹ sư nền đục 100% (các bảng khác vẫn 50%) */
+    .panel.sim-panel {
+      background: rgb(226, 214, 192) !important;
+    }
+
+    .sim-bar.sim-cmd {
+      cursor: pointer;
+      border-radius: 6px;
+    }
+
+    .sim-bar.sim-cmd:hover {
+      background: rgba(23, 22, 19, 0.07);
+    }
+
+    .sim-bar.sim-go {
+      box-shadow: inset 0 0 0 1.5px #453668;
+    }
+
+    .sim-panel[hidden] {
+      display: none;
+    }
+
+    .sim-head {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      margin-bottom: 7px;
+    }
+
+    .sim-plumbob {
+      width: 12px;
+      height: 18px;
+      flex: none;
+      clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+      background: #47651e;
+      transition: background .6s;
+    }
+
+    .sim-who {
+      display: flex;
+      flex-direction: column;
       min-width: 0;
+      line-height: 1.2;
     }
 
-    .overview-title {
-      color: #34322c;
+    #simDoing {
+      font-size: 10.5px;
+      color: #2d2b22;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .sim-emo {
+      margin-left: auto;
+      font-weight: 650;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    #simClose {
+      border: 0;
+      background: transparent;
+      color: #2d2b22;
+      cursor: pointer;
       font-size: 13px;
+      padding: 2px 4px;
+    }
+
+    .sim-moods {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
       margin-bottom: 9px;
     }
 
-    .overview-ghc .ph {
-      margin-bottom: 4px;
-    }
-
-    .overview-capacity {
-      color: #2f2d26;
-      font-size: 25px;
-      font-weight: 800;
-      line-height: 1.1;
-      margin-bottom: 6px;
-    }
-
-    .overview-ghc .sub {
-      font-size: 11px;
-      line-height: 1.5;
-    }
-
-    .overview-note {
-      color: #5a5644;
+    .sim-mood {
       font-size: 10px;
-      margin: 7px 0 0;
+      padding: 2px 6px;
+      border: 1px solid;
+      border-left-width: 3px;
+      border-radius: 5px;
+      color: #201e19;
     }
 
-    @media (max-width: 740px) {
-      .weather-dock {
-        grid-template-columns: minmax(0, 1fr);
-        gap: 12px;
-        top: 8px;
-        padding: 12px;
-      }
+    .sim-panel .ph {
+      margin: 8px 0 4px;
+      color: #494639;
+    }
 
-      .overview-ghc {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr);
-        column-gap: 12px;
-      }
+    .sim-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2px 14px;
+    }
 
-      .overview-title {
-        grid-column: 1 / -1;
-        margin-bottom: 7px;
-      }
+    .sim-bar {
+      display: grid;
+      grid-template-columns: 16px 1fr auto;
+      align-items: center;
+      column-gap: 5px;
+      margin: 3px 0;
+    }
 
-      .overview-ghc .ph {
-        grid-column: 1;
-        grid-row: 2;
-        font-size: 9px;
-      }
+    .sim-bar i {
+      font-size: 14px;
+      color: #2d2b22;
+    }
 
-      .overview-capacity {
-        grid-column: 1;
-        grid-row: 3;
-        font-size: 23px;
-        margin: 0;
-      }
+    .sim-lab {
+      font-size: 11px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
 
-      .overview-ghc .sub {
-        grid-column: 2;
-        grid-row: 2 / 5;
-        font-size: 10px;
-      }
+    .sim-r {
+      font-size: 10px;
+      color: #2d2b22;
+      white-space: nowrap;
+    }
 
-      .overview-note {
-        grid-column: 1;
-        grid-row: 4;
-        margin: 4px 0 0;
-        font-size: 9px;
-      }
+    .sim-track {
+      grid-column: 2 / -1;
+      height: 6px;
+      border-radius: 3px;
+      background: rgba(38, 37, 35, .2);
+      overflow: hidden;
+    }
 
-      #pickPanel {
-        top: 290px !important;
+    .sim-fill {
+      display: block;
+      height: 100%;
+      width: 0;
+      border-radius: 3px;
+      transition: width .8s, background .8s;
+    }
+
+    @media (max-width: 700px) {
+      .sim-panel {
+        left: 12px;
+        right: 12px;
+        bottom: 58px;
+        width: auto;
+        max-height: calc(100% - 200px);
       }
     }

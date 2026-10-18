@@ -62,32 +62,51 @@
           const root = new THREE.Group(); root.name = 'Chim sẻ'; root.scale.setScalar(SC); scene.add(root);
           const bodyP = new THREE.Group(); bodyP.position.y = 0.26; root.add(bodyP);   // gốc = điểm chân bám
           const mesh = (geo, m, par, x = 0, y = 0, z = 0) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.castShadow = true; par.add(o); return o; };
-          const bodyG = new THREE.SphereGeometry(0.5, 10, 7); bodyG.scale(0.34, 0.36, 0.56);
-          mesh(paint(bodyG, (x, y, z) => y > -0.04 + 0.05 * z ? BROWN : CREAM), vc, bodyP);
+          // G 18/10 "study glb small bird then apply to our small bird structure (keep our colourful bird)": CẤU TRÚC theo mẫu "Flying Bird" (sandeep.s,
+          //  CC-BY-4.0 — chỉ đo): thân thon tiết diện bát giác vát cạnh (ngực sâu, thon dần về gốc đuôi; rộng / dài thân 0,3 như mẫu, trước là quả trứng 0,6),
+          //  đầu nhỏ, mỏ thon dài, đuôi dài hẹp chẻ nhẹ, cánh RỘNG CONG VỒNG (mép trước thẳng ở cánh tay rồi xuôi mạnh ra sau ở bàn cánh, mép sau cong, đầu cánh
+          //  nhọn; sải / dài 1,27 như mẫu), nhịp vỗ theo mẫu (đỉnh +52° → đáy −30°, xuôi sau 17° ở đỉnh → 26° ở đáy, thân nhấp nhô theo nhịp). GIỮ màu chim
+          //  sẻ của mình (lưng nâu, bụng kem, vạch kem, bàn cánh nâu sẫm, mỏ ô-liu) và mọi tập tính; cánh vẫn 2 đốt (cánh tay + bàn cánh) để gập khi đậu.
+          const loft = (st, n = 8) => {   // st: [z, nửa rộng, nửa cao, tâm y] từ trước ra sau · lưng nâu (nửa trên + sườn), bụng kem
+            const P = [], C = [], I = [], col = sa => sa > -0.3 ? BROWN : CREAM;
+            st.forEach(([z, w, h, c]) => { for (let k = 0; k < n; k++) { const a = (k + 0.5) / n * TAU, sa = Math.sin(a); P.push(Math.cos(a) * w, c + sa * h, z); const q = col(sa); C.push(q.r, q.g, q.b); } });
+            for (let i = 0; i < st.length - 1; i++) for (let k = 0; k < n; k++) { const a = i * n + k, b = i * n + (k + 1) % n; I.push(a, a + n, b, b, a + n, b + n); }
+            const cap = (j, dz, flip) => { const f = P.length / 3, [z, , , c] = st[j]; P.push(0, c, z + dz); C.push(BROWN.r, BROWN.g, BROWN.b); for (let k = 0; k < n; k++) { const a = j * n + k, b = j * n + (k + 1) % n; if (flip) I.push(f, b, a); else I.push(f, a, b); } };
+            cap(0, 0.03, false); cap(st.length - 1, -0.03, true);
+            const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(C, 3)); g.setIndex(I); g.computeVertexNormals(); return g;
+          };
+          const wingGrid = (le, te, cam, nz = 3) => {   // mặt cánh cong vồng: mép trước le / mép sau te ([x, z] theo sải), cung lưng cao cam (nhỏ dần ra đầu cánh)
+            const P = [], I = [], n = le.length;
+            for (let i = 0; i < n; i++) for (let j = 0; j <= nz; j++) { const u = j / nz, x = le[i][0] + (te[i][0] - le[i][0]) * u, z = le[i][1] + (te[i][1] - le[i][1]) * u; P.push(x, cam * (1 - 0.6 * i / (n - 1)) * Math.sin(Math.PI * Math.pow(u, 0.85)), z); }
+            for (let i = 0; i < n - 1; i++) for (let j = 0; j < nz; j++) { const a = i * (nz + 1) + j, c = a + nz + 1; I.push(a, a + 1, c, a + 1, c + 1, c); }
+            const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setIndex(I); g.computeVertexNormals(); return g;
+          };
+          mesh(loft([[0.2, 0.09, 0.09, 0.1], [0.12, 0.14, 0.14, 0.05], [0.02, 0.16, 0.16, 0.02], [-0.08, 0.15, 0.145, 0.025], [-0.17, 0.11, 0.1, 0.045], [-0.25, 0.05, 0.045, 0.06]]), vc, bodyP);
           const head = new THREE.Group(); head.position.set(0, 0.13, 0.25); bodyP.add(head);
-          const headG = new THREE.SphereGeometry(0.5, 9, 7); headG.scale(0.29, 0.28, 0.31);
+          const headG = new THREE.SphereGeometry(0.5, 8, 6); headG.scale(0.25, 0.24, 0.28);
           mesh(paint(headG, (x, y, z) => y > 0.0 - 0.05 * z ? BROWN : CREAM), vc, head, 0, 0.06, 0.03);
-          const beakG = new THREE.ConeGeometry(0.042, 0.11, 6); beakG.rotateX(Math.PI / 2); mesh(beakG, lam(0x4a4630), head, 0, 0.04, 0.22);
+          const beakG = new THREE.ConeGeometry(0.034, 0.13, 6); beakG.rotateX(Math.PI / 2); mesh(beakG, lam(0x4a4630), head, 0, 0.045, 0.2);
           const food = mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.16, 5).rotateZ(Math.PI / 2), lam(0x7d9a3a), head, 0, 0.035, 0.27); food.visible = false;   // sâu ngậm ngang mỏ
-          const eyes = [-1, 1].map(s => mesh(new THREE.SphereGeometry(0.03, 6, 5), lam(0x0d0d0d), head, s * 0.12, 0.09, 0.1));
+          const eyes = [-1, 1].map(s => mesh(new THREE.SphereGeometry(0.027, 6, 5), lam(0x0d0d0d), head, s * 0.105, 0.085, 0.09));
           const wingShape = (pts) => { const sh = new THREE.Shape(); pts.forEach(([x, z], i) => i ? sh.lineTo(x, z) : sh.moveTo(x, z)); const g = new THREE.ShapeGeometry(sh); g.rotateX(Math.PI / 2); return g; };
-          const armG = wingShape([[0, 0.07], [0.2, 0.06], [0.21, -0.14], [0.11, -0.17], [0, -0.15]]);   // cánh tay: vai → cổ tay 0,2
-          const handG = wingShape([[0, 0.06], [0.13, 0.045], [0.3, -0.005], [0.27, -0.055], [0.22, -0.075], [0.2, -0.1], [0.14, -0.12], [0.12, -0.14], [0, -0.14]]);   // bàn cánh: lông sơ cấp nhọn, mép sau so le
+          const armG = wingGrid([[0, 0.075], [0.09, 0.08], [0.18, 0.075], [0.26, 0.07]], [[0, -0.19], [0.09, -0.215], [0.18, -0.225], [0.26, -0.22]], 0.035);   // cánh tay: vai → cổ tay 0,26, dây cung 0,29 (lông thứ cấp)
+          const handG = wingGrid([[0, 0.07], [0.12, 0.045], [0.22, -0.01], [0.3, -0.075], [0.36, -0.13]], [[0, -0.22], [0.12, -0.215], [0.22, -0.195], [0.3, -0.165], [0.36, -0.135]], 0.025);   // bàn cánh: mép trước xuôi mạnh ra sau, đầu cánh nhọn (lông sơ cấp)
           const wingM = new THREE.MeshLambertMaterial({ color: 0x9c6c48, side: THREE.DoubleSide, flatShading: true }), handM = new THREE.MeshLambertMaterial({ color: DARK, side: THREE.DoubleSide, flatShading: true });
           // G 15/10 "fix the wing": cánh cũ gắn nhầm vai (scale.x = −s ⇒ 2 cánh cắm xuyên thân, bắt chéo chữ X khi bay; khi đậu chĩa ra TRƯỚC qua đầu).
           // Giờ: nhóm "bên" lật gương (scale.x = s), mọi góc khớp viết cho cánh PHẢI (sải +x, mép trước +z, mặt lưng +y) ⇒ 2 cánh luôn đối xứng.
           const wings = [-1, 1].map(s => {   // vai → cánh tay (nâu, vạch kem) → bàn cánh (lông sơ cấp nâu sẫm)
             const side = new THREE.Group(); side.scale.x = s; bodyP.add(side);
-            const sh = new THREE.Group(); sh.position.set(0.13, 0.1, 0.1); side.add(sh);
-            mesh(armG, wingM, sh); mesh(new THREE.BoxGeometry(0.17, 0.004, 0.024), lam(0xefe4c8), sh, 0.1, 0.005, -0.03);
-            const wr = new THREE.Group(); wr.position.x = 0.2; sh.add(wr); mesh(handG, handM, wr);
+            const sh = new THREE.Group(); sh.position.set(0.12, 0.13, 0.1); side.add(sh);
+            mesh(armG, wingM, sh); mesh(new THREE.BoxGeometry(0.21, 0.005, 0.026), lam(0xefe4c8), sh, 0.125, 0.037, -0.05);   // vạch kem trên lưng cánh tay
+            const wr = new THREE.Group(); wr.position.x = 0.26; sh.add(wr); mesh(handG, handM, wr);
             return { sh, wr };
           });
           // cánh XẾP (theo dáng đậu của mẫu): sải chĩa ra SAU, hơi lên + vào trong (đầu cánh bắt chéo trên phao câu), mặt lưng quay ra ngoài–lên ôm sườn
           const qFold = (() => { const x = new THREE.Vector3(-0.07, 0.1, -1).normalize(), y = new THREE.Vector3(1, 0.55, 0); y.addScaledVector(x, -y.dot(x)).normalize(); return new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, y, new THREE.Vector3().crossVectors(x, y))); })();
           const qOpen = new THREE.Quaternion(), _we = new THREE.Euler();
-          const tail = new THREE.Group(); tail.position.set(0, 0.02, -0.26); bodyP.add(tail);
-          mesh(wingShape([[-0.045, 0], [0.045, 0], [0.075, -0.3], [0, -0.33], [-0.075, -0.3]]), new THREE.MeshLambertMaterial({ color: 0x6b4a36, side: THREE.DoubleSide }), tail);
+          const tail = new THREE.Group(); tail.position.set(0, 0.05, -0.24); bodyP.add(tail);
+          mesh(wingShape([[-0.045, 0], [0.045, 0], [0.065, -0.36], [0.03, -0.41], [0, -0.38], [-0.03, -0.41], [-0.065, -0.36]]),   // đuôi dài hẹp, chẻ nhẹ (mẫu: đuôi ~40% chiều dài)
+          new THREE.MeshLambertMaterial({ color: 0x6b4a36, side: THREE.DoubleSide }), tail);
           const legs = [-1, 1].map(s => {   // cẳng chân xám + 3 ngón trước 1 ngón sau (bám cành)
             const lg = new THREE.Group(); lg.position.set(s * 0.055, -0.14, 0.03); bodyP.add(lg);
             const parts = [new THREE.CylinderGeometry(0.011, 0.013, 0.12, 5).translate(0, -0.06, 0)];
@@ -224,17 +243,18 @@
               let dy = B.yaw - root.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); root.rotation.y += dy * Math.min(1, dt * (B.st === 'fly' ? 10 : 14));
               // rũ nước: lắc thân + đầu nhanh ~0,5 s
               const shk = B.shk > 0 ? (B.shk -= dt, Math.sin(B.shk * 70) * Math.min(1, B.shk / 0.12)) : 0;
-              bodyP.rotation.x = P.pitch.x; bodyP.rotation.z = 0.28 * shk; bodyP.position.y = 0.26 - 0.06 * P.crouch.x; bodyP.scale.setScalar(P.fluff.x);
+              bodyP.rotation.x = P.pitch.x; bodyP.rotation.z = 0.28 * shk; bodyP.position.y = 0.26 - 0.06 * P.crouch.x + 0.018 * Math.sin(B.flapPh) * P.wing.x; bodyP.scale.setScalar(P.fluff.x);   // thân nhấp nhô theo nhịp vỗ (mẫu)
               const tk = P.tuck.x;   // ngủ: ngoái đầu ra sau, rúc mỏ vào lông vai, nhắm mắt
               head.rotation.set(-P.pitch.x * 0.7 + P.hp.x * (1 - tk) + 0.35 * tk, P.hy.x * (1 - tk) + 2.7 * tk + 0.6 * shk, 0.25 * Math.sin(t * 0.7) * (1 - tk) * (B.st === 'perch' ? 1 : 0));
               head.position.set(0, 0.13 - 0.05 * tk, 0.25 - 0.12 * tk); for (const e of eyes) e.visible = tk < 0.5;
               if (flap > 0) B.flapPh += dt * flap * TAU;
-              // vỗ (theo nhịp bay của mẫu): đỉnh +79° gần chạm nhau trên lưng → đáy −59° dưới bụng; pha vỗ lên bàn cánh gập ra sau, bàn cánh trễ pha sau cánh tay
-              const w = P.wing.x, ph = B.flapPh, up = Math.max(0, -Math.sin(ph));
-              qOpen.setFromEuler(_we.set(0, 0.12 + 0.25 * up, 0.17 + 1.2 * Math.cos(ph), 'ZYX'));
+              // vỗ theo mẫu "Flying Bird" (G 18/10): đỉnh +52° → đáy −30° (mẫu +49° / −27°; trước: +79° / −59°), cánh xuôi sau 17° ở đỉnh → 26° ở đáy;
+              //  pha vỗ lên bàn cánh gập nhẹ ra sau, bàn cánh trễ pha sau cánh tay (mặt cánh uốn sóng như mẫu)
+              const w = P.wing.x, ph = B.flapPh, up = Math.max(0, -Math.sin(ph)), dn = 0.5 - 0.5 * Math.cos(ph);
+              qOpen.setFromEuler(_we.set(0, 0.3 + 0.16 * dn, 0.195 + 0.715 * Math.cos(ph), 'ZYX'));
               for (const W of wings) {   // xếp ⇄ xoè: nội suy cầu giữa 2 hướng vai (không đi qua thân)
-                W.sh.quaternion.slerpQuaternions(qFold, qOpen, w);
-                W.wr.rotation.set(0, 0.12 + (0.6 * up - 0.12) * w, -0.22 + (0.3 * Math.sin(ph) + 0.22) * w);
+                W.sh.quaternion.slerpQuaternions(qFold, qOpen, w); W.sh.scale.z = 0.62 + 0.38 * w;   // gập: lông chồng lên nhau ⇒ cánh hẹp lại (cánh rộng kiểu mẫu chỉ xoè khi bay)
+                W.wr.rotation.set(0, 0.12 + (0.45 * up - 0.12) * w, -0.22 + (0.26 * Math.sin(ph) + 0.22) * w);
               }
               tail.rotation.set(-0.15 + P.tailP.x * 0.06 - 0.25 * P.tailS.x, 0, 0); tail.scale.x = 1 + 0.8 * P.tailS.x;
               for (const L of legs) { L.rotation.x = (1 - P.legs.x) * 1.2 - P.pitch.x * P.legs.x; L.scale.setScalar(0.35 + 0.65 * P.legs.x); }

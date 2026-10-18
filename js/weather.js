@@ -66,7 +66,7 @@
         $('clock').textContent = time;
         $('clock').dateTime = now.toISOString();
         $('clock').setAttribute('aria-label', 'Giờ ' + SCENE_CLOCK.name + ': ' + time);
-        $('weather-date').textContent = dateFormatter.format(now) + ' · ' + SCENE_CLOCK.name;
+        $('weather-date').textContent = dateFormatter.format(now).replace(/[-.]/g, '/') + ' · ' + SCENE_CLOCK.name.replace(/^.*\((.*)\)$/, '$1');   // "17/10 · Pleiku" — giờ cảnh (thành phố thời tiết ở ô chọn bên cạnh)
       }
       function renderForecast() {
         const daily = state.data?.daily, today = dayFormatter.format(new Date());
@@ -78,11 +78,11 @@
           const entry = upcoming[n], i = entry?.i, date = entry ? new Date(entry.day + 'T12:00:00Z') : null;
           const [emoji, text] = describe(daily?.weather_code?.[i]);
           const lo = daily?.temperature_2m_min?.[i], hi = daily?.temperature_2m_max?.[i], pop = daily?.precipitation_probability_max?.[i];
-          const label = date ? shortDay.format(date).replace('Th ', 'T') + ' ' + entry.day.slice(8) + '/' + entry.day.slice(5, 7) : 'Ngày +' + (n + 1);
+          const wd = date ? shortDay.format(date).replace(/^Th(ứ)?\s*/, 'T') : '+' + (n + 1), label = date ? wd + ' ' + entry.day.slice(8) + '/' + entry.day.slice(5, 7) : 'Ngày +' + (n + 1);   // thanh tối giản: chỉ hiện thứ (ngày ở chú thích)
           const li = document.createElement('li'); li.className = 'weather-day';
           const description = label + ': ' + text + ', ' + num(lo, 0) + ' đến ' + num(hi, 0) + ' °C' + (finite(pop) ? ', khả năng mưa ' + num(pop, 0) + '%' : '');
           li.title = description; li.setAttribute('aria-label', description);
-          const caption = document.createElement('span'); caption.className = 'weather-day-label'; caption.textContent = label;
+          const caption = document.createElement('span'); caption.className = 'weather-day-label'; caption.textContent = wd;
           const icon = document.createElement('span'); icon.className = 'weather-day-icon'; icon.textContent = emoji; icon.setAttribute('aria-hidden', 'true');
           const range = document.createElement('span'); range.className = 'weather-day-range';
           const max = document.createElement('b'); max.textContent = num(hi, 0) + '°';
@@ -107,6 +107,7 @@
         $('weather-current-icon').setAttribute('aria-label', text);
         $('weather-current-icon').title = text;
         $('weather-temperature').textContent = num(state.temperature) + ' °C';
+        $('weather-now-temp').textContent = current ? num(state.temperature, 0) + '°' : '—°';
         $('weather-wind').textContent = num(state.windSpeed) + ' km/h';
         $('weather-mast-city').textContent = state.city.name + ' · khí tượng';
         const stamp = current ? current.time.slice(11, 16) + ' ' + current.time.slice(8, 10) + '/' + current.time.slice(5, 7) : '';

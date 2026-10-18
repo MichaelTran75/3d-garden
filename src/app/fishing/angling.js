@@ -284,7 +284,7 @@
                 else if (drift > 1.25) { A.rebait = false; anglingGo('retrieve'); anglingEvent('drift', 0.85); }   // "gió đẩy phao trôi dạt, phải quăng lại chỗ cũ"
                 else if (A.wait <= 0 && (awake || grill.st === 'empty') && e.timer > 24) beginFishingFish();   // cá rô kiếm ăn cả lúc chạng vạng
               } else if (k >= A.approachDuration) {
-                anglingGo('bite'); A.take = false; A.biteDur = 1.4 + anglingRandom() * 1.6; A.hooked = anglingRandom() < (A.fish && A.fish.keeper ? 0.8 : .42);   // cá rô đớp mồi mạnh, dễ dính lưỡi anglingEvent('bite', 0.55);
+                anglingGo('bite'); A.take = false; A.biteDur = 1.4 + anglingRandom() * 1.6; A.hooked = anglingRandom() < (A.fish && A.fish.keeper ? 0.8 : .42); anglingEvent('bite', 0.55);   // cá rô đớp mồi mạnh, dễ dính lưỡi
                 A.B0.copy(P.B); P.bKin = true;
                 _aV.set(P.B.x - _aTip.x, 0, P.B.z - _aTip.z).normalize(); A.takeDir.set(-_aV.z, 0, _aV.x).multiplyScalar(anglingRandom() < 0.5 ? 1 : -1).addScaledVector(_aV, 0.6).normalize();
               }

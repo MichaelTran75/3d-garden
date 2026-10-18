@@ -2,6 +2,19 @@
         const labelGroup = new THREE.Group(); scene.add(labelGroup);
         function rr(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
         const annotationLabelScale = 0.65; // Same text size as the Gia Lai weather label.
+        // emoji trong nhãn (👷🏻‍♂️ của kỹ sư): texture nhãn không gắn sRGB ⇒ bộ vẽ mã hoá sRGB thêm lần nữa, chữ đen không sao nhưng emoji bạc màu — vẽ emoji
+        //  qua canvas phụ, đổi điểm ảnh sRGB → tuyến tính trước để ra đúng màu, giữ nguyên màu nền các nhãn khác
+        const LBL_EMO = /(\p{Extended_Pictographic}(?:\p{Emoji_Modifier}|️|‍\p{Extended_Pictographic})*️?)/u;
+        const LBL_LIN = Uint8Array.from({ length: 256 }, (_, i) => { const c = i / 255; return Math.round(255 * (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)); });
+        function fillLabelText(x, s, px, py, maxW) {
+          if (!LBL_EMO.test(s)) { x.fillText(s, px, py, maxW); return; }
+          const o = document.createElement('canvas'), ox = o.getContext('2d', { willReadFrequently: true });
+          s.split(LBL_EMO).forEach((part, i) => { if (!part) return; const w = x.measureText(part).width;
+            if (i % 2) { o.width = Math.ceil(w) + 8; o.height = 96; ox.font = x.font; ox.textBaseline = 'middle'; ox.fillText(part, 4, 48);
+              const d = ox.getImageData(0, 0, o.width, o.height), a = d.data; for (let j = 0; j < a.length; j += 4) { a[j] = LBL_LIN[a[j]]; a[j + 1] = LBL_LIN[a[j + 1]]; a[j + 2] = LBL_LIN[a[j + 2]]; }
+              ox.putImageData(d, 0, 0); x.drawImage(o, px - 4, py - 48); } else x.fillText(part, px, py);
+            px += w; });
+        }
         function addLabel(text, dot, pos, to, dynamic = false, labelScale = annotationLabelScale) {
           const c = document.createElement('canvas'), f = '600 46px Inter, system-ui, Arial', pad = 92, h = 108, k = 0.052 * labelScale;
           const measure = c.getContext('2d'); measure.font = f;
@@ -20,7 +33,7 @@
             rr(x, 3, 3, width - 6, h - 6, 40); x.fillStyle = 'rgba(226,214,192,0.5)'; x.fill();
             x.lineWidth = 3; x.strokeStyle = 'rgba(75,74,70,0.5)'; x.stroke();
             x.beginPath(); x.arc(54, h / 2, 16, 0, 7); x.fillStyle = dot; x.fill();
-            x.fillStyle = '#000000'; x.globalAlpha = 1; x.textBaseline = 'middle'; x.fillText(nextText, pad, h / 2 + 2, width - pad - 40);
+            x.fillStyle = '#000000'; x.globalAlpha = 1; x.textBaseline = 'middle'; fillLabelText(x, nextText, pad, h / 2 + 2, width - pad - 40);
             t.repeat.set(width / c.width, 1); t.needsUpdate = true; sp.scale.set(width * k, h * k, 1);
             sp.name = 'Nhãn: ' + nextText;
           }
@@ -133,7 +146,7 @@
           lx = e.clientX; ly = e.clientY; cursorBeforeDrag = dom.style.cursor;
           dom.style.cursor = 'grabbing';
           const rotateButton = document.getElementById('btnRotate');
-          if (rotateButton) rotateButton.innerHTML = '<i class="ti ti-player-play"></i>Tự xoay';
+          if (rotateButton) tbIcon(rotateButton, 'player-play', 'Tự xoay (đang dừng)');
           if (dom.setPointerCapture) dom.setPointerCapture(e.pointerId);
         });
         listen(dom, 'pointermove', e => {
@@ -168,13 +181,14 @@
         listen(dom, 'pointerleave', () => { coordTip.style.display = 'none'; coordMoved = false; });
         listen(dom, 'wheel', e => { e.preventDefault(); camera.zoom *= (e.deltaY > 0 ? 0.92 : 1.08); camera.zoom = Math.max(0.5, Math.min(30.0, camera.zoom)); camera.updateProjectionMatrix(); }, { passive: false });
         const bR = document.getElementById('btnRotate'), bL = document.getElementById('btnLabels'), bRe = document.getElementById('btnReset');
-        if (bR) listen(bR, 'click', () => { autoRotate = !autoRotate; bR.innerHTML = '<i class="ti ti-player-' + (autoRotate ? 'pause' : 'play') + '"></i>Tự xoay'; });
-        if (bL) listen(bL, 'click', () => { labelGroup.visible = !labelGroup.visible; bL.innerHTML = '<i class="ti ti-' + (labelGroup.visible ? 'tag' : 'tag-off') + '"></i>Nhãn'; });
-        if (bRe) listen(bRe, 'click', () => { tTheta = Math.PI * 0.27; tPhi = 0.9; camera.zoom = 0.5; target.set(0, 5, 0); camera.updateProjectionMatrix(); autoRotate = true; if (bR) bR.innerHTML = '<i class="ti ti-player-pause"></i>Tự xoay'; });
+        function tbIcon(b, icon, label) { b.innerHTML = '<i class="ti ti-' + icon + '"></i>'; b.title = label; b.setAttribute('aria-label', label); }   // thanh nút tối giản (G 18/10): chỉ biểu tượng, tên ở chú thích
+        if (bR) listen(bR, 'click', () => { autoRotate = !autoRotate; tbIcon(bR, 'player-' + (autoRotate ? 'pause' : 'play'), autoRotate ? 'Tự xoay' : 'Tự xoay (đang dừng)'); });
+        if (bL) listen(bL, 'click', () => { labelGroup.visible = !labelGroup.visible; tbIcon(bL, labelGroup.visible ? 'tag' : 'tag-off', labelGroup.visible ? 'Nhãn' : 'Nhãn (đang ẩn)'); });
+        if (bRe) listen(bRe, 'click', () => { tTheta = Math.PI * 0.27; tPhi = 0.9; camera.zoom = 0.5; target.set(0, 5, 0); camera.updateProjectionMatrix(); autoRotate = true; if (bR) tbIcon(bR, 'player-pause', 'Tự xoay'); });
         // ---- % zoom: 100% = góc nhìn mặc định (camera.zoom 0.5); bấm để về 100% ----
         const ZOOM_BASE = 0.5, zoomBtn = document.getElementById('zoomPct'), zoomText = zoomBtn?.querySelector('span');
         let shownZoom = -1;
-        function updateZoomPct() { if (!zoomText || camera.zoom === shownZoom) return; shownZoom = camera.zoom; zoomText.textContent = Math.round(camera.zoom / ZOOM_BASE * 100) + '%'; }
+        function updateZoomPct() { if (!zoomText || camera.zoom === shownZoom) return; shownZoom = camera.zoom; const z = Math.round(camera.zoom / ZOOM_BASE * 100) + '%'; zoomText.textContent = z; zoomBtn.title = 'Zoom ' + z + ' · bấm để về 100%'; zoomBtn.setAttribute('aria-label', 'Zoom ' + z + ', bấm để về 100%'); }
         if (zoomBtn) listen(zoomBtn, 'click', () => { camera.zoom = ZOOM_BASE; camera.updateProjectionMatrix(); updateZoomPct(); });
         const bA = document.getElementById('btnAxes');
         if (bA) listen(bA, 'click', () => { coordOn = !coordOn; axesGroup.visible = coordOn; bA.style.opacity = coordOn ? '1' : '0.5'; numSprites.forEach(s => s.visible = coordOn); if (!coordOn) { coordTip.style.display = 'none'; pin.visible = false; } });
@@ -273,7 +287,7 @@
           const r = dom.getBoundingClientRect();
           const pndc = new THREE.Vector2(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1);
           pickRay.setFromCamera(pndc, camera);
-          const hits = pickRay.intersectObjects(scene.children, true).filter(h => { let o = h.object; while (o) { if (o === pin || o === axesGroup || o === pickBox) return false; o = o.parent; } return true; });
+          const hits = pickRay.intersectObjects(scene.children, true).filter(h => { let o = h.object; if (o.userData.pickSkip) return false; while (o) { if (o === pin || o === axesGroup || o === pickBox) return false; o = o.parent; } return true; });
           if (!hits.length) { clearPickHighlight(); return; }
           showPickInfo(hits[0]);
         }

@@ -15,7 +15,7 @@
         //  Gọi trong engineer/loop-update.js: engReactHold (đứng lại thay việc) · engReactPre (trước lớp tư thế) · engReactPost (sau IK chân: nhìn,
         //  nhịp cử chỉ — trước engSeatPost) · engReactArms (đích tay — sau engSeatPost, trước engArmPost).
         const RX_NO = [false, false], RX_YES = [true, true], RX_R = [true, false];
-        const RX_BUSY = new Set(['pet', 'apple', 'drone', 'drink', 'grab', 'plant', 'toPlant', 'toGrill', 'eatFish', 'tossFish', 'fish', 'eat', 'read', 'nap']);
+        const RX_BUSY = new Set(['pet', 'apple', 'trim', 'drone', 'drink', 'grab', 'plant', 'toPlant', 'toGrill', 'eatFish', 'tossFish', 'fish', 'eat', 'read', 'nap']);
         const RX_STOP = new Set(['wander', 'check', 'toMast', 'toChair', 'toShelter', 'toFish', 'toDog']);   // việc đi / đứng dừng lại được
         // ưu tiên cử chỉ: cử chỉ cao hơn mới chen ngang được
         const RX_GP = { wipe: 1, rub: 1, warm: 1, palm: 2, clap: 2, laugh: 2, wave: 3, cough: 3, catch: 3, look: 3, drop: 3, brush: 3, helmet: 4, pat: 4, shield: 5, cover: 6 };
@@ -76,7 +76,7 @@
           if (P === 'fish') return angling.stage === 'wait' || angling.stage === 'approach' ? 0.8 : 0.15;
           if (P === 'eat' || P === 'eatFish' || P === 'tossFish') return 0.35;
           if (P === 'nap') return 0;
-          if (P === 'pet' || P === 'apple' || P === 'grab' || P === 'plant' || P === 'toPlant' || P === 'toGrill') return 0.25;
+          if (P === 'pet' || P === 'apple' || P === 'trim' || P === 'grab' || P === 'plant' || P === 'toPlant' || P === 'toGrill') return 0.25;
           return 1;
         }
         function rxSay(kind, lines, label, urgent) {   // câu nghĩ ngắn khi có chuyện (mỗi loại ≥ 4 phút, chung ≥ 25 s; không chen tin đang hiện trừ khi gấp)

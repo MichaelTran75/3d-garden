@@ -171,13 +171,22 @@
                 e.arms[0].rotation.x = (-0.62 + Math.sin(t * 4) * 0.16) * k; e.arms[1].rotation.x = -0.15 * k;   // tay vuốt dọc lưng chó
                 e.head.rotation.x = 0.3 * k; e.lean = 0.2 * k;                                                // cúi người về phía chó
                 engPetting = k > 0.5;
-                if (e.timer <= 0 || !dogPettable()) { e.phase = (e.loopN = (e.loopN || 0) + 1) % 2 ? 'toMast' : 'toChair'; engPetting = false; }
+                if (e.timer <= 0 || !dogPettable()) { e.phase = (e.loopN = (e.loopN || 0) + 1) % 2 ? 'toMast' : 'toChair'; engPetting = false; autoDone('pet'); }
               }
               else if (e.phase === 'apple') {              // hái táo bằng sào rút: nhắm · luồn rổ · vặn bứt · lấy quả bỏ giỏ · xách giỏ về (engineer/apple-pick.js)
                 if (applePick.update(e, dt, t)) { if (!engForceAct || (e.onceKey || '').startsWith('apples@')) e.doneAct = e.onceKey; engForceAct = null; }   // hái theo yêu cầu (bấm giỏ / sào)
               }
               else if (e.phase === 'drone') {              // bay drone khảo sát: lấy trên bàn trà · đặt, mở càng · cất cánh · bay · hạ · gập · cất (engineer/drone.js)
                 if (droneToy.update(e, dt, t)) { if (!engForceAct || (e.onceKey || '').startsWith('drone@')) e.doneAct = e.onceKey; engForceAct = null; }   // bay theo yêu cầu ngoài giờ: không đánh dấu xong việc 1-lần khác
+              }
+              else if (e.phase === 'explore') {            // đi dạo khám phá: ghé 2 công trình / cây, đứng ngắm, ghi chép (engineer/autonomy.js)
+                if (exploreJob.update(e, dt, t)) autoDone('explore');
+              }
+              else if (e.phase === 'engine') {             // kiểm tra động cơ: mở ca-pô · xem máy · nổ máy 30 s · tắt · đóng ca-pô (engineer/engine-check.js)
+                if (engineJob.update(e, dt, t)) engForceAct = null;
+              }
+              else if (e.phase === 'trim') {               // phát cỏ quanh trại: giật nổ máy · đeo ba lô · lia lưỡi theo vòng quanh bếp lửa · cất máy (engineer/trim-grass.js)
+                if (trimJob.update(e, dt, t)) engForceAct = null;
               }
               else if (e.phase === 'toMast') {             // đi tới cột khí tượng
                 if (engStep(e, e.wp[2], dt, t, pf, FIRE_AVOID_R, mastField)) { e.phase = 'check'; e.timer = 40; }
@@ -215,7 +224,7 @@
                 else { e.arms[0].rotation.x = e.arms[1].rotation.x = -0.85; rt[0] = 0.28; rt[1] = -0.28; }
               }
               engDishShow(e); kitchenTick(dt, t);
-              if (e.clip) e.clip.visible = !e.inVan && e.phase !== 'van' && !fishing && !atSeat && !H.pole && e.phase !== 'apple' && e.phase !== 'drone' && !H.spoon && !H.cup && !H.bottle && !H.book && !dishHand && e.phase !== 'pet' && !fishInHand;
+              if (e.clip) e.clip.visible = !e.inVan && e.phase !== 'van' && !fishing && !atSeat && !H.pole && e.phase !== 'apple' && e.phase !== 'drone' && e.phase !== 'engine' && e.phase !== 'trim' && !H.spoon && !H.cup && !H.bottle && !H.book && !dishHand && e.phase !== 'pet' && !fishInHand;
               chipsBag.visible = e.phase === 'read' && !e.inVan && !leavingSeat;
               const atDesk = e.inVan && !!e.van && e.van.station === 'desk';
               studyLaptop.target = atDesk && (e.van.st === 'sit' || e.van.st === 'scoot' || e.van.st === 'work') ? 1 : 0;
@@ -240,4 +249,7 @@
             lapHeldTick(e);         // tờ giấy dán trong tay khi đi ghim lên bảng (engineer/laptop-work.js)
             if (e.act === 'sleep' && e.g.parent === caravanObj) engSleepPost(e);   // chăn phủ theo thân đã hiển thị (engineer/sleep.js)
             if (e.phase !== 'drone' && droneToy.state.st !== 'idle') droneToy.abort();   // đổi việc giữa chừng (mưa, giờ): cất drone về bàn
+            if (e.phase !== 'engine') engineJob.idle();   // kiểm tra máy bị cắt ngang: tắt máy, đóng ca-pô
+            if (e.phase !== 'trim') trimJob.idle();   // cắt cỏ bị cắt ngang: máy về chỗ để
+            if (e.phase !== 'explore') exploreJob.reset();
           }

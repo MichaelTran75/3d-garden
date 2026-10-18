@@ -4,8 +4,8 @@
 window.vanWrite = async (name = 'transit.bin', o = {}) => {
   const MSx = window.MS, ENC = window.MSE; await ENC.ready; await MSx.ready;
   const V = window.__van, ERR = o.err ?? 0.0012, report = [];
-  const ORDER = ['paint', 'paintO', 'black', 'chrome', 'glass', 'frost', 'lens', 'bulb', 'red', 'blue', 'steel', 'tire', 'trim', 'dash', 'dashTop', 'ctrl', 'seat', 'yellow'];
-  const errOf = o.errOf || { paint: 0.0008, paintO: 0.0008, glass: 0.0006, frost: 0.0006, tire: 0.004, steel: 0.002 };
+  const ORDER = ['paint', 'paintO', 'paintIn', 'black', 'chrome', 'glass', 'frost', 'lens', 'bulb', 'red', 'blue', 'steel', 'tire', 'trim', 'dash', 'dashTop', 'ctrl', 'seat', 'yellow', 'drl'];
+  const errOf = o.errOf || { paint: 0.0008, paintO: 0.0008, paintIn: 0.0012, glass: 0.0006, frost: 0.0006, tire: 0.004, steel: 0.002 };
   function weldSimplify(list, err, tag) {
     const map = new Map(), P = [], N = [], I = [];
     for (const t of list) for (let k = 0; k < 3; k++) {
@@ -29,7 +29,8 @@ window.vanWrite = async (name = 'transit.bin', o = {}) => {
     return { P: new Float32Array(P3), N: new Float32Array(N3), I: I3 };
   }
   const meshes = {};
-  for (const [node, list] of [['shell', V.tris.shell], ['cab', V.tris.cab], ['door', V.tris.door], ['seat', V.tris.seat], ['wheel', V.wheel]]) {
+  for (const [node, list] of [['shell', V.tris.shell], ['cab', V.tris.cab], ['door', V.tris.door], ['seat', V.tris.seat], ['wheel', V.wheel],
+    ['doorF', V.tris.doorF], ['handle', V.tris.handle], ['hood', V.tris.hood], ['logo', V.tris.logo]]) {
     const by = {}; for (const t of list) (by[t.cls] || (by[t.cls] = [])).push(t);
     meshes[node] = ORDER.filter(c => by[c]).map(c => ({ cls: c, ...weldSimplify(by[c], errOf[c] ?? ERR, node + '/' + c) }));
     const extra = Object.keys(by).filter(c => !ORDER.includes(c)); if (extra.length) console.warn('lớp lạ', node, extra);
@@ -64,13 +65,18 @@ window.vanWrite = async (name = 'transit.bin', o = {}) => {
     }
     J.meshes.push({ name: node, primitives }); meshIdx[node] = J.meshes.length - 1; deq[node] = { ctr, half };
   }
-  const addNode = (name, mesh, tr = {}, extras = {}) => { J.nodes.push({ name: name + '_q', mesh: meshIdx[mesh], translation: deq[mesh].ctr, scale: [deq[mesh].half, deq[mesh].half, deq[mesh].half] }); const q = J.nodes.length - 1;
-    J.nodes.push({ name, children: [q], ...tr, extras }); J.scenes[0].nodes.push(J.nodes.length - 1); };
+  const addNode = (name, mesh, tr = {}, extras = {}, root = true) => { J.nodes.push({ name: name + '_q', mesh: meshIdx[mesh], translation: deq[mesh].ctr, scale: [deq[mesh].half, deq[mesh].half, deq[mesh].half] }); const q = J.nodes.length - 1;
+    J.nodes.push({ name, children: [q], ...tr, extras }); const k = J.nodes.length - 1; if (root) J.scenes[0].nodes.push(k); return k; };
   addNode('Shell', 'shell', {}, { role: 'shell' }); addNode('Cab', 'cab', {}, { role: 'keep' });
   addNode('Door', 'door', { translation: [V.door.dX, 0, V.door.dZ] }, { role: 'shell' });
   addNode('SeatR', 'seat', {}, { role: 'keep' }); addNode('SeatL', 'seat', { scale: [1, 1, -1] }, { role: 'keep' });
   const W = V.wheelPos; for (const [nm, x, s] of [['WheelFL', W.xf, 1], ['WheelFR', W.xf, -1], ['WheelRL', W.xr, 1], ['WheelRR', W.xr, -1]])
     addNode(nm, 'wheel', { translation: [x, W.y, s * W.z], ...(s < 0 ? { rotation: [0, 1, 0, 0] } : {}) }, { role: 'keep' });
+  // bộ phận cử động: nút đặt ở bản lề (extras.pivot), nút bấm (extras.btn = tên nút bản lề nó mở); cửa trái = ảnh gương cửa phải như ghế
+  const HD = V.hinge.door; for (const [nm, s] of [['FrontDoorR', 1], ['FrontDoorL', -1]]) {
+    const d = addNode(nm, 'doorF', { translation: [HD[0], HD[1], s * HD[2]], ...(s < 0 ? { scale: [1, 1, -1] } : {}) }, { role: 'shell', pivot: 'door' });
+    J.nodes[d].children.push(addNode('Handle' + nm.slice(-1), 'handle', {}, { role: 'shell', btn: nm }, false)); }
+  addNode('Hood', 'hood', { translation: V.hinge.hood }, { role: 'shell', pivot: 'hood' }); addNode('Logo', 'logo', {}, { role: 'shell', btn: 'Hood' });
   J.buffers.push({ byteLength: binLen }); J.buffers.push({ byteLength: fbLen, extensions: { EXT_meshopt_compression: { fallback: true } } });
   const jsonU8 = new TextEncoder().encode(JSON.stringify(J)), jl = align4(jsonU8.length), total = 12 + 8 + jl + 8 + binLen;
   const glb = new Uint8Array(total), dv = new DataView(glb.buffer); dv.setUint32(0, 0x46546C67, true); dv.setUint32(4, 2, true); dv.setUint32(8, total, true);

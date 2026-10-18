@@ -56,7 +56,7 @@
           //      ảnh tay cầm của mẫu · màn camera đúng ô màn tay cầm (rộng = 4 × màn laptop thế giới) · OSD. Khung vẽ RIÊNG ra 1 ảnh (cảnh nhỏ: bản sao tay cầm
           //      + đèn + camera trực giao úp mặt) rồi dán như tranh quay về camera ⇒ không bị cây che, không tranh độ sâu với cảnh; vẽ lại cùng nhịp ảnh
           //      camera (2 cần trong khung nghiêng theo lệnh). Khung to gấp đôi ⇒ ảnh khung 1024 × 678, ảnh camera 768 × 320, OSD ×2 điểm ảnh cho nét ----
-          const bub = new THREE.Group(); bub.name = 'Khung tay cầm drone (trên đầu kỹ sư)'; bub.visible = false; scene.add(bub);
+          const bub = new THREE.Group(); bub.name = 'Khung tay cầm drone (trên đầu Engineer)'; bub.visible = false; scene.add(bub);
           const osdC = document.createElement('canvas'); osdC.width = 1024; osdC.height = 428; const ox = osdC.getContext('2d'), osdT = new THREE.CanvasTexture(osdC); osdT.colorSpace = THREE.SRGBColorSpace;
           const FRW = 1024, FRH = 678, frameRT = new THREE.WebGLRenderTarget(FRW, FRH, { samples: matchMedia('(pointer: coarse)').matches ? 2 : 4 }), fScene = new THREE.Scene(), fCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.01, 3);
           fScene.add(new THREE.HemisphereLight(0xffffff, 0x8a96a3, 1.2)); { const l = new THREE.DirectionalLight(0xffffff, 1.2); l.position.set(0.4, 1, 0.8); fScene.add(l); }   // + ảnh môi trường phòng studio (buildFrame) ⇒ nhựa trắng sạch, cần / nút ánh kim nhẹ như ảnh sản phẩm
@@ -76,7 +76,7 @@
             frame.userData.k = fw / SCR.w; frame.visible = true; sizeBubble();
           }
           function sizeBubble() {   // màn laptop thế giới: rộng MBP.SW × tỉ lệ laptop (bàn học × xe) ⇒ màn tay cầm = 4 × (bản có mây: 2 ×; G 17/10 khung to gấp đôi)
-            const kL = studyLaptop.group ? studyLaptop.group.getWorldScale(new THREE.Vector3()).x / LAP_K : 1; SW = 4 * MBP.SW * kL;   // laptop to thêm 30% (LAP_K) nhưng khung giữ cỡ cũ SH = SW * SCR.h / SCR.w;
+            const kL = studyLaptop.group ? studyLaptop.group.getWorldScale(new THREE.Vector3()).x / LAP_K : 1; SW = 4 * MBP.SW * kL; SH = SW * SCR.h / SCR.w;   // laptop to thêm 30% (LAP_K) nhưng khung giữ cỡ cũ
             FW = frameRC ? SW * frame.userData.k : SW * 1.25; FH = FW / fAsp;
             scr.scale.set(SW, SH, 1); osd.scale.set(SW, SH, 1); frame.scale.set(FW, FH, 1); scr.position.set(fOff[0] * FW, fOff[1] * FH, 0); osd.position.copy(scr.position);
           }
@@ -90,14 +90,15 @@
           // (gồm ca nấu, làn hơi) ⇒ drone lơ lửng; góc "đầu bàn" theo hộp bao trục thế giới (bàn xoay 27°) rơi ra ngoài mép (G 17/10 "đặt drone lên bàn correctly")
           const tableLay = () => { const t = scene.getObjectByName('Bàn trà (Camp Table)'); t.updateMatrixWorld(true); const top = t.userData.top ?? 0.45, W = (t.userData.size || [0.66, 0.48])[1];
             const stand = t.localToWorld(new THREE.Vector3(0, 0, -W / 2 - 0.55)), reach = t.localToWorld(new THREE.Vector3(0, 0, -W / 2 - 0.32));
-            return { yaw: t.rotation.y, dr: t.localToWorld(new THREE.Vector3(0.2, top, -0.01)), rc: t.localToWorld(new THREE.Vector3(-0.2, top, -0.19)), stand, reach, mid: t.localToWorld(new THREE.Vector3(0, top, 0)) }; };
+            const s = t.worldToLocal(campChairPos.clone()).x > 0 ? -1 : 1;   // drone ở nửa bàn XA ghế, tay cầm nửa gần ghế (G 18/10: bàn dời dưới bạt, ghế sang phía +x của bàn)
+            return { yaw: t.rotation.y, dr: t.localToWorld(new THREE.Vector3(0.2 * s, top, -0.01)), rc: t.localToWorld(new THREE.Vector3(-0.2 * s, top, -0.19)), stand, reach, mid: t.localToWorld(new THREE.Vector3(0, top, 0)) }; };
           const layOut = T => { D.table.copy(T.dr); D.rcSpot.copy(T.rc); D.standT.copy(T.stand); D.reachP.copy(T.reach); D.tableMid.copy(T.mid); };
           const _bb = new THREE.Box3();
           function restOn(o, y) { o.updateMatrixWorld(true); _bb.setFromObject(o, true); if (_bb.isEmpty()) return; o.position.y += y + 0.001 - _bb.min.y; o.updateMatrixWorld(true); }   // đáy thật của lưới (đỉnh đã xoay) chạm mặt y
           function park() {   // trên mặt bàn trà: drone nửa đông (mũi dọc bàn), tay cầm ngửa góc tây — đáy lưới thật chạm mặt bàn
             const T = tableLay(); layOut(T); D.held = null;
             scene.add(g); g.position.copy(T.dr); g.rotation.set(0, T.yaw + Math.PI / 2, 0); core.rotation.set(0, 0, 0); setFold(0); spinTo(0, 1); restOn(g, T.dr.y);
-            scene.add(rc); rc.position.copy(T.rc); rc.rotation.set(0, T.yaw + Math.PI, 0); restOn(rc, T.rc.y);   // cần quay ra xa người đứng lấy, màn gần bub.visible = false; phoneM.color.setScalar(0);
+            scene.add(rc); rc.position.copy(T.rc); rc.rotation.set(0, T.yaw + Math.PI, 0); restOn(rc, T.rc.y); bub.visible = false; phoneM.color.setScalar(0);   // cần quay ra xa người đứng lấy, màn gần · tắt bong bóng + màn (dừng giữa chừng cũng vậy)
           }
           function setFold(f) { D.fold = f; }   // mẫu GLB càng mở cố định (không gập) — giữ nhịp gập / mở của lịch cho tay kỹ sư
           function spinTo(w, dt) { D.spin += (w - D.spin) * Math.min(1, dt * 2.5); }

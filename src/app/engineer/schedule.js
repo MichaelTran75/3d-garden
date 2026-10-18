@@ -32,17 +32,20 @@
           shower: { van: 1, once: 1, label: 'Tắm', plan: ['shelfOff', 'shower', 'towel', 'shelfOn'] },
           music: { van: 1, label: 'Học bài, nghe nhạc', plan: ['desk'] }, bedtime: { van: 1, label: 'Chuẩn bị ngủ', plan: ['bed'] },
           outdoor: { label: 'Dạo quanh trại' }, apples: { once: 1, label: 'Hái táo' }, rest: { label: 'Nghỉ trưa' }, dinner: { label: 'Ăn tối' },
-          fish: { label: 'Câu cá' }, read: { label: 'Đọc sách' }, shelter: { label: 'Trú mưa dưới hiên' }, drone: { once: 1, label: 'Bay drone khảo sát' }
+          fish: { label: 'Câu cá' }, read: { label: 'Đọc sách' }, shelter: { label: 'Trú mưa dưới hiên' }, drone: { once: 1, label: 'Bay drone khảo sát' }, engine: { label: 'Kiểm tra máy xe' },
+          snack: { van: 1, label: 'Ăn nhẹ', plan: ['table', 'dishes'] }, pet: { label: 'Chơi với chó' }, explore: { label: 'Đi dạo khám phá' },   // việc tự chủ (engineer/autonomy.js)
+          trim: { label: 'Cắt cỏ quanh trại' }   // sau mưa, cỏ ráo (engineer/trim-grass.js)
         };
         function engScheduleAt(h) {
           let k = 0; for (let i = 1; i < ENG_DAY.length; i++) if (h >= ENG_DAY[i][0]) k = i;
           const end = k + 1 < ENG_DAY.length ? ENG_DAY[k + 1][0] : 24, n = (k + 1) % ENG_DAY.length;
           return { act: ENG_DAY[k][1], end, left: (end - h) * 3600, next: ENG_DAY[n][1], nextEnd: n + 1 < ENG_DAY.length ? ENG_DAY[n + 1][0] : 24 };
         }
-        let engForceAct = null;   // người xem bấm dụng cụ (ui/xray-lifecycle.js): 'drone' (▶ Chơi) · 'apples' (Hái táo) — làm ngay việc này, xong thì về lịch cũ
+        let engForceAct = null;   // người xem bấm dụng cụ (ui/xray-lifecycle.js): 'drone' (▶ Chơi) · 'apples' (Hái táo) · 'engine' (▶ Khởi động máy) — làm ngay việc này, xong thì về lịch cũ
         function engWantAct(e, hh) {   // việc cần làm lúc này (đặt e.actLeft = số giây còn lại của khung giờ)
           if (engForceAct) { const w = liveWeather.state; if (w.raining || (engForceAct === 'drone' && (w.windSpeed || 0) / 3.6 > 9)) engForceAct = null; else { e.actLeft = 900; return engForceAct; } }
           const s = engScheduleAt(hh); let act = s.act, left = s.left;
+          { const tw = trimWant(e, hh, act); if (tw) { e.actLeft = 900; return tw; } }   // sau mưa cỏ ráo: phát cỏ quanh trại (engineer/trim-grass.js)
           if (ENG_ACTS[act].once) {
             const key = act + '@' + s.end + '@' + new Date().toDateString();   // theo ngày: hôm sau vẫn đi vệ sinh, vẫn tắm
             if (e.doneAct === key) { act = s.next; left = (s.nextEnd - hh) * 3600; }
@@ -50,9 +53,10 @@
           } else if (e.act && ENG_ACTS[e.act].once && e.onceKey && e.doneAct !== e.onceKey && e.onceKey.startsWith(e.act + '@') && hh < e.onceEnd + 0.2 && hh > e.onceEnd - 1) { act = e.act; left = 0; }
           if ((act === 'outdoor' || act === 'fish' || act === 'apples' || act === 'drone') && liveWeather.state.fresh && liveWeather.state.raining) act = 'shelter';
           if (act === 'drone' && (liveWeather.state.windSpeed || 0) / 3.6 > 9) act = 'rest';   // gió > 9 m/s: drone 249 g không bay (engineer/drone.js)
+          const au = autoWant(e, hh, act); if (au) { e.actLeft = Math.max(30, AUTO.until - clock.elapsedTime); return au; }   // tự chủ theo nhu cầu / lệnh bấm thanh (engineer/autonomy.js)
           e.actLeft = Math.max(0, left); return act;
         }
-        const engPhaseFor = act => ENG_ACTS[act].van ? 'van' : act === 'dinner' && grill.st === 'ready' ? 'toGrill' : act === 'fish' ? 'toFish' : act === 'apples' ? 'apple' : act === 'drone' ? 'drone' : act === 'outdoor' ? 'toMast' : act === 'shelter' ? 'toShelter' : 'toChair';
+        const engPhaseFor = act => ENG_ACTS[act].van ? 'van' : act === 'dinner' && grill.st === 'ready' ? 'toGrill' : act === 'fish' ? 'toFish' : act === 'apples' ? 'apple' : act === 'drone' ? 'drone' : act === 'engine' ? 'engine' : act === 'trim' ? 'trim' : act === 'pet' ? 'toDog' : act === 'explore' ? 'explore' : act === 'outdoor' ? 'toMast' : act === 'shelter' ? 'toShelter' : 'toChair';
         function engChairPhase(e, act) {   // đã ngồi ghế cắm trại: làm gì, bao lâu
           if (act === 'dinner' && grill.st === 'held') { e.timer = e.eatLen = 76; return 'eatFish'; }   // cầm que cá nướng về: ăn cá trước (8 miếng), rồi mới ăn cơm chiên
           if (act === 'lunch' || act === 'dinner') { e.timer = Math.max(60, Math.min(1200, e.actLeft - 900)); return 'eat'; }

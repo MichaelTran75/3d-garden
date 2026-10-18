@@ -319,6 +319,7 @@
             V.plan = [...V.plan.slice(0, V.idx), 'dishes', ...V.plan.slice(V.idx)];   // bát / chảo đã ăn xong (hoặc bỏ dở): rửa trước rồi mới làm việc khác
           if (V.idx >= V.plan.length) {   // xong kế hoạch: việc có điểm dừng thì đánh dấu đã xong (lịch chuyển sang việc kế), không thì đứng chờ
             if (A.once && e.onceKey && e.onceKey.startsWith(act + '@')) e.doneAct = e.onceKey;
+            autoDone(act);   // việc tự chủ / theo lệnh (ăn nhẹ, vệ sinh, tắm) xong ⇒ về lịch
             g.position.y = VAN_FLOOR - ENG_FEET; engStandStill(e); e.vel = 0; return;
           }
           const want = V.plan[V.idx];

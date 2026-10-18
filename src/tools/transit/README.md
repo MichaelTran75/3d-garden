@@ -16,5 +16,7 @@ await vanPreview();             // (tuỳ chọn) xem bản mới cạnh mẫu g
 
 4. Chép `shots/transit.bin` vào `src/models/`, chạy `python3 build.py --check`.
 
-Các tham số chính nằm đầu `vanbuild.js` (nhát cắt L3, bộ phận bỏ, cửa sổ nhà xe, độ mở cửa lùa) và `vanwrite.js` (sai số giảm lưới theo lớp vật liệu).
+Các tham số chính nằm đầu `vanbuild.js` (nhát cắt L3, bộ phận bỏ, cửa sổ nhà xe, độ mở cửa lùa, bộ phận cử động + bản lề) và `vanwrite.js` (sai số giảm lưới theo lớp vật liệu, nút GLB).
+Bộ phận cử động (18/10): cửa trước 13 + tay nắm `Object_37`, ca-pô + khe gió, logo Ford ghi thành lưới riêng theo toạ độ từ bản lề; nút GLB `FrontDoorR/L` (`extras.pivot`),
+`Hood`, nút bấm `HandleR/L`, `Logo` (`extras.btn` = tên nút nó mở) — trang dựng nhóm quay được ở `src/app/van/transit-glb.js`, bấm mở ở `van-doors.js`.
 `transit.bin` là GLB đã XOR theo dòng xorshift32 (cùng dòng với `transitGlb` trong `src/app/van/transit.js`): giấy phép Standard cho dùng mẫu trong trang nhưng không cho tách ra, đăng lại hay phát tán.

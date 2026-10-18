@@ -492,7 +492,6 @@
             const rl = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 3.1, 6), metalMat); rl.rotation.z = Math.PI / 2; rl.position.set(1.32, y, rz); rl.castShadow = true; roofDetails.add(rl);
             for (const rx of [-0.15, 1.3, 2.8]) roofBox(.08, .07, .07, rx, y - .035, rz, caravanDark);
           }
-          const whip = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.6, 5), metalMat); whip.position.set(-0.75, roofTop(-0.75, -0.6) + 0.3, -0.6); whip.castShadow = true; g.add(whip);
           // ---- chảo Starlink (đĩa phẳng nghiêng trên trụ) gần đuôi mui ----
           const slX = 2.3, slZ = 0.42, slY = roofTop(slX, slZ);
           const slBase = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.13, 0.05, 12), caravanDark); slBase.position.set(slX, slY + 0.025, slZ); g.add(slBase);
@@ -525,15 +524,19 @@
           const lpg = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.6, 12), rimMat); lpg.rotation.z = Math.PI / 2; lpg.position.set(0.85, 0.45, -0.62); lpg.castShadow = true; g.add(lpg);
           for (const sx of [-0.2, 0.2]) { const strap = bx(0.04, 0.08, 0.38, caravanDark, false, false); strap.position.set(0.85 + sx, 0.45, -0.62); g.add(strap); }
 
-          // ---- bạt che hiên (hộp cuốn trên mép mui bên cửa lùa): bạt kẻ sọc đỏ dốc ra ngoài, thanh trước, diềm, 2 chân chống cắm đất, đèn lồng treo ----
-          const awFront = -1.15, awRear = 2.9, awLen = awRear - awFront, awC = (awFront + awRear) / 2, awY = 2.62;
+          // ---- bạt che hiên (hộp cuốn trên mép mui bên cửa lùa): bạt kẻ sọc DỐC XUỐNG ra ngoài (từ khe hộp cuốn tới thanh trước), thanh trước, diềm, 2 chân chống
+          //      cắm đất, đèn lồng treo. G 18/10 khoanh 3 chỗ: bạt nghiêng NGƯỢC (rotation.x −0,16 ⇒ mép ngoài cao hơn mép trong) nên hở cả với hộp cuốn lẫn thanh
+          //      trước; hộp cuốn kéo tới x −1,15 thò ra khỏi chỗ mui cao hạ dần xuống kính lái ⇒ cả bộ bạt chỉ trên đoạn mui cao thẳng x −0,75 … 2,9 (mép mui
+          //      x −0,75 ở y 2,72 = đáy hộp cuốn); chân chống đỡ ngay dưới 2 đầu thanh trước (bỏ chỏm cầu thò trên thanh), vào danh sách vật cản để lối đi vòng ----
+          const awFront = -0.75, awRear = 2.9, awLen = awRear - awFront, awC = (awFront + awRear) / 2, awY = 2.62, awTilt = 0.16;
           const cass = bx(awLen + 0.06, 0.11, 0.13, caravanRoofM, true, true, lineDark); cass.name = 'Hộp cuốn bạt'; cass.position.set(awC, 2.78, 0.99); g.add(cass);
-          const aw = bx(awLen, 0.04, 2.4, awningMat, true, true, lineDark); aw.position.set(awC, awY, wallZ + 1.2 - 0.06); aw.rotation.x = -0.16; g.add(aw);
-          const awEdgeZ = wallZ + 2.34, awEdgeY = awY - Math.sin(0.16) * 1.2;
-          for (const px of [awFront + 0.08, awRear - 0.08]) { const pTop = awEdgeY + 0.12, pBot = -1.4, pH = pTop - pBot; const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, pH, 6), chairFrame); pole.castShadow = true; pole.position.set(px, (pTop + pBot) / 2, awEdgeZ); g.add(pole); const cp = new THREE.Mesh(new THREE.SphereGeometry(0.032, 8, 6), chairFrame); cp.position.set(px, pTop, awEdgeZ); cp.castShadow = true; g.add(cp); }
+          const aw = bx(awLen, 0.014, 2.4, awningMat, true, true, lineDark); aw.position.set(awC, awY, wallZ + 1.2 - 0.06); aw.rotation.x = awTilt; g.add(aw);   // mép trong (y 2,81) nằm trong khe hộp cuốn · mép ngoài (y 2,43) ôm thanh trước
+          const awEdgeZ = wallZ + 2.34, awEdgeY = awY - Math.sin(awTilt) * 1.2;
+          g.userData.awPoles = [];
+          for (const px of [awFront + 0.05, awRear - 0.05]) { const pTop = awEdgeY - 0.012, pBot = -1.4, pH = pTop - pBot; const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, pH, 6), chairFrame); pole.castShadow = true; pole.position.set(px, (pTop + pBot) / 2, awEdgeZ); g.add(pole); g.userData.awPoles.push([px, awEdgeZ]); }
           const stripeM = caravanStripe, chrome = rimMat;
           const awX = 1.1;
-          for (let k = 0; k < 4; k++) { const band = bx(0.32, 0.045, 2.42, stripeM, false, false); band.position.set(awC + (k - 1.5) * 1.0, awY + 0.005, wallZ + 1.14); band.rotation.x = -0.16; g.add(band); }
+          for (let k = 0; k < 4; k++) { const band = bx(0.32, 0.018, 2.42, stripeM, false, false); band.position.set(awC + (k - 1.5) * 0.9, awY, wallZ + 1.14); band.rotation.x = awTilt; g.add(band); }   // dày hơn tấm bạt 2 mm mỗi mặt ⇒ không tranh độ sâu
           const roll = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, awLen + 0.06, 8), chrome); roll.rotation.z = Math.PI / 2; roll.position.set(awC, awEdgeY + 0.02, awEdgeZ); roll.castShadow = true; g.add(roll);
           const valance = bx(awLen + 0.06, 0.16, 0.025, stripeM, false, true, lineDark); valance.position.set(awC, awEdgeY - 0.07, awEdgeZ + 0.01); g.add(valance);
           const awCord = cyl(0.012, 0.012, 0.18, new THREE.MeshLambertMaterial({ color: 0x243240 }), false, false, null, 6); awCord.name = 'awLan'; awCord.position.set(awX, awEdgeY - 0.07, awEdgeZ - 0.05); g.add(awCord);
@@ -568,6 +571,8 @@
           const vc = Math.cos(caravanObj.rotation.y), vs = -Math.sin(caravanObj.rotation.y);   // local +x → world (cos ry, −sin ry)
           for (const [lx, rr] of [[-2.2, 1.9], [0.4, 2.0], [2.3, 1.85]])
             obstacleCoords.push({ x: p.x + lx * vc * CAMP_SCALE, y: p.y, z: p.z + lx * vs * CAMP_SCALE, r: rr * CAMP_SCALE, h: 3.0 * CAMP_SCALE });
+          for (const [lx, lz] of caravanObj.userData.awPoles)   // 2 chân chống bạt (local (x, z) → thế giới): lưới đường đi (flow field) vòng qua, không đâm vào cột rồi trượt qua lại
+            obstacleCoords.push({ x: p.x + (lx * vc - lz * vs) * CAMP_SCALE, y: p.y, z: p.z + (lx * vs + lz * vc) * CAMP_SCALE, r: 0.12, h: 2.6 * CAMP_SCALE });
         }
 
         updateStudyLamp();
