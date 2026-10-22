@@ -44,6 +44,16 @@
           fireflies.push({ g: ff.g, wL: ff.wingL, wR: ff.wingR, elL: ff.elL, elR: ff.elR, lampM: ff.lampM, sp: ff.glowSprite, base: base.clone(), target: base.clone(), timer: 2.0 + Math.random() * 3.0, ph: Math.random() * 6.28, r: 1.7 + Math.random() * 1.3, spd: 0.35 + Math.random() * 0.3, state: 'moving', currentSpd: 0,
             per: 2.0 + Math.random() * 0.6, fp: Math.random(), fl: 9 });   // chu kỳ gần nhau (2,0–2,6 s) ⇒ ghép xung đủ kéo các con gần nhau về cùng nhịp
         }
+        // ĐOM ĐÓM QUANH CÂY CỔ THỤ (G 21/10 "đom đóm bay quanh khu đó"): đom đóm ưa chỗ ẩm có cây gần nước, bay thấp 0,5–3 m; vài loài (Pteroptyx — rừng ngập
+        //  mặn Đông Nam Á) tụ trên 1 cây và nháy ĐỒNG LOẠT; con cái thường đậu trên cỏ, nháy đáp lời con đực. ⇒ 12 con quanh gốc (89, 117) bờ sông: 9 con đực lượn
+        //  trong vòng 7 m (lên tới tán), 3 con cái đậu trên thảm cỏ quanh gốc (không bay, đèn yếu hơn, nhịp chậm hơn chút); cụm dày ⇒ ghép xung kéo cả cây chớp cùng nhịp
+        { const OT = new THREE.Vector3(X0 + 89, 0, Z0 + 117), rr = mulberry32(9393);
+          for (let n = 0; n < 12; n++) {
+            const ff = createFirefly(), perch = n < 3, a = n / 12 * TAU + rr() * 0.4, r = perch ? 1.6 + rr() * 2.2 : 1.5 + rr() * 5, x = OT.x + Math.cos(a) * r, z = OT.z + Math.sin(a) * r;
+            const base = new THREE.Vector3(x, cowY(x, z) + (perch ? 0.12 : 0.6 + rr() * 2.4), z); ff.g.position.copy(base); ff.g.rotation.y = rr() * TAU; scene.add(ff.g);
+            fireflies.push({ g: ff.g, wL: ff.wingL, wR: ff.wingR, elL: ff.elL, elR: ff.elR, lampM: ff.lampM, sp: ff.glowSprite, base: base.clone(), target: base.clone(), timer: 1 + rr() * 3, ph: rr() * 6.28, r: 1.5, spd: 0.3 + rr() * 0.25, state: 'paused', currentSpd: 0,
+              per: perch ? 2.5 + rr() * 0.4 : 2.0 + rr() * 0.6, fp: rr(), fl: 9, home: OT, rad: 7, perch, dim: perch ? 0.65 : 1 });
+          } }
 
         const flightRootNames = new Set([
           'Trạm thủy điện (Hydro Dam)', 'Cánh đồng pin mặt trời (Solar Farm)',
@@ -219,7 +229,7 @@
           throw new Error('Không tìm được điểm bay an toàn cho bướm.');
         }
         function nextButterflyTarget(bf) {
-          pickBflyTarget(bf.pos, bf.target);
+          if (!envBflyLure(bf)) pickBflyTarget(bf.pos, bf.target);   // ~1/4 số lần: bay tới quanh kỹ sư đang ở ngoài trời (engineer/env-react.js)
         }
         for (let n = 0; n < 6; n++) {
           const sp = BF_SP[n], bt = butterfly(sp);
@@ -498,7 +508,7 @@
         for (const firefly of fireflies) nighttimeFireflies.add(firefly.g);
         function updateAnimalVisibility() {
           const isNight = !liveWeather.wildlifeAwake; // Animals return at 06:00 and rest at 18:30 in Pleiku.
-          daytimeAnimals.visible = !isNight; nighttimeFireflies.visible = isNight;
+          daytimeAnimals.visible = !isNight; nighttimeFireflies.visible = isNight && !liveWeather.state.raining;   // mưa: đom đóm trú dưới lá, thôi bay / nháy
         }
         updateAnimalVisibility();
 

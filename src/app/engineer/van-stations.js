@@ -100,7 +100,7 @@
           else if (V.st === 'rise') { e.seatCtl = true; if (engRiseStep(e, C, s, dt, t)) { e.seat = null; V.st = 'out'; } }
           return 'busy';
         } };
-        const stBed = { node: 'bed', tick(e, V, dt, t, keep) {   // mép giường: 20:57 ngồi tháo mũ chờ giờ ngủ · 06:00 vừa dậy ngồi vươn vai rồi đứng lên
+        const stBed = { node: 'bed', tick(e, V, dt, t, keep) {   // mép giường: 21:42 ngồi tháo mũ chờ giờ ngủ · 06:00 vừa dậy ngồi vươn vai rồi đứng lên
           const C = BED_SEAT, s = e.seat;
           if (!V.st) V.st = 'face';
           if (V.st === 'face') { if (!keep) return 'released'; if (engSeatTurn(e, VY.pz, dt, vanFloor)) { e.seat = engNewSeat(C, 'sit'); engSeatStartSit(e, C, e.seat); V.st = 'sit'; } }
@@ -191,7 +191,7 @@
             }
           }
           else if (V.st === 'wash') {
-            VAN_DOORS.wc.target = 0; showerFx.on = true;
+            VAN_DOORS.wc.target = 0; showerFx.on = true; VBATH.wet = 1;   // sàn buồng tắm ướt (dọn: stCleanBath)
             const ph = (t + V.ph) % 24, rt = e.armRollT || (e.armRollT = [0, 0]);
             if (ph < 9) { e.arms[0].rotation.x = -2.5 + Math.sin(t * 7) * 0.16; e.arms[1].rotation.x = -2.55 - Math.sin(t * 7) * 0.16; e.head.rotation.x = 0.18; e.headRollT = Math.sin(t * 1.7) * 0.08; }
             else if (ph < 17) { e.arms[0].rotation.x = -0.95 + Math.sin(t * 6) * 0.22; e.arms[1].rotation.x = -0.75; rt[0] = 0.35; rt[1] = -0.1; e.head.rotation.x = 0.3; }
@@ -200,6 +200,59 @@
           }
           else if (V.st === 'drip') { V.k += dt; VAN_DOORS.wc.target = 0; e.headYawT = Math.sin(t * 15) * 0.35 * Math.max(0, 1 - V.k / 1.6); if (V.k > 2.6) V.st = 'back'; }
           else if (V.st === 'back') { if (vanWalkTo(e, VN.wcIn, dt, 0.4)) return 'released'; }
+          return 'busy';
+        } };
+        // ---- DỌN NHÀ VỆ SINH / NHÀ TẮM sau khi dùng (G 21/10): nếp sống xe van (phòng tắm ướt, bồn cầu cassette) — đi xong cọ lòng bồn bằng chổi rồi xả, tắm xong
+        //      gạt nước kính + sàn về phễu thoát cho khô nhanh, đỡ mốc. Đồ cầm tay: gắn vào cổ tay phải (attach giữ cỡ thế giới), xong trả về chỗ cũ ----
+        const ENG_CLEAN_WC = 6, ENG_SQUEEGEE = 8;
+        function bathHold(e, o, on) { if (on) { e.wrists[0].attach(o); o.position.set(0, -0.3, 0.03); o.rotation.set(0, 0, 0); } else { VBATH.group.attach(o); o.position.copy(o.userData.home.p); o.quaternion.copy(o.userData.home.q); } }
+        const stCleanWc = { node: 'wcIn', tick(e, V, dt, t, keep) {   // lật nắp → cầm chổi → cọ lòng bồn (vòng tròn) → cắm chổi lại → đậy nắp, xả → ra
+          if (!V.st) V.st = 'go';
+          const hold = VBATH.brush.parent !== VBATH.group;
+          if (!keep && V.st !== 'flush' && V.st !== 'back') { if (hold) bathHold(e, VBATH.brush, false); LID.target = 0; V.st = 'back'; }
+          if (V.st === 'go') { if (vanWalkTo(e, TOILET_STAND, dt, 0.4)) V.st = 'face'; }
+          else if (V.st === 'face') { LID.target = 1; if (engSeatTurn(e, VY.nz, dt, vanFloor) && LID.k >= 1) { V.st = 'take'; V.k = 0; } }
+          else if (V.st === 'take' || V.st === 'put') {
+            V.k += dt; const r = segK(V.k, 0, 0.6) * (1 - segK(V.k, 0.9, 1.5)), take = V.st === 'take';
+            e.arms[0].rotation.x = -0.55 * r; e.lean = 0.45 * r; e.head.rotation.x = 0.4 * r;
+            if (V.k > 0.6 && hold !== take) bathHold(e, VBATH.brush, take);
+            if (V.k > 1.6) { V.k = 0; if (take) V.st = 'scrub'; else { V.st = 'flush'; LID.target = 0; } }
+          }
+          else if (V.st === 'scrub') {
+            V.k += dt; const rt = e.armRollT || (e.armRollT = [0, 0]);
+            e.lean = 0.62; e.head.rotation.x = 0.5; e.arms[0].rotation.x = -0.5 + Math.sin(t * 9) * 0.18; rt[0] = Math.cos(t * 9) * 0.25; e.arms[1].rotation.x = -0.3;
+            if (V.k > ENG_CLEAN_WC) { V.st = 'put'; V.k = 0; }
+          }
+          else if (V.st === 'flush') { V.k += dt; const r = segK(V.k, 0, 0.7) * (1 - segK(V.k, 1.5, 2.2)); e.arms[0].rotation.x = -1.25 * r; e.lean = 0.22 * r; e.head.rotation.x = 0.3 * r; if (V.k > 2.4) V.st = 'back'; }
+          else if (V.st === 'back') { if (vanWalkTo(e, VN.wcIn, dt, 0.4)) return 'released'; }
+          return 'busy';
+        } };
+        const stCleanBath = { node: 'shelf', tick(e, V, dt, t, keep) {   // lấy gạt trên vách lùi → gạt kính rèm (nét dọc, hết mờ hơi) → gạt sàn về phễu (khô) → treo lại
+          if (!V.st) V.st = 'face';
+          const hold = VBATH.squee.parent !== VBATH.group;
+          if (!keep && !['ret', 'face2', 'hang'].includes(V.st)) V.st = hold ? 'ret' : 'done';
+          if (V.st === 'done') return 'released';
+          if (V.st === 'face' || V.st === 'face2') { if (engSeatTurn(e, VY.nx, dt, vanFloor)) { V.st = V.st === 'face' ? 'take' : 'hang'; V.k = 0; } }
+          else if (V.st === 'take' || V.st === 'hang') {
+            V.k += dt; const r = segK(V.k, 0, 0.5) * (1 - segK(V.k, 0.8, 1.3)), take = V.st === 'take';
+            e.arms[0].rotation.x = -1.3 * r; e.head.rotation.x = -0.05 * r;
+            if (V.k > 0.5 && hold !== take) bathHold(e, VBATH.squee, take);
+            if (V.k > 1.4) { if (!take) return 'released'; V.st = 'go'; V.k = 0; }
+          }
+          else if (V.st === 'go') { if (vanWalkTo(e, SHOWER_SPOT, dt, 0.4)) V.st = 'faceGlass'; }
+          else if (V.st === 'faceGlass') { if (engSeatTurn(e, VY.pz, dt, vanFloor)) { V.st = 'glass'; V.k = 0; } }
+          else if (V.st === 'glass') {   // kính rèm: nét dọc trên → dưới
+            V.k += dt; const u = (V.k % 1.6) / 1.6; e.arms[0].rotation.x = -2.6 + 1.9 * u; e.head.rotation.x = -0.2 + 0.4 * u; e.headYawT = Math.sin(V.k * 0.8) * 0.3;
+            showerFx.steam = Math.max(0, showerFx.steam - dt / 4);
+            if (V.k > ENG_SQUEEGEE * 0.5) V.st = 'faceFloor';
+          }
+          else if (V.st === 'faceFloor') { if (engSeatTurn(e, VY.nz, dt, vanFloor)) { V.st = 'floor'; V.k = 0; } }
+          else if (V.st === 'floor') {   // sàn: cúi gạt từ góc về phễu thoát
+            V.k += dt; const u = (V.k % 1.4) / 1.4; e.lean = 0.55; e.head.rotation.x = 0.5; e.arms[0].rotation.x = -0.35 - 0.5 * (1 - u);
+            VBATH.wet = Math.max(0, VBATH.wet - dt / (ENG_SQUEEGEE * 0.5));
+            if (V.k > ENG_SQUEEGEE * 0.5) V.st = 'ret';
+          }
+          else if (V.st === 'ret') { if (vanWalkTo(e, VN.shelf, dt, 0.4)) V.st = 'face2'; }
           return 'busy';
         } };
         const stTowel = { node: 'towel', tick(e, V, dt, t, keep) {   // khăn trên vách WC: lấy khăn vắt cổ → lau tóc, lau mặt → treo khăn lại

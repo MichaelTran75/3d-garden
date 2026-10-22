@@ -6,13 +6,14 @@
         function motorhomeKitchen(galley, ceilY = 3.56) {   // ceilY: trần xe trong toạ độ tủ bếp (ống gió máy hút mùi chạy tới đó)
           const lam = (c, o = {}) => new THREE.MeshLambertMaterial({ color: c, ...o });
           const M = { counter: lam(0xd8d0bc), steel: lam(0x98a7a4), dark: lam(0x2e3436), iron: lam(0x1f2224), peg: lam(0xd9c49a), hole: lam(0x5a4a33), boardG: lam(0x9fd6a4),
-            boardT: lam(0x6fb0a0), wood: lam(0x7a4a2a), blade: lam(0xc8ced2), cap: lam(0x3b3f42), sponge: lam(0xe36f9a), soap: lam(0xe9e6dc), lid: lam(0x9aa5a8) };
+            boardT: lam(0x6fb0a0), wood: lam(0x7a4a2a), blade: lam(0xc8ced2), cap: lam(0x3b3f42), sponge: lam(0xe36f9a), soap: lam(0xe9e6dc), lid: lam(0x9aa5a8),
+            hood: lam(0x98a7a4, { transparent: true, opacity: 0.5, depthWrite: false }), hoodDk: lam(0x2e3436, { transparent: true, opacity: 0.5, depthWrite: false }) };   // máy hút mùi trong suốt 50% (G 19/10), nét viền giữ nguyên
           const S = new THREE.Group(); S.name = 'Bếp: phần cố định';
           const P = new THREE.Group(); P.name = 'Bếp: đồ dùng'; P.userData.noBake = true;
           const box = (par, w, h, d, x, y, z, mat, out = false) => { const m = bx(w, h, d, mat, true, out, lineDark); m.position.set(x, y, z); par.add(m); return m; };
           const TOP = 1.865;
           // mặt đá liền (tủ chậu + bàn sơ chế) có lỗ chậu
-          const shape = new THREE.Shape(); shape.moveTo(2.37, -0.91); shape.lineTo(2.97, -0.91); shape.lineTo(2.97, 0.255); shape.lineTo(2.37, 0.255); shape.closePath();
+          const shape = new THREE.Shape(); shape.moveTo(2.37, -0.91); shape.lineTo(2.95, -0.91); shape.lineTo(2.95, 0.255); shape.lineTo(2.37, 0.255); shape.closePath();   // lưng mặt đá 2,95 ⇒ sát vách vỏ GLB (19/10)
           const hole = new THREE.Path(); hole.moveTo(2.47, -0.86); hole.lineTo(2.47, -0.5); hole.lineTo(2.81, -0.5); hole.lineTo(2.81, -0.86); hole.closePath(); shape.holes.push(hole);
           const geo = new THREE.ExtrudeGeometry(shape, { depth: 0.07, bevelEnabled: false });
           const top = new THREE.Mesh(geo, M.counter); top.rotation.x = Math.PI / 2; top.position.y = TOP; top.name = 'Mặt đá có lỗ chậu'; top.castShadow = top.receiveShadow = true; edge(top, geo, lineDark); S.add(top);
@@ -30,8 +31,8 @@
           box(S, 0.06, 0.01, 0.085, 2.885, TOP + 0.005, -0.84, M.soap, true); box(S, 0.04, 0.018, 0.06, 2.885, TOP + 0.019, -0.84, lam(0xf5e9b8));
           box(S, 0.055, 0.008, 0.09, 2.885, TOP + 0.004, -0.545, M.steel); box(S, 0.042, 0.026, 0.07, 2.885, TOP + 0.021, -0.545, M.sponge, true);
           // gờ chắn sau chậu + gờ đầu tủ (phía phòng tắm)
-          box(S, 0.035, 0.135, 0.44, 2.952, TOP + 0.0675, -0.69, M.counter, true);
-          box(S, 0.6, 0.135, 0.025, 2.67, TOP + 0.0675, -0.8975, M.counter, true);
+          box(S, 0.035, 0.135, 0.44, 2.932, TOP + 0.0675, -0.69, M.counter, true);
+          box(S, 0.58, 0.135, 0.025, 2.66, TOP + 0.0675, -0.8975, M.counter, true);
           // thớt nhựa xanh nhạt trên bàn sơ chế
           box(S, 0.3, 0.022, 0.46, 2.63, TOP + 0.011, -0.15, M.boardG, true);
           // tấm bảng đục lỗ (thấp dưới bậu cửa sổ 2,27): 2 hàng lỗ, móc treo
@@ -62,18 +63,19 @@
             for (const x of [x0, x1]) for (const z of [z0, z1]) box(S, 0.014, 0.034, 0.014, x, 1.866, z, M.iron);
           }
           // nắp dựng phía sau + tấm chắn gió bên phải mở chếch ra ngoài
-          box(S, 0.012, 0.37, 0.63, 2.957, 1.85 + 0.185, 0.59, M.lid, true);
-          const flap = new THREE.Group(); flap.position.set(2.957, 1.85, 0.905); flap.rotation.y = 0.5; S.add(flap);
+          box(S, 0.012, 0.37, 0.63, 2.94, 1.85 + 0.185, 0.59, M.lid, true);
+          const flap = new THREE.Group(); flap.position.set(2.94, 1.85, 0.905); flap.rotation.y = 0.5; S.add(flap);
           box(flap, 0.42, 0.26, 0.012, -0.21, 0.13, 0.006, M.lid, true);
           // máy hút mùi inox trên vách sau bếp: thân hút + gờ trước vát, lưới lọc dầu, đèn; ỐNG GIÓ đứng dẫn lên trần → ống khói trên mái xe (van/caravan.js)
           //  (G 14/10: nâng thêm nửa ống gió ⇒ đáy máy cao 2,88 — cách mặt bếp ~1 m, đầu người đứng nấu không vướng)
-          const HY = 0.58;
-          box(S, 0.33, 0.1, 0.6, 2.79, 2.35 + HY, 0.59, M.steel, true);
-          const lip = box(S, 0.05, 0.12, 0.6, 2.62, 2.34 + HY, 0.59, M.steel, true); lip.rotation.z = 0.35;
-          box(S, 0.27, 0.006, 0.52, 2.8, 2.297 + HY, 0.59, M.dark);
-          for (let k = 0; k < 7; k++) box(S, 0.27, 0.004, 0.006, 2.8, 2.293 + HY, 0.37 + k * 0.073, M.steel);   // nan lưới lọc
-          box(S, 0.12, ceilY - 2.40 - HY, 0.12, 2.79, (2.40 + HY + ceilY) / 2, 0.47, M.steel, true);   // ống gió lên trần
-          box(S, 0.16, 0.025, 0.16, 2.79, ceilY - 0.015, 0.47, M.steel);   // mặt bích trần
+          //  19/10: máy + ống gió lùi 13 cm ra khỏi vách — vách vỏ GLB khum vào ở độ cao này (|z| 0,84 ở y 2,64), bản cũ thò ra ngoài vỏ
+          const HY = 0.58, HX = 2.66;
+          box(S, 0.33, 0.1, 0.6, HX, 2.35 + HY, 0.59, M.hood, true);
+          const lip = box(S, 0.05, 0.12, 0.6, HX - 0.17, 2.34 + HY, 0.59, M.hood, true); lip.rotation.z = 0.35;
+          box(S, 0.27, 0.006, 0.52, HX + 0.01, 2.297 + HY, 0.59, M.hoodDk);
+          for (let k = 0; k < 7; k++) box(S, 0.27, 0.004, 0.006, HX + 0.01, 2.293 + HY, 0.37 + k * 0.073, M.hood);   // nan lưới lọc
+          box(S, 0.12, ceilY - 2.40 - HY, 0.12, 2.70, (2.40 + HY + ceilY) / 2, 0.47, M.hood, true);   // ống gió lên trần (thẳng ống khói trên mui, van/caravan.js)
+          box(S, 0.16, 0.025, 0.16, 2.70, ceilY - 0.015, 0.47, M.hood);   // mặt bích trần
           // dải núm vặn ga ở mép trước mặt bếp
           box(S, 0.014, 0.045, 0.6, 2.384, 1.812, 0.59, M.dark, true);
           bakeStatic(S); galley.add(S);
@@ -94,7 +96,7 @@
             const nb = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.026, 0.006), M.steel); nb.position.x = -0.012; k.add(nb);   // gờ chỉ vạch
             return k;
           });
-          const hoodLamp = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.006, 0.04), new THREE.MeshBasicMaterial({ color: 0x8a8578 })); hoodLamp.position.set(2.7, 2.292 + 0.58, 0.59); P.add(hoodLamp);
+          const hoodLamp = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.006, 0.04), new THREE.MeshBasicMaterial({ color: 0x8a8578, transparent: true, opacity: 0.5, depthWrite: false })); hoodLamp.position.set(2.57, 2.292 + 0.58, 0.59); P.add(hoodLamp);
           // nồi inox để sẵn trên họng sau–trái: nước, sợi udon, hơi nước
           const pot = new THREE.Group(); pot.name = 'Nồi luộc udon'; pot.position.set(BURN[1][0], 1.894, BURN[1][1]); P.add(pot);
           const potM = new THREE.MeshLambertMaterial({ color: 0xa9b4b6, side: THREE.DoubleSide });

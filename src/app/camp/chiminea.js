@@ -7,6 +7,8 @@
         //  KHÓI = sợi khói Navier–Stokes như lửa trại (nature/fluids.js, nguồn thứ 2): đáy miền = miệng ống, NÓN là ô đặc trong lưới ⇒ khói dội
         //  vào mặt dưới nón, toả ra theo khe giữa miệng ống và nón, vòng qua mép nón rồi mới bốc lên (không xuyên qua nón).
         //  CHỈ CHÁY KHI MƯA (G 15/10): mưa thì lửa trại tắt (campRain, camp/chairs-lantern-fire.js), lửa chuyển sang lò; tạnh mưa lò tàn dần.
+        //  BỎ THÊM CỦI (G 20/10 "khi click vào chiminea thì bỏ thêm củi" — engineer/tool-jobs.js woodJob): addWood() ⇒ 2 khúc mới nằm chéo trên đống than
+        //  + 10 phút nhiên liệu (F, trần 15 phút) — lò cháy cả khi không mưa: lửa bùng ~8 s (thay vì bén 40 s), khúc củi mới cháy nhỏ dần theo F ----
         const chiminea = (() => {
           const W = 0.52, D = 0.5, H = 0.42, YB = 0.3, TK = 0.014, OW = 0.36, OH = 0.28, RB = 0.063;   // buồng đốt rộng (x) · sâu (z) · cao · đáy cách đất · dày thép · ô cửa · đố dưới
           const g = new THREE.Group(); g.name = 'Lò sưởi chiminea (Chiminea)';
@@ -75,6 +77,7 @@
           const fire = new THREE.Group(); fire.userData.noBake = true; g.add(fire);
           const logMat = new THREE.MeshLambertMaterial({ color: 0x3a2a1e, emissive: 0xff5a2a, emissiveIntensity: 0 });
           for (let k = 0; k < 3; k++) { const lg = add(new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.03, 0.27, 8), logMat), (k - 1) * 0.07, YB + 0.045 + (k % 2) * 0.035, 0.02, fire); lg.rotation.set(Math.PI / 2, 0, (k - 1) * 0.55); }
+          const fed = [-1, 1].map(s => { const lg = add(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.034, 0.3, 8), logMat), s * 0.045, YB + 0.115 + (s > 0 ? 0.03 : 0), 0.03, fire); lg.rotation.set(Math.PI / 2, 0, s * 0.9); lg.visible = false; return lg; });   // 2 khúc bỏ thêm
           const emberMat = new THREE.MeshBasicMaterial({ color: 0x1e1410 }), emberGeo = new THREE.IcosahedronGeometry(0.022, 0);
           for (let k = 0; k < 9; k++) { const a = k * 2.4, r = 0.04 + (k % 3) * 0.05; add(new THREE.Mesh(emberGeo, emberMat), Math.cos(a) * r, YB + TK + 0.01, Math.sin(a) * r * 0.8, fire).scale.set(1, 0.5, 1); }
           const flameGeo = new THREE.LatheGeometry([[0, 0], [0.04, 0.03], [0.045, 0.07], [0.03, 0.12], [0.012, 0.17], [0, 0.2]].map(([r, y]) => new THREE.Vector2(r, y)), 8);
@@ -89,12 +92,12 @@
           const SC = CAMP_SCALE, smoke = fluids.addSmoke({ NR: 36, NZ: 110, H: 0.032, NP: 600, NS: 0, NT: 14, buoy: 4, kNu: 0.03, nu0: 0.002, tauT: 6, iters: 30, dens: 0.8,
             inlet: { r: 0.11 * CH * SC }, lid: { r: 0.19 * CH * SC, z0: 0.036 * CH * SC, z1: 0.086 * CH * SC } }, { name: 'Khói ống khói lò chiminea (sợi khói Navier–Stokes)', opacity: 0.6 });
           smoke.on = false;
-          let L = 0, init = false;
-          return { g, smoke, lit: () => L, update(dt, t) {
-            // chỉ khi mưa ⇒ lò cháy: ít nhất 55%, tối thì theo lịch lửa trại; bén lửa ~40 s, tàn ~2,5 phút
-            const want = rainK > 0.05 ? Math.max(0.55, campfireLevel(liveWeather.localHour)) : 0;
+          let L = 0, init = false, F = 0;   // F: giây nhiên liệu còn lại của củi bỏ thêm
+          return { g, smoke, lit: () => L, fuel: () => F, addWood() { F = Math.min(900, F + 600); }, door: out => g.localToWorld(out.set(0, YB + 0.12, D / 2)), update(dt, t) {
+            // mưa ⇒ lò cháy: ít nhất 55%, tối thì theo lịch lửa trại; bén lửa ~40 s, tàn ~2,5 phút · củi bỏ thêm: 45–100% theo F, bùng ~8 s
+            F = Math.max(0, F - dt); const want = Math.max(rainK > 0.05 ? Math.max(0.55, campfireLevel(liveWeather.localHour)) : 0, F > 0 ? Math.min(1, 0.45 + F / 1100) : 0);
             if (!init && liveWeather.state.data) { init = true; L = want; }   // mở trang giữa cơn mưa: lò đang cháy sẵn
-            L += (want - L) * (1 - Math.exp(-dt / (want > L ? 40 : 150)));
+            L += (want - L) * (1 - Math.exp(-dt / (want > L ? (F > 0 ? 8 : 40) : 150))); for (const lg of fed) { lg.visible = F > 0; lg.scale.setScalar(0.5 + 0.5 * Math.min(1, F / 600)); }
             const on = L > 0.02, fl = 0.85 + 0.15 * Math.sin(t * 9.3) + 0.08 * Math.sin(t * 17.1), e = THREE.MathUtils.smoothstep(L, 0, 0.5) * (0.88 + 0.12 * Math.sin(t * 2.3));
             flames.forEach((m, k) => { m.visible = on; if (!on) return; const s = 0.85 + 0.4 * L; m.scale.set(s, L * (1.05 + 0.35 * Math.sin(t * (7 + k) + k * 1.7)), s); m.material.opacity = 0.7 + 0.25 * Math.sin(t * 12 + k); });
             light.intensity = 2.4 * L * fl;

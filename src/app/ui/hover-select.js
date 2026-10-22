@@ -63,6 +63,7 @@
           HOV.hover = it; if (it) { hovFx(it); for (const c of it.fxs) c.visible = true; }
         }
         function hovClick(e) {   // bấm (pointerup): vật dưới con trỏ có hành động riêng (tay nắm, logo) ⇒ làm, trả true để bỏ bấm xe / máy
+          if (radio.tagClick(e)) return true;   // nhãn 📻 radio táp-lô (van/radio.js)
           const it = hovPick(e.clientX, e.clientY); if (!it || !it.click) return false;
           it.click(); return true;
         }
@@ -83,3 +84,4 @@
         for (const o of [droneToy.g, droneToy.rc, applePick.basket, applePick.pole, groundRod, engObj.rod, chiminea.g]) if (o) hovAdd(o);
         hovAdd(studyLaptop.group, { on: () => caravanXray });
         { const k = caravanObj.getObjectByName('Bếp dọc vách cửa hông'); if (k) hovAdd(k, { on: () => caravanXray }); }
+        hovAdd(cowHut.roof, { pad: 0.05, picks: [{ o: cowHut.roofSheet }], click: () => cowHut.roofToggle() });   // mái chuồng bò: bấm ⇒ mờ 50% / đặc lại (animals/cows-hut.js); vùng rê = tấm tôn (hộp mỏng theo dốc mái)

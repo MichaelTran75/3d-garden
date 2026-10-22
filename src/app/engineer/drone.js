@@ -99,6 +99,7 @@
             const T = tableLay(); layOut(T); D.held = null;
             scene.add(g); g.position.copy(T.dr); g.rotation.set(0, T.yaw + Math.PI / 2, 0); core.rotation.set(0, 0, 0); setFold(0); spinTo(0, 1); restOn(g, T.dr.y);
             scene.add(rc); rc.position.copy(T.rc); rc.rotation.set(0, T.yaw + Math.PI, 0); restOn(rc, T.rc.y); bub.visible = false; phoneM.color.setScalar(0);   // cần quay ra xa người đứng lấy, màn gần · tắt bong bóng + màn (dừng giữa chừng cũng vậy)
+            rt.dispose(); frameRT.dispose(); frameDirty = true;   // G 19/10: hạ cánh ⇒ trả RAM đồ hoạ 2 khung vẽ (ảnh camera 768 × 320, khung tay cầm 1024 × 678 MSAA ~25 MB); bay lại thì three tự dựng lại, khung vẽ lại
           }
           function setFold(f) { D.fold = f; }   // mẫu GLB càng mở cố định (không gập) — giữ nhịp gập / mở của lịch cho tay kỹ sư
           function spinTo(w, dt) { D.spin += (w - D.spin) * Math.min(1, dt * 2.5); }
@@ -287,7 +288,7 @@
             const out = TAG_OUT.has(D.st) || (D.st === 'place' && D.k > 0.8) || (D.st === 'pick' && D.k < 2.4);
             if (!tag) {
               if (!out) return;
-              tag = addLabel('Drone DJI Mini 3', '#e0662b', new THREE.Vector3(), new THREE.Vector3(), true);
+              tag = addLabel('Drone DJI Mini 3', '#e0662b', new THREE.Vector3(), new THREE.Vector3(), true, undefined, true);
               const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d');
               x.beginPath(); x.arc(32, 32, 26, 0, TAU); x.fillStyle = 'rgba(226,214,192,0.55)'; x.fill(); x.lineWidth = 5; x.strokeStyle = 'rgba(58,53,48,0.75)'; x.stroke();
               x.beginPath(); x.arc(32, 32, 10, 0, TAU); x.fillStyle = '#e0662b'; x.fill();

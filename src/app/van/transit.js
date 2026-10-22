@@ -17,6 +17,12 @@
         const trRoofY = x => trLerp(TR_ROOF, x), trTop = x => trRoofY(x) - 0.143 * trS(x);   // trTop: mép trên vách hông (chân góc bo mui)
         const trSideZ = (x, y) => { const yt = trTop(x); return trLerp(TR_SEC, y) + (0.949 - trLerp(TR_SEC, yt)) * trSS(yt - 0.3, yt, y); };   // khung cửa cabin khum vào dưới mui
         const trArchFront = y => TR.xF - Math.sqrt(Math.max(0, TR.archR ** 2 - (y - TR.archY) ** 2));
+        // ---- LÒNG KHOANG THEO VỎ GLB (đo transit.bin 19/10: mặt trong lớp 'paintIn', x −0,4 … 2,8, bỏ hốc bánh): vách đứng ±0,92 tới y 2,3 rồi khum vào,
+        //      trần giữa 2,857 — hẹp + thấp hơn vỏ dựng bằng code (TR.inW 0,98 · TR.ceil 2,90) ⇒ nội thất dựng theo số cũ thò ra ngoài vỏ 5–13 cm
+        //      (G 19/10 "organise nội thất xe van cho đúng tỷ lệ"). w: nửa bề ngang dùng cho đồ nội thất (cách mặt vỏ ~2 cm) ----
+        const TR_IN = { w: 0.9, wall: [[0.83, 0.935], [2.0, 0.915], [2.3, 0.893], [2.5, 0.876], [2.6, 0.861], [2.7, 0.835], [2.77, 0.8]],
+          ceil: [[0, 2.857], [0.35, 2.841], [0.5, 2.84], [0.6, 2.814], [0.75, 2.798], [0.8, 2.768], [0.85, 2.582], [0.9, 2.305]] };
+        const trInW = y => trLerp(TR_IN.wall, y), trInCeil = z => trLerp(TR_IN.ceil, Math.abs(z));   // nửa bề ngang lòng xe ở độ cao y · trần lòng xe ở |z|
         const trXh = z => -1.513 + 0.10 * (z / 0.949) ** 2;                   // mép trên kính chắn gió cong lùi ra 2 bên
         const TR_ROOF_X = [-1.30, -1.20, -1.10, -1.0, -0.9, -0.8, -0.6, -0.35, 0.0, 0.5, 1.0, 1.6, 2.2, 2.93];
         // MŨI XE ĐO DÀY từ GLB (Transit bản nâng cấp 2019+: ga-lăng bát giác đen viền mạ + logo bầu dục, đèn pha mảnh vuốt ngược có viền LED, cản trên sơn
@@ -348,7 +354,7 @@
             box(cabinets, name, .012, h, d, 2.403, y, z, M.front, true);
           box(cabinets, 'Ô kính cửa lò', .006, .2, .34, 2.396, 1.42, .59, M.matte);
           for (const z of [-.53, .19, .8]) box(cabinets, 'Tay nắm tủ', .018, .11, .05, 2.39, 1.42, z, M.mat);
-          box(cabinets, 'Khe tách khối bếp', .58, .76, .014, 2.68, 1.45, .263, M.matte);
+          box(cabinets, 'Khe tách khối bếp', .55, .76, .014, 2.665, 1.45, .263, M.matte);
           for (let i = 0; i < 4; i++) {
             const k = cyl(.027, .027, .03, M.matte, true, false, null, 12); k.rotation.z = Math.PI / 2; k.position.set(2.386, 1.722, .395 + i * .13); cabinets.add(k);
             const rg = cyl(.036, .036, .006, M.mat, false, false, null, 12); rg.rotation.z = Math.PI / 2; rg.position.set(2.398, 1.722, .395 + i * .13); cabinets.add(rg);

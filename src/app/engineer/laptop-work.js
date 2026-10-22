@@ -13,7 +13,7 @@
         const _lwQ = [new THREE.Quaternion(), new THREE.Quaternion()], _lwQ2 = new THREE.Quaternion(), _lwR = new THREE.Vector3(), _lwS = new THREE.Vector3(), _lwA = new THREE.Vector3(), _lwB = new THREE.Vector3(), _lwC = new THREE.Vector3(), _lwX = new THREE.Matrix4();
         function lapPt(x, y, z, out) { return studyLaptop.group.localToWorld(out.set(x, MBP.HB + y, z)); }   // điểm trên mặt bàn phím (toạ độ MacBook)
         const LW_KB = -MBP.D / 2 + 0.122, LW_REST = MBP.D / 2 - 0.074, LW_PAD = MBP.D / 2 - 0.062;   // tâm bàn tay khi gõ (ngón trên hàng phím nhà) · kê cổ tay · tâm trackpad (z)
-        let lwClaw = null;   // đỉnh lưới bàn tay chữ C (hệ cổ tay, đã nhân tỉ lệ người)
+        let lwClaw = null, lwHand = null;   // đỉnh lưới bàn tay chữ C (hệ cổ tay, đã nhân tỉ lệ người) · lưới tay
         const LW_FAR = new Set(['think', 'rest', 'stretch', 'note']);   // việc nhỏ mà tay phải đi xa (lên cằm, sau gáy, vươn vai)
         function lapHandQ(e, i, dir, psi) {   // khung cổ tay i: dọc cẳng tay, xoay quanh cẳng tay cho miệng chữ C về dir, nghiêng xuống psi (rad) → e.handQ[i]
           const f = e.foreW && e.foreW[i]; if (!f || f.lengthSq() < 0.5) return null;
@@ -21,8 +21,8 @@
           return ((e.handQ || (e.handQ = [null, null]))[i] = _lwQ[i].setFromRotationMatrix(_lwX.makeBasis(_lwC.crossVectors(y, z), y, z)));
         }
         function lapClawLow(e, q) {   // chỗ thấp nhất của bàn tay chữ C so với tâm tay (m, âm) khi khung cổ tay hướng q
-          if (!lwClaw) { const m = e.wrists[0].children.find(o => o.isMesh && o.geometry.type === 'TorusGeometry'), a = m.geometry.attributes.position, s = e.wrists[0].getWorldScale(_lwV).x; lwClaw = []; for (let k = 0; k < a.count; k++) lwClaw.push(new THREE.Vector3().fromBufferAttribute(a, k).multiplyScalar(s)); }
-          let lo = 0; for (const v of lwClaw) lo = Math.min(lo, _lwV.copy(v).applyQuaternion(q).y);
+          if (!lwClaw) { const m = lwHand = e.wrists[0].children.find(o => o.isMesh && o.geometry.type === 'TorusGeometry'), a = m.geometry.attributes.position, s = e.wrists[0].getWorldScale(_lwV).x; lwClaw = []; for (let k = 0; k < a.count; k++) lwClaw.push(new THREE.Vector3().fromBufferAttribute(a, k).multiplyScalar(s)); }
+          let lo = 0; for (const v of lwClaw) lo = Math.min(lo, _lwV.copy(v).applyQuaternion(lwHand.quaternion).applyQuaternion(q).y);   // lưới tay xoay quanh lỗ tay (β — engineer/pose-ik-walk.js engWristPeg)
           return lo;
         }
         function lapPick(L, cyc) {   // việc nhỏ kế tiếp (theo trọng số) + thời lượng

@@ -28,7 +28,7 @@
           oldTreeGroup = g;
           const TOP = 0.935;   // G 18/10 "cây cổ thụ 10% more visible": vỏ 0,85 → 0,935 (lá 0,76 → 0,836, cây con theo cùng tỉ lệ)
           const barkMat = new THREE.MeshLambertMaterial({ color: 0x4a3420, transparent: true, opacity: TOP }), deadMat = new THREE.MeshLambertMaterial({ color: 0xE2D6C0, transparent: true, opacity: TOP });
-          barkMat.userData.sfOld = deadMat.userData.sfOld = 1;   // G 17/10 "cây cổ thụ render tệ, nhìn giả, sửa lại về render cũ": vân vỏ bản trước (không ảnh quét, không địa y loang)   // G 17/10: vết loang trên thân cổ thụ màu NÂU ĐEN (không xám trắng)
+          barkMat.userData.sfOld = deadMat.userData.sfOld = 1; deadMat.userData.sfMoss = 0.35;   // G 17/10 "cây cổ thụ render tệ, nhìn giả, sửa lại về render cũ": vân vỏ bản trước (không ảnh quét, không địa y loang)   // G 17/10: vết loang trên thân cổ thụ màu NÂU ĐEN (không xám trắng)
           // cây cổ thụ: thân to, tán nặng → dao động riêng chậm ~0,32 Hz, cản nhỏ (gỗ già ít tắt dần); cành xa thân rung ~1 Hz
           const tw = makeTreeWind({ freq: 0.32, zeta: 0.08, lean: 0.45, branchAmp: 0.07 });
           windShader(barkMat, tw, 0); windShader(deadMat, tw, 0); g.userData.treeWind = tw;
@@ -48,19 +48,21 @@
             if (storkBranchSegment >= 0) storkBranchPieces.push({ a: a.toArray(), b: b.toArray(), r1, r2, segment: storkBranchSegment });
           };
 
-          // Hàm vẽ cành đệ quy bẻ cong tự nhiên (Recursive Midpoint Displacement)
-          const crookedLimb = (a, b, r1, r2, L, depth = 0, maxDepth = 2) => {
-            const d = new THREE.Vector3().subVectors(b, a), len = d.length();
-            if (depth >= maxDepth || len < 0.12 || r1 < 0.015) return limb(a, b, r1, r2, L);
+          // Hàm vẽ cành đệ quy bẻ cong tự nhiên (Recursive Midpoint Displacement) — G 19/10 bản quét "Tree Scan Free": cành già GẬP KHUỶU (đoạn thẳng → gập 30–60°
+          // → đoạn thẳng: ngọn cũ chết, cành bên thay ngọn) ⇒ cấp 1 lệch 24% (gập ~50°), cấp 2 chỉ 7% (bản cũ 15% cả 2 cấp: lượn đều); thân + cành sông (cò đậu)
+          // giữ như cũ. ln = độ dài bản cũ (con = 0,522 × mẹ) để quyết định chia tiếp y như cũ ⇒ cùng số lần rnd() — lá, chỗ cò / bướm đậu không đổi
+          const crookedLimb = (a, b, r1, r2, L, depth = 0, maxDepth = 2, ln) => {
+            const d = new THREE.Vector3().subVectors(b, a), len = d.length(); ln = ln ?? len;
+            if (depth >= maxDepth || ln < 0.12 || r1 < 0.015) return limb(a, b, r1, r2, L);
             const mid = new THREE.Vector3().addVectors(a, b).multiplyScalar(0.5), dir = d.clone().normalize();
             let tAxis = (Math.abs(dir.y) > 0.9) ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0);
             const p1 = new THREE.Vector3().crossVectors(dir, tAxis).normalize();
             const p2 = new THREE.Vector3().crossVectors(dir, p1).normalize();
-            const jF = len * 0.15, ang = rnd() * 6.283;
+            const jF = len * (L === TR || storkBranchSegment >= 0 ? 0.15 : depth ? 0.07 : 0.24), ang = rnd() * 6.283;
             mid.addScaledVector(p1, Math.cos(ang) * jF).addScaledVector(p2, Math.sin(ang) * jF);
             const midR = (r1 + r2) * 0.5;
-            crookedLimb(a, mid, r1, midR, L, depth + 1, maxDepth);
-            crookedLimb(mid, b, midR, r2, L, depth + 1, maxDepth);
+            crookedLimb(a, mid, r1, midR, L, depth + 1, maxDepth, ln * 0.52202);
+            crookedLimb(mid, b, midR, r2, L, depth + 1, maxDepth, ln * 0.52202);
           };
 
           // thân gỗ xoắn (DÁNG GỐC hand-crafted — dáng đẹp nhất, không đệ quy); bạnh gốc 6 múi = ống loe ở chân thân (barkTubes)
@@ -203,9 +205,24 @@
           }
           for (const tp of tips) refineTerminalTwig(tp);
           for (const tp of deadTips) refineTerminalTwig(tp);
+          // CÀNH GAI NGẮN dọc cành (bản quét "Tree Scan Free": cành già mọc dày cành con ngắn mảnh, chĩa gần vuông góc, gập 1 khuỷu — dáng "xơ xác" của cây già)
+          // RNG riêng ⇒ dáng, lá, chỗ đậu không đổi; cắm từ tim cành mẹ ra như cành mọc ngang (barkTubes kind 2)
+          const spR = mulberry32(7791);
+          for (const L of LB.slice()) {
+            if (L === TR || L.R[0] < 0.03 || L.R[0] > 0.1) continue;   // cành vừa và nhỏ trong tán (cành to sát thân thì không — thành gạc hươu)
+            for (let i = 0; i < L.P.length - 1; i++) {
+              const a = L.P[i], dd = L.P[i + 1].clone().sub(a), sl = dd.length(); dd.normalize();
+              for (let t = spR() * 0.3; t < sl; t += 0.22 + spR() * 0.3) {
+                const r = L.R[i] + (L.R[i + 1] - L.R[i]) * t / sl, p = a.clone().addScaledVector(dd, t), ln = 0.1 + spR() * 0.18;
+                const dir = V(spR() - 0.5, spR() - 0.5, spR() - 0.5).cross(dd).normalize().multiplyScalar(0.85).addScaledVector(dd, 0.45).add(V(0, 0.3, 0)).normalize();
+                const k = p.clone().addScaledVector(dir, ln * 0.55), S = mkLimb(LB, p, Math.min(0.011, 0.35 * r), L, false, r, dd);
+                S.P.push(k, k.clone().addScaledVector(dir.add(V(spR() - 0.5, spR() * 0.6 - 0.1, spR() - 0.5).multiplyScalar(0.7)).normalize(), ln * 0.45)); S.R.push(0.007, 0.0035);
+              }
+            }
+          }
           // SỢI BỆN kiểu thân pohutukawa (nature/flowers-trees.js ropeChain/ropeAt): 12 sợi to nhỏ xoắn 0,5 rad/m, rãnh sâu ~21% r (gốc ×2,5) · u lồi + 1 hốc mục trên thân
           //  (s: m dọc thân tính từ chân cắm đất 1,37 m · góc quanh thân: 0 = +x, −π/2 = +z cục bộ; hốc quay về hướng nhìn mặc định +x+z)
-          const ROPE = { minR: 0.3, nTrunk: 12, D: 0.26, twist: 0.5, trunk: { burls: [[2.25, 2.2, 0.32, 0.1], [4.7, 0.5, 0.3, 0.08], [5.9, -2.5, 0.38, 0.09], [3.3, -0.9, 0.22, 0.07]], cav: [5.2, -0.9, 0.45, 0.32] } };
+          const ROPE = { minR: 0.3, nTrunk: 12, D: 0.26, twist: 0.5, trunk: { burls: [[2.25, 2.2, 0.32, 0.1], [4.7, 0.5, 0.3, 0.08], [5.9, -2.5, 0.38, 0.09], [3.3, -0.9, 0.22, 0.07], [6.4, 2.7, 0.55, 0.16]], cav: [5.2, -0.9, 0.45, 0.32] } };   // bướu cuối = khớp chạc phình ở mặt ngoài chỗ thân gập (bản quét Tree Scan Free)
           const OT = { flare: 0.5, flareH: 0.85, lobes: 6, sink: 0.55, wS: 2.76 * 0.9, segMax: 12, nodes: false, rope: ROPE };   // bạnh 6 múi ~2 m như 6 cầu dẹt cũ (đá cuội quanh gốc còn lộ) · gốc cắm sâu: thân ngả 35° ⇒ mép trên vòng chân thân vẫn chạm đất
           g.add(...barkMesh(barkTubes(LB, OT), barkMat)); g.add(...barkMesh(barkTubes(LD, OT), deadMat));
           // ---- LÁ HEXAGON chỉ tập trung ở vùng cành đệ quy sub-branches và mở rộng không gian tán lá ----
@@ -220,7 +237,7 @@
             cloudPts(rnd, tp.pos.x, tp.pos.y + 0.08, tp.pos.z, radius, count, pts);
           }
           tuftInstanced(g, rnd, pts, leafHexGeo(0.05), leafCols, 0.836, 0.7, tw, 0.04);   // lá cây cổ thụ trong suốt hơn 10% (0.85 * 0.9 = 0.76)
-          g.userData.leafPts = pts;   // lá vàng rụng sinh từ chính các chùm lá (toạ độ cục bộ)
+          g.userData.leafPts = Float32Array.from(pts.flat());   // lá vàng rụng sinh từ chính các chùm lá (toạ độ cục bộ) — mảng số x, y, z liền (G 19/10: bản [x, y, z] từng điểm tốn ~1 MB)
 
           bakeStatic(g);
         })();
@@ -345,7 +362,7 @@
         //      TIM rễ mẹ ở đúng độ cao đó. Nhóm riêng theo toạ độ thế giới (đất quanh gốc phẳng + nền đất 0,12 của stoneRing), KHÔNG gắn shader gió ----
         (function oldTreeRoots() {
           const cx = X0 + 89, cz = Z0 + 117, gy = cowY(cx, cz), g = new THREE.Group(); g.name = 'Rễ cây cổ thụ'; g.position.set(cx, gy, cz); scene.add(g); flightRoots.push(g);
-          const mat = new THREE.MeshLambertMaterial({ color: 0x4a3420, transparent: true, opacity: 0.935 }); mat.userData.sfOld = 1; mat.userData.sfMoss = 0.15; surfaceStyle(mat, 'bark');   // sát đất cả rễ ⇒ rêu gốc phủ kín nếu để mặc định
+          const mat = new THREE.MeshLambertMaterial({ color: 0x4a3420, transparent: true, opacity: 0.935 }); mat.userData.sfOld = 1; mat.userData.sfMoss = 1.35; mat.userData.sfTop = 1.6; surfaceStyle(mat, 'bark');   // sát đất cả rễ ⇒ rêu gốc phủ kín nếu để mặc định (G 19/10 "rễ cây trên mặt đất x3 moss": 0,15 → 0,45; G 20/10 "rễ nhiều rêu xanh hơn x3": 0,45 → 1,35 + phủ mặt trên 1,6)
           const rnd = mulberry32(4242), V = (x, y, z) => new THREE.Vector3(x, y, z), L = [], SAMP = [], STEP = 0.26, KE = 0.5, EM = -0.35, E1 = -2.0;   // rễ thuôn còn 50% ở đoạn nổi · nổi e 0,3 → −0,35 rồi cắm DỐC (~35°, quãng ~2,2 r) xuống −2 r · SAMP: mẫu các rễ đã dựng (rễ sau vắt qua)
           const water = (x, z) => isWater(Math.round(x2gi(cx + x)), Math.round(z2gj(cz + z)));
           const ground = (x, z) => cowY(cx + x, cz + z) - gy + 0.12 * Math.max(0, Math.min(1, (2.5 - Math.hypot(x, z)) / 0.3));   // + nền đất quanh gốc (stoneRing: trụ r 2,2 → 2,5, cao 0,12)

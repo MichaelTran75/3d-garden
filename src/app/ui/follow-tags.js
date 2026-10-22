@@ -10,7 +10,7 @@
           const upp = (camera.right - camera.left) / camera.zoom / Math.max(1, W()), h = 34 * upp, lead = 64 * upp;   // đơn vị thế giới / 1 px CSS (camera trực giao)
           for (const T of FTAGS) {
             if (!T.o) continue; const on = hovShown(T.o);
-            if (!T.tag) { if (!on) continue; T.tag = addLabel(T.txt(), T.col, new THREE.Vector3(), new THREE.Vector3(), true); T.k = T.tag.sprite.scale.x / T.tag.sprite.scale.y; }
+            if (!T.tag) { if (!on) continue; T.tag = addLabel(T.txt(), T.col, new THREE.Vector3(), new THREE.Vector3(), true, undefined, true); T.k = T.tag.sprite.scale.x / T.tag.sprite.scale.y; }
             T.tag.sprite.visible = T.tag.line.visible = on; if (!on) continue;
             const s = T.txt(); if (s !== T.tag.text) { T.tag.update(s); T.k = T.tag.sprite.scale.x / T.tag.sprite.scale.y; }
             let p; if (T.top) p = T.top(); else { if (T.dy === undefined) { _ftB.setFromObject(T.o); T.dy = _ftB.max.y - T.o.position.y; } p = _ftP.copy(T.o.position); p.y += T.dy; }   // đỉnh vật (đo 1 lần)
@@ -19,7 +19,7 @@
           }
         }
         // ---- CHÚ THÍCH NÚT (G 18/10 "add leader horizontal line và label (click here) vào các điểm button như logo và tay cầm"): mỗi vật chọn được có it.tag (logo,
-        //  2 tay nắm) có nhãn "Bấm vào đây" + đường dẫn NẰM NGANG trên màn hình (dọc trục phải của camera), thẻ đặt về phía ngoài thân xe; chỉ hiện khi zoom đủ gần
+        //  2 tay nắm) có nhãn "Click" (G 19/10, trước là "Bấm vào đây") + đường dẫn NẰM NGANG trên màn hình (dọc trục phải của camera), thẻ đặt về phía ngoài thân xe; chỉ hiện khi zoom đủ gần
         //  (1 đv > ~33 px) và mặt nút quay về camera ----
         const _btP = new THREE.Vector3(), _btR = new THREE.Vector3(), _btF = new THREE.Vector3(), _btQ = new THREE.Quaternion(), _btC = new THREE.Vector3();
         function btnTagsTick() {
@@ -28,7 +28,7 @@
           for (const it of HOV.items) {
             if (!it.tag) continue; let on = near && hovShown(it.root);
             if (on && it.rp.n) { it.root.getWorldQuaternion(_btQ); on = _btP.copy(it.rp.n).applyQuaternion(_btQ).dot(_btF) < -0.1; }
-            if (!it.btag) { if (!on) continue; it.btag = addLabel('Bấm vào đây', '#e0662b', new THREE.Vector3(), new THREE.Vector3(), true); it.btk = it.btag.sprite.scale.x / it.btag.sprite.scale.y; }
+            if (!it.btag) { if (!on) continue; it.btag = addLabel('Click', '#e0662b', new THREE.Vector3(), new THREE.Vector3(), true, undefined, true); it.btk = it.btag.sprite.scale.x / it.btag.sprite.scale.y; }
             const T = it.btag; T.sprite.visible = T.line.visible = on; if (!on) continue;
             const p = hovBox(it, it.rp).getCenter(_btP).applyMatrix4(it.root.matrixWorld), s = Math.sign(_btC.sub(p).dot(_btR)) || 1, w = h * it.btk;   // thẻ phía ngược tâm xe
             caravanObj.getWorldPosition(_btC);

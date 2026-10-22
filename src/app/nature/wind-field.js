@@ -28,7 +28,7 @@
             ['Bồn chứa nước', 3], ['Bồn nước nông thôn', 3], ['Cụm pin lưu trữ', 2], ['Trạm biến áp', 0.6], ['Cánh đồng pin mặt trời', 0.02]];
           for (const o of scene.children) { const s = o.name && SOLID.find(([p]) => o.name.startsWith(p)); if (s) addBox(box.setFromObject(o), s[1]); }
           // tán rừng (khối tán instanced) + cây có mô hình thân + cây táo = vật cản thưa; đồng thời là chỗ lá rừng bứt ra khi có cơn giật
-          const canopy = [], _m = new THREE.Matrix4(), _p = new THREE.Vector3(), _q = new THREE.Quaternion(), _s = new THREE.Vector3();
+          let canopy = []; const _m = new THREE.Matrix4(), _p = new THREE.Vector3(), _q = new THREE.Quaternion(), _s = new THREE.Vector3();
           scene.traverse(o => {
             if (!o.isInstancedMesh || o.material !== leafMatInst) return;
             for (let k = 0; k < o.count; k++) { o.getMatrixAt(k, _m); _m.premultiply(o.matrixWorld).decompose(_p, _q, _s); addDisc(_p.x, _p.z, _s.x * 1.1, 0.025); canopy.push(_p.x, _p.y, _p.z, _s.x); }
@@ -36,7 +36,7 @@
           for (const tw of [oldTreeWind, cherryWind]) if (tw && tw.active) addDisc(tw.crown.x, tw.crown.z, tw.R, 0.12);
           for (const T of appleTrees) {
             T.updateMatrixWorld(true); addDisc(T.position.x, T.position.z, 2.6, 0.12);
-            const L = T.userData.leafPts || []; for (let k = 0; k < L.length; k += 3) { _p.set(L[k][0], L[k][1], L[k][2]).applyMatrix4(T.matrixWorld); canopy.push(_p.x, _p.y, _p.z, 0.3); }
+            const L = T.userData.leafPts || []; for (let k = 0; k + 2 < L.length; k += 9) { _p.set(L[k], L[k + 1], L[k + 2]).applyMatrix4(T.matrixWorld); canopy.push(_p.x, _p.y, _p.z, 0.3); }
           }
           // độ phơi gió: cao hơn mặt bằng xung quanh (~14 đv) thì gió mạnh hơn (~4,5%/đv), trũng hơn thì yếu; mặt nước nhẵn hơn cỏ cây → +12%
           const hs = new Float32Array(N), tmp = new Float32Array(N), R = 6;
@@ -46,6 +46,7 @@
           fluids.initWind({ x0, z0, nx, nz, dx: DX, drag, expo, lrec: 16, conf: 0.25, iters: 30, sliceH: SLICE, ux: sceneWind.dir.x, uz: sceneWind.dir.y });
           // ---- LÁ RỪNG RỤNG THEO CƠN GIẬT: mỗi khung thử vài điểm tán trong vùng đang nhìn; cơn giật tại chỗ vượt gió trung bình tại chỗ càng nhiều
           //      (cành bị giật mạnh) thì càng nhiều lá bứt ra — cơn giật lướt qua rừng làm lá rụng thành đợt theo đúng đường đi của nó ----
+          canopy = Float32Array.from(canopy);   // mảng số liền (G 19/10 "lưu điểm lá gọn hơn")
           const NC = canopy.length / 4, _w = new THREE.Vector3(), _mm = new THREE.Vector3(), _cd = new THREE.Vector3(), best = new THREE.Vector4();
           let bestK = 0;
           const nearView = () => {   // chọn ngẫu nhiên 1 điểm tán trong vùng đất đang thấy

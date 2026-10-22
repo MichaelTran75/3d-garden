@@ -199,8 +199,95 @@
       z-index: 6;
     }
 
+    /* thanh trượt NÉT VIỀN XE (G 18/10): ngay trên thanh nút (cao 40 px, cách đáy 16 px); tối giản như thanh giờ trăng — 1 vạch mảnh + nút đứng nhỏ,
+       không nền; ban ngày đen, ban đêm trắng sáng (.night bật theo nightFactor, loop/main-loop-rest.js) */
+    .line-bar {
+      bottom: 62px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 2px 4px;
+      z-index: 6;
+      color: #111;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      transition: color 0.6s;
+    }
+
+    .line-bar.night {
+      color: #f6f4ee;
+    }
+
+    .line-bar i,
+    .rl i {
+      font-size: 13px;
+      opacity: 0.8;
+    }
+
+    .line-bar input,
+    .rl input {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 160px;
+      height: 16px;
+      margin: 0;
+      background: transparent;
+      color: inherit;
+      cursor: pointer;
+    }
+
+    .line-bar input::-webkit-slider-runnable-track,
+    .rl input::-webkit-slider-runnable-track {
+      height: 1px;
+      background: color-mix(in srgb, currentColor 55%, transparent);
+    }
+
+    .line-bar input::-moz-range-track,
+    .rl input::-moz-range-track {
+      height: 1px;
+      background: color-mix(in srgb, currentColor 55%, transparent);
+    }
+
+    .line-bar input::-webkit-slider-thumb,
+    .rl input::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 4px;
+      height: 13px;
+      margin-top: -6px;
+      border: 0;
+      border-radius: 2px;
+      background: currentColor;
+    }
+
+    .line-bar input::-moz-range-thumb,
+    .rl input::-moz-range-thumb {
+      width: 4px;
+      height: 13px;
+      border: 0;
+      border-radius: 2px;
+      background: currentColor;
+    }
+
+    .line-bar input:focus-visible {
+      outline: 1px dashed currentColor;
+      outline-offset: 2px;
+    }
+
+    .line-bar output,
+    .rl output {
+      min-width: 22px;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
     .toolbar button {
-      font: 600 12px/1 inherit;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1;
       color: #403d33;
       background: transparent;
       border: 0;
@@ -625,6 +712,10 @@
         bottom: 10px;
       }
 
+      .line-bar {
+        bottom: 56px;
+      }
+
       .panel.tl {
         display: none;
       }
@@ -664,7 +755,8 @@
       background: rgba(226, 214, 192, 0.5);
     }
 
-    .toolbar button.active {
+    .toolbar button.active,
+    .toolbar #btnSim.tl-on {
       background: rgba(52, 50, 44, 0.55);
       color: #E2D6C0;
     }
@@ -769,7 +861,8 @@
       line-height: 1.2;
     }
 
-    #simDoing {
+    #simDoing,
+    #toolsDoing {
       font-size: 10.5px;
       color: #2d2b22;
       white-space: nowrap;
@@ -784,7 +877,9 @@
       white-space: nowrap;
     }
 
-    #simClose {
+    #simClose,
+    #simTools,
+    #toolsClose {
       border: 0;
       background: transparent;
       color: #2d2b22;
@@ -866,8 +961,103 @@
       .sim-panel {
         left: 12px;
         right: 12px;
-        bottom: 58px;
+        bottom: 88px;   /* trên thanh trượt nét viền xe (62–82 px), không đè dòng cuối bảng */
         width: auto;
         max-height: calc(100% - 200px);
       }
     }
+
+    /* NÚT + BẢNG TOOLS (ui/tools-panel.js, G 20/10): rê chuột vào nút Engineer ⇒ nút Tools bật lên ngay phía trên (lề dưới 8 px nối vùng rê chuột; chỉ hiện
+       lúc rê / Tab tới — không đè lâu lên thanh nét viền xe); màn cảm ứng: nút Tools nhỏ ở đầu bảng Engineer. Bảng Tools cùng chỗ, cùng cỡ bảng Engineer;
+       đang mở bảng Tools thì nút Engineer sáng như đang chọn (.tl-on) */
+    .tb-eng {
+      position: relative;
+      display: flex;
+    }
+
+    .tb-sub {
+      position: absolute;
+      left: 50%;
+      bottom: 100%;
+      transform: translateX(-50%);
+      padding-bottom: 8px;
+      display: none;
+    }
+
+    .tb-eng:hover .tb-sub {
+      display: block;
+    }
+
+    .tb-eng:has(:focus-visible) .tb-sub {
+      display: block;
+    }
+
+    .toolbar .tb-sub button {
+      width: auto;
+      height: 30px;
+      padding: 0 12px 0 10px;
+      background: rgb(226, 214, 192);
+      border: 1px solid rgba(75, 74, 70, .24);
+      border-radius: 10px;
+      box-shadow: 0 6px 16px rgba(80, 70, 45, .14);
+    }
+
+    .toolbar .tb-sub button:hover {
+      background: rgb(236, 227, 210);
+    }
+
+    .toolbar .tb-sub button.active {
+      background: rgb(52, 50, 44);
+      color: #E2D6C0;
+    }
+
+    .tl-ic {
+      font-size: 17px;
+      color: #2d2b22;
+    }
+
+    #toolsClose {
+      margin-left: auto;
+    }
+
+    .sim-bar.tl-row {
+      padding: 4px 6px;
+      margin: 2px -6px;
+    }
+
+    .tl-msg {
+      grid-column: 2 / -1;
+      font-size: 10.5px;
+      line-height: 1.35;
+      color: #3d3a30;
+    }
+
+    .tl-row .sim-r {
+      font-weight: 650;
+    }
+
+    .sim-bar.tl-off {
+      cursor: default;
+    }
+
+    .sim-bar.tl-off:hover {
+      background: none;
+    }
+
+    .tl-off i,
+    .tl-off .sim-lab {
+      opacity: .45;
+    }
+
+    /* RADIO TÁP-LÔ (van/radio.js, G 19/10): bảng dò đài nền 75% như bảng dụng cụ */
+    #radioPop.panel { position: absolute; z-index: 30; width: 210px; background: rgba(226, 214, 192, 0.75) !important; }
+    #radioPop .ph { display: flex; justify-content: space-between; align-items: center; }
+    #radioPop button { font: 600 12px/1 'Inter', system-ui; color: #403d33; background: rgba(226, 214, 192, 0.5); border: 1px solid rgba(75, 74, 70, .26); border-radius: 8px; padding: 6px 9px; cursor: pointer; }
+    #radioPop button.on { background: #403d33; color: #f6f4ee; }
+    #radioPop .rb { display: flex; gap: 6px; margin-top: 8px; }
+    #radioPop .rb button { flex: 1; }
+    #radioPop #rWave { display: block; width: 100%; height: 24px; margin: 4px 0 2px; }
+#radioPop .rl { display: flex; align-items: center; gap: 8px; margin-top: 6px; color: #111; font-size: 11px; font-weight: 500; letter-spacing: 0.04em; }
+    #radioPop .rl input { flex: 1; width: auto; }
+    #radioPop .rl output { min-width: 38px; }
+    #rName { font: 12px/1.4 'Inter', system-ui; color: #403d33; min-height: 17px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }

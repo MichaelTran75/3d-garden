@@ -1,11 +1,11 @@
           if (engObj) {
             const e = engObj;
             // rời pha trà giữa chừng (tối, đổi việc): cốc về vòng tay vịn
-            if (e.teaT !== undefined && e.phase !== 'tea') teaRelease(e);
+            if (e.teaT !== undefined && e.phase !== 'tea' && !(e.rtTea && e.phase === 'read' && e.act === 'chair')) { teaRelease(e); e.rtTea = false; }   // (ghế theo lệnh: nhấp trà giữa lúc đọc — engineer/tool-jobs.js chairTea)
             engPoseBegin(e);   // trả tư thế đích frame trước
             updateEngineerWeatherThought();
             const hh = liveWeather.localHour; // One Pleiku clock for sky, animals and the engineer.
-            const isSleeping = hh >= 21.0 || hh < 6.0;
+            const isSleeping = hh >= ENG_SLEEP_H || hh < 6.0;
             vanDoorsTick(dt);
             if (isSleeping) {
               resetFishingBite(); engForceAct = null; studyLaptop.target = 0; e.seat = null; e.act = 'sleep'; e.phase = 'van'; e.inVan = true; e.van = null; e.enter = null;
@@ -69,13 +69,20 @@
               else if (e.phase === 'toShelter') {          // mưa: về ghế cắm trại dưới mái hiên (vào thẳng từ phía trước ghế)
                 if (engUseSeat(e, CAMP_SEAT, dt, t)) { e.phase = 'shelter'; e.timer = 0; }
               }
-              else if (e.phase === 'shelter') {            // ngồi yên dưới mái hiên chừng nào còn mưa, cẳng chân buông đung đưa nhẹ
+              else if (e.phase === 'shelter') {            // ngồi yên dưới mái hiên chừng nào còn mưa, cẳng chân buông đung đưa nhẹ · cứ 4–7 phút ra mép bạt ngắm mưa
                 if (engUseSeat(e, CAMP_SEAT, dt, t)) {
                   e.seatLean = 0.02; e.seatSwing = 0.05;
                   e.arms[0].rotation.x = -0.22; e.arms[1].rotation.x = -0.25;
                   e.head.rotation.x = 0.06 + Math.sin(t * 0.6) * 0.025;
+                  e.rwT = (e.rwT || 0) + dt; if (e.rwNext === undefined) e.rwNext = 240 + 180 * Math.random();
+                  if (e.rwT > e.rwNext && !RX.gest) { e.rwT = 0; e.rwNext = undefined; e.phase = 'rainwatch'; skyWatch.rainStart(); }
                 }
               }
+              else if (e.phase === 'rainwatch') {          // ngắm mưa ở mép trước bạt: nhìn hồ, nhìn mép bạt nhỏ giọt, hứng mưa, khoanh tay (engineer/sky-watch.js)
+                if (skyWatch.rain(e, dt, t)) { autoDone('rainwatch'); e.phase = e.act === 'rainwatch' || e.act === 'shelter' ? 'toShelter' : engPhaseFor(e.act); }
+              }
+              else if (e.phase === 'stars') { if (skyWatch.update(e, dt, t) && engForceAct === 'stars') engForceAct = null; }   // ngắm sao (lịch / bấm Kính thiên văn ở bảng Tools): lấy thảm · trải · nằm ngửa · chỉ sao băng · cuộn thảm cất (engineer/sky-watch.js); xong thì lịch tự sang việc kế
+              else if (e.phase === 'garden') { if (gardenJob.update(e, dt, t)) { autoDone('garden'); if (engForceAct === 'garden') engForceAct = null; } }   // luống cà rốt: trồng · tưới · xem thỏ ăn (engineer/carrot-garden.js)
               else if (e.phase === 'fish') {               // ngồi ghế xếp, thư giãn buông cần câu cá bên hồ (đã ngồi hẳn từ pha 'toFish')
                 if (engUseSeat(e, FISH_SEAT, dt, t)) {
                   e.timer -= dt;
@@ -86,6 +93,7 @@
                   if (e.timer <= 0 || e.act !== 'fish') {
                     angling.stopReq = true;                                           // hết giờ: đang dìu thì dìu xong, thu dây về rồi mới đứng dậy
                     if (angling.stage === 'done' || !angling.active || e.timer < -45) {
+                      if (engForceAct === 'fish') engForceAct = null;                 // câu theo lệnh bảng Tools (ui/tools-panel.js): xong thì về lịch
                       e.phase = e.act === 'fish' ? 'toChair' : engPhaseFor(e.act); e.timer = 0; resetFishingBite();
                       if (grill.st === 'bucket') { grill.toHand(e); e.phase = 'toPlant'; }   // lấy con cá rô trong xô, mang về bếp xiên que cắm nướng
                       e.rodGrp.visible = false; groundRod.visible = true; fishLine.visible = false; bobber.visible = false;
@@ -131,14 +139,16 @@
                 }
               }
               else if (e.phase === 'read') {               // đọc sách to (gấp đôi) bằng 2 tay trước ngực · tay phải lật trang ~40 s/lần · tay trái bốc khoai ~20 s/lần (engRead)
-                if (engUseSeat(e, CAMP_SEAT, dt, t)) { e.arms[0].rotation.x = e.arms[1].rotation.x = -1.2; engRead(e, dt, t); }
+                if (engUseSeat(e, CAMP_SEAT, dt, t)) { if (e.act === 'chair') chairTea(e, dt, t); else { e.arms[0].rotation.x = e.arms[1].rotation.x = -1.2; engRead(e, dt, t); } }   // 'chair': bảng Tools / bấm ghế (engineer/tool-jobs.js)
               }
               else if (e.phase === 'wander') {             // đứng dậy, đi lang thang ngẫu nhiên quanh trại
                 e.timer -= dt; e.wanderTmr -= dt;
                 if (!e.wanderTgt || e.wanderTmr <= 0) {   // điểm lang thang quanh bếp lửa, không rơi vào ghế / xô / bàn trà
                   e.wanderTgt = e.g.position.clone();   // không tìm được điểm sạch thì đứng chờ lượt chọn sau
-                  for (let k = 0; k < 10; k++) {
-                    const a = Math.random() * 6.283, r = 2.2 + Math.random() * 3.4, x = pf.x + Math.cos(a) * r, z = pf.z + Math.sin(a) * r;
+                  const shade = wxShadeSpot(e), warmUp = WX.coldK > 0.4 && campfireLevel(liveWeather.localHour) * campRain.flameK > 0.25;   // nóng + nắng: đứng dưới mái bạt · lạnh mà lửa đang cháy: quanh quẩn sát bếp (engineer/weather-feel.js)
+                  if (shade) e.wanderTgt.copy(shade);
+                  else for (let k = 0; k < 10; k++) {
+                    const a = Math.random() * 6.283, r = warmUp ? 1.7 + Math.random() * 0.9 : 2.2 + Math.random() * 3.4, x = pf.x + Math.cos(a) * r, z = pf.z + Math.sin(a) * r;
                     if (ENG_PROPS.some(o => Math.hypot(x - o.x, z - o.z) < o.r + 0.7) || !engLineClearOfSeats(e.g.position.x, e.g.position.z, x, z)) continue;
                     e.wanderTgt.set(x, 0, z); break;
                   }
@@ -176,6 +186,7 @@
               else if (e.phase === 'apple') {              // hái táo bằng sào rút: nhắm · luồn rổ · vặn bứt · lấy quả bỏ giỏ · xách giỏ về (engineer/apple-pick.js)
                 if (applePick.update(e, dt, t)) { if (!engForceAct || (e.onceKey || '').startsWith('apples@')) e.doneAct = e.onceKey; engForceAct = null; }   // hái theo yêu cầu (bấm giỏ / sào)
               }
+              else if (e.phase === 'appleEat') applePick.eat(e, dt, t);   // ăn 1 quả táo trong giỏ: lấy ở giỏ → ghế cắm trại → 5 miếng → ném lõi vào lò (engineer/apple-pick.js); xong thì lịch tự sang việc kế
               else if (e.phase === 'drone') {              // bay drone khảo sát: lấy trên bàn trà · đặt, mở càng · cất cánh · bay · hạ · gập · cất (engineer/drone.js)
                 if (droneToy.update(e, dt, t)) { if (!engForceAct || (e.onceKey || '').startsWith('drone@')) e.doneAct = e.onceKey; engForceAct = null; }   // bay theo yêu cầu ngoài giờ: không đánh dấu xong việc 1-lần khác
               }
@@ -185,6 +196,7 @@
               else if (e.phase === 'engine') {             // kiểm tra động cơ: mở ca-pô · xem máy · nổ máy 30 s · tắt · đóng ca-pô (engineer/engine-check.js)
                 if (engineJob.update(e, dt, t)) engForceAct = null;
               }
+              else if (e.phase === 'wood') { if (woodJob.update(e, dt, t)) engForceAct = null; }   // bỏ củi vào lò chiminea (bảng Tools / bấm lò — engineer/tool-jobs.js)
               else if (e.phase === 'trim') {               // phát cỏ quanh trại: giật nổ máy · đeo ba lô · lia lưỡi theo vòng quanh bếp lửa · cất máy (engineer/trim-grass.js)
                 if (trimJob.update(e, dt, t)) engForceAct = null;
               }
@@ -224,7 +236,7 @@
                 else { e.arms[0].rotation.x = e.arms[1].rotation.x = -0.85; rt[0] = 0.28; rt[1] = -0.28; }
               }
               engDishShow(e); kitchenTick(dt, t);
-              if (e.clip) e.clip.visible = !e.inVan && e.phase !== 'van' && !fishing && !atSeat && !H.pole && e.phase !== 'apple' && e.phase !== 'drone' && e.phase !== 'engine' && e.phase !== 'trim' && !H.spoon && !H.cup && !H.bottle && !H.book && !dishHand && e.phase !== 'pet' && !fishInHand;
+              if (e.clip) e.clip.visible = !e.inVan && e.phase !== 'van' && !fishing && !atSeat && !H.pole && e.phase !== 'apple' && e.phase !== 'appleEat' && e.phase !== 'drone' && e.phase !== 'engine' && e.phase !== 'trim' && e.phase !== 'wood' && e.phase !== 'stars' && e.phase !== 'garden' && e.phase !== 'rainwatch' && !H.spoon && !H.cup && !H.bottle && !H.book && !dishHand && e.phase !== 'pet' && !fishInHand;
               chipsBag.visible = e.phase === 'read' && !e.inVan && !leavingSeat;
               const atDesk = e.inVan && !!e.van && e.van.station === 'desk';
               studyLaptop.target = atDesk && (e.van.st === 'sit' || e.van.st === 'scoot' || e.van.st === 'work') ? 1 : 0;
@@ -246,10 +258,14 @@
             engReactArms(e, dt, t); // phản ứng: đích tay cử chỉ — sau khi đầu đã quay / cúi xong khung này
             engArmPost(e, dt);      // khuỷu tay + cổ tay (IK 2 đoạn giữ đúng chỗ bàn tay) · eo vặn theo nhịp bước
             applePick.tick(e, dt);  // sào, quả trong rổ / tay / giỏ theo bàn tay đã đặt xong · quả trên cây đung đưa
+            skyWatch.tick(e, dt, t); gardenJob.tick(e, dt, t); woodJob.tick(e);   // cuộn thảm xách tay · bay xới, bình tưới, giọt nước (tự chủ đợt 2)
             lapHeldTick(e);         // tờ giấy dán trong tay khi đi ghim lên bảng (engineer/laptop-work.js)
             if (e.act === 'sleep' && e.g.parent === caravanObj) engSleepPost(e);   // chăn phủ theo thân đã hiển thị (engineer/sleep.js)
             if (e.phase !== 'drone' && droneToy.state.st !== 'idle') droneToy.abort();   // đổi việc giữa chừng (mưa, giờ): cất drone về bàn
             if (e.phase !== 'engine') engineJob.idle();   // kiểm tra máy bị cắt ngang: tắt máy, đóng ca-pô
             if (e.phase !== 'trim') trimJob.idle();   // cắt cỏ bị cắt ngang: máy về chỗ để
             if (e.phase !== 'explore') exploreJob.reset();
+            if (e.phase !== 'stars') skyWatch.idle(e);   // ngắm sao bị cắt ngang (21:00 vào giường…): thảm về góc bạt
+            if (e.phase !== 'garden') gardenJob.idle();
+            if (e.phase !== 'wood') woodJob.idle();
           }

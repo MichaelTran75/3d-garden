@@ -13,6 +13,7 @@
           const doorOp = VBATH.doorMat.opacity, wallOp = VBATH.wallMat.opacity;
           let live = 0, idle = false;
           const fx = { on: false, steam: 0, update(dt) {
+            if (VBATH.wet > 0 || VBATH.wetFloor.visible) { VBATH.wet = Math.max(0, VBATH.wet - dt / 1500); VBATH.wetM.opacity = 0.4 * VBATH.wet; VBATH.wetFloor.visible = VBATH.wet > 0.01; }   // sàn buồng tắm: ướt khi tắm, tự khô ~25 phút (gạt nước: van-stations.js)
             if (!fx.on && !live && !fx.steam) { if (!idle) { idle = true; lines.visible = false; for (const p of puffs) p.s.visible = false; } return; }   // tắt nước, hết hơi: không tính gì
             idle = false;
             const h = Math.min(dt, 0.05);

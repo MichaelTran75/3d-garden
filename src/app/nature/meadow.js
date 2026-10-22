@@ -23,7 +23,8 @@
           // ---- THẢM CỎ NGẮN (G 15/10 "thảm cỏ ngắn vào khu vực này": bãi quanh khúc gỗ chết + 2 gốc cây): ô trong vùng luôn có cỏ, lá thấp 9–15 cm
           //      (cỏ mềm 15–39 cm), mảnh hơn 40%, dày gấp 3 (3 bản/ô, hạt giống khác), gốc lá tối hơn nền chút ⇒ thấy vân thảm cả khi zoom vừa; mép loang theo nhiễu cho khỏi thành hình elip. Không tính vào 45% của thảm cỏ
           //      mềm (ngưỡng chọn ô giữ nguyên, ô cỏ mềm sẵn có giữ nguyên); RNG riêng ⇒ cỏ chỗ khác y như cũ. Lõi khúc gỗ rỗng bỏ trống (nhìn qua miệng gỗ thấy cỏ) ----
-          const LAWNS = [{ x: X0 + 103.3, z: Z0 + 109.4, rx: 8.5, rz: 10.5 }], lrnd = mulberry32(7171);
+          //      G 21/10 "1 chút thảm cỏ quanh gốc cây cổ thụ": vòng thảm ngắn r ~4,4 m quanh gốc (89, 117) — rễ, đá che phần lá mọc trong chúng; cụm nấm, nấm đỏ cao hơn thảm
+          const LAWNS = [{ x: X0 + 103.3, z: Z0 + 109.4, rx: 8.5, rz: 10.5 }, { x: X0 + 89, z: Z0 + 117, rx: 4.6, rz: 4.2 }], lrnd = mulberry32(7171);
           const lawnAt = (i, j, x, z) => { let L = 0; for (const W of LAWNS) { const u = (x - W.x) / W.rx, v = (z - W.z) / W.rz; L = Math.max(L, 1 - u * u - v * v + 0.35 * (vnoise(i * 0.2 + 3, j * 0.2 + 11) - 0.5)); } return L > 0 && !deadLogOut(x, z, -0.15) ? L : 0; };
           let land = 0; const cand = [], lawnPad = [];
           for (let j = 4; j < GZ - 4; j++) for (let i = 4; i < GX - 4; i++) {
@@ -43,20 +44,24 @@
           const cells = cand.filter(c => c[0] >= thr), lawn = [...lawnPad, ...cand.filter(c => c[4] > 0 && c[0] < thr)];   // ô cỏ mềm sẵn có trong vùng vẫn giữ lá cao (bụi cỏ giữa thảm)
           // ---- màu đất thật dưới từng ô (màu bậc địa hình × sắc độ ô × màu trung bình texture cỏ) + tô loang mảng cỏ lên mặt đất (thấy được cả khi nhìn xa) ----
           const texMean = new THREE.Color(0xd9d6c8);   // (Color(hex) đã tự đổi sRGB → tuyến tính; đổi thêm lần nữa làm gốc lá tối gấp 2,3)
-          const tops = new Map(), _m = new THREE.Matrix4(), _p = new THREE.Vector3(), _c = new THREE.Color();
-          for (const im of terrainMeshes) {
-            if (!im.isInstancedMesh || !im.instanceColor || (im.material !== grassMat && im.material !== shoreMat)) continue;
-            // ô không phẳng có mặt trên + các mặt bên ở nhiều lưới: gom hết [lưới, chỉ số, lưới, chỉ số…] để tô cùng màu
-            for (let k = 0; k < im.count; k++) { im.getMatrixAt(k, _m); _p.setFromMatrixPosition(_m); const key = Math.round(x2gi(_p.x)) + Math.round(z2gj(_p.z)) * GX, L = tops.get(key); if (L) L.push(im, k); else tops.set(key, [im, k]); }
-          }
+          const _m = new THREE.Matrix4(), _p = new THREE.Vector3(), _c = new THREE.Color();
+          // ô không phẳng có mặt trên + các mặt bên ở nhiều lưới: gom hết (lưới, chỉ số) để tô cùng màu — bảng nén kiểu CSR (G 19/10 "lưu dữ liệu cỏ gọn hơn"):
+          //  tS[ô] … tS[ô + 1] = đoạn của ô trong tD, mỗi phần tử = chỉ số lưới (trong TM) << 24 | chỉ số instance. Bản Map ô → [lưới, k, …] cũ tốn ~10 MB heap JS
+          const TM = terrainMeshes.filter(im => im.isInstancedMesh && im.instanceColor && (im.material === grassMat || im.material === shoreMat));
+          let nT = 0; for (const im of TM) nT += im.count;
+          const tKey = new Int32Array(nT), tS = new Int32Array(N + 1), tD = new Int32Array(nT);
+          { let t = 0; for (const im of TM) for (let k = 0; k < im.count; k++) { im.getMatrixAt(k, _m); _p.setFromMatrixPosition(_m); const key = Math.round(x2gi(_p.x)) + Math.round(z2gj(_p.z)) * GX; tKey[t++] = key >= 0 && key < N ? key : -1; if (key >= 0 && key < N) tS[key + 1]++; }
+            for (let i = 0; i < N; i++) tS[i + 1] += tS[i];
+            const cur = tS.slice(0, N); t = 0; TM.forEach((im, mi) => { for (let k = 0; k < im.count; k++) { const key = tKey[t++]; if (key >= 0) tD[cur[key]++] = (mi << 24) | k; } }); }
+          const topN = key => key >= 0 && key < N ? tS[key + 1] - tS[key] : 0, topIm = (key, n) => TM[tD[tS[key] + n] >>> 24], topK = (key, n) => tD[tS[key] + n] & 0xffffff;
           const lushOf = (i, j, moist) => Math.max(0, Math.min(1, 0.3 + 0.7 * moist + 0.6 * (vnoise(i * 0.09 + 41, j * 0.09 + 7) - 0.5)));
           const dirty = new Set(), _cL = new THREE.Color(), _lawnTint = new THREE.Color(0.8, 1.0, 0.62);
           for (const [sc, i, j, moist, L] of [...cells, ...lawn]) {
-            const t = tops.get(i + j * GX); if (!t) continue;
+            const key = i + j * GX, nt = topN(key); if (!nt) continue;
             const lush = L ? 0.75 : lushOf(i, j, moist), dens = L ? 0.6 : Math.min(1, (sc - thr) / Math.max(1e-3, top - thr));
-            t[0].getColorAt(t[1], _c); _c.multiplyScalar(1.015 + 0.05 * dens).lerp(_c.clone().offsetHSL(0.012 * (lush - 0.5), 0.04, 0), 0.6);   // mặt đất dưới mảng cỏ: tươi hơn chút
+            topIm(key, 0).getColorAt(topK(key, 0), _c); _c.multiplyScalar(1.015 + 0.05 * dens).lerp(_c.clone().offsetHSL(0.012 * (lush - 0.5), 0.04, 0), 0.6);   // mặt đất dưới mảng cỏ: tươi hơn chút
             if (L) { const e = Math.min(1, L / 0.3); _c.lerp(_cL.copy(_c).multiply(_lawnTint), 0.85 * e); }   // thảm ngắn: nền xanh đậm như cỏ mượt, loang dần ra mép
-            for (let q = 0; q < t.length; q += 2) { t[q].setColorAt(t[q + 1], _c); dirty.add(t[q]); }
+            for (let q = 0; q < nt; q++) { const im = topIm(key, q); im.setColorAt(topK(key, q), _c); dirty.add(im); }
           }
           for (const im of dirty) im.instanceColor.needsUpdate = true;
           // ---- dữ liệu từng ô (xếp theo mảng 24 × 24 ô để cắt khung nhìn) ----
@@ -76,7 +81,7 @@
                 const lush = lushOf(i, j, moist), h = (0.15 + 0.17 * Math.pow(dens, 0.7) + 0.07 * moist) * (0.88 + 0.24 * rnd()) * (0.4 + 0.6 * edge);
                 C4[n * 4] = h; C4[n * 4 + 1] = rnd(); C4[n * 4 + 2] = lush; C4[n * 4 + 3] = rnd() < 0.06 ? 1 + ((rnd() * 4) | 0) : 0;   // chiều cao · hạt giống · độ tươi · hoa dại (0 = không, 1–4 = màu)
               }
-              const t = tops.get(i + j * GX); if (t) { t[0].getColorAt(t[1], _c); _c.multiply(texMean); } else _c.setRGB(0.3, 0.42, 0.18);
+              const key = i + j * GX; if (topN(key)) { topIm(key, 0).getColorAt(topK(key, 0), _c); _c.multiply(texMean); } else _c.setRGB(0.3, 0.42, 0.18);
               BC[n * 3] = _c.r; BC[n * 3 + 1] = _c.g; BC[n * 3 + 2] = _c.b;
               box.expandByPoint(_p.set(x - 0.4, y, z - 0.4)); box.expandByPoint(_p.set(x + 0.4, y + 0.6, z + 0.4));
               n++;
@@ -170,30 +175,36 @@
           }
           // ---- CẮT CỎ (G 18/10: kỹ sư phát cỏ quanh trại sau mưa — engineer/trim-grass.js): ô có tâm trong tầm lưỡi ⇒ lá còn 4–6 cm, mất hoa dại; ô đang
           //      hiện trên màn hình (slot ≥ 0 sau lượt cắt khung nhìn) ghi thẳng vào thuộc tính instance, ô khác đọc lại từ C4 ở lượt cull sau ----
-          const cutT = new Uint8Array(nC), slot = new Int32Array(nC).fill(-1), byIJ = new Map();
-          for (let q = 0; q < nC; q++) { const L = byIJ.get(IJ[q]); if (L) L.push(q); else byIJ.set(IJ[q], [q]); }
+          const cutT = new Uint8Array(nC), slot = new Int32Array(nC).fill(-1), bS = new Int32Array(N + 1), bQ = new Int32Array(nC);   // ô lưới → các ô cỏ (CSR như tS / tD; bản cũ Map → mảng ~3 MB)
+          for (let q = 0; q < nC; q++) bS[IJ[q] + 1]++;
+          for (let i = 0; i < N; i++) bS[i + 1] += bS[i];
+          { const cur = bS.slice(0, N); for (let q = 0; q < nC; q++) bQ[cur[IJ[q]]++] = q; }
           function cellsIn(x, z, r, fn) {   // fn(q) cho mọi ô có tâm cách (x, z) < r
             const i0 = Math.floor(x2gi(x - r)), i1 = Math.ceil(x2gi(x + r)), j0 = Math.floor(z2gj(z - r)), j1 = Math.ceil(z2gj(z + r));
-            for (let j = Math.min(j0, j1); j <= Math.max(j0, j1); j++) for (let i = Math.min(i0, i1); i <= Math.max(i0, i1); i++) { const L = byIJ.get(i + j * GX); if (!L) continue;
-              for (const q of L) if (Math.hypot(R[q * 3] - x, R[q * 3 + 2] - z) < r) fn(q); }
+            for (let j = Math.max(0, Math.min(j0, j1)); j <= Math.min(GZ - 1, Math.max(j0, j1)); j++) for (let i = Math.max(0, Math.min(i0, i1)); i <= Math.min(GX - 1, Math.max(i0, i1)); i++) { const c = i + j * GX;
+              for (let a = bS[c]; a < bS[c + 1]; a++) { const q = bQ[a]; if (Math.hypot(R[q * 3] - x, R[q * 3 + 2] - z) < r) fn(q); } }
           }
           const mownKey = new Set(), _mw = new THREE.Color(), MOWN = new THREE.Color(0.36, 0.47, 0.15);   // đất dưới ô vừa phát: sáng + ngả vàng xanh như bãi vừa cắt (thấy cả khi nhìn xa, lá cỏ đã ẩn)
           function cutAt(x, z, r) {   // trả số ô vừa cắt
             let n = 0;
             cellsIn(x, z, r, q => { if (cutT[q]) return; cutT[q] = 1; n++;
               const h = Math.min(C4[q * 4], 0.03 + 0.02 * C4[q * 4 + 1]); C4[q * 4] = h; C4[q * 4 + 3] = 0;
-              if (!mownKey.has(IJ[q])) { mownKey.add(IJ[q]); const t = tops.get(IJ[q]);
-                if (t) for (let k = 0; k < t.length; k += 2) { t[k].getColorAt(t[k + 1], _mw); _mw.multiplyScalar(1.1).lerp(MOWN, 0.2); t[k].setColorAt(t[k + 1], _mw); t[k].instanceColor.needsUpdate = true; } }
+              if (!mownKey.has(IJ[q])) { mownKey.add(IJ[q]); const key = IJ[q];
+                for (let k = 0, nt = topN(key); k < nt; k++) { const im = topIm(key, k), ik = topK(key, k); im.getColorAt(ik, _mw); _mw.multiplyScalar(1.1).lerp(MOWN, 0.2); im.setColorAt(ik, _mw); im.instanceColor.needsUpdate = true; } }
               const s = slot[q]; if (s >= 0) { aCell.array[s * 4] = h; aCell.array[s * 4 + 3] = 0; if (aCell.addUpdateRange) aCell.addUpdateRange(s * 4, 4); aCell.needsUpdate = true; } });
             return n;
           }
           function grassNear(x, z, r) { let f = false; cellsIn(x, z, r, () => { f = true; }); return f; }
+          function flowerNear(x, z, r) {   // ô có hoa dại (chưa cắt) gần (x, z) nhất trong bán kính r → [x, y, z] tâm ô, hoặc null (engineer/env-react.js: ngồi ngửi hoa)
+            let b = -1, bd = r; cellsIn(x, z, r, q => { if (!C4[q * 4 + 3] || cutT[q]) return; const d = Math.hypot(R[q * 3] - x, R[q * 3 + 2] - z); if (d < bd) { bd = d; b = q; } });
+            return b < 0 ? null : [R[b * 3], R[b * 3 + 1], R[b * 3 + 2]];
+          }
           function cutFrac(x, z, r0, r1) {   // phần ô đã cắt trong vành khăn r0–r1 quanh (x, z)
             let a = 0, c = 0; cellsIn(x, z, r1, q => { if (Math.hypot(R[q * 3] - x, R[q * 3 + 2] - z) < r0) return; a++; if (cutT[q]) c++; }); return a ? c / a : 1;
           }
           const _cr = new THREE.Vector3(), _cd = new THREE.Vector3(), _sd = new THREE.Vector3();
           return {
-            cells: nC, land, frac: nC / land, cellAt: k => [R[k * 3], R[k * 3 + 1], R[k * 3 + 2]], cutAt, grassNear, cutFrac,   // (đo kiểm) · cắt cỏ
+            cells: nC, land, frac: nC / land, cellAt: k => [R[k * 3], R[k * 3 + 1], R[k * 3 + 2]], cutAt, grassNear, flowerNear, cutFrac,   // (đo kiểm) · cắt cỏ
             update(dt, t) {
               const ppu = renderer.domElement.height / ((camera.top - camera.bottom) / camera.zoom);   // điểm ảnh / đv
               const fade = Math.max(0, Math.min(1, (ppu - 9) / 8));

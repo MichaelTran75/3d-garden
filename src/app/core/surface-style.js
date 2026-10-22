@@ -9,7 +9,7 @@
         // ảnh vân vỏ THẬT cắt từ bản quét "Tree 3D Scan - Retopo" (grafi, CC-BY-4.0; G 17/10 "nếu 3D thì apply vào luôn"): 4 dải vỏ thân ghép ngang
         // (160 × 480, src/models/bark-scan.jpg, tải sau khi cảnh chạy, địa chỉ tuyệt đối Pages như mẫu drone). Chỉ vật liệu có userData.sfTex dùng ảnh;
         // chưa tải xong / tải lỗi (bản 1 tệp ngoại tuyến) thì vẫn vân thủ tục bên dưới
-        const SF_BT = { value: null }, SF_BTK = { value: 0 };
+        const SF_BT = { value: null }, SF_BTK = { value: 0 }, SF_WET = { value: 0 }, SF_NO = { value: new THREE.Vector2(0, -1) };   // SF_WET: độ ẩm rêu (nature/clouds-rain.js) · SF_NO: hướng bắc (xz)
         function sfBarkTex() {
           if (SF_BT.loading) return; SF_BT.loading = 1;
           new THREE.TextureLoader().load(window.__barkTex || 'https://michaeltran75.github.io/3d-garden/models/bark-scan.jpg', t => {
@@ -22,7 +22,10 @@
           const t = new THREE.DataTexture(d, GX, GZ, THREE.RedFormat, THREE.FloatType); t.magFilter = t.minFilter = THREE.NearestFilter; t.needsUpdate = true; return t;
         }
         const SF_GLSL = `
-          uniform sampler2D uSfH; uniform vec4 uSfG; uniform float uSfL; uniform vec3 uSfLC; uniform sampler2D uSfT; uniform float uSfTk; uniform vec3 uSfTt; uniform float uSfDk; uniform float uSfOld; uniform float uSfMs; varying vec3 vSfP; varying vec3 vSfN;
+          uniform sampler2D uSfH; uniform vec4 uSfG; uniform float uSfL; uniform vec3 uSfLC; uniform sampler2D uSfT; uniform float uSfTk; uniform vec3 uSfTt; uniform float uSfDk; uniform float uSfOld; uniform float uSfMs; uniform float uSfTm; uniform float uSfTw; uniform float uSfSh; uniform float uSfWet; uniform vec2 uSfNo; varying vec3 vSfP; varying vec3 vSfN;
+          #ifdef SF_SHELL
+          uniform float uShW; varying float vShL;
+          #endif
           float sfR(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
           float sfN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(sfR(i), sfR(i + vec2(1.0, 0.0)), f.x), mix(sfR(i + vec2(0.0, 1.0)), sfR(i + vec2(1.0, 1.0)), f.x), f.y); }
           float sfNw(vec2 p, float P) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); float i0 = mod(i.x, P), i1 = mod(i.x + 1.0, P);   // nhiễu tuần hoàn theo x (chu kỳ P ô) — vòng quanh thân không lộ đường may
@@ -34,16 +37,16 @@
           mat.onBeforeCompile = (sh, r) => {
             prev.call(mat, sh, r);
             SF_H = SF_H || sfHeightTex();
-            sh.uniforms.uSfH = { value: SF_H }; sh.uniforms.uSfG = { value: new THREE.Vector4(1 / BLOCK, cx, cz, 0) }; sh.uniforms.uSfL = { value: mat.userData.sfL ?? 1 }; const U = mat.userData; if (K === 5 && U.sfTex) sfBarkTex(); sh.uniforms.uSfT = SF_BT; sh.uniforms.uSfTk = U.sfTex ? SF_BTK : { value: 0 }; sh.uniforms.uSfTt = { value: U.sfTint || new THREE.Vector3(1, 1, 1) }; sh.uniforms.uSfDk = { value: U.sfDk || 0 }; sh.uniforms.uSfOld = { value: U.sfOld ? 1 : 0 }; sh.uniforms.uSfMs = { value: U.sfMoss ?? 1 }; sh.uniforms.uSfLC = { value: mat.userData.sfLC || new THREE.Color(0.58, 0.6, 0.53) };   // màu mảng loang (địa y) theo cây
+            sh.uniforms.uSfH = { value: SF_H }; sh.uniforms.uSfG = { value: new THREE.Vector4(1 / BLOCK, cx, cz, 0) }; sh.uniforms.uSfL = { value: mat.userData.sfL ?? 1 }; const U = mat.userData; if (K === 5 && U.sfTex) sfBarkTex(); sh.uniforms.uSfT = SF_BT; sh.uniforms.uSfTk = U.sfTex ? SF_BTK : { value: 0 }; sh.uniforms.uSfSh = { value: U.sfShell ? 1 : 0 }; sh.uniforms.uSfWet = SF_WET; sh.uniforms.uSfNo = SF_NO; SF_NO.value.set(SKY_NORTH.x, SKY_NORTH.z).normalize(); sh.uniforms.uSfTt = { value: U.sfTint || new THREE.Vector3(1, 1, 1) }; sh.uniforms.uSfDk = { value: U.sfDk || 0 }; sh.uniforms.uSfOld = { value: U.sfOld ? 1 : 0 }; sh.uniforms.uSfMs = { value: U.sfMoss ?? 1 }; sh.uniforms.uSfTm = { value: U.sfTop ?? (U.sfOld ? 1 : 0) }; sh.uniforms.uSfTw = { value: U.sfTopW ? 1 : 0 }; sh.uniforms.uSfLC = { value: mat.userData.sfLC || new THREE.Color(0.58, 0.6, 0.53) };   // màu mảng loang (địa y) theo cây
             // chèn ở fog_vertex (cuối shader): vị trí thế giới lấy ngược từ mvPosition ⇒ đúng cả khi shader gió đã thay project_vertex (cây đung đưa)
-            sh.vertexShader = 'varying vec3 vSfP; varying vec3 vSfN;\n' + (K === 5 ? 'attribute vec3 aBk; varying vec3 vSfB; attribute float aBd; varying float vSfD;\n' : '') + sh.vertexShader.replace('#include <fog_vertex>', `#include <fog_vertex>${K === 5 ? '\n vSfB = aBk; vSfD = aBd;' : ''}
+            sh.vertexShader = 'varying vec3 vSfP; varying vec3 vSfN;\n#ifdef SF_SHELL\nuniform float uShL, uShS; varying float vShL;\n#endif\n' + (K === 5 ? 'attribute vec3 aBk; varying vec3 vSfB; attribute float aBd; varying float vSfD;\n' : '') + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n#ifdef SF_SHELL\n vShL = (float(gl_InstanceID) + 1.0) * uShS; transformed += objectNormal * (vShL * uShL);\n#endif').replace('#include <fog_vertex>', `#include <fog_vertex>${K === 5 ? '\n vSfB = aBk; vSfD = aBd;' : ''}
               vec3 sfN3 = objectNormal;
               #ifdef USE_INSTANCING
                 sfN3 = mat3(instanceMatrix) * sfN3;
               #endif
               vSfP = (inverse(viewMatrix) * vec4(mvPosition.xyz, 1.0)).xyz; vSfN = normalize(mat3(modelMatrix) * sfN3);`);
             sh.fragmentShader = SF_GLSL + (K === 5 ? '\nvarying vec3 vSfB; varying float vSfD;' : '') + '\n' + sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
-              float sfHg = 0.0;
+              float sfHg = 0.0, sfMo = 0.0;   // sfMo: lượng rêu 0–1 (thảm rêu nhung — nature/moss-shells.js)
               {
                 vec3 wn = normalize(vSfN); float wf = 1.0 - smoothstep(0.55, 0.85, abs(wn.y));   // mặt đứng
                 vec2 tg = abs(wn.y) < 0.9 ? normalize(vec2(-wn.z, wn.x) + 1e-5) : vec2(1.0, 0.0);
@@ -79,6 +82,7 @@
                   float cr = max(1.0 - smoothstep(0.015, 0.085, abs(sfNw(vec2(ba + bw, bl * 0.45), 12.0 * bm) - 0.5)), 0.75 * (1.0 - smoothstep(0.01, 0.06, abs(sfNw(vec2(ba * 2.0 + bw + 4.0, bl * 0.8), 24.0 * bm) - 0.5))));
                   float hc = (1.0 - smoothstep(0.015, 0.05, abs(sfNw(vec2(ba * 0.5 + 3.0, bl * 2.4), 6.0 * bm) - 0.5))) * step(0.5, sfNw(vec2(ba * 0.5, bl * 0.8) + 9.0, 6.0 * bm));
                   float gv = max(cr, 0.7 * hc) * (1.0 - 0.6 * thin), pl = sfNw(vec2(ba, bl * 1.1) + 2.0, 12.0 * bm);
+                  float mG = gv, mC = 0.0;   // rãnh · lòng hốc (rêu mặt trên)
                   if (uSfOld > 0.5) {   // G 17/10 "cây cổ thụ render tệ, nhìn giả, sửa lại về render cũ": vân thủ tục BẢN TRƯỚC (rãnh nứt + đốm địa y nhỏ + rêu gốc)
                     float g0 = max(cr, 0.7 * hc); c *= mix(0.95 + 0.14 * pl, 0.4, g0);
                     float rope = step(0.01, vSfD), gr = max(0.0, vSfD - 0.02) / 0.98, gd = smoothstep(0.22, 0.85, gr), crown = 1.0 - smoothstep(0.0, 0.18, gr), cav = smoothstep(1.05, 1.4, gr);   // sợi bện (barkTubes rope, vSfD > 0,01)
@@ -86,8 +90,8 @@
                     float fb = rope * (1.0 - smoothstep(0.015, 0.07, abs(sfNw(vec2(ba * 3.0 + 0.6 * bw, bl * 0.35), 36.0 * bm) - 0.5)));   // thớ sợi dài mảnh chạy xoắn theo sợi (vSfB.x đã cộng độ xoắn)
                     c *= 1.0 - 0.14 * fb * (1.0 - gd); sfHg -= 0.003 * fb;
                     c = mix(c, vec3(0.40, 0.46, 0.34), 0.3 * smoothstep(0.78, 0.92, sfNw(vec2(ba * 2.0, bl * 12.0) + 11.0, 24.0 * bm)) * (1.0 - g0));
-                    c = mix(c, vec3(0.30, 0.40, 0.18), 0.5 * uSfMs * (1.0 - smoothstep(0.0, 0.9, hA)) * smoothstep(0.3, 0.7, sfNw(vec2(ba * 0.5, bl * 3.0) + 5.0, 6.0 * bm)));   // rêu chân thân (uSfMs = mat.userData.sfMoss: rễ bò mặt đất ít rêu)
-                    sfHg = -0.012 * g0 + 0.003 * pl;
+                    sfMo = uSfMs * (1.0 - smoothstep(0.0, 0.9, hA)) * smoothstep(0.3, 0.7, sfNw(vec2(ba * 0.5, bl * 3.0) + 5.0, 6.0 * bm));   // rêu chân thân (uSfMs = mat.userData.sfMoss: cành chết 0,35 · rễ 1,35) — màu tô chung bên dưới
+                    sfHg = -0.012 * g0 + 0.003 * pl; mG = gd; mC = cav;
                   } else {
                   c *= mix(0.95 + 0.14 * pl, 0.3, gv);
                   c = mix(c, c * 1.3 + vec3(0.05, 0.05, 0.045), 0.7 * thin);   // cành non: xám sáng
@@ -96,7 +100,7 @@
                   c = mix(c, uSfLC * (0.9 + 0.2 * pl), min(1.0, 0.7 * uSfL) * lp);   // địa y vảy (mặc định xám trắng–xanh; cổ thụ: nâu đen)
                   c = mix(c, vec3(0.86, 0.6, 0.12), 0.9 * smoothstep(0.955, 0.985, sfNw(vec2(ba * 3.0, bl * 30.0) + 23.0, 36.0 * bm)) * (1.0 - gv) * min(1.0, uSfL));   // địa y vàng
                   c = mix(c, c * vec3(0.84, 0.95, 0.66), 0.4 * uSfL * smoothstep(0.45, 0.8, sfNw(vec2(ba * 0.25, bl * 0.5) + 29.0, 3.0 * bm)));   // tảo lục
-                  c = mix(c, vec3(0.30, 0.40, 0.18), 0.5 * uSfMs * (1.0 - smoothstep(0.0, 0.9, hA)) * smoothstep(0.3, 0.7, sfNw(vec2(ba * 0.5, bl * 3.0) + 5.0, 6.0 * bm)));   // rêu chân thân (uSfMs = mat.userData.sfMoss: rễ bò mặt đất ít rêu)
+                  sfMo = uSfMs * (1.0 - smoothstep(0.0, 0.9, hA)) * smoothstep(0.3, 0.7, sfNw(vec2(ba * 0.5, bl * 3.0) + 5.0, 6.0 * bm));   // rêu chân thân
                   sfHg = -0.014 * gv + 0.003 * pl + 0.0025 * lp;
                   if (uSfTk > 0.5) {   // ảnh vỏ quét: 3 ô quanh mỗi bm, ~0,75 m dọc / ô (lặp gương dọc) · nhuộm theo cây · cổ thụ: mảng địa y sáng → nâu đen (uSfDk)
                     vec3 bt = texture2D(uSfT, vec2(vSfB.x * 3.0, vSfB.y * 1.2)).rgb; float bL = dot(bt, vec3(0.3, 0.59, 0.11));
@@ -105,6 +109,36 @@
                     c = ct; sfHg = 0.03 * (bL - 0.2);   // mảng địa y nổi, khe vỏ lõm
                   }
                   }
+                  // RÊU MẶT TRÊN — G 19/10 học bản quét "Tree Scan Free" (Epic_Tree_Store, CC-BY-4.0, chỉ đo màu theo pháp tuyến): rêu chỉ ở mặt hướng trời — mặt dưới ~0%,
+                  // sườn trên thân ngả ~10%, nóc chạc ~26%, cành nhỏ ít; mặt dưới cành tối hơn mặt trên ~35% (bóng sẵn trong ảnh quét). uSfTm = mat.userData.sfTop
+                  // (độ phủ: cổ thụ / cây con / rễ 1 · khúc gỗ chết nằm 1,8 · cây táo, anh đào 0 = không rêu); uSfMs = độ đậm (rễ 0,45, cành chết 0,35);
+                  // uSfTw = userData.sfTopW: hạt đệm rêu theo toạ độ thế giới (vật đứng yên có vân vỏ thưa — khúc gỗ bm 1 thì hạt theo vân bị kéo thành sọc ngang)
+                  // RÊU THEO NGHIÊN CỨU (G 20/10 "do research về cách rêu phủ như thế nào, màu sắc"): rêu chiếm hốc khuất ẩm — gốc thân + ~3 m dưới, phía khuất nắng;
+                  //  địa y lên cao + phía nắng (Killarney NP, 75 cây; cây lá kim BC: rêu phủ 3 m dưới thân) · nước mưa chảy dọc thân theo rãnh vỏ (stemflow) nuôi vệt rêu
+                  //  xuống gốc · rêu hút ẩm thụ động (poikilohydric): màu + dáng đổi mạnh theo độ ẩm — ướt xanh thẫm tươi, khô xỉn ô liu, sợi co lại · mảng theo loài:
+                  //  thảm bóng vàng xanh (rêu bò, pleurocarp), đệm xanh thẫm có cuống bào tử đỏ nâu (rêu mọc thẳng, acrocarp), đệm xám trắng (kiểu Leucobryum)
+                  float nf = dot(normalize(wn.xz + 1e-4), uSfNo) * (1.0 - abs(wn.y)), pz = sfN(vSfP.xz * 0.35 + 3.7);
+                  float sfl = smoothstep(0.66, 0.82, sfNw(vec2(ba * 1.2 + 0.7 * bw, bl * 0.12) + 41.0, 12.0 * bm)) * (0.5 + 0.5 * mG) * (1.0 - smoothstep(0.6, 7.0, hA)) * smoothstep(0.1, 0.5, tR);   // vệt nước chảy dọc thân
+                  sfMo = max(sfMo * (1.0 + 0.35 * nf), 0.85 * sfl * uSfMs * step(0.01, uSfTm));
+                  vec3 mT = pz < 0.4 ? vec3(0.36, 0.46, 0.07) : pz < 0.75 ? vec3(0.15, 0.33, 0.06) : vec3(0.4, 0.48, 0.34);   // màu ngọn theo loài
+                  mT = mix(mix(mT, vec3(dot(mT, vec3(0.3, 0.59, 0.11))) * vec3(1.15, 1.0, 0.62), 0.32), mT * vec3(0.85, 1.05, 0.9), uSfWet);   // khô xỉn ô liu · ướt thẫm tươi
+                  c = mix(c, mT * 0.6, min(1.0, 0.55 * sfMo));
+                  if (uSfTm > 0.0) {
+                    float mf = mix(sfNw(vec2(ba * 1.5, bl * 12.0), 18.0 * bm), sfN(vSfP.xz * 24.0 + vSfP.y * 5.0), uSfTw), mu = smoothstep(0.3, 0.9, wn.y) * smoothstep(0.08, 0.6, tR) * (1.0 - mC) * smoothstep(0.55, 0.68, 0.65 * sfNw(vec2(ba * 0.5, bl * 0.8) + 31.0, 6.0 * bm) + 0.35 * sfNw(vec2(ba * 2.0, bl * 3.0) + 37.0, 24.0 * bm) + 0.25 * wn.y + 0.12 * mG + 0.2 * mf + 0.25 * uSfTm + 0.12 * (1.0 - smoothstep(0.6, 8.0, hA)) + 0.08 * nf - 0.51);   // mf: đệm rêu ~5 cm ⇒ mép mảng lấm tấm · rêu bám rãnh (ẩm)
+                    c = mix(c * mix(0.8, 1.04, smoothstep(-0.7, 0.4, wn.y)), mix(mT * 0.3, mT * 0.85, mf), min(1.0, 0.9 * mu * uSfMs));
+                    sfHg += 0.003 * mu; sfMo = max(sfMo, mu * min(1.0, uSfMs * 1.1));
+                  }
+                  c = mix(c, mT * 0.12, 0.6 * uSfSh * smoothstep(0.25, 0.75, sfMo));   // có thảm sợi phủ trên: nền rêu là đáy thảm, tối
+                  #ifdef SF_SHELL
+                  {   // THẢM RÊU NHUNG — lớp vỏ thứ vShL (0–1 chiều cao thảm): mỗi ô ~1,3 cm 1 sợi, cao ngẫu nhiên theo lượng rêu, thon dần lên ngọn; gốc tối, ngọn vàng xanh, ánh nhung khi nhìn xiên
+                    vec3 an = abs(wn), sp = vSfP - wn * (vShL * uShW); vec2 fq = (an.y > max(an.x, an.z) ? sp.xz : an.x > an.z ? sp.yz : sp.xy) * 75.0, fi = floor(fq);
+                    bool st = pz >= 0.4 && pz < 0.75 && sfR(fi + 9.1) < 0.08 && sfMo > 0.4;   // cuống bào tử (rêu đệm): sợi mảnh cao hết thảm, nang ở ngọn
+                    float fh = st ? 1.0 : (0.4 + 0.6 * sfR(fi)) * smoothstep(0.12, 0.7, sfMo) * (0.72 + 0.28 * uSfWet), k = vShL / max(fh, 1e-3);   // khô: sợi co lại
+                    if (k > 1.0 || length(fract(fq) - 0.5 - 0.3 * (vec2(sfR(fi + 7.3), sfR(fi + 1.9)) - 0.5)) > (st ? (k > 0.78 ? 0.3 : 0.15) : 0.48 - 0.3 * k)) discard;
+                    c = st ? (k > 0.78 ? vec3(0.3, 0.16, 0.05) : vec3(0.42, 0.12, 0.04)) : mix(mT * 0.12, mix(mT * 0.55, mT, k * k), 0.3 + 0.7 * k) * (0.85 + 0.3 * sfR(fi + 3.3));
+                    c += vec3(0.08, 0.1, 0.02) * pow(1.0 - abs(dot(wn, normalize(cameraPosition - vSfP))), 3.0) * k * (0.5 + 0.5 * uSfWet);   // ánh nhung — ướt bóng hơn
+                  }
+                  #endif
                 #endif
                 float ao = mix(0.56, 1.0, smoothstep(0.0, 1.3, hA));   // chân tường tối dần + ám bẩn nâu
                 c *= mix(1.0, ao, wf); c = mix(c, c * vec3(0.86, 0.77, 0.64), (1.0 - smoothstep(0.0, 0.8, hA)) * 0.6 * wf);

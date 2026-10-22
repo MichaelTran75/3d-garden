@@ -42,7 +42,7 @@
           const { tips, rnd, segs } = recTree(g, { seed, s, barkMat, trunkLen: 1.7 * s, trunkR: 0.125 * s, maxDepth: 4, nMin: 2, nMax: 3, lenK: 0.74, radK: 0.6, spread: 0.72, upBias: 0.22, firstSplitN: 4 });
           const pts = []; for (const tp of tips) cloudPts(rnd, tp.x, tp.y + 0.08 * s, tp.z, 0.62 * s, 40, pts);
           cloudPts(rnd, 0, 2.7 * s, 0, 1.05 * s, 130, pts);   // chùm trung tâm cho tán dày ruột
-          tuftInstanced(g, rnd, pts, leafHexGeo(0.09 * s), [0x86a364, 0x78935b, 0x6e8754, 0x61784a], 0.60); g.userData.leafPts = pts;   // điểm lá: lá rụng theo cơn giật (nature/wind-field.js)   // lá cây trong suốt hơn 20% (0.75 * 0.8 = 0.60)
+          tuftInstanced(g, rnd, pts, leafHexGeo(0.09 * s), [0x86a364, 0x78935b, 0x6e8754, 0x61784a], 0.60); g.userData.leafPts = Float32Array.from(pts.flat());   // điểm lá: lá rụng theo cơn giật (nature/wind-field.js)   // lá cây trong suốt hơn 20% (0.75 * 0.8 = 0.60)
           // táo đỏ treo dưới ~1/3 số cành tận cùng
           function deformApple(geom) {
             const pos = geom.attributes.position;
@@ -126,12 +126,13 @@
         let deadLog = null;   // trục thân gỗ chết trên mặt đất (đầu a to r 0,70 · đầu b nhỏ r 0,56) — cỏ / hoa không mọc xuyên (nature/grass-scatter.js)
         (function environmentalDetails() {
           const logBarkMat = surfaceStyle(new THREE.MeshLambertMaterial({ color: 0x2d251d, flatShading: true, side: THREE.DoubleSide }), 'bark');
+          logBarkMat.userData.sfTop = 1.8; logBarkMat.userData.sfTopW = 1;   // G 19/10 "add moss lên trên" khúc gỗ chết: rêu phủ dày mặt trên thân nằm + cành chĩa (core/surface-style.js, rêu mặt trên)
           const stumpBarkMat = new THREE.MeshLambertMaterial({ color: 0x6e5744 });
           const innerWoodMat = new THREE.MeshLambertMaterial({ color: 0xd7b889, flatShading: true, side: THREE.DoubleSide });
 
           // 1. Khúc gỗ chết lớn (Dead Log) rỗng x2 tại x 101, y 7, z 105
           const logGroup = new THREE.Group();
-          logGroup.position.set(X0 + 101.0, 7.0 + 0.50, Z0 + 104.5); // Hạ thấp hơn một chút theo yêu cầu
+          logGroup.position.set(X0 + 101.0, 7.0 + 0.50, Z0 + 104.5); logGroup.name = 'Khúc gỗ chết (Dead Log)';   // Hạ thấp hơn một chút theo yêu cầu · tên để nature/fungi.js tìm
           logGroup.rotation.set(0.08, -Math.atan2(101.0 - 108.0, 102.0 - 100.0), Math.PI / 2); // Nằm ngang hơi xiên góc
           logGroup.updateMatrixWorld(true);
           { const a = new THREE.Vector3(0, -3.8, 0).applyMatrix4(logGroup.matrixWorld), b = new THREE.Vector3(0, 3.8, 0).applyMatrix4(logGroup.matrixWorld); deadLog = { ax: a.x, az: a.z, bx: b.x, bz: b.z, ra: 0.70, rb: 0.56 }; }
@@ -185,29 +186,7 @@
           leaf3.castShadow = true;
           branch3.add(leaf3);
 
-          // Thêm 3 cây nấm kích thước khác nhau trên khúc gỗ rỗng (growing on the bark)
-          function createMushroom(s) {
-            const mGroup = new THREE.Group();
-            const stalkMat = new THREE.MeshLambertMaterial({ color: 0xE2D6C0 }); // thân nấm trắng ngà
-            const capMat = new THREE.MeshLambertMaterial({ color: 0xd84a3a, flatShading: true }); // mũ nấm đỏ cam
-
-            const stalk = bx(0.04 * s, 0.14 * s, 0.04 * s, stalkMat, false, false);
-            stalk.position.y = 0.07 * s; mGroup.add(stalk);
-
-            const cap = bx(0.12 * s, 0.06 * s, 0.12 * s, capMat, false, false);
-            cap.position.y = 0.14 * s; mGroup.add(cap);
-            return mGroup;
-          }
-
-          const mush1 = createMushroom(1.3);
-          mush1.position.set(0.15, -1.2, 0.65); mush1.rotation.set(0.1, 0, -0.2); logGroup.add(mush1);
-
-          const mush2 = createMushroom(0.85);
-          mush2.position.set(-0.2, 0.2, 0.60); mush2.rotation.set(-0.15, 0.1, 0.15); logGroup.add(mush2);
-
-          const mush3 = createMushroom(1.05);
-          mush3.position.set(0.05, 1.6, 0.62); mush3.rotation.set(0.05, -0.15, -0.05); logGroup.add(mush3);
-
+          // (3 nấm hộp cũ trên thân gỗ đã thay bằng nấm giá quét 3D — nature/fungi.js, G 21/10)
           scene.add(bakeStatic(logGroup));
 
           // 2. Gốc cây bị cưa (Sawed Stump) tại x 102, y 7, z 115
@@ -344,6 +323,6 @@
           }
           fallen.instanceMatrix.needsUpdate = true; if (fallen.instanceColor) fallen.instanceColor.needsUpdate = true; g.add(fallen); fallen.name = 'Cánh hoa rụng dưới gốc';
           bakeStatic(g);   // gộp cành cherryBark thành 1 mesh (các InstancedMesh hoa được bake bỏ qua, giữ nguyên)
-          g.userData.treeWind = tw; g.userData.blossomPts = blossomPts; g.userData.fallen = fallen;   // cánh hoa rơi sinh từ chính các chùm hoa (toạ độ cục bộ)
+          g.userData.treeWind = tw; g.userData.blossomPts = Float32Array.from(blossomPts.flat()); g.userData.fallen = fallen;   // cánh hoa rơi sinh từ chính các chùm hoa (toạ độ cục bộ)
           return g;
         }

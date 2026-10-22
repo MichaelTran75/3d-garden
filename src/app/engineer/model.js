@@ -8,7 +8,7 @@
           for (const sx of [-1, 1]) { const pad = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.05, 14), padM); pad.rotation.z = Math.PI / 2; pad.position.set(sx * 0.215, 0.0, 0); h.add(pad); }
           return h;
         }
-        const ENG_ARM_L1 = 0.28, ENG_ARM_L2 = 0.40;   // cánh tay trên · cẳng tay tới tâm bàn tay (đv cục bộ kỹ sư)
+        const ENG_ARM_L1 = 0.28, ENG_ARM_L2 = 0.40, ENG_WRIST_PEG = 0.09;   // cánh tay trên · cẳng tay tới tâm bàn tay · chốt cổ tay (khớp xoay) cao hơn tâm bàn tay (đv cục bộ kỹ sư)
         function engineer() {
           const g = new THREE.Group();
           const P = (par, w, h, d, mat, x, y, z, o) => { const m = bx(w, h, d, mat, true, o !== false, lineDark); m.position.set(x, y, z); par.add(m); return m; };
@@ -83,9 +83,9 @@
             const eJoint = new THREE.Mesh(new THREE.SphereGeometry(0.074, 12, 8), vestM); elbow.add(eJoint);
             const fore = new THREE.Mesh(new THREE.CylinderGeometry(0.073, 0.066, 0.28, 12), vestM); fore.position.y = -0.14; fore.castShadow = true; elbow.add(fore);
             const cuff = new THREE.Mesh(new THREE.CylinderGeometry(0.071, 0.069, 0.04, 12), plastic(0xd8dcdf)); cuff.position.y = -0.21; elbow.add(cuff);   // dải phản quang cổ tay áo
-            const wrist = new THREE.Group(); wrist.position.y = -ENG_ARM_L2; elbow.add(wrist);   // KHỚP CỔ TAY (gốc = tâm bàn tay) — mọi đồ cầm tay gắn ở đây
-            const wCyl = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.07, 10), legoYellow); wCyl.position.y = 0.09; wrist.add(wCyl);
-            const hand = new THREE.Mesh(handGeo, legoYellow); hand.castShadow = true; wrist.add(hand);
+            const wrist = new THREE.Group(); wrist.position.y = -ENG_ARM_L2; elbow.add(wrist);   // KHUNG BÀN TAY (gốc = tâm bàn tay) — mọi đồ cầm tay gắn ở đây; xoay quanh CHỐT CỔ TAY ở đầu cẳng tay (engineer/pose-ik-walk.js engWristPeg)
+            const wCyl = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.07, 10), legoYellow); wCyl.position.y = ENG_WRIST_PEG; wCyl.userData.core = 'peg'; wrist.add(wCyl);   // chốt tay LEGO cắm vào ống tay áo
+            const hand = new THREE.Mesh(handGeo, legoYellow); hand.castShadow = true; hand.userData.core = 'hand'; wrist.add(hand);
             arms.push(piv); elbows.push(elbow); wrists.push(wrist); armCore.push(new Set([shoulder, upper, elbow]));
           }
           const clip = bx(0.28, 0.36, 0.04, engPad, true, true, lineDark); clip.position.set(0, -0.58, 0.16); arms[1].add(clip);
@@ -154,5 +154,9 @@
           // ---- EO (khớp thắt lưng, y 1,255): thân + đầu + 2 tay + khăn — vặn ngược nhịp hông khi đi, cúi / ngửa người khi với hái táo, nhặt đồ ----
           const spine = new THREE.Group(); spine.position.y = 1.255; spine.name = 'Eo'; g.add(spine);
           for (const o of [torso, neck, headG, towel, ...arms]) { g.remove(o); o.position.y -= 1.255; spine.add(o); }
+          // ---- GẦY ĐI 5%, GIỮ CHIỀU CAO (G 18/10, ENG_SLIM): mỗi mảnh thân (lưới / nhóm mũ, tóc, khăn) thu x + z quanh trục khớp của nó, khớp dời vào trong;
+          //      khớp không đổi tỉ lệ (con của khớp quay mà khớp méo thì tay gập bị co) · đồ cầm tay giữ cỡ thật · tỉ lệ x = z ⇒ hợp với mọi phép xoay quanh y ----
+          { const props = new Set([clip, rodGrp, spoon, bottle, cup, book, chip, chopsticks, knife, spatula, handBowl, handPan]), joints = new Set([spine, headG, ...arms, ...elbows, ...wrists, ...legs, ...knees, ...ankles]);
+            (function slim(par) { for (const c of par.children) { if (props.has(c) || c.isLine) continue; c.position.x *= ENG_SLIM; c.position.z *= ENG_SLIM; if (joints.has(c)) slim(c); else { c.scale.x *= ENG_SLIM; c.scale.z *= ENG_SLIM; } } })(g); }
           g.userData = { elbows, wrists, spine, legs, knees, ankles, arms, head: headG, torso, face: { mat: head.material, awake: face, sleep: faceSleep }, helmet, hair, towel, rodGrp, rodTilt, rodTip, rod, clip, props: { spoon, bottle, cup, book, bookLeaf, chip, chopsticks, knife, spatula, handBowl, handPan } }; g.scale.setScalar(ENGINEER_BASE_SCALE * CAMP_SCALE); return g;
         }

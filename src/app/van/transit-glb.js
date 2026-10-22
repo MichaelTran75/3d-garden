@@ -54,7 +54,7 @@
               const mat = MAT[bin.cls] || M.black, mesh = new THREE.Mesh(geo, mat); mesh.name = 'Transit · ' + bin.cls; mesh.castShadow = !mat.transparent || mat === M.body; mesh.receiveShadow = true;
               let par = grp[bin.role] || grp.shell; if (bin.piv) par = partOf(bin.piv, par, bin.at); if (bin.btn) par = partOf(bin.btn, par); par.add(mesh);   // bộ phận: nhóm đặt ở bản lề, nút bấm lồng trong
               if (bin.cls === 'paintIn') mesh.userData.xrayHide = true;   // vỏ trong khoang hàng: xem xuyên thì ẩn hẳn (nội thất rõ 100% — G 18/10)
-              if (bin.role === 'shell' && LINE_CLS.has(bin.cls)) edge(mesh, geo, lineDark);   // nét viền kết cấu xe (mép tấm vỏ, khung kính, gờ ≥ 30°) — con của mặt vỏ ⇒ còn khi xem xuyên
+              if (bin.role === 'shell' && LINE_CLS.has(bin.cls)) edge(mesh, geo, vanLine(lineDark));   // nét viền kết cấu xe (mép tấm vỏ, khung kính, gờ ≥ 30°) — con của mặt vỏ ⇒ còn khi xem xuyên
             }
             for (const nm2 of ['Vỏ Ford Transit L3H2', 'Táp-lô', 'Nội thất cabin', 'Bánh xe']) { const o = g.getObjectByName(nm2); if (o) o.visible = false; }
             const rearPlate = body.plates.children[1]; if (rearPlate) rearPlate.position.x = 3.174;   // cửa sau GLB ở X 3,162 (vỏ code 3,05)

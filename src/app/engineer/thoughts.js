@@ -11,6 +11,10 @@
           [14, 'afternoon', 'Buổi chiều', '🌥'], [17, 'dusk', 'Chiều tà', '🌇'], [19, 'evening', 'Buổi tối', '🌙'], [22, 'night', 'Đêm khuya', '🌙']
         ];
         const ENG_THOUGHT_LINES = [
+          // ---- tự chủ đợt 2: ngắm sao · ngắm mưa · luống cà rốt (engineer/sky-watch.js, carrot-garden.js) ----
+          'stars|||Trời quang, thấy rõ cả dải Ngân Hà.', 'stars|||Tìm chòm Bắc Đẩu… à, đây rồi.', 'stars|||Nằm thế này nghe rõ tiếng dế quanh trại.', 'stars|||Chờ thêm một vệt sao băng nữa rồi đi ngủ.',
+          'rainwatch|||Mưa rơi lộp độp trên bạt.', 'rainwatch|||Mép bạt nhỏ giọt thành hàng, đếm không xuể.', 'rainwatch|||Mặt hồ sủi bọt trắng dưới mưa.', 'rainwatch|||Mưa thế này mai cỏ lại lên nhanh.',
+          'garden|||Cà rốt lên lá xanh rồi, ít bữa là có củ.', 'garden|||Trồng thêm vài khóm, thỏ ăn mấy cũng đủ.', 'garden|||Tưới gốc thôi, ướt lá dễ sinh nấm.', 'garden|||Đất tơi xốp thì cà rốt mới thẳng củ.',
           // ---- đi dạo khám phá (lấp Tò mò — engineer/autonomy.js) ----
           'explore|||Ra xem trạm biến áp một vòng, nghe tiếng ù của máy biến áp.',
           'explore|||Cây anh đào ra hoa đợt mới, chụp lại cho nhật ký trại.',
@@ -32,6 +36,9 @@
           'apple|||Đưa rổ từ dưới lên, vặn nhẹ là cuống gãy, khỏi giật cả chồi.',
           'apple|||Quả thấp nhất chín đỏ rồi, hái trước.',
           'apple|||Đặt nhẹ vào giỏ thôi, táo dập là thâm ngay.',
+          'appleEat|||Táo vừa hái, giòn và ngọt.',
+          'appleEat|||Hái 3 quả thì ăn hết trong ngày, để qua đêm là mềm.',
+          'appleEat|||Lõi bỏ vào lò cho gọn, mai lại hái.',
           'apple||wind||Gió lay cành, rổ cứ chệch khỏi quả.',
           'apple||!rain||Bốn quả là đủ cho tối nay với sáng mai.',
           'apple|15-17.5|clear,partly||Nắng chiều chiếu xuyên tán, quả nào chín nhìn rõ hẳn.',
@@ -154,7 +161,7 @@
           'shelter|||dogVan|Con chó chui vào xe trước cả mình.',
           'shelter|6-19||Mấy con cò cũng về cây cổ thụ trú mưa.',
           'shelter|sun>15|rain||Mưa thế này, cánh đồng pin gần như không phát điện.',
-          // ---- bàn học buổi tối (20:30–21:00) ----
+          // ---- bàn học buổi tối (20:00–20:42) ----
           'study|||Viết nốt báo cáo sản lượng hôm nay.',
           'study|||Xem lại biểu đồ công suất thủy điện.',
           'study||rain||Mưa ngoài kia, ngồi trong xe gõ máy thật dễ chịu.',
@@ -277,7 +284,14 @@
           'general||afterRain||Mưa xong hồ đầy nước, đập xả mạnh hơn.',
           'general|sun>15|wind>=11,rad>=150||Thủy điện, mặt trời, gió, cả ba đều đang phát điện.',
           'general|sun<0|wind>=11||Trời tối rồi, giờ chỉ còn tua-bin với thủy điện phát điện.',
-          'general|sun<0|calm||Tối lặng gió, cả nhà máy trông vào thủy điện.'
+          'general|sun<0|calm||Tối lặng gió, cả nhà máy trông vào thủy điện.',
+          'wander||feelHot||Nắng gắt quá, đứng tạm dưới mái bạt cho mát.', 'wander||feelHot||Mồ hôi ướt cả lưng áo, trưa nay nghỉ trong râm thôi.',
+          'wander||feelCold||Lạnh thế này, quanh quẩn cạnh bếp lửa cho ấm.', 'wander||feelCold||Gió lạnh lùa vào cổ áo, rụt cả cổ.',
+          'wander||nice||Trời đẹp thế này, ở ngoài cả buổi cũng thấy vui.', 'explore||nice||Nắng nhẹ, gió hiu hiu, đi dạo thật đã.',
+          'drink||feelHot||Ra mồ hôi nhiều, phải uống bù nước.', 'tea||feelCold||Cốc trà nóng giữa trời lạnh, ấm cả bụng.',
+          'shelter||wet||Ướt hết vai áo rồi, đứng hong cạnh lò cho khô.', 'research||feelHot||Trong xe hầm hơi, bật quạt mui lên thôi.',
+          'study||feelCold||Trời trở lạnh, khoác thêm áo rồi làm tiếp.', 'fish||feelHot||Nắng chiếu mặt hồ loá cả mắt, kéo mũ thấp xuống.',
+          'general||feelHot||Nóng thế này người cứ uể oải, làm gì cũng chậm.', 'general||feelCold||Lạnh tay, gõ phím cũng chậm hẳn.'
         ].map(compileThought);
         function compileThought(s) {   // tách sẵn điều kiện để lúc chọn câu chỉ so sánh, không phân tích chuỗi
           const p = s.split('|'), act = p[0], times = p[1], wx = p[2], need = p.length > 4 ? p[3] : '', text = p[p.length - 1];
@@ -340,6 +354,8 @@
           if (Number.isFinite(temp) && temp >= 31) tags.add('hot');
           if (Number.isFinite(temp) && temp <= 18) tags.add('cold');
           if (rh !== null && rh >= 90) tags.add('humid');                                 // đủ ẩm để sương phủ mặt hồ
+          if (WX.hotK > 0.5) tags.add('feelHot'); if (WX.coldK > 0.5) tags.add('feelCold'); if (WX.wet > 0.3) tags.add('wet');   // cảm nhận thật (nhiệt độ biểu kiến + việc + lửa + ướt — engineer/weather-feel.js)
+          if (WX.outT >= 1800 && WX.body >= 20 && WX.body <= 27 && WX.wet < 0.1) tags.add('nice');
           const sun = Math.asin(Math.max(-1, Math.min(1, sunElevSin))) * 180 / Math.PI;    // độ cao mặt trời trên bầu trời cảnh (°)
           let rad = null; const hourly = cur ? st.data?.hourly : null;
           if (cur && Array.isArray(hourly?.time)) { const i = hourly.time.findIndex(x => x.slice(0, 13) === cur.time.slice(0, 13)); const v = i >= 0 ? hourly.shortwave_radiation?.[i] : null; if (Number.isFinite(v)) rad = v; }
@@ -423,9 +439,13 @@
           else if (e.phase === 'tea' || e.phase === 'toChair') { act = 'tea'; label = e.act === 'rest' ? 'Nghỉ trưa' : ctx.slot === 'dusk' || ctx.slot === 'evening' ? 'Bên bếp lửa' : 'Giờ uống trà'; }
           else if (e.phase === 'wander') { act = 'wander'; label = 'Dạo quanh trại'; }
           else if (e.phase === 'apple') { act = 'apple'; label = 'Hái táo'; }
+          else if (e.phase === 'appleEat') { act = 'appleEat'; label = 'Ăn táo'; }
           else if (e.phase === 'engine') { act = 'engine'; label = 'Kiểm tra máy xe'; }
           else if (e.phase === 'trim') { act = 'trim'; label = 'Cắt cỏ quanh trại'; }
           else if (e.phase === 'explore') { act = 'explore'; label = 'Đi dạo khám phá'; }
+          else if (e.phase === 'stars') { act = 'stars'; label = 'Ngắm sao'; }
+          else if (e.phase === 'rainwatch') { act = 'rainwatch'; label = 'Ngắm mưa'; }
+          else if (e.phase === 'garden') { act = 'garden'; label = 'Chăm luống cà rốt'; }
           else { act = 'walk'; label = 'Đang đi'; }
           if (act === 'fish' && !ctx.event && !['wait', 'approach', 'settle', 'rig', 'done'].includes(angling.stage)) { idleThoughtAt = now + 4000; return; }   // đang giật/dìu/thả/thay mồi: tập trung, chưa nghĩ vẩn vơ
           if (act !== 'fish') ctx.event = null;

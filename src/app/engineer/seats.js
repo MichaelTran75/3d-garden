@@ -6,7 +6,7 @@
         // rồi mới hạ người; đứng dậy thì nhích ra nửa trước mặt ghế, đặt bàn chân lùi sau gối, "mũi qua ngón chân" rồi mới duỗi.
         // Mặt ghế xếp cao ~0,52 m ≈ 71% chiều dài chân kỹ sư (như người lớn ngồi ghế quầy) ⇒ mông chạm nửa trước mặt ghế, nhích lùi vào lòng ghế,
         // bàn chân rời đất buông thõng; đứng dậy làm ngược lại. Hông và thân đi theo quỹ đạo giật tối thiểu (Flash–Hogan): vận tốc, gia tốc = 0 ở hai đầu.
-        const SEAT_S = ENGINEER_BASE_SCALE * CAMP_SCALE, SEAT_HIP = ENG_HIP_Y * SEAT_S - ENG_FEET, SEAT_ANK = ENG_SOLE * SEAT_S, SEAT_LEGX = 0.15 * SEAT_S;
+        const SEAT_S = ENGINEER_BASE_SCALE * CAMP_SCALE, SEAT_HIP = ENG_HIP_Y * SEAT_S - ENG_FEET, SEAT_ANK = ENG_SOLE * SEAT_S, SEAT_LEGX = 0.15 * ENG_SLIM * SEAT_S;
         const SEAT_T_SIT = 2.3, SEAT_T_RISE = 2.2;   // giây: ngồi xuống (với tay vịn → hạ người → chạm ghế → nhích lùi) · đứng dậy (nhích ra mép → dồn đà → duỗi → ổn định)
         const minJerk = s => { s = Math.max(0, Math.min(1, s)); return s * s * s * (10 + s * (6 * s - 15)); };
         const segK = (u, a, b) => Math.max(0, Math.min(1, (u - a) / (b - a)));
@@ -112,11 +112,11 @@
           if (!C.arm) { for (let i = 0; i < 2; i++) { e.arms[i].rotation.x = 0.3 * w; rt[i] = (i ? 1 : -1) * 0.2 * w; } return; }
           const g = e.g; engGroupMatrix(g);
           for (let i = 0; i < 2; i++) {
-            const s = i ? 1 : -1, sh = g.localToWorld(_sa.set(s * 0.34, 1.86, 0)), [lx, lz] = seatL(C, sh.x, sh.z);
+            const s = i ? 1 : -1, sh = g.localToWorld(_sa.set(s * 0.34 * ENG_SLIM, 1.86, 0)), [lx, lz] = seatL(C, sh.x, sh.z);
             const L = 0.66 * g.scale.y, hy = C.arm.y + 0.085, dxA = Math.abs(s * C.arm.x - lx), dyA = sh.y - C.pos.y - hy;
             const hz = Math.max(C.arm.z0, Math.min(C.arm.z1, lz - Math.sqrt(Math.max(0, L * L - dxA * dxA - dyA * dyA))));
             const hand = seatW(C, s * C.arm.x, hz, _sb); hand.y = C.pos.y + hy;
-            const d = g.worldToLocal(hand).sub(_sa.set(s * 0.34, 1.86, 0)).normalize();
+            const d = g.worldToLocal(hand).sub(_sa.set(s * 0.34 * ENG_SLIM, 1.86, 0)).normalize();
             e.arms[i].rotation.x = Math.atan2(-d.z, -d.y) * w;                 // gập vai ra sau
             rt[i] = Math.asin(Math.max(-1, Math.min(1, d.x))) * w;             // dang tay ra tới tay vịn
           }
@@ -239,9 +239,11 @@
           if (engSeatWalk(e, s.pts, s, dt, false, C.ground)) { e.seat = null; return false; }
           return true;
         }
-        const engPhaseSeat = ph => (ph === 'toFish' || ph === 'fish') ? FISH_SEAT : (ph === 'toChair' || ph === 'eat' || ph === 'eatFish' || ph === 'tossFish' || ph === 'tea' || ph === 'read' || ph === 'nap' || ph === 'toShelter' || ph === 'shelter') ? CAMP_SEAT : null;
+        const engPhaseSeat = ph => (ph === 'toFish' || ph === 'fish') ? FISH_SEAT : (ph === 'toChair' || ph === 'eat' || ph === 'eatFish' || ph === 'tossFish' || ph === 'tea' || ph === 'read' || ph === 'nap' || ph === 'toShelter' || ph === 'shelter' || (ph === 'appleEat' && applePick.eatSeated())) ? CAMP_SEAT : null;   // ăn táo: chỉ cần ghế từ lúc mang quả về ngồi
         function engPhaseGoal(e, want) {   // hướng sẽ đi sau khi rời ghế (chọn lối ra phía đó)
           if (want) return want.laneW[0];
+          if (e.phase === 'appleEat') return applePick.eatStand;   // rời ghế ra giỏ táo
+          if (e.phase === 'stars') return skyWatch.goal(); if (e.phase === 'garden') return gardenJob.goal(); if (e.phase === 'rainwatch') return skyWatch.rwSpot;
           if (e.phase === 'toMast' || e.phase === 'check') return e.wp[2];
           if ((e.phase === 'toDog' || e.phase === 'pet') && dogObj) return dogObj.position;
           return pf;

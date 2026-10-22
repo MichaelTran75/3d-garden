@@ -215,17 +215,19 @@
         const campObj = campfire(); campObj.g.scale.multiplyScalar(CAMP_SCALE); // Grilled fish, stones, logs and flame children inherit this once.
         { const p = worldCell(FIRE_CELL[0], FIRE_CELL[1]); campObj.g.position.copy(p); campObj.g.name = 'Bếp lửa trại (Campfire)'; scene.add(campObj.g); }
         // ---- MƯA DẬP LỬA (G 15/10 "trời mưa thì ko còn lửa chỉ còn khói"): campRain.heat = độ sống của bếp (1 cháy theo lịch giờ · 0 tắt nguội).
-        //      Mưa: lụi theo hàm mũ, τ = 60 s / cường độ mưa (mưa to ~1 phút, mưa phùn ~3,5 phút) — ngọn lửa tắt trước (heat 0,9 → 0,45), than hồng
-        //      tàn sau (0,55 → 0,03). Nước rơi vào than còn nóng bốc hơi trắng dày (quench) ⇒ lúc đang dập khói nhiều hơn lúc cháy; tắt rồi gỗ ướt
-        //      vẫn âm ỉ bốc khói (smolder, phai τ 20 phút), sau đó còn sợi khói mỏng. Tạnh: đất ráo bớt (sceneWet < 0,6) thì bếp nhen lại dần (τ 4 phút). Mở trang giữa cơn mưa: bếp đã tắt sẵn ----
+        //      Mưa: lụi theo hàm mũ — ngọn lửa tắt trước (heat 0,9 → 0,45), than hồng tàn sau (0,55 → 0,03). G 21/10 "khi mưa thì camp fire tắt lửa, và ít khói
+        //      lại": τ 10 s (mưa to) … 40 s (mưa phùn) thay cho 60 s / cường độ (cũ: tới 3,5 phút); mưa làm nguội mặt than nên khói tắt theo (đám cháy bị mưa
+        //      "đậy nắp": nhiệt còn dưới, mặt nguội hết bốc khói) ⇒ hơi dập lửa (quench) chỉ còn 1 làn ngắn, gỗ ướt âm ỉ phai τ 1,5 phút (cũ 20 phút), nguồn khói
+        //      nền nhân heat (main-loop.js) ⇒ tắt hẳn chỉ còn sợi khói rất mỏng. Tạnh: đất ráo bớt (sceneWet < 0,6) thì bếp nhen lại dần (τ 4 phút). Mở trang giữa
+        //      cơn mưa: bếp đã tắt sẵn ----
         const campRain = { heat: 1, quench: 0, flameK: 1, emberK: 1, smolder: 1, init: false }, _wetCoal = new THREE.Color(0.07, 0.065, 0.06);
         function campRainTick(dt) {
           const R = campRain, sm = THREE.MathUtils.smoothstep;
           if (!R.init && liveWeather.state.data) { R.init = true; if (liveWeather.state.raining) R.heat = 0.04; }
-          if (rainK > 0.05) R.heat -= R.heat * rainK / 60 * dt;
+          if (rainK > 0.05) R.heat -= R.heat * dt / (10 + 30 * (1 - Math.min(1, rainK)));   // G 21/10 "khi mưa thì camp fire tắt lửa": mưa to τ 10 s, mưa phùn ~37 s ⇒ ngọn lửa tắt sau ~8–30 s
           else if (sceneWet < 0.6) R.heat += (1 - R.heat) / 240 * dt;
           R.flameK = sm(R.heat, 0.45, 0.9); R.emberK = sm(R.heat, 0.03, 0.55); R.quench = rainK * sm(R.heat, 0.02, 0.35);
-          R.smolder = Math.max(R.heat, R.smolder * Math.exp(-dt / 1200));   // gỗ ướt âm ỉ: khói còn ~20 phút sau khi tắt
+          R.smolder = Math.max(R.heat, R.smolder * Math.exp(-dt / (rainK > 0.05 ? 90 : 600)));   // gỗ ướt âm ỉ: mưa làm nguội mặt than ⇒ khói tắt nhanh (τ 1,5 phút); tạnh rồi 10 phút
           return R;
         }
 
@@ -401,21 +403,21 @@
         const placeFire = (obj, ox, oz, ry) => { const X = pf.x + ox, Z = pf.z + oz; obj.position.set(X, cowY(X, Z), Z); if (ry != null) obj.rotation.y = ry; scene.add(obj); };
         // ---- góc bàn-ghế uống trà DƯỚI BẠT HIÊN (G 18/10 "move the chair and table under cover"; trước ở mép bạt (65–66, _, 100–101): người ngồi + bàn dầm
         //      mưa — mà trú mưa chính là ngồi ghế này, engineer/loop-update.js 'shelter'). Toạ độ cục bộ xe (trước khi nhân CAMP_SCALE): bạt x −0,75 … 2,9
-        //      dọc thân · z 1,06 (vách) … 3,4 (mép trước); cửa lùa x −0,55 … 0,83 (bậc 0,07 … 0,61). Ghế (1,55; 1,82) quay ra ngoài nhìn bếp lửa, lưng sát
-        //      vách ~0,3, chân người ngồi còn trong mép bạt, tâm cách bậc cửa 1,09 m (vòng né của ghế không đẩy người ra vào cửa). Bàn (2,42; 2,0) bên tay
+        //      dọc thân · z 1,06 (vách) … 3,4 (mép trước); cửa lùa x −0,55 … 0,83 (bậc 0,07 … 0,61). Ghế (1,45; 1,82) quay ra ngoài nhìn bếp lửa, lưng sát
+        //      vách ~0,3, chân người ngồi còn trong mép bạt, tâm cách bậc cửa ~1 m (vòng né của ghế không đẩy người ra vào cửa). Bàn (2,55; 2,0) bên tay
         //      trái người ngồi (cốc trà ở tay vịn trái), dọc thân xe, mép −z của bàn quay ra ngoài ⇒ chỗ đứng lấy drone (0,85 m trước mép, drone.js
         //      tableLay) vẫn dưới bạt; khe sau bàn sát vách cho thỏ trú mưa (animals/rain-shelter.js) ----
         caravanObj.updateMatrixWorld(true);
         const campLocal = (x, z) => { const p = caravanObj.localToWorld(new THREE.Vector3(x, 0, z)); p.y = cowY(p.x, p.z); return p; };
         // ---- vị trí + hướng ngồi của ghế cắm trại (dùng lại cho lịch trình kỹ sư) · bán kính né bếp lửa khi đi ngang qua ----
-        const campChairPos = campLocal(1.55, 1.82);   // G 18/10 "lùi ghế xuống gần xát với xe": lưng ghế sát vách (hộp bao cách vách ~2 cm)
+        const campChairPos = campLocal(1.45, 1.82);   // G 18/10 "lùi ghế xuống gần xát với xe": lưng ghế sát vách (hộp bao cách vách ~2 cm)
         const campChairFaceY = caravanObj.rotation.y;   // ghế quay ra ngoài như +z cục bộ xe
         const FIRE_AVOID_R = 1.9 * CAMP_SCALE;
         obstacleCoords.push({ x: pf.x, y: pf.y, z: pf.z, r: FIRE_AVOID_R, h: 2.2 * CAMP_SCALE });   // bếp lửa vào danh sách vật cản → flow field & repel & côn trùng đều né
         const woodCampY = cowY(X0 + 68, Z0 + 100);
         obstacleCoords.push({ x: X0 + 68, y: woodCampY, z: Z0 + 100, r: 0.8, h: 1.0 });                 // đống củi mới vào danh sách vật cản (world coordinates)
         { const ch = campChair(campFabricYellow, campFrameWood); ch.position.copy(campChairPos); ch.rotation.y = campChairFaceY; ch.name = 'Ghế cắm trại (Camp Chair)'; scene.add(ch); }   // ghế dã ngoại dạng gấp tương tự ghế câu cá
-        { const tb = campTable(); tb.position.copy(campLocal(2.42, 2.0));   // dưới bạt, bên trái ghế: mặt bàn x 1,96 … 2,88 · z 1,67 … 2,33 (cục bộ xe)
+        { const tb = campTable(); tb.position.copy(campLocal(2.55, 2.0));   // dưới bạt, bên trái ghế: mặt bàn x 2,09 … 3,01 · z 1,67 … 2,33 (cục bộ xe) — G 18/10 tối: tay vịn + cốc trà ghế (tới x 2,01) từng chồng lên góc bàn ⇒ ghế lùi 0,1, bàn ra 0,13
            tb.rotation.y = caravanObj.rotation.y + Math.PI; tb.name = 'Bàn trà (Camp Table)'; scene.add(tb); }   // dọc thân xe, −z của bàn quay ra ngoài
         // ---- CỐC TRÀ của kỹ sư (G 15/10): cốc men trắng có nước trà, đặt trong VÒNG KHAY CỐC trên tay vịn trái ghế cắm trại — bàn trà thấp 0,56 m, cách ghế
         //      ~1 m (gần nhất 0,92 m tới vai, tay với 0,57 m) nên ngồi không với tới; ca đen trên bàn là ca nấu nước. Khói trà bốc từ cốc. Uống: engTea

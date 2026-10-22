@@ -310,7 +310,7 @@
         forestWindShader(leafMatInst);         // khối tán cây rừng
         // LÁ PHẲNG LỤC GIÁC (G 16/10, đo tam giác): lá cũ là hình trụ 6 cạnh dày 2–4 mm = 24 tam giác (thành bên + 2 nắp); đĩa lục giác cùng bán kính,
         // 2 mặt = 4 tam giác — ảnh trước/sau gần như trùng (chỉ khác viền mảnh ở mép lá). Vật liệu 2 mặt + forceSinglePass (vật trong suốt 2 mặt mặc định
-        // vẽ 2 lượt) nên lượt vẽ không tăng.
+        // vẽ 2 lượt) nên lượt vẽ không tăng. (G 20/10 thử lá 1 tam giác rồi bảo về lại độ phân giải cũ — giữ lục giác 4 tam giác)
         function leafHexGeo(r) {
           const pos = [], uv = [], nrm = [];
           for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3; pos.push(r * Math.cos(a), 0, r * Math.sin(a)); uv.push(0.5 + 0.5 * Math.cos(a), 0.5 + 0.5 * Math.sin(a)); nrm.push(0, 1, 0); }

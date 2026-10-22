@@ -366,6 +366,7 @@
           rainK += (want - rainK) * Math.min(1, dt * 0.35);   // vào/ra mưa mượt trong vài giây
           sceneWet = Math.min(1, Math.max(0, sceneWet + (want > 0 ? dt * (0.004 + 0.012 * want) : -dt * (0.0011 + 0.0016 * (1 - nightFactor)))));
           const wetK = 1 - 0.24 * sceneWet; for (const [m, c] of wetMats) m.color.copy(c).multiplyScalar(wetK);   // đất cỏ thẫm lại khi ướt
+          SF_WET.value = Math.min(1, sceneWet * 1.4 + 0.3 * nightFactor);   // độ ẩm rêu: mưa thấm, đêm có sương (core/surface-style.js)
           if (scene.fog) { scene.fog.near = 280 - 30 * rainK; scene.fog.far = 700 - 70 * rainK; }   // mưa → không khí mờ hơn
           rainMesh.visible = rainK > 0.01;
           if (rainMesh.visible) {

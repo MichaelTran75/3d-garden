@@ -15,10 +15,10 @@
         //  Gọi trong engineer/loop-update.js: engReactHold (đứng lại thay việc) · engReactPre (trước lớp tư thế) · engReactPost (sau IK chân: nhìn,
         //  nhịp cử chỉ — trước engSeatPost) · engReactArms (đích tay — sau engSeatPost, trước engArmPost).
         const RX_NO = [false, false], RX_YES = [true, true], RX_R = [true, false];
-        const RX_BUSY = new Set(['pet', 'apple', 'trim', 'drone', 'drink', 'grab', 'plant', 'toPlant', 'toGrill', 'eatFish', 'tossFish', 'fish', 'eat', 'read', 'nap']);
+        const RX_BUSY = new Set(['pet', 'apple', 'appleEat', 'trim', 'drone', 'drink', 'grab', 'plant', 'toPlant', 'toGrill', 'eatFish', 'tossFish', 'fish', 'eat', 'read', 'nap', 'stars', 'garden']);
         const RX_STOP = new Set(['wander', 'check', 'toMast', 'toChair', 'toShelter', 'toFish', 'toDog']);   // việc đi / đứng dừng lại được
         // ưu tiên cử chỉ: cử chỉ cao hơn mới chen ngang được
-        const RX_GP = { wipe: 1, rub: 1, warm: 1, palm: 2, clap: 2, laugh: 2, wave: 3, cough: 3, catch: 3, look: 3, drop: 3, brush: 3, helmet: 4, pat: 4, shield: 5, cover: 6 };
+        const RX_GP = { wipe: 1, rub: 1, warm: 1, fan: 1, fanClip: 1, blow: 1, hug: 1, palm: 2, shade: 2, relief: 2, brr: 3, shakeOff: 3, clap: 2, laugh: 2, wave: 3, cough: 3, catch: 3, look: 3, drop: 3, brush: 3, helmet: 4, pat: 4, shield: 5, cover: 6 };
         const RX_TXT = {
           rain: ['Mưa rồi! Vào hiên thôi.', 'Ơ, mưa rồi kìa.', 'Mưa nặng hạt dần, chạy vào mái hiên đã.'],
           rainSeat: ['Mưa rồi, may mà đang ngồi dưới hiên.', 'Mưa xuống rồi, nghe lộp độp trên mái bạt.'],
@@ -36,7 +36,15 @@
           smoke: ['Khói bay hết vào mặt.', 'Gió đổi chiều, khói cay mắt quá.'],
           warm: ['Hơ tay bên lửa cho ấm.'],
           cold: ['Lạnh tay quá, xoa cho ấm.'],
-          hot: ['Nóng quá, mồ hôi nhễ nhại.']
+          hot: ['Nóng quá, mồ hôi nhễ nhại.', 'Oi thật, quạt tạm cho mát.'],
+          veryHot: ['Nắng như đổ lửa, phải tìm chỗ râm thôi.', 'Nóng hầm hập, mồ hôi chảy ròng ròng.'],
+          veryCold: ['Rét run cả người.', 'Lạnh buốt, hà hơi cho ấm tay.'],
+          wet: ['Ướt hết vai áo rồi, phủi bớt nước đã.', 'Dính mưa ướt cả người.'],
+          thirst: ['Nóng thế này phải uống nước thôi.', 'Khát khô cả cổ.'],
+          cool: ['Ơ, gió mát quá!', 'Vào chỗ râm mát hẳn.'],
+          warm2: ['Ấm hẳn lên rồi.', 'Hơ lửa một lúc là ấm người.'],
+          brr: ['Brr… ra ngoài lạnh thế.', 'Lạnh quá, gió lùa vào người.'],
+          glare: ['Nắng gắt chói cả mắt.', 'Ra nắng mà nheo cả mắt.']
         };
         const RX_CLIP = new THREE.Vector3(0, 0.08, 0.16);   // tâm bảng ghi chép trong khung cổ tay trái (engineer/model.js)
         const RX_LEAF_Q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);   // lá nằm ngửa trong tay: pháp tuyến lá (+y) = miệng chữ C (+z cổ tay)
@@ -48,7 +56,7 @@
           zoomSeen: false, zc: 0, dc: 0, still: 0, idle: 0, teaW: false, nx: {}, say: {}, pole: [new THREE.Vector3(), new THREE.Vector3()], poles: [null, null], patSpot: new THREE.Vector3() };
         // mái bạt hiên xe (hệ toạ độ xe): đứng trong vùng này là đã khỏi mưa
         const RX_AW = (() => {
-          let a = null; caravanObj.traverse(o => { const p = o.isMesh && o.geometry.parameters; if (p && p.height === 0.04 && p.depth === 2.4) a = o; });
+          let a = null; caravanObj.traverse(o => { const p = o.isMesh && o.geometry.parameters; if (p && (p.height === 0.014 || p.height === 0.04) && p.depth === 2.4) a = o; });   // tấm bạt (18/10 mỏng còn 1,4 cm — trước đó dò 4 cm nên hụt, rxDry luôn sai)
           if (!a) return null; const w = a.geometry.parameters.width / 2;
           return { x0: a.position.x - w + 0.1, x1: a.position.x + w - 0.1, z0: a.position.z - 1.2, z1: a.position.z + 1.05 };
         })();
@@ -75,7 +83,8 @@
           if (P === 'read') return 0.5;
           if (P === 'fish') return angling.stage === 'wait' || angling.stage === 'approach' ? 0.8 : 0.15;
           if (P === 'eat' || P === 'eatFish' || P === 'tossFish') return 0.35;
-          if (P === 'nap') return 0;
+          if (P === 'nap' || (P === 'stars' && e.seatCtl)) return 0;   // nằm ngắm sao: mắt do engineer/sky-watch.js lo
+          if (P === 'garden') return 0.5;
           if (P === 'pet' || P === 'apple' || P === 'trim' || P === 'grab' || P === 'plant' || P === 'toPlant' || P === 'toGrill') return 0.25;
           return 1;
         }
@@ -173,7 +182,7 @@
               if (u > 0.55 && u < 0.7) rxGest('pat', 2.6);
               if (u > 3.8) rxHoldEnd();
             }
-          }
+          } else envHold(e, H, dt, t);   // khựng chân vì chim · ngồi xổm xem thỏ · ngửi hoa · ngắm hoàng hôn (engineer/env-react.js)
           return true;
         }
         // ---- trước lớp tư thế: sự kiện (mưa, sét, chó, lá, khói), gió, tốc độ, nghiêng người ----
@@ -190,7 +199,8 @@
               if (RX.boltP.distanceTo(e.g.position) < 90) rxSay('bolt', RX_TXT.bolt, 'Sấm chớp', false);
             }
           }
-          if (!out) { if (RX.gest || RX.hold || RX.leaf || e.spd !== 1.1) rxReset(e); return; }
+          wxTick(e, dt, t, out);   // cảm nhận nóng / lạnh / ướt (engineer/weather-feel.js)
+          if (!out) { if (ENV.tgt || ENV.bf) envReset(); if (RX.gest || RX.hold || RX.leaf || e.spd !== 1.1) rxReset(e); return; }
           const g = e.g, s = e.seat && e.seat.st, onFoot = !e.seatCtl && (!s || s === 'go' || s === 'leave' || s === 'stood'), seated = s === 'seated';
           const yaw = g.rotation.y, fx = Math.sin(yaw), fz = Math.cos(yaw);
           // ---- gió tại đầu (m/s thật, ngang): mượt ~0,25 s · nền ~8 s ----
@@ -223,9 +233,12 @@
           rxLeafScan(e, t, onFoot);
           rxSmoke(e, t);
           rxIdle(e, t, onFoot, seated);
+          rxWeather(e, dt, t, onFoot, seated);
+          envTick(e, dt, t, onFoot, seated);   // chim, bướm, thỏ, gà, ong, hoa trong tầm 6 voxel · cầu vồng, hoàng hôn, trăng (engineer/env-react.js)
           // cử chỉ cần dáng thân (trước lớp tư thế)
           const C = RX.gest;
           if (C && C.k === 'shield') e.lean -= 0.08 * rxSS(C.t, 0, 0.25);
+          else if (C && (C.k === 'hug' || C.k === 'brr' || C.k === 'blow')) e.lean += 0.06 * (C.w || 0);   // co người giữ ấm
         }
         function rxDog(e, dt, t, onFoot, seated) {
           if (!dogObj || dogRain.st) { RX.zoomSeen = false; return; }
@@ -291,21 +304,59 @@
           const P = e.phase, temp = liveWeather.state.temperature, hf = rxHands(e);
           if (P === 'shelter' && seated && hf[0] && hf[1]) {
             if (t < RX.idle) return; RX.idle = t + 9 + Math.random() * 10;
-            const F = rxFire(e), r = Math.random(), cold = Number.isFinite(temp) && temp <= 21;
-            if (F && (cold || Number.isFinite(temp) && temp <= 24) && r < 0.35) { rxGest('warm', 6, { F: F.clone() }); if (cold) rxSay('warm', RX_TXT.warm, 'Trú mưa dưới hiên', false); }
-            else if (cold && r < 0.55) rxGest('rub', 3);
+            const F = rxFire(e), r = Math.random(), cold = WX.coldK > 0.2 || WX.wet > 0.3;
+            if (F && (cold || WX.body <= 24) && r < 0.35) { rxGest('warm', 6, { F: F.clone() }); if (cold) rxSay('warm', RX_TXT.warm, 'Trú mưa dưới hiên', false); }
+            else if (cold && r < 0.55) rxGest(WX.ta <= 12 ? 'blow' : 'rub', 3);
             else if (rxRaining() && r < 0.8) rxGest('palm', 2.4);
             else rxLook('rainOut', 1.6, 4.5, _rxB.set(e.g.position.x + Math.sin(e.g.rotation.y + (Math.random() - 0.5) * 1.6) * 6, e.g.position.y + 2.6, e.g.position.z + Math.cos(e.g.rotation.y + (Math.random() - 0.5) * 1.6) * 6));
           } else if (P === 'tea' && seated && e.teaIdle && hf[0]) {
             if (RX.teaW) return; RX.teaW = true;
-            const left = TEA_T - (e.teaT % TEA_T), F = rxFire(e), cold = Number.isFinite(temp) && temp <= 22;
+            const left = TEA_T - (e.teaT % TEA_T), F = rxFire(e), cold = WX.coldK > 0.15;
             if (F && cold && left > 7 && Math.random() < 0.4) rxGest('warm', 6, { F: F.clone() });
-            else if (Number.isFinite(temp) && temp <= 18 && left > 4 && Math.random() < 0.3) rxGest('rub', 3);
-          } else if (onFoot && hf[0] && t >= (RX.nx.idle || 0)) {
-            if (Number.isFinite(temp) && temp >= 30 && sunElevSin > 0.35 && Math.random() < 0.5) { rxGest('wipe', 1.4); rxSay('hot', RX_TXT.hot, 'Trời nóng', false); }
-            else if (Number.isFinite(temp) && temp <= 17 && !e.walking && RX.still > 2 && hf[1]) { rxGest('rub', 3); rxSay('cold', RX_TXT.cold, 'Trời lạnh', false); }
-            RX.nx.idle = t + 50 + Math.random() * 60;
+            else if (WX.coldK > 0.4 && left > 4 && Math.random() < 0.3) rxGest('rub', 3);
           }
+        }
+        // ---- THỜI TIẾT CẢM NHẬN (engineer/weather-feel.js WX): dáng liên tục + cử chỉ khi rảnh ----
+        //  lạnh: khom người, khép khuỷu tay sát sườn, đi nhanh hơn; rất lạnh thì run (engReactPost); rảnh tay: hơ lửa · khoanh tay ôm người (đứng yên) · xoa tay / hà hơi
+        //  nóng: đi nhanh hơn ngoài nắng; lau trán · quạt tay · quạt bằng bảng ghi chép — càng nóng càng dày · ướt mưa vào tới chỗ khô: phủi nước trên 2 bắp tay
+        //  nắng xiên chói (sáng sớm / chiều, trời quang) mà mặt hướng về phía mặt trời: che mắt nhìn
+        function rxWeather(e, dt, t, onFoot, seated) {
+          const ck = WX.coldK, hk = WX.hotK, sunny = WX.sun > 60;
+          if (onFoot && ck > 0.05) { e.lean += 0.05 * ck; if (!RX.gest) { const ft = e.elbowFlexT || (e.elbowFlexT = [0, 0]); ft[0] = Math.max(ft[0], 0.3 * ck); ft[1] = Math.max(ft[1], 0.3 * ck); } }
+          RX.shiv = e.seatCtl ? 0 : Math.max(0, (ck - 0.65) / 0.35);
+          if (onFoot && e.walking) e.spd *= 1 + 0.1 * Math.max(ck, sunny ? hk : 0);
+          if (RX.gest || RX.hold || t < (RX.nx.wx || 0) || (seated && rxTeaLeft(e) < 4)) return;
+          const hf = rxHands(e), clipHand = e.clip && e.clip.visible && rxHands(e, true)[1];
+          if (WX.wet > 0.12 && rxDry(e.g.position) && (onFoot || seated) && hf[0] && hf[1] && t >= (RX.nx.shake || 0)) { RX.nx.shake = t + 150; rxGest('shakeOff', 2.6); rxSay('wet', RX_TXT.wet, 'Ướt mưa', false); RX.nx.wx = t + 8; return; }
+          if (hk > 0.25 && (onFoot || seated)) {
+            const r = Math.random();
+            if (clipHand && onFoot && r < 0.35) rxGest('fanClip', 3.2); else if (hf[0] && r < 0.65) rxGest('fan', 2.6); else if (hf[0]) rxGest('wipe', 1.4);
+            if (RX.gest) rxSay('hot', hk > 0.75 ? RX_TXT.veryHot : RX_TXT.hot, 'Trời nóng', false);
+            RX.nx.wx = t + (40 - 25 * hk) * (0.7 + 0.6 * Math.random()); return;
+          }
+          const clipHug = hf[0] && !hf[1] && e.clip && e.clip.visible && rxHands(e, true)[1];   // đang cầm bảng ghi chép: ép bảng vào ngực, tay kia ôm bắp tay
+          if (ck > 0.25 && hf[0] && (hf[1] || clipHug)) {
+            const F = rxFire(e), r = Math.random();
+            if (F && hf[1] && (seated || RX.still > 1) && r < 0.5) rxGest('warm', 6, { F: F.clone() });
+            else if (onFoot && !e.walking && RX.still > 2 && (r < 0.75 || clipHug)) rxGest(ck > 0.6 || clipHug ? 'hug' : 'rub', ck > 0.6 || clipHug ? 5 : 3, { clip: clipHug });
+            else if (hf[1]) rxGest(WX.ta <= 12 ? 'blow' : 'rub', 2.6);
+            if (RX.gest) rxSay('cold', ck > 0.65 ? RX_TXT.veryCold : RX_TXT.cold, 'Trời lạnh', false);
+            RX.nx.wx = t + (45 - 25 * ck) * (0.7 + 0.6 * Math.random()); return;
+          }
+          if (onFoot && hf[0] && RX.still > 1 && sunElevSin > 0.05 && sunElevSin < 0.42 && WX.cloud < 45 && t >= (RX.nx.shade || 0)) {
+            const sx = sun.position.x - sun.target.position.x, sz = sun.position.z - sun.target.position.z, a = Math.atan2(sx, sz) - e.g.rotation.y;
+            if (Math.abs(Math.atan2(Math.sin(a), Math.cos(a))) < 1.1) {
+              RX.nx.shade = t + 240; rxGest('shade', 3); e.head.getWorldPosition(_rxA); const l = Math.hypot(sx, sz) || 1;
+              rxLook('glare', 3, 3, _rxB.set(_rxA.x + sx / l * 8, _rxA.y + 8 * Math.tan(Math.asin(Math.min(0.5, sunElevSin))) * 0.6, _rxA.z + sz / l * 8));
+            }
+          }
+          RX.nx.wx = t + 15;
+        }
+        function rxWxEvent(e, k) {   // alliesthesia (engineer/weather-feel.js): thở phào khi mát / ấm lại · rùng mình khi ra chỗ lạnh · che mắt khi ra nắng gắt
+          const hf = rxHands(e);
+          if (k === 'cool' || k === 'warm') { rxGest('relief', 2.2); rxSay('relief', k === 'cool' ? RX_TXT.cool : RX_TXT.warm2, k === 'cool' ? 'Mát mẻ' : 'Ấm áp', false); simMood(k === 'cool' ? 'Mát mẻ dễ chịu' : 'Ấm áp', 'happy', 1, 1); }
+          else if (k === 'brr') { const cl = hf[0] && !hf[1] && e.clip && e.clip.visible && rxHands(e, true)[1]; if (hf[0] && (hf[1] || cl)) rxGest('brr', 2.4, { clip: cl }); rxSay('brr', RX_TXT.brr, 'Trời lạnh', false); }
+          else if (hf[0]) { rxGest('shade', 2); rxLook('sky', 2.5, 1.2); rxSay('glare', RX_TXT.glare, 'Nắng gắt', false); }
         }
         // ---- sau lớp tư thế, TRƯỚC engSeatPost: lá (bắt, cầm, phủi), nhịp cử chỉ (đầu cúi, thân vặn), nhìn ----
         //      đích tay tính SAU engSeatPost (engReactArms) khi đầu đã quay / cúi xong khung này — tính trước thì tay "úp mũ" lệch khỏi mũ
@@ -315,6 +366,8 @@
           RX.pAdd = 0; RX.sp.x = RX.sp.y = 0;
           rxLeafTick(e, dt, t);
           rxGestStep(e, dt, t);
+          if (RX.shiv > 0) { RX.sp.y += 0.022 * RX.shiv * Math.sin(t * 46); RX.pAdd += 0.012 * RX.shiv * Math.sin(t * 53); }   // run lẩy bẩy (rất lạnh)
+          RX.pAdd += 0.06 * WX.coldK;   // lạnh: rụt cổ, cúi đầu
           rxGazeTick(e, dt, t);
           if (RX.sp.x || RX.sp.y) { const st = e.spineT; e.spineT = { x: (st ? st.x : 0) + RX.sp.x, y: (st ? st.y : 0) + RX.sp.y }; }
         }
@@ -346,14 +399,19 @@
           const G = RX.gest; if (!G) return;
           G.t += dt;
           if (G.t >= G.dur) { RX.gest = null; if (G.k === 'look' && RX.leaf && RX.leaf.st === 'held' && rxGest('drop', 0.9)) RX.gest.w = 1; return; }
-          const w = G.w = rxSS(G.t, 0, 0.3) * (1 - rxSS(G.t, G.dur - 0.35, G.dur)), hf = rxHands(e, G.k === 'shield' || G.k === 'cover'), u = G.t;
-          const need = G.k === 'clap' || G.k === 'rub' || G.k === 'warm' || G.k === 'shield' ? 2 : G.k === 'laugh' || G.k === 'cough' ? 0 : 1;
-          if ((need >= 1 && !hf[0]) || (need === 2 && !hf[1])) { if (G.k === 'cover' || G.k === 'helmet') { rxGestEnd(G); G.w = 0; } else RX.gest = null; return; }
+          const w = G.w = rxSS(G.t, 0, 0.3) * (1 - rxSS(G.t, G.dur - 0.35, G.dur)), hf = rxHands(e, G.k === 'shield' || G.k === 'cover' || G.k === 'fanClip' || ((G.k === 'hug' || G.k === 'brr') && G.clip)), u = G.t;
+          const need = G.k === 'clap' || G.k === 'rub' || G.k === 'warm' || G.k === 'shield' || G.k === 'blow' || G.k === 'hug' || G.k === 'brr' || G.k === 'shakeOff' ? 2 : G.k === 'laugh' || G.k === 'cough' || G.k === 'relief' ? 0 : 1;
+          if (G.k === 'fanClip' ? !hf[1] : (need >= 1 && !hf[0]) || (need === 2 && !hf[1])) { if (G.k === 'cover' || G.k === 'helmet') { rxGestEnd(G); G.w = 0; } else RX.gest = null; return; }
           if (G.k === 'brush') RX.pAdd += 0.25 * w;   // cúi đầu cho đỉnh mũ ngả tới
           else if (G.k === 'wave' || G.k === 'cough') RX.pAdd += 0.07 * Math.pow(Math.max(0, Math.sin(u * TAU * 1.3)), 6) * w;   // ho
           else if (G.k === 'clap' || G.k === 'laugh') { const b = Math.abs(Math.sin(u * 10)); RX.pAdd += (-0.05 + 0.05 * b) * w; RX.sp.x -= 0.03 * b * w; }   // cười rung vai
           else if (G.k === 'shield') RX.pAdd += 0.1 * w;
           else if (G.k === 'wipe') RX.pAdd -= 0.06 * w;
+          else if (G.k === 'blow') RX.pAdd += 0.12 * w;   // cúi vào lòng tay hà hơi
+          else if (G.k === 'brr') { RX.sp.y += 0.05 * Math.sin(u * 40) * w; RX.pAdd += 0.08 * w; }   // rùng mình
+          else if (G.k === 'relief') { const b = Math.sin(Math.PI * Math.min(1, u / 1.6)); RX.pAdd -= 0.2 * b * w; RX.sp.x -= 0.06 * b * w; }   // ngẩng mặt, ưỡn ngực thở phào
+          else if (G.k === 'shade') RX.pAdd -= 0.05 * w;
+          else if (G.k === 'shakeOff' && u > 1.9) e.headYawT = (e.headYawT || 0) + 0.35 * Math.sin((u - 1.9) * 22) * w;   // lắc đầu cho ráo tóc
           else if (G.k === 'pat') RX.sp.x += 0.5 * w * (RX.hold && RX.hold.k2 !== undefined ? RX.hold.k2 / 0.85 : 1);
           else if (G.k === 'warm') {   // vặn eo về phía lửa theo hướng thân (không theo ngực đang vặn ⇒ không cộng dồn); lửa lệch bên mà không vặn thì tay kia với không tới
             const ch = engBodyW(e, 0, 1.52, 0.1, _rxA), a = Math.atan2(G.F.x - ch.x, G.F.z - ch.z) - e.g.rotation.y;
@@ -403,7 +461,7 @@
               const F = G.F, ch = engBodyW(e, 0, 1.52, 0.1, _rxA), sf = Math.atan2(ax.f.x, ax.f.z), ra = Math.atan2(F.x - ch.x, F.z - ch.z) - sf;
               const a = Math.max(-0.45, Math.min(0.45, Math.atan2(Math.sin(ra), Math.cos(ra)))), sa = Math.sin(a), ca = Math.cos(a), rub = 0.015 * Math.sin(t * 7.5);   // góc lửa còn lại so với ngực (dương = bên trái)
               for (let i = 0; i < 2; i++) {
-                const sd = (i ? 1 : -1) * 0.12 + (i ? rub : -rub), p = engBodyW(e, sa * 0.34 + ca * sd, 1.52, 0.1 + ca * 0.34 - sa * sd, i ? _rxC : _rxD);
+                const sd = (i ? 1 : -1) * 0.12 + (i ? rub : -rub), p = engBodyW(e, sa * 0.34 * ENG_SLIM + ca * sd, 1.52, 0.1 + ca * 0.34 * ENG_SLIM - sa * sd, i ? _rxC : _rxD);
                 rxHand(e, i, p, rxQ(e, i, _rxB.set(Math.sin(sf + a), 0, Math.cos(sf + a)), i ? _rxQ2 : _rxQ), w);
               }
               break;
@@ -427,17 +485,47 @@
             case 'wipe': {   // lau mồ hôi trán bằng mu bàn tay phải
               const p = engBodyW(e, -0.2 + 0.32 * rxSS(u, 0.25, 0.95), 2.15, 0.31, _rxA); rxHand(e, 0, p, rxQ(e, 0, ax.f, _rxQ), w); break;
             }
+            case 'fan': {   // quạt tay phải trước mặt (nóng): bàn tay dựng, phẩy qua lại ~3 lần/giây
+              const sw = Math.sin(u * TAU * 3), p = engBodyW(e, -0.16 + 0.05 * sw, 2.0, 0.3, _rxA);
+              rxHand(e, 0, p, rxQ(e, 0, _rxB.copy(ax.f).negate().addScaledVector(ax.r, 0.8 * sw).normalize(), _rxQ), w); rxPole(e, 0, -1, -0.3, 0.2); break;
+            }
+            case 'fanClip': {   // quạt bằng bảng ghi chép tay trái
+              const sw = Math.sin(u * TAU * 2.6); engBodyW(e, 0.15 + 0.04 * sw, 1.98, 0.36, _rxC);
+              rxHandAt(e, 1, rxQ(e, 1, _rxB.copy(ax.f).negate().addScaledVector(ax.r, -0.9 * sw).normalize(), _rxQ2), RX_CLIP, _rxC, w); break;
+            }
+            case 'blow': {   // khum 2 tay trước miệng hà hơi (lạnh)
+              const sw = 0.012 * Math.sin(u * TAU * 1.2);
+              rxHand(e, 0, engBodyW(e, -0.035, 1.96 + sw, 0.29, _rxA), rxQ(e, 0, _rxB.copy(ax.r).negate(), _rxQ), w);
+              rxHand(e, 1, engBodyW(e, 0.035, 1.96 + sw, 0.29, _rxC), rxQ(e, 1, _rxD.copy(ax.r), _rxQ2), w); break;
+            }
+            case 'hug': case 'brr': {   // khoanh tay ôm người: bàn tay ôm bắp tay bên kia (co người giữ ấm) · 'brr': run mạnh, xoa lên xuống
+              const tr = (G.k === 'brr' ? 0.02 : 0.005) * Math.sin(t * 46), rb = G.k === 'brr' ? 0.05 * Math.sin(u * TAU * 2.2) : 0;
+              rxHand(e, 0, engBodyW(e, 0.27, 1.64 + rb + tr, 0.15, _rxA), rxQ(e, 0, _rxB.copy(ax.r).negate(), _rxQ), w); rxPole(e, 0, -1, -1, 0.4);
+              if (G.clip && e.clip && e.clip.visible) { engBodyW(e, 0.03, 1.58, 0.19, _rxC); rxHandAt(e, 1, rxQ(e, 1, _rxD.copy(ax.f).negate(), _rxQ2), RX_CLIP, _rxC, w); }   // ôm bảng ghi chép áp ngực
+              else { rxHand(e, 1, engBodyW(e, -0.27, 1.6 - rb - tr, 0.19, _rxC), rxQ(e, 1, _rxD.copy(ax.r), _rxQ2), w); rxPole(e, 1, 1, -1, 0.4); }
+              break;
+            }
+            case 'shade': {   // che mắt: lòng bàn tay úp ngang trán như vành mũ, nhìn về chỗ chói
+              rxHand(e, 0, engBodyW(e, -0.05, 2.2, 0.31, _rxA), rxQ(e, 0, _rxDn, _rxQ), w); rxPole(e, 0, -1, 0, 0.3); break;
+            }
+            case 'shakeOff': {   // phủi nước: tay phải vuốt bắp tay trái từ vai xuống, rồi tay trái vuốt bắp tay phải (cuối lắc đầu — rxGestStep)
+              if (u < 1.05) rxHand(e, 0, engBodyW(e, 0.3, 1.8 - 0.34 * rxSS(u, 0.2, 0.9), 0.13, _rxA), rxQ(e, 0, _rxB.copy(ax.r).negate(), _rxQ), w * (1 - rxSS(u, 0.85, 1.05)));
+              else if (u < 2.0) rxHand(e, 1, engBodyW(e, -0.3, 1.8 - 0.34 * rxSS(u, 1.15, 1.85), 0.13, _rxC), rxQ(e, 1, _rxD.copy(ax.r), _rxQ2), w * rxSS(u, 1.05, 1.25) * (1 - rxSS(u, 1.8, 2.0)));
+              break;
+            }
+            case 'relief': break;   // chỉ dáng đầu / ngực (rxGestStep)
             case 'pat': {   // xoa đầu chó: lòng tay úp lên đỉnh đầu, vỗ nhẹ 3 cái
               const hd = dogObj.userData.head.getWorldPosition(_rxA); hd.y += 0.08 + 0.035 * Math.max(0, Math.sin(u * TAU * 1.7));
               rxHand(e, 0, hd, rxQ(e, 0, _rxDn, _rxQ), w); break;
             }
+            default: envArms(e, G, w, u, ax);   // chìa tay cho bướm đậu · chỉ tay (engineer/env-react.js)
           }
         }
         function rxGazeTick(e, dt, t) {
           const free = rxGazeFree(e), P = RX.gp, G = RX.gest, L = RX.look; let bp = 0;
           const cand = (p, prio) => { if (prio > bp) { bp = prio; P.copy(p); } };
           if (L && t < L.until) cand(L.k === 'sky' ? rxSky(e, _rxA) : RX.lookP, L.prio);
-          if (G && (G.k === 'look' || G.k === 'catch' || G.k === 'drop' || (G.k === 'palm' && G.t > 0.5 && G.t < 1.5))) cand(e.wrists[0].getWorldPosition(_rxA), 3.2);
+          if (G && (G.k === 'look' || G.k === 'catch' || G.k === 'drop' || (G.k === 'palm' && G.t > 0.5 && G.t < 1.5) || (G.k === 'finger' && ENV.bf && ENV.bf.st === 'on'))) cand(e.wrists[0].getWorldPosition(_rxA), 3.2);
           if ((G && G.k === 'pat') || (RX.hold && RX.hold.k === 'pat')) cand(dogObj.userData.head.getWorldPosition(_rxA), 4);
           if (RX.leaf && (RX.leaf.st === 'track' || RX.leaf.st === 'catch')) cand(RX.leaf.q.p, 3);
           if (dogObj && !dogRain.st) {

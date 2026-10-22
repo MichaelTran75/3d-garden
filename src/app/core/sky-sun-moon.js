@@ -11,32 +11,33 @@
         function glowTex() { const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'); const gr = x.createRadialGradient(64, 64, 3, 64, 64, 64); gr.addColorStop(0, 'rgba(255,226,135,0.95)'); gr.addColorStop(0.4, 'rgba(255,200,80,0.4)'); gr.addColorStop(1, 'rgba(255,200,80,0)'); x.fillStyle = gr; x.fillRect(0, 0, 128, 128); return new THREE.CanvasTexture(c); }
         const sunGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), transparent: true, opacity: 0.25, blending: THREE.AdditiveBlending, depthWrite: false })); sunGlow.scale.set(24, 24, 1); sky.add(sunGlow);
         const skySun = new THREE.Mesh(new THREE.SphereGeometry(5, 18, 18), new THREE.MeshBasicMaterial({ color: 0xffd34a, transparent: true, opacity: 0.5 })); sky.add(skySun);
-        // ---- PHA TRĂNG theo góc lệch THẬT giữa trăng và mặt trời: vẽ đĩa trăng per-pixel (phần sáng/terminator/earthshine + biển trăng mờ) lên canvas,
-        //      phía sáng luôn ở +x của ảnh; mỗi khung xoay sprite cho phía sáng hướng về mặt trời trên màn hình ----
-        const moonCanvas = document.createElement('canvas'); moonCanvas.width = moonCanvas.height = 160;
-        const moonTex = new THREE.CanvasTexture(moonCanvas); moonTex.colorSpace = THREE.SRGBColorSpace;
-        const _maria = [[-0.32, -0.18, 0.34], [0.18, -0.3, 0.26], [0.05, 0.24, 0.3], [-0.08, 0.04, 0.17]];   // vùng biển trăng (maria) cố định
-        function drawMoonPhase(psi, shine) {   // psi: góc lệch trăng–mặt trời (0 = trăng non, π = trăng tròn), phần sáng luôn ở phía +x · shine: độ hiện phần khuất (ánh đất)
-          const ctx = moonCanvas.getContext('2d'), Sz = 160, R = 74, cx = Sz / 2, cy = Sz / 2;
-          ctx.clearRect(0, 0, Sz, Sz);
-          const img = ctx.createImageData(Sz, Sz), d = img.data;
-          const sx = Math.sin(psi), szn = -Math.cos(psi);   // hướng mặt trời trong hệ toạ độ trăng
-          for (let y = 0; y < Sz; y++) for (let x = 0; x < Sz; x++) {
-            const dx = (x - cx) / R, dy = (y - cy) / R, rr = dx * dx + dy * dy;
-            if (rr > 1) continue;
-            const z = Math.sqrt(1 - rr);
-            const lit = dx * sx + z * szn > 0;
-            let v = lit ? 1 : 0.16;                                          // phần khuất vẫn mờ nhẹ (earthshine)
-            if (lit) for (const m of _maria) { const mx = dx - m[0], my = dy - m[1]; if (mx * mx + my * my < m[2] * m[2]) { v = 0.8; break; } }
-            const edge = Math.min(1, (1 - Math.sqrt(rr)) * R * 0.9);         // viền mềm ~1px
-            const i = (y * Sz + x) * 4;
-            d[i] = Math.min(255, 233 * v + 18); d[i + 1] = Math.min(255, 238 * v + 18); d[i + 2] = Math.min(255, 246 * v + 20);
-            d[i + 3] = Math.round(255 * edge * (lit ? 0.92 : shine));
-          }
-          ctx.putImageData(img, 0, 0); moonTex.needsUpdate = true;
-        }
-        let _moonKey = '';
-        const skyMoon = new THREE.Sprite(new THREE.SpriteMaterial({ map: moonTex, color: 0xE2D6C0, transparent: true, opacity: 0.92, depthWrite: false })); skyMoon.scale.set(9.5, 9.5, 1); sky.add(skyMoon);
+        // ---- MẶT TRĂNG (G 19/10 "thay mặt trăng bằng mặt trăng mới từ glb"): ảnh bề mặt của mẫu "Moon" (Akshat, CC-BY-4.0) → models/moon.jpg 512 × 256 xám
+        //      (bản đồ trụ đẳng chữ nhật: giữa ảnh = kinh độ 0 — tâm mặt gần, phải = đông, trên = bắc). Tấm vuông luôn quay về camera (như sprite); shader dựng
+        //      bán cầu: điểm đĩa (x, y) → pháp tuyến (x, y, z = về phía người nhìn) → xoay theo hướng BẮC trăng trên màn hình (uNo: thiên cực bắc chiếu lên màn
+        //      hình) → kinh / vĩ độ trăng → màu bề mặt. PHA theo góc lệch THẬT trăng – mặt trời (uPsi: 0 = trăng non, π = trăng tròn) và hướng mép sáng trên màn
+        //      hình (uLi: về phía mặt trời); đường phân sáng mềm, phần khuất mờ (ánh đất, uShine). Trước khi ảnh tải xong: đĩa xám phẳng ----
+        const moonU = { uMap: { value: new THREE.DataTexture(new Uint8Array([170, 170, 170, 255]), 1, 1) }, uPsi: { value: Math.PI }, uLi: { value: 0 }, uNo: { value: 0 }, uShine: { value: 0.5 },
+          uCol: { value: new THREE.Color(0xE2D6C0) }, uOp: { value: 0.92 }, fogColor: { value: new THREE.Color() }, fogNear: { value: 1 }, fogFar: { value: 2000 } };
+        moonU.uMap.value.needsUpdate = true;
+        new THREE.TextureLoader().load(window.__moonJpg || 'https://michaeltran75.github.io/3d-garden/models/moon.jpg', t => { t.colorSpace = THREE.SRGBColorSpace; t.wrapS = THREE.RepeatWrapping; moonU.uMap.value = t; });   // đường dẫn tuyệt đối: bản một tệp nhúng Wix cũng nạp được
+        const skyMoon = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.ShaderMaterial({ uniforms: moonU, transparent: true, depthWrite: false, fog: true,
+          vertexShader: `#include <fog_pars_vertex>
+            varying vec2 vQ; void main() { vQ = position.xy * 2.0; vec4 mvPosition = modelViewMatrix * vec4(0.0, 0.0, 0.0, 1.0); mvPosition.xy += position.xy * vec2(length(modelMatrix[0].xyz), length(modelMatrix[1].xyz));
+              gl_Position = projectionMatrix * mvPosition;
+              #include <fog_vertex>
+            }`,
+          fragmentShader: `uniform sampler2D uMap; uniform float uPsi, uLi, uNo, uShine, uOp; uniform vec3 uCol; varying vec2 vQ;
+            #include <fog_pars_fragment>
+            void main() { float rr = dot(vQ, vQ); if (rr > 1.0) discard; float z = sqrt(1.0 - rr);
+              vec3 sv = vec3(sin(uPsi) * cos(uLi), sin(uPsi) * sin(uLi), -cos(uPsi)); float lit = smoothstep(-0.035, 0.05, dot(vec3(vQ, z), sv));
+              float c = cos(uNo), sn = sin(uNo); vec2 q = vec2(c * vQ.x + sn * vQ.y, -sn * vQ.x + c * vQ.y);
+              vec3 al = texture2D(uMap, vec2(0.5 + atan(q.x, z) / 6.2832, 0.5 + asin(clamp(q.y, -1.0, 1.0)) / 3.1416)).rgb;
+              gl_FragColor = vec4(uCol * (0.18 + 1.05 * al) * mix(0.16, 1.0, lit), clamp((1.0 - sqrt(rr)) * 60.0, 0.0, 1.0) * uOp * mix(uShine, 0.92, lit));
+              #include <tonemapping_fragment>
+              #include <colorspace_fragment>
+              #include <fog_fragment>
+            }` }));
+        skyMoon.scale.set(9.5, 9.5, 1); skyMoon.raycast = () => {}; sky.add(skyMoon);
         const _wp = new THREE.Vector3(), _mp = new THREE.Vector3(), _sunV = new THREE.Vector3(), _tv = new THREE.Vector3(), _nv = new THREE.Vector3(), _liC = new THREE.Color(), _bgC = new THREE.Color();   // scratch: updateSky chạy mỗi frame, không clone() mới
         const moonDayC = new THREE.Color(0xffffff), moonNightC = new THREE.Color(0xE2D6C0), mPathDay = new THREE.Color(0x3d4f6e), mPathNight = new THREE.Color(0xc9d3e6), sPathDay = new THREE.Color(0x000000), sPathNight = new THREE.Color(0xc2b190);   // đường chấm: sẫm trên nền trời ngày, sáng trên nền đêm
         const dayBg = new THREE.Color(0xE2D6C0), nightBg = new THREE.Color(0x44547d).multiplyScalar(0.8), duskBg = new THREE.Color(0xc89c74).multiplyScalar(0.8);
@@ -101,12 +102,14 @@
           const cpsi = Math.sin(sq.dec) * Math.sin(mq.dec) + Math.cos(sq.dec) * Math.cos(mq.dec) * Math.cos(sq.ra - mq.ra);
           skyMoon.visible = mh.el > -0.04 && cpsi < 0.975;
           if (skyMoon.visible) {
-            const dq = Math.round(dayF * 4) / 4, key = Math.round(Math.acos(Math.max(-1, cpsi)) * 90) + '|' + dq;   // vẽ lại khi pha đổi ~0,6° hoặc trời sáng/tối hẳn
-            if (key !== _moonKey) { _moonKey = key; drawMoonPhase(Math.acos(Math.max(-1, cpsi)), 0.5 * (1 - dq)); }
-            skyMoon.material.color.copy(moonNightC).lerp(moonDayC, dayF); skyMoon.material.opacity = 0.92 - 0.17 * dayF;
+            moonU.uPsi.value = Math.acos(Math.max(-1, cpsi)); moonU.uShine.value = 0.5 * (1 - dayF);   // pha + ánh đất tính trong shader mỗi khung (không vẽ lại ảnh)
+            moonU.uCol.value.copy(moonNightC).lerp(moonDayC, dayF); moonU.uOp.value = 0.92 - 0.17 * dayF;
             // phía sáng hướng về mặt trời: tiếp tuyến cung lớn trăng → mặt trời, chiếu lên màn hình
             _nv.copy(_mp).multiplyScalar(ORB); _tv.copy(_wp).addScaledVector(_mp, -_wp.dot(_mp)).multiplyScalar(8).add(_nv).project(camera); _nv.project(camera);
-            skyMoon.material.rotation = Math.atan2((_tv.y - _nv.y) * renderer.domElement.height, (_tv.x - _nv.x) * renderer.domElement.width);
+            moonU.uLi.value = Math.atan2((_tv.y - _nv.y) * renderer.domElement.height, (_tv.x - _nv.x) * renderer.domElement.width);
+            // bắc trăng ≈ thiên cực bắc (vĩ độ Pleiku trên chân trời phía bắc): tiếp tuyến tại trăng hướng về thiên cực, chiếu lên màn hình
+            _tv.copy(SKY_NORTH).multiplyScalar(Math.cos(SUN_LAT)).addScaledVector(SKY_UP, Math.sin(SUN_LAT)); _tv.addScaledVector(_mp, -_tv.dot(_mp)).multiplyScalar(8).addScaledVector(_mp, ORB).project(camera);
+            moonU.uNo.value = Math.atan2((_tv.y - _nv.y) * renderer.domElement.height, (_tv.x - _nv.x) * renderer.domElement.width) - Math.PI / 2;
           }
         }
         updateSky();

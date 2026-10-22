@@ -16,12 +16,13 @@
           const tp = E.tp || (E.tp = [E.th[0], E.th[1]]);
           const al = fixedSteps(E, dt, PHYS_H, (hh) => {   // con lắc tai: bước cố định 120 Hz (gia tốc thân giữ nguyên trong khung), vẽ nội suy
             for (let i = 0; i < 2; i++) {
-              const om = TAU * (i ? 2.4 : 2.0), rest = 0.1 + Math.sin(t * 4 + b.ph + i * 2.1) * 0.06;   // hơi ngả sau + khẽ ngoe nguẩy
+              const eb = b.earB || 0, om = TAU * (i ? 2.4 : 2.0), rest = 0.1 + 0.7 * eb + Math.sin(t * 4 + b.ph + i * 2.1) * 0.06 * (1 - Math.abs(eb));   // hơi ngả sau + khẽ ngoe nguẩy · earB: 1 úp ra sau (sợ / nghỉ), −0,2 dựng (animals/bunny-life.js)
               const acc = -om * om * (E.th[i] - rest) - 2 * 0.25 * om * E.w[i] + 0.15 * (fwd * Math.cos(E.th[i]) + up * Math.sin(E.th[i])) / 0.26;
               tp[i] = E.th[i]; E.w[i] += acc * hh; E.th[i] = Math.max(-0.6, Math.min(0.9, E.th[i] + E.w[i] * hh));
             }
           });
-          for (let i = 0; i < 2; i++) b.ears[i].rotation.z = tp[i] + (E.th[i] - tp[i]) * al;
+          for (let i = 0; i < 2; i++) { b.ears[i].rotation.z = tp[i] + (E.th[i] - tp[i]) * al; b.ears[i].rotation.y = (b.earY || 0) * Math.sin(t * 1.7 + i * 2.3); }   // earY: 2 tai xoay lệch nhau dò tiếng
+          if (b.nose) b.nose.scale.setScalar(1 + 0.2 * Math.max(0, Math.sin(t * TAU * (b.noseF || 3))));   // mũi hít: cảnh giác nhanh, nghỉ chậm
         }
         function bunnyRain(b, dt, t, rain) {   // true = thỏ đang đi trú / ngồi trú (tự lo dáng)
           if (rain && !b.shelter) {
@@ -50,7 +51,7 @@
           return true;
         }
         const dogDoorFar = vanPt(0.345, 0, 2.8), dogDoorStep = vanPt(0.345, 0, 1.85), dogInside = vanPt(0.345, TR.yIn, 0.66), dogBed = vanPt(-1.18, TR.yIn, 0.0);   // ổ chó: sàn cabin giữa 2 đế ghế trước (khe 0,58)
-        const dogLie = campObj.g.position.clone().add(new THREE.Vector3(Math.cos(-0.5) * 1.55, 0, Math.sin(-0.5) * 1.55));
+        const dogLie = campObj.g.position.clone().add(new THREE.Vector3(Math.cos(-0.8) * 1.8, 0, Math.sin(-0.8) * 1.8));   // G 19/10 kiểm lưới: góc −0,5 / 1,55 m cũ ⇒ chó nằm lấn chân giá treo nồi + mõm chạm vòng đá bếp; −1,2 ⇒ đuôi lấn đống củi. Quét quanh bếp bằng dấu chân phủ cả đầu + đuôi: −0,7 … −0,9 rad, 1,6–2,0 m trống
         const dogDoorField = buildFlowField(dogDoorFar.x, dogDoorFar.z), dogFireField = buildFlowField(dogLie.x, dogLie.z);
         const dogRain = { st: null, t: 0, yaw: 0 };
         let engPetting = false; const _petTgt = new THREE.Vector3();   // kỹ sư đang vuốt chó → chó vẫy đuôi

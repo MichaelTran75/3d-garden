@@ -564,7 +564,7 @@
         storkGeometry.computeVertexNormals();
         storkGeometry.boundingBox = new THREE.Box3(new THREE.Vector3(-98.4, -46.1, -82.5), new THREE.Vector3(98.4, 75.2, 96.1));
         storkGeometry.boundingSphere = new THREE.Sphere(); storkGeometry.boundingBox.getBoundingSphere(storkGeometry.boundingSphere);
-        const storkMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, metalness: 0, roughness: 1 });
+        const storkMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, metalness: 0, roughness: 1, side: THREE.DoubleSide });   // 2 mặt: gốc cổ khi đứng nối về thân kín thành mặt lật (G 19/10) — mặt sau vẫn chiếu sáng đúng (three lật pháp tuyến)
         let storkPoseTick = -1;
         // Mỗi con cò có bộ đỉnh bay riêng: nhịp vỗ 13 khung (lệch pha từng con) hoà dần về TƯ THẾ GỐC của GLB — chính là dáng dang cánh
         // phẳng tối đa (sải 1968, đầu cánh ngang vai) — khi đang hạ độ cao (b.glide → 1): cánh giữ như dù lượn, hơi vểnh chữ V (nhị diện);
@@ -716,7 +716,7 @@
           if (!force && !b.gw && b.poseTick === tick) return;   // đang đi (bàn chân trụ cố định): dựng lại mỗi khung, không chờ nhịp 30 Hz
           b.poseTick = tick; b.posePeck = peck; b.poseSleep = sleep; b.wingSpread = wingSpread;
           const base = storkDefinition.points, p = b.standing.geometry.attributes.position.array, fp = b.flightPos;   // tư thế bay riêng của con này
-          const c = Math.cos(peck), s = Math.sin(peck);
+          const c = Math.cos(peck), s = Math.sin(peck), c2 = Math.cos(peck * 0.5), s2 = Math.sin(peck * 0.5);
           const crouch = b.crouch, feet = b.footMix >= 0 ? b.footMix : sleep;   // crouch: gối chùn khi chạm đất (bàn chân giữ nguyên, hông hạ)
           const gw = b.gw || 0, hb = gw ? (b.hb || 0) : 0;
           for (let side = 0; side < 2; side++) {   // điểm đặt 2 bàn chân (dáng cũ ↔ bàn chân trụ khi đi) → IK
@@ -748,8 +748,17 @@
               const nz = uz + (lz - uz) * w, ny = uy + (ly - uy) * w;
               x += K.dx * Math.max(0, Math.min(1, (hy - y) / (STORK_LEG.L1 + STORK_LEG.L2)));
               z += (nz - z) * top; y += (ny - y) * top;
-            } else if ((part === 1 && z > 18) || part === 3 || part === 6 || part === 9) {
+            } else if (part === 1 && (z < 17.2 || (z < 21 && y < 4))) {   // + đỉnh họng sát ức (y < 4) — nâng cổ ít nên thành gai chĩa xuống trước ngực
+              // G 19/10 khoanh: thân lúc bay (vai gốc cánh rộng ±9–13, cao 13–15) thò ra 2 bên gốc cổ thành vạt tam giác khi đứng — thân kín (storkTorsoGeometry)
+              //  thuôn về ức chỉ rộng ±3 ⇒ khi đứng thu cả thân bay về 1 điểm trên lưng thân kín sát ức: mặt giữa các đỉnh đó thành 0, vòng gốc cổ (z 17,3–17,7) nối
+              //  về điểm đó thành hình nón liền vào ức (ép vai vào trong mà giữ mặt nối ⇒ lỗ hở + mảnh tam giác mảnh như sợi chỉ)
+              x = 0.7; y = 9.5; z = 14;   // điểm trên lưng thân kín sát ức ⇒ gáy dốc liền xuống lưng
+            } else if ((part === 1 && z > 17.2) || part === 3 || part === 6 || part === 9) {
               // Raise the extended flight neck for standing. The head and bill remain level.
+              // G 20/10 khoanh lần 2: VÒNG GỐC CỔ (6 đỉnh z 17,3–17,7, y ≥ 4) trước không thuộc nhánh nào ⇒ đứng yên ở dáng bay: rộng ±5,6 cao tới y 15,1 (ống cổ
+              //  ngay trên chỉ ±3,5) thành "cổ áo" hình thoi, còn cổ xoay khi mổ / ngửa ⇒ mặt nối giãn thành tấm vạt dựng đứng. Nay vòng thu về tiết diện ống cổ và
+              //  xoay theo cổ nửa góc (gốc cổ cong mềm, không gập)
+              const ring = part === 1 && z < 18; if (ring) { x = 0.7 + (x - 0.7) * 0.65; y = 9.5 + (y - 9.5) * 0.6; }
               const rise = Math.min(32, Math.max(0, z - 18));
               let sy = y + rise * 1.05, sz = z - rise * .76;
               let ty, tz, tx = x;
@@ -761,7 +770,7 @@
               }
               x += (tx - x) * sleep; y = sy + (ty - sy) * sleep; z = sz + (tz - sz) * sleep;
               if (hb) z += hb * storkSmooth(rise / 26);   // gật đầu khi đi: đầu đứng yên trong không gian rồi vươn tới (cổ co–duỗi, gốc cổ giữ nguyên)
-              if (peck) { const dy = y - 7, dz = z - 18; y = 7 + dy * c - dz * s; z = 18 + dy * s + dz * c; }
+              if (peck) { const dy = y - 7, dz = z - 18, cc = ring ? c2 : c, ss = ring ? s2 : s; y = 7 + dy * cc - dz * ss; z = 18 + dy * ss + dz * cc; }
             }
             const mix = b.groundMix;
             p[offset] = fp[offset] + (x - fp[offset]) * mix;
@@ -826,6 +835,34 @@
           b.gw = 1;
         }
         function storkWalkOff(b) { b.gw = 0; b.hb = 0; if (b.walk) b.walk.init = false; }
+        // ---- ĐƯỜNG BAY THEO CỘT KHÍ NÓNG (G 19/10 "do research about cò behaviour then improve, also improve flying paths") ----
+        //  Cò trắng là chim bay lượn: vỗ cánh tốn sức gấp nhiều lần nên chỉ vỗ lúc cất / hạ cánh, khi bay thấp hoặc trời không có cột khí nóng (sáng sớm,
+        //  chiều muộn, âm u); còn lại LƯỢN VÒNG trong cột khí nóng để lên cao rồi LƯỢN THẲNG sang cột kế, sụt dần. Số đo GPS cò trắng (Ákos et al. 2008,
+        //  PNAS 105: 4139): vòng bán kính ~21 m, nghiêng ~23°, 15,5 s/vòng, lên ~0,9 m/s; lượn thẳng ~12 m/s, sụt ~1,1 m/s. Cột khí nóng mọc trên đất khô
+        //  có nắng (không trên mặt nước), mạnh theo độ cao mặt trời, yếu khi nhiều mây, trôi theo gió thật; 2 con cùng cột thì lượn cùng chiều. Cảnh thu
+        //  nhỏ: vòng R 18 đv, 7,5 đv/s (~15 s/vòng), lượn thẳng 10 đv/s sụt 0,9 đv/s. Nắng gắt bay lượn lâu, sáng / chiều kiếm ăn lâu hơn.
+        //  Rời đường bay sang chặng hạ cánh / về cành: điểm điều khiển đầu nối liền vận tốc đang bay (Hermite) — không bẻ lái gấp ----
+        const STK_T = [{ x: 0, z: 0, life: 0, dir: 1 }, { x: 0, z: 0, life: 0, dir: -1 }], STK_R = 18;
+        function stkLift() {   // sức cột khí nóng 0–1
+          const w = liveWeather.state, c = w.fresh && w.data?.current && Number.isFinite(w.data.current.cloud_cover) ? w.data.current.cloud_cover / 100 : 0.3;
+          return w.raining ? 0 : Math.max(0, Math.min(1, (sunElevSin - 0.15) / 0.45)) * (1 - 0.75 * c);
+        }
+        function stkThermals(dt) {   // trôi theo gió; ra khỏi đảo / hết đời ⇒ cột mới trên đất khô phía đầu gió
+          const w = liveWeather.state, a = (w.windDirection ?? 200) * Math.PI / 180, sp = Math.min(1.6, (w.windSpeed || 0) / 3.6 * 0.25);
+          for (const T of STK_T) {
+            T.x -= Math.sin(a) * sp * dt; T.z += Math.cos(a) * sp * dt; T.life -= dt;
+            if (T.life <= 0 || Math.hypot(T.x, T.z) > 62) for (let k = 0; k < 12; k++) {
+              const r = 10 + Math.random() * 40, q = Math.random() * TAU, x = Math.cos(q) * r + Math.sin(a) * 15, z = Math.sin(q) * r - Math.cos(a) * 15;
+              if (!isWater(Math.round(x2gi(x)), Math.round(z2gj(z)))) { T.x = x; T.z = z; T.life = 150 + Math.random() * 200; break; }
+            }
+          }
+        }
+        function storkFly(b, mode) {   // vào pha bay: giữ hướng + tốc độ đang có, nhắm cột khí nóng gần nhất
+          const s = stkLift(), p = b.m.position; b.state = 'fly'; b.fm = s < 0.2 ? 'flap' : mode; b.hd = b.m.rotation.y; b.v = Math.max(4, Math.hypot(b.flightVX || 0, b.flightVZ || 0) || 6);
+          b.th = Math.hypot(STK_T[0].x - p.x, STK_T[0].z - p.z) < Math.hypot(STK_T[1].x - p.x, STK_T[1].z - p.z) ? 0 : 1;
+          b.flyRemaining = 40 + 130 * s + b.rng() * 30; b.groundMix = 0;
+        }
+        function stkC1(b, dur) { const p = b.pathStart; b.pathC1.set(p.x + b.flightVX * dur / 6, Math.max(p.y, b.pathC1.y), p.z + b.flightVZ * dur / 6); }   // nối vận tốc bay vào chặng mới
         function storksAwake() { const hour = liveWeather.localHour; return hour >= 6 && hour < 19 && !liveWeather.state.raining; }   // mưa → bay về đậu cành cây cổ thụ như lúc tối
         function makeCodeStork(index) {
           const dayWalkingOnly = index === 2;
@@ -848,7 +885,7 @@
           const b = {
             m, flight, flightGeo, flightPos, glide: 0, wingBank: 0, prevY: null, flapPhase: index * .43 / 1.3, flapAmp: 1, wingSweep: 0, legDrop: 0, flare: 0,
             settle: -1, settlePitch: 0, settleFoot: new THREE.Vector3(), contactFoot: new THREE.Vector3(), crouch: 0, footMix: -1, tripTotal: 0, standing, torso, foldedWings, toes, caughtFish, index, dayWalkingOnly, r: 30 + index * 12, h: 34 + index * 7, ang: index * Math.PI, sp: .18 + index * .05,
-            state: 'fly', awake: storksAwake(), elapsed: 0, flyRemaining: 34 + index * 13, groundMix: 0, poseTick: -1,
+            state: 'fly', awake: storksAwake(), elapsed: 0, flyRemaining: 34 + index * 13, groundMix: 0, poseTick: -1, hd: Math.PI - index * Math.PI, v: 7, fm: 'glide', th: index & 1,
             perch: storkPerch(index), roostTarget: new THREE.Vector3(), foot: new THREE.Vector3(), wadeTarget: new THREE.Vector3(), wadeRemaining: 0,
             launchStartFoot: new THREE.Vector3(), launchEndFoot: new THREE.Vector3(), launchFoot: new THREE.Vector3(), flightVX: 0, flightVY: 0, flightVZ: 0,
             pathStart: new THREE.Vector3(), pathC1: new THREE.Vector3(), pathC2: new THREE.Vector3(), pathEnd: new THREE.Vector3(), tripDuration: 0,
@@ -914,10 +951,12 @@
             b.state = 'sleep'; b.m.rotation.y = b.perch.heading; b.m.position.copy(b.roostTarget).add(treeWindAt(oldTreeWind, b.perchFoot, _storkSway));
             poseStandingStork(b, 0, 1, 0, 0, true);
           } else {
-            b.state = 'wade'; b.wadeRemaining = b.dayWalkingOnly ? Infinity : 44 + b.index * 11; b.peckElapsed = -1; b.nextPeck = 4 + b.index * 2; b.fg = null; b.oneLeg = 0; pickStorkWadeTarget(b);
+            b.state = 'wade'; b.wadeRemaining = b.dayWalkingOnly ? Infinity : 40 + 90 * (1 - stkLift()) + b.index * 11; b.peckElapsed = -1; b.nextPeck = 4 + b.index * 2; b.fg = null; b.oneLeg = 0; pickStorkWadeTarget(b);
+            for (const o of birds) if (o !== b && o.state === 'wade' && Math.hypot(o.foot.x - b.foot.x, o.foot.z - b.foot.z) < 9) { stkGreet(b, o); stkGreet(o, b); break; }   // đáp cạnh bạn: chào nhau
             storkBodyAtFoot(b, b.foot, b.m.position); poseStandingStork(b, 0, 0, 0, 0, true);
           }
         }
+        function stkGreet(b, o) { const F = b.fg || (b.fg = { st: 'walk', t: 0, dur: 1.5, rest: 50 + b.rng() * 90, pre: 4 }); F.st = 'greet'; F.t = 0; F.dur = 2.6 + b.rng() * 0.8; F.o = o; b.caughtFish.visible = false; }
         function settleStork(b, dt, seconds) {
           b.settle += dt;
           const t = b.settle, perched = b.state === 'return';
@@ -942,7 +981,7 @@
           // An airborne bird changes its route without trying to run in midair.
           if (b.state === 'preflight' || b.state === 'runup' || b.state === 'climb') { b.launchDestination = destination; return; }
           if (b.state !== 'wade' && b.state !== 'sleep') {
-            if (destination === 'return') { storkRoostTarget(b); beginStorkTrip(b, 'return', b.roostTarget, 24 + b.index * 3); }
+            if (destination === 'return') { const fl = b.state === 'fly'; storkRoostTarget(b); beginStorkTrip(b, 'return', b.roostTarget, 24 + b.index * 3); if (fl) stkC1(b, 24 + b.index * 3); }
             else if (destination === 'feeding') {
               const heading = b.m.rotation.y; b.m.rotation.y = Math.PI; storkBodyAtFoot(b, b.foot, storkScratch); b.m.rotation.y = heading;
               beginStorkTrip(b, 'landing', storkScratch, 24);
@@ -970,18 +1009,7 @@
           if (b.dayWalkingOnly) return;
           startStorkDeparture(b, 'orbit', seconds);
         }
-        function joinStorkOrbit(b, seconds) {
-          const duration = 12;
-          b.ang = Math.atan2(b.m.position.z, b.m.position.x) - (b.launchOnBranch ? -.4 : 1.2);
-          const endTime = seconds + duration;
-          storkScratch.set(Math.cos(b.ang) * b.r, b.h + Math.sin(endTime * .6 + b.r) * 1.4, Math.sin(b.ang) * b.r);
-          beginStorkTrip(b, 'join', storkScratch, duration);
-          // Hermite endpoint velocities join the straight ascent smoothly to the circular orbit.
-          b.pathC1.set(b.pathStart.x + b.flightVX * duration / 3, b.pathStart.y + b.flightVY * duration / 3, b.pathStart.z + b.flightVZ * duration / 3);
-          b.pathC2.set(b.pathEnd.x - Math.sin(b.ang) * b.r * b.sp * duration / 3,
-            b.pathEnd.y - .84 * Math.cos(endTime * .6 + b.r) * duration / 3,
-            b.pathEnd.z + Math.cos(b.ang) * b.r * b.sp * duration / 3);
-        }
+        function joinStorkOrbit(b, seconds) { storkFly(b, 'flap'); }   // sau khi cất cánh / đổi ý giữa chặng: vỗ cánh lấy độ cao rồi tìm cột khí nóng
         function updateStorkDeparture(b, dt, seconds) {
           b.launchElapsed += dt;
           if (b.state === 'preflight') {
@@ -1031,7 +1059,7 @@
           }
         }
         function updateStorkLife(dt, seconds) {
-          const awake = storksAwake();
+          const awake = storksAwake(); stkThermals(dt);
           updateCodeStork(seconds);
           for (const b of birds) {
             if (b.gw && !(b.state === 'wade' || ((b.state === 'preflight' || b.state === 'runup') && !b.launchOnBranch))) storkWalkOff(b);   // rời mặt nước / bay: chân về dáng cũ
@@ -1044,15 +1072,27 @@
             if (b.state === 'preflight' || b.state === 'runup' || b.state === 'climb') {
               updateStorkDeparture(b, dt, seconds);
             } else if (b.state === 'fly') {
-              b.ang -= b.sp * dt; b.flyRemaining -= dt;
-              b.m.position.set(Math.cos(b.ang) * b.r, b.h + Math.sin(seconds * .6 + b.r) * 1.4, Math.sin(b.ang) * b.r);
-              const vyFly = 1.4 * 0.6 * Math.cos(seconds * .6 + b.r);   // tốc độ lên/xuống của quỹ đạo lượn sóng
-              b.wingBank = -(0.12 + 0.08 * b.glide);                   // vòng tròn rẽ trái đều: nghiêng thân vào tâm vòng
-              b.m.rotation.set(Math.max(-0.12, Math.min(0.12, -vyFly * 0.08)), Math.PI - b.ang, b.wingBank); b.groundMix = 0;
-              if (b.flyRemaining <= 0) {
+              b.flyRemaining -= dt;
+              const p = b.m.position, T = STK_T[b.th], lift = stkLift(), dx = T.x - p.x, dz = T.z - p.z, d = Math.hypot(dx, dz), top = 30 + 16 * lift;
+              let hd = Math.atan2(dx, dz), vs = 0, sp = 7.5;
+              if (b.fm === 'circle' || d < STK_R * 2.6) hd -= T.dir * (Math.PI / 2 - Math.max(-0.5, Math.min(0.5, (d - STK_R) / STK_R)));   // vòng quanh tâm cột (trôi theo gió): tiếp tuyến + chỉnh về R; tới gần thì vào theo đường xoắn cùng chiều cột
+              if (b.fm === 'circle') {   // lượn 2–4 vòng, lên đều tới đỉnh cột
+                b.ct -= dt; vs = Math.max(0.05, Math.min(0.5 + 0.6 * lift, (top - p.y) / Math.max(4, b.ct)));
+                if (b.ct <= 0 || p.y >= top || lift < 0.15) { b.fm = 'glide'; b.th = 1 - b.th; }   // rời cột: lượn thẳng sang cột kia
+              } else if (b.fm === 'glide') { sp = 10; vs = -0.9; if (d < STK_R * 1.35) { b.fm = 'circle'; b.ct = 30 + b.rng() * 30; } else if (p.y < 22) b.fm = 'flap'; }   // lượn thẳng: không vỗ, sụt dần
+              else {   // vỗ cánh: lên tầng cột khí nóng; trời không có cột thì vỗ – lượn qua lại giữa 2 điểm
+                sp = 6.5; vs = p.y < 27 ? 1.3 : -0.2;
+                if (d < STK_R * 1.35) { if (lift >= 0.2) { b.fm = 'circle'; b.ct = 30 + b.rng() * 30; } else b.th = 1 - b.th; } else if (p.y >= 27 && lift >= 0.2) b.fm = 'glide';
+              }
+              const tr = Math.max(-0.75, Math.min(0.75, Math.atan2(Math.sin(hd - b.hd), Math.cos(hd - b.hd)) * 3)); b.hd += tr * dt; b.v += (sp - b.v) * Math.min(1, dt * 0.8);
+              b.flightVX = Math.sin(b.hd) * b.v; b.flightVY = vs; b.flightVZ = Math.cos(b.hd) * b.v;
+              p.x += b.flightVX * dt; p.y += vs * dt; p.z += b.flightVZ * dt;
+              b.wingBank = Math.max(-0.42, Math.min(0.42, -tr * 0.95));   // vòng R 18 ở 7,5 đv/s ⇒ ~0,42 rad/s ⇒ nghiêng ~23° như cò thật
+              b.m.rotation.x += (Math.max(-0.2, Math.min(0.2, -Math.atan2(vs, b.v))) - b.m.rotation.x) * Math.min(1, dt * 3); b.m.rotation.y = b.hd; b.m.rotation.z += (b.wingBank - b.m.rotation.z) * Math.min(1, dt * 3); b.groundMix = 0;
+              if (b.flyRemaining <= 0 && b.fm !== 'circle') {
                 b.foot.copy(storkFishingCenter); b.foot.x += b.index === 0 ? -1.2 : 1.2; b.foot.z += b.index === 0 ? -.6 : .6;
                 const heading = b.m.rotation.y; b.m.rotation.y = Math.PI; storkBodyAtFoot(b, b.foot, storkScratch); b.m.rotation.y = heading;
-                beginStorkTrip(b, 'landing', storkScratch, 23 + b.index * 2);
+                const dur = Math.max(16, Math.min(30, p.distanceTo(storkScratch) / 6)); beginStorkTrip(b, 'landing', storkScratch, dur); stkC1(b, dur);
               }
             } else if (b.state === 'landing' || b.state === 'return' || b.state === 'join') {
               b.elapsed += dt;
@@ -1135,6 +1175,11 @@
                 const k = F.t; peck = k < 0.35 ? -0.8 * storkSmooth(k / 0.35) : k < 0.75 ? -0.8 + 0.18 * Math.sin((k - 0.35) * Math.PI * 5) : -0.8 * (1 - storkSmooth((k - 0.75) / 0.4));
                 b.caughtFish.visible = k < 0.6;
                 if (k >= 1.15) { b.caughtFish.visible = false; b.peckSuccess = false; go('walk', 1.4 + r() * 2.2); }
+              } else if (F.st === 'greet') {   // CHÀO NHAU (up-down, đặc trưng cò trắng): quay về phía bạn, ngửa đầu ra sau gần chạm lưng, gõ mỏ lách cách (đầu rung nhanh), cúi xuống — 2–3 nhịp, cánh hơi xoè
+                const k = F.t, o = F.o.foot, env = storkSmooth(k / 0.3) * storkSmooth((F.dur - k) / 0.4), up = 0.5 + 0.5 * Math.cos(k * 4.2);
+                const hd = Math.atan2(o.x - b.foot.x, o.z - b.foot.z); b.m.rotation.y += Math.atan2(Math.sin(hd - b.m.rotation.y), Math.cos(hd - b.m.rotation.y)) * Math.min(1, dt * 3);
+                peck = env * (-1.05 * up + 0.25 * (1 - up) + 0.05 * Math.sin(k * 75) * up); wing = 0.3 * env;
+                if (k > F.dur) go('walk', 1.4 + r() * 2.2);
               } else {   // NGHỈ: đứng 1 chân, rụt cổ; rỉa lông từng đợt; có khi duỗi cánh; hết giờ thì hạ chân, đi tiếp
                 const end = F.t > F.dur;
                 legT = end ? 0 : storkSmooth((F.t - 0.4) / 0.8);
@@ -1154,7 +1199,7 @@
               const airborne = (b.state === 'fly' || b.state === 'landing' || b.state === 'return' || b.state === 'join') && !(b.settle >= 0);
               const vy = b.prevY === null ? 0 : (b.m.position.y - b.prevY) / Math.max(dt, 1e-3); b.prevY = b.m.position.y;
               let want = 0;
-              if (airborne) { want = vy < -0.12 ? 1 : vy > 0.1 ? 0 : (b.glideWant || 0); if ((b.state === 'landing' || b.state === 'return') && b.elapsed > b.tripDuration * 0.55) want = 1; }
+              if (airborne) { want = b.state === 'fly' && b.fm !== 'flap' ? 1 : vy < -0.12 ? 1 : vy > 0.1 ? 0 : (b.glideWant || 0); if ((b.state === 'landing' || b.state === 'return') && b.elapsed > b.tripDuration * 0.55) want = 1; }
               b.glideWant = want; b.glide += (want - b.glide) * Math.min(1, dt * 1.6);
               if (b.flare > 0) b.glide = Math.min(b.glide, 1 - b.flare);           // vào phanh: thôi lượn, vỗ hãm
               const landingCtl = b.settle >= 0 || b.state === 'landing' || b.state === 'return';

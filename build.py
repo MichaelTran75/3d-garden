@@ -24,8 +24,8 @@ HERE = pathlib.Path(__file__).resolve().parent
 SRC = HERE / 'src'
 SINGLE = HERE.parent / '3D garden.html'
 STAMP = HERE / '.single-stamp'          # băm của bản một tệp dựng lần trước (không đưa lên git)
-MODELS_KB = 2500                         # trần dung lượng THÔ của models/ (KB) — mẫu tải sau, không tính vào ngân sách gzip bên dưới (18/10: 1500 → 2200 khi thêm xe Transit GLB transit.bin ~550 KB; 2200 → 2500 cho tệp trọng số mạng nơ-ron của kỹ sư)
-BUDGET_KB = {'js/app.js': 490, 'tổng': 510}   # ngân sách dung lượng NÉN gzip (KB) người xem phải tải — vượt thì --check báo lỗi (14/10: 380 → 400 khi thêm chim sẻ + thuyền; 15/10: G nâng 420/440; 16/10: bỏ cả chú thích cuối dòng ⇒ app.js 420 → 359 KB, còn trống ~60 KB; 17/10 khuya: G nâng 440/460 để dựng lại xe theo Ford Transit L3H2; 18/10: G nâng 490/510 cho kỹ sư tự chủ + mạng nơ-ron)
+MODELS_KB = 2900                         # trần dung lượng THÔ của models/ (KB) — mẫu tải sau, không tính vào ngân sách gzip bên dưới (18/10: 1500 → 2200 khi thêm xe Transit GLB transit.bin ~550 KB; 2200 → 2500 cho tệp trọng số mạng nơ-ron của kỹ sư); 19/10: 2500 → 2900 cho kính thiên văn + thiên hà mini + mặt trăng GLB (G duyệt)
+BUDGET_KB = {'js/app.js': 750, 'tổng': 775}   # ngân sách dung lượng NÉN gzip (KB) người xem phải tải — vượt thì --check báo lỗi (14/10: 380 → 400 khi thêm chim sẻ + thuyền; 15/10: G nâng 420/440; 16/10: bỏ cả chú thích cuối dòng ⇒ app.js 420 → 359 KB, còn trống ~60 KB; 17/10 khuya: G nâng 440/460 để dựng lại xe theo Ford Transit L3H2; 18/10: G nâng 490/510 cho kỹ sư tự chủ + mạng nơ-ron); 19/10: G nâng 500/520 cho radio táp-lô, kính thiên văn + thiên hà mini, chó ngắm sao, cò bay theo cột khí nóng; 21/10: G nâng 750/775 (bảng Tools: kính thiên văn, cắt cỏ, câu cá, drone, Farming, ghế đọc sách uống trà, bỏ củi lò — app.js 503 KB, tăng ~29 KB/ngày từ 16/10)
 args = set(sys.argv[1:])
 
 def die(msg):

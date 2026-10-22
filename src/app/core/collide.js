@@ -143,9 +143,9 @@
           const ca = Math.cos(ang), sa = Math.sin(ang), g = cowY(x, z), C = COL.C, na = Math.max(1, Math.round(a / C)), nb = Math.max(1, Math.round(b / C));
           let n = 0;
           for (let i = -na; i <= na; i++) for (let j = -nb; j <= nb; j++) {
-            const u = i / na, v = j / nb; if (u * u + v * v > 1) continue;
+            const u = i / na, v = j / nb; if ((a > 1.5 * b ? u ** 4 + v ** 4 : u * u + v * v) > 1) continue;   // thân dài (bò, hươu, chó, gấu mèo): siêu elip gần chữ nhật, phủ ~93% khối thân hộp — elip chỉ ~78% ⇒ góc thân lấn thân cây không bị bắt (G 19/10); người giữ tròn
             const px = x + ca * u * a - sa * v * b, pz = z + sa * u * a + ca * v * b;
-            if (colHit(mask, px, pz, g + lo, g + hi)) n += 1 - 0.9 * (u * u + v * v);
+            if (colHit(mask, px, pz, g + lo, g + hi)) n += 1 - 0.9 * Math.min(1, u * u + v * v);
           }
           return n;
         }
@@ -209,7 +209,7 @@
         // xoay tại chỗ: thân dài (bò, hươu) quét vào thân cây / cột / con bên cạnh ⇒ chỉ xoay nếu không lấn sâu hơn — cho CHẠM NHẸ (≤ 4% dấu chân,
         // ≤ 5 cm với con khác): bò gặm cỏ trên mặt đập cách lan can 0,95 m vẫn quay người được (mõm quệt lan can), không thành "kẹt"
         function colFootW(M) {   // tổng trọng số mẫu của dấu chân (độ lấn khi cả dấu chân nằm trong vật)
-          if (M.W === undefined) { const na = Math.max(1, Math.round(M.a / COL.C)), nb = Math.max(1, Math.round(M.b / COL.C)); M.W = 0; for (let i = -na; i <= na; i++) for (let j = -nb; j <= nb; j++) { const q = (i / na) ** 2 + (j / nb) ** 2; if (q <= 1) M.W += 1 - 0.9 * q; } }
+          if (M.W === undefined) { const na = Math.max(1, Math.round(M.a / COL.C)), nb = Math.max(1, Math.round(M.b / COL.C)); M.W = 0; for (let i = -na; i <= na; i++) for (let j = -nb; j <= nb; j++) { const u = i / na, v = j / nb; if ((M.a > 1.5 * M.b ? u ** 4 + v ** 4 : u * u + v * v) <= 1) M.W += 1 - 0.9 * Math.min(1, u * u + v * v); } }
           return M.W;
         }
         function colTurnOK(M, x, z, a0, a1) {
@@ -219,17 +219,31 @@
           if (COL.movers.length) { const m1 = colMoverHits(M, x, z, a1); if (m1 > 0.05 && m1 > colMoverHits(M, x, z, a0) + 1e-4) return false; }
           return true;
         }
-        // thoát kẹt (bước "depenetration" của character controller): thân lấn > 8% vào vật (sau lượt xuyên, bị đặt / sinh ra trong vật) mà không
+        // thoát kẹt (bước "depenetration" của character controller): thân lấn > 2% vào vật (G 19/10: 8% ⇒ bò / hươu đứng ăn, nằm nghỉ vẫn lấn thân cây) (sau lượt xuyên, bị đặt / sinh ra trong vật) mà không
         // trong lượt xuyên ⇒ đẩy dần ra phía thoáng nhất trong 8 hướng (≤ 0,6 m/s) → [x, z] hoặc null. Đang thoáng thì 4 lần/giây mới dò
         function colPushOut(M, x, z, ang, dt) {
           if (!COL.ready || M.ghost > 0 || !M.on()) return null;
           if (!M.pin && (M.pt = (M.pt || 0) - dt) > 0) return null;
           const mk = M.mask(), f = (px, pz) => colFH(M, px, pz, ang, mk), h0 = f(x, z);
-          if (h0 <= 0.08 * colFootW(M)) { M.pin = false; M.pt = 0.25; return null; }
+          if (h0 <= 0.02 * colFootW(M)) { M.pin = false; M.pt = 0.25; return null; }
           let bx = 0, bz = 0, bh = h0;
           for (let k = 0; k < 8; k++) { const dx = Math.cos(k * Math.PI / 4), dz = Math.sin(k * Math.PI / 4), h = f(x + dx * 0.25, z + dz * 0.25); if (h < bh) { bh = h; bx = dx; bz = dz; } }
           M.pin = bh < h0; if (!M.pin) { M.pt = 0.25; return null; }
           return [x + bx * 0.6 * dt, z + bz * 0.6 * dt];
+        }
+        // LƯỚI THẬT không lấn vật (G 19/10 "check mesh của tất cả động vật sẽ ko va chạm vào các vật khác"): dấu chân lấy mẫu ô 12,5 cm theo khối thân to nhất
+        //  bỏ sót đầu / cổ / đuôi và vật mảnh (thanh lan can bệ tua-bin, chân giá treo nồi) ⇒ 4 lần/giây thử đỉnh lưới THẬT (cách 1 đỉnh lấy 1) của bò, hươu, chó:
+        //  đỉnh cao hơn mặt đứng ≥ 12 cm mà lọt trong khoảng đặc (lớp 0–2; cành thấp thì cho chạm) ⇒ đẩy con vật ra xa trọng tâm các điểm lấn 0,1 m / lần
+        const COL_MESH = [];
+        function colMeshAdd(root, M, get, set) { const P = []; root.traverse(o => { if (o.isMesh && !o.isInstancedMesh && o.geometry.attributes.position) for (let i = 0; i < o.geometry.attributes.position.count; i += 2) P.push(o, i); }); COL_MESH.push({ M, get, set, P, t: Math.random() * 0.25 }); }
+        function colMeshTick(dt) {
+          for (const S of COL_MESH) {
+            if ((S.t -= dt) > 0 || !S.M.on() || S.M.ghost > 0) continue; S.t = 0.25;
+            const mk = S.M.mask() & 7; let hx = 0, hz = 0, n = 0;
+            for (let k = 0; k < S.P.length; k += 2) { const o = S.P[k], a = o.geometry.attributes.position; if (!a.array) continue; _clV.fromBufferAttribute(a, S.P[k + 1]).applyMatrix4(o.matrixWorld);
+              if (_clV.y > colWalkY(_clV.x, _clV.z, _clV.y, 0) + 0.12 && colHit(mk, _clV.x, _clV.z, _clV.y - 0.02, _clV.y + 0.02)) { hx += _clV.x; hz += _clV.z; n++; } }
+            if (!n) continue; const [x, z] = S.get(), dx = x - hx / n, dz = z - hz / n, d = Math.hypot(dx, dz) || 1; S.set(x + dx / d * 0.1, z + dz / d * 0.1);
+          }
         }
         function colDims(root, pick) {   // khối thân lớn nhất (hệ gốc con vật): nửa dài a theo +x (mũi), nửa rộng b theo z, đỉnh / đáy — đv thế giới
           root.updateWorldMatrix(true, true);
@@ -243,12 +257,15 @@
         {
           const m = (o) => colMoverAdd(Object.assign({ stuck: 0, ghost: 0, ignore: null, mask: () => 7 }, o));
           cows.forEach(c => { const D = colDims(c.g.userData.torso || c.g), S = c.g.scale.y;
-            // dải cao tới LƯNG bò (~1,6 m × cỡ con; bản đầu lấy đỉnh thân theo hệ toạ độ của thân ⇒ chỉ tới 1,13–1,26 m, cành ngang lưng xuyên qua) + lớp cành thấp
-            c.col = m({ kind: 'cow', a: D.a + 0.1 * S, b: D.b, lo: 0.3 * S, hi: 1.6 * S, w: 4, x: () => c.x, z: () => c.z, ang: () => c.ang, on: () => c.g.visible,
+            // dấu chân kéo dài ra trước phủ cả CỔ + ĐẦU (G 19/10 kiểm lưới thú: bò nằm dưới tán, đầu / cổ lấn vào thân cây) · dải cao tới LƯNG bò (~1,6 m × cỡ con; bản đầu lấy đỉnh thân theo hệ toạ độ của thân ⇒ chỉ tới 1,13–1,26 m, cành ngang lưng xuyên qua) + lớp cành thấp
+            c.col = m({ kind: 'cow', a: D.a + 0.55 * S, ox: 0.45 * S, b: D.b, lo: 0.3 * S, hi: 1.6 * S, w: 4, x: () => c.x, z: () => c.z, ang: () => c.ang, on: () => c.g.visible,
               mask: () => (c.state === 'scratch' && c.rub && c.rub.st === 'rub') ? 0 : c.mode === 'home' || (c.state === 'drink' && c.sub2 !== 'go') || (c.state === 'drink' && Math.hypot(cowHut.x + cowHut.W / 2 + 2.4 - c.x, cowHut.z + 0.75 - c.z) < 3.5) ? 9 : 13 }); });   // vào ô chuồng / tới máng: bỏ lớp chuồng (lộ trình riêng)
-          if (stag) { const D = colDims(stag.g, o => !/chân|leg|móng|hoof/i.test(o.name)); stag.col = m({ kind: 'deer', a: D.a, b: D.b, lo: 0.35, hi: Math.min(1.35, Math.max(1.1, D.top)), w: 2, x: () => stag.x, z: () => stag.z, ang: () => -stag.g.rotation.y, on: () => stag.g.visible }); }
-          { const D = colDims(dogObj.userData.torso); COL_M.dog = m({ kind: 'dog', a: D.a + 0.12, b: D.b, ox: D.ox, lo: 0.12, hi: Math.max(0.45, D.top), w: 1, x: () => dogObj.position.x, z: () => dogObj.position.z, ang: () => -dogObj.rotation.y, on: () => !dogRain.st,
+          for (const c of cows) colMeshAdd(c.g, c.col, () => [c.x, c.z], (x, z) => { if (cowOK(x, z)) { c.x = x; c.z = z; } });
+          if (stag) { const D = colDims(stag.g, o => !/chân|leg|móng|hoof/i.test(o.name)); stag.col = m({ kind: 'deer', a: D.a + 0.3, ox: 0.25, b: D.b, lo: 0.35, hi: 1.75, w: 2, x: () => stag.x, z: () => stag.z, ang: () => -stag.g.rotation.y, on: () => stag.g.visible }); }
+          { const D = colDims(dogObj.userData.torso); COL_M.dog = m({ kind: 'dog', a: D.a + 0.12, b: D.b, ox: D.ox, lo: 0.12, hi: Math.max(0.68, D.top), w: 1, x: () => dogObj.position.x, z: () => dogObj.position.z, ang: () => -dogObj.rotation.y, on: () => !dogRain.st,
             ignore: o => o.kind === 'eng' && (engPetting || !!dogBrain.state.patAt || engObj.phase === 'toDog' || engObj.phase === 'pet') }); }
+          if (stag) colMeshAdd(stag.g, stag.col, () => [stag.x, stag.z], (x, z) => { stag.x = x; stag.z = z; });
+          colMeshAdd(dogObj, COL_M.dog, () => [dogObj.position.x, dogObj.position.z], (x, z) => { dogObj.position.x = x; dogObj.position.z = z; });
           { const D = colDims(raccoonObj.userData.torso); COL_M.rac = m({ kind: 'rac', a: D.a + 0.1, b: D.b, ox: D.ox + 0.05, lo: 0.1, hi: Math.max(0.35, D.top), w: 1, x: () => raccoonObj.position.x, z: () => raccoonObj.position.z, ang: () => -raccoonObj.rotation.y, on: () => raccoonObj.visible, mask: () => /^(den|exit|enter|out|toMouth)$/.test(raccoonBrain.state.st) || Math.hypot(raccoonObj.position.x - racHome.x, raccoonObj.position.z - racHome.z) < 2.5 ? 0 : 7 }); }   // chui ra / vào hang (khúc gỗ rỗng dài 7,6 m — trước chỉ bỏ trong 2,5 m quanh giữa ⇒ kẹt ở 2 đầu gỗ) và đoạn miệng hang ↔ bãi: lộ trình riêng
           bunnies.forEach(b => { const D = colDims(b.g); b.col = m({ kind: 'bunny', a: D.a, b: D.b, lo: 0.12, hi: Math.max(0.5, D.top), w: 0.5, x: () => b.x, z: () => b.z, ang: () => b.ang, on: () => b.g.visible, mask: () => b.shelter ? 5 : 7 }); });   // trú mưa sát vách xe: bỏ lớp xe
           COL_M.eng = m({ kind: 'eng', a: 0.24, b: 0.24, lo: 0.25, hi: 1.85, w: 2, x: () => engObj.g.position.x, z: () => engObj.g.position.z, ang: () => 0, on: () => !engObj.inVan && engObj.g.parent === scene && engObj.phase !== 'van',

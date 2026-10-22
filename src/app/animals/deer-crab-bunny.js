@@ -225,13 +225,13 @@
           const crBody = new THREE.Mesh(new THREE.ConeGeometry(0.085, 0.32, 7), bunnyCarrotMat); crBody.rotation.x = Math.PI; crBody.position.y = 0.16; crBody.castShadow = true; carrot.add(crBody);
           for (let i = 0; i < 3; i++) { const lf = bx(0.045, 0.16, 0.045, bunnyLeafMat, false, false); lf.position.y = 0.38; lf.rotation.z = (i - 1) * 0.5; lf.rotation.y = i * 2.1; carrot.add(lf); }
           const mound = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 6), bunnyMoundMat); mound.scale.y = 0.32; mound.position.set(0.62, 0.02, 0); mound.visible = false; g.add(mound);
-          g.userData.ears = ears; g.userData.head = head; g.userData.paws = paws; g.userData.carrot = carrot; g.userData.mound = mound; return g;
+          g.userData.ears = ears; g.userData.head = head; g.userData.paws = paws; g.userData.tail = tail; g.userData.nose = nose; g.userData.carrot = carrot; g.userData.mound = mound; return g;
         }
         const bunnyCarrotMat = new THREE.MeshLambertMaterial({ color: 0xe8762c }), bunnyLeafMat = new THREE.MeshLambertMaterial({ color: 0x4f8a3d }), bunnyMoundMat = new THREE.MeshLambertMaterial({ color: 0x6e5744 });
         (function () {
           const bx0 = X0 + 31, bz0 = Z0 + 110, g = bunny();
           g.scale.setScalar(0.8 * 0.8 * 0.8 * 0.9 * NATURE_SCALE); // nhỏ đi thêm 20% (G 17/10: thêm 20% nữa) · G 18/10: nhỏ thêm 10%
           g.position.set(bx0, cowY(bx0, bz0), bz0); g.rotation.y = Math.random() * 6.28; scene.add(g);
-          bunnies.push({ g, ears: g.userData.ears, head: g.userData.head, paws: g.userData.paws, carrot: g.userData.carrot, mound: g.userData.mound, x: bx0, z: bz0, ang: Math.random() * 6.28, spd: 2.4, state: 'sniff', tmr: 1 + Math.random() * 2, ph: Math.random() * 6, hop: 0, digTmr: 60 });
+          bunnies.push({ g, ears: g.userData.ears, head: g.userData.head, paws: g.userData.paws, tail: g.userData.tail, nose: g.userData.nose, carrot: g.userData.carrot, mound: g.userData.mound, x: bx0, z: bz0, ang: Math.random() * 6.28, spd: 2.4, state: 'sniff', tmr: 1 + Math.random() * 2, ph: Math.random() * 6, hop: 0, digTmr: 60 });
         })();
 

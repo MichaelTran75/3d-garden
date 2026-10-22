@@ -16,15 +16,20 @@
         const SIM_DO = {   // việc → (nhu cầu: +/giờ) · nhãn đang làm · moodlet khi đang làm [tên, cảm xúc, trọng số] · moodlet sau khi xong [tên, cảm xúc, trọng số, giờ]
           sleep: { lab: 'Đang ngủ' }, eat: { hunger: 320, fun: 8, lab: 'Đang ăn', after: ['Bữa ăn ngon', 'happy', 1, 3] },
           toilet: { bladder: 2400, lab: 'Đi vệ sinh' }, shower: { hygiene: 2400, fun: 6, lab: 'Đang tắm', after: ['Sảng khoái', 'energized', 1, 4] },
-          wash: { hygiene: 120, lab: 'Rửa ráy, rửa bát' }, work: { fun: 8, social: 4, energy: -2, lab: 'Nghiên cứu ở bàn học', mood: ['Đang tập trung', 'focused', 2] },
+          wash: { hygiene: 120, lab: 'Rửa ráy, rửa bát' }, clean: { hygiene: 30, fun: -2, lab: 'Dọn nhà vệ sinh, nhà tắm', after: ['Phòng tắm sạch sẽ', 'happy', 1, 2] }, work: { fun: 8, social: 4, energy: -2, lab: 'Nghiên cứu ở bàn học', mood: ['Đang tập trung', 'focused', 2] },
           explore: { curiosity: 130, fun: 12, social: 4, lab: 'Đi dạo khám phá', mood: ['Tò mò khám phá', 'inspired', 1], after: ['Mở mang tầm mắt', 'inspired', 1, 2] },   // Mọt công nghệ: việc máy tính có vui · nhắn nhóm kỹ thuật
           music: { fun: 28, social: 12, lab: 'Học bài, nghe nhạc', mood: ['Nhạc hay', 'happy', 1] }, read: { fun: 20, social: 7, curiosity: 30, lab: 'Đọc sách', mood: ['Đắm chìm trang sách', 'inspired', 1] },
           fish: { fun: 24, hygiene: -2, social: 7, curiosity: 10, lab: 'Câu cá', mood: ['Thư thái bên hồ', 'happy', 1] }, tea: { energy: 5, fun: 10, bladder: -14, social: 7, lab: 'Uống trà', after: ['Trà nóng', 'happy', 1, 1] },   // việc ngoài trời: chó quanh quẩn bên cạnh (+7 giao tiếp)
           nap: { energy: 22, lab: 'Chợp mắt', after: ['Chợp mắt ngon', 'energized', 1, 2] }, pet: { social: 80, fun: 25, lab: 'Vuốt ve pet', after: ['Pet quấn quýt', 'happy', 1, 3] },
           drone: { fun: 45, social: 7, curiosity: 40, lab: 'Bay drone', mood: ['Hào hứng', 'playful', 2], after: ['Bay drone đã tay', 'playful', 1, 2] },
+          appleEat: { hunger: 160, fun: 10, lab: 'Ăn táo', after: ['Táo giòn ngọt', 'happy', 1, 2] },
           apples: { fun: 16, hunger: 20, hygiene: -2, social: 7, curiosity: 15, lab: 'Hái táo', after: ['Táo ngọt', 'happy', 1, 2] }, cook: { fun: 10, hygiene: -2, lab: 'Nấu ăn', mood: ['Bếp thơm', 'inspired', 1] },
           sit: { energy: 2, lab: 'Ngồi nghỉ' }, engine: { fun: 10, curiosity: 60, lab: 'Kiểm tra máy xe' },
-          trim: { energy: -14, hygiene: -16, fun: 6, curiosity: 6, lab: 'Cắt cỏ quanh trại', mood: ['Lao động chân tay', 'focused', 1], after: ['Trại gọn gàng', 'happy', 1, 4] }, walk: { fun: 2, social: 7, curiosity: 15, lab: 'Đi lại' }, shelter: { fun: -3, lab: 'Trú mưa dưới hiên', mood: ['Mưa rả rích', 'sad', 1] }
+          trim: { energy: -14, hygiene: -16, fun: 6, curiosity: 6, lab: 'Cắt cỏ quanh trại', mood: ['Lao động chân tay', 'focused', 1], after: ['Trại gọn gàng', 'happy', 1, 4] }, walk: { fun: 2, social: 7, curiosity: 15, lab: 'Đi lại' },
+          stars: { fun: 34, curiosity: 55, energy: 10, lab: 'Ngắm sao', mood: ['Bầu trời đầy sao', 'inspired', 1], after: ['Thấy sao băng', 'happy', 1, 2] },
+          rainwatch: { fun: 22, energy: 6, curiosity: 8, lab: 'Ngắm mưa', mood: ['Nghe mưa rơi', 'happy', 1] },
+          wood: { fun: 8, hygiene: -4, lab: 'Bỏ củi vào lò' },
+          garden: { fun: 18, curiosity: 16, social: 6, hygiene: -6, lab: 'Chăm luống cà rốt', mood: ['Tay lấm đất', 'focused', 1], after: ['Luống xanh tốt', 'happy', 1, 3] }, shelter: { fun: -3, lab: 'Trú mưa dưới hiên', mood: ['Mưa rả rích', 'sad', 1] }
         };
         const SIM_OUT = new Set(['fish', 'walk', 'tea', 'drone', 'apples', 'pet']);   // tính cách ngầm (Sims 4 Geek · Dog Lover · Loves Outdoors) chỉ chỉnh tốc độ, không hiện chữ (G 18/10)
         const SIM_EMO = {   // cảm xúc Sims 4 → tên + màu viên kim cương
@@ -36,21 +41,21 @@
           hygiene: ['Hơi hôi', 'Bốc mùi', 'embarrassed'], fun: ['Cần giải trí', 'Chán ngấy', 'tense'], social: ['Cô đơn', 'Rất cô đơn', 'sad'], curiosity: ['Thèm khám phá', 'Bứt rứt muốn đi', 'tense'] };
         const SIM_SKILLS = [   // khoá · nhãn · icon · việc cộng giờ · ngày bắt đầu ở trại
           ['logic', 'Nghiên cứu (Logic)', 'ti-flask', 'work', '2026-10-05'], ['fishing', 'Câu cá', 'ti-fish', 'fish', '2026-10-05'], ['cooking', 'Nấu ăn', 'ti-chef-hat', 'cook', '2026-10-05'],
-          ['gardening', 'Làm vườn', 'ti-plant-2', ['apples', 'trim'], '2026-10-17'], ['drone', 'Điều khiển drone', 'ti-drone', 'drone', '2026-10-17']];
+          ['gardening', 'Làm vườn', 'ti-plant-2', ['apples', 'trim', 'garden'], '2026-10-17'], ['drone', 'Điều khiển drone', 'ti-drone', 'drone', '2026-10-17']];
         const SIM_LV = [0, 2, 5, 10, 17, 27, 40, 56, 76, 100];   // giờ tích luỹ để đạt cấp 1…10
         const SIM_JOB = ['Thực tập sinh', 'Kỹ thuật viên', 'Engineer tập sự', 'Engineer', 'Engineer chính', 'Trưởng nhóm kỹ thuật', 'Chuyên gia', 'Chuyên gia cao cấp', 'Trưởng phòng kỹ thuật', 'Giám đốc kỹ thuật'];
         const SIM_DOG0 = '2026-10-05', SIM_WORK_DAY = 5.8;   // giờ nghiên cứu theo lịch / ngày ⇒ hiệu suất 100%
         const sim = { n: {}, moods: [], doing: 'walk', hour: null, today: {}, day: '', perDay: null, panel: null, open: false, last: 0 };
         function simDoing(e) {   // việc đang làm thật → lớp việc của bảng tốc độ
-          const hh = liveWeather.localHour; if (hh >= 21 || hh < 6) return 'sleep';
+          const hh = liveWeather.localHour; if (hh >= ENG_SLEEP_H || hh < 6) return 'sleep';
           const V = e.inVan && e.van, st = V && V.station, ph = e.phase;
           if (V) {
-            if (st === 'wc') return 'toilet'; if (st === 'shower' || st === 'towel') return 'shower'; if (st === 'sink' || st === 'dishes') return 'wash';
+            if (st === 'wc') return 'toilet'; if (st === 'cleanWc' || st === 'cleanBath') return 'clean'; if (st === 'shower' || st === 'towel') return 'shower'; if (st === 'sink' || st === 'dishes') return 'wash';
             if (st === 'table') return 'eat'; if (st === 'desk') return e.act === 'music' ? 'music' : 'work'; if (st === 'stove') return 'cook'; if (st === 'bed') return 'sit';
             return 'walk';
           }
           return ph === 'eat' || ph === 'eatFish' ? 'eat' : ph === 'fish' ? 'fish' : ph === 'read' ? 'read' : ph === 'tea' || ph === 'drink' ? 'tea' : ph === 'nap' ? 'nap'
-            : ph === 'pet' ? 'pet' : ph === 'drone' ? 'drone' : ph === 'apple' ? 'apples' : ph === 'engine' ? 'engine' : ph === 'trim' ? 'trim' : ph === 'explore' ? 'explore' : ph === 'shelter' ? 'shelter' : 'walk';
+            : ph === 'pet' ? 'pet' : ph === 'drone' ? 'drone' : ph === 'apple' ? 'apples' : ph === 'appleEat' ? 'appleEat' : ph === 'engine' ? 'engine' : ph === 'trim' ? 'trim' : ph === 'explore' ? 'explore' : ph === 'shelter' ? 'shelter' : ph === 'stars' ? 'stars' : ph === 'rainwatch' ? 'rainwatch' : ph === 'garden' ? 'garden' : ph === 'wood' ? 'wood' : 'walk';
         }
         function simSched(h) {   // việc theo LỊCH ENG_DAY (tua lúc mở trang): việc của khung giờ + phút đã qua trong khung
           const s = engScheduleAt(h), a = s.act; let t0 = 0; for (const [x, act] of ENG_DAY) if (x <= h && act === a) t0 = x; const m = (h - t0) * 60;
@@ -69,10 +74,11 @@
             sim.doing = doing;
           }
         }
-        function simInit(h) {   // tua lịch từ 21:00 hôm trước tới giờ h (bước 2 phút)
+        function simMood(name, emo, w, hours) { sim.moods = sim.moods.filter(m => m.name !== name); sim.moods.push({ name, emo, w, left: hours }); }   // moodlet có hạn (vd. thở phào khi mát / ấm lại — engineer/reactions.js)
+        function simInit(h) {   // tua lịch từ giờ ngủ hôm trước (ENG_SLEEP_H) tới giờ h (bước 2 phút)
           sim.n = { hunger: 45, bladder: 55, energy: 18, hygiene: 75, fun: 55, social: 45, curiosity: 60 }; sim.moods = []; sim.today = {}; sim.doing = 'sleep';
-          const span = (h - 21 + 24) % 24, st = 1 / 30;
-          for (let x = 0; x < span; x += st) { const hx = (21 + x) % 24; if (hx < st) sim.today = {}; simStep(simSched(hx), Math.min(st, span - x), hx); }
+          const span = (h - ENG_SLEEP_H + 24) % 24, st = 1 / 30;
+          for (let x = 0; x < span; x += st) { const hx = (ENG_SLEEP_H + x) % 24; if (hx < st) sim.today = {}; simStep(simSched(hx), Math.min(st, span - x), hx); }
           sim.hour = h;
         }
         function simPerDay() {   // giờ / ngày theo lịch cho từng việc (kỹ năng)
@@ -84,6 +90,7 @@
           for (const [k] of SIM_NEEDS) { const v = sim.n[k], s = SIM_LOW[k]; if (v < 12) L.push({ name: s[1], emo: s[2], w: 3 }); else if (v < 30) L.push({ name: s[0], emo: s[2], w: 1 }); }
           const D = SIM_DO[sim.doing]; if (D && D.mood) L.push({ name: D.mood[0], emo: D.mood[1], w: D.mood[2] });
           if (SIM_OUT.has(sim.doing) && engObj && !engObj.inVan && !liveWeather.state.raining) L.push({ name: 'Thích ngoài trời', emo: 'happy', w: 1 });   // tính cách Thích ngoài trời
+          wxMoods(L);   // nóng nực · lạnh run · ướt mưa · trời đẹp (engineer/weather-feel.js)
           for (const m of sim.moods) L.push(m);
           const sum = {}; for (const m of L) sum[m.emo] = (sum[m.emo] || 0) + m.w;
           let best = 'fine', bw = 0; for (const k in sum) if (sum[k] > bw) { bw = sum[k]; best = k; }
@@ -109,20 +116,20 @@
           const U = sim.panel; if (!U) return;
           const E = simEmotion(), [ename, ecol] = SIM_EMO[E.emo];
           U.emo.textContent = (E.w >= 3 && E.emo !== 'fine' ? 'Rất ' + ename.toLowerCase() : ename); U.plum.style.background = ecol;
-          U.doing.textContent = sim.msg || (SIM_DO[simDoing(engObj)]?.lab || '') + (AUTO.act ? (AUTO.cmd ? ' · theo lệnh' : ' · tự chọn') : '');
+          U.doing.textContent = sim.msg || (SIM_DO[simDoing(engObj)]?.lab || '') + (engForceAct || AUTO.cmd && AUTO.act ? ' · theo lệnh' : AUTO.act ? ' · tự chọn' : '');   // lệnh: bấm dụng cụ / bảng Tools (engForceAct) hoặc bấm thanh nhu cầu
           U.moods.replaceChildren(...E.L.slice(0, 6).map(m => { const c = document.createElement('span'); c.className = 'sim-mood'; c.style.borderColor = SIM_EMO[m.emo][1]; c.textContent = m.name + ' +' + m.w; c.title = SIM_EMO[m.emo][0]; return c; }));
           for (const [k] of SIM_NEEDS) { const v = sim.n[k] ?? 60, b = U.needs[k]; b.fill.style.width = v.toFixed(1) + '%'; b.fill.style.background = simColor(v); b.row.title = Math.round(v) + '/100 · bấm: Engineer đi lấp nhu cầu này'; b.row.classList.toggle('sim-go', AUTO.cmd && !!AUTO.act && sim.cmdNeed === k); }
           if (!sim.perDay) sim.perDay = simPerDay();
           for (const [k, , , doing, since] of SIM_SKILLS) {
             const h = [].concat(doing).reduce((a, d) => a + simDays(since) * (sim.perDay[d] || 0) + (sim.today[d] || 0), 0); let lv = 1;   // kỹ năng có thể cộng nhiều việc (Làm vườn: hái táo + cắt cỏ) while (lv < 10 && h >= SIM_LV[lv]) lv++;
             const p = lv >= 10 ? 1 : (h - SIM_LV[lv - 1]) / (SIM_LV[lv] - SIM_LV[lv - 1]), b = U.skills[k];
-            b.r.textContent = 'Cấp ' + lv; b.fill.style.width = (p * 100).toFixed(1) + '%'; b.fill.style.background = '#35536c'; b.row.title = h.toFixed(1) + ' giờ luyện';
+            b.r.textContent = ''; b.fill.style.width = (p * 100).toFixed(1) + '%'; b.fill.style.background = '#35536c'; b.row.title = h.toFixed(1) + ' giờ luyện';
           }
           const d = simDays(SIM_DOG0), fr = Math.min(100, 45 + 2.4 * d + 0.5 * 60 * (sim.today.pet || 0)), tier = fr > 80 ? 'Bạn thân' : fr >= 60 ? 'Bạn tốt' : fr >= 40 ? 'Bạn' : fr >= -20 ? 'Người quen' : 'Không ưa';
-          U.dog.r.textContent = tier; U.dog.fill.style.width = fr.toFixed(1) + '%'; U.dog.fill.style.background = '#2f5f22'; U.dog.row.title = 'Tình bạn ' + Math.round(fr) + '/100';
+          U.dog.r.textContent = ''; U.dog.fill.style.width = fr.toFixed(1) + '%'; U.dog.fill.style.background = '#2f5f22'; U.dog.row.title = 'Tình bạn ' + Math.round(fr) + '/100';
           const lv = Math.min(10, 3 + Math.floor(d / 5)), focus = E.emo === 'focused' ? 1.15 : 1, perf = Math.min(1, (sim.today.work || 0) / SIM_WORK_DAY * focus);
-          U.job.r.textContent = SIM_JOB[lv - 1] + (perf >= 1 ? ' ✓' : ''); U.job.fill.style.width = (perf * 100).toFixed(1) + '%'; U.job.fill.style.background = perf >= 1 ? '#71581e' : '#2f5f22';
-          U.job.row.title = 'Cấp ' + lv + ' · ' + Math.round(perf * 100) + '% (Tập trung khi làm: +15%)';
+          U.job.r.textContent = perf >= 1 ? '✓' : ''; U.job.fill.style.width = (perf * 100).toFixed(1) + '%'; U.job.fill.style.background = perf >= 1 ? '#71581e' : '#2f5f22';   // G 22/10: bỏ chữ cấp, chức danh, mức quan hệ — chỉ còn thanh
+          U.job.row.title = Math.round(perf * 100) + '% (Tập trung khi làm: +15%)';
         }
         function simCommand(k) {   // bấm thanh nhu cầu: giao việc (theo lệnh) hoặc báo lý do 3 s
           const why = autoCommand(k); sim.cmdNeed = k; sim.msg = why || '→ ' + ENG_ACTS[AUTO.act].label + ' (theo lệnh)';
@@ -139,7 +146,7 @@
           const h = liveWeather.localHour, day = new Date().toDateString();
           if (sim.hour === null) simInit(h);
           let dt = h - sim.hour; if (dt < -12) dt += 24;
-          if (dt < 0 || dt > 0.2) simInit(h); else if (dt > 0) { if (sim.hour > h) sim.today = {}; simStep(simDoing(engObj), dt, h); }   // qua nửa đêm: giờ hôm nay về 0
+          if (dt < 0 || dt > 0.2) simInit(h); else if (dt > 0) { if (sim.hour > h) sim.today = {}; simStep(simDoing(engObj), dt, h); wxNeeds(dt); }   // nóng / lạnh: tụt thêm (engineer/weather-feel.js)   // qua nửa đêm: giờ hôm nay về 0
           if (day !== sim.day) { sim.day = day; sim.perDay = null; }
           sim.hour = h; if (sim.open) simRender();
         }

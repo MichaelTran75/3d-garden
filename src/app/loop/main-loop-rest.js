@@ -13,8 +13,12 @@
             f.g.rotation.set(0, -f.ang, f.pitch);
             f.swT = (f.swT ?? t) + dt; f.swim(f.swT, f.wob);   // sóng thân chạy đầu→đuôi + uốn theo hướng rẽ (đồng hồ riêng: đuổi lá thì quẫy nhanh hơn)
           }
+          carrotBed.update(dt, t);   // luống cà rốt lớn dần, đất ướt sau tưới / mưa (engineer/carrot-garden.js)
           for (const b of bunnies) {                                  // chú thỏ: random-walk + mỗi 60s đào 1 củ cà rốt lên ăn
+            if (b.bed && (liveWeather.state.raining || !daytimeAnimals.visible)) carrotBed.bunnyCancel(b);
             if (bunnyRain(b, dt, t, liveWeather.state.raining)) continue;   // mưa: trú dưới hiên caravan
+            if (carrotBed.bunny(b, dt, t)) { bunnyEars(b, dt, t); continue; }   // có khóm chín ở luống: nhảy tới nhổ ăn
+            if (bunnyLife(b, dt, t, cowY(b.x, b.z))) { bunnyEars(b, dt, t); continue; }   // tập tính: cảnh giác, sợ – dậm chân – chạy, rửa mặt, nghỉ trưa, flop, binky (animals/bunny-life.js)
             const gy = cowY(b.x, b.z);
             if (b.state === 'dig') {
               b.tmr -= dt;
@@ -44,7 +48,7 @@
               b.digTmr -= dt; b.tmr -= dt;
               if (b.digTmr <= 0) { b.state = 'dig'; b.tmr = 7.2; b.hop = 0; b.g.rotation.x = 0; }      // tới giờ: dừng mọi việc, đào cà rốt (7.2s = x3)
               else if (b.tmr <= 0) {
-                if (b.state === 'sniff') { b.state = 'hop'; b.tmr = 1.4 + Math.random() * 2.2; b.ang += (Math.random() - 0.5) * 2.4; }
+                if (b.state === 'sniff') { b.state = 'hop'; b.tmr = 0.35 + Math.random() * 0.6; b.ang += (Math.random() - 0.5) * 1.6; }   // gặm – nhảy 1–2 cú – gặm (trước nhảy liền 1,4–3,6 s)
                 else { b.state = 'sniff'; b.tmr = (1.2 + Math.random() * 2.6) * 3; } // dừng ăn cỏ lâu gấp 3 lần (3.6s - 11.4s)
               }
               if (b.state === 'hop') {
@@ -67,6 +71,7 @@
           const rainNow = liveWeather.state.raining;
           if (insectsAwake) {
             for (const bf of butterflies) {
+              if (bf.mode === 'hand' && envBflyHand(bf, dt, t)) continue;   // đang bay tới / đậu trên tay kỹ sư (engineer/env-react.js)
               if (bflyShelter(bf, dt, t, rainNow)) continue;   // mưa: đậu cành cây cổ thụ
               if (animateInsectFlight(bf, dt) === 'arrived') nextButterflyTarget(bf);
               const beat = bflyFlap(bf, dt), bobY = Math.sin(t * 3.5 + bf.ph) * 0.18 + beat, bobX = Math.cos(t * 2.0 + bf.ph) * 0.12;   // vỗ – lượn theo loài, thân nhấp nhô theo nhịp
@@ -80,16 +85,19 @@
           }
           beehive.update(dt, t);   // ong thợ bò trên bánh sáp trong tổ giỏ rơm
           // ---- đom đóm hoạt cảnh ----
+          fungi.glow(nightFactor, t);   // nấm phát quang xanh lục khi trời tối (nature/fungi.js)
           for (const ff of fireflies) {
-            ff.wL.rotation.z = ff.wR.rotation.z = 0.35 + Math.sin(t * 60 + ff.ph) * 0.6;   // cánh màng vỗ (2 bên đối xứng gương: cùng góc)
-            ff.elL.rotation.set(0, -0.3, 0.55 + 0.04 * Math.sin(t * 30 + ff.ph)); ff.elR.rotation.copy(ff.elL.rotation);   // cánh cứng nâng chếch, toả 2 bên
+            const fly = !ff.perch;   // con cái đậu trên cỏ (đom đóm quanh cây cổ thụ): cánh xếp, chỉ nháy
+            ff.wL.rotation.z = ff.wR.rotation.z = fly ? 0.35 + Math.sin(t * 60 + ff.ph) * 0.6 : 0;   // cánh màng vỗ (2 bên đối xứng gương: cùng góc)
+            if (fly) ff.elL.rotation.set(0, -0.3, 0.55 + 0.04 * Math.sin(t * 30 + ff.ph)); else ff.elL.rotation.set(0, 0, 0); ff.elR.rotation.copy(ff.elL.rotation);   // cánh cứng nâng chếch, toả 2 bên
             ff.fp += dt / ff.per; ff.fl += dt;
             if (ff.fp >= 1) {   // tới nhịp ⇒ chớp; con trong bán kính 5 bị kéo pha lên (ghép xung) ⇒ dần chớp cùng nhịp
               ff.fp -= 1; ff.fl = 0;
               for (const o of fireflies) if (o !== ff && o.fl > 0.6 && o.g.position.distanceToSquared(ff.g.position) < 25) o.fp = Math.min(0.999, o.fp * 1.07 + 0.015);
             }
             const I = ff.fl < 0.08 ? ff.fl / 0.08 : ff.fl < 0.23 ? 1 : Math.max(0, 1 - (ff.fl - 0.23) / 0.3), L = 0.06 + 0.94 * I;   // sáng: lên 0,08 s · giữ 0,15 s · tắt dần 0,3 s
-            ff.lampM.color.setRGB(0.85 + 0.05 * L, 0.82 + 0.18 * L, 0.66 - 0.3 * L); ff.sp.material.opacity = 0.12 + 0.88 * I; ff.sp.scale.setScalar(0.22 + 0.4 * I);
+            ff.lampM.color.setRGB(0.85 + 0.05 * L, 0.82 + 0.18 * L, 0.66 - 0.3 * L); ff.sp.material.opacity = (0.12 + 0.88 * I) * (ff.dim || 1); ff.sp.scale.setScalar(0.22 + 0.4 * I * (ff.dim || 1));
+            if (!fly) continue;
             ff.g.position.y += 0.35 * I * dt;   // nét "J": vọt lên khi chớp
             ff.timer -= dt;
 
@@ -100,9 +108,10 @@
                 ff.timer = 3.0 + Math.random() * 4.0;
                 const angle = Math.random() * Math.PI * 2;
                 const dist = 3.0 + Math.random() * 6.0;
-                const tx = Math.max(X0 + 10, Math.min(X0 + 210, ff.g.position.x + Math.cos(angle) * dist));
-                const tz = Math.max(Z0 + 10, Math.min(Z0 + 210, ff.g.position.z + Math.sin(angle) * dist));
-                const ty = cowY(tx, tz) + 0.8 + Math.random() * 1.5;
+                let tx = Math.max(X0 + 10, Math.min(X0 + 210, ff.g.position.x + Math.cos(angle) * dist));
+                let tz = Math.max(Z0 + 10, Math.min(Z0 + 210, ff.g.position.z + Math.sin(angle) * dist));
+                if (ff.home) { const rr = ff.rad * Math.sqrt(Math.random()); tx = ff.home.x + Math.cos(angle) * rr; tz = ff.home.z + Math.sin(angle) * rr; }   // đom đóm cây cổ thụ: lượn quanh gốc, lên tới tán
+                const ty = cowY(tx, tz) + (ff.home ? 0.5 + Math.random() * 3.2 : 0.8 + Math.random() * 1.5);
                 ff.target.set(tx, ty, tz);
               }
             } else {
@@ -167,7 +176,7 @@
           }
           updateAnimalVisibility(); updateDrawBatches();
           fluids.update(dt, t, rainK);   // gửi bước mô phỏng nước + khói cho luồng phụ (kèm các cú chạm nước trong khung này), nhận kết quả bước trước
-          if (skyOn) updateSky(); nightSky.update(dt, t, skyOn); fitSunShadow(); updateCloseLod(); droneToy.render(); vanPartsTick(dt); trimWatch(dt); trimKit.tick(dt, t); footprints.tick(dt); chickens.update(dt, t); hovTick(); camFollowTick(dt); followTagsTick(); btnTagsTick(); renderer.render(scene, camera); mastLabel?.updateScreen(); updateZoomPct(); simNeedsTick(t); engineTick(dt, t);
+          if (skyOn) updateSky(); vanLineTone(nightFactor > 0.5); nightSky.update(dt, t, skyOn); fitSunShadow(); updateCloseLod(); droneToy.render(); vanPartsTick(dt); trimWatch(dt); trimKit.tick(dt, t); waterPump.tick(dt, t); footprints.tick(dt); chickens.update(dt, t); hovTick(); camFollowTick(dt); followTagsTick(); btnTagsTick(); radio.tick(dt); mossTick(); renderer.render(scene, camera); mastLabel?.updateScreen(); updateZoomPct(); simNeedsTick(t); toolsTick(t); engineTick(dt, t);
           if (!started) { started = true; const l = document.getElementById('loading'); if (l) l.style.display = 'none'; }
         }
         // biên dịch shader SONG SONG (KHR_parallel_shader_compile) trước khung đầu → luồng chính không khựng lúc mở trang; trình duyệt không hỗ trợ thì như cũ

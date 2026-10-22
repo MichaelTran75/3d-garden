@@ -94,7 +94,7 @@
           const inPan = _mrC.copy(PAN_IN).multiplyScalar(sc / ENGINEER_BASE_SCALE).applyQuaternion(qPan).add(pan).addScaledVector(right, Math.cos(c * 4) * 0.02 * sc).addScaledVector(fwd, Math.sin(c * 4) * 0.02 * sc);
           const mouth = engMouthW(e, new THREE.Vector3()).addScaledVector(fwd, 0.02 * sc), tip = new THREE.Vector3().lerpVectors(inPan, mouth, up).addScaledVector(fwd, 0.12 * sc * Math.sin(Math.PI * up));
           tip.y += 0.06 * sc * Math.sin(Math.PI * up);
-          const dIn = _mrA.subVectors(inPan, engBodyW(e, -0.34, 1.86, 0, _mrB)).add(_mrB.set(0, -0.35, 0)).normalize(), dMo = _mrB.copy(fwd).multiplyScalar(-0.9).addScaledVector(right, -0.35).add(_mrE.set(0, 0.15, 0)).normalize();
+          const dIn = _mrA.subVectors(inPan, engBodyW(e, -0.34 * ENG_SLIM, 1.86, 0, _mrB)).add(_mrB.set(0, -0.35, 0)).normalize(), dMo = _mrB.copy(fwd).multiplyScalar(-0.9).addScaledVector(right, -0.35).add(_mrE.set(0, 0.15, 0)).normalize();
           const dS = dIn.lerp(dMo, minJerk(Math.min(1, up * 1.6))).normalize();   // thìa quay về phía miệng sớm hơn quãng đưa lên (giữ lòng thìa ngang, không chúc theo chảo)
           engHandFor(e, 0, aimQ(new THREE.Quaternion(), dS, engWristUp(e, 0, dS)), SPOON_TIP, tip);
           e.seatLean = 0.06 + 0.12 * up; e.seatSwing = 0;   // đổ người đón thìa
@@ -117,7 +117,7 @@
           const H = e.hold, P = e.props, sc = e.g.scale.y, food = e.dish ? e.dish.food : 1; e.armsBusy = true; e.elbowPole = EAT_POLE;
           const ax = engAxesW(e), right = _mrD.copy(ax.r), fwd = _mrF.copy(ax.f), UP = _mrUp;
           const bowl = meal === 'udon' ? VTUDON : VCEREAL; bowl.updateWorldMatrix(true, false);
-          const mouth = engMouthW(e, new THREE.Vector3()), shoulderR = engBodyW(e, -0.34, 1.86, 0, new THREE.Vector3());
+          const mouth = engMouthW(e, new THREE.Vector3()), shoulderR = engBodyW(e, -0.34 * ENG_SLIM, 1.86, 0, new THREE.Vector3());
           // --- tay trái: cốc cà phê (sáng) — tựa bàn / nhấc lên nhấp; trưa: bưng bát húp (2 tay) ---
           const sp = (t + ph * 1.7) % (meal === 'udon' ? 22 : 21), sipU = minJerk(segK(sp, 0, 0.9)) * (1 - minJerk(segK(sp, 2.4, 3.3))), sipping = sipU > 0.02;
           const bowlC = bowl.getWorldPosition(new THREE.Vector3()), dirF = _eD.copy(fwd).setY(0).normalize();

@@ -73,13 +73,14 @@
         function engHelmetProp() {   // mũ bảo hộ rời (đv xe = cỡ mũ đang đội: ×ENGINEER_BASE_SCALE); gốc ở đáy 2 ốp tai (mũ đặt xuống thì tì trên ốp tai)
           const g = new THREE.Group(); g.name = 'Mũ bảo hộ (đã tháo)'; g.userData.noBake = true;
           const h = legoHelmet(engHelm, caravanDark); h.position.y = 0.07; g.add(h);   // cùng hình mũ đang đội; tì trên 2 ốp tai
-          g.scale.setScalar(ENGINEER_BASE_SCALE); return g;
+          g.scale.set(ENGINEER_BASE_SCALE * ENG_SLIM, ENGINEER_BASE_SCALE, ENGINEER_BASE_SCALE * ENG_SLIM); return g;   // gầy 5% như mũ đang đội (engineer/model.js)
         }
         function caravan() {
           const g = new THREE.Group();
-          // khoang ở trong Transit L3H2 (đv xe, van/transit.js): sàn y 0,83 · trần ~2,90 · lòng xe x −0,58 (sau ghế cabin) → 2,99 (mặt trong cửa sau), z ±0,98
+          // khoang ở trong Transit L3H2 (đv xe, van/transit.js): sàn y 0,83 · trần 2,857 · lòng xe x −0,58 (sau ghế cabin) → 2,99 (mặt trong cửa sau), z ±0,90
+          //  (G 19/10: nội thất bám lòng VỎ GLB — TR_IN, van/transit.js — trước dựng theo vỏ code rộng ±0,98, trần 2,90 nên giường, bàn, tủ, vách thò ra ngoài vỏ)
           //  bố trí giữ như xe cũ nhưng gọn lại: bàn ăn + ghế đẩu ở nửa trước ô cửa lùa · giường dọc vách −z · bếp dọc vách +z sau cửa · bàn học góc sau −z · phòng tắm ướt ở đuôi
-          const yIn = TR.yIn, base = yIn - 0.12, x0 = TR.xP, x1 = 2.27, xB = 2.99, dz = TR.inW, wallZ = 1.06, ceil = TR.ceil;
+          const yIn = TR.yIn, base = yIn - 0.12, x0 = TR.xP, x1 = 2.27, xB = 2.99, dz = TR_IN.w, wallZ = 1.06, ceil = trInCeil(0);
           const roofTop = (x, z) => trRoofY(x) - trLerp(TR_DROP, Math.abs(z)) * trS(x);
           const floorMat = new THREE.MeshLambertMaterial({ color: 0xb99c73 }), woodMat = new THREE.MeshLambertMaterial({ color: 0x9c7b4f }),
             cushMat = new THREE.MeshLambertMaterial({ color: 0xc94f3d }), litMat = new THREE.MeshLambertMaterial({ color: 0xfff3c4 });
@@ -95,7 +96,7 @@
           const trBody = transitBody(g);
           const galley = transitCab(g);
           transitGlb(g, trBody);   // mẫu GLB Transit nạp sau: thay vỏ, táp-lô, ghế, bánh code (van/transit.js)
-          galley.position.set(1.60, yIn - 1.07, -1.99);   // tủ bếp (cục bộ: mặt tủ x 2,37 → z 0,38, lưng 2,97 → z 0,98 sát vách; dài 1,82 → x 0,69 … 2,51)
+          galley.position.set(1.60, yIn - 1.07, -2.04);   // tủ bếp (cục bộ: mặt tủ x 2,40 → z 0,36, lưng 2,95 → z 0,91 sát vách GLB; dài 1,82 → x 0,69 … 2,51)
           const axles = new THREE.Group(); axles.name = 'Cầu bánh xe';
           const axleGeo = new THREE.CylinderGeometry(0.055, 0.055, 1, 8);
           for (const axleX of [TR.xF, TR.xR]) { const shaft = new THREE.Mesh(axleGeo, caravanDark); shaft.rotation.x = Math.PI / 2; shaft.scale.y = 2 * TR.wz - 0.2; shaft.position.set(axleX, TR.wr, 0); shaft.castShadow = true; axles.add(shaft); }
@@ -137,8 +138,8 @@
           const grab = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.62, 6), metalMat); grab.position.set(TR.door[0] + 0.05, yIn + 0.95, dz - 0.02); grab.castShadow = true; g.add(grab);
           const sillPlate = bx(TR.door[1] - TR.door[0], 0.012, wallZ - dz + 0.03, metalMat, true, false); sillPlate.position.set((TR.door[0] + TR.door[1]) / 2, yIn + 0.006, (dz + wallZ) / 2); g.add(sillPlate);
 
-          // ---- giường đơn dọc vách −z (2,0 × 0,84): khung hộp trắng, 2 ngăn kéo đen, đệm xám, chăn đỏ gấp cuối giường, gối ----
-          const bedLen = 2.0, bedW = 0.84, bedX1 = x0 + bedLen, bedCx = x0 + bedLen / 2, bedZ = -dz + bedW / 2;
+          // ---- giường đơn dọc vách −z (2,0 × 0,76 đv = 1,82 × 0,69 m, mép trước giữ z −0,14 cho lối đi): khung hộp trắng, 2 ngăn kéo đen, đệm xám, chăn đỏ gấp cuối giường, gối ----
+          const bedLen = 2.0, bedW = 0.76, bedX1 = x0 + bedLen, bedCx = x0 + bedLen / 2, bedZ = -dz + bedW / 2;
           const bed = new THREE.Group(); bed.name = 'Giường dọc vách đối diện';
           const flexaWhite = new THREE.MeshLambertMaterial({ color: 0xe6e4de }), flexaBlack = new THREE.MeshLambertMaterial({ color: 0x1f2022 });
           const mattGrey = new THREE.MeshLambertMaterial({ color: 0x8c8e90 });
@@ -191,13 +192,16 @@
           const headPillow = flexaPillow(0.56, 0.38, 0.12, 0xd2cfc6, 0xa8a499, 0.035);
           headPillow.rotation.set(-Math.PI / 2, 0, Math.PI / 2); headPillow.position.set(bedX1 - 0.32, yIn + mattTop + 0.045, bedZ); bed.add(headPillow);
           bakeStatic(bed); bed.userData.noBake = true; g.add(bed);
-          // tủ treo trên giường (dưới góc bo mui), cửa sổ vách −z nằm ngay dưới
-          const cup = bx(1.7, 0.3, 0.32, caravanRoofM, true, true, lineDark); cup.position.set(x0 + 0.95, 2.62, -dz + 0.22); g.add(cup);
+          // tủ treo trên giường (dưới góc bo mui), cửa sổ vách −z nằm ngay dưới — lưng tủ vát theo mui khum (lòng xe y 2,47 → 2,76: |z| 0,88 → 0,80)
+          const cupGeo = new THREE.ExtrudeGeometry(new THREE.Shape([[-0.47, 2.47], [-trInW(2.47) + 0.012, 2.47], [-trInW(2.76) + 0.012, 2.76], [-0.47, 2.76]].map(([z, y]) => new THREE.Vector2(z, y))), { depth: 1.7, bevelEnabled: false });
+          cupGeo.rotateY(-Math.PI / 2); cupGeo.translate(x0 + 1.8, 0, 0);   // mặt cắt (z, y) đùn dọc thân xe x0 + 0,1 … x0 + 1,8
+          const cup = new THREE.Mesh(cupGeo, new THREE.MeshLambertMaterial({ color: 0xd8d3c6, transparent: true, opacity: 0.5, depthWrite: false })); cup.castShadow = cup.receiveShadow = true; edge(cup, cupGeo, lineDark); g.add(cup);   // tủ treo trong suốt 50% (G 19/10), nét viền giữ nguyên
 
-          // ---- góc học tập (sau giường, sát vách phòng tắm): bàn 0,85 × 0,52, cao 0,91 (G 15/10 cho bàn cao/sâu hơn 20%) ----
+          // ---- góc học tập (sau giường, sát vách phòng tắm): bàn 0,85 × 0,44, cao 0,91 (G 15/10 cho bàn cao/sâu hơn 20%; 19/10 sâu 0,52 → 0,44: lưng bàn
+          //      lùi khỏi vách vỏ GLB, mép trước giữ nguyên) · mặt bàn gỗ 3,5 cm (trước 6 cm) ----
           const study = new THREE.Group(); study.name = 'Góc học tập trong xe'; study.userData.noBake = true;
           const desk = new THREE.Group(); desk.name = 'Bàn học nhỏ';
-          const DW = x1 - bedX1, DD = 0.52, dX = bedX1 + DW / 2, dZ = -dz + DD / 2, dH = 0.912;
+          const DW = x1 - bedX1, DD = 0.44, dX = bedX1 + DW / 2, dZ = -dz + DD / 2, dH = 0.912;
           function studyBox(parent, name, w, h, d, x, y, z, mat, outlined = false) {
             const m = bx(w, h, d, mat, true, outlined, lineDark); m.name = name; m.position.set(x, y, z); parent.add(m); return m;
           }
@@ -207,11 +211,11 @@
             const kept = new Set(); assembly.traverse(o => { if (o.geometry) kept.add(o.geometry); });
             for (const geometry of original) if (!kept.has(geometry)) geometry.dispose();
           }
-          studyBox(desk, 'Mặt bàn học', DW - 0.02, .06, DD, dX, yIn + dH - .03, dZ, woodMat, true);
-          for (const sx of [-1, 1]) for (const sz of [-1, 1]) studyBox(desk, 'Chân bàn học', .045, dH - .06, .045, dX + sx * (DW / 2 - .06), yIn + (dH - .06) / 2, dZ + sz * (DD / 2 - .05), metalMat);
+          studyBox(desk, 'Mặt bàn học', DW - 0.02, .035, DD, dX, yIn + dH - .0175, dZ, woodMat, true);
+          for (const sx of [-1, 1]) for (const sz of [-1, 1]) studyBox(desk, 'Chân bàn học', .04, dH - .035, .04, dX + sx * (DW / 2 - .06), yIn + (dH - .035) / 2, dZ + sz * (DD / 2 - .05), metalMat);
           studyBox(desk, 'Thanh đỡ sau bàn', DW - .14, .07, .035, dX, yIn + dH - .2, dZ - DD / 2 + .04, metalMat);
-          studyBox(desk, 'Ngăn kéo nhỏ', .3, .12, .44, dX + .2, yIn + dH - .135, dZ + .02, caravanRoofM, true);
-          studyBox(desk, 'Tay nắm ngăn kéo', .12, .017, .025, dX + .2, yIn + dH - .135, dZ + .245, metalMat);
+          studyBox(desk, 'Ngăn kéo nhỏ', .3, .1, .38, dX + .2, yIn + dH - .1, dZ + .03, caravanRoofM, true);
+          studyBox(desk, 'Tay nắm ngăn kéo', .12, .017, .025, dX + .2, yIn + dH - .1, dZ + .225, metalMat);
           bakeStudyFurniture(desk); study.add(desk);
 
           // ---- GHẾ VĂN PHÒNG (G 17/10 "add … office chair": dáng ghế giám đốc da nâu tay vịn ống crôm trong GLB "60's Office Props" — SeanNicolas,
@@ -281,7 +285,7 @@
           }
           // Đèn bàn: đế ở góc sau-phải mặt bàn, tay đèn vươn chéo về phía laptop; mặt LED nằm trong lòng chụp.
           const lamp = workLamp(study), lampHead = WORK_LAMP_HEAD;
-          lamp.position.set(dX + .3, yIn + dH + .001, dZ - .17); lamp.rotation.y = -1.0;
+          lamp.position.set(dX + .3, yIn + dH + .001, dZ - .12); lamp.rotation.y = -1.0;
           const bulbMat = new THREE.MeshStandardMaterial({ color: 0xE2D6C0, emissive: 0xffc46d, emissiveIntensity: 0, roughness: .65 });
           const bulb = new THREE.Mesh(new THREE.CircleGeometry(lampHead.radius * .86, 18), bulbMat);
           bulb.name = 'Bóng đèn bàn học'; bulb.rotation.x = Math.PI / 2; bulb.position.set(lampHead.x, lampHead.ledY, lampHead.z); lamp.add(bulb);
@@ -293,7 +297,7 @@
           const coke = sodaCan(); coke.scale.setScalar(1.155); coke.position.set(dX - .345, yIn + dH + .001, dZ + .1); coke.rotation.y = -.6; coke.name = 'Lon coke trên bàn học'; study.add(coke);
           // Laptop giữa bàn, trước ghế: MacBook Pro 16" (macbookPro ở trên) — nắp gắn bản lề mép sau (gập phẳng khi rảnh, mở ~106° khi làm việc)
           {
-            const M = macbookPro(), lap = M.g; lap.name = 'Laptop'; lap.position.set(dX - .01, yIn + dH + .001, dZ + DD / 2 - .2); lap.scale.setScalar(1.11 * LAP_K); study.add(lap);   // mép trước laptop cách mép bàn ~2 cm cho tay với tới bàn phím · to thêm 30% (LAP_K)
+            const M = macbookPro(), lap = M.g; lap.name = 'Laptop'; lap.position.set(dX - .01, yIn + dH + .001, dZ + DD / 2 - .185); lap.scale.setScalar(1.11 * LAP_K); study.add(lap);   // mép trước laptop cách mép bàn ~2 cm cho tay với tới bàn phím · to thêm 30% (LAP_K)
             const glow = new THREE.PointLight(0x9fc8ff, 0, 1.4 * CAMP_SCALE, 2); glow.position.set(0, .14, .02); lap.add(glow);
             lap.traverse(o => { o.userData.noBake = true; });
             Object.assign(studyLaptop, { hinge: M.hinge, screen: M.screenMat, keys: M.keyMat, light: glow, group: lap, canvas: M.canvas, ctx: M.ctx, tex: M.tex, mode: 'dash', drawnAt: -1 });
@@ -303,9 +307,9 @@
             chair: { center: [chairX, chairZ], size: [.43, .43], facing: '-Z' }, lampSchedule: '18:30–06:00 Asia/Ho_Chi_Minh'
           };
           g.add(study);
-          // ---- bàn ăn nhỏ ở nửa trước ô cửa lùa (0,55 × 0,42, chân giữa) + ghế đẩu ----
-          const TX = x0 + 0.305, TZ = dz - 0.21, TW = 0.55, TD = 0.42;
-          const tTop = bx(TW, 0.08, TD, woodMat, true, true, lineDark); tTop.name = 'Bàn vuông'; tTop.userData.noBake = true; tTop.position.set(TX, yIn + 0.78, TZ); tTop.castShadow = true; g.add(tTop);
+          // ---- bàn ăn nhỏ ở nửa trước ô cửa lùa (0,55 × 0,38, mặt gỗ 3 cm — G 19/10 "làm mỏng bàn"; trước dày 8 cm, thò ra ngoài vỏ; chân giữa) + ghế đẩu ----
+          const TX = x0 + 0.305, TZ = dz - 0.19, TW = 0.55, TD = 0.38;
+          const tTop = bx(TW, 0.03, TD, woodMat, true, true, lineDark); tTop.name = 'Bàn vuông'; tTop.userData.noBake = true; tTop.position.set(TX, yIn + 0.805, TZ); tTop.castShadow = true; g.add(tTop);
           const tLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.78, 8), metalMat); tLeg.position.set(TX, yIn + 0.39, TZ); g.add(tLeg);
           const tFoot = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.18, 0.02, 14), metalMat); tFoot.position.set(TX, yIn + 0.01, TZ); g.add(tFoot);
           // bữa sáng trên bàn (mặt bàn y = yIn + 0,82): hộp ngũ cốc & hộp cà phê nằm ngửa như 2 cuốn sách (nhãn hướng lên), chai sữa phía ngoài
@@ -342,7 +346,7 @@
             const ring = new THREE.Mesh(new THREE.TorusGeometry(0.135, 0.009, 4, 18), metalMat); ring.rotation.x = Math.PI / 2; ring.position.set(sx0, yIn + 0.15, sz0); stool.add(ring); }
           // mũ bảo hộ đặt cuối giường lúc ngủ
           const bedHelmet = engHelmetProp(); bedHelmet.position.set(x0 + 0.28, yIn + mattTop - 0.02, bedZ + 0.16); bedHelmet.rotation.y = 0.6; bedHelmet.visible = false; g.add(bedHelmet);
-          const kitchen = motorhomeKitchen(galley, ceil - galley.position.y);   // bếp theo mẫu: chậu, bàn sơ chế, bảng treo đồ, bếp 4 họng lửa + lò nướng; ống hút mùi lên tới trần
+          const kitchen = motorhomeKitchen(galley, trInCeil(0.75) - galley.position.y);   // ống gió máy hút mùi (z 0,60 … 0,74 kể cả mặt bích) chạy tới trần vỏ GLB chỗ đó   // bếp theo mẫu: chậu, bàn sơ chế, bảng treo đồ, bếp 4 họng lửa + lò nướng; ống hút mùi lên tới trần
 
           // ==== phòng tắm ướt ở đuôi xe (x 2,27 → 2,99 · cả bề ngang): bồn cầu gọn sát vách −z + vòi sen phía trên (rèm kính mờ trượt),
           //      lavabo treo vách +z (sau đầu tủ bếp, vách lùi tới x 2,535), kệ mũ, khăn trên tấm rèm cố định. Vách & cửa trong suốt (ẩn khi xem xuyên) ====
@@ -357,11 +361,11 @@
           const doorM = new THREE.MeshLambertMaterial({ color: 0xd9e3e6, transparent: true, opacity: 0.55, depthWrite: false });
           const panel = (x0p, x1p, y0, y1, z0, z1, mat = bthWallM) => { const m = bx(x1p - x0p, y1 - y0, z1 - z0, mat, mat !== doorM, true, lineDark); m.position.set((x0p + x1p) / 2, (y0 + y1) / 2, (z0 + z1) / 2); bath.add(m); return m; };
           // vách trước: đoạn đặc phía bàn học (bảng ghim treo mặt ngoài) · khe cửa lùa giữa lối đi · đoạn cạnh bếp; vách lùi sau đầu tủ bếp
-          const entry = [-0.30, 0.30], doorTop = flY + 1.97, kitZ = 0.38, kitX = 2.535;
-          // vách ngang xe (mặt phẳng x = xc) cắt theo lòng xe ⇒ không thò ra ngoài vách hông khum / góc bo mui
-          const innerSec = xc => { const h = [], T2 = TR.T + 0.012;
-            for (const y of [yIn, 1.2, 1.6, 2.0, 2.4, 2.6, 2.7]) h.push([trSideZ(xc, y) - T2, y]);
-            for (const z of [0.93, 0.88, 0.8, 0.65, 0.4, 0]) h.push([z, roofTop(xc, z) - T2]);
+          const entry = [-0.30, 0.30], doorTop = flY + 1.97, kitZ = 0.33, kitX = 2.535;
+          // vách ngang xe (mặt phẳng x = xc) cắt theo lòng xe VỎ GLB (TR_IN) ⇒ không thò ra ngoài vách hông khum / góc bo mui
+          const innerSec = () => { const h = [], m = 0.012;
+            for (const y of [yIn, 1.6, 2.0, 2.3, 2.5, 2.6, 2.7, 2.77]) h.push([trInW(y) - m, y]);
+            for (const z of [0.78, 0.75, 0.6, 0.5, 0.35, 0]) h.push([z, trInCeil(z) - m]);
             return [...h, ...h.slice(0, -1).reverse().map(([z, y]) => [-z, y])]; };
           const clip = (P, f) => { const out = []; for (let i = 0; i < P.length; i++) { const a = P[i], b = P[(i + 1) % P.length], fa = f(a), fb = f(b); if (fa >= 0) out.push(a); if (fa * fb < 0) { const t = fa / (fa - fb); out.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]); } } return out; };
           const xWall = (xc, t, z0, z1, y0, y1) => { let P = innerSec(xc); for (const f of [p => p[0] - z0, p => z1 - p[0], p => p[1] - y0, p => y1 - p[1]]) P = clip(P, f);
@@ -422,20 +426,33 @@
           const towelX = (curt[1] + xB) / 2;
           const towelBar = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.28, 8), metalMat); towelBar.rotation.z = Math.PI / 2; towelBar.position.set(towelX, flY + 0.98, wcZ + 0.05); bath.add(towelBar);
           const towel = bx(0.26, 0.4, 0.035, towelM, true, true, lineDark); towel.position.set(towelX, flY + 0.78, wcZ + 0.045); towel.name = 'Khăn tắm'; towel.userData.noBake = true; bath.add(towel);
+          // ĐỒ DỌN SAU KHI DÙNG (G 21/10 "sau khi đi vệ sinh hoặc tắm là dọn nhà vệ sinh nhà tắm"): chổi cọ bồn cầu trong cốc ở góc sau −z cạnh bồn · cây gạt
+          //  nước treo vách lùi (cạnh kệ mũ) · vệt nước trên sàn buồng tắm (ướt khi tắm, gạt về phễu thì khô, tự khô ~25 phút) — engineer/van-stations.js stCleanWc / stCleanBath
+          const brushM = new THREE.MeshLambertMaterial({ color: 0x5b8fb0 }), bristleM = new THREE.MeshLambertMaterial({ color: 0xe8e2d2 });
+          const brCup = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.05, 0.16, 12), brushM); brCup.position.set(xB - 0.09, flY + 0.08, -dz + 0.1); brCup.castShadow = true; bath.add(brCup);
+          const brush = new THREE.Group(); brush.name = 'Chổi cọ bồn cầu'; brush.position.set(xB - 0.09, flY + 0.05, -dz + 0.1); bath.add(brush);
+          { const h = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.36, 8), brushM); h.position.y = 0.2; brush.add(h); const b = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.035, 0.08, 10), bristleM); b.position.y = 0.02; brush.add(b); }
+          const squee = new THREE.Group(); squee.name = 'Cây gạt nước'; squee.position.set(kitX + 0.04, flY + 1.15, 0.78); squee.rotation.y = Math.PI / 2; bath.add(squee);
+          { squee.add(bx(0.26, 0.04, 0.02, caravanDark, false, false)); const hd = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.16, 8), brushM); hd.position.y = -0.1; squee.add(hd); }
+          const wetM = new THREE.MeshLambertMaterial({ color: 0xa8d4ea, transparent: true, opacity: 0, depthWrite: false });
+          const wetFloor = new THREE.Mesh(new THREE.PlaneGeometry(xB - x1 - 0.06, wcZ + dz - 0.03), wetM); wetFloor.rotation.x = -Math.PI / 2; wetFloor.position.set((x1 + xB) / 2, flY + 0.017, (wcZ - dz) / 2); wetFloor.visible = false; wetFloor.name = 'Vệt nước sàn buồng tắm'; bath.add(wetFloor);
+          for (const o of [brush, squee, wetFloor]) { o.userData.noBake = true; o.traverse(c => { c.userData.noBatch = true; }); o.userData.home = { p: o.position.clone(), q: o.quaternion.clone() }; }
           // vòi sen trên vách −z phía trên bồn cầu (trần thấp ⇒ cần sen ngắn, chếch xuống) + bộ trộn + phễu thoát sàn
           const shX = twcX, sideZ = -dz + 0.03;
-          const shArm = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.2, 8), metalMat); shArm.rotation.x = Math.PI / 2.4; shArm.position.set(shX, ceilY - 0.09, sideZ + 0.09); bath.add(shArm);
-          const shHead = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.06, 0.05, 14), metalMat); shHead.rotation.x = -0.45; shHead.position.set(shX, ceilY - 0.15, sideZ + 0.19); bath.add(shHead);
+          //  19/10: sen treo TRẦN (ống thả 12 cm) thay cần gắn vách — vách vỏ GLB khum vào ở độ cao này (|z| 0,81 ở y 2,74), cần cũ thò ra ngoài vỏ
+          const shTop = trInCeil(sideZ + 0.19) - 0.012;
+          const shArm = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.12, 8), metalMat); shArm.position.set(shX, shTop - 0.06, sideZ + 0.19); bath.add(shArm);
+          const shHead = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.06, 0.05, 14), metalMat); shHead.rotation.x = -0.2; shHead.position.set(shX, shTop - 0.145, sideZ + 0.19); bath.add(shHead);
           const shMixer = bx(0.12, 0.16, 0.045, metalMat, false, true, lineDark); shMixer.position.set(x1 + 0.2, flY + 1.06, sideZ + 0.02); bath.add(shMixer);
           const drain = bx(0.14, 0.01, 0.14, caravanDark, false, true); drain.position.set(twcX - 0.05, flY + 0.014, wcZ - 0.13); bath.add(drain);
-          bath.userData.xray = 'shell';
-          for (const item of [bthFlr, toilet, spValve, spHolder, spHead, spNozzle, spHose, snkCab, snkTop, snkBasin, snkTap, snkSpout, mirror, towelBar, towel, shArm, shHead, shMixer, drain, bthLight, tapWater, shelfBoard, shelfHelmet]) item.userData.xray = 'keep';
-          const bathRig = { entryDoor: entryDoorG, wcDoor: wcDoorG, lid: twcLidHinge, towel, tapWater, shelfHelmet, doorMat: doorM, wallMat: bthWallM,
-            showerHead: [shX, ceilY - 0.15, sideZ + 0.19], mixer: [x1 + 0.2, flY + 1.06, sideZ + 0.04], flush: [twcX, flY + 0.775, -dz + 0.08], shelf: [shelfX, shelfY, shelfZ] };
+          bath.userData.xray = 'shell'; bath.userData.vanWall = true;   // vách trong: thanh trượt nét viền không làm mờ (ui/xray-lifecycle.js)
+          for (const item of [brCup, brush, squee, wetFloor, bthFlr, toilet, spValve, spHolder, spHead, spNozzle, spHose, snkCab, snkTop, snkBasin, snkTap, snkSpout, mirror, towelBar, towel, shArm, shHead, shMixer, drain, bthLight, tapWater, shelfBoard, shelfHelmet]) item.userData.xray = 'keep';
+          const bathRig = { entryDoor: entryDoorG, wcDoor: wcDoorG, lid: twcLidHinge, towel, tapWater, shelfHelmet, doorMat: doorM, wallMat: bthWallM, group: bath, brush, squee, wetM, wetFloor, wet: 0,
+            showerHead: [shX, shTop - 0.145, sideZ + 0.19], mixer: [x1 + 0.2, flY + 1.06, sideZ + 0.04], flush: [twcX, flY + 0.73, -dz + 0.08], shelf: [shelfX, shelfY, shelfZ] };
           bath.userData.noBake = true;
           bakeStatic(bath); g.add(bath);
 
-          // ==== MÁI: quạt hút (trên giường) · giàn pin 2 tấm · ống khói bếp · quạt phòng tắm · chảo Starlink · ăng-ten · 2 thanh giá nóc ====
+          // ==== MÁI: quạt hút (trên giường) · giàn pin 3 tấm · ống khói bếp · quạt phòng tắm · chảo Starlink · ăng-ten · 2 thanh giá nóc ====
           const roofDetails = new THREE.Group(); roofDetails.name = 'Thiết bị mái xe chi tiết';
           roofDetails.userData.noBake = true; g.add(roofDetails);
           function roofBox(w, h, d, x, y, z, mat, outlined = false) {
@@ -453,47 +470,63 @@
             const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = m.receiveShadow = true;
             edge(m, geo, lineDark); roofDetails.add(m); return m;
           }
-          function roofVent(x, z, size, height) {
-            const y = roofTop(x, z);
+          function roofVent(x, z, size, height) {   // đế ôm mặt mui: mui cao Transit dốc xuống đầu xe (x < 0,5) và khum xuống 2 mép ⇒ quạt nghiêng theo cả 2 chiều, tâm = trung bình 5 điểm
+            const s = size / 2, Y = (dx, dz) => roofTop(x + dx, z + dz), a = Math.atan2(Y(s, 0) - Y(-s, 0), size), b = Math.atan2(Y(0, s) - Y(0, -s), size);
+            const y = (Y(0, 0) + Y(s, s) + Y(s, -s) + Y(-s, s) + Y(-s, -s)) / 5, n0 = roofDetails.children.length;
             roofBox(size + .05, .025, size + .05, x, y + .0125, z, metalMat);
             roofBox(size - .065, .075, size - .065, x, y + .0625, z, caravanDark);
             roofLid(size - .035, size - .035, height - .08, .055, x, y + .08, z, caravanDark);
             for (const side of [-1, 1]) for (let n = -2; n <= 2; n++) roofBox(size * .68, .012, .012, x, y + .045 + (n + 2) * .01, z + side * (size / 2 - .027), metalMat);
+            const vg = new THREE.Group(); vg.position.set(x, y, z); vg.rotation.set(-b, 0, a); for (const m of roofDetails.children.slice(n0)) { vg.add(m); m.position.sub(vg.position); } roofDetails.add(vg);
           }
-          roofVent(-0.15, -0.38, .5, .19);
+          roofVent(-0.35, 0, .5, .19);   // G 21/10 "sắp xếp lại nóc xe cho gọn gàng hợp lý" (mũi tên trên ảnh): quạt hút trước về giữa mui, lùi lên đầu xe, cách giàn pin 22 cm (trước x −0,15 z −0,38 sát tấm pin đầu)
           roofVent(2.62, -0.45, .36, .15);
           {   // ống khói bếp (thông máy hút mùi): tấm bích kín nước + ống inox Ø9 cm cao 32 cm + chụp nón che mưa trên 3 chân — ngay trên bếp
-            const cx = galley.position.x - 0.47, cz = 0.74, y = roofTop(cx, cz), pipe = new THREE.MeshLambertMaterial({ color: 0xa7b0b3 });
+            const cx = galley.position.x - 0.47, cz = 0.66, y = roofTop(cx, cz), pipe = new THREE.MeshLambertMaterial({ color: 0xa7b0b3 });   // thẳng ống gió máy hút mùi (van/kitchen.js)
             roofBox(.18, .02, .18, cx, y + .01, cz, metalMat);
             const tube = new THREE.Mesh(new THREE.CylinderGeometry(.045, .048, .32, 14), pipe); tube.position.set(cx, y + .17, cz); tube.castShadow = true; roofDetails.add(tube);
             const cap = new THREE.Mesh(new THREE.ConeGeometry(.095, .07, 16), pipe); cap.position.set(cx, y + .395, cz); cap.castShadow = true; roofDetails.add(cap);
             for (let k = 0; k < 3; k++) { const a = k * 2.094, leg = new THREE.Mesh(new THREE.BoxGeometry(.008, .06, .008), pipe); leg.position.set(cx + Math.cos(a) * .04, y + .345, cz + Math.sin(a) * .04); roofDetails.add(leg); }
             g.userData.chimneyTop = new THREE.Vector3(cx, y + .35, cz);   // miệng thoát khói (toạ độ xe)
           }
-          const solarMat = new THREE.MeshLambertMaterial({ color: 0x163a5c });   // tấm pin mặt trời xanh đậm
-          const SPX = 1.1, SPL = 1.24;   // giàn pin: 2 tấm 1,24 × 0,6 đặt cạnh nhau theo bề ngang mui
-          for (const pz of [-.33, .33]) {
-            const y0 = roofTop(SPX, pz) + .035;
-            roofBox(SPL, .035, .6, SPX, y0 + .03, pz, caravanDark);
-            for (const dx of [-SPL / 2, SPL / 2]) roofBox(.03, .055, .625, SPX + dx, y0 + .04, pz, metalMat);
-            for (const dzp of [-.305, .305]) roofBox(SPL + .03, .055, .03, SPX, y0 + .04, pz + dzp, metalMat);
-            for (let col = 0; col < 4; col++) for (let row = 0; row < 2; row++) {
-              const cellX = SPX - SPL * .375 + col * SPL / 4, cellZ = pz + (row ? .145 : -.145);
-              roofBox(SPL / 4 - .02, .01, .28, cellX, y0 + .052, cellZ, solarMat);
-              for (const bus of [-.06, .06]) roofBox(.003, .002, .26, cellX + bus, y0 + .058, cellZ, rimMat);
+          // ---- GIÀN PIN MẶT TRỜI (G 19/10 "tạo lại solar trên xe van cho phù hợp size của xe"; trước 2 tấm 1,24 × 0,6 đv chỉ phủ ~1/4 mui): mui cao
+          //      Transit L3H2 trống ~2,4 × 1,6 đv giữa quạt hút trước, quạt phòng tắm và chảo Starlink ⇒ 3 tấm 0,75 × 1,34 đv (0,68 × 1,22 m, ~180 W/tấm,
+          //      tổng ~540 W như các bản độ Transit) nằm NGANG mui, mỗi tấm gác trên 2 thanh nhôm ngang bắt vào 2 thanh giá nóc (cột ngắn ở 2 đầu);
+          //      mặt pin = lưới 6 × 10 cell đơn tinh thể (canvas) viền nhôm; chừa ống khói bếp (z 0,66) phía cửa lùa ----
+          const SOL = { xs: [0.5, 1.3, 2.1], w: 0.75, z0: -0.82, z1: 0.52 }, solZ = (SOL.z0 + SOL.z1) / 2, solL = SOL.z1 - SOL.z0;
+          const cellTex = (() => { const c = document.createElement('canvas'); c.width = 96; c.height = 160; const x = c.getContext('2d');
+            x.fillStyle = '#c9ced3'; x.fillRect(0, 0, 96, 160);   // khe sáng giữa các cell
+            for (let i = 0; i < 6; i++) for (let j = 0; j < 10; j++) {
+              const px = 1.2 + i * 15.6, py = 1.2 + j * 15.6; x.fillStyle = '#17273e'; x.fillRect(px, py, 14.4, 14.4);
+              x.fillStyle = '#c9ced3'; for (const [a, b] of [[0, 0], [12.9, 0], [0, 12.9], [12.9, 12.9]]) x.fillRect(px + a, py + b, 1.5, 1.5);   // góc vát cell
+              x.fillStyle = 'rgba(200,208,216,.6)'; for (const k of [4.4, 9.4]) x.fillRect(px + k, py, 0.7, 14.4);   // 2 thanh cái
             }
-            for (const dx of [-.5, .5]) for (const dzp of [-.22, .22]) { roofBox(.1, .015, .1, SPX + dx, y0 - .028, pz + dzp, metalMat); roofBox(.03, .04, .06, SPX + dx, y0 - .005, pz + dzp, metalMat); }
+            const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; })();
+          const cellMat = new THREE.MeshLambertMaterial({ map: cellTex }), aluMat = new THREE.MeshLambertMaterial({ color: 0xb9bfc4 });
+          const railTop = z => roofTop(1, z) + .095;   // mặt trên thanh giá nóc (ống Ø5 cm, tâm cao hơn mui 7 cm)
+          for (const px of SOL.xs) {
+            let yr = 0; for (const dx of [-SOL.w / 2, 0, SOL.w / 2]) for (const z of [SOL.z0, solZ, 0, SOL.z1]) yr = Math.max(yr, roofTop(px + dx, z));
+            const yb = Math.max(yr + .035, railTop(.84) + .015), yp = yb + .0325;   // tâm thanh ngang (cao hơn đỉnh mui khum) · tâm tấm pin
+            const p = new THREE.Mesh(new THREE.BoxGeometry(SOL.w, .035, solL), [aluMat, aluMat, cellMat, aluMat, aluMat, aluMat]);
+            p.position.set(px, yp, solZ); p.castShadow = p.receiveShadow = true; edge(p, p.geometry, lineDark); roofDetails.add(p);
+            for (const dx of [-.28, .28]) {
+              roofBox(.04, .03, 1.72, px + dx, yb, 0, aluMat);   // thanh ngang gác lên 2 thanh giá nóc
+              for (const sz of [-1, 1]) { const h = yb - .015 - (railTop(.84) - .05); roofBox(.035, h, .035, px + dx, yb - .015 - h / 2, sz * .84, metalMat); }   // cột ngắn xuống thanh giá
+              for (const zf of [SOL.z0 + .05, SOL.z1 - .05]) roofBox(.05, .025, .05, px + dx, yb + .03, zf, caravanDark);   // kẹp giữ tấm pin
+            }
           }
-          const wire = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([new THREE.Vector3(SPX + SPL / 2, roofTop(1.8, 0) + .06, -.1), new THREE.Vector3(SPX + SPL / 2 + .12, roofTop(1.85, 0) + .02, 0), new THREE.Vector3(SPX + SPL / 2 + .12, roofTop(1.85, 0) + .02, .1)]), 8, .009, 5, false), caravanDark);
-          wire.castShadow = true; roofDetails.add(wire);
-          roofBox(.16, .05, .14, SPX + SPL / 2 + .14, roofTop(1.9, 0) + .03, 0.12, caravanRoofM);   // hộp đấu dây giàn pin
+          // dây pin: từ mép sau tấm cuối xuống hộp đấu dây + ống luồn qua mui (giữa quạt phòng tắm và chảo Starlink)
+          { const jx = 2.6, jy = roofTop(jx, -.08), p0 = new THREE.Vector3(SOL.xs[2] + SOL.w / 2 - .03, roofTop(SOL.xs[2], 0) + .06, -.08);
+            const wire = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([p0, new THREE.Vector3(jx - .06, jy + .07, -.08), new THREE.Vector3(jx - .02, jy + .05, -.08)]), 8, .009, 5, false), caravanDark);
+            wire.castShadow = true; roofDetails.add(wire);
+            roofBox(.14, .05, .12, jx + .04, jy + .025, -.08, caravanRoofM); }   // hộp đấu dây giàn pin
           for (const sz of [-1, 1]) {   // 2 thanh giá nóc dọc 2 mép mui, chân bắt vào gân mui
             const rz = sz * .84, y = roofTop(1, rz) + .07;
             const rl = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 3.1, 6), metalMat); rl.rotation.z = Math.PI / 2; rl.position.set(1.32, y, rz); rl.castShadow = true; roofDetails.add(rl);
             for (const rx of [-0.15, 1.3, 2.8]) roofBox(.08, .07, .07, rx, y - .035, rz, caravanDark);
           }
           // ---- chảo Starlink (đĩa phẳng nghiêng trên trụ) gần đuôi mui ----
-          const slX = 2.3, slZ = 0.42, slY = roofTop(slX, slZ);
+          const slX = 2.72, slZ = 0.45, slY = roofTop(slX, slZ);   // sau giàn pin (19/10 dời từ x 2,3)
           const slBase = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.13, 0.05, 12), caravanDark); slBase.position.set(slX, slY + 0.025, slZ); g.add(slBase);
           const slPole = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.032, 0.3, 8), metalMat); slPole.position.set(slX, slY + 0.18, slZ); slPole.castShadow = true; g.add(slPole);
           const slBack = bx(0.42, 0.04, 0.36, caravanDark, true, false); slBack.position.set(slX - 0.045, slY + 0.33, slZ); slBack.rotation.z = 0.44; g.add(slBack);
@@ -571,6 +604,7 @@
           const vc = Math.cos(caravanObj.rotation.y), vs = -Math.sin(caravanObj.rotation.y);   // local +x → world (cos ry, −sin ry)
           for (const [lx, rr] of [[-2.2, 1.9], [0.4, 2.0], [2.3, 1.85]])
             obstacleCoords.push({ x: p.x + lx * vc * CAMP_SCALE, y: p.y, z: p.z + lx * vs * CAMP_SCALE, r: rr * CAMP_SCALE, h: 3.0 * CAMP_SCALE });
+          caravanObj.traverse(o => { if (o.isLine && o.material && o.material.isLineBasicMaterial) o.material = vanLine(o.material); });   // nét viền xe → vật liệu riêng (thanh trượt nét viền, ui/labels-controls.js) — lúc này chưa có người / chó nào trong xe
           for (const [lx, lz] of caravanObj.userData.awPoles)   // 2 chân chống bạt (local (x, z) → thế giới): lưới đường đi (flow field) vòng qua, không đâm vào cột rồi trượt qua lại
             obstacleCoords.push({ x: p.x + (lx * vc - lz * vs) * CAMP_SCALE, y: p.y, z: p.z + (lx * vs + lz * vc) * CAMP_SCALE, r: 0.12, h: 2.6 * CAMP_SCALE });
         }

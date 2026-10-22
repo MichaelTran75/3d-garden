@@ -214,7 +214,7 @@
         }
         // ---- tay & đầu người câu (chạy SAU lớp tư thế, ghi đè phần hiển thị rồi ghi ngược vào lớp tư thế cho liền mạch khi thôi câu) ----
         function anglerAim(e, i, target, out) {   // góc gập + góc dang của cánh tay cứng để găng chỉ vào điểm đích (thế giới)
-          const d = e.g.worldToLocal(_aV.copy(target)).sub(_aV2.set(i ? 0.34 : -0.34, 1.86, 0)).normalize();
+          const d = e.g.worldToLocal(_aV.copy(target)).sub(_aV2.set((i ? 0.34 : -0.34) * ENG_SLIM, 1.86, 0)).normalize();
           out[0] = Math.atan2(-d.z, -d.y); out[1] = Math.asin(Math.max(-1, Math.min(1, d.x))); return out;
         }
         const _aimOut = [0, 0];

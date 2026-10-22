@@ -158,21 +158,54 @@
             for (const [z, H] of [[D / 2, Hf], [-D / 2, Hb]]) { add(cyl(0.085, 0.1, H - 0.14, postWood, true, false, null, 8), x, 0.14 + (H - 0.14) / 2, z); add(bx(0.26, 0.12, 0.26, concrete, false, false), x, 0.2, z); }
           }
           // mái kéo dài sang TÂY 0,8 m (G 14/10) che hộp tổ chim sẻ bắt ở vách tây (animals/songbird.js). Kết cấu phần chìa (sửa 15/10 theo ảnh G: 2 thanh chống
-          // cũ lơ lửng, thanh trước đâm ra ngoài mép mái 0,3 m, kèo mép không có gì đỡ): xà đầu trước / sau VƯƠN sang tây tới kèo mép mái, mỗi đầu
-          // vươn có 1 thanh chống góc từ cột góc tây lên đỡ dưới xà (tam giác cứng cột – xà – chống)
-          const EXT = 0.8, xW = -W / 2 - 0.35 - EXT - 0.06, xE = W / 2 + 0.2;   // mép tây xà = qua kèo mép mái 1 chút
+          // cũ lơ lửng, thanh trước đâm ra ngoài mép mái 0,3 m, kèo mép không có gì đỡ): xà đầu trước / sau VƯƠN tới kèo mép mái, mỗi đầu
+          // vươn có 1 thanh chống góc từ cột góc lên đỡ dưới xà (tam giác cứng cột – xà – chống).
+          // G 21/10 "mái che chuồng bò tăng diện tích thêm 25%": tôn dài + rộng thêm √1,25 lần (6 ô: 10,7 × 4,9 → 12,0 × 5,5 m), tâm giữ nguyên ⇒ chìa thêm 0,63 m
+          // mỗi đầu hông (che kín cây rơm bên tây, 1 phần máng nước bên đông), 0,29 m trước / sau; kèo dài theo; kèo mép mái CẢ 2 ĐẦU HÔNG gác lên xà vươn
+          // (bên đông giờ cũng vươn 1 m, có chống góc như bên tây); chân chống đặt trên mép ván vách hông (1,38 m) cho khỏi xuyên ván
+          const EXT = 0.8, RK = Math.sqrt(1.25), RW = (W + 0.9 + EXT) * RK, RD = (D + 1.0) * RK, xRw = -EXT / 2 - RW / 2 + 0.1, xRe = -EXT / 2 + RW / 2 - 0.1;   // tôn rộng × dài · kèo mép tây / đông
+          const xW = xRw - 0.06, xE = xRe + 0.06; tin.map.repeat.x = RW / 1.6;   // 2 đầu xà = qua kèo mép mái 1 chút · sóng tôn giữ bước cũ
           add(bx(xE - xW, 0.16, 0.14, wood[1], true, true, lineDark), (xE + xW) / 2, Hf - 0.08, D / 2);    // xà đầu trước
           add(bx(xE - xW, 0.16, 0.14, wood[1], true, true, lineDark), (xE + xW) / 2, Hb - 0.08, -D / 2);   // xà đầu sau
-          for (const [z, H] of [[D / 2, Hf], [-D / 2, Hb]]) {   // thanh chống góc: chân ở mặt tây cột góc (thấp hơn xà 0,95 m) → đầu đỡ dưới xà, cách cột 0,65 m
-            const ax = -W / 2 - 0.09, ay = H - 0.95, bx2 = -W / 2 - 0.09 - 0.65, by = H - 0.16, br = add(bx(Math.hypot(bx2 - ax, by - ay), 0.07, 0.06, wood[1], true, false), (ax + bx2) / 2, (ay + by) / 2, z);
-            br.rotation.z = Math.atan2(by - ay, bx2 - ax);
+          for (const [z, H] of [[D / 2, Hf], [-D / 2, Hb]]) for (const s of [-1, 1]) {   // thanh chống góc: chân ở mặt hông cột góc → đầu đỡ dưới xà, vươn ~55% đoạn chìa (như bản cũ 0,65 / 1,21)
+            const reach = 0.55 * ((s < 0 ? -xW : xE) - W / 2), ax = s * (W / 2 + 0.09), ay = Math.max(H - 0.16 - 1.2 * reach, 1.45), bx2 = s * (W / 2 + 0.09 + reach), by = H - 0.16;
+            const br = add(bx(Math.hypot(bx2 - ax, by - ay), 0.07, 0.06, wood[1], true, false), (ax + bx2) / 2, (ay + by) / 2, z); br.rotation.z = Math.atan2(by - ay, bx2 - ax);
           }
-          // kèo + mái tôn dốc về sau (nước mưa chảy ra sau chuồng); kèo mép mái tây gác lên 2 đầu xà vươn
-          const pitch = Math.atan((Hf - Hb) / D), rz = 0.1, ry = Hb + (Hf - Hb) * (rz + D / 2) / D;
-          for (let k = 0; k <= n; k += (n > 4 ? 2 : 1)) { const r = add(bx(0.09, 0.12, D + 0.8, wood[2], true, false), -W / 2 + k * SW, ry + 0.02, rz); r.rotation.x = -pitch; }
-          { const r = add(bx(0.09, 0.12, D + 0.8, wood[2], true, false), -W / 2 - 0.35 - EXT, ry + 0.02, rz); r.rotation.x = -pitch; }
-          const roof = add(bx(W + 0.9 + EXT, 0.035, D + 1.0, tin, true, true, lineDark), -EXT / 2, ry + 0.1, rz); roof.rotation.x = -pitch;
-          const fascia = add(bx(W + 0.9 + EXT, 0.12, 0.04, wood[0], true, false), -EXT / 2, Hf + 0.06 + Math.tan(pitch) * 0.45, D / 2 + 0.47); fascia.rotation.x = -pitch;
+          // kèo + mái tôn dốc về sau (nước mưa chảy ra sau chuồng); kèo ngắn hơn tôn 0,1 m mỗi đầu
+          const pitch = Math.atan((Hf - Hb) / D), rz = 0.1, ry = Hb + (Hf - Hb) * (rz + D / 2) / D, RL = RD - 0.2;
+          for (let k = 0; k <= n; k += (n > 4 ? 2 : 1)) { const r = add(bx(0.09, 0.12, RL, wood[2], true, false), -W / 2 + k * SW, ry + 0.02, rz); r.rotation.x = -pitch; }
+          for (const x of [xRw, xRe]) { const r = add(bx(0.09, 0.12, RL, wood[2], true, false), x, ry + 0.02, rz); r.rotation.x = -pitch; }
+          // MÁI NHÌN XUYÊN (G 21/10 "khi click vào thì 50% transparent"): tôn + diềm + tấm pin + dây là 1 nhóm riêng, vật liệu riêng, không gộp lượt vẽ;
+          //  bấm mái (ui/hover-select.js) ⇒ bật / tắt mờ 50% + thôi đổ bóng ⇒ thấy bò nằm trong ô từ trên cao. Kèo, xà, cột vẫn đặc ----
+          const roofG = new THREE.Group(); roofG.name = 'Mái chuồng bò (Cow Shed Roof)'; roofG.userData.noBake = roofG.userData.noBatch = true; g.add(roofG);
+          const roofLine = lineDark.clone(), fasciaM = surfaceStyle(new THREE.MeshLambertMaterial({ color: 0x8a6a45, map: grain }), 'woodAO'), cableM = iron.clone(), seeMats = [tin, fasciaM, roofLine, cableM];
+          const roof = bx(RW, 0.035, RD, tin, true, true, roofLine); roof.position.set(-EXT / 2, ry + 0.1, rz); roof.rotation.x = -pitch; roofG.add(roof);
+          const fz = rz + RL / 2 * Math.cos(pitch), fy = ry + 0.057 + RL / 2 * Math.sin(pitch);   // diềm: ốp đầu trước các kèo
+          const fascia = bx(RW, 0.12, 0.04, fasciaM, true, false); fascia.position.set(-EXT / 2, fy, fz); fascia.rotation.x = -pitch; roofG.add(fascia);
+          // TẤM PIN MỎNG trên mái (G 19/10 "tạo 1 tấm solar mỏng nhỏ trên chuồng bò"): pin màng mỏng dẻo 1,1 × 0,62 m dày 2 cm dán phẳng theo mái tôn, góc
+          //  đông–trước (gần cột góc đông); mặt màng mỏng đen than kẻ sọc dọc (CIGS) viền nhôm. Dây vắt qua mép mái, luồn dưới diềm xuống cột góc → hộp sạc trên cột (nuôi đèn chuồng) ----
+          {
+            const film = (() => { const c = document.createElement('canvas'); c.width = 64; c.height = 36; const x = c.getContext('2d'); x.fillStyle = '#23262c'; x.fillRect(0, 0, 64, 36);
+              x.fillStyle = 'rgba(120,130,145,.35)'; for (let i = 1; i < 32; i++) x.fillRect(i * 2, 1, 0.5, 34);   // dải cell màng mỏng
+              x.fillStyle = '#aab0b6'; x.fillRect(0, 0, 64, 1); x.fillRect(0, 35, 64, 1);   // 2 thanh cái mép
+              const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; })();
+            const alu = new THREE.MeshLambertMaterial({ color: 0xb8bec4 }), filmM = new THREE.MeshLambertMaterial({ map: film }), panel = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.02, 0.62), [alu, alu, filmM, alu, alu, alu]);
+            panel.name = 'Tấm pin mỏng mái chuồng bò'; panel.position.set(W / 2 + 0.4 - 0.75, 0.0175 + 0.011, 1.2); panel.castShadow = panel.receiveShadow = true; edge(panel, panel.geometry, roofLine); roof.add(panel); seeMats.push(alu, filmM);
+            roof.updateMatrix(); const R = v => v.applyMatrix4(roof.matrix);   // toạ độ mái → chuồng
+            add(bx(0.16, 0.22, 0.07, iron, true, true, lineDark), W / 2 - 0.02, 1.85, D / 2 + 0.13);   // hộp điều khiển sạc + pin nhỏ trên mặt trước cột góc đông
+            add(bx(0.03, 0.015, 0.01, new THREE.MeshBasicMaterial({ color: 0x5bd16a }), false, false), W / 2 - 0.06, 1.92, D / 2 + 0.168);   // đèn báo sạc
+            const ex = W / 2 - 0.05, eY = ry + 0.1 + RD / 2 * Math.sin(pitch), eZ = rz + RD / 2 * Math.cos(pitch);   // mép trước tấm tôn (tâm bề dày)
+            const cable = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([R(new THREE.Vector3(W / 2 + 0.4 - 0.2, 0.03, 1.5)), R(new THREE.Vector3(W / 2 + 0.4 - 0.15, 0.03, RD / 2 - 0.12)),
+              new THREE.Vector3(ex, eY + 0.02, eZ + 0.03), new THREE.Vector3(ex, fy - 0.1, fz + 0.07), new THREE.Vector3(W / 2 + 0.03, Hf - 0.02, D / 2 + 0.1), new THREE.Vector3(W / 2 + 0.03, 2.2, D / 2 + 0.12),
+              new THREE.Vector3(W / 2 + 0.02, 1.96, D / 2 + 0.13)]), 40, 0.008, 5, false), cableM);
+            cable.castShadow = true; roofG.add(cable);
+          }
+          for (const m of seeMats) m.userData.see = [m.opacity, m.transparent];
+          let roofSee = false;
+          const roofToggle = () => { roofSee = !roofSee;
+            for (const m of seeMats) { const [o0, t0] = m.userData.see; m.opacity = roofSee ? o0 * 0.5 : o0; m.transparent = roofSee || t0; m.depthWrite = !roofSee; m.needsUpdate = true; }
+            roofG.traverse(o => { if (o.isMesh && !o.userData.hovFx) o.castShadow = !roofSee; });
+            return roofSee; };
           // vách ván: sau kín tới mái, hai hông cao 1,4 m + thanh giằng trên
           for (let y = 0.27, k = 0; y < Hb - 0.15; y += 0.25, k++) add(bx(W + 0.3, 0.22, 0.05, wood[k % 3], true, false), 0, y, -D / 2 - 0.13);
           for (const sx of [-1, 1]) {
@@ -243,11 +276,23 @@
           const stalls = [];
           for (let k = 0; k < n; k++) { const sx = hx - W / 2 + (k + 0.5) * SW; stalls.push({ x: sx, z: hz + 0.2, ex: sx, ez: hz + D / 2 + 1.3, hay: hayTop[k] }); }
           cowHutRect = { x0: hx - W / 2 - 1.7, x1: hx + W / 2 + 1.45, z0: hz - D / 2 - 0.35, z1: hz + D / 2 + 0.25 };
-          return { g, x: hx, z: hz, y: y0, W, D, Hf, Hb, stalls, light, lampTick, door: { x: hx, z: hz + D / 2 + 2.2 } };
+          return { g, x: hx, z: hz, y: y0, W, D, Hf, Hb, stalls, light, lampTick, door: { x: hx, z: hz + D / 2 + 2.2 }, roof: roofG, roofSheet: roof, roofToggle, roofSee: () => roofSee };
         })();
         { let k = 0; for (const c of cows) if (!c.dam) { c.stall = k++; if (c.calf) c.calf.stall = k++; } }   // bê nằm ô sát ô mẹ
+        // SỐ BÒ (G 19/10 "cho bò vào chuồng theo thứ tự mỗi con (có số) và về đúng thứ tự chuồng"): số = ô + 1 (ô 1 ngoài cùng tây), sơn đen trên lưng (đầu số về
+        //  phía đầu bò — đọc được từ trên cao) + số sơn trắng trên nền bê tông trước mỗi ô (biển trên xà bị mái che khi nhìn từ trên)
+        { const num = (n, ink) => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d');
+            x.fillStyle = ink; x.font = '700 46px Inter, system-ui, Arial'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(n, 32, 35); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; };
+          for (const c of cows) { const n = c.stall + 1, m = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 0.42), new THREE.MeshLambertMaterial({ map: num(n, '#26221d'), alphaTest: 0.5 }));
+            m.rotation.set(-Math.PI / 2, 0, -Math.PI / 2); m.position.set(-0.05, 1.878, 0); c.g.userData.body.add(m);
+            const p = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.3), new THREE.MeshLambertMaterial({ map: num(n, '#f2ede0'), alphaTest: 0.5 })); p.rotation.x = -Math.PI / 2; p.position.set(cowHut.stalls[c.stall].x - cowHut.x, 0.146, cowHut.D / 2 + 0.13); cowHut.g.add(p); } }
         cows.forEach(c => { c.mode = 'free'; c.leg = ''; c.sub = 'stand'; });
-        const cowHutWanted = () => { const h = liveWeather.localHour; return liveWeather.state.raining || h >= 17.9 || h < 6.2; };   // chiều tối hoặc mưa → về chuồng
+        const cowTimeWanted = () => { const h = liveWeather.localHour; return h >= 17.9 || h < 6.2; };
+        const cowHutWanted = () => liveWeather.state.raining || cowTimeWanted();   // chiều tối hoặc mưa → về chuồng
+        // LÙA BÒ KHI MƯA (G 21/10): mưa ban ngày mà chó rảnh ⇒ bò ngoài bãi CHƯA tự về, chờ chó vòng ra sau đàn lùa (animals/dog-brain.js — herd*, gán avail);
+        //  con được lùa (c.herd, bê theo mẹ) / cách cửa chuồng < 10 m / chiều tối thì về như cũ. c.push: chó ép sát sau lưng ⇒ bò bước nhanh hơn (≤ ×1,45)
+        const cowHerd = { on: false, done: false, avail: () => false };
+        const cowLetGo = c => c.herd || (c.dam && c.dam.herd) || cowTimeWanted() || Math.hypot(c.x - cowHut.door.x, c.z - cowHut.door.z) < 10 || !(cowHerd.on || (!cowHerd.done && cowHerd.avail()));
         let hutField = null;   // trường dòng chảy về cửa chuồng (dựng sau khi lưới cấm sẵn sàng); mỗi con có thêm c.homeField về bãi quen
         const COW_SLIDE = [0, 0.35, -0.35, 0.7, -0.7, 1.1, -1.1, 1.5, -1.5];
         function cowSteer(c, tx, tz, dt, field) {   // đi về (tx,tz): xa thì theo trường dòng chảy (vòng qua nước, chuồng), gần thì đi thẳng
@@ -270,7 +315,7 @@
           const mt = 1.4 * dt, na = c.ang + Math.max(-mt, Math.min(mt, dist < 1 ? da : da * Math.min(1, dt * 3)));   // quay đầu mượt (bò quay chậm, ≤ 80°/giây), sát đích thì nhắm thẳng
           const turnOK = !K || colTurnOK(K, c.x, c.z, c.ang, na); if (turnOK) c.ang = na;   // xoay mà quét thân vào cây / con bên cạnh thì chưa xoay (đi tiếp / trượt ra đã)
           c.vk = Math.min(1, (c.vk || 0) + dt / 0.9);   // nhấc bước tăng tốc dần ~0,9 s
-          const step = dist < 0.6 && Math.abs(da) > 0.8 ? 0 : Math.min(dist, c.spd * c.vk * dt * (Math.abs(da) > 1.2 ? 0.25 : Math.abs(da) > 0.5 ? 0.6 : 1));   // ngoặt gắt sát đích: quay tại chỗ trước
+          const step = dist < 0.6 && Math.abs(da) > 0.8 ? 0 : Math.min(dist, c.spd * (c.push || 1) * c.vk * dt * (Math.abs(da) > 1.2 ? 0.25 : Math.abs(da) > 0.5 ? 0.6 : 1));   // ngoặt gắt sát đích: quay tại chỗ trước
           // bước thử theo hướng mặt; vướng thì trượt lệch dần ±20°/40°/63° (men theo lan can, vách chuồng, mép nước), chặn thẳng mặt thì nhích ngang ±86°
           const freeHere = !cowBlocked[Math.round(x2gi(c.x)) + Math.round(z2gj(c.z)) * GX];
           let moved = step <= 0;
@@ -288,13 +333,17 @@
         }
         function cowHome(c, dt, t, want) {   // true = bò đang trong lộ trình chuồng (tự lo vị trí + dáng), false = để hành vi gặm cỏ cũ chạy
           if (want && c.mode !== 'home') { c.mode = 'home'; c.leg = c.leg === 'back' ? 'stall' : 'door'; }
-          else if (!want && c.mode === 'home') { if (c.leg === 'door' && !damWalkAt(c.x, c.z)) c.mode = 'free'; else if (c.leg === 'door') { c.mode = 'leave'; c.leg = 'pasture'; } else { c.mode = 'leave'; c.leg = 'back'; c.backW = undefined; } }   // hết mưa giữa đường về chuồng: thả tại chỗ — trừ khi đang trên mặt đập (về bãi quen, không gặm cỏ giữa cầu sát lan can)
+          else if (!want && c.mode === 'home') { const out = c.leg === 'door' || c.leg === 'wait'; if (out && !damWalkAt(c.x, c.z)) c.mode = 'free'; else if (out) { c.mode = 'leave'; c.leg = 'pasture'; } else { c.mode = 'leave'; c.leg = 'back'; c.backW = undefined; } }   // hết mưa giữa đường về chuồng: thả tại chỗ — trừ khi đang trên mặt đập (về bãi quen, không gặm cỏ giữa cầu sát lan can)
           if (c.mode === 'free') return false;
           const st = cowHut.stalls[c.stall % cowHut.stalls.length];
           let gait = 0;   // 1 bước tới · -1 lùi · 0 đứng yên
           const rising = c.restY > 0.02;   // đang nằm → đứng dậy xong mới đi
           if (c.mode === 'home') {
-            if (c.leg === 'door') { if (!rising) { gait = 1; if (cowSteer(c, st.ex, st.ez, dt, hutField)) c.leg = 'stall'; } }
+            if (c.leg === 'door') { if (!rising) { gait = 1; if (cowSteer(c, st.ex, st.ez + 2.4, dt, Math.hypot(c.x - cowHut.door.x, c.z - cowHut.door.z) > 3 ? hutField : null)) { c.leg = 'wait'; c.qw = 0; } } }   // gần cửa thì đi thẳng tới chỗ chờ trước ô MÌNH (trường dòng chảy dồn về GIỮA cửa ⇒ con ô ngoài cùng cách > 3 m đứng kẹt ở đó mãi — G 19/10 "1 con bò ko về chuồng đc")
+            else if (c.leg === 'wait') {   // XẾP HÀNG theo số (G 19/10): đứng chờ cách lối vào ô 2,4 m (chừa lối đi dọc mặt chuồng), mọi con số nhỏ hơn đang về phải vào ô xong mới tới lượt; chờ tối đa 4 phút (con ở xa bãi bên kia sông về mất ~1–2 phút; con trước kẹt thì không chặn cả đàn)
+              let da = -Math.PI / 2 - c.ang; da = Math.atan2(Math.sin(da), Math.cos(da)); c.ang += da * Math.min(1, dt * 2);
+              if ((c.qw += dt) > 240 || !cows.some(o => o.mode === 'home' && o.leg !== 'in' && o.stall < c.stall)) c.leg = 'stall';
+            }
             else if (c.leg === 'stall') { if (!rising) { gait = 1; if (cowSteer(c, st.x, st.z, dt, null)) { c.leg = 'in'; c.sub = 'stand'; c.tmr = 2 + Math.random() * 3; } } }
             else {
               let da = -Math.PI / 2 - c.ang; da = Math.atan2(Math.sin(da), Math.cos(da)); c.ang += da * Math.min(1, dt * 2);   // quay đầu vào máng

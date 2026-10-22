@@ -5,7 +5,17 @@
         // ---- NẤU ĂN BẰNG IK TAY: bàn tay đặt vào ĐIỂM THẬT trên đồ bếp (engArmSolve qua e.reachT) — núm ga, mép bếp, quai nồi, cán chảo, thớt, móc treo;
         //      đầu cúi nhìn đúng chỗ tay làm; cúi người = gập EO (e.lean lớn được lớp tư thế chuyển sang eo, chân vẫn đứng thẳng) ----
         const _ckP = VKIT.pot.parent, _ckT = [new THREE.Vector3(), new THREE.Vector3()], _ckA = new THREE.Vector3(), _ckB = new THREE.Vector3(), _ckE = new THREE.Vector3(), _ckL = new THREE.Vector3();
-        const ckW = (x, y, z, out) => _ckP.localToWorld(out.set(x, y, z));   // toạ độ bếp (mặt tủ x≈2,40, vách 2,97, mặt đá y 1,865) → thế giới
+        const ckW = (x, y, z, out) => _ckP.localToWorld(out.set(x, y, z));
+        // dụng cụ tay phải (G 18/10 khoanh ảnh: xẻng chĩa ngang ra khỏi tay, lưỡi không chạm chảo — trước chỉ đặt VỊ TRÍ bàn tay, hướng cổ tay để IK tự chọn):
+        //  đầu dụng cụ (toạ độ khung cổ tay, model.js: xẻng / đũa gắn dọc +z) đặt đúng điểm trong chảo / nồi, cán chếch lên về phía vai phải như người cầm thật
+        const CK_SPAT = new THREE.Vector3(0, -0.08, 0.31), CK_CHOP = new THREE.Vector3(0, -0.06, 0.35), _ckQ = new THREE.Quaternion(), _ckQ2 = new THREE.Quaternion(), _ckD = new THREE.Vector3(), _ckF = new THREE.Vector3(), _ckG = new THREE.Vector3();
+        function ckTool(e, local, tip) {
+          e.arms[0].getWorldPosition(_ckF); const d = _ckD.copy(tip).sub(_ckF.lerp(tip, 0.3)).normalize();   // hướng cán → đầu: từ vai xuống điểm khuấy
+          engHandFor(e, 0, aimQ(_ckQ, d, engWristUp(e, 0, d)), local, tip);
+        }
+        function ckGrip(e, i, p, along) {   // nắm cán ngang (chảo): miệng chữ C úp xuống, lỗ chữ C theo cán ⇒ cán xuyên qua nắm tay
+          engHandSet(e, i, p, aimQ(_ckQ2, _ckG.set(0, -1, 0), _ckF.set(-along.z, 0, along.x)));
+        }   // toạ độ bếp (mặt tủ x≈2,40, vách 2,97, mặt đá y 1,865) → thế giới
         const ckS = (u, a, b) => { const k = Math.max(0, Math.min(1, (u - a) / (b - a))); return k * k * (3 - 2 * k); };
         function ckHand(e, i, p, w = 1) {   // tay i (0 phải, 1 trái) với tới p (thế giới); w < 1: đi dần từ chỗ buông cạnh hông
           const R = e.reachT || (e.reachT = [null, null]);
@@ -176,8 +186,8 @@
               K.steam = 1; const rest = ((now - V.t0) % 30) > 22;
               if (rest) brace('pot');
               else {
-                H.chop = true; const a = t * 3.2;
-                ckHand(e, 0, ckW(2.66 + 0.03 * Math.cos(a), 2.07, 0.47 + 0.03 * Math.sin(a), _ckB)); ckHand(e, 1, ckW(2.43, TOP + 0.035, 0.2, _ckA.clone()));
+                H.chop = true; const a = t * 3.2, c = K.pot.getWorldPosition(_ckL), wy = K.potWater.getWorldPosition(_ckE).y;
+                ckTool(e, CK_CHOP, _ckB.set(c.x + 0.03 * Math.cos(a), wy - 0.01, c.z + 0.03 * Math.sin(a))); ckHand(e, 1, ckW(2.43, TOP + 0.035, 0.2, _ckA.clone()));   // đầu đũa vẽ vòng trong nước
                 e.lean = 0.18; lookAt('pot');
               }
               if (now - V.t0 >= V.stirDur) { V.st = 'off'; V.k = 0; }
@@ -250,9 +260,9 @@
                 K.stovePan.position.set(home.x - 0.02 * s, home.y + 0.04 * s, home.z); K.stovePan.rotation.set(0, Math.PI, 0.25 * s); food.position.y = 0.035 * Math.sin(Math.PI * Math.min(1, ph * 1.3));
               } else { K.stovePan.position.copy(home); K.stovePan.rotation.set(0, Math.PI, 0); food.position.y = 0; }
               K.stovePan.updateWorldMatrix(true, false);
-              const a = t * 5, c = K.stovePan.getWorldPosition(_ckL);
-              ckHand(e, 0, ckW(2.5 + 0.035 * Math.sin(a), 2.0 + 0.012 * Math.cos(2 * a), 0.47 + 0.03 * Math.cos(a), _ckB));
-              ckHand(e, 1, K.stovePan.localToWorld(_ckA.set(0.175, 0.045, 0)).clone());
+              const a = t * 5, c = K.stovePan.getWorldPosition(_ckL), sx = _ckA.set(1, 0, 0).transformDirection(K.stovePan.matrixWorld).clone();   // sx: hướng cán chảo
+              ckTool(e, CK_SPAT, _ckB.set(c.x + 0.05 * Math.sin(a), c.y + 0.03 + 0.008 * Math.cos(2 * a), c.z + 0.05 * Math.cos(a)));   // lưỡi xẻng đảo vòng trong lòng chảo
+              ckGrip(e, 1, K.stovePan.localToWorld(_ckA.set(0.175, 0.045, 0)), sx);
               e.lean = 0.2; ckLook(e, c);
               if (now - V.t0 >= V.fryDur) { K.stovePan.position.copy(home); K.stovePan.rotation.set(0, Math.PI, 0); food.position.y = 0; V.st = 'off'; V.k = 0; }
               break;
@@ -289,7 +299,7 @@
           }
           return 'busy';
         } };
-        const VAN_STATIONS = { desk: stDesk, table: stTable, bed: stBed, wc: stWc, sink: stSink, shelfOff: stShelf(false), shelfOn: stShelf(true), shower: stShower, towel: stTowel, stove: stStove, dishes: stDishes };
+        const VAN_STATIONS = { desk: stDesk, table: stTable, bed: stBed, wc: stWc, sink: stSink, shelfOff: stShelf(false), shelfOn: stShelf(true), shower: stShower, towel: stTowel, cleanWc: stCleanWc, cleanBath: stCleanBath, stove: stStove, dishes: stDishes };
         const engVanNew = node => ({ node, path: null, pi: 0, goal: null, segDoor: null, station: null, st: null, k: 0, plan: [], idx: 0, act: null, opened: new Set(), ph: Math.random() * 100 });
         function engVan(e, dt, t, act) {   // trong xe: làm lần lượt các trạm của việc; việc ngoài trời thì ra cửa hông bước xuống bậc
           const V = e.van, A = ENG_ACTS[act], g = e.g;

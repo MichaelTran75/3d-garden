@@ -49,6 +49,9 @@
 
         /* ===== LINE-ART structures ===== */
         const OUT = 0x4b4a46, lineMat = new THREE.LineBasicMaterial({ color: OUT }), lineDark = new THREE.LineBasicMaterial({ color: 0x243240 });
+        // nét viền RIÊNG của xe (G 18/10 thanh trượt "van border line art" 0–100): mỗi vật liệu nét 1 bản sao trong suốt chỉ xe dùng — gộp lượt vẽ xếp theo
+        // thuộc tính chứ không theo đối tượng, nên đổi độ mờ thì core/draw-batch.js tự tách nét xe ra vẽ riêng, nét công trình khác không đổi
+        const vanLineMats = new Map(), VAN_LINES = { k: 1 }, vanLine = m => { let c = vanLineMats.get(m); if (!c) { c = m.clone(); c.transparent = true; c.name = 'Nét viền xe'; c.opacity = VAN_LINES.k; c.visible = VAN_LINES.k > 0; vanLineMats.set(m, c); } return c; };   // VAN_LINES.k: mức thanh trượt 0–1
         function edge(mesh, geo, lm) { mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo, 30), lm || lineMat)); }
         function cellTex() {
           const c = document.createElement('canvas'); c.width = c.height = 256; const x = c.getContext('2d'); x.fillStyle = '#33414f'; x.fillRect(0, 0, 256, 256); const n = 8, g = 3, cs = 256 / n;

@@ -6,10 +6,14 @@
         //     gập tới ~40° thì gãy ở tầng rời (chỗ nối cuống–cành). Không giật thẳng xuống: dễ gãy cả chồi quả năm sau.
         //   · gãy xong cành nhỏ bật về: các quả cùng chùm đung đưa như con lắc tắt dần (~2 Hz, tắt sau vài giây).
         //   · quả rơi gọn trong túi (không dập) → rút ngắn sào, chống sào xuống đất, tay phải lấy quả, ngồi xổm đặt nhẹ vào giỏ (không thả rơi).
-        //  Hái 4 quả rồi dựng sào vào gốc, xách giỏ về đặt cạnh bàn trà. Tư thế tay do IK khuỷu (engArmPost: e.reachT = điểm nắm trên sào / quả / giỏ).
+        //  Mỗi lượt hái 1 quả, 3 lượt = 3 quả (giỏ đựng tối đa 3), dựng sào vào gốc, xách giỏ về đặt cạnh bàn trà. Tư thế tay do IK khuỷu (engArmPost:
+        //  e.reachT = điểm nắm trên sào / quả / giỏ). G 18/10: TÁO HÁI PHẢI ĂN TRONG NGÀY — giỏ còn quả thì không hái lại (lịch 16:10 và nút "Hái táo" đều
+        //  chặn); kỹ sư ăn dần (eat(): ra giỏ ngồi xổm lấy 1 quả → về ghế cắm trại → 5 miếng cắn, quả vơi dần còn lõi → ném lõi vào lò chiminea), quả kế
+        //  cách 20 phút, từ 19:30 thì 5 phút cho kịp hết trước khi ngủ (eatWant, gọi từ engWantAct). Sào cầm lệch sang phải người (không cắt ngang mặt);
+        //  chống sào xuống đất thì rổ ngang ngực lệch trái (không chạm mũ, không vướng người khi ngồi xổm bỏ quả vào giỏ bên phải).
         //  Cảnh lặp theo ngày: 5:00 sáng táo trên cây đủ lại, giỏ rỗng về gốc cây.
         const applePick = (() => {
-          const POLE_SEG = 1.8, EXT_MIN = 0.1, EXT_MAX = 1.7, GRIP_LO = 0.35, GRIP_HI = 0.85, GRIP_PLANT = 1.5, CUP_OFF = 0.05, N_PICK = 4;   // CUP_OFF: tâm quả trên đầu sào (G 17/10 quả nhỏ 30% ⇒ thấp 3 cm, vẫn tựa đáy lưới)
+          const POLE_SEG = 1.8, EXT_MIN = 0.1, EXT_MAX = 1.7, GRIP_LO = 0.35, GRIP_HI = 0.85, GRIP_PLANT = 1.5, CUP_OFF = 0.05, N_PICK = 3;   // CUP_OFF: tâm quả trên đầu sào (G 17/10 quả nhỏ 30% ⇒ thấp 3 cm, vẫn tựa đáy lưới)
           const UP = new THREE.Vector3(0, 1, 0), _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3(), _d = new THREE.Vector3();
           const lerp = (a, b, k) => a + (b - a) * k, ease = k => minJerk(Math.max(0, Math.min(1, k)));
           // ---- sào: ống dưới (tay cầm bọc cao su, khoá rút) + ống trên trượt trong ống dưới; gốc toạ độ = đầu dưới, +y dọc sào ----
@@ -50,7 +54,7 @@
           }
           const BASKET_TOP = 0.53 * BK;   // đỉnh quai (đv thế giới, tính từ đáy giỏ)
           const SLOTS = [[0.115, 0.11, 0], [-0.058, 0.11, 0.1], [-0.058, 0.11, -0.1], [0.03, 0.27, 0.02]].map(p => new THREE.Vector3(...p).multiplyScalar(0.7))
-            .concat([[0.085, 0.16, 0.147], [-0.17, 0.16, 0], [0.085, 0.16, -0.147], [-0.07, 0.3, 0.06], [0.07, 0.3, -0.06]].map(p => new THREE.Vector3(...p)));   // G 17/10 "click … select pick apple": hái thêm lượt ⇒ lớp 2 vòng 3 quả sát thành giỏ + 2 quả chất ngọn (9 quả)   // × 0,7: quả nhỏ 30% (G 17/10) vẫn chạm nhau, tựa đáy giỏ   // giỏ nhỏ: 3 quả đáy xếp tam giác chạm nhau, quả thứ 4 chồng lên khe giữa (ló khỏi miệng giỏ)
+            .concat([[0.085, 0.16, 0.147], [-0.17, 0.16, 0], [0.085, 0.16, -0.147], [-0.07, 0.3, 0.06], [0.07, 0.3, -0.06]].map(p => new THREE.Vector3(...p))).slice(0, 3);   // G 18/10: giỏ đựng tối đa 3 quả (lớp đáy)   // G 17/10 "click … select pick apple": hái thêm lượt ⇒ lớp 2 vòng 3 quả sát thành giỏ + 2 quả chất ngọn (9 quả)   // × 0,7: quả nhỏ 30% (G 17/10) vẫn chạm nhau, tựa đáy giỏ   // giỏ nhỏ: 3 quả đáy xếp tam giác chạm nhau, quả thứ 4 chồng lên khe giữa (ló khỏi miệng giỏ)
           // ---- cây, quả, chỗ đứng ----
           const trees = appleTrees.map(T => { T.updateMatrixWorld(true); return { T, base: T.getWorldPosition(new THREE.Vector3()), rA: T.userData.appleR * T.scale.x, apples: T.userData.apples }; });
           for (const tr of trees) for (const a of tr.apples) { a.tr = tr; a.st = 'tree'; a.world = a.g.getWorldPosition(new THREE.Vector3()); a.stemL = tr.rA * 1.1; }
@@ -86,11 +90,12 @@
           const table = scene.getObjectByName('Bàn trà (Camp Table)');
           const basketDrop = (() => { const tp = table ? table.position.clone() : pf.clone(); const away = tp.clone().sub(campChairPos).setY(0).normalize(); const p = tp.clone().addScaledVector(away, 0.75); p.y = cowY(p.x, p.z); return p; })();
           const basketStand = basketDrop.clone().add(plan.S.clone().sub(basketDrop).setY(0).normalize().multiplyScalar(0.62)); basketStand.y = cowY(basketStand.x, basketStand.z);
-          const St = { st: 'idle', k: 0, cfg: cfgNew(), c0: cfgNew(), c1: cfgNew(), cur: null, picked: 0, inBasket: [], basketAt: 'home', day: '', handApple: null, cupApple: null, swing: [] };
+          const St = { st: 'idle', k: 0, cfg: cfgNew(), c0: cfgNew(), c1: cfgNew(), cur: null, picked: 0, inBasket: [], basketAt: 'home', day: '', handApple: null, cupApple: null, swing: [], eat: null, core: null, lastEatH: -9 };
           const placeBasket = (p, yaw) => { basket.position.copy(p); basket.rotation.set(0, yaw, 0); basket.updateMatrixWorld(true); };
           function resetDay() {   // sáng sớm: táo trên cây đủ lại, giỏ rỗng về gốc, sào dựa gốc
             for (const tr of trees) for (const a of tr.apples) { a.st = 'tree'; a.sw = a.sv = a.swy = a.svy = 0; a.g.position.copy(a.home); a.g.rotation.set(0, a.rot, 0); a.g.scale.setScalar(1); a.g.visible = true; }
-            St.inBasket.length = 0; St.picked = 0; St.basketAt = 'home'; placeBasket(plan.basketHome, plan.yaw + 0.6);
+            for (const tr of trees) for (const a of tr.apples) if (a.mats0) { for (const [m, mt] of a.mats0) m.material = mt; a.mats0 = null; }   // lõi táo ăn dở hôm qua → quả nguyên
+            St.inBasket.length = 0; St.picked = 0; St.basketAt = 'home'; placeBasket(plan.basketHome, plan.yaw + 0.6); St.eat = St.core = null; St.lastEatH = -9;
             cfgCopy(St.cfg, plan.stow); poleSet(St.cfg.B, St.cfg.H);
           }
           resetDay();
@@ -100,13 +105,17 @@
             const f = plan.f, H = _b.copy(A).addScaledVector(UP, -(CUP_OFF + below));
             let hl = 1.0; const G = _c;
             for (let it = 0; it < 4; it++) {
-              G.copy(plan.S).addScaledVector(f, 0.3); G.y = plan.S.y + hl;
+              G.copy(plan.S).addScaledVector(f, 0.34).addScaledVector(plan.r, 0.24); G.y = plan.S.y + hl;   // tay dưới lệch phải: sào đi cạnh má, không cắt ngang mặt
               if (H.distanceTo(G) + GRIP_LO <= POLE_SEG + EXT_MAX) break; hl = Math.min(1.2, hl + 0.07);
             }
             const dir = _a.subVectors(H, G).normalize(); out.B.copy(G).addScaledVector(dir, -GRIP_LO); out.H.copy(H); return out;
           }
-          const readyCfg = out => { out.B.copy(plan.S).addScaledVector(plan.f, 0.32); out.B.y = plan.S.y + 0.62; out.H.copy(out.B); out.H.y += 1.92; return out; };
-          const plantCfg = out => { out.B.copy(plan.S).addScaledVector(plan.f, 1.35).addScaledVector(plan.r, -0.05); out.B.y = plan.S.y + 0.01; out.H.copy(out.B).addScaledVector(plan.f, -1.15); out.H.y += 1.5; return out; };   // chống chéo: rổ trước ngực, tay trái giữ sào ngay dưới rổ
+          const readyCfg = out => { out.B.copy(plan.S).addScaledVector(plan.f, 0.34).addScaledVector(plan.r, 0.24); out.B.y = plan.S.y + 0.62; out.H.copy(out.B); out.H.y += 1.92; return out; };
+          const plantCfg = out => { out.H.copy(plan.S).addScaledVector(plan.f, 0.55).addScaledVector(plan.r, -0.3); out.H.y = plan.S.y + 1.12; out.B.copy(out.H).addScaledVector(plan.f, 1.25).addScaledVector(plan.r, -0.85); out.B.y = plan.S.y + 0.01; return out; };   // chống chéo: đầu sào cắm đất xa ~1,5 m về trước–TRÁI 34° (gốc cây ngay trước mặt: sào đi cách thân ~0,8 m), rổ ngả về NGANG NGỰC lệch trái (sào ngắn nhất 1,9 m) — không chạm mũ, không vướng người khi ngồi xổm bên phải
+          function plantDrop(out, sq) {   // ngồi xổm bỏ quả vào giỏ: tay trái đẩy sào ra — chân sào trượt xa 0,35 m, sào ngả thấp 12° (rổ hạ ~0,35 m, xa đầu đang cúi)
+            plantCfg(out); _a.subVectors(out.H, out.B); const L = _a.length(), hz = Math.hypot(_a.x, _a.z), dx = _a.x / hz, dz = _a.z / hz, ph = Math.atan2(_a.y, hz) - 0.21 * sq;
+            out.B.x -= dx * 0.35 * sq; out.B.z -= dz * 0.35 * sq; out.H.set(out.B.x + dx * Math.cos(ph) * L, out.B.y + Math.sin(ph) * L, out.B.z + dz * Math.cos(ph) * L); return out;
+          }
           function snapSwing(A) {   // cành bật lại: các quả cùng chùm đung đưa (vận tốc góc tỉ lệ độ gần)
             for (const a of plan.tr.apples) {
               if (a.st !== 'tree' || a === A) continue; const d = a.world.distanceTo(A.world); if (d > 0.95) continue;
@@ -126,7 +135,7 @@
             const lookAt = p => { _a.copy(e.g.position); _a.y += 1.45; const dy = p.y - _a.y, dh = Math.hypot(p.x - _a.x, p.z - _a.z); e.head.rotation.x = Math.max(-0.75, Math.min(0.6, -Math.atan2(dy, dh))); };
             const grips2 = () => { R[0] = onPole(St.cfg, GRIP_LO, new THREE.Vector3()); R[1] = onPole(St.cfg, GRIP_HI, new THREE.Vector3()); };
             const stand = () => { engStandStill(e); e.vel = 0; e.g.position.y = cowY(e.g.position.x, e.g.position.z) - ENG_FEET; e.g.rotation.y = plan.yaw; };
-            if (St.st === 'idle') { St.picked = 0; go(St.basketAt === 'table' ? 'toBasket' : 'walk'); }   // giỏ đang ở cạnh bàn trà (lượt trước): đi lấy giỏ mang ra gốc cây trước
+            if (St.st === 'idle') { if (St.inBasket.length || St.eat) return true; St.picked = 0; go(St.basketAt === 'table' ? 'toBasket' : 'walk'); }   // giỏ còn táo chưa ăn: không hái lại   // giỏ đang ở cạnh bàn trà (lượt trước): đi lấy giỏ mang ra gốc cây trước
             if (St.st === 'toBasket') { H.pole = false; if (engStep(e, basketStand, dt, t, pf, FIRE_AVOID_R)) go('liftT'); return false; }
             if (St.st === 'bring') {   // xách giỏ ra gốc cây
               H.pole = false;
@@ -217,11 +226,11 @@
                 break;
               }
               case 'drop': {   // ngồi xổm, đặt quả nhẹ vào giỏ bên phải (không thả rơi cho khỏi dập), đứng lên
-                plantCfg(St.cfg); R[1] = onPole(St.cfg, GRIP_PLANT, new THREE.Vector3());
                 const sq = Math.min(ease(St.k / 0.6), 1 - ease((St.k - 1.3) / 0.6));
+                plantDrop(St.cfg, sq); R[1] = onPole(St.cfg, GRIP_PLANT, new THREE.Vector3());
                 e.noFootIK = true; e.g.position.y -= 0.24 * CAMP_SCALE * ENGINEER_SIZE * sq;
                 e.legs[0].rotation.x = e.legs[1].rotation.x = -1.05 * sq; e.knees[0].rotation.x = e.knees[1].rotation.x = 1.75 * sq; e.lean = 0.12 * sq;
-                e.spineT = { x: 0.45 * sq, y: -0.25 * sq };
+                e.g.rotation.y = plan.yaw - 0.9 * sq; e.spineT = { x: 0.36 * sq, y: -0.06 * sq };   // xoay cả người sang phải về phía giỏ rồi mới cúi: sào + rổ ở sau vai trái, đầu không chúi vào rổ
                 const slot = basket.localToWorld(SLOTS[Math.min(SLOTS.length - 1, St.inBasket.length)].clone());
                 R[0] = slot.clone().addScaledVector(UP, 0.12 * (1 - sq)); lookAt(slot);
                 if (St.k > 1.0 && St.handApple) { St.handApple.st = 'basket'; St.inBasket.push(St.handApple); St.handApple = null; St.picked++; }
@@ -261,12 +270,78 @@
             }
             return false;
           }
+          // ---- ĂN TÁO (G 18/10 "hái táo thì phải ăn trong ngày"): ra giỏ cạnh bàn trà, ngồi xổm lấy quả trên cùng (tay phải) → về ghế cắm trại → 5 miếng:
+          //      đưa lên miệng · cắn · giật nhẹ ra · hạ về đùi · nhai; quả vơi dần (bề ngang ×1 → 0,3), miếng thứ 4 lộ thịt táo màu kem ⇒ còn lõi · ném lõi
+          //      theo đường đạn vào miệng lò chiminea. Ngắt giữa chừng: chưa cắn thì trả quả vào giỏ, cắn rồi thì bỏ ----
+          const outV = new THREE.Vector3(Math.sin(caravanObj.rotation.y), 0, Math.cos(caravanObj.rotation.y));   // từ vách xe ra ngoài
+          const eatStand = basketDrop.clone().addScaledVector(outV, 0.58); eatStand.y = cowY(eatStand.x, eatStand.z);   // phía ngoài giỏ, xa bàn trà
+          const fleshM = new THREE.MeshLambertMaterial({ color: 0xf2e2b2 });   // thịt táo lộ ra sau mấy miếng cắn
+          const EAT_N = 5, EAT_T = 6.5, BITE_SXZ = [1, 0.84, 0.69, 0.55, 0.42, 0.3], BITE_SY = [1, 0.97, 0.95, 0.93, 0.9, 0.86];
+          const EAT_SLOT = new Set(['outdoor', 'rest', 'read', 'shelter', 'music', 'bedtime', 'explore', 'pet', 'fish', 'research']);   // việc có thể ngắt ra ăn 1 quả
+          function eatWant(e, hh, act) {   // engWantAct: 'eatApple' hoặc null
+            if (St.eat) return 'eatApple';   // đang ăn dở: ăn cho xong
+            if (St.st !== 'idle' || !St.inBasket.length || St.basketAt !== 'table' || engForceAct || !EAT_SLOT.has(act) || (act === 'fish' && e.phase === 'fish')) return null;
+            if (hh < St.lastEatH) St.lastEatH = -9;   // qua ngày
+            return hh - St.lastEatH >= (hh >= 19.5 ? 0.08 : 0.33) ? 'eatApple' : null;   // cách quả trước 20 phút · từ 19:30 ăn liền cho hết trong ngày
+          }
+          function biteLook(a, n) {   // quả sau n miếng
+            const k = Math.min(n, EAT_N); a.g.scale.set(BITE_SXZ[k], BITE_SY[k], BITE_SXZ[k]);
+            if (k >= 4 && !a.mats0) { a.mats0 = []; a.g.traverse(o => { if (o.isMesh && o.geometry && o.material !== fleshM && o !== a.g.children[a.g.children.length - 1]) { a.mats0.push([o, o.material]); o.material = fleshM; } }); }   // giữ cuống (con cuối)
+          }
+          function eatAbort(e) {
+            const E = St.eat; St.eat = null; e.noFootIK = false; if (!E || !E.a) return;
+            if (E.bites) { E.a.st = 'eaten'; E.a.g.visible = false; } else { E.a.st = 'basket'; St.inBasket.push(E.a); }
+          }
+          function eat(e, dt, t) {   // pha 'appleEat' của kỹ sư; true khi ăn xong 1 quả
+            const R = e.reachT = [null, null];
+            let E = St.eat; if (!E) { if (!St.inBasket.length) return true; E = St.eat = { st: 'go', k: 0, a: null, bites: 0 }; }
+            E.k += dt; const go2 = st => { E.st = st; E.k = 0; };
+            if (E.st === 'go') { if (engStep(e, eatStand, dt, t, pf, FIRE_AVOID_R)) go2('take'); return false; }
+            if (E.st === 'take') {   // ngồi xổm cạnh giỏ, tay phải nhặt quả trên cùng
+              engStandStill(e); e.vel = 0; e.g.position.y = cowY(e.g.position.x, e.g.position.z) - ENG_FEET; e.g.rotation.y = yawTo(e.g.position, basket.position);
+              const sq = Math.min(ease(E.k / 0.6), 1 - ease((E.k - 0.95) / 0.6));
+              e.noFootIK = true; e.g.position.y -= 0.2 * CAMP_SCALE * ENGINEER_SIZE * sq;
+              e.legs[0].rotation.x = e.legs[1].rotation.x = -0.9 * sq; e.knees[0].rotation.x = e.knees[1].rotation.x = 1.5 * sq; e.lean = 0.1 * sq; e.spineT = { x: 0.4 * sq, y: -0.18 * sq };
+              if (!E.a && St.inBasket.length) { R[0] = basket.localToWorld(SLOTS[St.inBasket.length - 1].clone()).addScaledVector(UP, 0.03 + 0.1 * (1 - sq)); if (E.k > 0.8) { E.a = St.inBasket.pop(); E.a.st = 'hand'; } }
+              else R[0] = engBodyW(e, -0.2, 1.45, 0.3, new THREE.Vector3());   // quả trước bụng khi đứng lên
+              e.head.rotation.x = 0.55 * sq;   // cúi nhìn giỏ
+              if (E.k > 1.55) { e.noFootIK = false; if (!E.a) { St.eat = null; return true; } go2('sit'); }
+              return false;
+            }
+            if (!engUseSeat(e, CAMP_SEAT, dt, t)) { if (E.st !== 'sit') go2('sit'); R[0] = engBodyW(e, -0.22, 1.5, 0.28, new THREE.Vector3()); return false; }   // mang quả về ghế (tay phải trước ngực)
+            const ax = engAxesW(e), fwd = _b.copy(ax.f), sc = e.g.scale.y;
+            if (E.st === 'sit') go2('bite');
+            if (E.st === 'bite') {   // T = 6,5 s mỗi miếng
+              const n = Math.floor(E.k / EAT_T), c = E.k % EAT_T;
+              if (n >= EAT_N) { go2('toss'); return false; }
+              const up = minJerk(segK(c, 0.2, 1.0)) * (1 - minJerk(segK(c, 1.5, 2.2))), pull = minJerk(segK(c, 1.05, 1.35)) * (1 - segK(c, 1.5, 2.2));
+              if (c >= 1.1 && E.bites < n + 1) { E.bites = n + 1; biteLook(E.a, E.bites); }   // cắn!
+              const lap = engBodyW(e, -0.16, 1.32, 0.36, new THREE.Vector3()), m = engMouthW(e, _c).addScaledVector(fwd, (0.075 + 0.05 * pull) * sc);
+              R[0] = lap.lerp(m, up);
+              e.seatLean = 0.05 + 0.08 * up; e.seatSwing = 0;
+              e.head.rotation.x = 0.16 * (1 - up) - 0.06 * pull + (c > 2.2 ? Math.abs(Math.sin(t * 9)) * 0.04 : 0);   // nhìn quả · ngẩng đón · nhai gật gù
+              return false;
+            }
+            if (E.st === 'toss') {   // vung tay phải quăng lõi vào miệng lò chiminea (đường đạn 0,7 s)
+              const back = minJerk(segK(E.k, 0, 0.5)), fw = minJerk(segK(E.k, 0.5, 0.75)), p = engBodyW(e, -0.3, 1.72, 0.25, new THREE.Vector3());
+              const to = _c.set(CHIM_MOUTH.x - e.g.position.x, 0, CHIM_MOUTH.z - e.g.position.z).normalize();
+              p.addScaledVector(to, (fw * 1.2 - back * 0.7) * 0.4 * sc).y += (0.35 * back - 0.1 * fw) * sc; R[0] = p;
+              e.seatLean = 0.04; e.head.rotation.x = 0.08;
+              if (E.k >= 0.72 && E.a) { const p0 = E.a.g.getWorldPosition(new THREE.Vector3()), T = 0.7, v = CHIM_MOUTH.clone().sub(p0).divideScalar(T); v.y += 0.5 * 9.81 * T; St.core = { a: E.a, p0, v, t: 0, T }; E.a = null; }
+              if (E.k >= 1.4) { St.eat = null; St.lastEatH = liveWeather.localHour; return true; }
+            }
+            return false;
+          }
+          const CHIM_MOUTH = (() => { const c = scene.getObjectByName('Lò sưởi chiminea (Chiminea)'); if (!c) return pf.clone().setY(pf.y + 0.3); c.updateMatrixWorld(true); return c.localToWorld(new THREE.Vector3(0, 0.5, 0.02)); })();   // tâm buồng đốt ngay sau ô cửa (cửa quay về ghế, camp/chiminea.js) · thiếu lò thì bếp lửa
           // ---- sau tư thế (bàn tay đã đúng chỗ): sào, quả trong rổ / tay / giỏ, giỏ trên tay; quả trên cây đung đưa ----
           const _w = new THREE.Vector3();
           function tick(e, dt) {
             const hh = liveWeather.localHour, day = new Date().toDateString();
             if (St.day !== day && hh >= 5 && hh < 16 && St.st === 'idle') { St.day = day; resetDay(); }
             if (St.st !== 'idle' && St.st !== 'done' && e.phase !== 'apple') abort();
+            if (St.eat && e.phase !== 'appleEat') eatAbort(e);
+            if (St.eat && St.eat.a) { e.wrists[0].localToWorld(_w.set(0, -0.02, 0.055)); setAppleWorld(St.eat.a, _w, 0, 0, St.eat.bites * 0.9); }   // quả đang ăn ở tay phải, xoay mặt chưa cắn về miệng
+            if (St.core) { const C = St.core; C.t += Math.min(dt, 0.05); _w.copy(C.p0).addScaledVector(C.v, C.t); _w.y -= 4.905 * C.t * C.t; setAppleWorld(C.a, _w, C.t * 9, 0, C.t * 6); if (C.t >= C.T) { C.a.st = 'eaten'; C.a.g.visible = false; St.core = null; } }
             if (St.st === 'done') St.st = 'idle';
             if (St.st !== 'idle' && St.st !== 'walk') poleSet(St.cfg.B, St.cfg.H);
             if (St.basketAt === 'hand') { e.wrists[1].getWorldPosition(_w); basket.position.set(_w.x, _w.y - BASKET_TOP, _w.z); basket.rotation.set(0, e.g.rotation.y, 0); basket.updateMatrixWorld(true); }
@@ -283,5 +358,6 @@
             }
           }
           const avail = () => Math.min(N_PICK, SLOTS.length - St.inBasket.length, plan.tr.apples.filter(a => a.st === 'tree' && reachable(plan.S, a.world)).length);   // số quả lượt tới sẽ hái
-          return { update, tick, get busy() { return St.st !== 'idle'; }, state: St, plan, pole, basket, avail, room: () => SLOTS.length - St.inBasket.length };
+          const canPick = () => St.st !== 'idle' || (!St.inBasket.length && !St.eat && avail() > 0);   // hái lại chỉ khi giỏ trống (táo hôm nay đã ăn hết)
+          return { update, tick, eat, eatWant, canPick, eatStand, eatSeated: () => !!St.eat && (St.eat.st === 'sit' || St.eat.st === 'bite' || St.eat.st === 'toss'), get busy() { return St.st !== 'idle'; }, get eating() { return !!St.eat; }, state: St, plan, pole, basket, avail, room: () => SLOTS.length - St.inBasket.length, left: () => St.inBasket.length + (St.eat && St.eat.a && !St.eat.bites ? 1 : 0) };
         })();

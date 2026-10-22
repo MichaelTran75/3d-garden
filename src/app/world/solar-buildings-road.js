@@ -349,7 +349,15 @@
         //      ống thông hơi kiểu nấm, nắp thăm; thang có lồng an toàn lên ban công + thang lên mái, ống tràn xuống đất, thước đo mực nước ----
         function waterSilo() {
           const g = new THREE.Group(), v3 = (x, y, z) => new THREE.Vector3(x, y, z);
-          const tankMat = new THREE.MeshLambertMaterial({ color: 0xc4c8cd }), tankDark = new THREE.MeshLambertMaterial({ color: 0xa6abb1 });
+          const rust = (() => {   // GỈ SÉT (G 20/10 "water tank cũng có chút gỉ sét", như mái tôn chuồng bò): vệt gỉ chảy xuống từ mép trên + 2 đai mối ghép (v 0,7 · 0,36), loang gỉ
+            //  ở đáy bồn (nước đọng), chấm gỉ lấm tấm — nền trắng nhân với màu tôn; thân tiện tròn / mái nón: u quanh bồn, v theo chiều cao (mái: đỉnh → mép mái)
+            const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'), r = mulberry32(4711); x.fillStyle = '#fff'; x.fillRect(0, 0, 128, 128);
+            for (const v of [0, 0.3, 0.64]) for (let k = 0; k < 9; k++) { const px = r() * 128, y0 = v * 128 + 2, l = 8 + r() * 34, gr = x.createLinearGradient(0, y0, 0, y0 + l); gr.addColorStop(0, `rgba(176,104,58,${(0.45 + 0.3 * r()).toFixed(2)})`); gr.addColorStop(1, 'rgba(176,104,58,0)'); x.fillStyle = gr; x.fillRect(px, y0, 1 + r() * 3, l); }
+            for (let k = 0; k < 14; k++) { const px = r() * 128, py = 112 + r() * 16, rr = 4 + r() * 10, gr = x.createRadialGradient(px, py, 0, px, py, rr); gr.addColorStop(0, 'rgba(160,92,48,0.5)'); gr.addColorStop(1, 'rgba(160,92,48,0)'); x.fillStyle = gr; x.fillRect(px - rr, py - rr, rr * 2, rr * 2); }
+            for (let k = 0; k < 60; k++) { x.fillStyle = `rgba(150,85,45,${(0.2 + 0.4 * r()).toFixed(2)})`; x.fillRect(r() * 128, r() * 128, 1, 1); }
+            const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = THREE.RepeatWrapping; return t;
+          })();
+          const tankMat = new THREE.MeshLambertMaterial({ color: 0xc4c8cd, map: rust }), tankDark = new THREE.MeshLambertMaterial({ color: 0xa6abb1 });
           const TH = 3.0, R = 1.45, SH = 2.6, y0 = TH + 0.12, yTop = y0 + SH, RB = 1.55, RT = 1.06, RD = R + 0.4, roofH = 0.52;
           const add = (m, x, y, z) => { m.position.set(x, y, z); g.add(m); return m; };
           const rod = (a, b, r, mat = legMat, segs = 6) => rodBetween(g, a, b, r, mat, segs, r > 0.02);
@@ -377,10 +385,17 @@
           const pr = [new THREE.Vector2(R, 0)], NW = 21;
           for (let i = 0; i <= NW * 4; i++) pr.push(new THREE.Vector2(R + 0.022 * Math.sin(i * Math.PI / 2), 0.08 + (SH - 0.16) * i / (NW * 4)));
           pr.push(new THREE.Vector2(R, SH));
-          const shell = add(new THREE.Mesh(new THREE.LatheGeometry(pr, 40), tankMat), 0, y0, 0); shell.castShadow = shell.receiveShadow = true;
+          // BỒN TRONG SUỐT 50% + KHỐI NƯỚC (G 21/10 "cho water tank 50% transparent, add water level theo mùa"): vỏ tôn + mái nón vẽ 2 lượt — mặt trong (BackSide,
+          //  renderOrder 1) → khối nước (2) → mặt ngoài (FrontSide, 3) ⇒ nước nằm đúng giữa 2 lớp vỏ; khối nước trụ R − 0,03 cao theo mực, kim thước đo chạy theo
+          //  (g.userData.level(L), mực tính ở world/water-pump.js); 3 thứ này không gộp lưới (noBake) — vật liệu riêng, bản gỉ sét cũ giữ cho nắp / ống thông hơi
+          const glass = side => new THREE.MeshLambertMaterial({ color: 0xc4c8cd, map: rust, transparent: true, opacity: 0.5, depthWrite: false, side });
+          const twin = (geo, y, one) => [[glass(THREE.BackSide), 1], [glass(THREE.FrontSide), 3]].slice(one ? 1 : 0).map(([m, ro]) => { const o = add(new THREE.Mesh(geo, m), 0, y, 0); o.renderOrder = ro; o.userData.noBake = o.userData.noBatch = true; return o; });
+          twin(new THREE.LatheGeometry(pr, 40), y0)[1].castShadow = true;
+          const water = add(new THREE.Mesh(new THREE.CylinderGeometry(R - 0.03, R - 0.03, 1, 40).translate(0, 0.5, 0), new THREE.MeshLambertMaterial({ color: 0x2f6f8a, transparent: true, opacity: 0.78, depthWrite: false })), 0, y0 + 0.08, 0);
+          water.name = 'Nước trong bồn'; water.renderOrder = 2; water.userData.noBake = water.userData.noBatch = true;
           for (const y of [y0 + 0.04, y0 + SH * 0.36, y0 + SH * 0.7, yTop - 0.03]) C(R + 0.03, R + 0.03, 0.06, tankDark, 0, y, 0, 40);
           // mái nón tôn có 20 gân, ống thông hơi nấm ở đỉnh, nắp thăm cạnh đầu thang
-          C(0.12, R + 0.1, roofH, tankMat, 0, yTop + roofH / 2, 0, 40, true);
+          twin(new THREE.CylinderGeometry(0.12, R + 0.1, roofH, 40, 1, true), yTop + roofH / 2, true);   // mái nón trong suốt: chỉ mặt ngoài (nhìn từ trên xuống đúng 1 lớp 50%, không 2 lớp chồng)
           for (let k = 0; k < 20; k++) { const a = k / 20 * Math.PI * 2, c = Math.cos(a), s = Math.sin(a); rod(v3(0.14 * c, yTop + roofH - 0.01, 0.14 * s), v3((R + 0.09) * c, yTop + 0.01, (R + 0.09) * s), 0.014, tankDark, 4); }
           C(0.09, 0.09, 0.26, tankDark, 0, yTop + roofH + 0.12, 0, 10); C(0.03, 0.22, 0.12, tankMat, 0, yTop + roofH + 0.3, 0, 12, true);
           const hatch = new THREE.Group(), hr = 0.86; hatch.position.set(hr * Math.SQRT1_2, yTop + roofH * (1 - (hr - 0.12) / (R - 0.02)) + 0.03, hr * Math.SQRT1_2); hatch.rotation.y = -Math.PI / 4; g.add(hatch);
@@ -403,7 +418,10 @@
           rod(v3((R + 0.12) * oc, TH - 0.05, (R + 0.12) * os), v3(-1.28, 0.16, 1.28), 0.04); add(bx(0.32, 0.06, 0.32, concreteMat, true, true), -1.32, 0.03, 1.32);
           // thước đo mực nước (hướng −20°): bảng trắng + kim vàng, dây phao vắt qua mép mái
           const gg = new THREE.Group(), ga = -0.35; gg.position.set((R + 0.05) * Math.cos(ga), y0 + SH / 2, (R + 0.05) * Math.sin(ga)); gg.rotation.y = -ga; g.add(gg);
-          gg.add(bx(0.03, SH * 0.82, 0.16, wallMat, true, true)); const nd = bx(0.06, 0.05, 0.22, warningMat, true, true); nd.position.y = 0.32; gg.add(nd);
+          gg.add(bx(0.03, SH * 0.82, 0.16, wallMat, true, true)); const nd = bx(0.06, 0.05, 0.22, warningMat, true, true); nd.userData.noBake = true; gg.add(nd);
+          g.userData.level = L => { water.scale.y = Math.max(0.01, L * (SH - 0.16)); nd.position.y = (L - 0.5) * SH * 0.82; };   // mực 0–1 (world/water-pump.js)
+          g.userData.level(0.6);
+          g.userData.dims = { R, RD, TH, yTop, roofH, roofY: r => yTop + roofH * (1 - (r - 0.12) / (R - 0.02)) };   // số đo cho ống bơm lên đỉnh bồn (world/water-pump.js)
           rod(v3((R + 0.06) * Math.cos(ga), yTop - 0.2, (R + 0.06) * Math.sin(ga)), v3((R + 0.06) * Math.cos(ga), yTop + 0.06, (R + 0.06) * Math.sin(ga)), 0.008, legMat, 4);
           return bakeStatic(g);
         }

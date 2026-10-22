@@ -76,7 +76,11 @@
           if (window.__disposeGarden === destroyGarden) { delete window.__disposeGarden; delete window.__info; }
         }
         cleanupBuild = releaseScene;
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.6));
+        // trần ĐIỂM ẢNH khung vẽ (G 19/10 "giảm độ phân giải … ko ảnh hưởng vật lý hiệu ứng"): màn 6K 3008 × 1692 điểm × 1,6 ⇒ ~12 triệu điểm ảnh, khung hình
+        // MSAA 4× ≈ 36 byte / điểm ⇒ ~440 MB RAM đồ hoạ chỉ cho khung vẽ. G 19/10 "giảm độ phân giải 6k xuống 2k": trần = 2K (2048 × 1080 ≈ 2,2 triệu điểm ảnh)
+        // ⇒ khung vẽ ≤ ~80 MB ở mọi màn (6K toàn màn hình: hệ số ~0,68). Mô phỏng / hạt / gió / va chạm không phụ thuộc độ phân giải
+        const PX_MAX = 2048 * 1080, pxCap = (w = innerWidth, h = innerHeight) => Math.min(window.devicePixelRatio, 1.6, Math.sqrt(PX_MAX / Math.max(1, w * h)));
+        renderer.setPixelRatio(pxCap());
         renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         renderer.outputColorSpace = THREE.SRGBColorSpace;
         renderer.toneMapping = THREE.ACESFilmicToneMapping;

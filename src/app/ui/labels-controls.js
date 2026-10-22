@@ -15,7 +15,7 @@
               ox.putImageData(d, 0, 0); x.drawImage(o, px - 4, py - 48); } else x.fillText(part, px, py);
             px += w; });
         }
-        function addLabel(text, dot, pos, to, dynamic = false, labelScale = annotationLabelScale) {
+        function addLabel(text, dot, pos, to, dynamic = false, labelScale = annotationLabelScale, solid = false) {   // solid: nền + viền + đường dẫn 100% (nhãn gắn nhân vật / vật trên xe — G 19/10)
           const c = document.createElement('canvas'), f = '600 46px Inter, system-ui, Arial', pad = 92, h = 108, k = 0.052 * labelScale;
           const measure = c.getContext('2d'); measure.font = f;
           // A dynamic label reuses one fixed-size texture. Only its UV crop and sprite width change.
@@ -24,14 +24,14 @@
           const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, transparent: true, opacity: 1, depthTest: false, depthWrite: false }));
           sp.renderOrder = 20; sp.position.copy(pos); labelGroup.add(sp);
           const lg = new THREE.BufferGeometry().setFromPoints([pos.clone().add(new THREE.Vector3(0, -h * k * 0.5, 0)), to]);
-          const ln = new THREE.Line(lg, new THREE.LineBasicMaterial({ color: 0x3a3530, transparent: true, opacity: 0.5, depthTest: false })); ln.renderOrder = 19; labelGroup.add(ln);
+          const ln = new THREE.Line(lg, new THREE.LineBasicMaterial({ color: 0x3a3530, transparent: true, opacity: solid ? 1 : 0.5, depthTest: false })); ln.renderOrder = 19; labelGroup.add(ln);
           let currentText = null;
           function update(nextText) {
             if (nextText === currentText) return;
             currentText = nextText; x.clearRect(0, 0, c.width, h); x.font = f;
             const width = Math.min(c.width, Math.ceil(x.measureText(nextText).width + pad + 40));
-            rr(x, 3, 3, width - 6, h - 6, 40); x.fillStyle = 'rgba(226,214,192,0.5)'; x.fill();
-            x.lineWidth = 3; x.strokeStyle = 'rgba(75,74,70,0.5)'; x.stroke();
+            rr(x, 3, 3, width - 6, h - 6, 40); x.fillStyle = solid ? '#e2d6c0' : 'rgba(226,214,192,0.5)'; x.fill();
+            x.lineWidth = 3; x.strokeStyle = solid ? '#4b4a46' : 'rgba(75,74,70,0.5)'; x.stroke();
             x.beginPath(); x.arc(54, h / 2, 16, 0, 7); x.fillStyle = dot; x.fill();
             x.fillStyle = '#000000'; x.globalAlpha = 1; x.textBaseline = 'middle'; fillLabelText(x, nextText, pad, h / 2 + 2, width - pad - 40);
             t.repeat.set(width / c.width, 1); t.needsUpdate = true; sp.scale.set(width * k, h * k, 1);
@@ -192,6 +192,18 @@
         if (zoomBtn) listen(zoomBtn, 'click', () => { camera.zoom = ZOOM_BASE; camera.updateProjectionMatrix(); updateZoomPct(); });
         const bA = document.getElementById('btnAxes');
         if (bA) listen(bA, 'click', () => { coordOn = !coordOn; axesGroup.visible = coordOn; bA.style.opacity = coordOn ? '1' : '0.5'; numSprites.forEach(s => s.visible = coordOn); if (!coordOn) { coordTip.style.display = 'none'; pin.visible = false; } });
+
+        // ---- THANH TRƯỢT NÉT VIỀN XE (G 18/10 "0 = complete 100% transparent border line, 100 = 100% border line visible"): độ mờ các vật liệu nét riêng
+        //      của xe (vanLine, core/axes-pin-bake.js) + mặt vỏ xe (VAN_LINES.onShell); 0 thì tắt hẳn vật liệu nét (khỏi tốn lượt vẽ) ----
+        const vlR = document.getElementById('vanLineRange'), vlV = document.getElementById('vanLineVal');
+        function setVanLines(v) {
+          v = Math.max(0, Math.min(100, Math.round(+v || 0))); VAN_LINES.k = v / 100;
+          for (const m of vanLineMats.values()) { m.opacity = VAN_LINES.k; m.visible = v > 0; } if (VAN_LINES.onShell) VAN_LINES.onShell();   // mặt vỏ mờ theo (ui/xray-lifecycle.js)
+          if (vlR && +vlR.value !== v) vlR.value = v; if (vlV) vlV.textContent = v; return v;
+        }
+        if (vlR) { setVanLines(100); listen(vlR, 'input', () => setVanLines(vlR.value)); }   // G 18/10: mở trang luôn ở 100 (không nhớ mức cũ)
+        const vlBar = document.getElementById('vanLineBar'); let vlNight = null;
+        function vanLineTone(night) { if (vlBar && night !== vlNight) { vlNight = night; vlBar.classList.toggle('night', night); } }   // đêm: thanh trắng sáng · ngày: đen
 
         // ═══════ CHỌN OBJECT (click-to-inspect): click bất kỳ vật thể nào (kể cả 1 instance riêng lẻ trong cụm hoa/cỏ)
         //          → hiện bảng toạ độ · xoay · scale · màu · hình học, có nút Sao chép để gửi cho Jade ═══════

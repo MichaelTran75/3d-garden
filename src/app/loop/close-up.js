@@ -65,7 +65,7 @@
             L.o.geometry = on ? L.hi : L.lo; L.o.userData.lodHi = on;
           }
         }
-        const DRES = { max: renderer.getPixelRatio(), min: Math.max(0.6, renderer.getPixelRatio() * 0.5), last: 0, ema: 0, slow: 0, fast: 0, hold: 2, test: null };
+        const DRES = { max: Math.min(window.devicePixelRatio, 1.6), min: Math.max(0.6, renderer.getPixelRatio() * 0.5), last: 0, ema: 0, slow: 0, fast: 0, hold: 2, test: null };
         function adaptResolution(ts) {   // ts: mốc thời gian rAF (khung do __dbg.frames() gọi thẳng thì không có → bỏ qua)
           const D = DRES, ms = D.last ? ts - D.last : 0; D.last = ts;
           if (window.__resLock || !(ms > 0) || ms > 250) return;   // khung đầu / vừa quay lại tab
@@ -79,5 +79,5 @@
           }
           D.slow = D.ema > 22 ? D.slow + s : 0; D.fast = D.ema < 17.8 ? D.fast + s : 0;
           if (D.slow > 1.5 && pr > D.min + 1e-3) { D.test = { pr, ema: D.ema, t: 1.5 }; renderer.setPixelRatio(Math.max(D.min, pr * 0.85)); D.slow = 0; }
-          else if (D.fast > 4 && pr < D.max - 1e-3) { renderer.setPixelRatio(Math.min(D.max, pr * 1.1)); D.fast = 0; D.hold = 1; }
+          else if (D.fast > 4 && pr < Math.min(D.max, pxCap()) - 1e-3) { renderer.setPixelRatio(Math.min(D.max, pxCap(), pr * 1.1)); D.fast = 0; D.hold = 1; }   // không vượt trần điểm ảnh (core/boot.js)
         }

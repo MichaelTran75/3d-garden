@@ -135,10 +135,8 @@
             if (!geo) { const n = Math.max(3, Math.round(h / 0.11)), pts = [V2(0.001, 0), V2(r * 0.6, 0)]; for (let i = 0; i < n; i++) { const y0 = h * i / n, d = h / n; pts.push(V2(r * 0.42, y0 + d * 0.2), V2(r * (i % 2 ? 0.78 : 1), y0 + d * 0.45), V2(r * 0.42, y0 + d * 0.7)); } pts.push(V2(r * 0.5, h), V2(0.001, h)); insC.set(k, geo = new THREE.LatheGeometry(pts, 9)); }
             const m = new THREE.Mesh(geo, ceramicMat); m.castShadow = true; return add(m, x, y, z);
           };
-          // ---- nền: bó vỉa + sân rải đá dăm (vân sỏi vẽ canvas), mương cáp có nắp ----
-          const gravel = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'); x.fillStyle = '#a19e95'; x.fillRect(0, 0, 64, 64);
-            for (let i = 0; i < 1100; i++) { const v = 118 + Math.random() * 100 | 0; x.fillStyle = `rgb(${v},${v - 2},${v - 7})`; x.fillRect(Math.random() * 64 | 0, Math.random() * 64 | 0, 1 + (Math.random() * 2 | 0), 1 + (Math.random() * 2 | 0)); }
-            const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(10, 7); t.colorSpace = THREE.SRGBColorSpace; return new THREE.MeshLambertMaterial({ map: t }); })();
+          // ---- nền: bó vỉa + sân rải đá dăm màu trơn (G 20/10 "remove texture nền sỏi" — trước là vân sỏi vẽ canvas 64², lặp 10 × 7), mương cáp có nắp ----
+          const gravel = new THREE.MeshLambertMaterial({ color: 0xa4a198 });
           add(bx(12.0, 0.14, 8.4, concreteMat, true, true, lineMat), 0, 0.07, 0); add(bx(11.6, 0.24, 8.0, gravel, false, true, lineMat), 0, 0.14, 0);
           B(9.2, 0.05, 0.38, concreteMat, 0, Y0 + 0.005, -2.55, true); B(0.38, 0.05, 3.8, concreteMat, 0.75, Y0 + 0.005, -0.55, true);
           // ---- thiết bị 3 pha (mỗi hàm trả đầu cực từng pha) ----

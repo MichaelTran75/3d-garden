@@ -17,51 +17,65 @@
         // ====== LỊCH SINH HOẠT CẢ NGÀY CỦA KỸ SƯ (theo giờ Pleiku thật) ======
         //  06:00 dậy, ngồi mép giường rồi đi vệ sinh · 06:12 ăn sáng ở bàn vuông trong xe (ngũ cốc, sữa, cà phê), ăn xong rửa bát · 06:40 ra trại:
         //  cột khí tượng, trà, dạo, uống nước, vuốt chó · 07:15–10:45 nghiên cứu ở bàn học · 10:45 vệ sinh · 10:55 nấu udon · 11:25 ăn udon ở bàn vuông,
-        //  rửa bát · 12:15 trà rồi ngủ trưa trên ghế · 13:00–16:00 nghiên cứu · 16:00 vệ sinh · 16:10 ra cây táo hái 4 quả bằng sào (engineer/apple-pick.js) · 16:35 dạo trại · 16:45 chiên cơm trứng · 17:15 bưng chảo
+        //  rửa bát · 12:15 trà rồi ngủ trưa trên ghế · 13:00–16:00 nghiên cứu · 16:00 vệ sinh · 16:10 ra cây táo hái 3 quả bằng sào, ăn hết trong ngày (engineer/apple-pick.js) · 16:35 dạo trại · 16:45 chiên cơm trứng · 17:15 bưng chảo
         //  ra hiên ăn tối · 18:00 mang chảo vào rửa, tắm — cả việc 3 phút (G 14/10) · 18:03 câu cá · 19:30 đọc sách, ăn khoai tây chiên
-        //  20:30 học bài, laptop mở nhạc · 20:57 ngồi mép giường tháo mũ · 21:00 ngủ.
+        //  20:00 học bài, laptop mở nhạc · 20:42 ngắm sao 1 tiếng (trời quang; mây / mưa thì đọc sách) · 21:42 ngồi mép giường tháo mũ · 21:45 ngủ (ENG_SLEEP_H).
         //  Mưa: việc ngoài trời trống (dạo trại, câu cá) đổi sang ngồi dưới hiên; ăn, nghỉ, đọc sách vốn đã dưới hiên nên giữ nguyên.
         //  Việc có điểm dừng (vệ sinh, tắm, nấu, ăn trong xe): xong sớm thì sang luôn việc kế tiếp; hết giờ mà chưa xong thì làm nốt rồi mới đi.
         const ENG_DAY = [[0, 'sleep'], [6, 'toilet'], [6.2, 'breakfast'], [6 + 40 / 60, 'outdoor'], [7.25, 'research'], [10.75, 'toilet'], [10 + 55 / 60, 'cook'], [11 + 25 / 60, 'lunch'],
           [12.25, 'rest'], [13, 'research'], [15 + 20 / 60, 'drone'], [15 + 50 / 60, 'rest'], [16, 'toilet'], [16 + 10 / 60, 'apples'], [16 + 35 / 60, 'outdoor'], [16.75, 'cook'], [17.25, 'dinner'], [18, 'shower'], [18 + 3 / 60, 'fish'],
-          [19.5, 'read'], [20.5, 'music'], [20.95, 'bedtime'], [21, 'sleep']];
+          [19.5, 'read'], [20, 'music'], [ENG_SLEEP_H - 1.05, 'stars'], [ENG_SLEEP_H - 0.05, 'bedtime'], [ENG_SLEEP_H, 'sleep']];   // 20:42–21:42 ngắm sao nếu trời quang (engineer/sky-watch.js), không thì đọc tiếp
         const ENG_ACTS = {
-          sleep: { van: 1, label: 'Ngủ' }, toilet: { van: 1, once: 1, label: 'Vệ sinh', plan: ['wc', 'sink'] },
+          sleep: { van: 1, label: 'Ngủ' }, toilet: { van: 1, once: 1, label: 'Vệ sinh', plan: ['wc', 'cleanWc', 'sink'] },
           breakfast: { van: 1, once: 1, label: 'Ăn sáng', plan: ['table', 'dishes'] }, research: { van: 1, label: 'Nghiên cứu', plan: ['desk'] },
           cook: { van: 1, once: 1, label: 'Nấu ăn', plan: ['stove'] }, lunch: { van: 1, once: 1, label: 'Ăn trưa', plan: ['table', 'dishes'] },
-          shower: { van: 1, once: 1, label: 'Tắm', plan: ['shelfOff', 'shower', 'towel', 'shelfOn'] },
+          shower: { van: 1, once: 1, label: 'Tắm', plan: ['shelfOff', 'shower', 'towel', 'cleanBath', 'shelfOn'] },
           music: { van: 1, label: 'Học bài, nghe nhạc', plan: ['desk'] }, bedtime: { van: 1, label: 'Chuẩn bị ngủ', plan: ['bed'] },
           outdoor: { label: 'Dạo quanh trại' }, apples: { once: 1, label: 'Hái táo' }, rest: { label: 'Nghỉ trưa' }, dinner: { label: 'Ăn tối' },
           fish: { label: 'Câu cá' }, read: { label: 'Đọc sách' }, shelter: { label: 'Trú mưa dưới hiên' }, drone: { once: 1, label: 'Bay drone khảo sát' }, engine: { label: 'Kiểm tra máy xe' },
           snack: { van: 1, label: 'Ăn nhẹ', plan: ['table', 'dishes'] }, pet: { label: 'Chơi với chó' }, explore: { label: 'Đi dạo khám phá' },   // việc tự chủ (engineer/autonomy.js)
-          trim: { label: 'Cắt cỏ quanh trại' }   // sau mưa, cỏ ráo (engineer/trim-grass.js)
+          trim: { label: 'Cắt cỏ quanh trại' },   // sau mưa, cỏ ráo (engineer/trim-grass.js)
+          eatApple: { label: 'Ăn táo' },   // giỏ còn táo hái hôm nay: ra giỏ lấy 1 quả, về ghế ăn (engineer/apple-pick.js eat / eatWant)
+          stars: { label: 'Ngắm sao' }, rainwatch: { label: 'Ngắm mưa' }, garden: { label: 'Chăm luống cà rốt' },   // tự chủ đợt 2 (engineer/sky-watch.js, carrot-garden.js)
+          chair: { label: 'Ngồi đọc sách, uống trà' }, wood: { label: 'Bỏ củi vào lò' }   // chỉ theo lệnh bảng Tools / bấm ghế, lò (engineer/tool-jobs.js)
         };
         function engScheduleAt(h) {
           let k = 0; for (let i = 1; i < ENG_DAY.length; i++) if (h >= ENG_DAY[i][0]) k = i;
           const end = k + 1 < ENG_DAY.length ? ENG_DAY[k + 1][0] : 24, n = (k + 1) % ENG_DAY.length;
           return { act: ENG_DAY[k][1], end, left: (end - h) * 3600, next: ENG_DAY[n][1], nextEnd: n + 1 < ENG_DAY.length ? ENG_DAY[n + 1][0] : 24 };
         }
-        let engForceAct = null;   // người xem bấm dụng cụ (ui/xray-lifecycle.js): 'drone' (▶ Chơi) · 'apples' (Hái táo) · 'engine' (▶ Khởi động máy) — làm ngay việc này, xong thì về lịch cũ
-        function engWantAct(e, hh) {   // việc cần làm lúc này (đặt e.actLeft = số giây còn lại của khung giờ)
-          if (engForceAct) { const w = liveWeather.state; if (w.raining || (engForceAct === 'drone' && (w.windSpeed || 0) / 3.6 > 9)) engForceAct = null; else { e.actLeft = 900; return engForceAct; } }
+        let engForceAct = null;   // người xem bấm dụng cụ (ui/xray-lifecycle.js): 'drone' (▶ Chơi) · 'apples' (Hái táo) · 'engine' (▶ Khởi động máy) · 'trim' — hoặc bảng Tools (ui/tools-panel.js): + 'stars', 'fish' — làm ngay việc này, xong thì về lịch cũ
+        function engWantAct(e, hh) {   // việc cần làm lúc này (đặt e.actLeft = số giây còn lại của khung giờ) · đang nằm ngắm sao mà việc đổi: giữ 'stars' tới khi cất thảm xong
+          const a = engWantAct0(e, hh);
+          if (a !== 'stars' && skyWatch.busy()) { skyWatch.stop(); e.actLeft = 120; return 'stars'; }
+          return a;
+        }
+        function engWantAct0(e, hh) {
+          if (engForceAct === 'apples' && !applePick.canPick()) engForceAct = null;   // giỏ còn táo chưa ăn: không hái lại
+          if (engForceAct) { const w = liveWeather.state; if ((w.raining && engForceAct !== 'chair' && engForceAct !== 'wood') || (engForceAct === 'drone' && (w.windSpeed || 0) / 3.6 > 9)) engForceAct = null; else { e.actLeft = 900; return engForceAct; } }   // mưa: huỷ việc ngoài trời (ghế dưới bạt, lò thì vẫn làm)
           const s = engScheduleAt(hh); let act = s.act, left = s.left;
           { const tw = trimWant(e, hh, act); if (tw) { e.actLeft = 900; return tw; } }   // sau mưa cỏ ráo: phát cỏ quanh trại (engineer/trim-grass.js)
+          if (act === 'stars' && !skyWatch.want(hh)) act = 'read';   // mây / mưa / đã ngắm: đọc sách tiếp dưới hiên
+          { const gw = gardenWant(e, hh, act); if (gw) { e.actLeft = 600; return gw; } }   // luống cà rốt: trồng lại hố trống, tưới, xem thỏ ăn (engineer/carrot-garden.js)
           if (ENG_ACTS[act].once) {
             const key = act + '@' + s.end + '@' + new Date().toDateString();   // theo ngày: hôm sau vẫn đi vệ sinh, vẫn tắm
             if (e.doneAct === key) { act = s.next; left = (s.nextEnd - hh) * 3600; }
             else if (e.onceKey !== key) { e.onceKey = key; e.onceEnd = s.end; }
           } else if (e.act && ENG_ACTS[e.act].once && e.onceKey && e.doneAct !== e.onceKey && e.onceKey.startsWith(e.act + '@') && hh < e.onceEnd + 0.2 && hh > e.onceEnd - 1) { act = e.act; left = 0; }
+          if (act === 'apples' && !applePick.canPick()) act = 'outdoor';   // táo hôm qua còn trong giỏ / cây hết quả trong tầm: thay hái bằng dạo trại
           if ((act === 'outdoor' || act === 'fish' || act === 'apples' || act === 'drone') && liveWeather.state.fresh && liveWeather.state.raining) act = 'shelter';
           if (act === 'drone' && (liveWeather.state.windSpeed || 0) / 3.6 > 9) act = 'rest';   // gió > 9 m/s: drone 249 g không bay (engineer/drone.js)
+          { const ea = applePick.eatWant(e, hh, act); if (ea) { e.actLeft = 600; return ea; } }   // táo hái hôm nay phải ăn trong ngày (engineer/apple-pick.js)
           const au = autoWant(e, hh, act); if (au) { e.actLeft = Math.max(30, AUTO.until - clock.elapsedTime); return au; }   // tự chủ theo nhu cầu / lệnh bấm thanh (engineer/autonomy.js)
           e.actLeft = Math.max(0, left); return act;
         }
-        const engPhaseFor = act => ENG_ACTS[act].van ? 'van' : act === 'dinner' && grill.st === 'ready' ? 'toGrill' : act === 'fish' ? 'toFish' : act === 'apples' ? 'apple' : act === 'drone' ? 'drone' : act === 'engine' ? 'engine' : act === 'trim' ? 'trim' : act === 'pet' ? 'toDog' : act === 'explore' ? 'explore' : act === 'outdoor' ? 'toMast' : act === 'shelter' ? 'toShelter' : 'toChair';
+        const engPhaseFor = act => ENG_ACTS[act].van ? 'van' : act === 'dinner' && grill.st === 'ready' ? 'toGrill' : act === 'fish' ? 'toFish' : act === 'apples' ? 'apple' : act === 'eatApple' ? 'appleEat' : act === 'drone' ? 'drone' : act === 'engine' ? 'engine' : act === 'trim' ? 'trim' : act === 'stars' ? 'stars' : act === 'rainwatch' ? 'rainwatch' : act === 'garden' ? 'garden' : act === 'wood' ? 'wood' : act === 'pet' ? 'toDog' : act === 'explore' ? 'explore' : act === 'outdoor' ? 'toMast' : act === 'shelter' ? 'toShelter' : 'toChair';
         function engChairPhase(e, act) {   // đã ngồi ghế cắm trại: làm gì, bao lâu
           if (act === 'dinner' && grill.st === 'held') { e.timer = e.eatLen = 76; return 'eatFish'; }   // cầm que cá nướng về: ăn cá trước (8 miếng), rồi mới ăn cơm chiên
           if (act === 'lunch' || act === 'dinner') { e.timer = Math.max(60, Math.min(1200, e.actLeft - 900)); return 'eat'; }
           if (act === 'rest') { e.timer = Math.max(30, Math.min(720, e.actLeft - 1200)); return 'tea'; }
           if (act === 'read') return 'read';
+          if (act === 'chair') { e.timer = 600; e.rtK = 25; e.rtTea = false; return 'read'; }   // Tools "Ghế cắm trại": đọc sách xen uống trà 10 phút (chairTea, engineer/tool-jobs.js)
           if (act === 'shelter') return 'shelter';
           e.timer = 150; return 'tea';   // dạo trại: ngồi nghỉ chân uống trà
         }

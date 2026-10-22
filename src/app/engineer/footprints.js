@@ -5,7 +5,7 @@
         //  hướng bàn chân, chân trái lật gương. Chỉ 3 dấu mới nhất còn thấy (đậm → nhạt), dấu thứ 4 mờ đi trong ~0,5 s ⇒ vệt 2–3 bước sau lưng; đứng yên lâu
         //  thì dấu cũ nhạt dần (sau 20 s). Không in trong xe, trên đường nhựa, mép nước; trong cỏ cao dấu khuất dưới lá như thật, cỏ vừa cắt thì rõ ----
         const footprints = (() => {
-          const N = 6, FW = 0.19, FL = 0.27, F = { soil: 0, n: 0, prev: [false, false] };   // cỡ dấu (m): đế ủng 0,26 × 0,36 đv mẫu người × 0,79
+          const N = 6, FW = 0.19 * ENG_SLIM, FL = 0.27 * ENG_SLIM, F = { soil: 0, n: 0, prev: [false, false] };   // cỡ dấu (m): đế ủng 0,26 × 0,36 đv mẫu người × 0,79
           const tex = (() => {   // đế ủng: gót – eo – mũi bè, gai ngang (khe trống), mép mềm; mũi ở đỉnh ảnh
             const c = document.createElement('canvas'); c.width = 64; c.height = 128; const x = c.getContext('2d');
             x.fillStyle = '#fff'; x.shadowColor = '#fff'; x.shadowBlur = 5;

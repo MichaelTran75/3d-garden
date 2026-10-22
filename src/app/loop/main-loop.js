@@ -3,7 +3,7 @@
           if (disposed || suspended) { frameId = 0; return; }
           if (ts !== undefined) adaptResolution(ts);   // độ phân giải tự điều chỉnh (loop/close-up.js)
           frameId = requestAnimationFrame(loop); const dt = Math.min(clock.getDelta(), 0.05) || 1 / 60;   // khung đầu: Clock.getDelta() trả 0 (mô phỏng chia cho dt sẽ ra NaN)
-          if (!COL.ready) colBuildTick(4); else colTick(dt);   // lớp va chạm dựng dần sau khi mở trang · đồng hồ lượt xuyên khi kẹt (core/collide.js)
+          if (!COL.ready) { colBuildTick(4); if (COL.ready) memTrim(); } else { colTick(dt); colMeshTick(dt); }   // lớp va chạm dựng dần sau khi mở trang · đồng hồ lượt xuyên khi kẹt (core/collide.js)
           const insectsAwake = liveWeather.wildlifeAwake;
           if (insectsAwake) flightNav.update();
           if (autoRotate) tTheta += 0.0008; theta += (tTheta - theta) * 0.08; phi += (tPhi - phi) * 0.08;
@@ -52,7 +52,7 @@
           for (const im of damIMs) im.instanceMatrix.needsUpdate = true;
           const cowWantHut = cowHutWanted();
           cowWatch(dt);   // người xem zoom cận bò / máng nước (animals/cows-hut.js)
-          for (const c of cows) { if (!cowHome(c, dt, t, cowWantHut)) { cowFreeTick(c, dt, t); cowUnstick(c, dt); } cowPose(c, dt, t); }   // hành vi → dáng (animals/cows-hut.js)
+          for (const c of cows) { if (!cowHome(c, dt, t, cowWantHut && cowLetGo(c))) { cowFreeTick(c, dt, t); cowUnstick(c, dt); } cowPose(c, dt, t); }   // hành vi → dáng (animals/cows-hut.js)
           if (stag) stagTick(dt, t);   // chú hươu: hành vi + bộ chân IK (animals/deer-crab-bunny.js)
 
 
@@ -165,7 +165,8 @@
               for (const sm of campObj.smoke) sm.m.visible = false;
               const S = campSmoke, B = S.base; campObj.g.localToWorld(B.set(0, 0, 0)); campObj.g.localToWorld(_smokeTop.set(0, 0.75, 0));
               S.zF = Math.max(0.3, _smokeTop.y - B.y); const lv = 0.3 + 0.7 * campfireLevel(liveWeather.localHour), q = CR.quench * lv, smk = CR.smolder * (1 - CR.flameK) * lv;   // hơi dập lửa + khói gỗ ướt âm ỉ theo cỡ đống lửa (ngày chỉ còn than 5% ⇒ ít)
-              S.heat = 0.45 + 1.05 * fireSize + 0.3 * q + 0.2 * smk; S.smoke = 0.5 + 2.5 * fireSize + 1.3 * q + 0.9 * smk; S.rate = 0.12 + 0.88 * fireSize + 0.4 * q + 0.25 * smk; S.steam = steamAmt;   // mưa rơi vào than nóng: hơi trắng dày
+              const wet = rainK > 0.05 ? Math.max(0.12, CR.heat) : 1;   // mưa: mặt than nguội ⇒ nguồn khói nền tắt theo (G 21/10 "ít khói lại")
+              S.heat = (0.45 + 0.3 * q + 0.2 * smk) * wet + 1.05 * fireSize; S.smoke = (0.5 + 0.45 * q + 0.35 * smk) * wet + 2.5 * fireSize; S.rate = (0.12 + 0.15 * q + 0.1 * smk) * wet + 0.88 * fireSize; S.steam = steamAmt;   // mưa rơi vào than nóng: 1 làn hơi ngắn
               if (kGrp) {
                 kGrp.localToWorld(_smokeTop.set(0, 0, 0)).sub(B); _smokeJet.copy(kettleSteam[0].dir).applyQuaternion(kGrp.getWorldQuaternion(_plumeQ)).multiplyScalar(0.9);
                 S.spout[0] = _smokeTop.x; S.spout[1] = _smokeTop.y; S.spout[2] = _smokeTop.z; S.spout[3] = _smokeJet.x; S.spout[4] = _smokeJet.y + 0.3; S.spout[5] = _smokeJet.z;

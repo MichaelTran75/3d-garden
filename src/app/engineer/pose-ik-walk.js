@@ -68,13 +68,23 @@
           if (fp >= 0) { const f = (ENG_BALL - ENG_BALL * c + ENG_SOLE * s) * S; return out.set(p.x + fx * f, p.y + (ENG_BALL * s + ENG_SOLE * c) * S, p.z + fz * f); }   // xoay quanh khớp ngón (mũi bàn)
           const f = (-ENG_HEEL + ENG_HEEL * c + ENG_SOLE * s) * S; return out.set(p.x + fx * f, p.y + (-ENG_HEEL * s + ENG_SOLE * c) * S, p.z + fz * f);   // xoay quanh gót
         }
+        // ---- MẶT ĐỠ CHÂN ngoài địa hình (G 22/10 "step stool để nhìn máy"): engSupports = hàm (x, z) → độ cao mặt trên (−Infinity nếu ngoài); IK bàn chân +
+        //      bước đi lấy engGroundY thay cowY ⇒ bàn chân đứng / đặt đúng lên bậc ghế. e.footPlan = { p: [đế chân phải, trái] (điểm đất dưới cổ chân, thế giới),
+        //      fp: [góc bàn] } — pha tự vẽ đường 2 bàn chân (bước lên / xuống bậc, engineer/engine-check.js), IK chân bám đúng điểm đó; xong thì gán null ----
+        const engSupports = [];
+        function engGroundY(x, z) { let y = cowY(x, z); for (const f of engSupports) { const s = f(x, z); if (s > y) y = s; } return y; }
         function engWalkReset(e) { if (e.wk) e.wk.on = false; e.walkW = 0; e.pelvisYaw = e.pelvisList = 0; }
         function engWalkFeet(e, dt, onFoot) {   // trạng thái 2 bàn chân khi đi; trả về e.wk (đang dùng) hoặc null
           const g = e.g, S = g.scale.y, walking = onFoot && e.walking;
           const K = e.wk || (e.wk = { on: false, feet: [0, 1].map(() => ({ w: new THREE.Vector3(), s0: new THREE.Vector3(), tg: new THREE.Vector3(), a: new THREE.Vector3(), fx: 0, fz: 1, sw: false, mode: '', u: 0, fp: 0, fp0: 0 })) });
           const yaw = g.rotation.y, fx = Math.sin(yaw), fz = Math.cos(yaw), rx = Math.cos(yaw), rz = -Math.sin(yaw);
-          const home = (i, out) => { out.set(g.position.x + rx * (i ? 0.15 : -0.15) * S, 0, g.position.z + rz * (i ? 0.15 : -0.15) * S); out.y = cowY(out.x, out.z); return out; };
+          const home = (i, out) => { out.set(g.position.x + rx * (i ? 0.15 : -0.15) * S, 0, g.position.z + rz * (i ? 0.15 : -0.15) * S); out.y = engGroundY(out.x, out.z); return out; };
           if (!onFoot) { engWalkReset(e); return null; }
+          if (e.footPlan) {   // pha tự đặt 2 bàn chân: cổ chân = điểm đế + góc bàn của kế hoạch, chậu hông không nảy / lắc
+            const FP = e.footPlan; K.on = true; e.walkW = 1; K.bob = K.lat = K.yaw = K.list = 0;
+            K.feet.forEach((F, i) => { F.sw = false; F.mode = ''; F.fx = fx; F.fz = fz; F.fp = FP.fp[i]; F.w.copy(FP.p[i]); engAnkleAt(F.w, fx, fz, F.fp, S, F.a); });
+            return K;
+          }
           if (!K.on) {
             if (!walking) { e.walkW = 0; return null; }
             K.feet.forEach((F, i) => { home(i, F.w); F.fx = fx; F.fz = fz; F.sw = false; F.fp = 0; engAnkleAt(F.w, fx, fz, 0, S, F.a); }); K.on = true;
@@ -94,7 +104,7 @@
               if (inSwing && !F.sw) { F.sw = true; F.mode = 'gait'; F.s0.copy(F.a); F.fp0 = F.fp; swinging++; }
               if (F.sw && F.mode === 'gait') {
                 const u = inSwing ? (ph - duty) / (1 - duty) : 1, ahead = ((1 - u) * (1 - duty) + duty * 0.5) * stride;
-                F.tg.set(_wkH.x + fx * ahead, 0, _wkH.z + fz * ahead); F.tg.y = cowY(F.tg.x, F.tg.z);
+                F.tg.set(_wkH.x + fx * ahead, 0, _wkH.z + fz * ahead); F.tg.y = engGroundY(F.tg.x, F.tg.z);
                 engAnkleAt(F.tg, fx, fz, ENG_FP_STRIKE, S, _wkT);
                 const dy = _wkT.y - F.s0.y, eu = ease(u);
                 F.a.lerpVectors(F.s0, _wkT, eu); F.a.y = F.s0.y + dy * (dy > 0 ? ease(u * 1.7) : ease(u * 1.7 - 0.7)) + Math.sin(Math.PI * Math.pow(u, 0.8)) * 0.075 * S;   // nhấc gót sớm, đáp thấp; lên bậc: nhấc trước rồi mới đưa tới
@@ -142,7 +152,7 @@
             const ky = ENG_HIP_Y - ENG_L1 * Math.cos(a), kz = -ENG_L1 * Math.sin(a), ay = ky - ENG_L2 * Math.cos(a + b), az = kz - ENG_L2 * Math.sin(a + b);
             g.localToWorld(_ikW.set(i ? 0.15 : -0.15, ay, az));
             const lift = Math.max(0, (_ikW.y - ENG_SOLE * S) - plane);   // độ nhấc chân của nhịp bước (đv thế giới)
-            const f = { a, b, ay, az, lift, delta: cowY(_ikW.x, _ikW.z) - plane, py: 0, pz: 0, ab: 0 };
+            const f = { a, b, ay, az, lift, delta: engGroundY(_ikW.x, _ikW.z) - plane, py: 0, pz: 0, ab: 0 };
             if (ww > 0) {   // bàn chân trụ cố định (cục bộ) · dạng/khép chân cho độ lệch ngang (chậu lắc, xoay, nghiêng) · hụt tầm với
               g.worldToLocal(_ikP.copy(K.feet[i].a)); const dx = _ikP.x - (i ? 0.15 : -0.15), dy = _ikP.y - ENG_HIP_Y;
               f.ab = Math.max(-0.3, Math.min(0.3, Math.atan2(dx, -dy))); f.py = ENG_HIP_Y - Math.hypot(dy, dx) * Math.cos(Math.atan2(dx, -dy) - f.ab); f.pz = _ikP.z;
@@ -176,7 +186,7 @@
         }
         // ---- KHUỶU TAY + EO (chạy cuối khung, sau cả cần câu): mọi pha vẫn ghi "góc vai" θ của tay thẳng (tâm bàn tay cách vai D = 0,66);
         //      ở đây giải IK 2 đoạn (định lý cos) cho tay 0,28 + 0,40 tới ĐÚNG điểm ấy: vai lùi α, khuỷu gập φ (luôn về trước, không gập ngược),
-        //      cổ tay bù (φ − α) ⇒ bàn tay & đồ đang cầm giữ đúng hướng đã thiết kế. Khung sau lớp tư thế lại trả θ gốc nên không cộng dồn.
+        //      cổ tay bù (φ − α) khi đang cầm đồ ⇒ đồ giữ đúng hướng đã thiết kế (tay không: cổ tay thẳng theo cẳng tay — engWristPeg). Khung sau lớp tư thế lại trả θ gốc nên không cộng dồn.
         //      Dáng đi (nghiên cứu dáng đi người: khuỷu ~15–20° khi tay lùi sau, ~40–50° khi vung trước; ngực vặn NGƯỢC chậu hông ±3–5°):
         //      tay vung trước kéo bàn tay gần vai hơn ⇒ khuỷu gập thêm; eo vặn theo nhịp bước. Pha có thể đặt e.elbowFlexT[i] (gập thêm,
         //      đơn vị = rút ngắn khoảng vai–tay) và e.spineT = {x: cúi(+)/ngửa(−), y: vặn} (vd hái táo: ngửa người với cao, cúi bỏ táo vào giỏ).
@@ -198,6 +208,10 @@
           }
           if (S[i]) return; S[i] = 1;
           const fx = e.elbowFlex || (e.elbowFlex = [0, 0]), ft = e.elbowFlexT || [0, 0];
+          const hq = e.handQ && e.handQ[i], HW = e.handQW || (e.handQW = [0, 0]), HL = e.handQL || (e.handQL = [new THREE.Quaternion(), new THREE.Quaternion()]);
+          if (hq) HL[i].copy(hq);
+          HW[i] += ((hq ? 1 : 0) - HW[i]) * (1 - Math.exp(-dt * 8));
+          const held = engHolding(e, i);   // tay KHÔNG cầm gì: cổ tay thẳng theo cẳng tay (bản cũ luôn bù góc khuỷu ⇒ bàn tay gập ngược, văng khỏi ống tay áo)
           // với tới điểm thế giới (e.reachT[i], pha đặt mỗi khung: điểm nắm trên sào, quả, giỏ…) — hướng vai + khoảng vai–tay, hoà vào dần
           fx[i] += (ft[i] - fx[i]) * kf;
           const A = e.arms[i]; A.rotation.y = 0; let th = A.rotation.x;   // (xoắn trục y chỉ do IK chính xác đặt ở khung trước)
@@ -206,7 +220,9 @@
           const tgt = RT && RT[i]; if (tgt) RL[i].copy(tgt);
           RW[i] += ((tgt ? 1 : 0) - RW[i]) * (1 - Math.exp(-dt * 7));
           if (RW[i] > 1e-3) {
-            const v = sp.worldToLocal(_ikW.copy(RL[i])).sub(A.position), dl = v.length() || 1;
+            _ikW.copy(RL[i]);
+            if (HW[i] > 1e-3 && e.foreW) { const bq = e.wristB ? e.wristB[i] : 0; _ikW.sub(_ikT.set(0, -Math.cos(bq), -Math.sin(bq)).applyQuaternion(HL[i]).sub(e.foreW[i]).multiplyScalar(ENG_WRIST_PEG * e.g.scale.y * HW[i])); }   // tâm bàn tay lệch khỏi đầu cẳng tay (chốt→tâm − hướng cẳng tay)·chốt: dời đích ngược lại
+            const v = sp.worldToLocal(_ikW).sub(A.position), dl = v.length() || 1;
             const gm = Math.asin(Math.max(-1, Math.min(1, v.x / dl))), tr = Math.atan2(-v.z, -v.y), w = RW[i];
             th = th + Math.atan2(Math.sin(tr - th), Math.cos(tr - th)) * w; A.rotation.z += (gm - A.rotation.z) * w;
             D = D + (Math.max(0.3, Math.min(L1 + L2 - 1e-3, dl)) - D) * w;
@@ -225,14 +241,42 @@
             const yA = _ikW.copy(E).negate().normalize(), f = _ikC.copy(u).multiplyScalar(D).sub(E).normalize();   // trục +y cánh tay trên · hướng cẳng tay
             (e.foreW || (e.foreW = [new THREE.Vector3(), new THREE.Vector3()]))[i].copy(f).transformDirection(sp.matrixWorld);   // hướng cẳng tay thế giới (khuỷu → tay) cho pha khung sau: cổ tay thẳng
             const zA = f.addScaledVector(yA, -f.dot(yA)).normalize(), xA = _ikA.crossVectors(yA, zA);   // cẳng tay gập về +z cục bộ
-            A.quaternion.setFromRotationMatrix(_ikM.makeBasis(xA, yA, zA)); e.elbows[i].rotation.x = -phi; e.wrists[i].rotation.x = phi - al;
-          } else { A.rotation.x = th + al; e.elbows[i].rotation.x = -phi; e.wrists[i].rotation.x = phi - al; }
+            A.quaternion.setFromRotationMatrix(_ikM.makeBasis(xA, yA, zA)); e.elbows[i].rotation.x = -phi; e.wrists[i].rotation.set(held ? phi - al : 0, 0, 0);
+          } else { A.rotation.x = th + al; e.elbows[i].rotation.x = -phi; e.wrists[i].rotation.set(held ? phi - al : 0, 0, 0); }
           // hướng bàn tay (e.handQ[i]: quaternion thế giới của khung cổ tay, pha đặt mỗi khung — thìa vào miệng, mép sách, que cá):
           // cổ tay gập/ngửa + cẳng tay sấp/ngửa gộp thành 1 phép quay ở cổ tay (tay LEGO xoay ở cổ tay), hoà vào/ra dần
-          const hq = e.handQ && e.handQ[i], HW = e.handQW || (e.handQW = [0, 0]), HL = e.handQL || (e.handQL = [new THREE.Quaternion(), new THREE.Quaternion()]);
-          if (hq) HL[i].copy(hq);
-          HW[i] += ((hq ? 1 : 0) - HW[i]) * (1 - Math.exp(-dt * 8));
           if (HW[i] > 1e-3) { e.elbows[i].updateWorldMatrix(true, false); e.elbows[i].getWorldQuaternion(_ikQ).invert().multiply(HL[i]); e.wrists[i].quaternion.slerp(_ikQ, HW[i]); }
+          engWristPeg(e, i, dt, held);
+        }
+        // ---- CHỐT CỔ TAY (G 22/10 "fix his hand… add weight rigging?"): kỹ sư là minifig LEGO — các mảnh CỨNG, không có da để gán trọng số (skinning chỉ cần cho
+        //      lưới liền biến dạng); lỗi là KHỚP đặt sai: khung bàn tay xoay quanh TÂM bàn tay ⇒ gập cổ tay là chốt tay văng khỏi ống tay áo. Giờ:
+        //      · bàn tay quay quanh CHỐT ở đầu cẳng tay (ENG_WRIST_PEG trên tâm bàn tay, đúng chỗ chốt tay LEGO cắm vào tay áo);
+        //      · vòng chữ C ôm quanh trục x cục bộ (lỗ tay LEGO) ⇒ xoay riêng lưới bàn tay + chốt quanh x một góc β không đổi chỗ vòng tay chiếm (chỉ dời khe hở và
+        //        hướng chốt — như que xoay trong tay LEGO): chọn β cho chốt thẳng hàng cẳng tay nhất. Khung cổ tay (đồ cầm: cốc, thìa, que cá…) giữ ĐÚNG hướng thiết
+        //        kế; bản cũ bắt cả bàn tay gập theo (ăn sáng: cốc cà phê đòi gập ~170°, ăn cá ~175°, nấu ăn ~117°);
+        //      · phần còn lệch sau β (trục lỗ tay gần song song cẳng tay): tay không cầm gì thì giới hạn ≤ 70° như cổ tay người; xoay quanh trục cẳng tay tự do ----
+        const _ikT = new THREE.Vector3(), _ikTw = new THREE.Quaternion(), _ikSw = new THREE.Quaternion(), _ikX = new THREE.Quaternion(), _ikQ2 = new THREE.Quaternion(), _wrParts = new WeakMap();
+        const ENG_WRIST_SWING = 1.22, ENG_X = new THREE.Vector3(1, 0, 0);
+        function engHolding(e, i) { for (const c of e.wrists[i].children) if (c.visible && !c.userData.core && !c.userData.hovFx) return true; return false; }   // đang cầm đồ (bảng, chai, thìa…)
+        function engWristParts(W) {   // lưới bàn tay chữ C + chốt (engineer/model.js đánh dấu userData.core)
+          let p = _wrParts.get(W); if (!p) _wrParts.set(W, p = { hand: W.children.find(c => c.userData.core === 'hand'), peg: W.children.find(c => c.userData.core === 'peg') });
+          return p;
+        }
+        function engSwingClamp(q, max) {   // tách swing–twist quanh trục cẳng tay (y cục bộ), giới hạn swing ≤ max; true = đã kẹp
+          const tl = Math.hypot(q.w, q.y);
+          if (tl > 1e-6) { _ikTw.set(0, q.y / tl, 0, q.w / tl); _ikSw.copy(_ikTw).invert().premultiply(q); } else { _ikTw.identity(); _ikSw.copy(q); }
+          if (_ikSw.w < 0) _ikSw.set(-_ikSw.x, -_ikSw.y, -_ikSw.z, -_ikSw.w);
+          const a = 2 * Math.acos(Math.min(1, _ikSw.w)); if (a <= max) return false;
+          _ikSw.slerp(_ikQ.identity(), 1 - max / a); q.copy(_ikSw).multiply(_ikTw); return true;
+        }
+        function engWristPeg(e, i, dt, held) {
+          const W = e.wrists[i], q = W.quaternion, B = e.wristB || (e.wristB = [0, 0]), P = engWristParts(W);
+          const a = 1 - 2 * (q.x * q.x + q.z * q.z), b = 2 * (q.y * q.z - q.w * q.x), d = Math.atan2(b, a) - B[i];   // (q·ŷ).y, (q·ẑ).y ⇒ β* = atan2(b, a): chốt thẳng nhất
+          B[i] += Math.atan2(Math.sin(d), Math.cos(d)) * (1 - Math.exp(-dt * 30 * Math.min(1, 3 * Math.hypot(a, b)))); B[i] = Math.atan2(Math.sin(B[i]), Math.cos(B[i]));   // lỗ tay ∥ cẳng tay thì β nào cũng như nhau: đổi chậm, khỏi giật
+          _ikX.setFromAxisAngle(ENG_X, B[i]); _ikQ2.copy(q).multiply(_ikX);   // hướng lưới bàn tay so với cẳng tay
+          if (!held && engSwingClamp(_ikQ2, ENG_WRIST_SWING)) q.copy(_ikQ2).multiply(_ikTw.copy(_ikX).invert());   // tay không: kẹp cả khung cổ tay
+          if (P.hand) { P.hand.quaternion.copy(_ikX); P.peg.quaternion.copy(_ikX); P.peg.position.set(0, ENG_WRIST_PEG, 0).applyQuaternion(_ikX); }
+          W.position.set(0, ENG_WRIST_PEG, 0).applyQuaternion(_ikQ2).negate().add(_ikT.set(0, ENG_WRIST_PEG - ENG_ARM_L2, 0));   // chốt đứng yên ở đầu cẳng tay, bàn tay quay quanh nó
         }
         function engArmPost(e, dt) {
           if (!e.elbows) return;

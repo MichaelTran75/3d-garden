@@ -104,7 +104,7 @@
             const q = L.parts[k];
             if (q.st === 0) {   // còn trên tán
               if (L.acc < 1) { L.im.setMatrixAt(k, _lfM.compose(_lfP.set(0, -999, 0), _lfQ.identity(), _lfS.setScalar(0))); continue; }
-              const pt = o.pick ? o.pick() : o.pts[(Math.random() * o.pts.length) | 0];
+              const P = o.pts, pt = o.pick ? o.pick() : !P.subarray ? P[(Math.random() * P.length) | 0] : P.length ? P.subarray(((Math.random() * P.length / 3) | 0) * 3).subarray(0, 3) : null;   // điểm lá: mảng [x, y, z] hoặc mảng số liền
               if (!pt) { L.acc = Math.min(L.acc, 0.99); L.im.setMatrixAt(k, _lfM.compose(_lfP.set(0, -999, 0), _lfQ.identity(), _lfS.setScalar(0))); continue; }
               L.acc -= 1;
               q.p.set(pt[0], pt[1], pt[2]).applyMatrix4(M); q.p.x += (Math.random() - 0.5) * 0.3; q.p.z += (Math.random() - 0.5) * 0.3;

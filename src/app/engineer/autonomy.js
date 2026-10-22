@@ -11,21 +11,25 @@
           snack: { n: { hunger: 1 }, dur: 480 }, toilet: { n: { bladder: 1.1 }, dur: 300 }, shower: { n: { hygiene: 1, fun: 0.1 }, dur: 700 },
           rest: { n: { energy: 1, fun: 0.2 }, dur: 900 }, read: { n: { fun: 0.6, curiosity: 0.5 }, dur: 900 }, music: { n: { fun: 0.7, social: 0.3 }, dur: 900 },
           fish: { n: { fun: 0.8, curiosity: 0.3, social: 0.2 }, dur: 900, out: 1 }, pet: { n: { social: 1, fun: 0.4 }, dur: 150, out: 1 },
-          explore: { n: { curiosity: 1, fun: 0.3 }, dur: 720, out: 1 }, outdoor: { n: { social: 0.4, fun: 0.3, curiosity: 0.4 }, dur: 600, out: 1 } };
-        const AUTO_FREE = new Set(['outdoor', 'rest', 'read', 'music', 'fish']), AUTO_BREAK = new Set(['research', 'outdoor', 'rest', 'read', 'music', 'fish', 'shelter']);
+          explore: { n: { curiosity: 1, fun: 0.3 }, dur: 720, out: 1 }, outdoor: { n: { social: 0.4, fun: 0.3, curiosity: 0.4 }, dur: 600, out: 1 },
+          stars: { n: { curiosity: 0.8, fun: 0.6, energy: 0.5 }, dur: 1500, out: 1 }, rainwatch: { n: { fun: 0.7, energy: 0.2, curiosity: 0.2 }, dur: 150 }, garden: { n: { fun: 0.5, curiosity: 0.4, social: 0.2 }, dur: 420, out: 1 } };   // đợt 2: ngắm sao (tối, quang) · ngắm mưa (đang mưa) · chăm luống
+        const AUTO_LEISURE = new Set(['read', 'music', 'rest', 'outdoor', 'explore', 'fish']), AUTO_FREE = new Set(['outdoor', 'rest', 'read', 'music', 'fish', 'shelter']), AUTO_BREAK = new Set(['research', 'outdoor', 'rest', 'read', 'music', 'fish', 'shelter']);
         function autoOk(act, hh) {   // việc làm được lúc này (mưa: bỏ việc ngoài trời · câu cá chỉ trước 19:30 · vuốt chó khi chó ở bếp lửa)
           const D = AUTO_ACTS[act]; if (D.out && liveWeather.state.raining) return false;
           if (act === 'fish' && (hh < 6.5 || hh > 19.5)) return false; if (act === 'pet' && !dogPettable()) return false;
+          if (act === 'stars') return skyWatch.want(hh); if (act === 'rainwatch') return !!liveWeather.state.raining;
+          if (act === 'garden') return hh > 6.8 && hh < 17.6 && clock.elapsedTime >= gardenJob.next && (carrotBed.empty().length > 0 || carrotBed.dry() || carrotBed.eating());
           return true;
         }
         function autoFix(k, hh) {   // việc lấp nhu cầu k (bấm thanh / nhu cầu cạn)
           const rain = liveWeather.state.raining, dark = hh >= 18.7 || hh < 6.3;
-          return { hunger: 'snack', bladder: 'toilet', energy: 'rest', hygiene: 'shower', fun: rain || dark ? 'music' : 'fish',
-            social: dogPettable() ? 'pet' : 'outdoor', curiosity: rain ? 'read' : 'explore' }[k];
+          return { hunger: 'snack', bladder: 'toilet', energy: 'rest', hygiene: 'shower', fun: rain ? 'rainwatch' : skyWatch.want(hh) ? 'stars' : dark ? 'music' : 'fish',
+            social: dogPettable() ? 'pet' : 'outdoor', curiosity: rain ? 'read' : skyWatch.want(hh) ? 'stars' : dark ? 'read' : 'explore' }[k];
         }
         function autoWant(e, hh, sched) {   // engWantAct (engineer/schedule.js): việc tự chủ thay việc của lịch, hoặc null
-          if (hh >= 21 || hh < 6 || sched === 'sleep' || sched === 'bedtime') { AUTO.act = null; AUTO.cmd = false; return null; }
+          if (hh >= ENG_SLEEP_H || hh < 6 || sched === 'sleep' || sched === 'bedtime') { AUTO.act = null; AUTO.cmd = false; return null; }
           const now = clock.elapsedTime;
+          if (AUTO.act && !AUTO.cmd && sched === 'stars' && AUTO_LEISURE.has(AUTO.act)) AUTO.act = null;   // tới giờ ngắm sao (trời quang): việc giải trí tự chọn nhường chỗ
           if (AUTO.act && now < AUTO.until && (AUTO.cmd || autoOk(AUTO.act, hh))) return AUTO.act;
           if (AUTO.act) { AUTO.act = null; AUTO.cmd = false; AUTO.next = now + 240; }   // hết thời lượng / trời đổi: nghỉ 4 phút rồi mới chọn việc khác (đỡ đổi việc liên tục)
           if (now < AUTO.next || sim.hour === null) return null; AUTO.next = now + 60;
@@ -39,13 +43,13 @@
           return best && best !== sched ? autoStart(best, false) : null;
         }
         function autoStart(a, cmd) { AUTO.act = a; AUTO.cmd = cmd; AUTO.until = clock.elapsedTime + AUTO_ACTS[a].dur; return a; }
-        const AUTO_BONUS = { pet: { social: 15, fun: 5 }, explore: { curiosity: 20 }, snack: { hunger: 10 } };   // việc ngắn có điểm dừng: lấp thêm 1 lần khi xong (vuốt chó chỉ ~20 s)
+        const AUTO_BONUS = { pet: { social: 15, fun: 5 }, explore: { curiosity: 20 }, snack: { hunger: 10 }, rainwatch: { fun: 8 }, garden: { fun: 6, curiosity: 6 } };   // việc ngắn có điểm dừng: lấp thêm 1 lần khi xong (vuốt chó chỉ ~20 s)
         function autoDone(a) {
           if (AUTO.act !== a) return; const B = AUTO_BONUS[a]; if (B) for (const k in B) sim.n[k] = Math.min(100, (sim.n[k] ?? 60) + B[k]);
           AUTO.act = null; AUTO.cmd = false; AUTO.next = clock.elapsedTime + 240;
         }
         function autoCommand(k) {   // bấm thanh nhu cầu: trả lời lý do không làm được, hoặc '' khi đã giao việc
-          const hh = liveWeather.localHour; if (hh >= 21 || hh < 6) return 'Engineer đang ngủ (21:00 – 6:00).';
+          const hh = liveWeather.localHour; if (hh >= ENG_SLEEP_H || hh < 6) return 'Engineer đang ngủ (21:45 – 6:00).';
           if (engForceAct) return 'Engineer đang làm việc anh vừa gọi.';
           if (trimJob.busy()) return 'Engineer đang cắt cỏ, xong việc này đã.';
           const a = autoFix(k, hh); if (!a) return ''; autoStart(a, true); return '';

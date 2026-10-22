@@ -104,8 +104,8 @@
         const STOOL_IN = VSTOOL.in, STOOL_SEAT = indoorSeat('stool', VSTOOL.x, VSTOOL.rest, VY.pz), TABLE_STAND = vanPt(VSTOOL.x, TR.yIn, VSTOOL.rest + STUDY_FZ);
         function stoolAt(z) { VSTOOL.obj.position.z = z - VSTOOL.rest; STOOL_SEAT.pos.copy(vanPt(VSTOOL.x, TR.yIn, z)); }
         const BED_SEAT = indoorSeat('bed', 0.62, -0.27, VY.pz);                                   // mép đệm (mép giường z −0,14), đệm cao 0,49 m
-        const TOILET_SEAT = indoorSeat('toilet', 2.62, -0.71, VY.pz, { standZ: 0.4 * CAMP_SCALE }); // bồn cầu gọn sát vách −z, mặt quay về lối vào
-        const TOILET_STAND = seatW(TOILET_SEAT, 0, TOILET_SEAT.standZ), SHOWER_SPOT = vanPt(2.58, TR.yIn, -0.37);
+        const TOILET_SEAT = indoorSeat('toilet', 2.62, -0.63, VY.pz, { standZ: 0.4 * CAMP_SCALE }); // bồn cầu gọn sát vách −z (vách vỏ GLB z −0,90, 19/10), mặt quay về lối vào
+        const TOILET_STAND = seatW(TOILET_SEAT, 0, TOILET_SEAT.standZ), SHOWER_SPOT = vanPt(2.58, TR.yIn, -0.34);
         function engHelmet(e, where) {   // mũ bảo hộ: trên đầu · trên kệ phòng tắm · cuối giường
           e.helmet.visible = where === 'head'; e.hair.visible = where !== 'head';
           VBATH.shelfHelmet.visible = where === 'shelf'; caravanObj.userData.interior.bedHelmet.visible = where === 'bed';
