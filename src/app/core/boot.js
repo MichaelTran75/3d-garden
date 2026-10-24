@@ -32,7 +32,7 @@
         //  rAF không tới (khung nhúng ngoài màn hình) ⇒ 150 ms tự đi tiếp. ldTrack(promise): mẫu 3D / ảnh tải lúc mở trang — khung đầu chờ (tối đa 6 s, loop/main-loop-rest.js)
         let ldT = performance.now();
         //  ldGate: mở ở cuối dựng cảnh (loop/main-loop-rest.js) — mẫu 3D tải xong giữa 2 nhịp nhường vẫn chờ cổng rồi mới gắn vào cảnh (hàm gắn dùng biến của tệp sau,
-        //  vd attach() xe → VPART của van/van-doors.js: gắn sớm = lỗi biến chưa khai báo); tải vẫn chạy song song với dựng cảnh
+        //  vd attach() xe → VPART của van/body/van-doors.js: gắn sớm = lỗi biến chưa khai báo); tải vẫn chạy song song với dựng cảnh
         let ldOpen = null; const ldGate = new Promise(r => { ldOpen = r; }), ldAfter = v => ldGate.then(() => v);   // .then(ldAfter): chờ cổng, giữ giá trị
         const ldNeed = [], ldTrack = p => { ldNeed.push(Promise.resolve(p).catch(() => {})); return p; };
         const ldStep = f => { window.__ld?.(18 + 50 * f, 19 + 50 * f); return !document.hidden && performance.now() - ldT > 70; };

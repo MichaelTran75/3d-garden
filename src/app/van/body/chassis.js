@@ -5,7 +5,7 @@
         //  bỏ lốp, vành, cản trước, cần số; chèn 1,26 m vào đoạn thanh dọc trống ở giữa (cơ sở GAZ 2,51 m → Transit 3,77 m, ống các-đăng sau giãn theo); thanh dọc
         //  + nhíp trước nở ±0,12 m chừa động cơ V6; hạ khung 9 cm (nóc thanh dọc 0,82 < sàn trong xe 0,83), nhíp + giảm xóc bẹt dần; lật trái–phải (hộp lái về
         //  bên phải −Z, xe tay lái nghịch). Toạ độ GLB = đv xe (mũi −X, cửa lùa +Z, cầu trước x −2,12, cầu sau x 2,03, tâm bánh y 0,44) ⇒ gắn thẳng vào xe.
-        //  Thay cầu tạm (van/caravan.js 'Cầu bánh xe'). Xem xuyên: giữ (keep). HỘP SỐ (dựng bằng code): chuông ly hợp + thân + đuôi, từ đuôi động cơ (x −2,31,
+        //  Thay cầu tạm (van/interior/caravan.js 'Cầu bánh xe'). Xem xuyên: giữ (keep). HỘP SỐ (dựng bằng code): chuông ly hợp + thân + đuôi, từ đuôi động cơ (x −2,31,
         //  tâm trục khuỷu y 0,71) tới khớp các-đăng đầu vào hộp số phụ (x −1,17, y 0,54, z 0,15 — số đo GLB GAZ sau khi sửa).
         const CHASSIS_GLB = window.__chassisGlb || 'https://michaeltran75.github.io/3d-garden/models/chassis.glb';
         const chassis = { g: null, gear: null };

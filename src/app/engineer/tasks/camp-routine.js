@@ -28,7 +28,7 @@
                 if (angling.stage === 'done' || !angling.active || e.timer < -45) {
                   if (engForceAct === 'fish') engForceAct = null;                 // câu theo lệnh bảng Tools (ui/tools-panel.js): xong thì về lịch
                   e.phase = e.act === 'fish' ? 'toChair' : engPhaseFor(e.act); e.timer = 0; resetFishingBite();
-                  if (grill.st === 'bucket') { grill.toHand(e); e.phase = 'toPlant'; }   // lấy con cá rô trong xô, mang về bếp xiên que cắm nướng
+                  if (grill.st === 'bucket') { grill.toHand(e); e.phase = chiminea.oven.fish.free() >= 0 ? 'toSmoker' : 'toPlant'; }   // lấy con cá rô trong xô: vỉ lò nướng còn chỗ ⇒ hun khói (engineer/tasks/smoker.js), đầy ⇒ xiên que cắm nướng ở bếp
                   e.rodGrp.visible = false; groundRod.visible = true; fishLine.visible = false; bobber.visible = false;
                 }
               }
@@ -51,7 +51,8 @@
           }
           else if (e.phase === 'eatFish') { if (engUseSeat(e, CAMP_SEAT, dt, t)) { e.arms[0].rotation.x = e.arms[1].rotation.x = -1.3; engEatFish(e, dt, t); } }   // 2 tay cầm que cá như bắp ngô
           else if (e.phase === 'tossFish') { if (engUseSeat(e, CAMP_SEAT, dt, t)) engTossFish(e, dt, t); }
-          else if (e.phase === 'toGrill' || e.phase === 'grab' || e.phase === 'toPlant' || e.phase === 'plant') engGrillPhase(e, dt, t);   // lấy que cá nướng · xiên & cắm cá mới
+          else if (e.phase === 'toGrill' || e.phase === 'grab' || e.phase === 'toPlant' || e.phase === 'plant') engGrillPhase(e, dt, t);
+          else if (e.phase === 'toSmoker' || e.phase === 'smokeIn' || e.phase === 'toSmokerOut' || e.phase === 'smokeOut') engSmokerPhase(e, dt, t);   // cá hun khói trong lò nướng   // lấy que cá nướng · xiên & cắm cá mới
           else if (e.phase === 'tea') {                // nhấp trà thư giãn, ngả lưng nhẹ; hết giờ: nghỉ trưa thì chợp mắt luôn trên ghế, dạo trại thì đứng dậy đi tiếp
             if (engUseSeat(e, CAMP_SEAT, dt, t)) {
               e.timer -= dt; e.arms[0].rotation.x = e.arms[1].rotation.x = -0.6;

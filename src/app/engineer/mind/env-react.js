@@ -38,7 +38,7 @@
             const s0 = ENV.seen.get(o), s = w * (1.3 - d / ENV_R) * (0.75 + 0.25 * fr) * (s0 !== undefined && t - s0 < 25 ? 0.3 : 1);
             if (s > bs) { bs = s; best = { kind, o }; }
           };
-          for (const b of [songbird, ...flock.birds, ...nestPairs.flat()]) { const S = b.state; if (S.st !== 'sleep' && !(S.at && S.at.local)) cand('bird', b, b.root.position, S.st === 'fly' ? 0.9 : S.at && S.at.kind === 'ground' ? 1.3 : 0.8); }
+          for (const b of [songbird, ...flock.birds, ...nestPairs.flat(), ...sparrowGang.birds]) { const S = b.state; if (S.st !== 'sleep' && !(S.at && S.at.local)) cand('bird', b, b.root.position, S.st === 'fly' ? 0.9 : S.at && S.at.kind === 'ground' ? 1.3 : 0.8); }
           if (liveWeather.wildlifeAwake && daytimeAnimals.visible) {
             for (const bf of butterflies) if (bf.mode === 'nav') cand('bfly', bf, bf.g.position, 1.25);
             for (const b of bees) if (b.g.visible) cand('bee', b, b.g.position, 0.5);

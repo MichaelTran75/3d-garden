@@ -263,8 +263,44 @@
         {
           const point = (p, offset) => ({ x: p.x + p.nx * offset, z: p.z + p.nz * offset });
           const maxGrade = .12;
-          const asphalt = new THREE.MeshLambertMaterial({ color: 0x73786f, flatShading: true });
-          const shoulder = new THREE.MeshLambertMaterial({ color: 0xb4a58a, flatShading: true });
+          // CHI TIẾT MẶT ĐƯỜNG (G 24/10 tối "study the road and add detail to our roads" — mẫu "Hiden Road Diorama", Toni García Vilche, Sketchfab, CC-BY-4.0;
+          //  chỉ HỌC, không dùng ảnh mẫu): đường nhựa cũ — nền loang, 2 vệt bánh xe sẫm, mảng bong nhựa lộ đá dăm nâu cam, vết nứt dọc / ngang, vạch trắng mép
+          //  phai đứt quãng, vạch tim đứt (vạch 1,5 m · khoảng 1,5 m); lề sỏi tan lẫn cỏ lấn mép không đều. Vẽ canvas (lặp dọc mỗi ROAD_TILE m), bump theo cùng hình:
+          //  mảng bong + nứt lõm xuống. UV: u ngang dải, v = lý trình / ROAD_TILE ⇒ liền qua góc cua miter + nhánh lên đập
+          //  G 24/10 khuya "giảm 50% road render nứt, cũ": vệt bánh / loang / hạt nửa độ đậm, mảng bong 8 → 4, nứt 10 → 5, vạch ít đứt hơn nửa, bump 0,6 → 0,3
+          const ROAD_TILE = 6;
+          const roadTex = (() => {
+            const W = 256, H = 512, r = mulberry32(2410), wrapY = (y, h, fn) => { fn(y); if (y < h) fn(y + H); if (y > H - h) fn(y - H); };
+            const mk = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return [c, c.getContext('2d')]; };
+            const [ca, a] = mk(W, H), [cb, b] = mk(W, H);
+            a.fillStyle = '#5d615e'; a.fillRect(0, 0, W, H); b.fillStyle = '#808080'; b.fillRect(0, 0, W, H);
+            for (const u of [0.27, 0.73]) { const g = a.createLinearGradient((u - 0.12) * W, 0, (u + 0.12) * W, 0); g.addColorStop(0, 'rgba(30,32,31,0)'); g.addColorStop(0.5, 'rgba(30,32,31,0.14)'); g.addColorStop(1, 'rgba(30,32,31,0)'); a.fillStyle = g; a.fillRect(0, 0, W, H); }   // vệt bánh xe
+            for (let k = 0; k < 20; k++) { const x = r() * W, y = r() * H, R = 12 + r() * 40, dark = r() < 0.6; wrapY(y, R, yy => { const g = a.createRadialGradient(x, yy, 0, x, yy, R); g.addColorStop(0, dark ? 'rgba(35,37,36,0.22)' : 'rgba(140,142,136,0.16)'); g.addColorStop(1, 'rgba(0,0,0,0)'); a.fillStyle = g; a.fillRect(x - R, yy - R, 2 * R, 2 * R); }); }
+            for (let k = 0; k < 9000; k++) { const x = r() * W, y = r() * H, v = 60 + r() * 90 | 0; a.fillStyle = `rgba(${v},${v + 2},${v},0.25)`; a.fillRect(x, y, 1, 1); b.fillStyle = `rgba(${v + 40},${v + 40},${v + 40},0.5)`; b.fillRect(x, y, 1, 1); }   // hạt cấp phối
+            const line = (x0, x1, y0, y1, wear) => { for (let y = y0; y < y1; y += 2) if (r() > wear) { a.fillStyle = `rgba(222,218,204,${(0.55 + 0.3 * r()).toFixed(2)})`; a.fillRect(x0 + r() * 1.2, y, x1 - x0 - r() * 1.5, 2); } };
+            line(0.035 * W, 0.06 * W, 0, H, 0.09); line(0.94 * W, 0.965 * W, 0, H, 0.09);   // vạch mép phai
+            for (const y0 of [0, H / 2]) line(0.49 * W, 0.51 * W, y0 + 0.125 * H, y0 + 0.375 * H, 0.12);   // vạch tim đứt: 1,5 m vạch / 1,5 m trống
+            for (let k = 0; k < 4; k++) {   // mảng bong nhựa lộ đá dăm (như mẫu: loang nâu xám, nhiều ở mép + vệt bánh): chuỗi 3–6 cụm nối nhau ⇒ vệt loang méo, không tròn
+              let cx0 = (r() < 0.5 ? r() * 0.25 : r()) * W, cy0 = r() * H; const m = 3 + r() * 4 | 0;
+              for (let j = 0; j < m; j++) { cx0 += (r() - 0.5) * 22; cy0 += 6 + r() * 16; const n = 25 + r() * 60 | 0, R = 5 + r() * 12;
+              for (let i = 0; i < n; i++) { const ang = r() * 6.283, d = R * Math.sqrt(r()), x = cx0 + Math.cos(ang) * d * (0.6 + r()), y = cy0 + Math.sin(ang) * d * 1.4, s2 = 0.7 + r() * 1.6, col = ['#7f6a52', '#94806a', '#6a5948', '#7c766c', '#8b7258'][r() * 5 | 0];
+                wrapY(y, 4, yy => { a.fillStyle = col; a.globalAlpha = 0.85; a.beginPath(); a.arc(x, yy, s2, 0, 6.283); a.fill(); a.globalAlpha = 1; b.fillStyle = 'rgba(40,40,40,0.8)'; b.beginPath(); b.arc(x, yy, s2 + 0.6, 0, 6.283); b.fill(); }); } }
+            }
+            for (let k = 0; k < 5; k++) {   // vết nứt: dọc gần mép / vệt bánh, vài vết ngang
+              let x = (k < 3 ? [0.12, 0.3, 0.7, 0.88][k % 4] + (r() - 0.5) * 0.08 : r()) * W, y = r() * H; const across = k >= 3, len = 40 + r() * 140;
+              a.strokeStyle = 'rgba(28,29,28,0.85)'; b.strokeStyle = 'rgba(0,0,0,0.9)'; a.lineWidth = b.lineWidth = 1 + r() * 0.8; a.beginPath(); b.beginPath(); a.moveTo(x, y); b.moveTo(x, y);
+              for (let d = 0; d < len; d += 6) { if (across) { x += 6; y += (r() - 0.5) * 5; } else { y += 6; x += (r() - 0.5) * 4; } a.lineTo(x, y); b.lineTo(x, y); }
+              a.stroke(); b.stroke();
+            }
+            const [cs, sh] = mk(64, H);   // lề: sỏi + cỏ lấn mép ngoài (u 0 = mép ngoài)
+            sh.fillStyle = '#9c8b6d'; sh.fillRect(0, 0, 64, H);
+            for (let k = 0; k < 2600; k++) { sh.fillStyle = ['#b9a27c', '#857560', '#a39a8c', '#6f6250', '#c7b38f'][r() * 5 | 0]; const s2 = 0.8 + r() * 2; sh.fillRect(r() * 64, r() * H, s2, s2); }
+            for (let y = 0; y < H; y += 2) { const reach = 10 + 14 * (0.5 + 0.5 * Math.sin(y / H * 6.283 * 3 + 1.3)) + r() * 10; for (let i = 0; i < 3; i++) { sh.fillStyle = ['#6d8c46', '#5f7d3c', '#7d9a52'][r() * 3 | 0]; sh.fillRect(0, y, reach * (0.6 + 0.5 * r()), 2); } }
+            const tex = (c, srgb) => { const t = new THREE.CanvasTexture(c); if (srgb) t.colorSpace = THREE.SRGBColorSpace; t.wrapS = THREE.ClampToEdgeWrapping; t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; return t; };
+            return { asphalt: tex(ca, true), bump: tex(cb, false), shoulder: tex(cs, true) };
+          })();
+          const asphalt = new THREE.MeshLambertMaterial({ map: roadTex.asphalt, bumpMap: roadTex.bump, bumpScale: 0.3 });
+          const shoulder = new THREE.MeshLambertMaterial({ map: roadTex.shoulder });
           const earth = new THREE.MeshLambertMaterial({ color: 0x867558, flatShading: true });
           // 1 tuyến = dãy trạm {x, z, pháp tuyến ngang nx nz, lý trình s}: cao độ phủ mọi ô đất dưới mặt cắt, dốc ≤ 12 % (chỉ đắp, không đào), 3 dải mặt
           // (nhựa + 2 lề) + nền đắp bám đất · fix(stations): ràng buộc cao độ riêng của tuyến, chạy trước khi san dốc
@@ -286,19 +322,19 @@
             for (let i = 1; i < stations.length; i++) stations[i].y = Math.max(stations[i].y, stations[i - 1].y - maxGrade * (stations[i].s - stations[i - 1].s));
             for (let i = stations.length - 2; i >= 0; i--) stations[i].y = Math.max(stations[i].y, stations[i + 1].y - maxGrade * (stations[i + 1].s - stations[i].s));
             bedY -= .15;
-            function strip(offset0, offset1, material, name, edgeDrop = false) {
-              const vertices = [], indices = [];
-              for (const p of stations) for (const offset of [offset0, offset1]) {
+            function strip(offset0, offset1, material, name, edgeDrop = false, u0 = 0, u1 = 1) {   // u0 / u1: u ở offset0 / offset1 (lề: 0 = mép ngoài)
+              const vertices = [], indices = [], uv = [];
+              for (const p of stations) for (const [offset, u] of [[offset0, u0], [offset1, u1]]) {
                 const q = point(p, offset), drop = edgeDrop && Math.abs(offset) > roadWidth / 2 ? .02 : 0;
-                vertices.push(q.x, p.y - drop, q.z);
+                vertices.push(q.x, p.y - drop, q.z); uv.push(u, p.s / ROAD_TILE);
               }
               for (let i = 1; i < stations.length; i++) { const a = (i - 1) * 2, b = i * 2; indices.push(a, a + 1, b, a + 1, b + 1, b); }
-              const geometry = new THREE.BufferGeometry(); geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3)); geometry.setIndex(indices); geometry.computeVertexNormals();
+              const geometry = new THREE.BufferGeometry(); geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3)); geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); geometry.setIndex(indices); geometry.computeVertexNormals();
               const mesh = new THREE.Mesh(geometry, material); mesh.name = name; mesh.receiveShadow = true; campusRoad.add(mesh);
             }
             strip(-roadWidth / 2, roadWidth / 2, asphalt, 'Mặt đường liên tục');
             strip(-roadHalf, -roadWidth / 2, shoulder, 'Lề đường bên phải', true);
-            strip(roadWidth / 2, roadHalf, shoulder, 'Lề đường bên trái', true);
+            strip(roadWidth / 2, roadHalf, shoulder, 'Lề đường bên trái', true, 1, 0);
             const vertices = [], indices = [], packed = new Float32Array((stations.length - 1) * 6);
             const quad = (a, b, c, d) => { const k = vertices.length / 3; vertices.push(...a, ...b, ...c, ...d); indices.push(k, k + 1, k + 2, k, k + 2, k + 3); };
             for (let i = 1; i < stations.length; i++) {

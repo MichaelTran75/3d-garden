@@ -31,7 +31,7 @@ G 24/10: "sắp xếp lại files hành vi, để dễ chỉnh sửa". Mọi t�
 | 20:42 – 21:42 | Ngắm sao (trời quang), không thì đọc tiếp | `tasks/sky-watch.js` |
 | 21:42 | Ngồi mép giường tháo mũ | `tasks/van-stations.js` |
 
-Ngoài lịch: mưa thì trú dưới hiên và ra mép bạt ngắm mưa (`tasks/camp-routine.js`, `tasks/sky-watch.js`) · cỏ ráo sau mưa thì cắt cỏ (`tasks/trim-grass.js`) · chăm luống cà rốt (`tasks/carrot-garden.js`) · nhu cầu thấp thì đi lấp (`mind/autonomy.js`), dạo khám phá (`tasks/explore.js`) · lệnh bảng Tools / bấm vật: kiểm tra máy xe (`tasks/engine-check.js`), ghế đọc sách, bỏ củi lò (`tasks/tool-jobs.js`).
+Ngoài lịch: mưa thì trú dưới hiên và ra mép bạt ngắm mưa (`tasks/camp-routine.js`, `tasks/sky-watch.js`) · cỏ ráo sau mưa thì cắt cỏ (`tasks/trim-grass.js`) · lửa trại theo nhiệt độ: > 30 °C xách xô nước + que cời ra dập, < 28 °C (hoặc cá cần nướng: lửa nhỏ) lấy que mồi, quẹt diêm nhóm lại (`tasks/campfire-keep.js`, trạng thái bếp `campFire` ở `camp/chairs-lantern-fire.js`) · chăm luống cà rốt (`tasks/carrot-garden.js`) · nhu cầu thấp thì đi lấp (`mind/autonomy.js`), dạo khám phá (`tasks/explore.js`) · lệnh bảng Tools / bấm vật: kiểm tra máy xe (`tasks/engine-check.js`), ghế đọc sách, bỏ củi lò (`tasks/tool-jobs.js`).
 
 ## Khung giờ được phép (`mind/hours.js` ENG_HOURS)
 

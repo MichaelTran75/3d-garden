@@ -57,7 +57,8 @@
           const SLOTS = [[0.115, 0.11, 0], [-0.058, 0.11, 0.1], [-0.058, 0.11, -0.1], [0.03, 0.27, 0.02]].map(p => new THREE.Vector3(...p).multiplyScalar(0.7))
             .concat([[0.085, 0.16, 0.147], [-0.17, 0.16, 0], [0.085, 0.16, -0.147], [-0.07, 0.3, 0.06], [0.07, 0.3, -0.06]].map(p => new THREE.Vector3(...p))).slice(0, 3);   // G 18/10: giỏ đựng tối đa 3 quả (lớp đáy)   // G 17/10 "click … select pick apple": hái thêm lượt ⇒ lớp 2 vòng 3 quả sát thành giỏ + 2 quả chất ngọn (9 quả)   // × 0,7: quả nhỏ 30% (G 17/10) vẫn chạm nhau, tựa đáy giỏ   // giỏ nhỏ: 3 quả đáy xếp tam giác chạm nhau, quả thứ 4 chồng lên khe giữa (ló khỏi miệng giỏ)
           // ---- cây, quả, chỗ đứng ----
-          const trees = appleTrees.map(T => { T.updateMatrixWorld(true); return { T, base: T.getWorldPosition(new THREE.Vector3()), rA: T.userData.appleR * T.scale.x, apples: T.userData.apples }; });
+          const trees = appleTrees.filter(T => !T.userData.noPick).map(T => {   // cây noPick (cây táo già x100 z103, xa trại): không hái
+            T.updateMatrixWorld(true); return { T, base: T.getWorldPosition(new THREE.Vector3()), rA: T.userData.appleR * T.scale.x, apples: T.userData.apples }; });
           for (const tr of trees) for (const a of tr.apples) { a.tr = tr; a.st = 'tree'; a.world = a.g.getWorldPosition(new THREE.Vector3()); a.stemL = tr.rA * 1.1; }
           const yawTo = (from, to) => Math.atan2(to.x - from.x, to.z - from.z);
           function reachable(S, A) {   // quả A có với tới bằng sào từ chỗ đứng S? (tay dưới trước ngực 0,3 · cao ≤ 1,2; sào nghiêng ≤ 30°)

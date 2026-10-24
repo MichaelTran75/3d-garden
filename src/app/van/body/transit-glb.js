@@ -6,7 +6,7 @@
         //  lốp chạm đất khi tâm ở Y 0,44 (gầm nâng như cũ). 77 nghìn tam giác, lượng tử hoá + nén meshopt, 561 KB; tệp là GLB đã XOR theo dòng xorshift32
         //  (giấy phép Standard cho dùng trong trang nhưng không cho để mẫu thành 1 tệp mở được). Đơn vị + trục = đv xe (mũi −X, cửa lùa +Z).
         //  Cửa trước (1 cửa dùng 2 lần, cửa trái = ảnh gương) + tay nắm, ca-pô, logo Ford là nút GLB riêng đặt ở bản lề (extras.pivot / extras.btn) ⇒ dựng thành nhóm
-        //  quay được, bấm mở ở van/van-doors.js. Nạp sau khi cảnh chạy; tới lúc đó vỏ code (transitBody — van/transit.js) làm bản tạm. Nạp xong: gộp theo (vai trò xem xuyên, lớp vật liệu) → ~20 lượt vẽ, dùng chung
+        //  quay được, bấm mở ở van/body/van-doors.js. Nạp sau khi cảnh chạy; tới lúc đó vỏ code (transitBody — van/body/transit.js) làm bản tạm. Nạp xong: gộp theo (vai trò xem xuyên, lớp vật liệu) → ~20 lượt vẽ, dùng chung
         //  vật liệu vỏ code (sơn kem bán trong suốt như cũ ở khoang ở; mũi xe + 2 cửa cabin sơn đục — khoang máy không có gì để xem), ẩn vỏ + táp-lô + nội thất cabin + bánh code; giữ thảm sàn cabin, biển số Jade (dời biển sau ra cửa
         //  sau thật), thang leo nóc dời theo cửa sau. Va chạm (core/collide.js) vẫn đọc vỏ code lúc khởi động — 2 vỏ cùng số đo.
         const VAN_GLB = window.__vanBin || 'https://michaeltran75.github.io/3d-garden/models/transit.bin';   // đường dẫn tuyệt đối: bản một tệp nhúng Wix cũng nạp được
@@ -60,10 +60,10 @@
             const rearPlate = body.plates.children[1]; if (rearPlate) rearPlate.position.x = 3.174;   // cửa sau GLB ở X 3,162 (vỏ code 3,05)
             const lad = g.getObjectByName('Thang leo nóc'); if (lad) lad.position.x += 0.105;
             g.add(grp.shell, grp.keep); xrayAdopt(grp.shell);
-            vanGlb.ready = true; vanGlb.groups = grp; vanPartsInit([...parts.values()]);   // cửa trước, ca-pô, tay nắm, logo ⇒ nút bấm mở (van/van-doors.js)
+            vanGlb.ready = true; vanGlb.groups = grp; vanPartsInit([...parts.values()]);   // cửa trước, ca-pô, tay nắm, logo ⇒ nút bấm mở (van/body/van-doors.js)
           }
           function ledFront(geo, bin, par) {   // dải LED chạy ban ngày (viền chữ C + dải cong dưới trong đèn pha — mẫu có sẵn): xám lúc tắt; rê chuột lên ca-pô / logo thì trắng sáng
-            //  + chuỗi quầng nhỏ cộng sáng rải dọc chính 2 dải (mỗi bên ≤ 30 điểm cách nhau ≥ 3 cm) ⇒ cả dải toả sáng, không chỉ 1 đốm (van/van-doors.js)
+            //  + chuỗi quầng nhỏ cộng sáng rải dọc chính 2 dải (mỗi bên ≤ 30 điểm cách nhau ≥ 3 cm) ⇒ cả dải toả sáng, không chỉ 1 đốm (van/body/van-doors.js)
             const P = bin.P, pts = [[], []];
             for (let i = 0; i < P.length; i += 3) { const s = P[i + 2] > 0 ? 1 : 0, q = _ledV.fromArray(P, i); if (pts[s].every(o => o.distanceToSquared(q) > 0.0009)) pts[s].push(q.clone()); }
             const off = new THREE.Color(0x8f979e), mat = new THREE.MeshBasicMaterial({ color: off.clone(), side: THREE.DoubleSide }), m = new THREE.Mesh(geo, mat); m.name = 'Transit · LED chạy ban ngày'; m.userData.xray = 'keep'; par.add(m);

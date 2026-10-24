@@ -24,7 +24,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 SRC = HERE / 'src'
 SINGLE = HERE.parent / '3D garden.html'
 STAMP = HERE / '.single-stamp'          # băm của bản một tệp dựng lần trước (không đưa lên git)
-MODELS_KB = 3000                         # 24/10: 2900 → 3000 cho khung gầm GAZ-69 chassis.glb 62 KB · trần dung lượng THÔ của models/ (KB) — mẫu tải sau, không tính vào ngân sách gzip bên dưới (18/10: 1500 → 2200 khi thêm xe Transit GLB transit.bin ~550 KB; 2200 → 2500 cho tệp trọng số mạng nơ-ron của kỹ sư); 19/10: 2500 → 2900 cho kính thiên văn + thiên hà mini + mặt trăng GLB (G duyệt)
+MODELS_KB = 3400                         # 24/10 tối: 3000 → 3400 cho gấu mèo raccoon.glb 333 KB (avatrass CC-BY) · 24/10: 2900 → 3000 cho khung gầm GAZ-69 chassis.glb 62 KB · trần dung lượng THÔ của models/ (KB) — mẫu tải sau, không tính vào ngân sách gzip bên dưới (18/10: 1500 → 2200 khi thêm xe Transit GLB transit.bin ~550 KB; 2200 → 2500 cho tệp trọng số mạng nơ-ron của kỹ sư); 19/10: 2500 → 2900 cho kính thiên văn + thiên hà mini + mặt trăng GLB (G duyệt)
 BUDGET_KB = {'js/app.js': 750, 'tổng': 775}   # ngân sách dung lượng NÉN gzip (KB) người xem phải tải — vượt thì --check báo lỗi (14/10: 380 → 400 khi thêm chim sẻ + thuyền; 15/10: G nâng 420/440; 16/10: bỏ cả chú thích cuối dòng ⇒ app.js 420 → 359 KB, còn trống ~60 KB; 17/10 khuya: G nâng 440/460 để dựng lại xe theo Ford Transit L3H2; 18/10: G nâng 490/510 cho kỹ sư tự chủ + mạng nơ-ron); 19/10: G nâng 500/520 cho radio táp-lô, kính thiên văn + thiên hà mini, chó ngắm sao, cò bay theo cột khí nóng; 21/10: G nâng 750/775 (bảng Tools: kính thiên văn, cắt cỏ, câu cá, drone, Farming, ghế đọc sách uống trà, bỏ củi lò — app.js 503 KB, tăng ~29 KB/ngày từ 16/10)
 args = set(sys.argv[1:])
 
@@ -138,6 +138,7 @@ def strip_js_comments(src):
 _ID = r'[A-Za-z_$][A-Za-z0-9_$]*'
 SWALLOW = re.compile(r'(?:^|[\s;:,(])(' + _ID + r'(?:\.' + _ID + r')*(?:\([\x20-\x7e]*\)|\s*[-+*/]?=\s*[^=;\s][\x20-\x7e]*?));\s*$')
 TAIL = re.compile(r'(?:\s*\b(?:break|continue|return\b[\x20-\x7e]*?);)+\s*$')   # bỏ break; / continue; / return …; ở cuối để thấy câu lệnh đứng trước
+CLOSE = re.compile(r'(?:\s*\})+\s*$')   # 24/10: bỏ } ở cuối — chú thích nuốt cả nhánh "else { …; }" (chim sẻ dưới đất không nhảy / mổ từ lâu mà bộ dò không bắt)
 def _balanced(s):
     d = 0
     for ch in s:
@@ -151,7 +152,7 @@ def swallowed(rel, src):
         k = b.find('//', len(a) - 1)
         if k < 0: continue
         for c in b[k + 2:].split('//'):   # 2 chú thích liền nhau: câu bị nuốt đứng trước chú thích thứ 2, có khi kèm break; (23/10: gà xếp hàng không lên chuồng)
-            m = SWALLOW.search(TAIL.sub('', c))
+            m = SWALLOW.search(TAIL.sub('', CLOSE.sub('', c)))
             if m and _balanced(m.group(1)): yield '%s:%d  …%s' % (rel, i, b[k:][-90:]); break
 sw = [w for r in parts for w in swallowed('src/app/' + r, read('app/' + r))]
 sw += [w for r, t in (('src/js/weather.js', weather), ('src/js/flight-nav.js', flight)) for w in swallowed(r, t)]

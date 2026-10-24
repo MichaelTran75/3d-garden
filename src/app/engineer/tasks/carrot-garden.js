@@ -80,7 +80,7 @@
               else {
                 let ux = dx / dd, uz = dz / dd; if (dd > 1.6) { const f = ffDir(fieldTo(), b.x, b.z); if (f) { ux = f.x; uz = f.z; } }
                 let da = Math.atan2(uz, ux) - b.ang; da = Math.atan2(Math.sin(da), Math.cos(da)); b.ang += dd < 0.6 ? da * Math.min(1, dt * 8) : da * Math.min(1, dt * 5);
-                b.hop = (b.hop + dt * 3.2) % 1; const lift = Math.max(0, Math.sin(b.hop * Math.PI)) * 0.5, step = Math.min(dd, b.spd * dt * (0.5 + lift));
+                b.hop = (b.hop + dt * 3.2 * BUN_CAD) % 1; const lift = Math.max(0, Math.sin(b.hop * Math.PI)) * 0.5, step = Math.min(dd, b.spd * dt * (0.5 + lift));
                 const mv = b.col && dd > 0.5 ? colSlide(b.col, b.x, b.z, b.ang, step, dt) : [b.x + Math.cos(b.ang) * step, b.z + Math.sin(b.ang) * step]; if (mv) { b.x = mv[0]; b.z = mv[1]; }
                 b.g.position.set(b.x, cowY(b.x, b.z) + lift, b.z); b.g.rotation.y = -b.ang; b.paws[0].rotation.z = b.paws[1].rotation.z = -0.45 - lift * 0.4; b.head.rotation.z = 0;
               }

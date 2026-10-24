@@ -216,6 +216,6 @@
           batchDraws('Xe caravan', [caravanObj]);
           batchDraws('Khu cắm trại', named('Ghế câu cá', 'Ghế cắm trại', 'Bếp lửa trại', 'Bàn trà', 'Giá treo nồi', 'Cần câu để dưới đất', 'Xô nhỏ', 'Đống củi', 'Khúc gỗ đứng'));
           batchDraws('Tua-bin & khí tượng', [...named('Tua-bin gió #'), wmast?.g, wmini?.g]);
-          batchDraws('Chim sẻ', [songbird.root, ...flock.birds.map(b => b.root), ...nestPairs.flat().map(b => b.root)]);   // 10 con bay khắp nơi: lô gộp không cắt theo khung nhìn
+          batchDraws('Chim sẻ', [songbird.root, ...flock.birds.map(b => b.root), ...nestPairs.flat().map(b => b.root), ...sparrowGang.birds.map(b => b.root)]);   // 16 con bay khắp nơi: lô gộp không cắt theo khung nhìn
           batchDraws('Cảnh tĩnh', scene.children.filter(o => !o.userData.batchRoot && !o.userData.noBatch && !o.isSkinnedMesh));
         }

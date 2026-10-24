@@ -24,7 +24,7 @@
           sm.onBeforeCompile = (sh, r) => { bm.onBeforeCompile(sh, r); Object.assign(sh.uniforms, { uShL: { value: H / sc }, uShS: { value: 1 / N }, uShW: { value: H } }); };
           sm.customProgramCacheKey = () => bm.customProgramCacheKey() + '|shell';
           const im = new THREE.InstancedMesh(sg, sm, N); im.name = 'Thảm rêu nhung'; im.receiveShadow = true; im.raycast = () => {};
-          im.userData.noBatch = im.userData.noBake = im.userData.noCollide = true; im.visible = false; m.add(im); MOSS_IM.push(im);
+          im.userData.noBatch = im.userData.noBake = im.userData.noCollide = im.userData.noFlight = true; im.visible = false; m.add(im); MOSS_IM.push(im);   // noFlight (G 24/10 tối "ong bị stuck"): mỗi lớp là bản sao CẢ lưới gốc ⇒ lưới bay (animals/insects.js) lấy hộp bao cả cây làm vật cản — khối đặc ~29 × 27 × 14 m trùm tổ ong; vỏ cây gốc đã tính rồi
           return keep.length / 3;
         }
         const MOSS_IM = [], mossTick = () => { const v = (camera.right - camera.left) / camera.zoom / Math.max(1, renderer.domElement.clientWidth) < 0.03; if (MOSS_IM[0] && MOSS_IM[0].visible !== v) for (const o of MOSS_IM) o.visible = v; };   // chỉ khi zoom gần (1 điểm ảnh < 3 cm): xa thì sợi nhỏ hơn điểm ảnh, vẽ phí

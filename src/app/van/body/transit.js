@@ -276,7 +276,7 @@
           return { shell, M, plates };                           // bị gộp vào nét cả xe, còn hiện sau khi vỏ GLB thay (G 18/10 "remove các line art ko liên quan tới kết cấu xe")
         }
 
-        // ==== CABIN LÁI (tay lái nghịch: vô-lăng −z), 4 BÁNH (lốp AT 31", mâm thép đen) & TỦ BẾP — trả về nhóm tủ bếp (van/kitchen.js dựng mặt bếp lên đó) ====
+        // ==== CABIN LÁI (tay lái nghịch: vô-lăng −z), 4 BÁNH (lốp AT 31", mâm thép đen) & TỦ BẾP — trả về nhóm tủ bếp (van/interior/kitchen.js dựng mặt bếp lên đó) ====
         function transitCab(parent) {
           const V3 = (x, y, z) => new THREE.Vector3(x, y, z), lam = (c, o = {}) => new THREE.MeshLambertMaterial({ color: c, ...o }), two = { side: THREE.DoubleSide };
           const M = { mat: lam(0x43494b), dash: lam(0x5d6163), dashTop: lam(0x46494b), trim: lam(0x8a8c88), seat: lam(0x6f706c), seatBand: lam(0x55575a), seatDark: lam(0x2e3133),
@@ -291,7 +291,7 @@
             m.quaternion.setFromUnitVectors(V3(0, 1, 0), v.normalize()); m.position.copy(a).add(b).multiplyScalar(0.5); m.name = name; par.add(m); return m; };
           const shaped = (w, h, d, segs, fn) => { const g = new THREE.BoxGeometry(w, h, d, ...segs), p = g.attributes.position, v = new THREE.Vector3(); for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i); fn(v); p.setXYZ(i, v.x, v.y, v.z); } g.computeVertexNormals(); return g; };
           const Y0 = TR.yIn;
-          // sàn cabin: thảm đen trên tấm sàn (tấm sàn khoang ở van/caravan.js)
+          // sàn cabin: thảm đen trên tấm sàn (tấm sàn khoang ở van/interior/caravan.js)
           box(cab, 'Thảm sàn cabin', 1.62, 0.012, 1.86, -1.43, Y0 + 0.006, 0, M.mat);   // (ngoài nhóm nội thất: còn lại khi cabin GLB thay)
           // táp-lô kiểu Transit 2014+: vách lửa dưới chân kính, mặt trên rộng phẳng, cụm đồng hồ có mái che trước ghế lái, cụm giữa có màn hình + cần số gắn táp-lô
           const prof = [[-2.33, 1.64], [-2.05, 1.715], [-1.93, 1.70], [-1.87, 1.62], [-1.85, 1.44], [-1.93, 1.26], [-2.04, 1.08], [-2.16, Y0], [-2.36, Y0]];

@@ -51,7 +51,7 @@
         function colCollect() {   // danh sách việc dựng: [lưới, ma trận thế giới, lớp] — bỏ con vật / người / chim / côn trùng / cá, địa hình, cỏ, nước, hiệu ứng
           const skip = new Set(), add = o => o && o.isObject3D && o.traverse(c => skip.add(c));
           for (const c of cows) add(c.g); if (stag) add(stag.g); for (const b of bunnies) add(b.g); add(dogObj); add(raccoonObj); add(engObj.g);
-          for (const b of birds) add(b.m); add(songbird.root); for (const b of flock.birds) add(b.root); for (const b of nestPairs.flat()) add(b.root);
+          for (const b of birds) add(b.m); add(songbird.root); for (const b of flock.birds) add(b.root); for (const b of nestPairs.flat()) add(b.root); for (const b of sparrowGang.birds) add(b.root);
           for (const b of butterflies) add(b.g); for (const f of fishies) add(f.g || f.m); add(campTeaCup); add(grill.keep.g); add(campObj.fish.stick);
           add(daytimeAnimals); add(nighttimeFireflies);   // côn trùng, thú nhỏ ban ngày, đom đóm
           for (const m of terrainMeshes) skip.add(m);
@@ -69,7 +69,7 @@
             if ((!tree && mt.transparent && mt.opacity < 0.6) || (o.isInstancedMesh && !tree && o.count > 400)) return;
             let layer = COL_GEN; for (let p = o; p; p = p.parent) { if (p === caravanObj) { layer = COL_VAN; break; } if (p === shed) { layer = COL_SHED; break; } }
             // cây: THÂN chặn (cành trên cao không chặn — hươu, bò lách dưới tán được; cây rừng giữ thêm cành thấp < 1,3 m): giữ tam giác trong bán kính quanh gốc
-            let trunk = null; for (let p = o; p && !trunk; p = p.parent) { if (appleTrees.includes(p) || /^Cây anh đào/.test(p.name)) trunk = [p.position.x, p.position.z, 0.7]; else if (/^Cây cổ thụ/.test(p.name)) trunk = [p.position.x, p.position.z, 1.6]; }
+            let trunk = null; for (let p = o; p && !trunk; p = p.parent) { if (appleTrees.includes(p) || /^Cây anh đào/.test(p.name)) trunk = [p.position.x, p.position.z, p.userData.colR || 0.7]; else if (/^Cây cổ thụ/.test(p.name)) trunk = [p.position.x, p.position.z, 1.6]; }
             o.updateWorldMatrix(true, false);
             if (!g.boundingSphere) g.computeBoundingSphere();
             for (let k = 0, n = o.isInstancedMesh ? o.count : 1; k < n; k++) {

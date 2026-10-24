@@ -1,5 +1,5 @@
         // ===== RÊ CHUỘT = CHỌN (G 18/10 "hover over the engine then white border line select … drone, remote, giỏ táo, tool, cần câu, laptop, kitchen, chiminea with same
-        //  hover effect"): viền trắng 3 px quanh vật bấm / chọn được — tay nắm 2 cửa trước + logo Ford (van/van-doors.js), động cơ (van/transit-glb.js), drone, tay cầm,
+        //  hover effect"): viền trắng 3 px quanh vật bấm / chọn được — tay nắm 2 cửa trước + logo Ford (van/body/van-doors.js), động cơ (van/body/transit-glb.js), drone, tay cầm,
         //  giỏ táo, sào hái, cần câu (dưới đất / trên tay), laptop, bếp, lò chiminea. Dò: tia chuột × hộp bao của từng vật trong hệ toạ độ của chính vật (rẻ, không duyệt
         //  tam giác; đo lại mỗi giây vì vật cử động / mẫu GLB nạp sau), lấy vật gần nhất; it.on() chặn khi không thấy (đồ trong xe: chỉ lúc xem xuyên · động cơ: xem xuyên
         //  hoặc ca-pô mở), it.n = hướng mặt ngoài (nút quay lưng camera — phía bên kia xe — thì bỏ). Viền: mỗi lưới của vật thêm 2 con dùng chung hình — mặt nạ stencil (chỗ
@@ -63,7 +63,7 @@
           HOV.hover = it; if (it) { hovFx(it); for (const c of it.fxs) c.visible = true; }
         }
         function hovClick(e) {   // bấm (pointerup): vật dưới con trỏ có hành động riêng (tay nắm, logo) ⇒ làm, trả true để bỏ bấm xe / máy
-          if (radio.tagClick(e)) return true;   // nhãn 📻 radio táp-lô (van/radio.js)
+          if (radio.tagClick(e)) return true;   // nhãn 📻 radio táp-lô (van/interior/radio.js)
           const it = hovPick(e.clientX, e.clientY); if (!it || !it.click) return false;
           it.click(); return true;
         }

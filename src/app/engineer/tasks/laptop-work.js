@@ -8,7 +8,7 @@
         //  think · rest (đan tay sau gáy, IK) · stretch (vươn vai, ~7 phút). Bàn tay chữ C nằm DỌC cẳng tay, xoay quanh cẳng tay cho miệng chữ C úp vào trong –
         //  xuống (lapHandQ → e.handQ), nâng tâm tay đúng bằng chỗ thấp nhất của lưới tay ⇒ móng vừa chạm mặt phím. Gõ = bàn tay nảy 4–7 Hz lệch pha 2 tay,
         //  dời ngang tìm phím, thỉnh thoảng tay phải với Enter / Backspace; rê trackpad = vòng nhỏ + bấm nhấn 4 mm; cuộn = tay phải miết tới – lui.
-        //  Laptop đặt cách mép bàn ~4 cm (van/caravan.js) — xa hơn thì vai không với tới bàn phím. Uống coke giữ nguyên (engCokeSip) ----
+        //  Laptop đặt cách mép bàn ~4 cm (van/interior/caravan.js) — xa hơn thì vai không với tới bàn phím. Uống coke giữ nguyên (engCokeSip) ----
         const _lwP = [new THREE.Vector3(), new THREE.Vector3()], _lwM = new THREE.Vector3(), _lwV = new THREE.Vector3(), _lwIn = new THREE.Vector3();
         const _lwQ = [new THREE.Quaternion(), new THREE.Quaternion()], _lwQ2 = new THREE.Quaternion(), _lwR = new THREE.Vector3(), _lwS = new THREE.Vector3(), _lwA = new THREE.Vector3(), _lwB = new THREE.Vector3(), _lwC = new THREE.Vector3(), _lwX = new THREE.Matrix4();
         function lapPt(x, y, z, out) { return studyLaptop.group.localToWorld(out.set(x, MBP.HB + y, z)); }   // điểm trên mặt bàn phím (toạ độ MacBook)

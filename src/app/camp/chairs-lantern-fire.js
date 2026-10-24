@@ -75,6 +75,7 @@
         }
 
         const lanternObj = lantern();
+        let lanternLit = false, lanternK = 0;   // đèn lồng bật lúc chạng vạng, tắt khi sáng (loop/main-loop.js — G 24/10)
         {
           const p = worldCell(LANTERN_CELL[0], LANTERN_CELL[1]), chW = worldCell(CHAIR_CELL[0], CHAIR_CELL[1]);
           lanternObj.g.position.copy(p); lanternObj.g.rotation.y = Math.atan2(chW.x - p.x, chW.z - p.z); scene.add(lanternObj.g);
@@ -109,9 +110,16 @@
           const tex = (c) => { const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4; return t; };
           return new THREE.MeshLambertMaterial({ map: tex(bark), emissive: 0xff5a2a, emissiveMap: tex(glow), emissiveIntensity: 1.6 });   // nứt nóng đỏ
         }
-        // Mức lửa theo giờ Pleiku: 19:00 = 100%, giảm đều tới 5% lúc 07:00; ban ngày (07:00–19:00) giữ 5%.
-        const campfireLevel = h => (h >= 7 && h < 19) ? 0.05 : 1 - 0.95 * (((h - 19 + 24) % 24) / 12);
+        // G 24/10 "trời nóng quá trên 30 độ thì engineer ra tắt lửa trại, kể cả buổi đêm, chỉ mở lại nếu dưới 28, hoặc bắt lửa (nhỏ) để nướng cá":
+        //  campFire.out = kỹ sư đã dập (không tự nhen lại như sau mưa) · small = lửa nhỏ nướng cá (tối đa 30%) · douse 0–1 = đang dội nước (hơi nước bốc)
+        //  — engineer/tasks/campfire-keep.js điều khiển
+        const campFire = { out: false, small: false, douse: 0 };
+        // Mức lửa theo giờ Pleiku: 19:00 = 100%, giảm đều tới 5% lúc 07:00; ban ngày (07:00–19:00) giữ 5%. Lửa nhỏ nướng cá: tối đa 30%
+        const campfireLevel = h => Math.min(campFire.small ? 0.3 : 1, (h >= 7 && h < 19) ? 0.05 : 1 - 0.95 * (((h - 19 + 24) % 24) / 12));
         const CAMP_FLAME = 0.5;   // cỡ ngọn lửa trại so với bản đầu (tia lửa, sức nóng cột khói, tầm chiếu sáng theo cùng)
+        const CAMP_K = 0.5;   // G 24/10 tối "em cho camp fire in screenshot nhỏ lại 50%": CẢ CỤM bếp (lòng bếp, giá treo + ấm reo, que cá) ×0,5 quanh tâm — vòng né, đèn, việc nhóm / dập lửa, cá nướng theo cùng
+        const CAMP_PIT = 0.7 * CAMP_K;   // lòng bếp (tro, vòng đá, củi, lửa, than, tia lửa) so với bản đầu: G 24/10 "nhỏ đi 30%" (0,7) rồi tối "nhỏ lại 50%" ⇒ 0,35 (vòng đá r ~0,27 m)
+        const CAMP_FISH = 1.44 * CAMP_K;   // cỡ que cá (đv nhóm bếp): 1,44 cũ (cá dài ~0,6 m) ×0,5 ⇒ cá ~0,3 m — engineer/tasks/meal-read.js đọc
         function campfire() {
           const g = new THREE.Group();
           const ash = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.72, 0.08, 14), fireAsh); ash.position.y = 0.04; ash.receiveShadow = true; g.add(ash);
@@ -159,7 +167,7 @@
             g.add(sp); sparks.push({ m: sp, ph: Math.random() * 6.28, spd: 0.9 + Math.random() * 0.7 });
           }
 
-          const fsg = new THREE.Group(); fsg.position.set(0.85, 0.02, 1.05); fsg.rotation.set(-0.32, 0, 0.32); fsg.scale.setScalar(1.44); g.add(fsg);   // cá nướng ×1.44 (đã giảm 20% rồi thêm 10%), ngả nghiêng về phía lửa
+          const fsg = new THREE.Group(); fsg.position.set(0.85, 0.02, 1.05); fsg.rotation.set(-0.32, 0, 0.32); fsg.scale.setScalar(CAMP_FISH); g.add(fsg);   // cá nướng ×1.44 (đã giảm 20% rồi thêm 10%) × CAMP_K, ngả nghiêng về phía lửa
           const sk = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 1.2, 6), new THREE.MeshLambertMaterial({ color: 0xcca070 })); sk.position.y = 0.6; sk.castShadow = true; fsg.add(sk);
           const fg = new THREE.Group(); fg.position.set(0, 0.78, 0); fg.rotation.y = 1.2; fsg.add(fg);
           fg.name = 'Cá nướng nguyên con';
@@ -210,6 +218,9 @@
           }
           bakeStatic(coreGroup); g.add(coreGroup);
           const light = new THREE.PointLight(0xff7a2a, 0.6, 11, 2); light.position.y = 0.7; g.add(light);
+          // G 24/10 bếp nhỏ 30% rồi 50%: mọi thứ trừ que cá vào nhóm lòng bếp thu ×CAMP_PIT quanh tâm; que cá thu ×CAMP_K (CAMP_FISH), cắm lùi vào theo vòng đá (vẫn ngả trên mép than)
+          const pit = new THREE.Group(); pit.name = 'Lòng bếp'; pit.scale.setScalar(CAMP_PIT); for (const o of g.children.slice()) if (o !== fsg) pit.add(o); g.add(pit);
+          fsg.position.x *= 0.78 * CAMP_K; fsg.position.z *= 0.78 * CAMP_K;
           return { g, flames, smoke, sparks, light, logMat, cutMat, emberMat, glowMat, hotMat, dimMat, fish: { stick: fsg, rod: sk, fg, body: fBody, fMat, finMat, marks: marksM } };
         }
         const campObj = campfire(); campObj.g.scale.multiplyScalar(CAMP_SCALE); // Grilled fish, stones, logs and flame children inherit this once.
@@ -223,11 +234,13 @@
         const campRain = { heat: 1, quench: 0, flameK: 1, emberK: 1, smolder: 1, init: false }, _wetCoal = new THREE.Color(0.07, 0.065, 0.06);
         function campRainTick(dt) {
           const R = campRain, sm = THREE.MathUtils.smoothstep;
-          if (!R.init && liveWeather.state.data) { R.init = true; if (liveWeather.state.raining) R.heat = 0.04; }
+          if (!R.init && liveWeather.state.data) { R.init = true; if (liveWeather.state.raining) R.heat = 0.04; else if ((liveWeather.state.temperature ?? 24) > 30) { campFire.out = true; R.heat = 0.04; } }   // mở trang lúc nóng > 30 °C: bếp đã dập sẵn
+          campFire.douse = Math.max(0, campFire.douse - dt * 0.5);
           if (rainK > 0.05) R.heat -= R.heat * dt / (10 + 30 * (1 - Math.min(1, rainK)));   // G 21/10 "khi mưa thì camp fire tắt lửa": mưa to τ 10 s, mưa phùn ~37 s ⇒ ngọn lửa tắt sau ~8–30 s
+          else if (campFire.out) R.heat -= R.heat * dt / (campFire.douse > 0.05 ? 1.2 : 6);   // kỹ sư dội nước: tắt trong ~2 s · đã dập thì không tự nhen lại
           else if (sceneWet < 0.6) R.heat += (1 - R.heat) / 240 * dt;
-          R.flameK = sm(R.heat, 0.45, 0.9); R.emberK = sm(R.heat, 0.03, 0.55); R.quench = rainK * sm(R.heat, 0.02, 0.35);
-          R.smolder = Math.max(R.heat, R.smolder * Math.exp(-dt / (rainK > 0.05 ? 90 : 600)));   // gỗ ướt âm ỉ: mưa làm nguội mặt than ⇒ khói tắt nhanh (τ 1,5 phút); tạnh rồi 10 phút
+          R.flameK = sm(R.heat, 0.45, 0.9); R.emberK = sm(R.heat, 0.03, 0.55); R.quench = Math.max(rainK, campFire.douse) * sm(R.heat, 0.02, 0.35);   // dội nước: hơi bốc như mưa
+          R.smolder = Math.max(R.heat, R.smolder * Math.exp(-dt / (rainK > 0.05 || campFire.out ? 90 : 600)));   // gỗ ướt âm ỉ: mưa làm nguội mặt than ⇒ khói tắt nhanh (τ 1,5 phút); tạnh rồi 10 phút
           return R;
         }
 
@@ -289,6 +302,7 @@
           return g;
         }
         const kettleSteam = [];   // hơi còi ấm reo (cập nhật trong vòng lặp theo cỡ lửa)
+        const HANGER_FEET = [];   // 4 chân giá treo chạm đất (thế giới) — engineer/tasks/campfire-keep.js chọn chỗ đứng dội / nhóm lửa né chân
         // ---- GIÁ TREO NỒI bắc qua bếp lửa: 2 khung chữ A gỗ + thanh ngang + ấm reo treo móc (ấm thay nồi gang cũ) ----
         {
           const rg = new THREE.Group();
@@ -302,15 +316,9 @@
           bar.rotation.z = Math.PI / 2; bar.position.y = 1.66; bar.castShadow = true; rg.add(bar);
           const hook = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.1, 6), potIron); hook.position.y = 1.61; rg.add(hook);            // móc sắt ngắn
           const curl = new THREE.Mesh(new THREE.TorusGeometry(0.03, 0.009, 6, 14, Math.PI * 1.35), potIron); curl.position.y = 1.545; curl.rotation.z = Math.PI * 1.08; rg.add(curl);   // đầu móc cong đỡ đỉnh quai ấm
-          const kettle = campKettle(); kettle.scale.setScalar(0.4); kettle.position.y = 0.786; kettle.rotation.y = 0.92; rg.add(kettle);   // đỉnh quai (y 1,86 × 0,4) gác đúng đáy móc ở 1,53; vòi quay ngang tầm nhìn mặc định
-          // hơi nước phụt từ miệng còi khi lửa lớn (động, không gộp)
-          kettle.updateMatrix(); const tip = new THREE.Vector3(0.93, 1.03, 0.07).applyMatrix4(kettle.matrix), spoutDir = new THREE.Vector3(0.77, 0, 0).applyQuaternion(kettle.quaternion);
-          const kSteam = new THREE.Group(); kSteam.userData.noBake = true; kSteam.position.copy(tip); rg.add(kSteam);
-          for (let n = 0; n < 7; n++) {
-            const puff = new THREE.Mesh(new THREE.IcosahedronGeometry(0.03, 1), new THREE.MeshBasicMaterial({ color: 0xf2efe8, transparent: true, opacity: 0, depthWrite: false }));
-            kSteam.add(puff); kettleSteam.push({ m: puff, ph: n / 7, dir: spoutDir });
-          }
-          bakeStatic(rg); rg.scale.multiplyScalar(CAMP_SCALE); rg.position.copy(pf); rg.rotation.y = -0.2; rg.name = 'Giá treo nồi (Pot Hanger)'; scene.add(rg);   // xoay nhẹ để chân né xiên cá nướng
+          // ấm reo: G 24/10 khuya dời lên nóc lò nướng ghép bên lò chiminea (camp/chiminea.js) — móc treo để trống
+          bakeStatic(rg); rg.scale.multiplyScalar(CAMP_SCALE * CAMP_K); rg.position.copy(pf); rg.rotation.y = -0.2; rg.name = 'Giá treo nồi (Pot Hanger)'; scene.add(rg);   // xoay nhẹ để chân né xiên cá nướng · G 24/10 tối: cả giá + ấm ×CAMP_K theo bếp
+          rg.updateMatrixWorld(true); for (const sx of [-1, 1]) for (const sz of [-1, 1]) HANGER_FEET.push(rg.localToWorld(new THREE.Vector3(sx * 1.05, 0, sz * (0.21 + 1.05 * Math.sin(0.29)))));   // đáy chân xoè (tâm chân ± nửa dài nghiêng 0,29)
         }
         const woodEndM = new THREE.MeshLambertMaterial({ color: 0xc8a878 });   // mặt cắt gỗ nhạt
         // Bàn gỗ nan cuộn (roll-top) chân chữ X; ca & chảo cắm trại dựng bằng code: nhôm sơn đen, quai dây thép gập.
@@ -412,12 +420,23 @@
         // ---- vị trí + hướng ngồi của ghế cắm trại (dùng lại cho lịch trình kỹ sư) · bán kính né bếp lửa khi đi ngang qua ----
         const campChairPos = campLocal(1.45, 1.82);   // G 18/10 "lùi ghế xuống gần xát với xe": lưng ghế sát vách (hộp bao cách vách ~2 cm)
         const campChairFaceY = caravanObj.rotation.y;   // ghế quay ra ngoài như +z cục bộ xe
-        const FIRE_AVOID_R = 1.9 * CAMP_SCALE;
-        obstacleCoords.push({ x: pf.x, y: pf.y, z: pf.z, r: FIRE_AVOID_R, h: 2.2 * CAMP_SCALE });   // bếp lửa vào danh sách vật cản → flow field & repel & côn trùng đều né
-        const woodCampY = cowY(X0 + 68, Z0 + 100);
-        obstacleCoords.push({ x: X0 + 68, y: woodCampY, z: Z0 + 100, r: 0.8, h: 1.0 });                 // đống củi mới vào danh sách vật cản (world coordinates)
+        const FIRE_AVOID_R = (1.17 * CAMP_K + 0.22) * CAMP_SCALE;   // vòng né = chân giá treo xa nhất (1,17 đv × CAMP_K) + nửa thân người: bếp nhỏ 50% (G 24/10 tối) ⇒ 1,2 → 0,72 m
+        obstacleCoords.push({ x: pf.x, y: pf.y, z: pf.z, r: FIRE_AVOID_R, h: 2.2 * CAMP_SCALE * CAMP_K });   // bếp lửa vào danh sách vật cản → flow field & repel & côn trùng đều né
+        // G 24/10 tối "em sắp xếp làm sao cho chiminea facing camp chair và its table" (chiều hôm đó G vẽ mũi tên đặt lò ngay chỗ đèn lồng TRƯỚC mặt ghế + bàn;
+        //  em đặt ra sau đầu bạt hiên ⇒ lò lệch trái ghế 64°): dãy lò ra TRƯỚC ghế + bàn — ghế (nhìn ra bếp lửa) thấy lò lệch trái 15°, bếp lửa lệch phải 15°;
+        //  cửa lò nhắm giữa ghế và bàn (cách ghế 2,5 m, bàn 2,3 m). KHÔNG để dưới bạt: ống khói nóng + tàn lửa ⇒ tâm lò cách mép bạt ≥ 1 m. Dãy lật so với
+        //  chiều: đống củi sát buồng đốt phía bắc (WOOD_SIDE −1: −x cục bộ lò), lò nướng phía bếp lửa (+x) — giữ đống củi + máy cắt cỏ xa lửa trại (2,7 /
+        //  3 m; lò nướng 1,7 m); chỗ đứng bỏ củi trước cửa cách cột góc bạt 0,76 m. Chọn bằng dò lưới (cách bạt, cột, luống cà rốt, lửa trại, lối cửa xe → bếp lửa).
+        //  chimLocal: toạ độ cục bộ lò (trước CAMP_SCALE) → thế giới
+        const campTablePos = campLocal(2.55, 2.0);   // bàn trà (dựng bên dưới)
+        const CHIM_P = new THREE.Vector3(X0 + 66.5, 0, Z0 + 100.9); CHIM_P.y = cowY(CHIM_P.x, CHIM_P.z);
+        const CHIM_AIM = campChairPos.clone().lerp(campTablePos, 0.5), CHIM_YAW = Math.atan2(CHIM_AIM.x - CHIM_P.x, CHIM_AIM.z - CHIM_P.z);   // mặt cửa (+z cục bộ) nhìn giữa ghế và bàn
+        const WOOD_SIDE = -1;   // đống củi bên −x cục bộ lò, lò nướng bên kia (camp/chiminea.js) · khung đống củi lật theo (camp/trimmer.js)
+        const chimLocal = (x, z) => { const p = new THREE.Vector3(x, 0, z).applyAxisAngle(new THREE.Vector3(0, 1, 0), CHIM_YAW).multiplyScalar(CAMP_SCALE).add(CHIM_P); p.y = cowY(p.x, p.z); return p; };
+        const WOOD_P = chimLocal(0.76 * WOOD_SIDE, 0), woodCampY = WOOD_P.y;
+        obstacleCoords.push({ x: WOOD_P.x, y: woodCampY, z: WOOD_P.z, r: 0.55, h: 1.0 });                 // đống củi vào danh sách vật cản (world coordinates)
         { const ch = campChair(campFabricYellow, campFrameWood); ch.position.copy(campChairPos); ch.rotation.y = campChairFaceY; ch.name = 'Ghế cắm trại (Camp Chair)'; scene.add(ch); }   // ghế dã ngoại dạng gấp tương tự ghế câu cá
-        { const tb = campTable(); tb.position.copy(campLocal(2.55, 2.0));   // dưới bạt, bên trái ghế: mặt bàn x 2,09 … 3,01 · z 1,67 … 2,33 (cục bộ xe) — G 18/10 tối: tay vịn + cốc trà ghế (tới x 2,01) từng chồng lên góc bàn ⇒ ghế lùi 0,1, bàn ra 0,13
+        { const tb = campTable(); tb.position.copy(campTablePos);   // dưới bạt, bên trái ghế: mặt bàn x 2,09 … 3,01 · z 1,67 … 2,33 (cục bộ xe) — G 18/10 tối: tay vịn + cốc trà ghế (tới x 2,01) từng chồng lên góc bàn ⇒ ghế lùi 0,1, bàn ra 0,13
            tb.rotation.y = caravanObj.rotation.y + Math.PI; tb.name = 'Bàn trà (Camp Table)'; scene.add(tb); }   // dọc thân xe, −z của bàn quay ra ngoài
         // ---- CỐC TRÀ của kỹ sư (G 15/10): cốc men trắng có nước trà, đặt trong VÒNG KHAY CỐC trên tay vịn trái ghế cắm trại — bàn trà thấp 0,56 m, cách ghế
         //      ~1 m (gần nhất 0,92 m tới vai, tay với 0,57 m) nên ngồi không với tới; ca đen trên bàn là ca nấu nước. Khói trà bốc từ cốc. Uống: engTea
@@ -438,8 +457,9 @@
           ch.add(c); c.position.set(0.472, 0.932, 0.2); c.rotation.y = 1.68; c.scale.set(1 / ch.scale.x, 1 / ch.scale.y, 1 / ch.scale.z);
           c.userData.home = { parent: ch, p: c.position.clone(), s: c.scale.clone() }; campTeaCup = c;
         }
-        { const wc = woodCamp(); wc.name = 'Đống củi (Woodpile)'; wc.position.set(X0 + 68, woodCampY, Z0 + 100); wc.rotation.y = 0.5; scene.add(wc); }
+        { const wc = woodCamp(); wc.name = 'Đống củi (Woodpile)'; wc.position.copy(WOOD_P); wc.rotation.y = CHIM_YAW + WOOD_SIDE * Math.PI / 2; scene.add(wc); }   // dãy củi dọc hông lò, đầu khúc củi nhìn về ghế · z cục bộ đống = dọc dãy ra xa lò
         // ---- khói bếp lửa + hơi ấm reo = SỢI KHÓI theo trường Navier–Stokes đối xứng trục (nature/fluids.js, kỹ thuật luồng khói động cơ ở sân bay):
         //      lưới 30 × 90 ô 8 cm (bán kính 2,4 · cao 7,2 đv) · 900 hạt (140 hạt hơi) × vệt 14 điểm; nổi vì nóng, cuộn rối, gió thật làm ngả chùm khói ----
         const campSmoke = fluids.addSmoke({ NR: 30, NZ: 90, H: 0.08, NP: 900, NS: 140, NT: 14, buoy: 4, kNu: 0.03, nu0: 0.002, tauT: 6, iters: 36, dens: 0.8 },
           { name: 'Khói bếp lửa (sợi khói Navier–Stokes)', opacity: 0.6 });
+        campSmoke.rF = 0.3 * CAMP_PIT;   // vùng lửa cấp nhiệt + khói theo lòng bếp (0,3 m ở cỡ gốc) — bếp nhỏ 50% ⇒ ~0,1 m

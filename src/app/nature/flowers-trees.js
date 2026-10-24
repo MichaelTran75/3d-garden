@@ -356,6 +356,13 @@
               const lengthFactor = (depth === 0) ? (0.6 + rnd() * 0.6) : (0.75 + rnd() * 0.5);
               grow(b, nd, len * o.lenK * lengthFactor, r * (depth === 0 && o.rootK ? o.rootK : o.radK), depth + 1, me);   // rootK (tùy chọn): thân giữ to, nhánh cấp 1 đột ngột nhỏ (cây cổ thụ)
             }
+            // reach (tùy chọn, G 24/10 tối cây táo thứ 3 "cho tán lá rộng thêm về phía lối ra vào của racoon"): thêm n cành cấp 1 DÀI hơn (lenK) nghiêng tilt rad
+            //  khỏi phương đứng, toả ±0,22 rad quanh hướng dir (toạ độ cây, ngang) — rẽ tiếp như cành thường nên tán xoè lệch về phía đó
+            if (depth === 0 && o.reach) for (const R of [].concat(o.reach)) for (let k = 0; k < R.n; k++) {   // reach: 1 hướng hoặc mảng nhiều hướng
+              const az = (k - (R.n - 1) / 2) * 0.45 + (rnd() - 0.5) * 0.2, tilt = R.tilt + (rnd() - 0.5) * 0.15;
+              const nd = R.dir.clone().applyAxisAngle(_rtUp, az).multiplyScalar(Math.sin(tilt)); nd.y = Math.cos(tilt); nd.normalize();
+              grow(b, nd, len * o.lenK * R.lenK, r * (o.rootK || o.radK), depth + 1, me);
+            }
           })(new THREE.Vector3(0, 0, 0), _rtUp.clone(), o.trunkLen, o.trunkR, 0, null);
           g.add(...barkMesh(barkTubes(limbs, Object.assign({ segs }, o)), o.barkMat));
           return { tips, rnd, flowerPts, segs };

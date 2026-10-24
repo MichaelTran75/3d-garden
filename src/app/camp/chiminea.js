@@ -12,7 +12,7 @@
         const chiminea = (() => {
           const W = 0.52, D = 0.5, H = 0.42, YB = 0.3, TK = 0.014, OW = 0.36, OH = 0.28, RB = 0.063;   // buồng đốt rộng (x) · sâu (z) · cao · đáy cách đất · dày thép · ô cửa · đố dưới
           const g = new THREE.Group(); g.name = 'Lò sưởi chiminea (Chiminea)';
-          const X = X0 + 67, Z = Z0 + 100; g.position.set(X, cowY(X, Z), Z); g.rotation.y = Math.atan2(campChairPos.x - X, campChairPos.z - Z); g.scale.setScalar(CAMP_SCALE);   // mặt cửa (+z cục bộ) nhìn về ghế cắm trại · G 15/10: dời (67, 99) → (67, 100)
+          const X = CHIM_P.x, Z = CHIM_P.z; g.position.copy(CHIM_P); g.rotation.y = CHIM_YAW; g.scale.setScalar(CAMP_SCALE);   // G 24/10 tối: ra trước ghế + bàn trà, mặt cửa (+z cục bộ) nhắm giữa ghế và bàn (CHIM_P — camp/chairs-lantern-fire.js) · G 15/10: dời (67, 99) → (67, 100)
           // ---- thép rèn đen vân búa (lốm đốm sáng tối + chút gỉ đồng) ----
           const hc = document.createElement('canvas'); hc.width = hc.height = 128; const hx = hc.getContext('2d'), hr = mulberry32(6799);
           hx.fillStyle = '#2b2a28'; hx.fillRect(0, 0, 128, 128);
@@ -48,7 +48,7 @@
           const rg = new THREE.CylinderGeometry(0.16, W / 2 * Math.SQRT2, 0.075, 4, 1); rg.rotateY(Math.PI / 4); rg.scale(1, 1, D / W);   // chóp 4 mặt khớp đúng miệng hộp W × D
           add(new THREE.Mesh(rg, ironFlat), 0, YB + H + 0.0375, 0);
           const nChim = g.children.length; add(new THREE.Mesh(new THREE.CylinderGeometry(0.128, 0.15, 0.06, 24), iron), 0, roofTop + 0.03, 0);
-          const PIPE = 1.98, CH = 0.7, pipeTop = roofTop + 0.06 + PIPE, smokeTop = roofTop + CH * (0.06 + PIPE);   // G 17/10: ống cao thêm 50% (1,32 → 1,98 m); G 18/10: cả cụm ống khói nhỏ đi 30% (CH)
+          const PIPE = 1.98 * 1.3, CH = 0.7, pipeTop = roofTop + 0.06 + PIPE, smokeTop = roofTop + CH * (0.06 + PIPE);   // G 17/10: ống cao thêm 50% (1,32 → 1,98 m); G 24/10 tối: cao thêm 30% (→ 2,57); G 18/10: cả cụm ống khói nhỏ đi 30% (CH)
           add(new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.112, PIPE, 24, 1, true), ironDS), 0, roofTop + 0.06 + PIPE / 2, 0);
           const ring = add(new THREE.Mesh(new THREE.TorusGeometry(0.112, 0.008, 6, 24), bronze), 0, pipeTop - 0.006, 0); ring.rotation.x = Math.PI / 2;
           for (let k = 0; k < 3; k++) { const a = k / 3 * 6.283; add(new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.036, 5), iron), Math.cos(a) * 0.1, pipeTop + 0.018, Math.sin(a) * 0.1); }
@@ -64,15 +64,64 @@
             B(0.06, 0.012, 0.05, iron, fx, 0.006, fzz);
           }
           add(new THREE.Mesh(new THREE.LatheGeometry([[0, 0], [0.08, 0], [0.115, 0.04], [0.13, 0.08]].map(([r, y]) => new THREE.Vector2(r, y)), 20), ironDS), 0, YB - 0.08, 0);
-          // ---- cửa lưới: bản lề mép phải ô cửa, mở ra ngoài ~112° (như ảnh mẫu) — khung đồng + lưới thép (canvas ô 8 điểm ảnh, alphaTest) + núm ----
+          // ---- LÒ NƯỚNG GHÉP BÊN HÔNG (G 24/10 "thêm 1 cái box same size với chiminea box nằm cạnh để lấy heat của lò để có thể nướng cá hoặc nướng bánh"):
+          //  hộp thép CÙNG CỠ buồng đốt (0,52 × 0,5 × 0,42 m), ghép sát hông phía không có đống củi (OS = −WOOD_SIDE; G 24/10 tối: +x, phía bếp lửa) — CHUNG VÁCH với buồng đốt (nhiệt truyền thẳng qua vách thép) + ống dẫn khói
+          //  nóng khuỷu đồng từ nóc lò nướng sang chân ống khói (hút nhiệt qua lò nướng rồi mới ra ống khói, như lò củi có ngăn nướng bên hông). Cửa đặc
+          //  có ô kính chịu nhiệt (thấy vỉ + lòng lò ửng đỏ khi nóng), tay nắm đồng, nhiệt kế mặt tròn (kim chạy theo nhiệt lò nướng); vỉ nướng giữa lòng;
+          //  mặt nóc phẳng hâm ấm; 2 chân xoè ở góc ngoài. Lò nướng nóng chậm hơn buồng đốt (~2 phút) và giữ nhiệt lâu (~7 phút) ----
+          const OS = -WOOD_SIDE, OX = OS * W;   // OS: phía lò nướng (±x cục bộ)
+          B(W, H, TK, iron, OX, yc, -zf); B(TK, H, D, iron, OX + OS * (W / 2 - TK / 2), yc, 0);
+          B(W, TK, D, iron, OX, YB + TK / 2, 0); B(W, TK, D, iron, OX, YB + H - TK / 2, 0);
+          for (const s of [-1, 1]) B((W - OW) / 2, H, TK, iron, OX + s * (OW / 2 + (W - OW) / 4), yc, zf);
+          B(OW, RT, TK, iron, OX, YB + H - RT / 2, zf); B(OW, RB, TK, iron, OX, YB + RB / 2, zf);
+          const ovenSoot = new THREE.MeshLambertMaterial({ color: 0x1a1612, side: THREE.BackSide, emissive: 0x7a2a08, emissiveIntensity: 0 });
+          add(new THREE.Mesh(new THREE.BoxGeometry(W - 2.4 * TK, H - 2.4 * TK, D - 2.4 * TK), ovenSoot), OX, yc, 0);
+          for (const sz of [-1, 1]) B(0.028, H + 0.012, 0.028, bronze, OX + OS * W / 2, yc, sz * D / 2);   // cạnh đứng phía ngoài (cạnh chung đã có)
+          for (const y of [YB + 0.014, YB + H - 0.014]) {
+            for (const s of [-1, 1]) B(W + 0.02, 0.026, 0.02, bronze, OX, y, s * D / 2); B(0.02, 0.026, D + 0.02, bronze, OX + OS * W / 2, y, 0);
+            for (let k = 1; k < 8; k++) { const u = OX - W / 2 + k * W / 8; RV(u, y, D / 2 + 0.011); RV(u, y, -D / 2 - 0.011); RV(OX + OS * (W / 2 + 0.011), y, -D / 2 + k * D / 8); }
+          }
+          const rackY = YB + 0.17;   // vỉ nướng: khung + 9 nan dọc, gác trên 2 gờ ở 2 vách
+          for (const s of [-1, 1]) B(W - 0.05, 0.008, 0.008, iron, OX, rackY, s * (D / 2 - 0.06));
+          for (let k = 0; k < 9; k++) B(0.006, 0.006, D - 0.12, iron, OX - (W - 0.09) / 2 + k * (W - 0.09) / 8, rackY + 0.004, 0);
+          // cửa đặc che kín ô cửa: tấm thép + viền đồng + ô kính + tay nắm + nhiệt kế
+          // G 24/10 khuya (hun khói cá): cửa lò nướng treo trên BẢN LỀ mép ngoài (ohinge, không gộp tĩnh) ⇒ kỹ sư mở / đóng được — oven.open(0…1)
+          const ohinge = new THREE.Group(); ohinge.position.set(OX + OS * (OW + 0.03) / 2, oy, D / 2 + 0.012); ohinge.userData.noBake = true; g.add(ohinge);
+          const odoor = new THREE.Group(); odoor.position.set(-OS * (OW + 0.03) / 2, 0, 0); ohinge.add(odoor);
+          const DW = OW + 0.03, DH = OH + 0.03, GW = 0.2, GH = 0.1, gy = -0.03;
+          B((DW - GW) / 2, DH, 0.01, iron, -(GW / 2 + (DW - GW) / 4), 0, 0, odoor); B((DW - GW) / 2, DH, 0.01, iron, GW / 2 + (DW - GW) / 4, 0, 0, odoor);
+          B(GW, DH / 2 - gy - GH / 2, 0.01, iron, 0, (DH / 2 + gy + GH / 2) / 2, 0, odoor); B(GW, DH / 2 + gy - GH / 2, 0.01, iron, 0, (-DH / 2 + gy - GH / 2) / 2, 0, odoor);
+          const ovGlass = new THREE.MeshLambertMaterial({ color: 0x2a2724, transparent: true, opacity: 0.55, emissive: 0xff7a2a, emissiveIntensity: 0, depthWrite: false });
+          add(new THREE.Mesh(new THREE.PlaneGeometry(GW, GH), ovGlass), 0, gy, 0.004, odoor).castShadow = false;
+          for (const s of [-1, 1]) { B(DW + 0.012, 0.012, 0.012, bronze, 0, s * DH / 2, 0.006, odoor); B(0.012, DH + 0.012, 0.012, bronze, s * DW / 2, 0, 0.006, odoor); B(GW + 0.016, 0.01, 0.01, bronze, 0, gy + s * (GH / 2 + 0.005), 0.008, odoor); B(0.01, GH + 0.016, 0.01, bronze, s * (GW / 2 + 0.005), gy, 0.008, odoor); }
+          const hdl = add(new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.16, 6), bronze), 0, -DH / 2 + 0.03, 0.035, odoor); hdl.rotation.z = Math.PI / 2;
+          for (const s of [-1, 1]) add(new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.005, 0.03, 5), bronze), s * 0.07, -DH / 2 + 0.03, 0.02, odoor).rotation.x = Math.PI / 2;
+          for (const s of [-1, 1]) add(new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.009, 0.035, 6), bronze), OS * (DW / 2 - 0.004), s * (DH / 2 - 0.04), 0, odoor);   // 2 bản lề mép ngoài
+          const dial = add(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.01, 18), new THREE.MeshLambertMaterial({ color: 0xece6d6 })), 0, DH / 2 - 0.045, 0.01, odoor); dial.rotation.x = Math.PI / 2;
+          add(new THREE.Mesh(new THREE.TorusGeometry(0.031, 0.004, 4, 18), bronze), 0, DH / 2 - 0.045, 0.014, odoor);
+          const needle = new THREE.Group(); needle.position.set(0, DH / 2 - 0.045, 0.017); needle.userData.noBake = true; odoor.add(needle);
+          const nd = new THREE.Mesh(new THREE.BoxGeometry(0.003, 0.024, 0.002), new THREE.MeshBasicMaterial({ color: 0xb3261e })); nd.position.y = 0.011; needle.add(nd);
+          // G 24/10 khuya "đặt ấm đun nước lên trên bề mặt chiminea, em remove cái ống pipe kết nối 2 box": bỏ ống dẫn nhiệt đồng + núm van gió; ẤM REO (campKettle,
+          //  dời từ giá treo bếp lửa) ngồi giữa nóc phẳng lò nướng, vòi chĩa ra phía ngoài; hơi phụt khỏi còi theo lửa lò (loop/main-loop.js)
+          const ket = campKettle(); ket.scale.setScalar(0.2); ket.position.set(OX, YB + H, 0); ket.rotation.y = OS > 0 ? 0.4 : Math.PI + 0.4; g.add(ket);
+          ket.updateMatrix(); const kTip = new THREE.Vector3(0.93, 1.03, 0.07).applyMatrix4(ket.matrix), kDir = new THREE.Vector3(0.77, 0, 0).applyQuaternion(ket.quaternion);
+          const kSteam = new THREE.Group(); kSteam.userData.noBake = true; kSteam.position.copy(kTip); g.add(kSteam);
+          for (let n = 0; n < 7; n++) { const puff = new THREE.Mesh(new THREE.IcosahedronGeometry(0.015, 1), new THREE.MeshBasicMaterial({ color: 0xf2efe8, transparent: true, opacity: 0, depthWrite: false })); kSteam.add(puff); kettleSteam.push({ m: puff, ph: n / 7, dir: kDir }); }
+          for (const sz of [-1, 1]) {   // 2 chân xoè ở góc ngoài lò nướng (2 chân phía trong của buồng đốt đỡ chung)
+            const ax = OX + OS * (W / 2 - 0.05), az = sz * (D / 2 - 0.05), fx = OX + OS * (W / 2 + 0.08), fzz = sz * 0.33;
+            _d.set(fx - ax, -YB, fzz - az); const L = _d.length();
+            const leg = add(new THREE.Mesh(new THREE.BoxGeometry(0.036, L, 0.01), iron), (ax + fx) / 2, YB / 2, (az + fzz) / 2); leg.quaternion.setFromUnitVectors(_up, _d.multiplyScalar(-1 / L));
+            B(0.06, 0.012, 0.05, iron, fx, 0.006, fzz);
+          }
+          // ---- cửa lưới: bản lề mép ô cửa phía xa lò nướng, mở ra ngoài ~112° (như ảnh mẫu: lò nướng bên trái thì bản lề phải) — khung đồng + lưới thép (canvas ô 8 điểm ảnh, alphaTest) + núm ----
           const mc = document.createElement('canvas'); mc.width = mc.height = 64; const mx = mc.getContext('2d'); mx.strokeStyle = '#1b1a18'; mx.lineWidth = 2;
           for (let k = 0; k <= 64; k += 8) { mx.beginPath(); mx.moveTo(k, 0); mx.lineTo(k, 64); mx.moveTo(0, k); mx.lineTo(64, k); mx.stroke(); }
           const mTex = new THREE.CanvasTexture(mc); mTex.wrapS = mTex.wrapT = THREE.RepeatWrapping; mTex.repeat.set(OW / 0.08, OH / 0.08);
           const meshMat = new THREE.MeshLambertMaterial({ map: mTex, transparent: false, alphaTest: 0.4, side: THREE.DoubleSide });
-          const door = new THREE.Group(); door.position.set(OW / 2 + 0.012, oy, D / 2 + 0.012); door.rotation.y = 1.95; g.add(door);
-          add(new THREE.Mesh(new THREE.PlaneGeometry(OW - 0.01, OH - 0.01), meshMat), -OW / 2, 0, 0, door);
-          for (const s of [-1, 1]) { B(OW, 0.014, 0.01, bronze, -OW / 2, s * OH / 2, 0, door); B(0.014, OH, 0.01, bronze, -OW / 2 + s * OW / 2, 0, 0, door); }
-          add(new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.05, 6), bronze), -OW + 0.004, 0, 0.022, door).rotation.x = Math.PI / 2;
+          const door = new THREE.Group(); door.position.set(-OS * (OW / 2 + 0.012), oy, D / 2 + 0.012); door.rotation.y = -OS * 1.95; g.add(door);
+          add(new THREE.Mesh(new THREE.PlaneGeometry(OW - 0.01, OH - 0.01), meshMat), OS * OW / 2, 0, 0, door);
+          for (const s of [-1, 1]) { B(OW, 0.014, 0.01, bronze, OS * OW / 2, s * OH / 2, 0, door); B(0.014, OH, 0.01, bronze, OS * OW / 2 + s * OW / 2, 0, 0, door); }
+          add(new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.05, 6), bronze), OS * (OW - 0.004), 0, 0.022, door).rotation.x = Math.PI / 2;
           // ---- lửa trong lò (động, không gộp): 3 khúc củi đan chéo, than, 4 lưỡi lửa, đèn ấm trước ô cửa ----
           const fire = new THREE.Group(); fire.userData.noBake = true; g.add(fire);
           const logMat = new THREE.MeshLambertMaterial({ color: 0x3a2a1e, emissive: 0xff5a2a, emissiveIntensity: 0 });
@@ -86,14 +135,42 @@
             m.position.set((k - 2.5) * 0.045, YB + 0.05, 0.0 + (k % 3) * 0.035); m.renderOrder = 9; m.visible = false; fire.add(m); return m;
           });
           const light = new THREE.PointLight(0xff7a2a, 0, 6, 2); light.position.set(0, YB + 0.2, D / 2 + 0.1); g.add(light);
+          // ---- CÁ HUN KHÓI trên vỉ lò nướng (G 24/10 khuya "có thể để smoke fish inside khi câu cá xong"): 3 chỗ, cá nằm nghiêng dọc chiều sâu lò; xông theo nhiệt lò
+          //  (OV > 0,2): ~15–25 phút thì chín khói — bạc → vàng rơm → nâu khói. Kỹ sư bỏ cá vào sau buổi câu, bữa tối lấy ra ăn (engineer/tasks/smoker.js) ----
+          const SMOKE_RAW = new THREE.Color(0x8b979c), SMOKE_MID = new THREE.Color(0xc8893f), SMOKE_DONE = new THREE.Color(0x8a5226);
+          const smokeFish = [], sfGeo = new THREE.LatheGeometry([[0, -0.215], [0.025, -0.2], [0.075, -0.12], [0.11, 0], [0.09, 0.12], [0.06, 0.195], [0.02, 0.24], [0, 0.25]].map(([r, y]) => new THREE.Vector2(r, y)), 10);
+          sfGeo.scale(0.31, 0.62, 0.62); sfGeo.rotateZ(Math.PI / 2); sfGeo.rotateY(Math.PI / 2);   // dẹt nằm nghiêng, đầu về cửa lò
+          for (let i = 0; i < 3; i++) { const m = new THREE.Mesh(sfGeo, new THREE.MeshLambertMaterial({ color: SMOKE_RAW.clone(), flatShading: true })); m.position.set(OX + (i - 1) * 0.15, rackY + 0.035, 0); m.visible = false; m.castShadow = true; m.userData.noBake = true; g.add(m); smokeFish.push({ m, s: 0 }); }
+          // ---- BẤM LÒ ⇒ vỏ thép trong 90%, chỉ còn NÉT VIỀN (G 24/10 khuya "khi click vào chiminea thì transparent 50%" → "90% transparent only border line art
+          //  visible"): nét cạnh (EdgesGeometry, góc ≥ 25°) của mọi mảnh vỏ — trừ đinh tán — gộp 1 lưới đường cho thân lò + 1 cho cửa lò nướng (đi theo bản lề);
+          //  ẩn, chỉ hiện khi bấm. Thấy lửa, củi, cá trên vỉ; bấm lần nữa trả lại ----
+          const shellMats = [iron, ironDS, ironFlat, bronze, soot, ovenSoot, meshMat], lineMat = new THREE.LineBasicMaterial({ color: 0x1d1a17, transparent: true, opacity: 0.9 }), edgeObjs = [];
+          function edgeLines(root, skip) {
+            root.updateMatrixWorld(true); const inv = new THREE.Matrix4().copy(root.matrixWorld).invert(), M = new THREE.Matrix4(), v = new THREE.Vector3(), pos = [];
+            root.traverse(o => { if (!o.isMesh || !shellMats.includes(o.material) || o.geometry.type === 'SphereGeometry' || (skip && skip(o))) return;
+              M.multiplyMatrices(inv, o.matrixWorld); const ea = new THREE.EdgesGeometry(o.geometry, 25).attributes.position; for (let i = 0; i < ea.count; i++) { v.fromBufferAttribute(ea, i).applyMatrix4(M); pos.push(v.x, v.y, v.z); } });
+            const gl = new THREE.BufferGeometry(); gl.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+            const L = new THREE.LineSegments(gl, lineMat); L.visible = false; L.userData.noBake = L.userData.noBatch = true; L.raycast = () => {}; root.add(L); edgeObjs.push(L);
+          }
+          const inDoor = o => { for (let p = o; p; p = p.parent) if (p === ohinge) return true; return false; };
+          edgeLines(odoor); edgeLines(g, inDoor);
           scene.add(bakeStatic(g));
-          obstacleCoords.push({ x: X, y: g.position.y, z: Z, r: 0.45, h: 3.0 });   // người, chó, côn trùng đi vòng
+          let seeOn = false;
+          function see(on = !seeOn) { seeOn = on; for (const m of shellMats) { m.transparent = on; m.opacity = on ? 0.1 : 1; m.depthWrite = !on; m.needsUpdate = true; } for (const L of edgeObjs) L.visible = on; return on; }
+          { const o = g.localToWorld(new THREE.Vector3(OX, 0, 0)); obstacleCoords.push({ x: X, y: g.position.y, z: Z, r: 0.42, h: 3.0 }, { x: o.x, y: g.position.y, z: o.z, r: 0.42, h: 1.0 }); }   // buồng đốt + lò nướng: người, chó, côn trùng đi vòng
           // khói: miền 1,15 × 3,5 m ô 3,2 cm (khe dưới nón ~1 ô), miệng ống r 0,1 · nón r 0,17 cao 3,2 → 6,4 cm trên miệng ống (đv thế giới, đã nhân CAMP_SCALE)
           const SC = CAMP_SCALE, smoke = fluids.addSmoke({ NR: 36, NZ: 110, H: 0.032, NP: 600, NS: 0, NT: 14, buoy: 4, kNu: 0.03, nu0: 0.002, tauT: 6, iters: 30, dens: 0.8,
             inlet: { r: 0.11 * CH * SC }, lid: { r: 0.19 * CH * SC, z0: 0.036 * CH * SC, z1: 0.086 * CH * SC } }, { name: 'Khói ống khói lò chiminea (sợi khói Navier–Stokes)', opacity: 0.6 });
           smoke.on = false;
-          let L = 0, init = false, F = 0;   // F: giây nhiên liệu còn lại của củi bỏ thêm
-          return { g, smoke, lit: () => L, fuel: () => F, addWood() { F = Math.min(900, F + 600); }, door: out => g.localToWorld(out.set(0, YB + 0.12, D / 2)), update(dt, t) {
+          let L = 0, init = false, F = 0, OV = 0;   // F: giây nhiên liệu còn lại của củi bỏ thêm · OV: nhiệt lò nướng 0–1
+          return { g, smoke, lit: () => L, fuel: () => F, addWood() { F = Math.min(900, F + 600); }, door: out => g.localToWorld(out.set(0, YB + 0.12, D / 2)),
+            oven: { heat: () => OV, temp: () => Math.round(20 + 240 * OV), rack: out => g.localToWorld(out.set(OX, rackY + 0.02, 0)), door: out => g.localToWorld(out.set(OX, YB + 0.12, D / 2)),
+              open: k => { ohinge.rotation.y = OS * Math.max(0, Math.min(1, k)) * 1.7; }, handle: out => odoor.localToWorld(out.set(0, -(OH + 0.03) / 2 + 0.03, 0.035)),
+              fish: { n: () => smokeFish.filter(f => f.m.visible).length, add: () => { const f = smokeFish.find(f => !f.m.visible); if (!f) return -1; f.m.visible = true; f.s = 0; return smokeFish.indexOf(f); },
+                ready: () => { let b = -1; smokeFish.forEach((f, i) => { if (f.m.visible && f.s >= 0.7 && (b < 0 || f.s > smokeFish[b].s)) b = i; }); return b; }, take: i => { smokeFish[i].m.visible = false; },
+                slot: (i, out) => smokeFish[i].m.getWorldPosition(out), free: () => smokeFish.findIndex(f => !f.m.visible), smoke: i => smokeFish[i].s } },
+            see, seeOn: () => seeOn,   // bấm lò: vỏ trong 50%   // lò nướng: nhiệt (0–1, °C), tâm vỉ, cửa (thế giới)
+            update(dt, t) {
             // mưa ⇒ lò cháy: ít nhất 55%, tối thì theo lịch lửa trại; bén lửa ~40 s, tàn ~2,5 phút · củi bỏ thêm: 45–100% theo F, bùng ~8 s
             F = Math.max(0, F - dt); const want = Math.max(rainK > 0.05 ? Math.max(0.55, campfireLevel(liveWeather.localHour)) : 0, F > 0 ? Math.min(1, 0.45 + F / 1100) : 0);
             if (!init && liveWeather.state.data) { init = true; L = want; }   // mở trang giữa cơn mưa: lò đang cháy sẵn
@@ -102,6 +179,9 @@
             flames.forEach((m, k) => { m.visible = on; if (!on) return; const s = 0.85 + 0.4 * L; m.scale.set(s, L * (1.05 + 0.35 * Math.sin(t * (7 + k) + k * 1.7)), s); m.material.opacity = 0.7 + 0.25 * Math.sin(t * 12 + k); });
             light.intensity = 2.4 * L * fl;
             emberMat.color.setRGB(0.12 + 0.85 * e, 0.08 + 0.3 * e, 0.05 + 0.04 * e); logMat.emissiveIntensity = 1.4 * e; soot.emissiveIntensity = 0.7 * L * fl;
+            const ovT = on ? 0.3 + 0.7 * L : 0; OV += (ovT - OV) * (1 - Math.exp(-dt / (ovT > OV ? 120 : 420)));   // lò nướng: nóng dần ~2 phút, nguội ~7 phút
+            for (const f of smokeFish) if (f.m.visible) { if (OV > 0.2) f.s = Math.min(1, f.s + dt * OV / (15 * 60)); const c = f.m.material.color; if (f.s < 0.5) c.copy(SMOKE_RAW).lerp(SMOKE_MID, f.s / 0.5); else c.copy(SMOKE_MID).lerp(SMOKE_DONE, (f.s - 0.5) / 0.5); }   // cá xông: bạc → vàng → nâu khói
+            ovenSoot.emissiveIntensity = 0.55 * OV; ovGlass.emissiveIntensity = 0.9 * OV; needle.rotation.z = 2.2 - 4.2 * OV;   // lòng lò ửng đỏ · ô kính ánh lửa · kim nhiệt kế 20 → 260 °C
             smoke.on = L > 0.02;   // khói ống khói theo cỡ lửa: nhiệt, lượng khói, sức hút ống (khí phụt lên khỏi miệng ống)
             if (smoke.on) { g.localToWorld(smoke.base.set(0, smokeTop, 0)); smoke.heat = 0.5 + 0.7 * L; smoke.smoke = 0.5 + 1.5 * L; smoke.rate = 0.15 + 0.7 * L; smoke.draft = 0.6 + 0.9 * L; plumeLight(smoke, PLUME_COL.smoke, PLUME_COL.steam, _plumeGlow.setRGB(0, 0, 0)); }
           } };

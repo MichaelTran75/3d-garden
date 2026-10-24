@@ -306,11 +306,11 @@
           cowHerd.avail = () => liveWeather.wildlifeAwake && !skyWatch.dogWant() && (!dogRain.st || dogRain.st === 'toFire' || dogRain.st === 'toDoor' || dogRain.st === 'herd') && cows.some(herdOut);
           const barkSp = (() => { const c = document.createElement('canvas'); c.width = 128; c.height = 64; const x = c.getContext('2d');
             x.font = 'bold 40px Outfit, sans-serif'; x.fillStyle = '#E2D6C0'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.shadowColor = '#243240'; x.shadowBlur = 6; x.fillText('Gâu!', 64, 34);
-            const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, opacity: 0, depthWrite: false })); sp.name = 'Gâu (chó sủa)'; sp.visible = false; sp.userData.noBatch = true; scene.add(sp); return sp; })();
+            const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, opacity: 0, depthWrite: false })); sp.name = 'Gâu (chó sủa)'; sp.userData.label = true; sp.visible = false; sp.userData.noBatch = true; scene.add(sp); return sp; })();
           function herdBark() { if ((B.barkK || 0) > 0) return; B.barkK = 0.7; H.nb = 7 + Math.random() * 7; }
           function herdStart() { H.used = true; H.tot = 0; H.ph = 'alert'; H.k = 0; H.L = null; H.nb = 4 + Math.random() * 4; cowHerd.on = true; }
           function herdEnd() { H.used = false; H.ph = null; H.F = H.FB = H.LF = null; cowHerd.on = cowHerd.done = false; for (const c of cows) { c.herd = false; c.push = 1; c.htr = null; } }   // mưa tạnh: bò lại tự do
-          function herdDone() { H.ph = null; H.F = H.FB = H.LF = null; cowHerd.on = false; cowHerd.done = true; for (const c of cows) { c.herd = true; c.push = 1; c.htr = null; } dogRain.st = 'toDoor'; dogRain.wet = true; }
+          function herdDone() { H.ph = null; H.F = H.FB = H.LF = null; cowHerd.on = false; cowHerd.done = true; for (const c of cows) { c.herd = true; c.push = 1; c.htr = null; } dogRain.st = dogRain.porchDone ? 'toDoor' : 'toPorch'; dogRain.t = 0; dogRain.wet = true; }
           function herdPick() {   // nhóm kế: con ngoài bãi gần chó nhất (khác bờ sông thì cộng 60 m) + các con cùng bờ cách nó ≤ 16 m
             const p = dogObj.position, out = cows.filter(herdOut); if (!out.length) return false;
             let S = out[0], bd = Infinity; for (const c of out) { const d = Math.hypot(c.x - p.x, c.z - p.z) + (wetLine(p.x, p.z, c.x, c.z) ? 60 : 0); if (d < bd) { bd = d; S = c; } }
@@ -387,18 +387,30 @@
             if (dL < 2.2) { B.want = 0; dogTurn(yawOf(L.x - p.x, L.z - p.z), dt * 3); return; }   // sát vai bò: đứng lại cho bò đi
             steer(tx, tz, dT > 4 ? 2.6 : dT > 1.5 ? Math.max(1.0, vL * 1.3) : Math.max(0.4, vL * 0.9), dt, dT > 14 ? (H.LF || (H.LF = buildFlowField(L.x, L.z, cowBlocked))) : null, 0.3);
           }
+          // chỗ chó nằm chờ dưới bạt hiên (G 24/10 khuya x65 z102 → "lùi vào trong 1 chút gần bậc cầu thang, nếu ko sẽ bị ướt đầu"): sát cạnh bậc, cách vách xe 0,55 m,
+          //  phía không có ghế cắm trại (bên kia ghế kê sát bậc)
+          const DOG_PORCH = (() => { const S = caravanObj.scale.z, z = DOOR.wall + 0.55 / S, c = [-1, 1].map(k => vanPt(DOOR.cx + k * (DOOR.w / 2 + 0.42 / S), 0, z));
+            return c.sort((a, b) => Math.hypot(b.x - campChairPos.x, b.z - campChairPos.z) - Math.hypot(a.x - campChairPos.x, a.z - campChairPos.z))[0]; })();
           function shelterTick(dt, t) {   // mưa / tối: vào xe nằm gầm bàn vuông (tới cửa → đứng trước bậc → đi bộ lên bậc → giường)
             const D = dogRain, p = dogObj.position, rain = liveWeather.state.raining, night = !liveWeather.wildlifeAwake, want = rain || (night && !skyWatch.dogWant());   // chủ nằm ngắm sao: đêm cũng ra nằm cạnh
             B.earH = 0;
             if (!rain && H.used) herdEnd();
             if (rain && !night && (!D.st || D.st === 'toFire' || D.st === 'toDoor') && !cowHerd.done && cowHerd.avail()) { D.st = 'herd'; herdStart(); }   // mưa ban ngày, bò còn ngoài bãi: đi lùa trước
-            if (want && (!D.st || D.st === 'toFire')) D.st = 'toDoor';
-            else if (!want && D.st) { if (D.st === 'toDoor') D.st = 'toFire'; else if (D.st === 'toBed' || D.st === 'in') D.st = 'toExit'; else if (D.st === 'herd') { D.st = null; setSt('herdHome'); } }
+            // G 24/10 khuya "cho chó nằm ở vị trí x65 z102 1 tiếng trước khi vào xe trú mưa, hoặc trước khi ngủ": mưa / tới giờ ngủ ⇒ ra nằm dưới mép bạt hiên (DOG_PORCH)
+            //  1 tiếng rồi mới vào xe; tạnh / trời sáng giữa chừng thì thôi, lần sau nằm lại từ đầu
+            if (want && (!D.st || D.st === 'toFire')) { D.st = D.porchDone ? 'toDoor' : 'toPorch'; D.t = 0; }
+            else if (!want && !D.st) D.porchDone = false;
+            else if (!want && D.st) { if (D.st === 'toPorch' || D.st === 'porch') { D.st = null; D.porchDone = false; setSt('circle'); return false; } if (D.st === 'toDoor') D.st = 'toFire'; else if (D.st === 'toBed' || D.st === 'in') D.st = 'toExit'; else if (D.st === 'herd') { D.st = null; setSt('herdHome'); } }
             if (!D.st) { dogZzzGroup.visible = false; B.inside = false; return false; }
             B.look = null; B.headP = null; B.sniff = 0; B.shake = 0; B.mode = 'stand';
             if (D.st === 'herd') { dogZzzGroup.visible = false; B.doze = B.dozing = false; herdTick(dt, t); return true; }
             const floorY = dogInside.y;
-            if (D.st === 'toDoor') { B.inside = false; ground = cowY; const dd = Math.hypot(p.x - dogDoorFar.x, p.z - dogDoorFar.z), n = herdIdx(p.x, p.z);   // từ chuồng bò về: chạy nước kiệu; ngoài vùng bảng về cửa (bên kia sông) ⇒ bảng trên lưới của bò
+            if (D.st === 'toPorch') { B.inside = false; ground = cowY; if (steer(DOG_PORCH.x, DOG_PORCH.z, 1.0, dt, null, 0.1)) { D.st = 'porch'; D.t = 0; } }
+            else if (D.st === 'porch') {   // nằm dưới mép bạt nhìn ra bếp lửa · đủ 1 tiếng ⇒ vào xe
+              B.inside = false; ground = cowY; B.want = 0; B.mode = 'lie'; dogTurn(yawOf(pf.x - p.x, pf.z - p.z), dt * 2); D.t += dt;
+              if (D.t >= 3600) { D.porchDone = true; D.st = 'toDoor'; }
+            }
+            else if (D.st === 'toDoor') { B.inside = false; ground = cowY; const dd = Math.hypot(p.x - dogDoorFar.x, p.z - dogDoorFar.z), n = herdIdx(p.x, p.z);   // từ chuồng bò về: chạy nước kiệu; ngoài vùng bảng về cửa (bên kia sông) ⇒ bảng trên lưới của bò
               if (steer(dogDoorFar.x, dogDoorFar.z, dd > 8 ? 2.4 : 1.5, dt, n >= 0 && dogDoorField[n] < 65535 ? dogDoorField : (H.vanF || (H.vanF = buildFlowField(dogDoorFar.x, dogDoorFar.z, cowBlocked))), 0.1)) D.st = 'toStep'; }
             else if (D.st === 'toStep') { if (steer(dogStairA.x, dogStairA.z, 0.8, dt, null, 0.06)) { if (D.wet) { D.st = 'shakeOff'; D.t = 0; D.wet = false; } else { D.st = 'stairIn'; D.ph = 'face'; D.t = 0; } } }
             else if (D.st === 'shakeOff') { B.want = 0; D.t += dt; B.shake = D.t < 1.4 ? 1.2 * Math.min(1, D.t * 5) : 0; B.headP = -0.05; if (D.t > 1.7) { D.st = 'stairIn'; D.ph = 'face'; D.t = 0; } }   // lùa bò về ướt sũng: giũ nước trước bậc cửa
@@ -417,7 +429,7 @@
               B.inside = true; ground = () => floorY; B.want = 0; B.mode = 'lie';
               let dy = yawOf(dogInside.x - dogBed.x, dogInside.z - dogBed.z) - dogObj.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); dogObj.rotation.y += dy * Math.min(1, dt * 2);
             }
-            const sleeping = D.st === 'in' && night;
+            const sleeping = (D.st === 'in' || D.st === 'porch') && night;
             B.doze = sleeping; B.dozing = sleeping; B.headP = sleeping ? -0.5 : D.st === 'in' ? 0.05 : null; B.wagAmp = sleeping ? 0.25 : 0.2; B.wagF = sleeping ? 0 : 3;
             dogZzzGroup.visible = sleeping;
             if (sleeping) { U.head.getWorldPosition(_dogHead); for (const z of dogZzz) { const k = (t * 0.32 + z.ph) % 1; z.m.position.set(_dogHead.x + Math.sin(t * 1.7 + z.ph * 6) * 0.07, _dogHead.y + 0.12 + k * 1.3, _dogHead.z); z.m.material.opacity = 0.9 * Math.min(1, (1 - k) * 2.6); z.m.scale.setScalar(0.15 + k * 0.28); } }

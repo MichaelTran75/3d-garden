@@ -21,7 +21,7 @@ out_path.write_text(src.replace(anchor, hook), encoding='utf-8')
 # mẫu nạp từ máy (server của run.cjs phục vụ /models = src/models) + mốc thời gian dựng xong (__tBuilt) cho trình chạy chờ
 s = out_path.read_text(encoding='utf-8')
 a = "function build(THREE, mergeGeometries) {"; assert s.count(a) == 1
-models = {'__droneGlb': 'dji-mini3.glb', '__barkTex': 'bark-scan.jpg', '__vanBin': 'transit.bin', '__engineGlb': 'engine.glb', '__trimGlb': 'trimmer.glb', '__chickGlb': 'chicken.glb',
+models = {'__racGlb': 'raccoon.glb', '__droneGlb': 'dji-mini3.glb', '__barkTex': 'bark-scan.jpg', '__vanBin': 'transit.bin', '__engineGlb': 'engine.glb', '__trimGlb': 'trimmer.glb', '__chickGlb': 'chicken.glb',
           '__teleGlb': 'telescope.glb', '__galGlb': 'galaxy.glb', '__moonJpg': 'moon.jpg', '__mwJpg': 'milkyway.jpg', '__bhJpg': 'blackhole.jpg', '__jupJpg': 'jupiter.jpg',
           '__tlGlb': 'tinyliving.glb', '__pumpGlb': 'pump.glb', '__fungiBin': 'fungi.bin', '__chassisGlb': 'chassis.glb'}
 s = s.replace(a, a + ' window.__tBuild0 = performance.now(); ' + ' '.join(f"window.{k} = window.{k} || '/models/{v}';" for k, v in models.items()), 1)

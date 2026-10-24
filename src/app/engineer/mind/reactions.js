@@ -15,7 +15,7 @@
         //  Gọi trong engineer/mind/loop-update.js: engReactHold (đứng lại thay việc) · engReactPre (trước lớp tư thế) · engReactPost (sau IK chân: nhìn,
         //  nhịp cử chỉ — trước engSeatPost) · engReactArms (đích tay — sau engSeatPost, trước engArmPost).
         const RX_NO = [false, false], RX_YES = [true, true], RX_R = [true, false];
-        const RX_BUSY = new Set(['pet', 'apple', 'appleEat', 'trim', 'drone', 'drink', 'grab', 'plant', 'toPlant', 'toGrill', 'eatFish', 'tossFish', 'fish', 'eat', 'read', 'nap', 'stars', 'garden']);
+        const RX_BUSY = new Set(['pet', 'apple', 'appleEat', 'trim', 'drone', 'drink', 'grab', 'plant', 'toPlant', 'toSmoker', 'smokeIn', 'toSmokerOut', 'smokeOut', 'toGrill', 'eatFish', 'tossFish', 'fish', 'eat', 'read', 'nap', 'stars', 'garden']);
         const RX_STOP = new Set(['wander', 'check', 'toMast', 'toChair', 'toShelter', 'toFish', 'toDog']);   // việc đi / đứng dừng lại được
         // ưu tiên cử chỉ: cử chỉ cao hơn mới chen ngang được
         const RX_GP = { yawn: 1, sigh: 1, wipe: 1, rub: 1, warm: 1, fan: 1, fanClip: 1, blow: 1, hug: 1, palm: 2, shade: 2, relief: 2, brr: 3, shakeOff: 3, clap: 2, laugh: 2, wave: 3, cough: 3, catch: 3, look: 3, drop: 3, brush: 3, helmet: 4, pat: 4, shield: 5, cover: 6 };

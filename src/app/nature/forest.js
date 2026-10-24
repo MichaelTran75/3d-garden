@@ -36,12 +36,12 @@
           }
         }
         // ---- 2 cây táo (ĐỆ QUY) cạnh caravan ----
-        function fruitTree(s, seed) {
+        function fruitTree(s, seed, o = {}) {   // o (G 24/10, cây táo thứ 3): trunkK thân to × · rootK cành cấp 1 / thân · firstSplitN cành chính · nMax rẽ tối đa · leafK chùm lá giữa × · reach cành vươn (recTree)
           const g = new THREE.Group();
           const barkMat = new THREE.MeshLambertMaterial({ color: 0x5f5347, transparent: true, opacity: 0.90 }); barkMat.userData.sfTex = 1; surfaceStyle(barkMat, 'bark');   // ảnh vỏ quét   // thân cây rõ hơn 20% (0.75 * 1.2 = 0.90) · vân vỏ cây · G 17/10 nâu xám như bản quét
-          const { tips, rnd, segs } = recTree(g, { seed, s, barkMat, trunkLen: 1.7 * s, trunkR: 0.125 * s, maxDepth: 4, nMin: 2, nMax: 3, lenK: 0.74, radK: 0.6, spread: 0.72, upBias: 0.22, firstSplitN: 4 });
+          const { tips, rnd, segs } = recTree(g, { seed, s, barkMat, trunkLen: 1.7 * s, trunkR: 0.125 * s * (o.trunkK || 1), maxDepth: 4, nMin: 2, nMax: o.nMax || 3, lenK: 0.74, radK: 0.6, spread: 0.72, upBias: 0.22, firstSplitN: o.firstSplitN || 4, rootK: o.rootK, reach: o.reach });
           const pts = []; for (const tp of tips) cloudPts(rnd, tp.x, tp.y + 0.08 * s, tp.z, 0.62 * s, 40, pts);
-          cloudPts(rnd, 0, 2.7 * s, 0, 1.05 * s, 130, pts);   // chùm trung tâm cho tán dày ruột
+          cloudPts(rnd, 0, 2.7 * s, 0, 1.05 * s, Math.round(130 * (o.leafK || 1)), pts);   // chùm trung tâm cho tán dày ruột
           tuftInstanced(g, rnd, pts, leafHexGeo(0.09 * s), [0x86a364, 0x78935b, 0x6e8754, 0x61784a], 0.60); g.userData.leafPts = Float32Array.from(pts.flat());   // điểm lá: lá rụng theo cơn giật (nature/wind-field.js)   // lá cây trong suốt hơn 20% (0.75 * 0.8 = 0.60)
           // táo đỏ treo dưới ~1/3 số cành tận cùng
           function deformApple(geom) {
@@ -110,9 +110,19 @@
         ft1.position.copy(worldCell(21.5, 31.5)); ft1.rotation.y = -1.852; scene.add(ft1);
         ft1.position.set(X0 + 62, surfaceY(Math.round((20 + 5 / 6) * S), 32.5 * S), Z0 + 90);   // G 18/10 "move cây táo tới x62 z90" (toạ độ trang X = x − X0, Z = z − Z0): sát góc sau–phải chuồng gà (camp/chicken-coop.js) — bóng mát + chỗ trú cho gà
         ft2.position.copy(worldCell(24.5, 34.5)); ft2.rotation.y = -0.794; scene.add(ft2);
-        flightRoots.push(ft1, ft2);
-        const appleTrees = [ft1, ft2];   // kỹ sư hái táo (engineer/tasks/apple-pick.js)
-        for (const T of appleTrees) obstacleCoords.push({ x: T.position.x, y: T.position.y, z: T.position.z, r: 0.35, h: 3 });   // thân cây: người & chó đi vòng
+        // ---- CÂY TÁO THỨ 3 (G 24/10 "em cho thêm 1 cây táo ở vị trí x 100 z103; với gốc thân to x3 và nhiều cành lá hơn x2"): cây táo già cách trại ~33 m —
+        //      thân to ×3 (Ø ~0,9 m; cành cấp 1 nhỏ hẳn so với thân kiểu cây cổ thụ: rootK 0,27), 5 cành chính (cũ 4) + mỗi nhánh rẽ 2–4 (cũ 2–3) ⇒ ~2× số cành,
+        //      chùm lá theo đầu cành nên lá cũng ~2×, chùm lá giữa ×2; quả theo đầu cành (1/3). Không phải cây hái (noPick): việc hái táo giữ chỗ cạnh trại ----
+        // G 24/10 tối "em cho tán lá rộng thêm về phía lối ra vào của racoon" (mũi tên từ tán chĩa về đầu rỗng khúc gỗ chết = hang gấu mèo): 2 cành vươn dài ×1,35,
+        //  nghiêng 57°, chĩa về giữa miệng hang (x 102 z 102) và chỗ gấu mèo ra vào (x 103 z 98) — animals/dog-raccoon.js racMouth / racApproach
+        const FT3_X = 99.81, FT3_Z = 102.95, FT3_YAW = 3.2, FT3_REACH = new THREE.Vector3(102.5 - FT3_X, 0, 100 - FT3_Z).normalize().applyAxisAngle(new THREE.Vector3(0, 1, 0), -FT3_YAW);   // hướng vươn trong toạ độ cây
+        // G 24/10 tối "em tiếp tục cho thêm tán lá mọc over cây gỗ": thêm 2 cành vươn ×1,25 chĩa vuông góc qua khúc gỗ chết (từ gốc ra trục khúc gỗ rồi vượt qua)
+        const FT3_LOG = new THREE.Vector3(0.961, 0, 0.275).applyAxisAngle(new THREE.Vector3(0, 1, 0), -FT3_YAW);   // hướng gốc → trục khúc gỗ (toạ độ cây)
+        const ft3 = fruitTree(1.35, 7171, { trunkK: 3, rootK: 0.27, firstSplitN: 5, nMax: 4, leafK: 2, reach: [{ dir: FT3_REACH, n: 2, lenK: 1.35, tilt: 1.0 }, { dir: FT3_LOG, n: 2, lenK: 1.25, tilt: 1.0 }] }); ft3.scale.multiplyScalar(NATURE_SCALE); ft3.userData.noPick = true; ft3.userData.colR = 1.0;   // colR: core/collide.js giữ tam giác thân trong 1 m quanh gốc (rễ choãi tới ~0,9 m; cây cũ 0,7)
+        { const X = X0 + FT3_X, Z = Z0 + FT3_Z; ft3.position.set(X, surfaceY(Math.round(X / BLOCK + cx - 0.5), Math.round(Z / BLOCK + cz - 0.5)), Z); ft3.rotation.y = FT3_YAW; scene.add(ft3); }   // ô lưới = nghịch đảo wx / wz (x2gi khai báo sau tệp này) · lùi 0,2 m khỏi khúc gỗ chết (x 101 z 104,5) + xoay 3,2 cho rễ choãi né: đúng x100 z103 thì cành cụt của khúc gỗ đâm vào chân rễ ~5 cm — giờ hở 0,23 m
+        flightRoots.push(ft1, ft2, ft3);
+        const appleTrees = [ft1, ft2, ft3];   // kỹ sư hái táo (engineer/tasks/apple-pick.js — trừ cây noPick)
+        for (const T of appleTrees) obstacleCoords.push({ x: T.position.x, y: T.position.y, z: T.position.z, r: T === ft3 ? 0.75 : 0.35, h: 3 });   // thân cây: người & chó đi vòng (cây 3 thân to ×3)
 
         function deadLogOut(x, z, m) {   // (x, z) nằm dưới thân khúc gỗ chết (cách trục < bán kính + m) → điểm dời ra mép gần nhất; ở ngoài → null
           const L = deadLog; if (!L) return null;

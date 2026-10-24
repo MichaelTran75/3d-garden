@@ -242,7 +242,7 @@
         }
 
         // ---- 1 chú thỏ random-walk ở tọa độ góc (31, _, 110) ----
-        const bunnies = [];
+        const bunnies = [], BUN_SLOW = 0.25, BUN_CAD = 0.6;   // G 24/10 tối "thỏ chạy chậm lại 50%" lần 2: 0,5 → 0,25, nhịp 0,75 → 0,6   // G 24/10 "cho thỏ chậm lại 50%": tốc độ ×0,5 mọi kiểu nhảy · nhịp nhảy ×0,75 (bước nhảy ngắn lại chút, không cuống)
         const digMarks = [];   // dấu vết ụ đất vĩnh viễn thỏ để lại: tối đa 10 hố, tự mờ sau 20 phút
         let _digTick = -1;     // throttle kiểm tra fade ~1 lần/giây
         const digMarkGeo = new THREE.SphereGeometry(0.18, 8, 6);
@@ -290,6 +290,6 @@
           const bx0 = X0 + 31, bz0 = Z0 + 110, g = bunny();
           g.scale.setScalar(0.8 * 0.8 * 0.8 * 0.9 * NATURE_SCALE); // nhỏ đi thêm 20% (G 17/10: thêm 20% nữa) · G 18/10: nhỏ thêm 10%
           g.position.set(bx0, cowY(bx0, bz0), bz0); g.rotation.y = Math.random() * 6.28; scene.add(g);
-          bunnies.push({ g, ears: g.userData.ears, head: g.userData.head, paws: g.userData.paws, tail: g.userData.tail, nose: g.userData.nose, carrot: g.userData.carrot, mound: g.userData.mound, x: bx0, z: bz0, ang: Math.random() * 6.28, spd: 2.4, state: 'sniff', tmr: 1 + Math.random() * 2, ph: Math.random() * 6, hop: 0, digTmr: 60 });
+          bunnies.push({ g, ears: g.userData.ears, head: g.userData.head, paws: g.userData.paws, tail: g.userData.tail, nose: g.userData.nose, carrot: g.userData.carrot, mound: g.userData.mound, x: bx0, z: bz0, ang: Math.random() * 6.28, spd: 2.4 * BUN_SLOW, state: 'sniff', tmr: 1 + Math.random() * 2, ph: Math.random() * 6, hop: 0, digTmr: 60 });
         })();
 

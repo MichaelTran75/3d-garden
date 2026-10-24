@@ -77,8 +77,8 @@
         }
         function caravan() {
           const g = new THREE.Group();
-          // khoang ở trong Transit L3H2 (đv xe, van/transit.js): sàn y 0,83 · trần 2,857 · lòng xe x −0,58 (sau ghế cabin) → 2,99 (mặt trong cửa sau), z ±0,90
-          //  (G 19/10: nội thất bám lòng VỎ GLB — TR_IN, van/transit.js — trước dựng theo vỏ code rộng ±0,98, trần 2,90 nên giường, bàn, tủ, vách thò ra ngoài vỏ)
+          // khoang ở trong Transit L3H2 (đv xe, van/body/transit.js): sàn y 0,83 · trần 2,857 · lòng xe x −0,58 (sau ghế cabin) → 2,99 (mặt trong cửa sau), z ±0,90
+          //  (G 19/10: nội thất bám lòng VỎ GLB — TR_IN, van/body/transit.js — trước dựng theo vỏ code rộng ±0,98, trần 2,90 nên giường, bàn, tủ, vách thò ra ngoài vỏ)
           //  bố trí giữ như xe cũ nhưng gọn lại: bàn ăn + ghế đẩu ở nửa trước ô cửa lùa · giường dọc vách −z · bếp dọc vách +z sau cửa · bàn học góc sau −z · phòng tắm ướt ở đuôi
           const yIn = TR.yIn, base = yIn - 0.12, x0 = TR.xP, x1 = 2.27, xB = 2.99, dz = TR_IN.w, wallZ = 1.06, ceil = trInCeil(0);
           const roofTop = (x, z) => trRoofY(x) - trLerp(TR_DROP, Math.abs(z)) * trS(x);
@@ -95,7 +95,7 @@
           const floor = bx(5.24, 0.12, 1.98, floorMat); floor.position.set(0.37, base + 0.06, 0); floor.receiveShadow = true; g.add(floor);   // sàn cả cabin (thảm đen phủ phía trước) lẫn khoang
           const trBody = transitBody(g);
           const galley = transitCab(g);
-          transitGlb(g, trBody);   // mẫu GLB Transit nạp sau: thay vỏ, táp-lô, ghế, bánh code (van/transit.js)
+          transitGlb(g, trBody);   // mẫu GLB Transit nạp sau: thay vỏ, táp-lô, ghế, bánh code (van/body/transit.js)
           galley.position.set(1.60, yIn - 1.07, -2.04);   // tủ bếp (cục bộ: mặt tủ x 2,40 → z 0,36, lưng 2,95 → z 0,91 sát vách GLB; dài 1,82 → x 0,69 … 2,51)
           const axles = new THREE.Group(); axles.name = 'Cầu bánh xe';
           const axleGeo = new THREE.CylinderGeometry(0.055, 0.055, 1, 8);
@@ -482,7 +482,7 @@
           roofVent(-0.35, 0, .5, .19);   // G 21/10 "sắp xếp lại nóc xe cho gọn gàng hợp lý" (mũi tên trên ảnh): quạt hút trước về giữa mui, lùi lên đầu xe, cách giàn pin 22 cm (trước x −0,15 z −0,38 sát tấm pin đầu)
           roofVent(2.62, -0.45, .36, .15);
           {   // ống khói bếp (thông máy hút mùi): tấm bích kín nước + ống inox Ø9 cm cao 32 cm + chụp nón che mưa trên 3 chân — ngay trên bếp
-            const cx = galley.position.x - 0.47, cz = 0.66, y = roofTop(cx, cz), pipe = new THREE.MeshLambertMaterial({ color: 0xa7b0b3 });   // thẳng ống gió máy hút mùi (van/kitchen.js)
+            const cx = galley.position.x - 0.47, cz = 0.66, y = roofTop(cx, cz), pipe = new THREE.MeshLambertMaterial({ color: 0xa7b0b3 });   // thẳng ống gió máy hút mùi (van/interior/kitchen.js)
             roofBox(.18, .02, .18, cx, y + .01, cz, metalMat);
             const tube = new THREE.Mesh(new THREE.CylinderGeometry(.045, .048, .32, 14), pipe); tube.position.set(cx, y + .17, cz); tube.castShadow = true; roofDetails.add(tube);
             const cap = new THREE.Mesh(new THREE.ConeGeometry(.095, .07, 16), pipe); cap.position.set(cx, y + .395, cz); cap.castShadow = true; roofDetails.add(cap);

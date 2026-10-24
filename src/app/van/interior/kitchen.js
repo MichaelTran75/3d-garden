@@ -66,7 +66,7 @@
           box(S, 0.012, 0.37, 0.63, 2.94, 1.85 + 0.185, 0.59, M.lid, true);
           const flap = new THREE.Group(); flap.position.set(2.94, 1.85, 0.905); flap.rotation.y = 0.5; S.add(flap);
           box(flap, 0.42, 0.26, 0.012, -0.21, 0.13, 0.006, M.lid, true);
-          // máy hút mùi inox trên vách sau bếp: thân hút + gờ trước vát, lưới lọc dầu, đèn; ỐNG GIÓ đứng dẫn lên trần → ống khói trên mái xe (van/caravan.js)
+          // máy hút mùi inox trên vách sau bếp: thân hút + gờ trước vát, lưới lọc dầu, đèn; ỐNG GIÓ đứng dẫn lên trần → ống khói trên mái xe (van/interior/caravan.js)
           //  (G 14/10: nâng thêm nửa ống gió ⇒ đáy máy cao 2,88 — cách mặt bếp ~1 m, đầu người đứng nấu không vướng)
           //  19/10: máy + ống gió lùi 13 cm ra khỏi vách — vách vỏ GLB khum vào ở độ cao này (|z| 0,84 ở y 2,64), bản cũ thò ra ngoài vỏ
           const HY = 0.58, HX = 2.66;
@@ -74,7 +74,7 @@
           const lip = box(S, 0.05, 0.12, 0.6, HX - 0.17, 2.34 + HY, 0.59, M.hood, true); lip.rotation.z = 0.35;
           box(S, 0.27, 0.006, 0.52, HX + 0.01, 2.297 + HY, 0.59, M.hoodDk);
           for (let k = 0; k < 7; k++) box(S, 0.27, 0.004, 0.006, HX + 0.01, 2.293 + HY, 0.37 + k * 0.073, M.hood);   // nan lưới lọc
-          box(S, 0.12, ceilY - 2.40 - HY, 0.12, 2.70, (2.40 + HY + ceilY) / 2, 0.47, M.hood, true);   // ống gió lên trần (thẳng ống khói trên mui, van/caravan.js)
+          box(S, 0.12, ceilY - 2.40 - HY, 0.12, 2.70, (2.40 + HY + ceilY) / 2, 0.47, M.hood, true);   // ống gió lên trần (thẳng ống khói trên mui, van/interior/caravan.js)
           box(S, 0.16, 0.025, 0.16, 2.70, ceilY - 0.015, 0.47, M.hood);   // mặt bích trần
           // dải núm vặn ga ở mép trước mặt bếp
           box(S, 0.014, 0.045, 0.6, 2.384, 1.812, 0.59, M.dark, true);

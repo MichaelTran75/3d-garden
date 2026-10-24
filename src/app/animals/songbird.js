@@ -1,6 +1,6 @@
         // ===== CHIM SẺ (G 14/10) — dựng bằng code theo tỉ lệ + màu đo từ mẫu "Bird 5 - Animated Low Poly" (WildPoly3D, Sketchfab, CC-BY-NC-4.0;
         //      chỉ đo: dài mỏ→đuôi 1 · sải cánh ~1,4 · lưng nâu, bụng kem, mỏ ô-liu sẫm, chân xám; nhịp bay mẫu 0,8 s, hạ cánh 0,57 s).
-        //  Tập tính chim sẻ nhỏ: đậu thì ngoái đầu giật cục (đổi hướng nhìn 0,3–1,5 s/lần), vẫy đuôi, rỉa lông; dưới đất NHẢY 2 CHÂN, mổ nhanh
+        //  Tập tính chim sẻ nhỏ: đậu thì liếc nhanh rồi giữ yên đầu 1,8–4,5 s (G 24/10; trước 0,3–1,5 s/lần trông như lắc đầu), vẫy đuôi, rỉa lông; dưới đất NHẢY 2 CHÂN, mổ nhanh
         //  1–3 cú rồi NGẨNG ĐẦU canh chừng (chim sẻ ngẩng nhiều lần, mỗi lần ngắn); bay "vỗ – xếp cánh" (vài nhịp vỗ nhanh rồi gập cánh rơi
         //  theo quán tính ⇒ đường bay nhấp nhô); cất cánh nhún rồi bật, hạ cánh xoè đuôi, ngửa thân, duỗi chân. Ngủ: xù lông, ngoái đầu rúc mỏ.
         //  · Con ở trại: thanh treo đèn lồng → (thỉnh thoảng) xuống cỏ kiếm ăn → cây táo → nóc xe → dây điện 110 kV → về; 19:00–05:45 / mưa
@@ -25,13 +25,13 @@
           for (const bf of butterflies) if (bf.mode !== 'perched' && bf.g.visible) { const d = bf.pos.distanceTo(p); if (d < bd) { bd = d; best = { at: () => bf.mode !== 'perched' && bf.g.visible ? bf.pos : null }; } }
           return best;
         }
-        // 'fly' (bay đi) · 'hop' (nhảy tránh bò) · null; sparrowFlush.from = nguồn
-        function sparrowFlush(p) {
+        // 'fly' (bay đi) · 'hop' (nhảy tránh bò) · null; sparrowFlush.from = nguồn · k: nhân khoảng cách bỏ chạy (con bạo dạn < 1, nhút nhát / bầy đông > 1)
+        function sparrowFlush(p, k = 1) {
           const h = (q) => Math.hypot(q.x - p.x, q.z - p.z), R = sparrowFlush;
-          if (engObj && !engObj.inVan && engObj.g.parent === scene && h(engObj.g.position) < (SPA.engV > 0.3 ? 2 : 1)) { R.from = engObj.g.position; return 'fly'; }
-          if (!dogRain.st && h(dogObj.position) < (SPA.dogV > 1.5 ? 3.2 : 2.2)) { R.from = dogObj.position; return 'fly'; }
-          if (raccoonObj && raccoonObj.visible && h(raccoonObj.position) < 3) { R.from = raccoonObj.position; return 'fly'; }
-          for (const c of storksGroup.children) { c.getWorldPosition(_spT); if (Math.abs(_spT.y - p.y) < 1.5 && h(_spT) < 3) { R.from = _spT; return 'fly'; } }
+          if (engObj && !engObj.inVan && engObj.g.parent === scene && h(engObj.g.position) < (SPA.engV > 0.3 ? 2 : 1) * k) { R.from = engObj.g.position; return 'fly'; }
+          if (!dogRain.st && h(dogObj.position) < (SPA.dogV > 1.5 ? 3.2 : 2.2) * k) { R.from = dogObj.position; return 'fly'; }
+          if (raccoonObj && raccoonObj.visible && h(raccoonObj.position) < 3 * k) { R.from = raccoonObj.position; return 'fly'; }
+          for (const c of storksGroup.children) { c.getWorldPosition(_spT); if (Math.abs(_spT.y - p.y) < 1.5 && h(_spT) < 3 * k) { R.from = _spT; return 'fly'; } }
           for (const c of cows) if (h(c) < 0.9) { R.from = c; return 'hop'; }
           return null;
         }
@@ -54,10 +54,14 @@
           const res = []; for (const c of list) { if (res.every(q => q.p.distanceTo(c.p) >= gap)) res.push(c); if (res.length >= n) break; }
           while (res.length < n && list.length) res.push(list[res.length % list.length]); return res;
         }
-        function makeSparrow(brain, size = 1) {
+        function makeSparrow(brain, size = 1, plum = null) {
           const SC = 0.18 * size, up = new THREE.Vector3(0, 1, 0);
           const vc = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }), lam = c => new THREE.MeshLambertMaterial({ color: c, flatShading: true });
-          const BROWN = new THREE.Color(0xa8754f), CREAM = new THREE.Color(0xf1e6cc), DARK = 0x4a3328;
+          // G 24/10 bầy mới (plum): chim sẻ nhà phân biệt trống / mái — trống đỉnh đầu xám, vệt hạt dẻ sau mắt xuống gáy, má trắng xám, YẾM ĐEN to nhỏ theo plum.bib,
+          //  bụng xám, mỏ đen mùa sinh sản; mái nâu trơn, mày be sau mắt, bụng be, mỏ màu sừng. Không có plum: màu cũ (10 con trước)
+          const isM = plum?.sex === 'm', isF = plum?.sex === 'f', bib = plum?.bib ?? 0;
+          const BROWN = new THREE.Color(isM ? 0x9c5e38 : 0xa8754f), CREAM = new THREE.Color(isM ? 0xc6c3bb : isF ? 0xe6dbc2 : 0xf1e6cc), DARK = 0x4a3328;
+          const GREY = new THREE.Color(0x7c8086), CHEST = new THREE.Color(0x8a3f1c), BIB = new THREE.Color(0x1e1a17), CHEEK = new THREE.Color(0xcac7bf), BUFF = new THREE.Color(0xd9c59d);
           const paint = (geo, f) => { const p = geo.attributes.position, c = []; for (let i = 0; i < p.count; i++) { const k = f(p.getX(i), p.getY(i), p.getZ(i)); c.push(k.r, k.g, k.b); } geo.setAttribute('color', new THREE.Float32BufferAttribute(c, 3)); return geo; };
           const root = new THREE.Group(); root.name = 'Chim sẻ'; root.scale.setScalar(SC); scene.add(root);
           const bodyP = new THREE.Group(); bodyP.position.y = 0.26; root.add(bodyP);   // gốc = điểm chân bám
@@ -68,8 +72,8 @@
           //  nhọn; sải / dài 1,27 như mẫu), nhịp vỗ theo mẫu (đỉnh +52° → đáy −30°, xuôi sau 17° ở đỉnh → 26° ở đáy, thân nhấp nhô theo nhịp). GIỮ màu chim
           //  sẻ của mình (lưng nâu, bụng kem, vạch kem, bàn cánh nâu sẫm, mỏ ô-liu) và mọi tập tính; cánh vẫn 2 đốt (cánh tay + bàn cánh) để gập khi đậu.
           const loft = (st, n = 8) => {   // st: [z, nửa rộng, nửa cao, tâm y] từ trước ra sau · lưng nâu (nửa trên + sườn), bụng kem
-            const P = [], C = [], I = [], col = sa => sa > -0.3 ? BROWN : CREAM;
-            st.forEach(([z, w, h, c]) => { for (let k = 0; k < n; k++) { const a = (k + 0.5) / n * TAU, sa = Math.sin(a); P.push(Math.cos(a) * w, c + sa * h, z); const q = col(sa); C.push(q.r, q.g, q.b); } });
+            const P = [], C = [], I = [], col = (sa, z) => sa > -0.3 ? BROWN : isM && z > 0.1 - 0.1 * bib ? BIB : CREAM;   // yếm trống phủ ngực trước
+            st.forEach(([z, w, h, c]) => { for (let k = 0; k < n; k++) { const a = (k + 0.5) / n * TAU, sa = Math.sin(a); P.push(Math.cos(a) * w, c + sa * h, z); const q = col(sa, z); C.push(q.r, q.g, q.b); } });
             for (let i = 0; i < st.length - 1; i++) for (let k = 0; k < n; k++) { const a = i * n + k, b = i * n + (k + 1) % n; I.push(a, a + n, b, b, a + n, b + n); }
             const cap = (j, dz, flip) => { const f = P.length / 3, [z, , , c] = st[j]; P.push(0, c, z + dz); C.push(BROWN.r, BROWN.g, BROWN.b); for (let k = 0; k < n; k++) { const a = j * n + k, b = j * n + (k + 1) % n; if (flip) I.push(f, b, a); else I.push(f, a, b); } };
             cap(0, 0.03, false); cap(st.length - 1, -0.03, true);
@@ -83,9 +87,18 @@
           };
           mesh(loft([[0.2, 0.09, 0.09, 0.1], [0.12, 0.14, 0.14, 0.05], [0.02, 0.16, 0.16, 0.02], [-0.08, 0.15, 0.145, 0.025], [-0.17, 0.11, 0.1, 0.045], [-0.25, 0.05, 0.045, 0.06]]), vc, bodyP);
           const head = new THREE.Group(); head.position.set(0, 0.13, 0.25); bodyP.add(head);
-          const headG = new THREE.SphereGeometry(0.5, 8, 6); headG.scale(0.25, 0.24, 0.28);
-          mesh(paint(headG, (x, y, z) => y > 0.0 - 0.05 * z ? BROWN : CREAM), vc, head, 0, 0.06, 0.03);
-          const beakG = new THREE.ConeGeometry(0.034, 0.13, 6); beakG.rotateX(Math.PI / 2); mesh(beakG, lam(0x4a4630), head, 0, 0.045, 0.2);
+          const headG = new THREE.SphereGeometry(0.5, plum ? 10 : 8, plum ? 8 : 6); headG.scale(0.25, 0.24, 0.28);
+          const headCol = isM ? (x, y, z) => y > 0.07 ? (Math.abs(x) > 0.085 ? CHEST : GREY)   // đỉnh đầu xám, mép hạt dẻ
+            : y > 0.02 ? (Math.abs(x) > 0.06 || z < -0.04 ? CHEST : GREY)   // vệt hạt dẻ từ sau mắt vòng ra gáy, trán xám
+            : y > -0.02 ? (z > 0.1 ? BIB : z > -0.03 ? CHEEK : CHEST)   // trước mắt đen · má · gáy
+            : z > 0.07 - 0.1 * bib ? BIB : z > -0.05 ? CHEEK : CREAM   // yếm đen · má dưới · cổ dưới xám
+            : isF ? (x, y, z) => y > 0.02 && y < 0.07 && Math.abs(x) > 0.075 && z < 0.06 ? BUFF : y > -0.05 * z ? BROWN : CREAM : (x, y, z) => y > 0.0 - 0.05 * z ? BROWN : CREAM;
+          mesh(paint(headG, headCol), vc, head, 0, 0.06, 0.03);
+          // mỏ 2 hàm (G 24/10): hàm dưới bản lề ở gốc mỏ — há mỏ kêu ríu rít, thở dốc khi nóng, doạ nhau
+          const beakM = lam(isM ? 0x2a2622 : isF ? 0x86744f : 0x4a4630);
+          const beakG = new THREE.ConeGeometry(0.034, 0.13, 6); beakG.rotateX(Math.PI / 2); beakG.scale(1, 0.62, 1); mesh(beakG, beakM, head, 0, 0.052, 0.2);
+          const jaw = new THREE.Group(); jaw.position.set(0, 0.04, 0.14); head.add(jaw);
+          const jawG = new THREE.ConeGeometry(0.029, 0.115, 6); jawG.rotateX(Math.PI / 2); jawG.scale(1, 0.5, 1); jawG.translate(0, 0, 0.0575); mesh(jawG, beakM, jaw);
           const food = mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.16, 5).rotateZ(Math.PI / 2), lam(0x7d9a3a), head, 0, 0.035, 0.27); food.visible = false;   // sâu ngậm ngang mỏ
           const eyes = [-1, 1].map(s => mesh(new THREE.SphereGeometry(0.027, 6, 5), lam(0x0d0d0d), head, s * 0.105, 0.085, 0.09));
           const wingShape = (pts) => { const sh = new THREE.Shape(); pts.forEach(([x, z], i) => i ? sh.lineTo(x, z) : sh.moveTo(x, z)); const g = new THREE.ShapeGeometry(sh); g.rotateX(Math.PI / 2); return g; };
@@ -118,14 +131,33 @@
           // mảnh vẫn là "xương" đọc ma trận của chính nó ⇒ bay khắp nơi vẫn đúng; ~280 lượt vẽ (15 mảnh × 10 con × 2 lượt) → vài lượt
           // ---- trạng thái + lò xo dáng ----
           const spr = x => ({ x, v: 0 }), damp = (S, tg, w, dt) => { const k = w * dt, ex = 1 / (1 + k + 0.48 * k * k + 0.235 * k * k * k), c = S.x - tg, tp = (S.v + w * c) * dt; S.v = (S.v - w * tp) * ex; S.x = tg + (c + tp) * ex; return S.x; };
-          const P = { pitch: spr(-0.45), wing: spr(0), tailP: spr(0), tailS: spr(0), hy: spr(0), hp: spr(0), fluff: spr(1), tuck: spr(0), legs: spr(1), crouch: spr(0) };
-          const B = { st: 'perch', at: null, T: 10, k: 0, hyT: 0, hpT: 0, hT: 0, flick: 3, preen: 0, flapPh: 0, A: new THREE.Vector3(), Bp: new THREE.Vector3(), c1: new THREE.Vector3(), c2: new THREE.Vector3(), dur: 1, yaw: 0, hop: null, peck: 0, nPeck: 0, scan: 0, carry: false };
+          const P = { pitch: spr(-0.45), wing: spr(0), tailP: spr(0), tailS: spr(0), hy: spr(0), hp: spr(0), fluff: spr(1), tuck: spr(0), legs: spr(1), crouch: spr(0), gape: spr(0), hr: spr(0), disp: spr(0), roll: spr(0) };
+          const B = { st: 'perch', at: null, T: 10, k: 0, hyT: 0, hpT: 0, hT: 0, flick: 3, preen: 0, flapPh: 0, A: new THREE.Vector3(), Bp: new THREE.Vector3(), c1: new THREE.Vector3(), c2: new THREE.Vector3(), dur: 1, yaw: 0, hop: null, peck: 0, nPeck: 0, scan: 0, carry: false,
+            // bộ não đặt (mặc định cho 10 con cũ): hrT nghiêng đầu · vig cảnh giác theo cỡ bầy · alert tính hay cảnh giác · fid nhân khoảng cách bỏ chạy · play ham đuổi vật bay
+            //  · song tràng kêu (s) · pant thở dốc · cold rét · sun phơi nắng · disp ve vãn · thr doạ · sip ngụm uống · gaze điểm nhìn chằm chằm · hold đứng yên (không tự nhảy, mổ)
+            hrT: 0, vig: 1, alert: 1, fid: 1, play: 1, song: 0, pant: false, cold: false, sun: 0, disp: 0, thr: 0, sip: 0, sipT: 0, gaze: null, hold: false, bathK: 'water' };
           const tmp = new THREE.Vector3(), _p = new THREE.Vector3(), _q = new THREE.Vector3();
+          // ÁNH NHÌN (G 24/10 "hạn chế chim lắc đầu qua lại nhiều"): chim nhìn bằng cú LIẾC NHANH rồi GIỮ YÊN ĐẦU (saccade – fixation: đầu đứng yên để mắt thu
+          //  hình, như bồ câu bước đi, diều hâu đậu canh mồi) ⇒ đậu giữ hướng nhìn 1,8–4,5 s (trước 0,3–1,5 s, xoay tới ±69° ⇒ trông như lắc đầu liên tục),
+          //  ngẩng canh lúc kiếm ăn 0,6–1,5 s; ~40% nhìn thẳng, ~50% xoay ít, ~10% mới ngoái hẳn; thỉnh thoảng nghiêng đầu nhìn lên bằng 1 mắt.
+          //  Đo 10 phút mô phỏng (24/10): đầu đàn 5 con quay 230–413 → 31–39 rad/phút, chim tổ 248–270 → 54–60
+          const aim = p => { const dx = p.x - root.position.x, dz = p.z - root.position.z, dh = Math.hypot(dx, dz); let ry = Math.atan2(dx, dz) - root.rotation.y; ry = Math.atan2(Math.sin(ry), Math.cos(ry));
+            B.hyT = Math.max(-2.2, Math.min(2.2, ry)); B.hpT = Math.max(-0.7, Math.min(1, -Math.atan2(p.y - root.position.y - 0.05, dh))); };
+          const glance = (dt, h0, h1, amp, hp) => {
+            if (B.gaze) { aim(B.gaze); return; }
+            if ((B.hT -= dt) > 0) return;
+            const r = Math.random(); B.hT = (h0 + Math.random() * (h1 - h0)) / B.alert;
+            B.hyT = r < 0.4 ? 0 : r < 0.9 ? (Math.random() - 0.5) * amp : (Math.random() < 0.5 ? -1 : 1) * amp * (0.55 + 0.25 * Math.random());
+            B.hpT = hp + (Math.random() - 0.5) * 0.3; B.hrT = Math.random() < 0.15 ? (Math.random() < 0.5 ? -0.35 : 0.35) : 0;
+          };
+          const sipPose = dt => { B.sipT += dt; const dn = B.sipT < 0.55; B.hyT = 0; B.hpT = dn ? 1.3 : -0.6; B.hrT = 0; if (B.sipT >= 1.3) { B.sipT = 0; B.sip--; } return dn ? 0.45 : -0.5; };   // uống: chấm mỏ múc nước rồi ngửa cổ cho nước trôi xuống
           const S = {
             root, state: B,
-            land(w) { B.at = w; root.position.copy(w.p); B.yaw = w.yaw; B.st = w.kind === 'ground' ? 'forage' : w.sleep ? 'sleep' : 'perch'; B.k = 0; B.T = w.T ?? 8; B.scan = 0.4; },
+            land(w) { B.at = w; root.position.copy(w.p); B.yaw = w.yaw; B.st = w.kind === 'ground' ? 'forage' : w.sleep ? 'sleep' : 'perch'; B.k = 0; B.T = w.T ?? 8; B.scan = 0.4; B.sip = w.sip || 0; B.sipT = 0; B.hop = null; },
+            startle() { P.crouch.x = 0.7; B.hT = 0; B.shk = 0.2; },   // giật mình (sét)
             flyTo(w) {
               const air0 = B.at && B.at.kind === 'air';   // đang bay qua điểm trên không (đàn lượn): nối tiếp hướng bay, không cất cánh lại
+              B.bath = 0; B.sip = 0; B.hold = false; B.disp = 0; B.thr = 0; B.song = 0; B.gaze = null; B.hop = null;   // cất cánh: bỏ mọi việc dở dưới đất
               B.fromAir = air0; B.st = 'fly'; B.k = 0; B.to = w; B.A.copy(root.position); B.Bp.copy(w.p);
               const d = B.A.distanceTo(B.Bp), dir = tmp.subVectors(B.Bp, B.A).setY(0).normalize();
               // G 16/10: bay chậm 30% (4,2 → 2,94 m/s) · G 17/10: chậm thêm 30% (2,94 → 2,06 m/s; nhịp vỗ cánh giữ nguyên)
@@ -136,7 +168,7 @@
             hopTo(w, dur = 0.35) { B.st = 'shuffle'; B.k = 0; B.to = w; B.A.copy(root.position); B.dur = dur; B.yaw = Math.atan2(w.p.x - B.A.x, w.p.z - B.A.z); },   // nhảy ngắn (que đậu ↔ trong hộp tổ)
             update(dt, t) {
               dt = Math.min(dt, 0.05); B.k += dt;
-              let flap = 0, legsOut = 1, pitchT = -0.45, wingT = 0, tailST = 0, crouchT = 0, fluffT = 1, tuckT = 0;
+              let flap = 0, legsOut = 1, pitchT = -0.45, wingT = 0, tailST = 0, crouchT = 0, fluffT = 1, tuckT = 0, rollT = 0;
               brain.tick(S, dt);
               // gió tại chỗ chim (0,5 s/lần, độ cao trên mặt đất)
               if ((B.windT = (B.windT ?? Math.random() * 0.5) - dt) <= 0) { B.windT = 0.5; const p = root.position; windAt(p.x, p.y, p.z, Math.max(0.3, p.y - cowY(p.x, p.z)), _spW); B.wx = _spW.x; B.wz = _spW.z; }
@@ -177,39 +209,47 @@
                   // trú mưa ban ngày: xù lông, thu cổ nhưng còn thức, liếc quanh, thỉnh thoảng rũ nước; đêm: ngủ rúc mỏ
                   const h = liveWeather.localHour, wetDay = liveWeather.state.raining && h >= 5.75 && h < 19;
                   fluffT = wetDay ? 1.15 : 1.18; tuckT = wetDay ? 0.25 : 1; pitchT = -0.2; legsOut = 0.3;
-                  if (wetDay) { if ((B.shakeT = (B.shakeT ?? 3) - dt) <= 0) { B.shakeT = 5 + Math.random() * 8; B.shk = 0.45; } if ((B.hT -= dt) <= 0) { B.hT = 1 + Math.random() * 2.5; B.hyT = (Math.random() - 0.5) * 1.4; B.hpT = -0.1; } }
+                  if (wetDay) { if ((B.shakeT = (B.shakeT ?? 3) - dt) <= 0) { B.shakeT = 5 + Math.random() * 8; B.shk = 0.45; } glance(dt, 2, 4.5, 0.9, -0.1); }
                 }
-                else {   // ngoái đầu giật cục · vẫy đuôi · thỉnh thoảng rỉa lông
-                  if ((B.hT -= dt) <= 0) { B.hT = 0.3 + Math.random() * 1.2; B.hyT = (Math.random() - 0.5) * 2.4; B.hpT = (Math.random() - 0.5) * 0.6; }
-                  if ((B.flick -= dt) <= 0) { B.flick = 2 + Math.random() * 4; P.tailP.v -= 9; }
+                else {   // liếc rồi giữ yên đầu · vẫy đuôi · thỉnh thoảng rỉa lông · uống (thành máng)
+                  glance(dt, 1.8, 4.5, 1, 0);
+                  if ((B.flick -= dt) <= 0) { B.flick = (2 + Math.random() * 4) / B.alert; P.tailP.v -= 9; }
                   if ((B.preen -= dt) <= 0 && Math.random() < dt * 0.05) B.preen = 1.6;
-                  if (B.preen > 0) { B.preen -= dt; B.hyT = 2.2 * Math.sign(B.hyT || 1); B.hpT = 0.5; }
+                  if (B.preen > 0) { B.preen -= dt; B.hyT = 2.2 * Math.sign(B.hyT || 1); B.hpT = 0.5; B.hrT = 0; if (B.preen <= 0) B.hT = 0; }   // rỉa xong: liếc lại ngay, không ngoái mãi
+                  if (B.sip > 0) pitchT = sipPose(dt);
                   if (B.at && B.at.feed) { B.hyT = 0; B.hpT = 0.55 + 0.25 * Math.sin(t * 9); }   // trong tổ: cúi mớm mồi
                   if (B.k > B.T) brain.next(S);
                 }
-              } else if (B.st === 'forage') {   // nhảy 2 chân · mổ 1–3 cú · ngẩng canh chừng
-                pitchT = -0.15; const g = cowY(root.position.x, root.position.z);
+              } else if (B.st === 'forage') {   // nhảy 2 chân · mổ 1–3 cú · ngẩng canh chừng (bầy đông: ngẩng ngắn, mổ nhiều — B.vig)
+                pitchT = -0.15; const gy = B.at && B.at.gy, g = gy ?? cowY(root.position.x, root.position.z);   // gy: mặt đất riêng (đất luống cà rốt)
                 // mưa tạnh, đất còn ướt: tắm vũng nước (cúi ngực, rung cánh xoè nhanh, đuôi xoè, nhúng đầu), cuối cùng rũ mình
-                if (!B.bath && !liveWeather.state.raining && sceneWet > 0.3 && (B.bathCd = (B.bathCd ?? 4) - dt) <= 0 && Math.random() < dt * 0.1) { B.bath = 3 + Math.random() * 1.5; B.bathCd = 25 + Math.random() * 30; B.hop = null; B.nPeck = 0; }
-                if (B.bath > 0) {
-                  B.bath -= dt; crouchT = 0.75; pitchT = 0.35; wingT = 0.35; flap = 22; tailST = 0.5; B.hyT = 0; B.hpT = 0.8 + 0.3 * Math.sin(t * 18);
-                  if (B.bath <= 0) { B.bath = 0; B.shk = 0.5; B.scan = 0.6; }
+                if (!B.bath && !B.hold && !liveWeather.state.raining && sceneWet > 0.3 && (B.bathCd = (B.bathCd ?? 4) - dt) <= 0 && Math.random() < dt * 0.1) { B.bath = 3 + Math.random() * 1.5; B.bathK = 'water'; B.bathCd = 25 + Math.random() * 30; B.hop = null; B.nPeck = 0; }
+                if (B.bath > 0) {   // tắm bụi (bộ não bầy đặt bathK 'dust'): nằm bẹp hơn, xù lông, lắc mình nghiêng 2 bên, dụi đầu xuống đất
+                  B.bath -= dt; const du = B.bathK === 'dust';
+                  crouchT = du ? 0.95 : 0.75; pitchT = du ? 0.15 : 0.35; wingT = 0.35; flap = du ? 19 : 22; tailST = 0.5; B.hyT = 0; B.hpT = 0.8 + 0.3 * Math.sin(t * 18);
+                  if (du) { fluffT = 1.2; rollT = 0.3 * Math.sin(t * 7.5 + (S.ph || 0) * 9); B.hrT = 0.45 * Math.sin(t * 5.3); }
+                  if (B.bath <= 0) { B.bath = 0; B.hrT = 0; B.shk = 0.5; B.scan = 0.6; }
                 } else if (B.hop) {
                   B.hop.k += dt; const q = Math.max(0, Math.min(1, B.hop.k / 0.15));
                   root.position.lerpVectors(B.hop.a, B.hop.b, q); root.position.y = B.hop.a.y + (B.hop.b.y - B.hop.a.y) * q + Math.sin(Math.PI * q) * 0.045;
                   legsOut = 1 - 0.5 * Math.sin(Math.PI * q);
-                  if (q >= 1) { B.hop.n--; P.crouch.x = 0.35; if (B.hop.n > 0) { B.hop.a.copy(root.position); B.hop.b.copy(B.hop.a).add(tmp.set(Math.sin(B.yaw), 0, Math.cos(B.yaw)).multiplyScalar(0.07 + Math.random() * 0.06)); B.hop.b.y = cowY(B.hop.b.x, B.hop.b.z); B.hop.k = -0.06; } else { B.hop = null; B.nPeck = 1 + (Math.random() * 3 | 0); B.peck = 0; } }
-                } else if (B.nPeck > 0) {   // mổ: đầu chúc nhanh rồi ngóc
+                  if (q >= 1) { B.hop.n--; P.crouch.x = 0.35; if (B.hop.n > 0) { B.hop.a.copy(root.position); B.hop.b.copy(B.hop.a).add(tmp.set(Math.sin(B.yaw), 0, Math.cos(B.yaw)).multiplyScalar(0.07 + Math.random() * 0.06)); B.hop.b.y = gy ?? cowY(B.hop.b.x, B.hop.b.z); B.hop.k = -0.06; } else { B.hop = null; B.nPeck = B.hold ? 0 : 1 + (Math.random() * (3 + 3 * (1 - B.vig)) | 0); B.peck = 0; } }
+                } else if (B.sip > 0) pitchT = sipPose(dt);   // uống vũng nước
+                else if (B.hold) glance(dt, 0.8, 2, 1.2, -0.1);   // đứng yên (tắm xong, ve vãn): bộ não bầy tự cho nhảy
+                else if (B.nPeck > 0) {   // mổ: đầu chúc nhanh rồi ngóc
                   B.peck += dt; const q = (B.peck % 0.28) / 0.28; B.hpT = q < 0.3 ? 1.25 : 0.5; B.hyT = 0; pitchT = 0.15; crouchT = 0.25;
-                  if (B.peck > 0.28 * B.nPeck) { B.nPeck = 0; B.scan = 0.4 + Math.random() * 1.0; }
-                } else if (B.scan > 0) {   // ngẩng đầu canh chừng, liếc 2 bên
-                  B.scan -= dt; if ((B.hT -= dt) <= 0) { B.hT = 0.25 + Math.random() * 0.4; B.hyT = (Math.random() - 0.5) * 2; B.hpT = -0.2; }
+                  if (B.peck > 0.28 * B.nPeck) { B.nPeck = 0; B.scan = (0.5 + Math.random() * 1.1) * B.vig * B.alert; B.hT = 0; }
+                } else if (B.scan > 0) {   // ngẩng đầu canh chừng: liếc rồi giữ (0,6–1,5 s / lần)
+                  B.scan -= dt; glance(dt, 0.6, 1.5, 1.3, -0.2);
                 } else {
+                  // G 24/10: sửa lỗi cũ — chú thích giữa dòng nuốt mất nhánh "else { … B.hop = … }" ⇒ chim không bao giờ nhảy / mổ, còn hướng thân bị cộng
+                  //  ngẫu nhiên ±0,8 rad MỖI KHUNG (thân, đầu rung qua lại liên tục). Giờ: đổi hướng 1 lần rồi nhảy 1–3 bước
                   B.yaw += (Math.random() - 0.5) * 1.6; const n = 1 + (Math.random() * 3 | 0), a = root.position.clone(), b = a.clone().add(tmp.set(Math.sin(B.yaw), 0, Math.cos(B.yaw)).multiplyScalar(0.08 + Math.random() * 0.06));
-                  if (!envFree(b.x, b.z) || cowHutRect && b.x > cowHutRect.x0 && b.x < cowHutRect.x1 && b.z > cowHutRect.z0 && b.z < cowHutRect.z1) B.yaw += Math.PI;   // nước / vật cản / chuồng: quay lại else { b.y = cowY(b.x, b.z); B.hop = { a, b, k: -0.07, n }; }
+                  if (!envFree(b.x, b.z) || cowHutRect && b.x > cowHutRect.x0 && b.x < cowHutRect.x1 && b.z > cowHutRect.z0 && b.z < cowHutRect.z1) { B.yaw += Math.PI; B.scan = 0.3; }   // nước / vật cản / chuồng: quay lại
+                  else { b.y = gy ?? cowY(b.x, b.z); B.hop = { a, b, k: -0.07, n }; }
                 }
                 if (!B.hop) root.position.y = g;
-                const fl = B.bath ? null : sparrowFlush(root.position), near = fl === 'fly';
+                const fl = B.bath ? null : sparrowFlush(root.position, B.fid), near = fl === 'fly';
                 if (fl === 'hop' && !B.hop) {
                   // bò bước sát: 2 cú nhảy tránh ra
                   const f = sparrowFlush.from; B.yaw = Math.atan2(root.position.x - f.x, root.position.z - f.z); B.nPeck = 0;
@@ -218,34 +258,47 @@
                 if (near || B.k > B.T) brain.next(S, near);
               }
               // ---- ĐUỔI CHƠI vật bay lượn: lá / cánh hoa đang rơi, bướm lướt qua trong 4 m → ngoái nhìn theo; ~0,45 lần/s khi còn trong 3 m thì bay ra vờn ----
-              if ((B.st === 'perch' || B.st === 'forage') && !B.carry && !B.bath && !(B.at && (B.at.kind === 'nest' || B.at.kind === 'peg' || B.at.kind === 'perchOut'))) {
-                if ((B.toyT = (B.toyT ?? Math.random() * 0.3) - dt) <= 0) { B.toyT = 0.3; B.toy = sparrowToy(root.position, 4); }
+              if ((B.st === 'perch' || B.st === 'forage') && !B.carry && !B.bath && !B.hold && B.play > 0 && !(B.at && (B.at.kind === 'nest' || B.at.kind === 'peg' || B.at.kind === 'perchOut'))) {
+                // bám 1 vật tới khi nó hết bay (trước: chọn lại vật gần nhất mỗi 0,3 s ⇒ lá rơi nhiều thì đầu giật qua lại giữa các lá)
+                if ((B.toyT = (B.toyT ?? Math.random() * 0.3) - dt) <= 0 || B.toy && !B.toy.at()) { B.toy = sparrowToy(root.position, 4); B.toyT = B.toy ? 1.5 : 0.5; }
                 const tp = B.toy && B.toy.at();
                 if (tp) {
-                  const dx = tp.x - root.position.x, dz = tp.z - root.position.z, dh = Math.hypot(dx, dz); let ry = Math.atan2(dx, dz) - root.rotation.y; ry = Math.atan2(Math.sin(ry), Math.cos(ry));
-                  B.hyT = Math.max(-2.2, Math.min(2.2, ry)); B.hpT = Math.max(-0.7, Math.min(1, -Math.atan2(tp.y - root.position.y - 0.05, dh)));
-                  if (dh < 3 && Math.random() < dt * 0.45) { B.sal = { toy: B.toy, home: B.at, k: 0, T: 0.8 + Math.random() * 0.7, o: Math.random() * TAU, play: 0 }; B.st = 'sally'; B.k = 0; B.toy = null; }
+                  aim(tp);
+                  if (Math.hypot(tp.x - root.position.x, tp.z - root.position.z) < 3 && Math.random() < dt * 0.45 * B.play) { B.sal = { toy: B.toy, home: B.at, k: 0, T: 0.8 + Math.random() * 0.7, o: Math.random() * TAU, play: 0 }; B.st = 'sally'; B.k = 0; B.toy = null; }
                 }
               }
               // ---- ĐÓN GIÓ: đậu / kiếm ăn / ngủ thì quay mặt vào gió (lông áp, cất cánh ngược gió); trên dây chọn 1 trong 2 hướng vuông dây gần gió nhất;
               //      (thanh treo đèn cũng vậy); gió mạnh thu mình thấp, áp lông ----
-              if (wind > 2.5 && (B.st === 'perch' || B.st === 'sleep' || B.st === 'forage') && B.at && !B.at.local) {
+              if (wind > 2.5 && (B.st === 'perch' || B.st === 'sleep' || B.st === 'forage') && B.at && !B.at.local && !B.at.fixYaw) {
                 // quay đón gió từ ~2,5 m/s (hẳn từ 7 m/s); thu mình, áp lông từ 6 m/s
                 const k = Math.min(1, (wind - 2.5) / 4.5), kc = Math.min(1, Math.max(0, (wind - 6) / 6)), wy = Math.atan2(-B.wx, -B.wz);
-                if (B.at.kind === 'wire' || B.at.kind === 'home') { const a = B.at.yaw; B.yaw = Math.abs(Math.atan2(Math.sin(wy - a), Math.cos(wy - a))) < Math.PI / 2 ? a : a + Math.PI; }
+                if (B.at.kind === 'wire' || B.at.kind === 'home' || B.at.kind === 'bar') { const a = B.at.yaw; B.yaw = Math.abs(Math.atan2(Math.sin(wy - a), Math.cos(wy - a))) < Math.PI / 2 ? a : a + Math.PI; }
                 else if (!B.hop) { let d = wy - B.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); B.yaw += d * Math.min(1, dt * (0.4 + 2 * k)); }
                 crouchT = Math.max(crouchT, 0.35 * kc); fluffT = Math.min(fluffT, 1 - 0.07 * kc);
               }
+              // ---- dáng theo việc / thời tiết (bộ não đặt cờ): kêu (há mỏ theo tiếng) · doạ (chúi tới, há mỏ) · phơi nắng · thở dốc · rét · ve vãn ----
+              if (B.st !== 'fly' && B.st !== 'sally') {
+                if (B.song > 0) { B.song -= dt; if (B.st !== 'sleep' && !B.nPeck && !B.sip) B.hpT = Math.min(B.hpT, -0.25); }   // kêu: ngóc đầu
+                if (B.thr > 0) { B.thr -= dt; pitchT = 0.3; wingT = Math.max(wingT, 0.15); }
+                if (B.sun > 0) { fluffT = Math.max(fluffT, 1 + 0.18 * B.sun); crouchT = Math.max(crouchT, 0.55 * B.sun); wingT = Math.max(wingT, 0.22 * B.sun); tailST = Math.max(tailST, 0.6 * B.sun); rollT = 0.2 * B.sun; }   // phơi nắng: nằm, xù, xệ cánh, xoè đuôi, nghiêng 1 bên
+                if (B.pant) { fluffT = Math.min(fluffT, 0.93); wingT = Math.max(wingT, 0.1); }   // nóng: ép lông, hé cánh khỏi sườn
+                else if (B.cold) { fluffT = Math.max(fluffT, 1.12); crouchT = Math.max(crouchT, 0.3); }   // rét: xù lông, thu chân
+                if (B.disp > 0) { fluffT = Math.max(fluffT, 1 + 0.12 * B.disp); pitchT = pitchT * (1 - B.disp) - 0.7 * B.disp; wingT = Math.max(wingT, 0.24 * B.disp); }   // ve vãn: ưỡn ngực đứng thẳng
+                if (!flap && (B.sun > 0 || B.pant || B.disp > 0 || B.thr > 0)) B.flapPh = Math.PI + (B.disp > 0 ? 0.3 * Math.sin(t * 40) : 0);   // cánh hé thì xệ xuống, không vỗ · ve vãn: run cánh
+              }
+              const gapeT = B.st === 'fly' ? 0 : B.thr > 0 ? 0.45 : B.song > 0 ? (Math.sin(B.song * 31) > 0.15 ? 0.42 : 0.04) : B.pant ? 0.2 + 0.05 * Math.sin(t * 42) : 0;   // há mỏ: doạ · từng tiếng kêu · thở dốc
               B.carry = B.carry && B.st !== 'sleep'; food.visible = B.carry;
               // ---- dáng (lò xo) ----
               damp(P.pitch, pitchT, 10, dt); damp(P.wing, wingT, 18, dt); damp(P.tailS, tailST, 10, dt); damp(P.fluff, fluffT, 2, dt); damp(P.tuck, tuckT, 1.5, dt); damp(P.legs, legsOut, 12, dt); damp(P.crouch, crouchT, 14, dt);
               damp(P.tailP, 0, 22, dt); damp(P.hy, B.st === 'fly' ? 0 : B.hyT, 30, dt); damp(P.hp, B.st === 'fly' ? 0 : B.hpT, 26, dt);
+              damp(P.gape, gapeT, 30, dt); damp(P.hr, B.st === 'fly' ? 0 : B.hrT, 12, dt); damp(P.disp, B.st === 'fly' ? 0 : B.disp, 6, dt); damp(P.roll, rollT, 8, dt);
               let dy = B.yaw - root.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); root.rotation.y += dy * Math.min(1, dt * (B.st === 'fly' ? 10 : 14));
               // rũ nước: lắc thân + đầu nhanh ~0,5 s
               const shk = B.shk > 0 ? (B.shk -= dt, Math.sin(B.shk * 70) * Math.min(1, B.shk / 0.12)) : 0;
-              bodyP.rotation.x = P.pitch.x; bodyP.rotation.z = 0.28 * shk; bodyP.position.y = 0.26 - 0.06 * P.crouch.x + 0.018 * Math.sin(B.flapPh) * P.wing.x; bodyP.scale.setScalar(P.fluff.x);   // thân nhấp nhô theo nhịp vỗ (mẫu)
+              bodyP.rotation.x = P.pitch.x; bodyP.rotation.z = 0.28 * shk + P.roll.x; bodyP.position.y = 0.26 - 0.06 * P.crouch.x + 0.018 * Math.sin(B.flapPh) * P.wing.x; bodyP.scale.setScalar(P.fluff.x);   // thân nhấp nhô theo nhịp vỗ (mẫu)
               const tk = P.tuck.x;   // ngủ: ngoái đầu ra sau, rúc mỏ vào lông vai, nhắm mắt
-              head.rotation.set(-P.pitch.x * 0.7 + P.hp.x * (1 - tk) + 0.35 * tk, P.hy.x * (1 - tk) + 2.7 * tk + 0.6 * shk, 0.25 * Math.sin(t * 0.7) * (1 - tk) * (B.st === 'perch' ? 1 : 0));
+              head.rotation.set(-P.pitch.x * 0.7 + P.hp.x * (1 - tk) + 0.35 * tk, P.hy.x * (1 - tk) + 2.7 * tk + 0.6 * shk, P.hr.x * (1 - tk));   // nghiêng đầu theo cú liếc (trước: lắc lư sin liên tục)
+              jaw.rotation.x = P.gape.x;
               head.position.set(0, 0.13 - 0.05 * tk, 0.25 - 0.12 * tk); for (const e of eyes) e.visible = tk < 0.5;
               if (flap > 0) B.flapPh += dt * flap * TAU;
               // vỗ theo mẫu "Flying Bird" (G 18/10): đỉnh +52° → đáy −30° (mẫu +49° / −27°; trước: +79° / −59°), cánh xuôi sau 17° ở đỉnh → 26° ở đáy;
@@ -256,7 +309,7 @@
                 W.sh.quaternion.slerpQuaternions(qFold, qOpen, w); W.sh.scale.z = 0.62 + 0.38 * w;   // gập: lông chồng lên nhau ⇒ cánh hẹp lại (cánh rộng kiểu mẫu chỉ xoè khi bay)
                 W.wr.rotation.set(0, 0.12 + (0.45 * up - 0.12) * w, -0.22 + (0.26 * Math.sin(ph) + 0.22) * w);
               }
-              tail.rotation.set(-0.15 + P.tailP.x * 0.06 - 0.25 * P.tailS.x, 0, 0); tail.scale.x = 1 + 0.8 * P.tailS.x;
+              tail.rotation.set(-0.15 + P.tailP.x * 0.06 - 0.25 * P.tailS.x + 0.65 * P.disp.x, 0, 0); tail.scale.x = 1 + 0.8 * Math.max(P.tailS.x, 0.8 * P.disp.x);   // ve vãn: vểnh + xoè đuôi
               for (const L of legs) { L.rotation.x = (1 - P.legs.x) * 1.2 - P.pitch.x * P.legs.x; L.scale.setScalar(0.35 + 0.65 * P.legs.x); }
             }
           };
@@ -402,7 +455,7 @@
         //      cách ~0,22 m, 12–25 s); tối / mưa: ngủ trong tán cây rừng gần trại ----
         const flock = (() => {
           const F = { T: 3, night: null, stage: 0 }, rnd = Math.random, _v = new THREE.Vector3();
-          const birds = [0, 1, 2, 3, 4].map(() => { const b = makeSparrow({ tick(S) { if (sparrowAwake() && S.state.st === 'sleep') { S.state.st = 'perch'; S.state.k = 0; } }, next(S, scared) { if (scared) F.T = Math.min(F.T, 0); },
+          const birds = [0, 1, 2, 3, 4].map(() => { const b = makeSparrow({ tick(S) { if (sparrowAwake() && S.state.st === 'sleep') { S.state.st = 'perch'; S.state.k = 0; } }, next(S, scared) { if (scared) { F.T = Math.min(F.T, 0); sparrowGang.hear(S.root.position); } },   // 1 con hoảng: cả đàn đi, bầy 6 con gần đó cũng bay
             landed(S) { if (S.state.at.kind === 'air' && S.route.length) S.flyTo(S.route.shift()); } }, 0.8 + 0.12 * rnd()); b.ph = rnd(); b.route = []; b.go = null; return b; });
           const okGround = (x, z) => { const i = Math.round(x2gi(x)), j = Math.round(z2gj(z)); return i > 3 && j > 3 && i < GX - 3 && j < GZ - 3 && !isWater(i, j) && envFree(x, z) && !obstacleCoords.some(o => Math.hypot(x - o.x, z - o.z) < o.r + 0.5)
             && !(cowHutRect && x > cowHutRect.x0 - 1 && x < cowHutRect.x1 + 1 && z > cowHutRect.z0 - 1 && z < cowHutRect.z1 + 1) && !(engObj && Math.hypot(x - engObj.g.position.x, z - engObj.g.position.z) < 6); };
@@ -437,7 +490,7 @@
           }
           // mở trang: ngày thì đang kiếm ăn ở 1 bãi cỏ, đêm thì đã ngủ trong cây
           { const S = spots(sparrowAwake() ? 'ground' : 'roost'); birds.forEach((b, i) => b.land(S[i])); F.night = !sparrowAwake(); }
-          return { birds, update(dt, t) {
+          return { birds, scare() { F.T = Math.min(F.T, 0); }, update(dt, t) {   // scare: bầy 6 con báo động gần đàn
             const awake = sparrowAwake(), busy = birds.some(b => b.go !== null || b.state.st === 'fly');
             if (!busy) {
               F.T -= dt;
@@ -449,10 +502,22 @@
             for (const b of birds) { if (b.go !== null && (b.go -= dt) <= 0) { b.go = null; b.flyTo(b.route.shift()); } b.update(dt, t); }
           } };
         })();
+        // CẢNH GIÁC THEO CỠ BẦY (G 24/10): chim sẻ nhà kiếm ăn càng đông thì mỗi lần ngẩng canh càng ngắn, mổ càng nhiều; giảm mạnh tới ~4 con,
+        //  quá 5 con gần như không giảm nữa (Studd & cs. 1983, dẫn trong Ornis Fennica) ⇒ hệ số B.vig theo số chim trong 2,5 m (kể cả chính nó)
+        const SPA_VIG = [1, 0.8, 0.65, 0.55, 0.5];
         function updateSparrows(dt, t) {
           sparrowAnimTick(dt);
           for (const box of nestBoxes) { box.update(dt); box.piv.updateMatrixWorld(true); }
-          songbird.update(dt, t); flock.update(dt, t);
+          songbird.update(dt, t); flock.update(dt, t); sparrowGang.update(dt, t);
+          if ((SPA.vT = (SPA.vT ?? 0) - dt) <= 0) {   // 2 lần/s: cỡ bầy quanh từng con · 10 con cũ thở dốc / xù lông theo nhiệt độ (bầy mới tự đặt theo việc đang làm)
+            SPA.vT = 0.5; const all = SPA.all || (SPA.all = [songbird, ...flock.birds, ...nestPairs.flat(), ...sparrowGang.birds]), temp = liveWeather.state.temperature ?? 24;
+            for (const a of all) {
+              const A = a.state, p = a.root.position; let n = 1;
+              if (A.st !== 'fly') for (const o of all) { const q = o.root.position, O = o.state; if (o !== a && O.st !== 'fly' && O.st !== 'sleep' && Math.abs(q.y - p.y) < 1.5 && Math.hypot(q.x - p.x, q.z - p.z) < 2.5) n++; }
+              A.vig = SPA_VIG[Math.min(n, 5) - 1]; a.nGrp = n;
+              if (!a.me) { A.pant = temp >= 34 || temp >= 31 && sunElevSin > 0.45; A.cold = temp <= 14; }
+            }
+          }
           nestPairs.forEach((pair, n) => {
             const box = nestBoxes[n];
             for (const b of pair) {

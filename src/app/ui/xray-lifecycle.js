@@ -25,7 +25,7 @@
         VAN_LINES.onShell = () => { for (const m of caravanShell) shellLook(m); }; VAN_LINES.onShell();
         listen(dom, 'pointerup', e => {
           if (e.button !== 0 || pickMode || Math.hypot(e.clientX - pickDownX, e.clientY - pickDownY) > 6) return;
-          if (hovClick(e)) return;   // tay nắm cửa trước / logo Ford ⇒ mở – đóng cửa, ca-pô (ui/hover-select.js → van/van-doors.js)
+          if (hovClick(e)) return;   // tay nắm cửa trước / logo Ford ⇒ mở – đóng cửa, ca-pô (ui/hover-select.js → van/body/van-doors.js)
           const r = dom.getBoundingClientRect();
           pickRay.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), camera);
           const hits = pickRay.intersectObjects([caravanObj, ...TOOLS.flatMap(T => T.objs)], true), h = hits[0];   // dụng cụ (drone, giỏ, sào) đứng trước xe: bấm là mở bảng việc, không bật xem xuyên
@@ -42,7 +42,7 @@
           : engForceAct === 'drone' || droneToy.state.st !== 'idle' ? 'Engineer đang bay drone.' : engForceAct === 'apples' || applePick.busy ? 'Engineer đang hái táo.' : applePick.eating ? 'Engineer đang ăn táo.'
           : engForceAct === 'engine' || engineJob.busy() ? 'Engineer đang kiểm tra máy.' : engForceAct === 'trim' || trimJob.busy() ? 'Engineer đang cắt cỏ.'
           : engForceAct ? 'Engineer đang ' + ENG_ACTS[engForceAct].label.toLowerCase() + '.' : '';   // việc khác theo lệnh bảng Tools (ui/tools-panel.js): ngắm sao, câu cá, chăm luống, ngồi ghế, bỏ củi
-        // G 18/10 "click to the engine show the button start engine": động cơ (thêm vào objs khi mẫu nạp — van/transit-glb.js), chỉ bấm được khi đang thấy (engineSeen)
+        // G 18/10 "click to the engine show the button start engine": động cơ (thêm vào objs khi mẫu nạp — van/body/transit-glb.js), chỉ bấm được khi đang thấy (engineSeen)
         const engineTool = { objs: [], vis: () => engineSeen(), title: 'Động cơ V6 · Ford Transit', go: '▶ Khởi động máy', act: 'engine', ok: () => 'Gọi Engineer ra ' + (VPART.hoodBtn && VPART.hoodBtn.part.open ? '' : 'mở ca-pô, ') + 'kiểm tra máy rồi nổ máy 30 giây.',
           why: () => toolBusy() || (liveWeather.state.raining ? 'Đang mưa, không mở ca-pô.' : ENGR.on ? 'Máy đang chạy.' : '') };
         const TOOLS = [
@@ -75,6 +75,7 @@
               if (q.z < 1 && Math.hypot(e.clientX - sx, e.clientY - sy) < 48) { tPop.style.display = 'none'; tCur = null; camFollow(droneToy.g, 55, { exact: true, off: _dcO.set(0, 0.12, 0), rate: 7 }); return; }   // ×55 (drone 25 cm: ×30 vẫn chỉ ~50 điểm ảnh) — lăn chuột thì về giới hạn ×30 như thường
             }
             const h = pickRay.intersectObjects(TOOLS.filter(T => !T.vis || T.vis()).flatMap(T => T.objs), true)[0], T = h && toolOf(h.object);
+            if (T && T.act === 'wood') chiminea.see();   // bấm lò chiminea: vỏ trong 50% / trả lại (camp/chiminea.js)
             if (T) showToolPop(T, e.clientX, e.clientY); else { tPop.style.display = 'none'; tCur = null; }
           });
           listen(tGo, 'click', () => { if (!tCur || tCur.why()) return; engForceAct = tCur.act; tPop.style.display = 'none'; tCur = null; });

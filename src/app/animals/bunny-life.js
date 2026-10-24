@@ -41,8 +41,8 @@
             b.paws[0].rotation.z = b.paws[1].rotation.z = paw; b.head.rotation.z = head;
           };
           const hopTo = (ang, sp, f) => {   // nhảy theo hướng ang (vướng thì đổi hướng), trả độ nhấc
-            b.hop = (b.hop + dt * f) % 1; const lift = Math.max(0, Math.sin(b.hop * Math.PI)) * 0.5 * (sp > 3 ? 1.4 : 1); b.ang = ang;
-            const nx = b.x + Math.cos(ang) * sp * dt, nz = b.z + Math.sin(ang) * sp * dt;
+            b.hop = (b.hop + dt * f * BUN_CAD) % 1; const lift = Math.max(0, Math.sin(b.hop * Math.PI)) * 0.5 * (sp > 3 ? 1.4 : 1); b.ang = ang;
+            const nx = b.x + Math.cos(ang) * sp * BUN_SLOW * dt, nz = b.z + Math.sin(ang) * sp * BUN_SLOW * dt;   // G 24/10: chậm 50%
             if (bunOK(nx, nz) && (!b.col || colStepOK(b.col, b.x, b.z, nx, nz, ang))) { b.x = nx; b.z = nz; } else L.zz += 2.4;
             pose(0, -lift, -0.45 - lift * 0.4, 0); return lift;
           };
@@ -76,19 +76,19 @@
               const src = thr || L.from || dg; if (thr) (L.from || (L.from = new THREE.Vector3())).copy(thr);
               let da = Math.atan2(src.z - b.z, src.x - b.x) - b.ang; da = Math.atan2(Math.sin(da), Math.cos(da)); if (k > 0.5) b.ang += Math.max(-2 * dt, Math.min(2 * dt, da));
               if (k < 0.5) { pose(0, 0.04, 0, -0.1); b.earB = 0.4; } else { pose(0.55, 0, -0.9, -0.05); b.earB = -0.25; } b.noseF = 8;
-              if (thr && tk < 1) { L.cd = 4; L.hab = Math.min(0.8, L.hab + (L.byEng ? 0.05 : 0)); L.to = bunEscape(b, src); go(tk > 0.65 ? 'thump' : 'flee', tk > 0.65 ? 0.35 : 6); }   // đã đủ gần: báo động rồi chạy (gần quá thì chạy luôn)
+              if (thr && tk < 1) { L.cd = 4; L.hab = Math.min(0.8, L.hab + (L.byEng ? 0.05 : 0)); L.to = bunEscape(b, src); go(tk > 0.65 ? 'thump' : 'flee', tk > 0.65 ? 0.35 : 12); }   // đã đủ gần: báo động rồi chạy (gần quá thì chạy luôn)
               else if (!thr) { if ((L.hi += dt) > 2) { if (L.byEng) L.hab = Math.min(0.8, L.hab + 0.1); L.cd = 4; go('look', 1.5); } }   // mối đe doạ đi khỏi: quen thêm một chút
               else { L.hi = 0; if (k > 3 && (thr === dg ? L.apD : L.apE) < 0.3) { L.cd = 5; go('avoid', 2 + R()); } else if (k > L.d) { L.cd = 6; go('look', 2); } }   // canh mãi mà nó không tới: lảng ra chỗ khác
               break;
             }
             case 'avoid': { const src = L.from || dg; hopTo(Math.atan2(b.z - src.z, b.x - src.x) + 0.4 * Math.sin(k * 2) + L.zz, 2.6, 3.2); b.earB = 0.3; if (k > L.d) { L.zz = 0; go('look', 1.5); } break; }   // nhảy thong thả ra xa
-            case 'thump': pose(0, 0.05 * Math.sin(Math.PI * Math.min(1, k / L.d)), 0, -0.1); b.earB = 1; if (k > L.d) go('flee', 6); break;   // dậm chân sau báo động
+            case 'thump': pose(0, 0.05 * Math.sin(Math.PI * Math.min(1, k / L.d)), 0, -0.1); b.earB = 1; if (k > L.d) go('flee', 12); break;   // dậm chân sau báo động (chạy chậm 50% ⇒ cho 12 s về tới chỗ nấp)
             case 'flee': {   // chạy zíc-zắc về chỗ nấp (không có chỗ nấp gần thì chạy thẳng ra xa), đuôi trắng vểnh
               const src = L.from || dg, T = L.to, dx = T ? T.x - b.x : 0, dz = T ? T.z - b.z : 0, home = T && (Math.hypot(dx, dz) < 0.5 || (Math.hypot(dx, dz) < 1.6 && L.zz > 4));   // tới chỗ nấp (vướng thân cây sát đích cũng coi như tới)
               if (T && !home) L.zz *= Math.exp(-dt * 2.5);   // vướng thì né lệch đi, rồi ngoặt dần về chỗ nấp
               const a = (T ? Math.atan2(dz, dx) : Math.atan2(b.z - src.z, b.x - src.x)) + (Math.hypot(dx, dz) > 1 || !T ? (Math.floor(k / 0.4) % 2 ? 0.45 : -0.45) : 0) + L.zz;
               hopTo(a, T && Math.hypot(dx, dz) < 1 ? 3 : 6.5, 5); b.earB = 1; b.tail.position.y = 0.66;
-              if (home || k > L.d || (!T && k > 2.6)) { L.zz = 0; L.cd = 4; if (home) go('hide', 5 + 7 * R()); else { b.ang = a + Math.PI; go('look', 2 + R()); } }
+              if (home || k > L.d || (!T && k > 5.2)) { L.zz = 0; L.cd = 4; if (home) go('hide', 5 + 7 * R()); else { b.ang = a + Math.PI; go('look', 2 + R()); } }
               break;
             }
             case 'hide': { pose(0, 0.07, 0.5, 0.12); b.earB = 1; b.noseF = 5; const src = L.from || dg; if (k > L.d && !(thr && (tk < 0.6 || (tk < 1.2 && (thr === dg ? L.apD : L.apE) > 0.5)))) { b.ang = Math.atan2(src.z - b.z, src.x - b.x); go('peek', 2 + 1.5 * R()); } break; }   // nằm nép sát đất, tai úp

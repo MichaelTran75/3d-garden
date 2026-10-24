@@ -1,6 +1,6 @@
         // ===== CỬA TRƯỚC + CA-PÔ MỞ BẰNG NÚT (G 18/10 "các điểm này là các nút, khi hover over thì white border outline, khi click vào cửa thì cửa mở, khi click
         //  vào logo ford thì nắp capo mở, tất cả rất nhịp nhàng"). Nút = tay nắm ngoài 2 cửa trước + logo Ford ở ga-lăng: nhóm bộ phận tách sẵn trong transit.bin
-        //  (src/tools/transit: nút bản lề extras.pivot, nút bấm extras.btn), dựng ở van/transit-glb.js. Rê chuột + bấm qua bộ chọn chung ui/hover-select.js (viền trắng
+        //  (src/tools/transit: nút bản lề extras.pivot, nút bấm extras.btn), dựng ở van/body/transit-glb.js. Rê chuột + bấm qua bộ chọn chung ui/hover-select.js (viền trắng
         //  3 px, con trỏ bàn tay, vùng bấm rộng hơn nút 3 cm, bỏ nút quay lưng camera; logo chỉ viền ô xanh + chữ mạ — đế đen khuất sau nan ga-lăng làm viền phình).
         //  Bấm tay nắm: tay nắm bật ra 7 mm → cửa mở 66° (lò xo hơi dư như dây hãm cửa, ~0,9 s) · bấm lại: cửa khép, chạm khung nảy nhẹ rồi nằm. Bấm logo: logo lún
         //  4 mm → ca-pô bật chốt ~3° → nâng lên 52° (lò xo êm như ty chống, ~1,3 s) · bấm lại: hạ, chạm, nảy rồi nằm (kỹ sư đang kiểm tra máy thì logo không nhận —

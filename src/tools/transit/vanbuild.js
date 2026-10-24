@@ -2,7 +2,7 @@
 // Giữ vỏ ngoài + cabin, bỏ khoang hàng (nội thất nhà xe dựng bằng code) và băng ghế đôi; lật trái–phải (tay lái nghịch kiểu Úc) nhưng logo / chữ
 // lật lại tại chỗ cho đọc đúng; L3 = chèn 0,45 m vào GIỮA ô cửa lùa (ô cửa rộng 0,95 → 1,40 m như xe thật); nâng mui 6 cm; khoét 2 ô kính theo khung xe
 // ở vách −z (ô dập của bản Kombi) + kính cửa lùa theo khung trong của cửa (kính, viền cao su, má cửa); 1 bánh dùng 4 lần (quay, không lật), 1 ghế lái dùng 2 lần, 1 cửa trước dùng 2 lần (cửa trái = ảnh gương);
-// cửa trước + tay nắm + ca-pô + logo Ford tách thành nút riêng có bản lề (bấm mở được — van/van-doors.js). Kết quả: window.__van (nhóm + thống kê).
+// cửa trước + tay nắm + ca-pô + logo Ford tách thành nút riêng có bản lề (bấm mở được — van/body/van-doors.js). Kết quả: window.__van (nhóm + thống kê).
 window.vanBuild = async (o = {}) => {
   const THREE = S.THREE, MSx = window.MS;
   const top0 = S.root.getObjectByName('Ford_Transit_(Mk5f)_PanelVan_L2H2_HQinterior_2018_587'); S.root.updateMatrixWorld(true);

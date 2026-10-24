@@ -2,7 +2,7 @@
 // Chạy trong trang có window.gz (gazview.html: GLTFLoader + three r160) — xem README. G 24/10 "do research and study these glb files then modify to fit to the van".
 // Giữ: khung (SK_Chassis_Frame), 2 cầu (Front/Rear_Axle), 4 nhíp lá, 2 cặp giảm xóc, hộp số phụ (TranspherBox), các-đăng + khớp chữ thập (Cardans), moay-ơ + tang
 // trống (Rim_Hub), cụm lái (Stteering_Hub). Bỏ: lốp, vành (xe đã có bánh), cản trước + biển (Fender), 2 cần số (thò vào cabin).
-// SỬA CHO VỪA FORD TRANSIT L3H2 (đv xe: 1,1 đv/m, mũi −X, cửa lùa +Z, cầu trước x −2,12, cầu sau x 2,03, tâm bánh y 0,44, vết bánh z ±0,955 — van/transit.js TR):
+// SỬA CHO VỪA FORD TRANSIT L3H2 (đv xe: 1,1 đv/m, mũi −X, cửa lùa +Z, cầu trước x −2,12, cầu sau x 2,03, tâm bánh y 0,44, vết bánh z ±0,955 — van/body/transit.js TR):
 //   · dài: chèn ΔZ ở mặt cắt Z −0,68 (chỉ 2 thanh dọc + 1 thanh mảnh giữa đi qua — kiểu chèn L3 của vỏ xe; BẪY: Z −0,875 cắt qua tấm ốp thanh ngang −0,95…−0,79 ⇒
 //     tấm phẳng dài 1,4 m giữa khung) cho cơ sở 2,51 m → 3,77 m; vật cứng (cầu, nhíp, khớp, giảm xóc, moay-ơ) theo tâm của nó (dời nguyên khối; khớp chữ thập
 //     Cardans007 giữ chỗ vì bám ống), khung theo từng đỉnh (giãn); ống các-đăng sau Cardans008 cắt riêng ở −1,0 (đầu trước bám khớp, đầu sau theo cầu ⇒ ống dài ra);

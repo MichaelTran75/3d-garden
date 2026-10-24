@@ -1130,7 +1130,7 @@
       opacity: .45;
     }
 
-    /* RADIO TÁP-LÔ (van/radio.js, G 19/10): bảng dò đài nền 75% như bảng dụng cụ */
+    /* RADIO TÁP-LÔ (van/interior/radio.js, G 19/10): bảng dò đài nền 75% như bảng dụng cụ */
     #radioPop.panel { position: absolute; z-index: 30; width: 210px; background: rgba(226, 214, 192, 0.75) !important; }
     #radioPop .ph { display: flex; justify-content: space-between; align-items: center; }
     #radioPop button { font: 600 12px/1 'Inter', system-ui; color: #403d33; background: rgba(226, 214, 192, 0.5); border: 1px solid rgba(75, 74, 70, .26); border-radius: 8px; padding: 6px 9px; cursor: pointer; }

@@ -11,7 +11,8 @@
             tick: (e, dt, t) => skyWatch.tick(e, dt, t), idle: e => skyWatch.idle(e) },   // cuộn thảm xách tay, kính, màn · bị cắt ngang: thảm + kính về góc bạt
           garden: { run: (e, dt, t) => { if (gardenJob.update(e, dt, t)) { autoDone('garden'); if (engForceAct === 'garden') engForceAct = null; } },   // luống cà rốt: trồng · tưới · xem thỏ ăn (engineer/tasks/carrot-garden.js)
             tick: (e, dt, t) => gardenJob.tick(e, dt, t), idle: () => gardenJob.idle() },   // bay xới, bình tưới, giọt nước
-          wood: { run: (e, dt, t) => { if (woodJob.update(e, dt, t)) engForceAct = null; }, tick: e => woodJob.tick(e), idle: () => woodJob.idle() },   // ôm củi bỏ vào lò chiminea (bảng Tools / bấm lò — engineer/tasks/tool-jobs.js)
+          wood: { run: (e, dt, t) => { if (woodJob.update(e, dt, t)) engForceAct = null; }, tick: e => woodJob.tick(e), idle: () => woodJob.idle() },
+          fire: { run: (e, dt, t) => fireJob.update(e, dt, t), tick: (e, dt, t) => fireJob.tick(e, dt, t), idle: () => fireJob.idle() },   // lửa trại theo nhiệt độ: xô nước + que cời dập · que mồi + diêm nhóm (engineer/tasks/campfire-keep.js)   // ôm củi bỏ vào lò chiminea (bảng Tools / bấm lò — engineer/tasks/tool-jobs.js)
           drone: { run: (e, dt, t) => { if (droneToy.update(e, dt, t)) { if (!engForceAct || (e.onceKey || '').startsWith('drone@')) engMarkDone(e); engForceAct = null; } },   // bay drone khảo sát: lấy trên bàn trà · cất cánh · bay · hạ · cất (engineer/tasks/drone.js); bay theo yêu cầu ngoài giờ không đánh dấu xong việc 1-lần
             idle: () => { if (droneToy.state.st !== 'idle') droneToy.abort(); } },   // đổi việc giữa chừng (mưa, giờ): cất drone về bàn
           explore: { run: (e, dt, t) => { if (exploreJob.update(e, dt, t)) autoDone('explore'); }, idle: () => exploreJob.reset(), clip: true },   // đi dạo khám phá: ghé 2 công trình / cây, đứng ngắm, ghi chép (engineer/tasks/explore.js)

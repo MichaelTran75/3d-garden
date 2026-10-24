@@ -12,16 +12,19 @@
           const K = { ready: false, g, pack: null, shaft: null, blade: null, starter: null, A: { pack: {}, shaft: {} }, packU: 0, packMode: 'home', shaftMode: 'home',
             sA: new THREE.Vector3(), sDir: new THREE.Vector3(0, 0, 1), eng: { on: false, thr: 0, t: 0, spin: 0, rpm: 0 }, pull: 0, hold: false, e: null };
           const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3(), _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _m = new THREE.Matrix4(), _s = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
-          // ---- chỗ để: phía đông đống củi ----
+          // ---- chỗ để: cạnh đống củi (G 24/10 đống củi dời ra cạnh lò chiminea ⇒ đặt theo khung đống củi, không theo bếp lửa nữa) ----
           const pile = scene.getObjectByName('Đống củi (Woodpile)'), pileBox = pile ? new THREE.Box3().setFromObject(pile) : null;
           const homePack = new THREE.Matrix4(), homeA = new THREE.Vector3(), homeDir = new THREE.Vector3();
           function planHome() {   // gọi sau khi nạp mẫu (cần độ cao đáy khung)
-            const px = pf.x + 2.05, pz = pf.z - 2.5;   // cách tâm đống củi 1,5 m về phía đông, ngoài vòng né bếp lửa; đệm lưng quay về +Z (bếp lửa)
-            homePack.makeTranslation(px, cowY(px, pz) - K.A.pack.base[1], pz);
-            // cần: đầu sau gác lên mặt đống củi (đầu đông), ống chĩa về phía bắc-đông bắc, lưỡi chạm cỏ
-            const pc = pile ? pile.position : _a.set(pf.x + 0.59, 0, pf.z - 2.78), ry = pile ? pile.rotation.y : 0.5;
-            homeA.set(pc.x + Math.cos(ry) * 0.45, (pileBox ? pileBox.max.y : cowY(pc.x, pc.z) + 0.68) - 0.05, pc.z - Math.sin(ry) * 0.45);
-            const h = _b.set(0.45, 0, -0.89).normalize(), BL = K.A.shaft.blade[2]; let th = 0.4;
+            // khung đống củi: x cục bộ × WOOD_SIDE = hướng ra sau lưng (ngược cửa lò), z cục bộ = dọc dãy, ra xa lò (đống xoay CHIM_YAW + WOOD_SIDE·π/2). Máy đặt đất sau
+            //  lưng đống (0,75; 0,6), đệm lưng quay về +Z; cần: đầu sau gác lên mặt đầu xa của đống (0; 0,28), ống chĩa ra phía trại (cục bộ 0,35; 0,94), lưỡi chạm cỏ
+            //  — cách máy 0,6 m, không chạm lò, luống
+            if (pile) pile.updateMatrixWorld(true);
+            const pp = pile ? pile.localToWorld(_a.set(0.75 * WOOD_SIDE, 0, 0.6)) : _a.set(pf.x + 2.05, 0, pf.z - 2.5);
+            homePack.makeTranslation(pp.x, cowY(pp.x, pp.z) - K.A.pack.base[1], pp.z);
+            const ra = pile ? pile.localToWorld(_c.set(0, 0, 0.28)) : _c.set(pf.x + 0.59, 0, pf.z - 2.78);
+            homeA.set(ra.x, (pileBox ? pileBox.max.y : cowY(ra.x, ra.z) + 0.68) - 0.05, ra.z);
+            const h = pile ? _b.set(0.35 * WOOD_SIDE, 0, 0.94).applyQuaternion(pile.quaternion).setY(0).normalize() : _b.set(0.45, 0, -0.89).normalize(), BL = K.A.shaft.blade[2]; let th = 0.4;
             for (let it = 0; it < 4; it++) { const c = Math.cos(th); th = Math.asin(Math.max(0.05, Math.min(0.9, (homeA.y - cowY(homeA.x + h.x * c * BL, homeA.z + h.z * c * BL) - 0.07) / BL))); }
             homeDir.set(h.x * Math.cos(th), -Math.sin(th), h.z * Math.cos(th));
           }

@@ -37,7 +37,8 @@
           trim: { label: 'Cắt cỏ quanh trại' },   // sau mưa, cỏ ráo (engineer/tasks/trim-grass.js)
           eatApple: { label: 'Ăn táo' },   // giỏ còn táo hái hôm nay: ra giỏ lấy 1 quả, về ghế ăn (engineer/tasks/apple-pick.js eat / eatWant)
           stars: { label: 'Ngắm sao' }, rainwatch: { label: 'Ngắm mưa' }, garden: { label: 'Chăm luống cà rốt' },   // tự chủ đợt 2 (engineer/tasks/sky-watch.js, carrot-garden.js)
-          chair: { label: 'Ngồi đọc sách, uống trà' }, wood: { label: 'Bỏ củi vào lò' }   // chỉ theo lệnh bảng Tools / bấm ghế, lò (engineer/tasks/tool-jobs.js)
+          chair: { label: 'Ngồi đọc sách, uống trà' }, wood: { label: 'Bỏ củi vào lò' },   // chỉ theo lệnh bảng Tools / bấm ghế, lò (engineer/tasks/tool-jobs.js)
+          fire: { label: 'Dập / nhóm lửa trại' }   // > 30 °C dập, < 28 °C (hoặc cần nướng cá) nhóm lại (engineer/tasks/campfire-keep.js)
         };
         function engScheduleAt(h) {
           let k = 0; for (let i = 1; i < ENG_DAY.length; i++) if (h >= ENG_DAY[i][0]) k = i;
@@ -63,6 +64,7 @@
           if (engForceAct) { const w = liveWeather.state; if ((w.raining && engForceAct !== 'chair' && engForceAct !== 'wood') || (engForceAct === 'drone' && (w.windSpeed || 0) / 3.6 > 9)) engForceAct = null; else { e.actLeft = 900; return engForceAct; } }   // mưa: huỷ việc ngoài trời (ghế dưới bạt, lò thì vẫn làm)
           const s = engScheduleAt(hh); let act = s.act, left = s.left;
           const napping = e.phase === 'nap';   // đang ngủ trưa trên ghế (G 24/10: trước bị gọi dậy chăm luống 4 lần, vuốt chó 1 lần trong 45 phút nghỉ trưa)
+          { const fw = napping && !fireJob.busy() ? null : fireWant(e, hh, act); if (fw) { e.actLeft = 600; return fw; } }   // lửa trại theo nhiệt độ: > 30 °C dập · < 28 °C hoặc cá cần nướng thì nhóm (engineer/tasks/campfire-keep.js)
           { const tw = napping && !trimJob.busy() ? null : trimWant(e, hh, act); if (tw) { e.actLeft = 900; return tw; } }   // sau mưa cỏ ráo: phát cỏ quanh trại (engineer/tasks/trim-grass.js)
           if (act === 'stars' && !skyWatch.want(hh)) act = 'read';   // mây / mưa / đã ngắm: đọc sách tiếp dưới hiên
           { const gw = napping ? null : gardenWant(e, hh, act); if (gw) { e.actLeft = 600; return gw; } }   // luống cà rốt: trồng lại hố trống, tưới, xem thỏ ăn (engineer/tasks/carrot-garden.js)
@@ -83,7 +85,7 @@
           const au = autoWant(e, hh, act); if (au) { e.actLeft = Math.max(30, AUTO.until - clock.elapsedTime); return au; }   // tự chủ theo nhu cầu / lệnh bấm thanh (engineer/mind/autonomy.js)
           e.actLeft = Math.max(0, left); return act;
         }
-        const engPhaseFor = act => ENG_ACTS[act].van ? 'van' : act === 'dinner' && grill.st === 'ready' ? 'toGrill' : act === 'fish' ? 'toFish' : act === 'apples' ? 'apple' : act === 'eatApple' ? 'appleEat' : act === 'drone' ? 'drone' : act === 'engine' ? 'engine' : act === 'trim' ? 'trim' : act === 'stars' ? 'stars' : act === 'rainwatch' ? 'rainwatch' : act === 'garden' ? 'garden' : act === 'wood' ? 'wood' : act === 'pet' ? 'toDog' : act === 'explore' ? 'explore' : act === 'outdoor' ? 'toMast' : act === 'shelter' ? 'toShelter' : 'toChair';
+        const engPhaseFor = act => ENG_ACTS[act].van ? 'van' : act === 'dinner' && grill.st === 'ready' ? 'toGrill' : act === 'dinner' && grill.st !== 'held' && chiminea.oven.fish.ready() >= 0 ? 'toSmokerOut' : act === 'fish' ? 'toFish' : act === 'apples' ? 'apple' : act === 'eatApple' ? 'appleEat' : act === 'drone' ? 'drone' : act === 'engine' ? 'engine' : act === 'trim' ? 'trim' : act === 'stars' ? 'stars' : act === 'rainwatch' ? 'rainwatch' : act === 'garden' ? 'garden' : act === 'wood' ? 'wood' : act === 'fire' ? 'fire' : act === 'pet' ? 'toDog' : act === 'explore' ? 'explore' : act === 'outdoor' ? 'toMast' : act === 'shelter' ? 'toShelter' : 'toChair';
         function engChairPhase(e, act) {   // đã ngồi ghế cắm trại: làm gì, bao lâu
           if (act === 'dinner' && grill.st === 'held') { e.timer = e.eatLen = 76; return 'eatFish'; }   // cầm que cá nướng về: ăn cá trước (8 miếng), rồi mới ăn cơm chiên
           if (act === 'lunch' || act === 'dinner') { e.timer = Math.max(60, Math.min(1200, e.actLeft - 900)); return 'eat'; }

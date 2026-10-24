@@ -126,7 +126,7 @@
             frame: merge(parts.frame), glass: merge(parts.glass), bulb: merge(parts.bulb), bulbY: Y(5.235),
             frameMat: new THREE.MeshLambertMaterial({ color: 0x34363a }),
             glassMat: new THREE.MeshLambertMaterial({ color: 0xe6eef0, transparent: true, opacity: 0.16, depthWrite: false, side: THREE.DoubleSide }),
-            bulbMat: new THREE.MeshBasicMaterial({ color: 0xffd571 })
+            bulbMat: new THREE.MeshBasicMaterial({ color: 0xffd571 }), bulbOffMat: new THREE.MeshLambertMaterial({ color: 0xd8d2c2 })   // bóng tắt: kính mờ, không phát sáng
           };
         }
         function lanBody(parent, name) {
@@ -136,7 +136,7 @@
           part(lanternKit.frame, lanternKit.frameMat, true); part(lanternKit.glass, lanternKit.glassMat, false);
           const glow = part(lanternKit.bulb, lanternKit.bulbMat, false);
           const light = new THREE.PointLight(0xffce6a, 0.7, 8, 2); light.position.y = lanternKit.bulbY; l.add(light);
-          return { lan: l, light, glow };
+          l.userData.glow = glow; return { lan: l, light, glow };
         }
 
 

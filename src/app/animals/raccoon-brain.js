@@ -29,6 +29,7 @@
           const B = { st: 'den', t: 0, k: 0, v: 0, want: 0, gait: 'walk', tgt: new THREE.Vector3(), has: false, mode: 'walk', look: null, headP: null, dig: 0, apple: null, n: 0, ate: '' };
           const active = () => { const hh = liveWeather.localHour; return !liveWeather.state.raining && ((hh >= 16.5 && hh < 22.5) || (hh >= 4.5 && hh < 7)); };
           const set = (st, t) => { B.st = st; B.k = 0; B.t = t || 0; B.has = false; };
+          const climb = makeRaccoonClimb({ B, rig, P, damp, tail, set: (st, tt) => set(st, tt), H0 });   // trèo cây táo hái ăn (animals/raccoon-climb.js)
           const randPt = () => { for (let k = 0; k < 12; k++) { const a = Math.random() * 6.2832, r = 2 + Math.random() * 6, x = racHome.x + Math.cos(a) * r, z = racHome.z + Math.sin(a) * r; if (isWater(Math.round(x2gi(x)), Math.round(z2gj(z))) || racAvoidLog(x, z) || obstacleCoords.some(o => Math.hypot(x - o.x, z - o.z) < o.r + 0.3)) continue; return _a.set(x, 0, z).clone(); } return new THREE.Vector3(racApproach.x, 0, racApproach.z); };
           function steer(tx, tz, speed, dt, field, stopR = 0.1) {
             const p = O.position, dx = tx - p.x, dz = tz - p.z, dd = Math.hypot(dx, dz);
@@ -65,10 +66,13 @@
             return f >= 1;
           }
           function behave(dt, t) {
-            const p = O.position, hh = liveWeather.localHour, th = B.st === 'den' || B.st === 'exit' || B.st === 'enter' ? null : threat();
+            const p = O.position, hh = liveWeather.localHour, th = ['den', 'exit', 'enter', 'climb'].includes(B.st) ? null : threat();   // trên cây: gặp nguy thì ở yên trên cây
             B.look = null; B.headP = null; B.dig = 0; B.mode = 'walk'; B.k += dt; B.t -= dt;
             if (th && !['flee', 'toMouth', 'enter', 'den', 'exit'].includes(B.st)) set('flee');
-            if (!active() && ['forage', 'dig', 'stand', 'chase'].includes(B.st)) set('home');
+            if (!active() && ['forage', 'dig', 'stand', 'chase', 'toTree'].includes(B.st)) set('home');
+            if (climb.closeUp() > 1.5 && ['forage', 'dig', 'stand', 'eat'].includes(B.st) && active() && t > (B.climbCD || 0) && t > (B.climbTry || 0) && p.distanceTo(appleTrees[2].position) < 25) {   // người xem zoom cận nhìn ≥ 1,5 s ⇒ trèo cây táo hái ăn
+              B.climbTry = t + 5; if (climb.plan()) { climb.goal(); set('toTree', 30); }
+            }
             switch (B.st) {
               case 'den': O.visible = false; B.want = B.v = 0; if (active() && B.t <= 0) { set('exit'); O.visible = true; } return 0;
               case 'exit': if (crawl(racInside, racMouth, 4, dt, false)) set('out'); B.k += 0; return B.v * dt;
@@ -104,6 +108,22 @@
                 if (B.t <= 0) set('forage');
                 break;
               }
+              case 'toTree': {   // tới gốc cây táo phía đã chọn, quay mặt vào thân rồi bám lên
+                const g = climb.goal(), c = appleTrees[2].position; B.headP = 0.1; B.look = _hp.copy(g).setY(g.y + 1.5);
+                if (Math.hypot(g.x - p.x, g.z - p.z) > 0.14) {
+                  // đi VÒNG thân cây tới phía bám (đi thẳng thì đâm vào gốc): bước 0,7 rad trên vòng 1,25 m quanh tâm; cung ngắn mà đi qua phía khúc gỗ thì đi cung kia
+                  let tx = g.x, tz = g.z; const ar = Math.atan2(p.z - c.z, p.x - c.x); let da = Math.atan2(Math.sin(Math.atan2(g.z - c.z, g.x - c.x) - ar), Math.cos(Math.atan2(g.z - c.z, g.x - c.x) - ar));
+                  if (Math.abs(da) > 0.45 && Math.hypot(p.x - c.x, p.z - c.z) < 2.2) {
+                    const dl = Math.atan2(Math.sin(climb.logAng() - ar), Math.cos(climb.logAng() - ar)); if (Math.sign(dl) === Math.sign(da) && Math.abs(dl) < Math.abs(da) + 1) da -= Math.sign(da) * 2 * Math.PI;
+                    const a = ar + Math.sign(da) * Math.min(0.7, Math.abs(da)); tx = c.x + 1.25 * Math.cos(a); tz = c.z + 1.25 * Math.sin(a);
+                  }
+                  steer(tx, tz, 0.7, dt, climb.C.field, 0.12); if (B.t <= 0) { B.climbCD = t + 60; set('forage'); } break;
+                }
+                B.want = 0; let dy = climb.face() - O.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); O.rotation.y += Math.max(-2 * dt, Math.min(2 * dt, dy));
+                if (Math.abs(dy) < 0.12) { B.v = 0; set('climb'); climb.start(t); }
+                break;
+              }
+              case 'climb': B.want = B.v = 0; return 0;   // trên cây: climb.update lo vị trí + dáng
               case 'flee': {   // bỏ chạy (phi nhảy) về cửa hang rồi chui vào
                 if (steer(racApproach.x, racApproach.z, 2.6, dt, racField, 0.35)) set('toMouth');
                 break;
@@ -121,7 +141,9 @@
             update(dt, t) {
               dt = Math.min(dt, 0.05);
               const dist = behave(dt, t), inLog = B.st === 'exit' || B.st === 'enter';
+              climb.tick(dt, t);
               if (!O.visible) return;
+              if (B.st === 'climb') { climb.update(dt, t); return; }
               const sp = B.v;
               if (B.gait === 'walk' && sp > 0.95) B.gait = 'trot'; else if (B.gait === 'trot' && sp < 0.75) B.gait = 'walk'; else if (B.gait === 'trot' && sp > 2.1) B.gait = 'gallop'; else if (B.gait === 'gallop' && sp < 1.8) B.gait = 'trot';
               if (!inLog) {   // thân theo chỗ chân đứng: đất TB dưới 2 chân trước / 2 chân sau → độ cao + chúc/ngóc (lên bậc: chân trước lên trước, thân ngóc dần) — không nhảy bậc
@@ -165,6 +187,6 @@
               for (const e of U.eyes) e.visible = nightFactor > 0.7;   // mắt phản quang khi trời tối
               updateSoftTail(tail, dt, sp > 0.05 ? 0.12 * Math.sin(2 * Math.PI * psi) : 0, 0);
             },
-            state: B, rig
+            state: B, rig, tail, climb   // tail: animals/raccoon-glb.js đổi hướng + dài theo đuôi mẫu GLB · climb: trèo cây táo
           };
         })();

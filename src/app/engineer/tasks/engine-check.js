@@ -2,7 +2,7 @@
         //  bảng "▶ Khởi động máy" (ui/xray-lifecycle.js, engForceAct 'engine') → kỹ sư ra đứng trước đầu xe (đang ở hông xe thì đi vòng qua góc đầu xe, không cắt qua mũi)
         //  → tra chìa vào ổ khoá sau logo Ford ở ga-lăng (Transit Mk8 mở ca-pô bằng chìa sau logo — nên G bấm logo cũng mở ca-pô) → ca-pô bật chốt, 2 tay đỡ mép trước
         //  theo ca-pô lên tới ~35° rồi buông (ty chống đỡ tiếp) → cúi nhìn khoang máy, tay trái tì mép ga-lăng, tay phải dò quanh nắp máy (~6 s) → đứng thẳng, giơ chìa
-        //  khoá điều khiển bấm nổ máy từ xa (máy chạy đúng 30 s — van/engine-run.js, vỏ máy mờ thấy cơ cấu V6; không bật xem xuyên vì ca-pô đã mở) → cúi xem máy chạy
+        //  khoá điều khiển bấm nổ máy từ xa (máy chạy đúng 30 s — van/engine/engine-run.js, vỏ máy mờ thấy cơ cấu V6; không bật xem xuyên vì ca-pô đã mở) → cúi xem máy chạy
         //  → bấm tắt → chờ máy dừng → 2 tay với mép ca-pô kéo xuống, buông ở ~15° cho ca-pô sập (chỉ đóng nếu chính kỹ sư mở) → về lịch cũ.
         //  Bị cắt ngang (mưa, giờ ngủ, đổi việc): tắt máy, đóng ca-pô nếu đã mở, cất chìa (idle, loop-update.js). Toạ độ xe (đv xe, mũi −X): đứng X −3,62 (ba-đờ-xốc −3,26),
         //  logo (−3,21, 1,15), mép trước ca-pô = (−0,82, −0,31, ±0,3) trong hệ bản lề ca-pô, máy (−2,9 … −2,4, nắp 1,2)
@@ -128,6 +128,7 @@
             const P = hoodP(); if (!P || !vanGlb.engine) return true;
             if (J.st === 'idle') { J.opened = false; go('walk'); idleThoughtAt = Math.min(idleThoughtAt, Date.now() + 9000); }   // nảy 1 ý về máy khi tới nơi
             J.k += dt; const k = J.k, R = e.reachT || (e.reachT = [null, null]), eng = V(-2.65, 0.95, 0, _a);
+            if (J.st !== 'holo') engHolo.warm();   // dựng dần hình động cơ nổi (mỗi khung 1 bộ phận) trong lúc ra đầu xe, mang ghế — vào pha 'holo' không giật
             if (J.st === 'walk') {   // ở hông xe phía sau mũi ⇒ qua góc đầu xe trước
               caravanObj.worldToLocal(_c.copy(e.g.position)); const corner = _c.x > -3.45 && Math.abs(_c.z) > 0.95;
               if ((engStep(e, V(corner ? -4.05 : -3.62, 0, corner ? Math.sign(_c.z) * 1.65 : 0, _b), dt, t, pf, FIRE_AVOID_R) && !corner) || k > 75) go('near');
@@ -165,7 +166,7 @@
               stand(e, dt); const w = ease(k / 0.9) * (1 - ease((k - 5.6) / 0.8)); e.lean = 0.55 * w; look(e, eng);
               if (w > 0.3) { R[1] = V(-3.22, 1.25, -0.32, J.h1); R[0] = V(-2.86 + 0.07 * Math.sin(k * 1.3), 1.24, 0.08 + 0.13 * Math.sin(k * 0.7), J.h0); }
               if (k > 6.4) go('holo');
-            } else if (J.st === 'holo') {   // G 22/10: hình động cơ ×3 nổi trên đầu, tách rời thành từng bộ phận, soi lần lượt (van/engine-holo.js) — nhìn theo, giơ tay chỉ, nhận xét
+            } else if (J.st === 'holo') {   // G 22/10: hình động cơ ×3 nổi trên đầu, tách rời thành từng bộ phận, soi lần lượt (van/engine/engine-holo.js) — nhìn theo, giơ tay chỉ, nhận xét
               stand(e, dt); e.lean = 0;
               if (!engHolo.state.on && !engHolo.start(e)) { go('start'); return false; }
               const r = engHolo.tick(e, dt, t); R[1] = engBodyW(e, 0.1, 1.45, 0.42, J.h1);   // bảng ghi chép giơ trước ngực (đối chiếu chi tiết đang soi)
@@ -194,9 +195,12 @@
             if (J.st === 'done') { J.st = 'idle'; return true; }
             return false;
           }
-          const HOLO_TXT = { turboL: 'Cổ góp xả trái kín, không xì khí ở mặt bích.', headL: 'Nắp máy trái: gioăng còn kín, không rỉ dầu.', intake: 'Cổ hút sạch, bướm ga đóng mở êm.',
-            cams: 'Trục cam mòn đều, xupap đóng khít.', headR: 'Nắp máy phải ổn, bugi khô ráo.', turboR: 'Cổ góp xả phải hơi bám muội, lát vệ sinh.', front: 'Hai turbo quay trơn, trục không rơ; dây curoa còn căng.',
-            pistons: 'Piston, xéc-măng còn tốt, máy không ăn dầu.', crank: 'Trục khuỷu cân bằng, cổ trục không xước.', block: 'Thân máy không nứt, nước làm mát đủ.', pan: 'Cacte khô ráo, dầu còn trong.' };
+          const HOLO_TXT = { intake: 'Cổ hút kín, bướm ga điện tử đóng mở êm, không lọt gió sau turbo.', fuel: 'Phun kép: bơm cao áp giữ áp, kim phun trực tiếp và cửa nạp không rò.',
+            ignition: 'Sáu bô-bin đánh lửa đều, bugi khe hở chuẩn, máy không bỏ lửa.', turboR: 'Turbo hàng 1: trục không rơ, van xả điện đóng mở đủ hành trình.', turboL: 'Turbo hàng 2: cánh nén sạch, ống dầu hồi không rỉ.',
+            fead: 'Dây curoa còn căng, puli giảm chấn không nứt cao su, máy phát sạc đều.', timing: 'Xích cam kép không giãn, thanh dẫn nhựa chưa mòn khuyết.',
+            headR: 'Nắp máy hàng 1: gioăng kín, nắp dàn cò khô dầu.', headL: 'Nắp máy hàng 2: gioăng thép kín, van PCV thông.', valvetrain: 'Trục cam mòn đều, bộ chỉnh cam VCT không kêu lạch cạch lúc đề.',
+            pistons: 'Piston, xéc-măng còn tốt, vòi phun dầu làm mát piston thông.', crank: 'Trục khuỷu rèn cân bằng, nắp cổ trục 6 bu-lông chắc.', oil: 'Cacte khô, bơm dầu biến thiên giữ áp, dầu còn trong.',
+            block: 'Thân nhôm 60° không nứt, cảm biến kích nổ sạch.' };   // G 24/10 khuya: nhận xét theo bộ phận của hình Ford 3.5L EcoBoost (van/engine/engine-holo.js)
           function holoSay(P, Q) { bubble('Phân tích động cơ · ' + P.name + (Q ? ' › ' + Q.name : ''), HOLO_TXT[P.k] || P.name, 2600); }   // nhận xét bộ phận đang soi (› chi tiết con)
           function idle() {   // việc bị cắt ngang: tắt máy, đóng ca-pô nếu đã mở, cất chìa, tắt hình động cơ nổi, ghế bậc về chỗ cất
             if (J.st === 'idle') return; const P = hoodP(); engHolo.stop();

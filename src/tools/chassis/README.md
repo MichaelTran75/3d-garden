@@ -22,7 +22,7 @@ Lý do chọn mẫu: xe nhà di động kiểu overland hay được độ 4×4 
 
 **Bỏ:** lốp, vành (xe Transit đã có bánh), cản trước kèm biển số (`Fender`), 2 cần số (sẽ thò lên cabin).
 
-**Sửa cho vừa Transit L3H2.** Đơn vị của xe: 1,1 đơn vị (đv) = 1 m. Mũi xe hướng −X, cửa lùa ở +Z. Cầu trước ở x −2,12, cầu sau ở x 2,03, tâm bánh y 0,44, bánh xe ở z ±0,955 (xem `TR` trong `van/transit.js`).
+**Sửa cho vừa Transit L3H2.** Đơn vị của xe: 1,1 đơn vị (đv) = 1 m. Mũi xe hướng −X, cửa lùa ở +Z. Cầu trước ở x −2,12, cầu sau ở x 2,03, tâm bánh y 0,44, bánh xe ở z ±0,955 (xem `TR` trong `van/body/transit.js`).
 
 - **Dài:** chèn 1,262 m ở mặt cắt Z −0,68 của mẫu, chỗ chỉ có 2 thanh dọc đi qua. Nhờ vậy chiều dài cơ sở 2,51 m thành 3,77 m.
   - Vật cứng (cầu, nhíp, khớp chữ thập, giảm xóc, moay-ơ) dời nguyên khối theo vị trí tâm của nó.
@@ -58,6 +58,6 @@ await chassisWrite('chassis.glb');    // → shots/chassis.glb (~62 KB)
 `src/app/van/chassis.js` gắn thẳng nút `chassis` vào `caravanObj`, vì toạ độ đã là đơn vị của xe.
 
 - Vật liệu Lambert, màu đỉnh, tô phẳng. Vẫn hiện khi xem xuyên (`xray = 'keep'`).
-- Ẩn cầu tạm `Cầu bánh xe` trong `van/caravan.js`.
+- Ẩn cầu tạm `Cầu bánh xe` trong `van/interior/caravan.js`.
 - Hộp số dựng bằng code: chuông ly hợp, thân và đuôi hộp số, nối từ đuôi động cơ (x −2,31, y 0,71) tới khớp các-đăng đầu vào hộp số phụ (x −1,17, y 0,54, z 0,15).
 - `extras` của nút `chassis` có `axleF`, `axleR`, `wheelY`, `dz`, `drop`, `spread`. Nếu cầu lệch khỏi `TR.xF` hoặc `TR.xR`, trang cảnh báo trong console.

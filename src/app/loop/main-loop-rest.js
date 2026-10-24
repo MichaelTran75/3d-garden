@@ -55,7 +55,7 @@
                 else { b.state = 'sniff'; b.tmr = (1.2 + Math.random() * 2.6) * 3; } // dừng ăn cỏ lâu gấp 3 lần (3.6s - 11.4s)
               }
               if (b.state === 'hop') {
-                b.hop = (b.hop + dt * 3.2) % 1;
+                b.hop = (b.hop + dt * 3.2 * BUN_CAD) % 1;
                 const lift = Math.max(0, Math.sin(b.hop * Math.PI)) * 0.5;          // lift when jumping
                 const nx = b.x + Math.cos(b.ang) * b.spd * dt * (0.5 + lift), nz = b.z + Math.sin(b.ang) * b.spd * dt * (0.5 + lift);
                 if (bunOK(nx, nz) && (!b.col || b.col.ghost > 0 || colStepOK(b.col, b.x, b.z, nx, nz, b.ang))) { b.x = nx; b.z = nz; if (b.col) b.col.stuck = 0; }
