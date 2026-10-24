@@ -5,7 +5,7 @@
         //  ỐNG MỀM truyền động từ máy ra đầu ống vẽ lại bằng code mỗi khung: đường Bézier ra khỏi máy theo hướng cổng, vào ống theo trục ống, võng theo trọng lực
         //  (16 vòng × 6 cạnh) ⇒ luôn nối đúng dù người lia cần. Chỗ để: ba lô đứng trên cỏ phía đông đống củi (đệm lưng quay về bếp lửa), cần dựa lên đống củi, lưỡi
         //  chạm cỏ. Máy chạy: rung nhẹ, khói xả từng cụm; LY HỢP LY TÂM — ga nhỏ lưỡi đứng yên, ga lớn lưỡi quay; quay nhanh thì hiện đĩa mờ (mắt không theo kịp
-        //  cánh lưỡi). Dây giật kéo ra theo tay phải. Vụn cỏ văng sang trái lưỡi, rơi xuống cỏ nằm vài giây rồi tan. Điều khiển: engineer/trim-grass.js ----
+        //  cánh lưỡi). Dây giật kéo ra theo tay phải. Vụn cỏ văng sang trái lưỡi, rơi xuống cỏ nằm vài giây rồi tan. Điều khiển: engineer/tasks/trim-grass.js ----
         const trimKit = (() => {
           const TRIM_GLB = window.__trimGlb || 'https://michaeltran75.github.io/3d-garden/models/trimmer.glb';   // đường dẫn tuyệt đối: bản một tệp nhúng Wix cũng nạp được
           const g = new THREE.Group(); g.name = 'Máy cắt cỏ đeo lưng (Backpack Brush Cutter)'; g.userData.noBatch = true; scene.add(g);
@@ -93,8 +93,8 @@
               s.scale.setScalar((0.07 + 0.3 * k) * U.big); s.material.opacity = 0.45 * U.big * (1 - k) * Math.min(1, k * 6); }
           }
           // ---- nạp mẫu ----
-          Promise.all([import('https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js'), import('https://esm.sh/three@0.160.0/examples/jsm/libs/meshopt_decoder.module.js')])
-            .then(([{ GLTFLoader }, { MeshoptDecoder }]) => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(TRIM_GLB)).then(gl => {
+          ldTrack(Promise.all([import('https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js'), import('https://esm.sh/three@0.160.0/examples/jsm/libs/meshopt_decoder.module.js')])
+            .then(([{ GLTFLoader }, { MeshoptDecoder }]) => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(TRIM_GLB)).then(ldAfter).then(gl => {
               const mat = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
               gl.scene.traverse(o => { if (o.isMesh) { o.material = mat; o.castShadow = true; } });
               const pack = gl.scene.getObjectByName('pack'), shaft = gl.scene.getObjectByName('shaft'), blade = gl.scene.getObjectByName('blade'), starter = gl.scene.getObjectByName('starter');
@@ -109,8 +109,10 @@
               Object.assign(K, { pack, shaft, blade, bladeSpin: spin, bladeMesh: bm, disc, starter });
               starter.userData.home = starter.position.clone();
               planHome(); K.ready = true; K.setHome(); cable.visible = true;
+              { const tip = homeA.clone().addScaledVector(homeDir, K.A.shaft.blade[2] * 0.6), pk = new THREE.Vector3().setFromMatrixPosition(homePack);   // máy đang cất: ba lô dưới đất + cần chĩa ngang gối ⇒ lưới cấm đường đi riêng của kỹ sư
+                ENG_NAV.extra.push({ x: pk.x, z: pk.z, r: 0.3, nav: true }, { x: tip.x, z: tip.z, r: 0.3, nav: true }); if (ENG_NAV.blk) engNavBuild(); }   // (G 24/10 kiểm tra cả ngày: dạo trại vấp cần 5 lần 6:19–7:11)
               hovAdd(g, { pad: 0.03, skip: m => !!m.userData.noHov, on: () => !trimJob.busy(), picks: [{ o: pack }, { o: shaft }] });   // rê chuột: viền trắng (ui/hover-select.js) — dò theo hộp riêng ba lô / cần
-            }).catch(err => console.warn('Trimmer GLB:', err));
+            }).catch(err => console.warn('Trimmer GLB:', err)));
           // ---- tư thế các bộ phận (job ghi trạng thái, tick đặt sau khi tay đã giải IK) ----
           K.setHome = () => { K.packMode = 'home'; K.shaftMode = 'home'; K.packU = 0; K.eng.on = false; K.eng.thr = 0; K.pull = 0; K.e = null; };
           K.homeA = homeA; K.homeDir = homeDir; K.homePack = homePack;

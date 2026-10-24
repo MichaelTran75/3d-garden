@@ -111,7 +111,7 @@
         ft1.position.set(X0 + 62, surfaceY(Math.round((20 + 5 / 6) * S), 32.5 * S), Z0 + 90);   // G 18/10 "move cây táo tới x62 z90" (toạ độ trang X = x − X0, Z = z − Z0): sát góc sau–phải chuồng gà (camp/chicken-coop.js) — bóng mát + chỗ trú cho gà
         ft2.position.copy(worldCell(24.5, 34.5)); ft2.rotation.y = -0.794; scene.add(ft2);
         flightRoots.push(ft1, ft2);
-        const appleTrees = [ft1, ft2];   // kỹ sư hái táo (engineer/apple-pick.js)
+        const appleTrees = [ft1, ft2];   // kỹ sư hái táo (engineer/tasks/apple-pick.js)
         for (const T of appleTrees) obstacleCoords.push({ x: T.position.x, y: T.position.y, z: T.position.z, r: 0.35, h: 3 });   // thân cây: người & chó đi vòng
 
         function deadLogOut(x, z, m) {   // (x, z) nằm dưới thân khúc gỗ chết (cách trục < bán kính + m) → điểm dời ra mép gần nhất; ở ngoài → null

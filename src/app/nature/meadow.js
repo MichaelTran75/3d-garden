@@ -42,6 +42,20 @@
           const want = Math.round(0.45 * land), sorted = cand.map(c => c[0]).sort((a, b) => a - b);
           const thr = cand.length > want ? sorted[cand.length - want] : -1e9, top = sorted[sorted.length - 1] || 1;
           const cells = cand.filter(c => c[0] >= thr), lawn = [...lawnPad, ...cand.filter(c => c[4] > 0 && c[0] < thr)];   // ô cỏ mềm sẵn có trong vùng vẫn giữ lá cao (bụi cỏ giữa thảm)
+          // ---- KHẢM CỎ CAO / THẤP (G 23/10 "ngoài tự nhiên nhóm cỏ cao hơn nhóm khác, nhìn nhấp nhô"): đồng cỏ có bò là KHẢM MẢNG — bò gặm đi gặm lại chỗ cỏ non
+          //      thành mảng thấp (bò ưa < ~10 cm), chừa mảng cao ở chỗ cỏ già cứng và quanh BÃI PHÂN (bò tránh gặm ⇒ cỏ rậm, xanh đậm vì giàu đạm); mảng vài mét,
+          //      ranh khá rõ (Plant Soil Environ. 2019 · Frontiers Vet. Sci. 2021 "patch grazing" · luận án Edinburgh: bò gặm làm thảm cỏ lệch cao thấp nhiều hơn
+          //      cừu). Mảng ~2,5 m: gặm sát ×0,4 ⇄ cỏ già ×1,7 (+ gợn ~1 m ở mép); bãi phân 1/140 ô, bán kính 0,8–1,6 m: cỏ cao ×1,4–1,75, tươi đậm hơn; nền đất dưới
+          //      mảng cao xanh sẫm, mảng gặm ngả vàng nhạt ⇒ nhìn xa (lá đã ẩn) vẫn thấy khảm.
+          //      Trong mỗi ô cỏ mọc thành KHÓM (shader: giữa khóm cao, khe thấp, lá xoè ra — bụi cỏ cách nhau ~0,3 m, Hovanes 2018) ----
+          const DUNG = [], drnd = mulberry32(2323);   // RNG riêng: không đổi chuỗi rnd() ⇒ cỏ, hoa chỗ khác giữ nguyên
+          for (const c of cells) if (drnd() < 1 / 140) DUNG.push({ x: wx(c[1]) + (drnd() - 0.5) * BLOCK, z: wz(c[2]) + (drnd() - 0.5) * BLOCK, r: 0.8 + 0.8 * drnd() });
+          function patchK(i, j, x, z) {
+            const a = vnoise(i * 0.24 + 71, j * 0.24 + 19) + 0.3 * (vnoise(i * 0.7 + 5, j * 0.7 + 33) - 0.5);
+            let k = 0.4 + 1.3 * THREE.MathUtils.smoothstep(a, 0.4, 0.62);   // gặm sát ×0,4 (3–8 cm thật) ⇄ cỏ già ×1,7
+            for (const D of DUNG) { const d = Math.hypot(x - D.x, z - D.z); if (d < D.r) k = Math.max(k, 1.4 + 0.35 * Math.sqrt(1 - d / D.r)); }
+            return k;
+          }
           // ---- màu đất thật dưới từng ô (màu bậc địa hình × sắc độ ô × màu trung bình texture cỏ) + tô loang mảng cỏ lên mặt đất (thấy được cả khi nhìn xa) ----
           const texMean = new THREE.Color(0xd9d6c8);   // (Color(hex) đã tự đổi sRGB → tuyến tính; đổi thêm lần nữa làm gốc lá tối gấp 2,3)
           const _m = new THREE.Matrix4(), _p = new THREE.Vector3(), _c = new THREE.Color();
@@ -55,12 +69,13 @@
             const cur = tS.slice(0, N); t = 0; TM.forEach((im, mi) => { for (let k = 0; k < im.count; k++) { const key = tKey[t++]; if (key >= 0) tD[cur[key]++] = (mi << 24) | k; } }); }
           const topN = key => key >= 0 && key < N ? tS[key + 1] - tS[key] : 0, topIm = (key, n) => TM[tD[tS[key] + n] >>> 24], topK = (key, n) => tD[tS[key] + n] & 0xffffff;
           const lushOf = (i, j, moist) => Math.max(0, Math.min(1, 0.3 + 0.7 * moist + 0.6 * (vnoise(i * 0.09 + 41, j * 0.09 + 7) - 0.5)));
-          const dirty = new Set(), _cL = new THREE.Color(), _lawnTint = new THREE.Color(0.8, 1.0, 0.62);
+          const dirty = new Set(), _cL = new THREE.Color(), _lawnTint = new THREE.Color(0.8, 1.0, 0.62), _paleTint = new THREE.Color(1.12, 1.1, 0.78);
           for (const [sc, i, j, moist, L] of [...cells, ...lawn]) {
             const key = i + j * GX, nt = topN(key); if (!nt) continue;
             const lush = L ? 0.75 : lushOf(i, j, moist), dens = L ? 0.6 : Math.min(1, (sc - thr) / Math.max(1e-3, top - thr));
             topIm(key, 0).getColorAt(topK(key, 0), _c); _c.multiplyScalar(1.015 + 0.05 * dens).lerp(_c.clone().offsetHSL(0.012 * (lush - 0.5), 0.04, 0), 0.6);   // mặt đất dưới mảng cỏ: tươi hơn chút
             if (L) { const e = Math.min(1, L / 0.3); _c.lerp(_cL.copy(_c).multiply(_lawnTint), 0.85 * e); }   // thảm ngắn: nền xanh đậm như cỏ mượt, loang dần ra mép
+            else { const pk = patchK(i, j, wx(i), wz(j)); if (pk > 1) _c.multiplyScalar(1 - 0.16 * (pk - 1)); else _c.lerp(_cL.copy(_c).multiply(_paleTint), 0.45 * (1 - pk) / 0.6); }   // khảm: mảng cỏ già sẫm · mảng gặm sát nhạt vàng
             for (let q = 0; q < nt; q++) { const im = topIm(key, q); im.setColorAt(topK(key, q), _c); dirty.add(im); }
           }
           for (const im of dirty) im.instanceColor.needsUpdate = true;
@@ -78,7 +93,7 @@
                 C4[n * 4] = (0.09 + 0.06 * lrnd()) * (0.45 + 0.55 * Math.min(1, L / 0.25)); C4[n * 4 + 1] = lrnd(); C4[n * 4 + 2] = 2.75 + 0.12 * (lrnd() - 0.5); C4[n * 4 + 3] = lrnd() < 0.025 ? 1 + ((lrnd() * 2) | 0) : 0;
               } else {
                 const dens = Math.min(1, (sc - thr) / Math.max(1e-3, top - thr)), edge = Math.min(1, (sc - thr) / 0.09);
-                const lush = lushOf(i, j, moist), h = (0.15 + 0.17 * Math.pow(dens, 0.7) + 0.07 * moist) * (0.88 + 0.24 * rnd()) * (0.4 + 0.6 * edge);
+                const pk = patchK(i, j, x, z), lush = Math.max(0, Math.min(1, lushOf(i, j, moist) + 0.32 * (pk - 1))), h = Math.min(0.62, (0.15 + 0.17 * Math.pow(dens, 0.7) + 0.07 * moist) * (0.88 + 0.24 * rnd()) * (0.4 + 0.6 * edge) * pk);   // × khảm mảng · mảng cao tươi hơn
                 C4[n * 4] = h; C4[n * 4 + 1] = rnd(); C4[n * 4 + 2] = lush; C4[n * 4 + 3] = rnd() < 0.06 ? 1 + ((rnd() * 4) | 0) : 0;   // chiều cao · hạt giống · độ tươi · hoa dại (0 = không, 1–4 = màu)
               }
               const key = i + j * GX; if (topN(key)) { topIm(key, 0).getColorAt(topK(key, 0), _c); _c.multiply(texMean); } else _c.setRGB(0.3, 0.42, 0.18);
@@ -130,6 +145,10 @@
                 vec2 off = vec2(position.x * cr - position.z * sr, position.x * sr + position.z * cr);
                 vec3 root = aRoot + vec3(off.x, 0.0, off.y);
                 vec2 fwd = vec2(cos(aBlade.y + ra), sin(aBlade.y + ra)), s0 = vec2(-fwd.y, fwd.x), sc = normalize(uCamRight.xz + 1e-5);
+                vec2 lp = position.xz / ${BLOCK.toFixed(4)}, cc = (vec2(fract(seed * 3.71), fract(seed * 5.37)) - 0.5) * 0.45, ow = lp - cc;   // KHÓM CỎ (G 23/10): tâm khóm lệch trong ô theo hạt giống ô
+                float tr = 0.24 + 0.14 * fract(seed * 9.13), cd = length(ow), tw = (1.0 - 0.8 * lawn) * (h < 0.07 ? 0.3 : 1.0) * (flower > 0.0 ? 0.0 : 1.0);
+                h *= mix(1.0, mix(0.35, 1.3, 1.0 - smoothstep(0.0, tr, cd)), tw);   // giữa khóm cao, khe giữa các khóm thấp (thảm cắt ngắn, cỏ vừa phát gần như đều, cọng hoa giữ nguyên)
+                if (cd > 1e-3) fwd = normalize(mix(fwd, vec2(ow.x * cr - ow.y * sr, ow.x * sr + ow.y * cr) / cd, 0.55 * tw * smoothstep(0.03, 0.12, cd)));   // lá xoè ra ngoài khóm (hệ ô đã xoay)
                 vec2 sv = normalize(mix(s0 * (dot(s0, sc) >= 0.0 ? 1.0 : -1.0), sc, 0.55));   // bề ngang lá: nửa theo lá, nửa vuông góc hướng nhìn
                 float w = 0.016 * (1.0 - 0.86 * t) * sd * (0.8 + 0.4 * fract(seed * 7.13)) * (flower > 0.0 && t > 0.8 ? 3.2 : 1.0) * (1.0 - 0.4 * lawn);
                 float bend = aBlade.w * t * t * h;
@@ -173,7 +192,7 @@
             for (const [a, s] of [[aRoot, 3], [aCell, 4], [aBase, 3]]) { if (a.clearUpdateRanges) { a.clearUpdateRanges(); a.addUpdateRange(0, k * s); } a.needsUpdate = true; }
             for (const [g] of LODS) g.instanceCount = k;
           }
-          // ---- CẮT CỎ (G 18/10: kỹ sư phát cỏ quanh trại sau mưa — engineer/trim-grass.js): ô có tâm trong tầm lưỡi ⇒ lá còn 4–6 cm, mất hoa dại; ô đang
+          // ---- CẮT CỎ (G 18/10: kỹ sư phát cỏ quanh trại sau mưa — engineer/tasks/trim-grass.js): ô có tâm trong tầm lưỡi ⇒ lá còn 4–6 cm, mất hoa dại; ô đang
           //      hiện trên màn hình (slot ≥ 0 sau lượt cắt khung nhìn) ghi thẳng vào thuộc tính instance, ô khác đọc lại từ C4 ở lượt cull sau ----
           const cutT = new Uint8Array(nC), slot = new Int32Array(nC).fill(-1), bS = new Int32Array(N + 1), bQ = new Int32Array(nC);   // ô lưới → các ô cỏ (CSR như tS / tD; bản cũ Map → mảng ~3 MB)
           for (let q = 0; q < nC; q++) bS[IJ[q] + 1]++;
@@ -195,7 +214,7 @@
             return n;
           }
           function grassNear(x, z, r) { let f = false; cellsIn(x, z, r, () => { f = true; }); return f; }
-          function flowerNear(x, z, r) {   // ô có hoa dại (chưa cắt) gần (x, z) nhất trong bán kính r → [x, y, z] tâm ô, hoặc null (engineer/env-react.js: ngồi ngửi hoa)
+          function flowerNear(x, z, r) {   // ô có hoa dại (chưa cắt) gần (x, z) nhất trong bán kính r → [x, y, z] tâm ô, hoặc null (engineer/mind/env-react.js: ngồi ngửi hoa)
             let b = -1, bd = r; cellsIn(x, z, r, q => { if (!C4[q * 4 + 3] || cutT[q]) return; const d = Math.hypot(R[q * 3] - x, R[q * 3 + 2] - z); if (d < bd) { bd = d; b = q; } });
             return b < 0 ? null : [R[b * 3], R[b * 3 + 1], R[b * 3 + 2]];
           }

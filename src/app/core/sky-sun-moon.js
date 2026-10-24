@@ -19,7 +19,7 @@
         const moonU = { uMap: { value: new THREE.DataTexture(new Uint8Array([170, 170, 170, 255]), 1, 1) }, uPsi: { value: Math.PI }, uLi: { value: 0 }, uNo: { value: 0 }, uShine: { value: 0.5 },
           uCol: { value: new THREE.Color(0xE2D6C0) }, uOp: { value: 0.92 }, fogColor: { value: new THREE.Color() }, fogNear: { value: 1 }, fogFar: { value: 2000 } };
         moonU.uMap.value.needsUpdate = true;
-        new THREE.TextureLoader().load(window.__moonJpg || 'https://michaeltran75.github.io/3d-garden/models/moon.jpg', t => { t.colorSpace = THREE.SRGBColorSpace; t.wrapS = THREE.RepeatWrapping; moonU.uMap.value = t; });   // đường dẫn tuyệt đối: bản một tệp nhúng Wix cũng nạp được
+        ldTrack(new Promise(ldR => new THREE.TextureLoader().load(window.__moonJpg || 'https://michaeltran75.github.io/3d-garden/models/moon.jpg', t => { t.colorSpace = THREE.SRGBColorSpace; t.wrapS = THREE.RepeatWrapping; moonU.uMap.value = t; ldR(); }, undefined, ldR)));   // đường dẫn tuyệt đối: bản một tệp nhúng Wix cũng nạp được
         const skyMoon = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.ShaderMaterial({ uniforms: moonU, transparent: true, depthWrite: false, fog: true,
           vertexShader: `#include <fog_pars_vertex>
             varying vec2 vQ; void main() { vQ = position.xy * 2.0; vec4 mvPosition = modelViewMatrix * vec4(0.0, 0.0, 0.0, 1.0); mvPosition.xy += position.xy * vec2(length(modelMatrix[0].xyz), length(modelMatrix[1].xyz));

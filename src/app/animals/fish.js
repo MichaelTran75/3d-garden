@@ -275,3 +275,90 @@
           return true;
         }
 
+        // ---- TẬP TÍNH CÁ KOI (G 23/10 "do research and study about rabbit, fish behaviour then improve its react and behaviour") ----
+        //  · GIẬT MÌNH CHỮ C (C-start, tế bào Mauthner): kích thích lớn tương phản mạnh — bóng cò bay thấp / cò lội sát, chó, người bước vội sát mép — sau trễ
+        //    0,15–0,5 s (cá vàng: 142–716 ms, càng tương phản càng nhanh) thân cong chữ C quay đầu RA XA nguồn, đạp đuôi phóng ~2,2 m/s, lặn sát đáy; nấp đáy gần
+        //    như đứng yên 6–14 s rồi mới bơi lại, còn dè chừng ~20 s (chậm, sâu). Cò lội trong 2,2 m: lảng ra
+        //  · KIẾM ĂN ĐÁY: chép ăn sinh vật đáy (ấu trùng chỉ hồng, giun ít tơ, ốc) — chúc đầu ủi bùn, nhích chậm, bùn sủi; ban ngày gặm riêng lẻ, đêm bơi thành đàn
+        //    (Rahman & Meyer 2009) ⇒ ngày: tản ra, mỗi con 15–45 s ủi đáy 4–9 s; chạng vạng: đàn chặt hơn
+        //  · ĐÀN LỎNG: hút về tâm nhóm cùng mặt nước trong 3 m, giãn cách ≥ 0,45 m, xuôi hướng bạn gần
+        //  · QUEN NGƯỜI: koi được cho ăn học đón người quen — kỹ sư đứng yên sát mép nước ⇒ con bạo dạn tới trước, con nhát theo sau, lượn sát mặt nước ngóc đầu
+        //    đớp không khí; người đi chỗ khác thì tản; bước vội sát mép thì giật mình
+        //  · NHIỆT ĐỘ: < 12 °C chậm hẳn, xuống sâu (koi lờ đờ quanh 10 °C, gom về chỗ nước sâu ấm), ấm > 24 °C bơi nhanh, gần mặt
+        //  Gọi trong vòng cá (loop/main-loop-rest.js) trước đuổi lá; true = tự lo chuyển động khung này
+        const _flS = new THREE.Vector3(), _flM = new THREE.Vector3(), FL_BEG = { p: new THREE.Vector3(), ok: false, still: 0, key: '' };
+        let flDogP = null, flDogV = 0, flEngP = null, flEngV = 0, flT = -1;
+        function fishStimuli(t, dt) {   // 1 lần mỗi khung: tốc độ chó / kỹ sư (độ dời), kỹ sư đứng yên bao lâu + điểm nước sát chỗ đứng
+          if (flT === t) return; flT = t;
+          const d = dogObj.position, e = engObj && !engObj.inVan && engObj.g.parent === scene ? engObj.g.position : null;
+          flDogV = flDogP ? Math.hypot(d.x - flDogP.x, d.z - flDogP.z) / Math.max(dt, 1e-3) : 0; (flDogP || (flDogP = new THREE.Vector3())).copy(d);
+          flEngV = e && flEngP ? Math.hypot(e.x - flEngP.x, e.z - flEngP.z) / Math.max(dt, 1e-3) : 0; if (e) (flEngP || (flEngP = new THREE.Vector3())).copy(e); else flEngP = null;
+          const B = FL_BEG; B.still = e && flEngV < 0.15 && !angling.active ? B.still + dt : 0;
+          if (B.still > 2 && e) { const key = Math.round(e.x * 4) + ':' + Math.round(e.z * 4);
+            if (key !== B.key) { B.key = key; B.ok = false; let bd = 9;   // ô nước gần chỗ đứng nhất (trong 2,6 m) — cá đón ở đó, cách mép ~0,4 m
+              for (let r = 0.6; r <= 2.6 && !B.ok; r += 0.4) for (let k = 0; k < 16; k++) { const a = k / 16 * TAU, x = e.x + Math.cos(a) * r, z = e.z + Math.sin(a) * r;
+                if (waterCell(Math.round(x2gi(x)), Math.round(z2gj(z))) && waterCell(Math.round(x2gi(x + Math.cos(a) * 0.4)), Math.round(z2gj(z + Math.sin(a) * 0.4))) && r < bd) { bd = r; B.p.set(x + Math.cos(a) * 0.4, 0, z + Math.sin(a) * 0.4); B.ok = true; } } } }
+          else if (B.still === 0) B.key = '';
+        }
+        function fishThreat(f) {   // → mức kích thích (1 = giật mình · 0,5 = lảng ra), nguồn ở _flS
+          const x = f.cx, z = f.cz; let lv = 0;
+          const add = (p, l) => { if (l > lv) { lv = l; _flS.copy(p); } };
+          const d = dogObj.position; if (dogObj.visible !== false && Math.hypot(d.x - x, d.z - z) < (flDogV > 1.5 ? 3.5 : 2.2)) add(d, 1);
+          if (flEngP && flEngV > 1.0 && Math.hypot(flEngP.x - x, flEngP.z - z) < 2.2) add(flEngP, 1);
+          for (const b of birds) { const p = b.m.position, dh = Math.hypot(p.x - x, p.z - z);
+            if (b.state === 'wade') { if (dh < 1.0) add(p, 1); else if (dh < 2.2) add(p, 0.5); }
+            else if (b.state !== 'sleep' && dh < 3.5 && p.y - f.g.position.y < 7) add(p, 1);   // bóng cò bay thấp lướt qua đầu
+          }
+          return lv;
+        }
+        function fishLife(f, dt, t) {
+          const L = f.L || (f.L = { st: '', k: 0, bold: Math.random(), gz: 15 + 30 * Math.random(), cd: 0, wary: 0, d: 0, src: new THREE.Vector3(), esc: 0, gulp: 2 });
+          fishStimuli(t, dt); L.k += dt; L.cd -= dt; L.wary -= dt;
+          const temp = liveWeather.state.temperature ?? 24, hh = liveWeather.localHour, go = (st, d) => { L.st = st; L.k = 0; L.d = d; };
+          f.vk = Math.max(0.45, Math.min(1.15, 0.45 + 0.05 * (temp - 10))) * (L.wary > 0 ? 0.6 : 1);   // tốc độ bơi theo nhiệt độ nước · dè chừng sau khi giật mình
+          f.dz = (temp < 12 ? -0.25 : temp > 24 ? 0.12 : 0) + (L.wary > 0 ? -0.15 : 0);   // lạnh: xuống sâu · ấm: gần mặt
+          if (L.st !== 'c' && L.st !== 'burst') {
+            const lv = fishThreat(f);
+            if (lv >= 1 && L.cd <= 0 && L.st !== 'lat') { if (f.leafT) endLeafChase(f); L.src.copy(_flS); go('lat', 0.15 + 0.35 * Math.random()); }
+            else if (lv > 0 && (!L.st || L.st === 'graze')) { let da = Math.atan2(f.cz - _flS.z, f.cx - _flS.x) - f.ang; da = Math.atan2(Math.sin(da), Math.cos(da)); f.ang += Math.max(-1.5 * dt, Math.min(1.5 * dt, da)); if (L.st === 'graze') go('', 0); }   // lảng ra xa cò đang lội
+          }
+          const bot = () => riverBedY(Math.round(x2gi(f.cx)), Math.round(z2gj(f.cz))), surf = () => waterSurfaceY(f.cx, f.cz);
+          switch (L.st) {
+            case 'lat': if (L.k >= L.d) { L.esc = Math.atan2(f.cz - L.src.z, f.cx - L.src.x) + (Math.random() - 0.5) * 0.8; go('c', 0.1); } return false;   // trễ phản xạ: vẫn bơi như thường
+            case 'c': {   // uốn chữ C: cả thân cong về phía quay, đầu xoay nhanh ra xa nguồn
+              let da = L.esc - f.ang; da = Math.atan2(Math.sin(da), Math.cos(da)); f.ang += Math.max(-16 * dt, Math.min(16 * dt, da)); f.wob = Math.sign(da || 1) * 1.1; f.chaseV = 0.3;
+              fishSwimStep(f, dt, t, f.g.position.y, 0); if (L.k >= L.d) { f.chaseV = 2.2; go('burst', 0.7); } return true;
+            }
+            case 'burst': {   // đạp đuôi duỗi thân, phóng đi rồi chậm dần, lặn sát đáy
+              let da = L.esc - f.ang; da = Math.atan2(Math.sin(da), Math.cos(da)); f.ang += Math.max(-5 * dt, Math.min(5 * dt, da)); f.wob *= Math.exp(-dt * 10); f.chaseV *= Math.exp(-dt * 2.2);
+              fishSwimStep(f, dt, t, bot() + 0.15, -0.3); if (L.k >= L.d) go('hide', 6 + 8 * Math.random()); return true;
+            }
+            case 'hide': f.chaseV += (0.05 - f.chaseV) * Math.min(1, dt * 2); f.wob *= Math.exp(-dt * 3); fishSwimStep(f, dt, t, bot() + 0.12, 0); if (L.k >= L.d) { L.wary = 20; L.cd = 3; go('', 0); } return true;   // nấp đáy, gần như đứng yên
+            case 'graze': {   // ủi bùn: chúc đầu, nhích chậm, thỉnh thoảng sủi bùn
+              f.chaseV += (0.09 - f.chaseV) * Math.min(1, dt * 2); f.wob += ((Math.random() - 0.5) * 0.8 - f.wob) * Math.min(1, dt); f.ang += f.wob * 0.4 * dt;
+              fishSwimStep(f, dt, t, bot() + 0.13, -0.55);
+              if ((L.gulp -= dt) <= 0) { L.gulp = 0.9 + Math.random(); f.g.localToWorld(_flM.copy(f.mouth)); waterFx.bubbles(_flM.x, _flM.y, _flM.z, 1); }
+              if (L.k >= L.d) go('', 0); return true;
+            }
+            case 'beg': {   // đón người: lượn sát mặt nước chỗ người đứng, ngóc đầu đớp
+              const B = FL_BEG; if (!B.ok || B.still === 0 || Math.hypot(B.p.x - f.cx, B.p.z - f.cz) > 7) { go('', 0); return false; }
+              const a0 = L.bold * TAU + t * 0.35, tx = B.p.x + Math.cos(a0) * 0.45, tz = B.p.z + Math.sin(a0) * 0.45, dx = tx - f.cx, dz = tz - f.cz, dd = Math.hypot(dx, dz);
+              let da = Math.atan2(dz, dx) - f.ang; da = Math.atan2(Math.sin(da), Math.cos(da)); f.ang += Math.max(-2 * dt, Math.min(2 * dt, da)); f.wob += (Math.max(-1, Math.min(1, da)) * 0.6 - f.wob) * Math.min(1, dt * 3);
+              f.chaseV += ((dd > 1 ? 0.55 : 0.14) - f.chaseV) * Math.min(1, dt * 2);
+              const up = dd < 1.2, gp = (L.gulp -= dt) < 0.3 && up; if (L.gulp <= 0) { L.gulp = 2 + 2 * Math.random(); if (up) { f.g.localToWorld(_flM.copy(f.mouth)); waterFx.ring(_flM.x, surf(), _flM.z, 0.18); } }
+              fishSwimStep(f, dt, t, up ? surf() - 0.14 : f.base.y, up ? 0.25 + (gp ? 0.15 : 0) : 0); return true;
+            }
+          }
+          // bơi lang thang (vòng chính) — chỉnh hướng theo đàn, rồi xét có ủi đáy / đón người không
+          const tight = hh < 7 || hh > 17 ? 0.8 : 0.35; let cx = 0, cz = 0, n = 0, ax = 0, az = 0, sx = 0, sz = 0;
+          for (const o of fishies) { if (o === f || o.ang === undefined || Math.abs(o.base.y - f.base.y) > 0.8 || o === angling.fish || o === returningFishingFish) continue;
+            const dx = o.cx - f.cx, dz = o.cz - f.cz, d = Math.hypot(dx, dz); if (d > 3) continue;
+            cx += dx; cz += dz; n++; if (d < 1.5) { ax += Math.cos(o.ang); az += Math.sin(o.ang); } if (d < 0.45 && d > 1e-3) { sx -= dx / d * (0.45 - d) * 6; sz -= dz / d * (0.45 - d) * 6; } }
+          if (n) { const hx = Math.cos(f.ang) + tight * (cx / n * 0.35 + ax * 0.3) + sx, hz = Math.sin(f.ang) + tight * (cz / n * 0.35 + az * 0.3) + sz;
+            let da = Math.atan2(hz, hx) - f.ang; da = Math.atan2(Math.sin(da), Math.cos(da)); f.ang += Math.max(-0.8 * dt, Math.min(0.8 * dt, da)); }
+          if (!f.leafT && L.wary <= 0) {
+            const B = FL_BEG; if (B.ok && B.still > 2 + (1 - L.bold) * 8 && Math.hypot(B.p.x - f.cx, B.p.z - f.cz) < 6 && Math.abs(waterBaseY(Math.round(z2gj(B.p.z))) - 0.62 - f.base.y) < 0.8) { f.chaseV = f.vmag * f.vk; go('beg', 0); }
+            else if (hh > 6.5 && hh < 17.5 && temp >= 12 && (L.gz -= dt) <= 0) { L.gz = 15 + 30 * Math.random(); f.chaseV = f.vmag * f.vk; go('graze', 4 + 5 * Math.random()); }
+          }
+          return false;
+        }

@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>GHC · Thủy điện Gia Lai — Danh mục năng lượng tái tạo 3D</title>
   <link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/dist/tabler-icons.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="css/app.css?v=6b6c247ce8">
+  <link rel="stylesheet" href="css/app.css?v=6bcccb1b3d">
 </head>
 
 <body>
@@ -34,6 +34,8 @@
         <button id="pickReset"
           style="font-family:inherit;font-size:12px;font-weight:600;line-height:1;color:#403d33;background:rgba(226,214,192,0.5);border:1px solid rgba(75,74,70,.26);border-radius:8px;padding:7px 10px;cursor:pointer;">Đặt
           lại</button>
+        <button id="pickFocus" title="Đưa camera tới vật đang chọn (phím F / bấm đúp)"
+          style="font-family:inherit;font-size:12px;font-weight:600;line-height:1;color:#403d33;background:rgba(226,214,192,0.5);border:1px solid rgba(75,74,70,.26);border-radius:8px;padding:7px 10px;cursor:pointer;">Tới</button>
         <button id="pickCopy"
           style="flex:1;font-family:inherit;font-size:12px;font-weight:600;line-height:1;color:#403d33;background:rgba(226,214,192,0.5);border:1px solid rgba(75,74,70,.26);border-radius:8px;padding:7px 10px;cursor:pointer;">Sao
           chép</button>
@@ -88,6 +90,8 @@
               title="Mẫu 3D xe: “Ford Transit L2H2” của geyges, giấy phép Sketchfab Standard (đã sửa thành xe nhà L3 tay lái nghịch, giảm lưới, nén; không được tách mẫu ra khỏi trang)">Xe: geyges</a>
             <a href="https://sketchfab.com/3d-models/nelson-racing-engine-b-d6049e7c74544f13b3247f7c597837fc" target="_blank" rel="noopener noreferrer"
               title="Mẫu 3D động cơ: “Nelson Racing Engine B” của Rudy, giấy phép CC BY 4.0 (đã gộp, giảm lưới giữ màu, nén)">Động cơ: Rudy</a>
+            <a href="https://sketchfab.com/3d-models/gaz-69-vehicle-chassis-frame-e67d8918300f4aaeaa783a6e3b7053be" target="_blank" rel="noopener noreferrer"
+              title="Mẫu 3D khung gầm: “GAZ-69 Vehicle Chassis / Frame” của Peter Gatchev, giấy phép CC BY 4.0 (bỏ lốp, vành, cản; kéo dài khung + các-đăng, hạ khung, lật trái–phải cho vừa xe Transit; giảm lưới, màu đỉnh, nén)">Khung gầm: Peter Gatchev</a>
             <a href="https://sketchfab.com/3d-models/grass-trimmer-machine-0f57fcf619a94150afc5202689fc0309" target="_blank" rel="noopener noreferrer"
               title="Mẫu 3D máy cắt cỏ đeo lưng: “Grass Trimmer Machine” của Xorshift, giấy phép CC BY 4.0 (đã tách bộ phận, bỏ ống mềm vẽ lại bằng code, giảm lưới, nén)">Máy cắt cỏ: Xorshift</a>
             <a href="https://sketchfab.com/3d-models/chicken-rigged-6e3b93c078114c52bfe4cfa08b9843eb" target="_blank" rel="noopener noreferrer"
@@ -98,6 +102,12 @@
               title="Mẫu 3D thiên hà: “Need some space?” của Loïc Norgeot, giấy phép CC BY 4.0 (căn tâm lõi, lọc còn 10 nghìn điểm, nén)">Thiên hà: Loïc Norgeot</a>
             <a href="https://sketchfab.com/3d-models/moon-4db2273f6dd943b8ad7fa5e3b1b2431a" target="_blank" rel="noopener noreferrer"
               title="Ảnh bề mặt trăng từ mẫu 3D “Moon” của Akshat, giấy phép CC BY 4.0 (chỉ dùng ảnh, thu 512 × 256 xám; pha trăng vẽ bằng shader)">Mặt trăng: Akshat</a>
+            <a href="https://sketchfab.com/3d-models/milky-way-skybox-hdri-panorama-b57711d6a450410ca612c4a36f08ce21" target="_blank" rel="noopener noreferrer"
+              title="Ảnh toàn cảnh Ngân Hà từ mẫu 3D “Milky Way Skybox HDRI panorama” của Aliaksandr.melas, giấy phép CC BY 4.0 (chỉ dùng ảnh, thu 1024 × 512 JPEG; quả cầu ảnh nổi khi ngắm sao vẽ bằng shader)">Ngân Hà: Aliaksandr.melas</a>
+            <a href="https://sketchfab.com/3d-models/blackhole-74cbeaeae2174a218fe9455d77902b5c" target="_blank" rel="noopener noreferrer"
+              title="Ảnh đĩa bồi tụ từ mẫu 3D “Blackhole” của rubykamen, giấy phép CC BY 4.0 (chỉ dùng ảnh đĩa: màu nền × alpha + ảnh phát sáng, thu 512² JPEG; hố đen + bẻ cong ánh sáng vẽ lại bằng shader)">Hố đen: rubykamen</a>
+            <a href="https://sketchfab.com/3d-models/jupiter-c5275eb96af245e4a8453837ac728a62" target="_blank" rel="noopener noreferrer"
+              title="Ảnh Jupiter từ mẫu 3D “jupiter” của Mieke Roth, giấy phép CC BY 4.0 (chỉ dùng ảnh màu, JPEG 1024 × 512; quả cầu, 4 trăng Galileo vẽ bằng code)">Jupiter: Mieke Roth</a>
             <a href="https://sketchfab.com/3d-models/p-0301-b-8fc4bc4bc44e423b98add2acde561995" target="_blank" rel="noopener noreferrer"
               title="Máy bơm + van từ mẫu 3D “P-0301 B” của athar_faz, giấy phép CC BY 4.0 (chỉ lấy bơm ly tâm, khớp nối, động cơ, 1 van; bỏ ống đo, thêm màu, giảm lưới, nén)">Máy bơm: athar_faz</a>
             <a href="https://sketchfab.com/3d-models/big-mushroom-agisoftnaturechallenge-95bbb65f57d34a55affdc22b7824e432" target="_blank" rel="noopener noreferrer"
@@ -115,12 +125,16 @@
       <small id="weather-mast-status">Đang tải…</small>
     </div>
 
-    <div class="ui panel sim-panel" id="simPanel" hidden aria-label="Chỉ số Engineer">
+    <div class="ui panel sim-panel" id="engPanel" hidden aria-label="Engineer">
+      <div class="eng-tabs" role="tablist" aria-label="Bảng Engineer">
+        <button type="button" role="tab" id="tabTools" aria-controls="toolsPanel" aria-selected="false"><i class="ti ti-tools" aria-hidden="true"></i>Tools</button>
+        <button type="button" role="tab" id="tabNeeds" aria-controls="simPanel" aria-selected="true"><i class="ti ti-heart" aria-hidden="true"></i>Nhu cầu</button>
+      </div>
+      <div id="simPanel" role="tabpanel" aria-labelledby="tabNeeds" hidden>
       <div class="sim-head">
         <span class="sim-plumbob" id="simPlumbob" aria-hidden="true"></span>
         <div class="sim-who"><b>Engineer</b><span id="simDoing"></span></div>
         <span class="sim-emo" id="simEmo"></span>
-        <button id="simTools" type="button" title="Tools — giao việc cho Engineer" aria-label="Mở bảng Tools"><i class="ti ti-tools"></i></button>
         <button id="simClose" type="button" aria-label="Đóng bảng chỉ số">✕</button>
       </div>
       <div class="sim-moods" id="simMoods"></div>
@@ -132,7 +146,7 @@
       <div id="simRel"></div>
     </div>
 
-    <div class="ui panel sim-panel" id="toolsPanel" hidden aria-label="Tools của Engineer">
+      <div id="toolsPanel" role="tabpanel" aria-labelledby="tabTools" hidden>
       <div class="sim-head">
         <i class="ti ti-tools tl-ic" aria-hidden="true"></i>
         <div class="sim-who"><b>Tools</b><span id="toolsDoing"></span></div>
@@ -140,9 +154,32 @@
       </div>
       <div class="ph">Bấm dụng cụ: Engineer làm việc đó</div>
       <div id="toolsList"></div>
+      </div>
     </div>
 
-    <div id="loading">Đang ghép voxel + line-art…</div>
+    <div id="loading" role="status" aria-live="polite"><b id="ldPct">0%</b><span id="ldBar"><i></i></span><small id="ldTxt">Đang tải mã cảnh…</small></div>
+    <script>
+      /* SỐ % LÚC MỞ TRANG (G 23/10 "add % loading number when start"): window.__ld(p, trần, chữ) — p: phần trăm chắc chắn đã xong; trần: mức cao nhất của chặng
+         đang chạy (lúc chờ mạng số bò dần về trần, không vượt); 100: hiện 100% rồi mờ dần. Chặng: tải mã cảnh 0–8 · three.js 8–18 · dựng cảnh 18–68 (core/boot.js,
+         build.py chèn nhịp) · mẫu 3D 68–85 · biên dịch shader 85–100 (loop/main-loop-rest.js) */
+      (() => {
+        const el = document.getElementById('loading'), pc = document.getElementById('ldPct'), bar = el.querySelector('#ldBar i'), tx = document.getElementById('ldTxt');
+        let lo = 0, hi = 8, t0 = performance.now(), last = t0, shown = 0, done = false;
+        const draw = v => { pc.textContent = Math.floor(v) + '%'; bar.style.transform = 'scaleX(' + (v / 100).toFixed(4) + ')'; };
+        const frame = now => {
+          if (done || el.style.display === 'none') return;
+          const goal = lo + (hi - lo) * (1 - Math.exp(-(now - t0) / 2500)), dt = Math.min(0.25, (now - last) / 1000); last = now;
+          shown = Math.min(goal, shown + Math.max(0, goal - shown) * Math.min(1, dt * 6)); draw(shown); requestAnimationFrame(frame);
+        };
+        window.__ld = (p, cap, label) => {
+          if (done) return;
+          if (p >= 100) { done = true; draw(100); el.classList.add('done'); setTimeout(() => { el.style.display = 'none'; }, 450); return; }
+          if (p > lo) { lo = p; t0 = performance.now(); }
+          hi = Math.max(lo, cap ?? lo); if (label) tx.textContent = label;
+        };
+        requestAnimationFrame(frame);
+      })();
+    </script>
     <div id="err"></div>
 
     <div id="vanLineBar" class="ui line-bar" title="Nét viền xe: 0 = trong suốt hoàn toàn · 100 = rõ hoàn toàn"><i class="ti ti-truck"></i><input id="vanLineRange" type="range" min="0" max="100" step="1" value="100" aria-label="Nét viền xe, 0 đến 100"><output id="vanLineVal" for="vanLineRange">100</output></div>
@@ -165,7 +202,7 @@
   <!-- thời tiết + đồng hồ Pleiku · dẫn đường bay côn trùng · dựng cảnh (giữ đúng thứ tự) -->
   <script src="js/weather.js?v=4ddd42d950"></script>
   <script src="js/flight-nav.js?v=55079b3f58"></script>
-  <script src="js/app.js?v=f88a71aef0"></script>
+  <script src="js/app.js?v=0ef72d7447"></script>
 </body>
 
 </html>

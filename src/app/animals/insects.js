@@ -1,8 +1,9 @@
         // ---- ĐOM ĐÓM (G 15/10: "study and improve đom đóm" — theo mẫu "Metal FireFly Final" của PJ/jpvamp, Sketchfab, CC-BY-4.0; chỉ đo + họ Lampyridae thật):
         //      thân thon dẹt; khiên ngực che đầu (cam, đốm sẫm giữa); mắt hổ phách to (mắt "đá quý" của mẫu); râu dài 2 đốt; cánh cứng sẫm viền vàng nhạt có
         //      2 gân đồng (gợi lồng cánh kim loại của mẫu) nâng chếch khi bay; cánh màng trong ~30% vỗ nhanh; 2 đốt bụng cuối là ĐÈN (ngà khi tắt → vàng
-        //      xanh rực khi chớp); 6 chân mảnh. Nháy kiểu Luciola: chớp ~0,5 s mỗi 2–2,6 s, giữa các lần chỉ le lói; lúc chớp bay vọt nhẹ lên (nét "J");
-        //      con gần nhau kéo nhịp về đồng bộ dần (ghép pha xung kiểu Mirollo–Strogatz) ----
+        //      xanh rực khi chớp); 6 chân mảnh. Nháy kiểu Luciola: chớp ~0,5 s, giữa các lần chỉ le lói; lúc chớp bay vọt nhẹ lên (nét "J").
+        //      G 23/10 "đom đóm phát sáng ở các tần số khác nhau, cả đàn không thể cùng sáng cùng tắt": bỏ ghép pha xung (Mirollo–Strogatz) — mỗi con 1 nhịp riêng
+        //      1,4–4 s, mỗi lần chớp lệch ngẫu nhiên ±15% ⇒ pha trôi dần, không bao giờ khớp; ~30% con chớp ĐÔI; con cái đậu cỏ đáp lời con đực gần đó sau 1,2–2 s ----
         const fireflies = [];
         function fireflyTex() { const c = document.createElement('canvas'); c.width = c.height = 32; const x = c.getContext('2d'); const g = x.createRadialGradient(16, 16, 0, 16, 16, 16); g.addColorStop(0, 'rgba(228,255,150,1)'); g.addColorStop(0.4, 'rgba(186,240,96,0.55)'); g.addColorStop(1, 'rgba(186,240,96,0)'); x.fillStyle = g; x.fillRect(0, 0, 32, 32); return new THREE.CanvasTexture(c); }
         const ffMap = fireflyTex();
@@ -42,17 +43,17 @@
           const ff = createFirefly(), i = (12 + (n % 3) * 9 + Math.random() * 3) * S, j = (32 + ((n / 3) | 0) * 3 + Math.random() * 2) * S, base = new THREE.Vector3(wx(i), surfaceY(i, j) + 1.2 + Math.random() * 1.2, wz(j));
           ff.g.position.copy(base); scene.add(ff.g);
           fireflies.push({ g: ff.g, wL: ff.wingL, wR: ff.wingR, elL: ff.elL, elR: ff.elR, lampM: ff.lampM, sp: ff.glowSprite, base: base.clone(), target: base.clone(), timer: 2.0 + Math.random() * 3.0, ph: Math.random() * 6.28, r: 1.7 + Math.random() * 1.3, spd: 0.35 + Math.random() * 0.3, state: 'moving', currentSpd: 0,
-            per: 2.0 + Math.random() * 0.6, fp: Math.random(), fl: 9 });   // chu kỳ gần nhau (2,0–2,6 s) ⇒ ghép xung đủ kéo các con gần nhau về cùng nhịp
+            per: 1.4 + Math.random() * 2.6, fp: Math.random(), fl: 9, dbl: Math.random() < 0.3 });   // nhịp riêng 1,4–4 s · ~30% chớp đôi
         }
         // ĐOM ĐÓM QUANH CÂY CỔ THỤ (G 21/10 "đom đóm bay quanh khu đó"): đom đóm ưa chỗ ẩm có cây gần nước, bay thấp 0,5–3 m; vài loài (Pteroptyx — rừng ngập
-        //  mặn Đông Nam Á) tụ trên 1 cây và nháy ĐỒNG LOẠT; con cái thường đậu trên cỏ, nháy đáp lời con đực. ⇒ 12 con quanh gốc (89, 117) bờ sông: 9 con đực lượn
-        //  trong vòng 7 m (lên tới tán), 3 con cái đậu trên thảm cỏ quanh gốc (không bay, đèn yếu hơn, nhịp chậm hơn chút); cụm dày ⇒ ghép xung kéo cả cây chớp cùng nhịp
+        //  mặn Đông Nam Á) tụ trên 1 cây và nháy đồng loạt; con cái thường đậu trên cỏ, nháy đáp lời con đực. ⇒ 12 con quanh gốc (89, 117) bờ sông: 9 con đực lượn
+        //  trong vòng 7 m (lên tới tán), 3 con cái đậu trên thảm cỏ quanh gốc (không bay, đèn yếu hơn, nhịp chậm hơn); G 23/10: không đồng loạt nữa (xem đầu tệp)
         { const OT = new THREE.Vector3(X0 + 89, 0, Z0 + 117), rr = mulberry32(9393);
           for (let n = 0; n < 12; n++) {
             const ff = createFirefly(), perch = n < 3, a = n / 12 * TAU + rr() * 0.4, r = perch ? 1.6 + rr() * 2.2 : 1.5 + rr() * 5, x = OT.x + Math.cos(a) * r, z = OT.z + Math.sin(a) * r;
             const base = new THREE.Vector3(x, cowY(x, z) + (perch ? 0.12 : 0.6 + rr() * 2.4), z); ff.g.position.copy(base); ff.g.rotation.y = rr() * TAU; scene.add(ff.g);
             fireflies.push({ g: ff.g, wL: ff.wingL, wR: ff.wingR, elL: ff.elL, elR: ff.elR, lampM: ff.lampM, sp: ff.glowSprite, base: base.clone(), target: base.clone(), timer: 1 + rr() * 3, ph: rr() * 6.28, r: 1.5, spd: 0.3 + rr() * 0.25, state: 'paused', currentSpd: 0,
-              per: perch ? 2.5 + rr() * 0.4 : 2.0 + rr() * 0.6, fp: rr(), fl: 9, home: OT, rad: 7, perch, dim: perch ? 0.65 : 1 });
+              per: perch ? 3 + rr() * 1.5 : 1.4 + rr() * 2.6, fp: rr(), fl: 9, home: OT, rad: 7, perch, dim: perch ? 0.65 : 1, dbl: !perch && rr() < 0.3 });
           } }
 
         const flightRootNames = new Set([
@@ -213,7 +214,7 @@
           };
           const wingL = mkWing(1), wingR = mkWing(-1);
           wingL.userData.noBake = wingR.userData.noBake = true; bakeStatic(g);   // thân + râu gộp, 2 cánh giữ động
-          g.scale.setScalar(0.78 * NATURE_SCALE); return { g, wingL, wingR };
+          g.scale.setScalar(0.78 * 0.9 * NATURE_SCALE); return { g, wingL, wingR };   // G 23/10: nhỏ lại 10%
         }
         function pickBflyTarget(from = null, out = new THREE.Vector3()) {
           for (let attempt = 0; attempt < 80; attempt++) {
@@ -229,7 +230,7 @@
           throw new Error('Không tìm được điểm bay an toàn cho bướm.');
         }
         function nextButterflyTarget(bf) {
-          if (!envBflyLure(bf)) pickBflyTarget(bf.pos, bf.target);   // ~1/4 số lần: bay tới quanh kỹ sư đang ở ngoài trời (engineer/env-react.js)
+          if (!envBflyLure(bf)) pickBflyTarget(bf.pos, bf.target);   // ~1/4 số lần: bay tới quanh kỹ sư đang ở ngoài trời (engineer/mind/env-react.js)
         }
         for (let n = 0; n < 6; n++) {
           const sp = BF_SP[n], bt = butterfly(sp);

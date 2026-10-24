@@ -429,7 +429,7 @@
             const petting = engObj && (engObj.phase === 'toDog' || engObj.phase === 'pet');
             if (B.st !== 'stars' && !B.pc && skyWatch.dogWant()) toStars();
             switch (B.st) {
-              case 'stars': {   // chủ nằm ngắm sao (engineer/sky-watch.js): tới chỗ sát thảm phía không có kính → quay song song chủ → nằm lim dim; sao băng thì ngẩng nhìn theo, đuôi đập đất
+              case 'stars': {   // chủ nằm ngắm sao (engineer/tasks/sky-watch.js): tới chỗ sát thảm phía không có kính → quay song song chủ → nằm lim dim; sao băng thì ngẩng nhìn theo, đuôi đập đất
                 const Q = skyWatch.dogSpot(); if (!Q || !skyWatch.dogWant()) { setSt('return'); break; }
                 if (!B.sg) { const d = Math.hypot(Q.x - p.x, Q.z - p.z); B.mode = 'stand'; B.wagAmp = 0.35; B.wagF = 2.4; if (E) B.look = _hp.copy(E.g.position).setY(E.g.position.y + 0.4);
                   if (steer(Q.x, Q.z, d > 3 ? 1.5 : 0.7, dt, d > 2 ? (starF && starF.q === Q ? starF.f : (starF = { q: Q, f: dogBlk ? buildFlowField(Q.x, Q.z, dogBlk, 0.5) : buildFlowField(Q.x, Q.z) }).f) : null, 0.1) || B.k > 60) { B.sg = 1; B.k = 0; }
@@ -493,7 +493,7 @@
               case 'follow': {   // đi theo chủ: giữ ~1,6 m phía sau–bên; xa thì chạy nước kiệu / phi; chủ đứng yên thì ngồi nhìn
                 if (!E || B.t <= 0) { B.patAt = null; setSt('return'); break; }
                 const ep = E.g.position, ey = E.g.rotation.y, fx = Math.sin(ey), fz = Math.cos(ey), d = Math.hypot(ep.x - p.x, ep.z - p.z);
-                if (B.patAt) {   // chủ gọi lại xoa đầu (engineer/reactions.js): tới trước mặt chủ, ngồi ngẩng nhìn, đuôi vẫy tít
+                if (B.patAt) {   // chủ gọi lại xoa đầu (engineer/mind/reactions.js): tới trước mặt chủ, ngồi ngẩng nhìn, đuôi vẫy tít
                   B.t = Math.max(B.t, 3); B.look = _hp.copy(ep).setY(ep.y + 1.2); B.wagAmp = engPetting ? 0.75 : 0.55; B.wagF = engPetting ? 3.4 : 2.8;
                   B.patReady = steer(B.patAt.x, B.patAt.z, 0.9, dt, null, 0.12);
                   if (B.patReady) { B.want = 0; B.mode = 'sit'; dogTurn(yawOf(ep.x - p.x, ep.z - p.z), dt * 4); }

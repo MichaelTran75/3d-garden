@@ -12,10 +12,11 @@
         const SF_BT = { value: null }, SF_BTK = { value: 0 }, SF_WET = { value: 0 }, SF_NO = { value: new THREE.Vector2(0, -1) };   // SF_WET: độ ẩm rêu (nature/clouds-rain.js) · SF_NO: hướng bắc (xz)
         function sfBarkTex() {
           if (SF_BT.loading) return; SF_BT.loading = 1;
-          new THREE.TextureLoader().load(window.__barkTex || 'https://michaeltran75.github.io/3d-garden/models/bark-scan.jpg', t => {
-            t.colorSpace = THREE.SRGBColorSpace; t.wrapS = THREE.RepeatWrapping; t.wrapT = THREE.MirroredRepeatWrapping; t.anisotropy = 4; SF_BT.value = t; SF_BTK.value = 1; });
+          ldTrack(new Promise(ldR => new THREE.TextureLoader().load(window.__barkTex || 'https://michaeltran75.github.io/3d-garden/models/bark-scan.jpg', t => {
+            t.colorSpace = THREE.SRGBColorSpace; t.wrapS = THREE.RepeatWrapping; t.wrapT = THREE.MirroredRepeatWrapping; t.anisotropy = 4; SF_BT.value = t; SF_BTK.value = 1; ldR(); }, undefined, ldR)));
         }
         const SF_KIND = { concrete: 1, stucco: 2, boards: 3, woodAO: 4, bark: 5 };
+        const SF_WALL_T = [0, 1.31, 0.64, 0.94, 0.98];   // ngưỡng mảng rêu tường theo loại (bê tông · vữa · ván · gỗ chuồng) ⇒ mỗi loại phủ ~5% mặt đứng (lấy mẫu theo diện tích trên tường thật trong cảnh)
         function sfHeightTex() {   // cowY tại tâm từng ô lưới GX × GZ (nước: mặt nước) — đọc lân cận gần nhất trong shader
           const d = new Float32Array(GX * GZ);
           for (let j = 0; j < GZ; j++) for (let i = 0; i < GX; i++) d[i + j * GX] = cowY(wx(i), wz(j));
@@ -139,6 +140,18 @@
                     c += vec3(0.08, 0.1, 0.02) * pow(1.0 - abs(dot(wn, normalize(cameraPosition - vSfP))), 3.0) * k * (0.5 + 0.5 * uSfWet);   // ánh nhung — ướt bóng hơn
                   }
                   #endif
+                #endif
+                #if ${K} < 5
+                {   // RÊU TƯỜNG (G 23/10 "add 5% rêu lên tường building"): rêu / tảo bám chỗ ẩm lâu khô — mặt khuất nắng hướng bắc, chân tường (mưa bắn, ẩm leo),
+                    // vệt nước chảy dọc tường, mặt thoát nước kém; rêu cần bề mặt xốp ẩm liên tục. Mảng loang theo các yếu tố đó, mép lấm tấm ⇒ phủ ~5% mặt đứng (SF_WALL_T)
+                  float nfw = dot(normalize(wn.xz + 1e-4), uSfNo) * wf, spl = 1.0 - smoothstep(0.05, 0.9, hA);
+                  float drp = smoothstep(0.62, 0.8, sfN(vec2(u * 2.6, y * 0.11) + 51.0)) * (1.0 - smoothstep(0.4, 3.5, hA));   // vệt nước chảy, nhạt dần lên cao
+                  float pat = 0.42 * sfN(vec2(u, y) * 1.7 + 61.0) + 0.28 * sfN(vec2(u, y) * 5.3 + 67.0) + 0.6 * spl + 0.15 * nfw + 0.38 * drp;   // dồn ở chân tường + vệt nước (vữa: 65% rêu dưới 1,2 m)
+                  float wm = smoothstep(${SF_WALL_T[K < 5 ? K : 0].toFixed(3)}, ${(SF_WALL_T[K < 5 ? K : 0] + 0.1).toFixed(3)}, pat) * wf * (0.55 + 0.45 * smoothstep(0.25, 0.6, sfN(vec2(u, y) * 19.0 + 71.0)));
+                  vec3 mW = mix(vec3(0.27, 0.36, 0.09), vec3(0.15, 0.3, 0.07), sfN(vec2(u, y) * 0.8 + 77.0));   // thảm bóng vàng xanh ↔ đệm xanh thẫm
+                  mW = mix(mix(mW, vec3(dot(mW, vec3(0.3, 0.59, 0.11))) * vec3(1.15, 1.0, 0.62), 0.32), mW * vec3(0.85, 1.05, 0.9), uSfWet);   // khô xỉn ô liu · ướt thẫm tươi
+                  c = mix(c, mW, 0.8 * wm); sfHg += 0.0015 * wm;
+                }
                 #endif
                 float ao = mix(0.56, 1.0, smoothstep(0.0, 1.3, hA));   // chân tường tối dần + ám bẩn nâu
                 c *= mix(1.0, ao, wf); c = mix(c, c * vec3(0.86, 0.77, 0.64), (1.0 - smoothstep(0.0, 0.8, hA)) * 0.6 * wf);

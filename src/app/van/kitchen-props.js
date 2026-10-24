@@ -7,7 +7,7 @@
           shell.castShadow = true; g.add(shell);
           const rim = new THREE.Mesh(new THREE.TorusGeometry(0.0855, 0.0035, 4, 24), new THREE.MeshLambertMaterial({ color: 0x2f4f7c })); rim.rotation.x = Math.PI / 2; rim.position.y = 0.067; g.add(rim);   // viền men xanh
           const food = new THREE.Group(); food.name = 'Udon trong bát'; food.position.y = 0.058; g.add(food); g.userData.food = food;
-          steamGeo = steamGeo || new THREE.IcosahedronGeometry(0.026, 1);   // hơi nóng (G 15/10): 4 cụm nhỏ, cập nhật ở engineer/cooking.js (udonSteam)
+          steamGeo = steamGeo || new THREE.IcosahedronGeometry(0.026, 1);   // hơi nóng (G 15/10): 4 cụm nhỏ, cập nhật ở engineer/tasks/cooking.js (udonSteam)
           g.userData.steam = [0, 1, 2, 3].map(i => { const m = new THREE.Mesh(steamGeo, new THREE.MeshBasicMaterial({ color: 0xf4f6f8, transparent: true, opacity: 0, depthWrite: false })); m.visible = false; m.userData.noBatch = true; m.raycast = () => {}; m.renderOrder = 3; g.add(m); return { m, ph: i / 4 }; });
           const broth = new THREE.Mesh(new THREE.CircleGeometry(0.077, 20), new THREE.MeshLambertMaterial({ color: 0xc89a5c })); broth.rotation.x = -Math.PI / 2; food.add(broth);
           const noodleM = new THREE.MeshLambertMaterial({ color: 0xf4ecd4 });

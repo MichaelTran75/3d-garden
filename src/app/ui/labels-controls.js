@@ -179,7 +179,7 @@
           coordMoved = true;
         });
         listen(dom, 'pointerleave', () => { coordTip.style.display = 'none'; coordMoved = false; });
-        listen(dom, 'wheel', e => { e.preventDefault(); camera.zoom *= (e.deltaY > 0 ? 0.92 : 1.08); camera.zoom = Math.max(0.5, Math.min(30.0, camera.zoom)); camera.updateProjectionMatrix(); }, { passive: false });
+        listen(dom, 'wheel', e => { e.preventDefault(); const z0 = camera.zoom; camera.zoom *= (e.deltaY > 0 ? 0.92 : 1.08); camera.zoom = Math.max(0.5, Math.min(Math.max(30.0, z0), camera.zoom)); camera.updateProjectionMatrix(); }, { passive: false });   // đang cận cảnh > 30 (bám drone) ⇒ lăn ra êm, không giật về 30
         const bR = document.getElementById('btnRotate'), bL = document.getElementById('btnLabels'), bRe = document.getElementById('btnReset');
         function tbIcon(b, icon, label) { b.innerHTML = '<i class="ti ti-' + icon + '"></i>'; b.title = label; b.setAttribute('aria-label', label); }   // thanh nút tối giản (G 18/10): chỉ biểu tượng, tên ở chú thích
         if (bR) listen(bR, 'click', () => { autoRotate = !autoRotate; tbIcon(bR, 'player-' + (autoRotate ? 'pause' : 'play'), autoRotate ? 'Tự xoay' : 'Tự xoay (đang dừng)'); });
@@ -212,7 +212,48 @@
         let pickMode = false, pickDownX = 0, pickDownY = 0, pickTarget = null;
         const pickRay = new THREE.Raycaster(); pickRay.layers.enableAll();   // mảnh hình đã gộp vẽ nằm ở lớp ẩn HIDE_LAYER — vẫn chọn được
         const pickBox = new THREE.Box3Helper(new THREE.Box3(), 0xff2d55); pickBox.visible = false; pickBox.renderOrder = 30; scene.add(pickBox);
-        function clearPickHighlight() { pickBox.visible = false; pickPanel.style.display = 'none'; pickEditRow.style.display = 'none'; pickTarget = null; }
+        // G 24/10 "research and study để improve chọn vật thể button" — theo Unity Scene picking (bấm chọn; bấm lặp chỗ chồng lấn ⇒ xoay vòng các vật; khung vật
+        //  chọn khác màu phần con; phím F khung camera vào vật chọn): RÊ CHUỘT ⇒ khung trắng + tên vật dưới con trỏ (trễ 0,12 s, 1 tia mỗi lần dừng tay) · BẤM ⇒
+        //  chọn CẢ VẬT (tổ tiên có tên cao nhất: cả kính, cả cây, cả xe) · bấm lại đúng chỗ ⇒ sâu 1 cấp (phần có tên → mảnh → bản sao trong cụm hoa / cỏ) · Alt +
+        //  bấm ⇒ vật phía sau dọc tia (xoay vòng) · bấm đúp / F / nút "Tới" ⇒ camera lướt tới, zoom vừa vật, bám theo nếu vật di chuyển · Esc ⇒ bỏ chọn, lần nữa ⇒
+        //  thoát chế độ. Khung đỏ bám vật đang di chuyển (10 lần / giây). Bảng có thêm kích thước + cấp đang chọn + dòng hướng dẫn.
+        const pickHovBox = new THREE.Box3Helper(new THREE.Box3(), 0xffffff); pickHovBox.visible = false; pickHovBox.renderOrder = 29; pickHovBox.material.transparent = true; pickHovBox.material.opacity = 0.75; scene.add(pickHovBox);
+        const pickHov = document.createElement('div'); pickHov.style.cssText = 'position:fixed;z-index:40;pointer-events:none;display:none;padding:3px 7px;border-radius:6px;font:600 11.5px/1.3 system-ui,sans-serif;color:#2b2922;background:rgba(246,240,228,.93);border:1px solid rgba(75,74,70,.25);box-shadow:0 2px 6px rgba(60,50,30,.18);white-space:nowrap';
+        document.body.appendChild(pickHov); sceneEvents.signal.addEventListener('abort', () => pickHov.remove());
+        const PK = { lvl: 0, ti: 0, x: -1e9, y: -1e9, t: 0, top: null, sel: null, hovH: 0, upT: 0, boxT: 0, pv: { ti: 0, lvl: 0 } };
+        function pickHits(cx, cy) {   // mọi vật dọc tia (bỏ ghim, trục, khung chọn)
+          const r = dom.getBoundingClientRect(); pickRay.setFromCamera(new THREE.Vector2(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1), camera);
+          return pickRay.intersectObjects(scene.children, true).filter(h => { let o = h.object; if (o.userData.pickSkip) return false; while (o) { if (o === pin || o === axesGroup || o === pickBox || o === pickHovBox) return false; o = o.parent; } return true; });
+        }
+        function pickLevels(hit) {   // cấp chọn: cả vật (tên cao nhất) → phần có tên gần nhất → mảnh (bỏ cấp này với cụm instanced — trải cả bản đồ) → bản sao
+          const ch = []; for (let p = hit.object; p && p !== scene; p = p.parent) ch.push(p);
+          const named = ch.filter(o => o.name), lv = [], add = (o, inst = null) => { if (o && !lv.some(l => l.o === o && l.inst === inst)) lv.push({ o, inst }); };
+          add(named[named.length - 1] || hit.object); add(named[0]); if (!hit.object.isInstancedMesh) add(hit.object); else if (hit.instanceId != null) add(hit.object, hit.instanceId);   // không tổ tiên nào có tên (nhóm chung của cảnh, địa hình): chọn ngay mảnh trúng tia, khỏi chọn cả khối lớn vô danh
+          return lv;
+        }
+        function pickBoxOf(L) { return L.inst != null ? worldBoxOf(L.o, L.inst) : L.o.isMesh ? worldBoxOf(L.o) : new THREE.Box3().setFromObject(L.o); }
+        function pickHover(cx, cy) {
+          if (!pickMode) return; const hits = pickHits(cx, cy); if (!hits.length) { pickHovBox.visible = false; pickHov.style.display = 'none'; return; }
+          const top = pickLevels(hits[0])[0].o; if (PK.sel && PK.top === top) { pickHovBox.visible = false; pickHov.style.display = 'none'; return; }
+          pickHovBox.box.setFromObject(top); pickHovBox.visible = !pickHovBox.box.isEmpty();
+          pickHov.textContent = (top.name || top.type) + ' · bấm để chọn'; pickHov.style.left = (cx + 14) + 'px'; pickHov.style.top = (cy + 16) + 'px'; pickHov.style.display = 'block';
+        }
+        function pickFrame() {   // camera lướt tới vật đang chọn, zoom vừa (vật cao ~40% khung), bám theo
+          if (!PK.sel) return; const box = pickBoxOf(PK.sel); if (box.isEmpty()) return; const s = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
+          let o = PK.sel.o; if (PK.sel.inst != null) { o = PK.anc || (PK.anc = new THREE.Object3D()); o.position.copy(c); o.updateMatrixWorld(); }   // bản sao trong cụm: mốc đứng yên ở tâm
+          camFollow(o, Math.max(0.5, Math.min(30, 72 / Math.max(0.3, s.x, s.y, s.z))), { exact: true, off: c.sub(o.getWorldPosition(new THREE.Vector3())) });
+        }
+        function pickTick(t) {   // mỗi khung: khung đỏ bám vật đang di chuyển (10 lần / giây)
+          if (!PK.sel || !pickBox.visible || t - PK.boxT < 0.1) return; PK.boxT = t; const b = pickBoxOf(PK.sel); if (!b.isEmpty()) pickBox.box.copy(b);
+        }
+        listen(dom, 'pointermove', e => { if (!pickMode) return; clearTimeout(PK.hovH); PK.hovH = setTimeout(() => pickHover(e.clientX, e.clientY), 120); });
+        listen(dom, 'pointerleave', () => { clearTimeout(PK.hovH); pickHovBox.visible = false; pickHov.style.display = 'none'; });
+        listen(window, 'keydown', e => {
+          if (!pickMode || (e.target && ['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName))) return;
+          if (e.key === 'Escape') { if (PK.sel) clearPickHighlight(); else bP?.click(); }
+          else if (e.key === 'f' || e.key === 'F') pickFrame();
+        });
+        function clearPickHighlight() { pickBox.visible = false; pickPanel.style.display = 'none'; pickEditRow.style.display = 'none'; pickTarget = null; PK.sel = PK.top = null; }
         function fmtN(n) { return (Math.round(n * 1000) / 1000).toString(); }
         function worldBoxOf(obj, instanceId) {   // Box3 thế giới của mesh (hoặc đúng 1 instance riêng) — dùng vẽ khung viền đỏ
           const box = new THREE.Box3();
@@ -227,13 +268,13 @@
           } else box.setFromObject(obj);
           return box;
         }
-        function showPickInfo(hit) {
-          const obj = hit.object;
+        function showPickInfo(hit, L = { o: hit.object, inst: hit.instanceId ?? null }, lvl = 0, nLvl = 1, ti = 0, nTop = 1) {
+          const obj = L.o;
           const lines = [];
           const posW = new THREE.Vector3(), quatW = new THREE.Quaternion(), scaleW = new THREE.Vector3();
-          const isInst = obj.isInstancedMesh && hit.instanceId != null;
+          const isInst = obj.isInstancedMesh && L.inst != null;
           if (isInst) {
-            const id = hit.instanceId;
+            const id = L.inst;
             const instMat = new THREE.Matrix4(); obj.getMatrixAt(id, instMat);
             new THREE.Matrix4().multiplyMatrices(obj.matrixWorld, instMat).decompose(posW, quatW, scaleW);
             lines.push(`Loại: InstancedMesh — instance #${id} / ${obj.count}`);
@@ -254,12 +295,17 @@
           lines.push(`Vị trí (Ghim): X=${fmtN(posW.x - X0)}  Y=${fmtN(posW.y)}  Z=${fmtN(posW.z - Z0)}`);
           lines.push(`Xoay (rad): x=${fmtN(eulerW.x)}  y=${fmtN(eulerW.y)}  z=${fmtN(eulerW.z)}`);
           lines.push(`Scale: x=${fmtN(scaleW.x)}  y=${fmtN(scaleW.y)}  z=${fmtN(scaleW.z)}`);
+          const box = pickBoxOf(L), sz = box.getSize(new THREE.Vector3()); lines.push(`Kích thước: ${fmtN(sz.x)} × ${fmtN(sz.y)} × ${fmtN(sz.z)} (rộng × cao × sâu)`);
+          if (!obj.isMesh && obj.children.length) lines.push(`Gồm: ${obj.children.length} phần`);
+          lines.push(`Cấp chọn: ${['cả vật', 'phần', 'mảnh', 'bản sao'][Math.min(3, lvl + (lvl && isInst && nLvl - 1 === lvl ? 3 - lvl : 0))]} (${lvl + 1}/${nLvl})` + (nTop > 1 ? ` · vật ${ti + 1}/${nTop} dọc tia` : ''));
+          lines.push('Bấm lại đúng chỗ: cấp nhỏ hơn · Alt + bấm: vật phía sau · F / bấm đúp / Tới: camera tới vật · Esc: bỏ chọn');
+          PK.sel = { o: obj, inst: isInst ? L.inst : null };
           pickTitle.textContent = groupName || obj.type;
           pickBody.textContent = lines.join('\n');
           pickPanel.style.display = 'block';
           pickEditRow.style.display = 'block';
           pickXIn.value = fmtN(posW.x - X0); pickYIn.value = fmtN(posW.y); pickZIn.value = fmtN(posW.z - Z0);
-          pickBox.box.copy(worldBoxOf(obj, isInst ? hit.instanceId : null)); pickBox.visible = true;
+          pickBox.box.copy(box); pickBox.visible = true; pickHovBox.visible = false; pickHov.style.display = 'none';
         }
         // ---- sửa X/Y/Z (toạ độ Ghim) trực tiếp trên ô nhập → object di chuyển ngay để xem trước, không cần tải lại trang ----
         function applyPickPosition() {
@@ -295,15 +341,19 @@
           pickBox.box.copy(worldBoxOf(obj, pickTarget.isInstanced ? pickTarget.instanceId : null));
           refreshFlightNavigation();
         });
-        function doPick(clientX, clientY) {
-          const r = dom.getBoundingClientRect();
-          const pndc = new THREE.Vector2(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1);
-          pickRay.setFromCamera(pndc, camera);
-          const hits = pickRay.intersectObjects(scene.children, true).filter(h => { let o = h.object; if (o.userData.pickSkip) return false; while (o) { if (o === pin || o === axesGroup || o === pickBox) return false; o = o.parent; } return true; });
+        function doPick(clientX, clientY, alt) {
+          const hits = pickHits(clientX, clientY), now = performance.now();
           if (!hits.length) { clearPickHighlight(); return; }
-          showPickInfo(hits[0]);
+          const same = PK.top && Math.hypot(clientX - PK.x, clientY - PK.y) < 8 && now - PK.t < 2500, dbl = same && now - PK.upT < 320 && !alt;
+          const tops = []; for (const h of hits) { const L = pickLevels(h); if (!tops.some(x => x.L[0].o === L[0].o)) tops.push({ h, L }); }   // mỗi vật 1 lần (nhiều mảnh cùng vật dọc tia)
+          if (dbl) { PK.ti = PK.pv.ti; PK.lvl = PK.pv.lvl; }   // bấm đúp: trả lại cấp trước lần bấm thứ nhất của cặp rồi đưa camera tới vật đó
+          else { PK.pv = same ? { ti: PK.ti, lvl: PK.lvl } : { ti: 0, lvl: 0 }; if (same && alt) { PK.ti = (PK.ti + 1) % tops.length; PK.lvl = 0; } else if (same) PK.lvl++; else { PK.ti = 0; PK.lvl = 0; } }
+          PK.upT = dbl ? 0 : now;
+          const T = tops[Math.min(PK.ti, tops.length - 1)]; PK.lvl %= T.L.length; PK.x = clientX; PK.y = clientY; PK.t = now; PK.top = T.L[0].o;
+          showPickInfo(T.h, T.L[PK.lvl], PK.lvl, T.L.length, PK.ti, tops.length); if (dbl) pickFrame();
         }
         listen(dom, 'pointerdown', e => { if (e.button !== 0) return; pickDownX = e.clientX; pickDownY = e.clientY; });
-        listen(dom, 'pointerup', e => { if (e.button !== 0 || !pickMode) return; if (Math.hypot(e.clientX - pickDownX, e.clientY - pickDownY) > 6) return; doPick(e.clientX, e.clientY); });
-        if (bP) listen(bP, 'click', () => { pickMode = !pickMode; bP.classList.toggle('active', pickMode); dom.style.cursor = pickMode ? 'crosshair' : ''; if (!pickMode) clearPickHighlight(); });
+        listen(dom, 'pointerup', e => { if (e.button !== 0 || !pickMode) return; if (Math.hypot(e.clientX - pickDownX, e.clientY - pickDownY) > 6) return; doPick(e.clientX, e.clientY, e.altKey); });
+        { const f = document.getElementById('pickFocus'); if (f) listen(f, 'click', pickFrame); }
+        if (bP) listen(bP, 'click', () => { pickMode = !pickMode; bP.classList.toggle('active', pickMode); dom.style.cursor = pickMode ? 'crosshair' : ''; if (!pickMode) { clearPickHighlight(); clearTimeout(PK.hovH); pickHovBox.visible = false; pickHov.style.display = 'none'; } });
 

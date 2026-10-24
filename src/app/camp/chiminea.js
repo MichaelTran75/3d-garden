@@ -7,7 +7,7 @@
         //  KHÓI = sợi khói Navier–Stokes như lửa trại (nature/fluids.js, nguồn thứ 2): đáy miền = miệng ống, NÓN là ô đặc trong lưới ⇒ khói dội
         //  vào mặt dưới nón, toả ra theo khe giữa miệng ống và nón, vòng qua mép nón rồi mới bốc lên (không xuyên qua nón).
         //  CHỈ CHÁY KHI MƯA (G 15/10): mưa thì lửa trại tắt (campRain, camp/chairs-lantern-fire.js), lửa chuyển sang lò; tạnh mưa lò tàn dần.
-        //  BỎ THÊM CỦI (G 20/10 "khi click vào chiminea thì bỏ thêm củi" — engineer/tool-jobs.js woodJob): addWood() ⇒ 2 khúc mới nằm chéo trên đống than
+        //  BỎ THÊM CỦI (G 20/10 "khi click vào chiminea thì bỏ thêm củi" — engineer/tasks/tool-jobs.js woodJob): addWood() ⇒ 2 khúc mới nằm chéo trên đống than
         //  + 10 phút nhiên liệu (F, trần 15 phút) — lò cháy cả khi không mưa: lửa bùng ~8 s (thay vì bén 40 s), khúc củi mới cháy nhỏ dần theo F ----
         const chiminea = (() => {
           const W = 0.52, D = 0.5, H = 0.42, YB = 0.3, TK = 0.014, OW = 0.36, OH = 0.28, RB = 0.063;   // buồng đốt rộng (x) · sâu (z) · cao · đáy cách đất · dày thép · ô cửa · đố dưới

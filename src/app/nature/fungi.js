@@ -67,8 +67,8 @@
           }
           // ---- nạp mẫu (XOR → GLB) · 1 InstancedMesh mỗi loại; ma trận mỗi bản = chỗ đặt × phép giải lượng tử của nút lưới ----
           const FUNGI_BIN = window.__fungiBin || 'https://michaeltran75.github.io/3d-garden/models/fungi.bin';
-          Promise.all([import('https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js'), import('https://esm.sh/three@0.160.0/examples/jsm/libs/meshopt_decoder.module.js'),
-            fetch(FUNGI_BIN).then(r => r.ok ? r.arrayBuffer() : Promise.reject(new Error('HTTP ' + r.status)))]).then(([{ GLTFLoader }, { MeshoptDecoder }, buf]) => {
+          ldTrack(Promise.all([import('https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js'), import('https://esm.sh/three@0.160.0/examples/jsm/libs/meshopt_decoder.module.js'),
+            fetch(FUNGI_BIN).then(r => r.ok ? r.arrayBuffer() : Promise.reject(new Error('HTTP ' + r.status))), ldGate]).then(([{ GLTFLoader }, { MeshoptDecoder }, buf]) => {
             const b = new Uint8Array(buf); let s = 0x2545F491; for (let i = 0; i < b.length; i++) { s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0; b[i] ^= s & 255; }
             new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parse(b.buffer, '', gl => {
               const mat = new THREE.MeshLambertMaterial({ vertexColors: true }), NAME = { bracket: 'Nấm giá trên gỗ (Bracket Fungus)', fly: 'Nấm đỏ chấm trắng (Fly Agaric)', cluster: 'Cụm nấm nâu (Mushroom Cluster)' };
@@ -86,6 +86,6 @@
               hm.computeBoundingSphere(); hm.name = 'Quầng sáng nấm phát quang'; hm.renderOrder = 3; hm.visible = false; hm.userData.noBatch = hm.userData.noBake = hm.userData.noCollide = true; scene.add(hm);   // billboard: dời đỉnh trong hệ nhìn ⇒ luôn quay về camera
               G.mats = [matB, matC]; G.halo = hm;
             }, err => console.warn('Fungi:', err));
-          }).catch(err => console.warn('Fungi:', err));
+          }).catch(err => console.warn('Fungi:', err)));
           return { M, glow };
         })();

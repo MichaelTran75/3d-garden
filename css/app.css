@@ -337,11 +337,49 @@
       position: absolute;
       inset: 0;
       display: flex;
+      flex-direction: column;
+      gap: 9px;
       align-items: center;
       justify-content: center;
       z-index: 8;
       color: #6a6450;
       font-size: 14px;
+      transition: opacity .4s ease;
+    }
+
+    #loading.done {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    #ldPct {
+      font-size: 34px;
+      font-weight: 600;
+      line-height: 1;
+      letter-spacing: .5px;
+      font-variant-numeric: tabular-nums;
+      color: #5b5543;
+    }
+
+    #ldBar {
+      width: 170px;
+      height: 3px;
+      border-radius: 2px;
+      background: rgba(106, 100, 80, .18);
+      overflow: hidden;
+    }
+
+    #ldBar i {
+      display: block;
+      height: 100%;
+      background: #6a6450;
+      transform: scaleX(0);
+      transform-origin: 0 50%;
+    }
+
+    #ldTxt {
+      font-size: 12.5px;
+      color: #7d7660;
     }
 
     #err {
@@ -838,6 +876,50 @@
       display: none;
     }
 
+    /* G 24/10 "2 tabs: 1 tab Tools, 1 tab Nhu cầu": bảng Engineer (nhu cầu) và bảng Tools gộp 1 khung #engPanel, 2 thẻ ở đầu kiểu nút chia đoạn */
+    .eng-tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+      margin: -2px -4px 10px;
+      padding: 3px;
+      border-radius: 8px;
+      background: rgba(23, 22, 19, 0.08);
+    }
+
+    .eng-tabs button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      border: 0;
+      border-radius: 6px;
+      padding: 5px 6px;
+      background: transparent;
+      color: #4a4639;
+      font: 600 12px system-ui, sans-serif;
+      cursor: pointer;
+    }
+
+    .eng-tabs button .ti {
+      font-size: 14px;
+    }
+
+    .eng-tabs button[aria-selected="true"] {
+      background: rgb(246, 240, 228);
+      color: #171613;
+      box-shadow: 0 1px 3px rgba(60, 50, 30, .2);
+    }
+
+    .eng-tabs button:hover:not([aria-selected="true"]) {
+      background: rgba(23, 22, 19, 0.06);
+    }
+
+    .eng-tabs button:focus-visible {
+      outline: 2px solid #514b39;
+      outline-offset: 1px;
+    }
+
     .sim-head {
       display: flex;
       align-items: center;
@@ -878,7 +960,6 @@
     }
 
     #simClose,
-    #simTools,
     #toolsClose {
       border: 0;
       background: transparent;

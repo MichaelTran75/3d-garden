@@ -1,6 +1,6 @@
         // ===== ĐỘNG CƠ CHẠY (G 18/10 "khi click vào engine thì engine running animation, 75% engine transparent để nhìn thấy v6 engine"; sau đó "click to the engine show
         //  the button start engine"): bấm động cơ (đang thấy: xem xuyên / ca-pô mở) → bảng "▶ Khởi động máy" → kỹ sư mở ca-pô, kiểm tra, nổ máy 30 s
-        //  (engineer/engine-check.js gọi engineToggle) → vỏ máy (mẫu GLB) mờ còn 25% để thấy CƠ CẤU BÊN TRONG dựng bằng code theo số đo
+        //  (engineer/tasks/engine-check.js gọi engineToggle) → vỏ máy (mẫu GLB) mờ còn 25% để thấy CƠ CẤU BÊN TRONG dựng bằng code theo số đo
         //  mẫu: V6 60° — mỗi hàng 3 xi-lanh (đúng 3 cổ xả / bugi mỗi bên của mẫu); nắp xupap đo ở x ±0,15 y 0,52 ⇒ trục khuỷu y 0,18, hàng xi-lanh ±30° so với
         //  phương đứng. Trục khuỷu 6 chốt lệch nhau 60° (split-pin của V6 60° nổ đều): chốt ψ = β − θnổ ⇒ thứ tự nổ 1-2-3-4-5-6 cách 120°; tay biên + piston theo
         //  động học tay quay – thanh truyền s = r cos a + √(l² − r² sin² a) (r 43 mm · l 150 mm · lỗ 90 mm); 2 trục cam trên nắp quay ½ vòng tua, 12 xupap mở theo

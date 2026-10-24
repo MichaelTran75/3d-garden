@@ -33,12 +33,12 @@
           let onVan = false; for (let p = h && h.object; p; p = p.parent) if (p === caravanObj) { onVan = true; break; }
           setCaravanXray(onVan ? !caravanXray : false);
         });
-        // ---- BẤM DỤNG CỤ → bảng nhỏ gọi kỹ sư làm việc đó, rồi về lịch cũ (engForceAct — engineer/schedule.js; kỹ sư bỏ việc đang làm như khi đổi việc thường):
+        // ---- BẤM DỤNG CỤ → bảng nhỏ gọi kỹ sư làm việc đó, rồi về lịch cũ (engForceAct — engineer/mind/schedule.js; kỹ sư bỏ việc đang làm như khi đổi việc thường):
         //      drone / tay cầm → "▶ Chơi" (G 17/10 "click to the drone/rc to select play"): lấy drone ở bàn trà bay 1 vòng quanh đảo, cất về
         //      giỏ / sào hái trái → "Hái táo" (G 17/10 "làm tương tự cho hái táo"): giỏ đang ở bàn trà thì xách ra gốc cây trước, hái ≤ 4 quả, xách giỏ về
         //      Không làm được thì ghi lý do: ngủ, mưa, gió > 9 m/s (drone), đang làm việc khác vừa gọi, hết táo trong tầm sào / giỏ đầy, mẫu drone chưa tải ----
         const tPop = document.getElementById('toolPop'), tTitle = document.getElementById('toolPopTitle'), tMsg = document.getElementById('toolPopMsg'), tGo = document.getElementById('toolPopGo'), tClose = document.getElementById('toolPopClose');
-        const toolBusy = () => liveWeather.localHour >= ENG_SLEEP_H || liveWeather.localHour < 6 ? 'Engineer đang ngủ (21:45 – 6:00).' : liveWeather.localHour > ENG_SLEEP_H - 0.1 ? 'Sắp tới giờ ngủ (21:45).'
+        const toolBusy = () => !engAwake(liveWeather.localHour) ? 'Engineer đang ngủ (21:45 – 6:00).' : liveWeather.localHour > ENG_SLEEP_H - 0.1 ? 'Sắp tới giờ ngủ (21:45).'
           : engForceAct === 'drone' || droneToy.state.st !== 'idle' ? 'Engineer đang bay drone.' : engForceAct === 'apples' || applePick.busy ? 'Engineer đang hái táo.' : applePick.eating ? 'Engineer đang ăn táo.'
           : engForceAct === 'engine' || engineJob.busy() ? 'Engineer đang kiểm tra máy.' : engForceAct === 'trim' || trimJob.busy() ? 'Engineer đang cắt cỏ.'
           : engForceAct ? 'Engineer đang ' + ENG_ACTS[engForceAct].label.toLowerCase() + '.' : '';   // việc khác theo lệnh bảng Tools (ui/tools-panel.js): ngắm sao, câu cá, chăm luống, ngồi ghế, bỏ củi
@@ -49,16 +49,16 @@
           { objs: [droneToy.g, droneToy.rc], title: 'Drone DJI Mini 3', go: '▶ Chơi', act: 'drone', ok: () => 'Gọi Engineer ra bàn trà lấy drone bay 1 vòng quanh đảo.',
             why: () => { const w = liveWeather.state; return toolBusy() || (w.raining ? 'Đang mưa, drone không bay được.' : (w.windSpeed || 0) / 3.6 > 9 ? 'Gió mạnh quá (> 9 m/s).' : !droneToy.ready() ? 'Mẫu drone đang tải…' : ''); } },
           engineTool,
-          // G 18/10 máy cắt cỏ đeo lưng (camp/trimmer.js): bấm ⇒ kỹ sư giật nổ máy, đeo ba lô, phát cỏ các vòng quanh bếp lửa rồi cất máy (engineer/trim-grass.js)
+          // G 18/10 máy cắt cỏ đeo lưng (camp/trimmer.js): bấm ⇒ kỹ sư giật nổ máy, đeo ba lô, phát cỏ các vòng quanh bếp lửa rồi cất máy (engineer/tasks/trim-grass.js)
           { objs: [trimKit.g], vis: () => trimKit.ready && !trimJob.busy(), title: 'Máy cắt cỏ đeo lưng', go: '▶ Cắt cỏ', act: 'trim',
             ok: () => 'Gọi Engineer giật nổ máy, đeo ba lô máy, lia lưỡi phát cỏ các vòng quanh bếp lửa (~6 phút) rồi cất máy về cạnh đống củi.',
             why: () => { const hh = liveWeather.localHour; return toolBusy() || (liveWeather.state.raining ? 'Đang mưa, đợi tạnh và cỏ ráo đã.' : sceneWet > 0.3 ? 'Cỏ còn ướt, đợi ráo bớt rồi cắt.'
-              : hh < 6.5 || hh > 18.2 ? 'Trời tối, để mai cắt.' : !trimKit.ready ? 'Mẫu máy cắt cỏ đang tải…' : trimJob.cutFrac() > 0.85 ? 'Cỏ quanh trại vừa cắt xong.' : ''); } },
+              : !engHourOk('trimCmd', hh) ? 'Trời tối, để mai cắt.' : !trimKit.ready ? 'Mẫu máy cắt cỏ đang tải…' : trimJob.cutFrac() > 0.85 ? 'Cỏ quanh trại vừa cắt xong.' : ''); } },
           { objs: [applePick.pole, applePick.basket], title: 'Sào hái trái · giỏ táo', go: '🍎 Hái táo', act: 'apples',
             ok: () => 'Gọi Engineer ra gốc cây hái ' + applePick.avail() + ' quả táo bằng sào' + (applePick.state && applePick.state.basketAt === 'table' ? ' (lấy giỏ ở bàn trà mang ra trước).' : '.'),
             why: () => toolBusy() || (liveWeather.state.raining ? 'Đang mưa, đợi tạnh rồi hái.' : applePick.left() || applePick.eating ? 'Giỏ còn ' + Math.max(1, applePick.left()) + ' quả táo chưa ăn — táo hái phải ăn trong ngày, ăn hết rồi mới hái tiếp.' : !applePick.avail() ? 'Táo trong tầm sào đã hái hết; 5:00 sáng cây đủ quả lại.' : '') },
         ];
-        const toolOf = o => { for (let p = o; p; p = p.parent) for (const T of TOOLS) if (T.objs.includes(p)) return T; return null; };
+        const toolOf = o => { for (let p = o; p; p = p.parent) for (const T of TOOLS) if (T.objs.includes(p)) return T; return null; }, _dcP = new THREE.Vector3(), _dcO = new THREE.Vector3();
         let tCur = null;
         function showToolPop(T, x, y) {
           const r = dom.getBoundingClientRect(), why = T.why(); tCur = T;
@@ -70,6 +70,10 @@
             if (e.button !== 0 || pickMode || Math.hypot(e.clientX - pickDownX, e.clientY - pickDownY) > 6) return;
             const r = dom.getBoundingClientRect();
             pickRay.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), camera);
+            if (/^(arm|flying|land)$/.test(droneToy.state.st)) {   // G 24/10 "khi chơi drone, click vào drone ⇒ camera close up và tự động follow drone": drone nhỏ, bay nhanh ⇒ bấm trúng = trong 48 điểm ảnh quanh hình chiếu
+              const q = droneToy.g.getWorldPosition(_dcP).project(camera), sx = r.left + (q.x + 1) / 2 * r.width, sy = r.top + (1 - q.y) / 2 * r.height;
+              if (q.z < 1 && Math.hypot(e.clientX - sx, e.clientY - sy) < 48) { tPop.style.display = 'none'; tCur = null; camFollow(droneToy.g, 55, { exact: true, off: _dcO.set(0, 0.12, 0), rate: 7 }); return; }   // ×55 (drone 25 cm: ×30 vẫn chỉ ~50 điểm ảnh) — lăn chuột thì về giới hạn ×30 như thường
+            }
             const h = pickRay.intersectObjects(TOOLS.filter(T => !T.vis || T.vis()).flatMap(T => T.objs), true)[0], T = h && toolOf(h.object);
             if (T) showToolPop(T, e.clientX, e.clientY); else { tPop.style.display = 'none'; tCur = null; }
           });

@@ -1,0 +1,26 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>gaz view</title><style>body{margin:0;background:#111}</style></head>
+<body>
+<script type="module">
+// trang dựng chassis.glb (README): nạp mẫu GAZ-69 → window.gz (THREE, root, meshes) · gz.info() đo hộp bao từng lưới · gz.shot(az, el, tên, lọc tên, khoảng cách, tâm) chụp lên /upload
+import * as THREE from 'https://esm.sh/three@0.160.0';
+import { GLTFLoader } from 'https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js';
+const R = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); R.setSize(1000, 640); R.outputColorSpace = THREE.SRGBColorSpace; document.body.appendChild(R.domElement);
+const S = new THREE.Scene(); S.background = new THREE.Color(0x1a1d24); S.add(new THREE.AmbientLight(0xffffff, 1.0)); const dl = new THREE.DirectionalLight(0xffffff, 1.8); dl.position.set(2, 4, 3); S.add(dl);
+const C = new THREE.PerspectiveCamera(30, 1000 / 640, 0.01, 200);
+const url = new URLSearchParams(location.search).get('f') || 'gaz-glb/gaz69.glb';
+const gl = await new GLTFLoader().loadAsync(url); const root = gl.scene; S.add(root); root.updateMatrixWorld(true);
+const meshes = []; root.traverse(o => { if (o.isMesh) meshes.push(o); });
+window.gz = {
+  THREE, root, meshes, S,
+  info() { return meshes.map(m => { const b = new THREE.Box3().setFromObject(m); return [m.name.replace(/_M_(Gaz69|Tiers).*$/, ''), b.min.toArray().map(v => +v.toFixed(3)), b.max.toArray().map(v => +v.toFixed(3)), m.geometry.index ? m.geometry.index.count / 3 : 0]; }); },
+  async shot(az, el, name, re = null, dist = 7, look = null) {
+    for (const m of meshes) m.visible = !re || new RegExp(re).test(m.name);
+    const b = new THREE.Box3(); for (const m of meshes) if (m.visible) b.expandByObject(m); const c = look ? new THREE.Vector3(...look) : b.getCenter(new THREE.Vector3());
+    C.position.set(c.x + dist * Math.cos(el) * Math.sin(az), c.y + dist * Math.sin(el), c.z + dist * Math.cos(el) * Math.cos(az)); C.lookAt(c); C.updateProjectionMatrix();
+    R.render(S, C); const blob = await new Promise(r => R.domElement.toBlob(r, 'image/png')); await fetch('/upload?name=' + name + '.png', { method: 'POST', body: blob }); return name;
+  }
+};
+window.gzReady = true;
+</script>
+</body></html>

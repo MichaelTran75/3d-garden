@@ -14,12 +14,15 @@ cận cảnh, hiệu năng, cách thử và các bẫy đã dính. Chi tiết t�
 - `js/app.js` trên web **bỏ mọi dòng chỉ có chú thích** (`// …`) → nhẹ hơn ~13%. Chú thích cuối dòng vẫn giữ. Bản một tệp giữ nguyên.
   ⇒ Đừng chèn `//` vào GIỮA một dòng có nhiều lệnh (phần sau bị nuốt) và đừng để dòng dữ liệu bắt đầu bằng `//` trong chuỗi `` ` ` ``.
 - `./publish.sh "mô tả"`: kéo bản mới, dựng, commit, push; GitHub Actions dựng lại Pages. Wix nhúng trang Pages bằng iframe.
+- **Kỹ sư chia 3 thư mục** (G 24/10 "sắp xếp lại files hành vi, để dễ chỉnh sửa"): `engineer/body/` thân thể + chuyển động · `engineer/mind/` chọn việc
+  (giờ giấc `hours.js`, lịch `schedule.js`, nhu cầu `autonomy.js`, bảng việc dụng cụ `task-table.js`, bộ điều phối mỗi khung `loop-update.js`, suy nghĩ, phản ứng) ·
+  `engineer/tasks/` mỗi tệp một việc. Bản đồ "muốn sửa gì thì mở tệp nào" + lịch cả ngày: `src/app/engineer/README.md`.
 
 ## 2. Một khung hình (loop/main-loop.js → main-loop-rest.js)
 
 1. `dt = min(getDelta, 0.05) || 1/60` — khung đầu `Clock.getDelta()` trả 0; **không hệ nào được nhận dt = 0**.
 2. `adaptResolution(ts)` (chỉ khi khung do rAF gọi), camera theo `theta/phi/radius/target`, gió cảnh, mây, nước…
-3. Kỹ sư (engineer/loop-update.js): pha việc ghi **góc tay thẳng** → `engPoseEnd` (làm mượt) → `engFootIK` → `engSeatPost` →
+3. Kỹ sư (engineer/mind/loop-update.js): pha việc ghi **góc tay thẳng** → `engPoseEnd` (làm mượt) → `engFootIK` → `engSeatPost` →
    `updateFishingBite` (câu cá) → `engArmPost` (IK khuỷu/cổ tay) → `applePick.tick`.
 4. Thú, côn trùng, `updateDrawBatches`, `fluids.update` (Worker).
 5. `updateSky()` (mặt trời/trăng thật) → `nightSky.update` (nền trời đêm) → `fitSunShadow()` → `updateCloseLod()` → `renderer.render`.
@@ -63,6 +66,32 @@ cận cảnh, hiệu năng, cách thử và các bẫy đã dính. Chi tiết t�
   (đan tay sau gáy) đọc lại góc Euler ra số rác ⇒ không chuyển thẳng sang FK từ đó, hạ tay về trước.
 - Tay đi từ chỗ cũ tới đích mới: nội suy từ ĐIỂM XUẤT PHÁT ĐÃ GHI (`lapFrom`) theo smoothstep; `đích.lerp(e.handW, 1 − sw)` mỗi khung thì dồn
   ~70% quãng vào 0,13 s đầu (tay giật).
+
+## 4b. Nét mặt, lời nói, dáng theo cảm xúc, bàn tay nắm (engineer/body/face.js — G 23/10)
+
+- MẶT IN vẽ lại trên chính canvas mặt thức (`U.face.awake.image`, 512 × 128, mặt trước nửa trụ đầu; canvas vẽ như nhìn từ trước mặt: x tăng = bên TRÁI nhân vật);
+  chỉ vẽ khi bộ tham số đổi (lượng tử 0,04, ≤ 30 lần/giây). Tham số: mắt mở / mắt cười ∩ / nheo / mí sụp / nháy 1 mắt / con ngươi · lông mày cao, nghiêng (đầu
+  trong lên = buồn, xuống = chau), lệch · miệng cười–mếu, há, tròn, bè, răng (nghiến), lệch (nhếch), méo gợn, thè lưỡi · má hồng (ngượng / lạnh), mồ hôi,
+  nước mắt. Lớp chồng (sau đè trước): cảm xúc trội của bảng nhu cầu (`simEmotion`, 0,5 s/lần; ≥ 3 "Rất…") → thời tiết (`WX`: nóng mồ hôi + thở miệng, lạnh má
+  đỏ + môi run, ướt nhăn mặt, nắng gắt `WX.sun` > 150 nheo) → mệt (năng lượng < 32: mí sụp, chớp chậm) → việc (đọc / laptop nhìn xuống chớp 4,5/phút, ngủ trưa
+  nhắm, ngắm sao, kiểm tra máy, việc khéo tay chau mày thè lưỡi, hái táo: bứt được cười, xem quả tò mò rồi hài lòng) → suy nghĩ (đám mây: liếc lên, nghiêng đầu)
+  → cử chỉ RX (cười, ho, che mặt, hứng mưa…) → giật mình (sét) → ngáp / thở dài → ăn uống → nói → chớp mắt. Lớp nào đặt độ mở mắt thì bỏ mắt cười của lớp dưới.
+- CHỚP (Bentivoglio 1997): nghỉ 17/phút, nói 26, đọc 4,5; khoảng cách ngẫu nhiên mũ; 12% chớp đôi; mệt chớp dài hơn.
+- NÓI: câu `react` / `event` (rxSay, engSay, bubble của việc) vẽ BÓNG THOẠI có đuôi (engineer/mind/thought-bubble.js), `idle` giữ đám mây. Phát hiện câu mới qua
+  `thought.revision`; mỗi chữ = 1 âm tiết (~5,25/giây, Coupé 2019), khẩu hình theo nguyên âm chính (bỏ dấu NFD: a há · e bè · i dẹt · o tròn · u chúm), phụ âm
+  cuối m/p/b khép môi, dấu câu nghỉ 0,22 / 0,35 s, ! ? nhướng mày; gật theo độ há (`engMoodPost` → RX.pAdd).
+- ĂN / UỐNG: tay cách miệng < 0,2 (đv kỹ sư) thì há đón (uống: chúm); đồ rời miệng thì nhai 1,8 s ~1,6 Hz.
+- DÁNG (Montepare 1987, Roether 2009): bảng BODY theo cảm xúc → `RX.pAdd` (đầu cúi) + `RX.sp.x` (khom) trong engReactPost (ngoài trời), `e.moodSpd` (reactions.js
+  e.spd), `e.moodSwing` (vung tay, instance-gait.js), `e.moodBob` (nảy bước, pose-ik-walk.js); mệt cộng thêm. Nghiêng đầu (`head.rotation.z`) khi nghĩ / đùa
+  / ngượng. Cử chỉ mới `yawn` (ngửa đầu, mu bàn tay phải che miệng) khi năng lượng thấp, `sigh` (hít vào ngẩng, thở ra rũ vai) khi căng thẳng / chán; tay
+  bận hoặc trong xe thì chỉ nét mặt.
+- TAY NẮM: lưới tay có 1 morph "khép" (cung 1,92π, vòng nhỏ lại, xoay bù cho khe vẫn giữa — engineer/body/model.js); ảnh hưởng = độ nắm (âm = xoè rộng). Thứ
+  tự: `e.gripReq[i]` (việc đặt mỗi khung, xoá sau khi đọc) > cầm đồ (engHolding 0,9) > gõ phím (0,1) > cử chỉ (bảng GRIP) > đang với tới (xa thì xoè, chạm
+  thì khép) > thả lỏng 0,35 ± cảm xúc (căng thẳng nắm, vui hé) + lạnh co tay.
+- HÁI TÁO chi tiết (engineer/tasks/apple-pick.js): 2 tay bám sào 0,92; lấy quả: tay úp xoè chụp xuống quả trong túi lưới, khép ÔM bằng lòng bàn tay (Penn State
+  Extension: không bóp ngón), đặt tay sao cho QUẢ (APPLE_L trong khung cổ tay) đúng chỗ ⇒ chuyển rổ → tay không nhảy; pha mới 'inspect' (2,4 s): ngửa tay nâng quả
+  trước mặt xoay xem vết dập, rồi áp ngực áo chà bóng 3 lượt; 'drop': hạ quả chậm dần (mu bàn tay đi trước), chạm chỗ dừng một nhịp, xoè tay buông, quả lắc nhẹ
+  tắt dần rồi nằm đúng tư thế trong giỏ, rút tay lên. Ăn táo: đặt QUẢ tới trước miệng (bản cũ đặt tâm bàn tay ⇒ quả lệch cạnh má).
 
 ## 5. Vẽ và hiệu năng
 
@@ -184,6 +213,12 @@ cận cảnh, hiệu năng, cách thử và các bẫy đã dính. Chi tiết t�
   phẳng; lá 9–15 cm, mảnh hơn 40%, 3 bản/ô; đánh dấu bằng độ tươi +2 trong `aCell.z` (shader: `lawn = step(1.5, aCell.z)`, gốc lá tối
   hơn, ngọn sáng hơn); nền dưới nhuộm xanh đậm (`_lawnTint`) loang ra mép — chỉ lá ngắn cùng màu nền thì zoom thường không thấy gì.
   Ô cỏ mềm sẵn có trong vùng giữ lá cao; RNG riêng (`lrnd`) + ngưỡng chọn ô giữ nguyên ⇒ cỏ chỗ khác y như cũ. Lõi rỗng khúc gỗ bỏ trống.
+- **Khảm cỏ cao / thấp** (G 23/10 "ngoài tự nhiên nhóm cỏ cao hơn nhóm khác, nhìn nhấp nhô"): đồng cỏ có bò là khảm mảng — gặm đi gặm lại chỗ cỏ non thành mảng thấp,
+  chừa mảng cỏ già cao và quanh bãi phân (bò tránh gặm, cỏ rậm xanh đậm); trong ô cỏ mọc thành khóm. `patchK(i, j, x, z)` (CPU, lúc dựng): nhiễu mảng ~2,5 m
+  (i·0,24) + gợn ~1 m ở mép, ngưỡng gắt ⇒ ×0,4 (gặm sát) ⇄ ×1,7 (cỏ già); bãi phân `DUNG` 1/140 ô (RNG riêng 2323 — chuỗi rnd() cũ giữ nguyên), bán kính
+  0,8–1,6 m: ×1,4–1,75. Nhân vào chiều cao ô (trần 0,62), độ tươi +0,32·(k − 1); nền đất dưới ô: mảng cao sẫm 16%·(k − 1), mảng gặm pha vàng nhạt ⇒ nhìn xa
+  (lá ẩn theo LOD) vẫn thấy khảm. KHÓM (shader, theo hạt giống ô): tâm khóm lệch ≤ 0,22 ô, bán kính 0,24–0,38 ô; lá giữa khóm ×1,3, khe ×0,35, lá xoè ra
+  ngoài khóm; thảm cắt ngắn chỉ 20%, ô vừa phát cỏ (h < 0,07) 30%, cọng hoa giữ nguyên.
 - **Mưa dập lửa trại → lò chiminea** (G 15/10): `campRain` (`camp/chairs-lantern-fire.js`): `heat` lụi theo `rainK` (τ 60 s / cường độ), ngọn lửa
   `flameK` = smoothstep(heat 0,45→0,9), than `emberK` (0,03→0,55), hơi dập `quench`, khói gỗ ướt `smolder` (phai τ 20 phút); tạnh + `sceneWet` < 0,6
   thì nhen lại (τ 4 phút). main-loop nhân `fireScale` với `flameK`, vật liệu than / vết nứt với `emberK`; hơi + khói âm ỉ nhân cỡ đống lửa theo
@@ -256,7 +291,7 @@ lò xo) ⇒ lên bậc voxel 0,6 đv thì chân trước lên trước, thân ng
   giữa pha 1 chân), lắc ngang, xoay ±4°, nghiêng ±2,5°; ngực vặn/nghiêng ngược (`e.pelvisYaw/List` → eo). Hông dạng/khép + xoay trong/ngoài
   (thứ tự Euler hông **XZY**: xoay quanh trục chân trước, rồi dạng, rồi vung). `e.walkW` hoà IK đi bộ (đủ trọng số ngay, không chờ IK địa hình).
 - **Cúi người = gập EO**: lớp tư thế chỉ cho ≤ 0,12 rad nghiêng cả thân, phần dư ×1,6 thành `e.waistBend` (eo) — trừ bộ điều khiển ghế.
-- **Nấu ăn bằng IK tay** (`engineer/cooking.js`: `ckHand`, `ckLook`): tay tới đúng núm ga (núm xoay ¼ vòng), mép bếp, quai nồi, cán chảo
+- **Nấu ăn bằng IK tay** (`engineer/tasks/cooking.js`: `ckHand`, `ckLook`): tay tới đúng núm ga (núm xoay ¼ vòng), mép bếp, quai nồi, cán chảo
   (chảo ở họng trước–trái để tay trái nắm cán, tay phải cầm xẻng), thớt, móc treo; đầu cúi nhìn chỗ tay làm. Khói ống bếp (`ventSmoke`): hạt có
   lực nổi nguội dần + gió thật (`windAt`), thoát ở ống khói mái xe (`caravanObj.userData.chimneyTop`); máy hút mùi chạy thêm 25 s sau khi tắt lửa.
 - Chim sẻ (`animals/songbird.js`): cánh = nhóm "bên" lật gương (`scale.x = ±1`) + vai/cổ tay viết cho cánh PHẢI (sải +x, mép trước +z, mặt lưng +y);
@@ -286,12 +321,12 @@ lò xo) ⇒ lên bậc voxel 0,6 đv thì chân trước lên trước, thân ng
   Quanh tổ: 6 ong `createBee()` thu 0,27 (`FLY` trong `animals/beehive.js`, gọi được dù insects.js nằm sau vì khai báo hàm được kéo lên đầu phạm vi):
   orbit (vòng cung nửa dưới giỏ, phần lớn quay đầu nhìn tổ) → land (vỏ giỏ, `surf(a, y)` = điểm + pháp tuyến) → perch (bò / quạt cánh) → takeoff;
   `beeWeatherOK()` dùng chung với ong kiếm mồi — trở trời thì đáp sát miệng giỏ rồi ẩn (`in`).
-- Ăn ở bàn vuông trong xe (`engEatAtTable(e, t, ph, meal)`, `engineer/meal-read.js`): mọi đầu dụng cụ đặt bằng IK theo điểm thật — thìa
+- Ăn ở bàn vuông trong xe (`engEatAtTable(e, t, ph, meal)`, `engineer/tasks/meal-read.js`): mọi đầu dụng cụ đặt bằng IK theo điểm thật — thìa
   (`SPOON_TIP`) / đũa (`CHOP_TIP`) chấm vào bát (`VCEREAL`/`VTUDON`, chỗ chấm đổi mỗi miếng) rồi tới `engMouthW`; vành cốc (`CUP_LIP`) từ chỗ nghỉ
   trên bàn lên môi theo 1 cung liền (cốc nghiêng dần). Pha mỗi miếng ngũ cốc: với 0,6 · xúc 0,6 · đưa lên 0,7 · vào miệng 0,35 · rút 0,35 ·
   về 0,8 · nhai ~2 s; udon: gắp chấm 2 lần · kéo sợi · tới miệng · húp · về; tay trái giữ vành bát. `e.elbowPole` (vectơ cực khuỷu, hệ eo,
   xoá mỗi khung trong `engArmPost`): ăn dùng `EAT_POLE` ⇒ khuỷu khép, đo được vai dạng ≤ 18° (nghiên cứu ≤ 30°); mặc định IK dang ra 0,6.
-- Uống trà ở ghế cắm trại (`engTea(e, dt, t)`, `engineer/meal-read.js`; cốc `campTeaCup` ở `camp/chairs-lantern-fire.js`): cốc men trắng nằm
+- Uống trà ở ghế cắm trại (`engTea(e, dt, t)`, `engineer/tasks/meal-read.js`; cốc `campTeaCup` ở `camp/chairs-lantern-fire.js`): cốc men trắng nằm
   trong vòng khay cốc tay vịn trái (bàn trà cách vai ~1 m, ngoài tầm với 0,57 m; ca đen trên bàn là ca nấu). Chu kỳ ~30,7 s theo bài thử uống nước
   (Alt Murphy 2006: với 1,2 · đưa lên 1,15 · uống 1,7 · đưa về 1,8 · thả 1,0 s): với → luồn tay vào quai → nâng (vòng ra trước) → thổi 1 s → nhấp
   (vành chạm môi dưới, cốc xoay quanh điểm chạm tới 26–29°, ngửa đầu nhẹ) → hạ trước ngực, tay phải áp hông cốc (2 tay ôm) → nhấp lần 2 → đặt lại
@@ -322,7 +357,7 @@ lò xo) ⇒ lên bậc voxel 0,6 đv thì chân trước lên trước, thân ng
   ngoài tán anh đào; chấm điểm = khoảng cách + 0,12·số điểm qua bậc + 3 nếu ghế cắm trại không nhìn thấy (lệch hướng ghế > 1,3 rad) + 1,2/m nếu
   gần gốc táo < 5,4 m. **Bẫy đã dính**: bản đầu chỉ dò các vòng tròn ⇒ tâm cách gốc táo 0,98 m, chó chạy vòng quanh gốc cây. Đo: tâm ≈ (74,3; 92,5)
   (bãi cỏ giữa cây táo và anh đào, trước–trái ghế), cách gốc táo 4,2 m. Hết giờ chỉ đếm khi đã ở trên vòng (`dc ≤ ZR + 0,8`).
-- **Kỹ sư phản ứng với cảnh** (`engineer/reactions.js`, G 16/10): lớp phủ lên việc đang làm, không đổi lịch. 4 lời gọi trong loop-update:
+- **Kỹ sư phản ứng với cảnh** (`engineer/mind/reactions.js`, G 16/10): lớp phủ lên việc đang làm, không đổi lịch. 4 lời gọi trong loop-update:
   `engReactHold` (đứng lại thay việc: mưa bắt đầu, ngồi xổm xoa đầu chó) · `engReactPre` (trước `engPoseEnd`: sự kiện, gió, tốc độ `e.spd`,
   nghiêng người) · `engReactPost` (sau IK chân, TRƯỚC `engSeatPost`: nhìn = `e.headYawT` + độ cúi cộng vào đầu đã làm mượt, nhịp cử chỉ) ·
   `engReactArms` (SAU `engSeatPost`, trước `engArmPost`: đích tay IK). **Bẫy đã dính**: tính đích tay "úp mũ" trước khi đầu quay/cúi xong khung đó
@@ -343,7 +378,7 @@ lò xo) ⇒ lên bậc voxel 0,6 đv thì chân trước lên trước, thân ng
   2 m của cột khí tượng nên lọc theo `envFree` thì luôn hỏng) → chó tới ngồi, `patReady` → ngồi xổm (như hái táo) xoa đầu, `engPetting` ⇒ chó vẫy tít.
   · Thử: scratchpad `reacttest.js` (`wxLock` khoá thời tiết bằng getter, `rxTrace`, `rxGallery` ép 1 cử chỉ + đo IK, `rxPetal`/`rxHatPetal`).
   · Đi kèm: `chiminea` trả `smoke` + `lit()`; miếng khoai lúc đọc sách trước đây không gắn vào tay (dòng `arms[1].add(chip)` bị nuốt vào chú thích).
-- Khói ống bếp xe (`engineer/cooking.js`, 16/10 "giống khói lửa trại, −70%"): dens 0,8 + độ đục 0,6 như lửa trại (trước 1,3 × 0,75), màu xám khói
+- Khói ống bếp xe (`engineer/tasks/cooking.js`, 16/10 "giống khói lửa trại, −70%"): dens 0,8 + độ đục 0,6 như lửa trại (trước 1,3 × 0,75), màu xám khói
   (ngả trắng hơi khi luộc), số hạt thả × 0,3, bốc nhờ hơi nóng (draft 0 — dòng gán draft cũ bị nuốt vào chú thích). Bướm bay × 0,7 (`spd`).
   Bẫy thử khói NS: Worker giải tối đa 0,1 s mỗi lượt và cộng dồn dt khi bận ⇒ vòng mô phỏng chạy nhanh (simC) làm khói gần như đứng yên; phải chờ
   Worker trả kết quả sau mỗi khung (scratchpad `smoketest2.js` · `simW`: đợi phiên bản vị trí hạt tăng). Pane ẩn thì `requestAnimationFrame` không chạy.
@@ -351,10 +386,10 @@ lò xo) ⇒ lên bậc voxel 0,6 đv thì chân trước lên trước, thân ng
   (× (1 − 0,9·uCloud)). Lưu ý: màu hồng của trời hoàng hôn lúc âm u trước đây là do lớp mây nền phủ kín, tô theo ánh ráng — giờ lộ màu chạng vạng gốc.
 - Laptop bàn học (G 17/10): MacBook Pro 16" 2021 dựng bằng code (`macbookPro()` ở van/caravan.js — kích thước thật × 1,11, mặt đế 1 canvas
   1024 × 714 vẽ phím / loa / trackpad, ảnh phát sáng riêng chỉ chữ phím = đèn nền bàn phím). Màn 512 × 331 (tỉ lệ 1,547) vẽ 8 hình/giây khi nắp mở
-  (`laptopScreenTick`, engineer/routine-fx.js): hình nền vẽ sẵn 1 lần, thanh menu + tai thỏ, Dock, cửa sổ "GHC · Vận hành" (số MW theo nắng / mây /
+  (`laptopScreenTick`, engineer/tasks/routine-fx.js): hình nền vẽ sẵn 1 lần, thanh menu + tai thỏ, Dock, cửa sổ "GHC · Vận hành" (số MW theo nắng / mây /
   gió thật, lịch sử 30 s có sẵn khi mở máy), Ghi chú đang gõ, con trỏ chuột lượn hiện nhãn giá trị, thông báo 45 s/lần, màn khoá 1,8 s khi vừa mở nắp,
   buổi tối cửa sổ Nhạc. Bẫy: UV của ShapeGeometry = toạ độ hình (m) ⇒ texture repeat 1/W, 1/D, offset ½; logo lưng nắp xoay π quanh pháp tuyến.
-- Kỹ sư ngủ (`engineer/sleep.js`, G 17/10): `engSleepTick` (trước engPoseEnd) đặt đích khớp + điểm đặt bàn tay (`reachT`) theo LỊCH TƯ THẾ mỗi đêm
+- Kỹ sư ngủ (`engineer/tasks/sleep.js`, G 17/10): `engSleepTick` (trước engPoseEnd) đặt đích khớp + điểm đặt bàn tay (`reachT`) theo LỊCH TƯ THẾ mỗi đêm
   (`sleepPlan(day)`: nghiêng trái mặt ra phòng → ngửa → nghiêng phải…, 35–70 phút/lần, trở mình 4 s lăn quanh trục thân `rotation.x` của gốc), thở
   12–15 lần/phút (REM 25 phút cuối mỗi chu kỳ 90 phút: nhanh hơn + giật cổ chân), cử động nhỏ 4 phút/lần, mặt in "ngủ" (đổi `map` của đầu).
   `engSleepPost` (sau engArmPost) phủ chăn: lưới 27 × 17 trên nệm, cao = mặt trên các khối thân / đùi / cẳng / giày (chân khối vuông: bán kính phủ
@@ -369,7 +404,7 @@ lò xo) ⇒ lên bậc voxel 0,6 đv thì chân trước lên trước, thân ng
   `bkAttr(geo, L)` cho khúc gỗ — rãnh nứt dọc = đường đồng mức của nhiễu kéo dài theo thân (2 lớp), nứt ngang chia mảng, địa y đốm tròn, rêu gốc;
   nhiễu quanh thân TUẦN HOÀN (`sfNw`, chu kỳ 12·bm ô) ⇒ không lộ đường may. **Bẫy**: shader gió THAY `#include <project_vertex>` ⇒ chèn vị trí ở `fog_vertex`, lấy ngược từ mvPosition; `windShader` GHI ĐÈ
   onBeforeCompile (không nối) ⇒ gọi surfaceStyle SAU windShader; khoá chương trình nối khoá cũ (`|sf` + kind). Vật liệu có shader riêng không gộp lượt vẽ.
-- Drone đồ chơi (`engineer/drone.js`, G 17/10): drone + tay cầm là MẪU GLB dùng nguyên — "DJI Mini 3 Drone with Remote Controller" (Marco Workspace,
+- Drone đồ chơi (`engineer/tasks/drone.js`, G 17/10): drone + tay cầm là MẪU GLB dùng nguyên — "DJI Mini 3 Drone with Remote Controller" (Marco Workspace,
   CC-BY-4.0), G "lấy 100% ra sử dụng, ko phải vẽ lại" ⇒ ngoại lệ đầu tiên của luật "mọi vật dựng bằng code" (sau đó: xe Transit 18/10, xem mục xe nhà). Tệp `src/models/dji-mini3.glb` (build.py chép
   nguyên byte sang `models/`, trần `MODELS_KB` 1500 → 2200 từ 18/10, không tính vào ngân sách gzip); trang nạp SAU khi cảnh chạy bằng GLTFLoader + MeshoptDecoder (esm.sh
   three@0.160.0), địa chỉ tuyệt đối Pages (bản một tệp / Wix cũng nạp được), bản debug đặt `window.__droneGlb`. Mẫu gốc 27 MB, 433k tam giác, 1 lưới liền
@@ -416,7 +451,7 @@ lò xo) ⇒ lên bậc voxel 0,6 đv thì chân trước lên trước, thân ng
   (`nearPt`) — đo sai lệch cổ tay ≤ 1 mm. Xách khi đi (`hold` → `placeHeld()` ở ĐẦU `render()`): drone tay trái dựng đứng bụng quay vào đùi, tay cầm
   tay phải nắm đầu phải buông dọc thân. **Bẫy**: đặt vật theo cổ tay ngay trong `update()` ⇒ lệch ~0,4 m (lúc đó tay còn ở dáng đầu khung; đung đưa
   + IK chạy sau) — phải đặt sau khi tư thế cuối khung xong. Bàn trà (`campTable`) 0,825 × 0,6 × 0,5625 m, ghi `userData.top` / `size`.
-- Kỹ sư làm việc trên laptop (`engineer/laptop-work.js`, G 17/10 "research about engineer using laptop: behaviour, motion, movement"): việc nhỏ
+- Kỹ sư làm việc trên laptop (`engineer/tasks/laptop-work.js`, G 17/10 "research about engineer using laptop: behaviour, motion, movement"): việc nhỏ
   `type` (2 tay trên bàn phím, nảy 4–7 Hz lệch pha, đợt gõ 4,4 s, với Enter mượt) · `read` (kê cổ tay, có lúc sang trackpad cuộn) · `point` (rê + nhấn
   trackpad) · `think` (chống cằm, nhìn đi chỗ khác) · `rest` (đan tay sau gáy: đường cong kê cổ tay → cạnh thái dương → sau gáy, khuỷu dang) ·
   `stretch` (~7 phút, FK từ đúng tư thế tay trên máy) · uống coke (~3 phút, CHỈ khi 2 tay đang trên máy). Tay = IK lên điểm thật của MacBook
@@ -426,7 +461,7 @@ lò xo) ⇒ lên bậc voxel 0,6 đv thì chân trước lên trước, thân ng
   mới nhích ghế. Đo (scratchpad `lapwork.js`: `lwGallery`, `lwRun`): sai lệch IK 0 cm, 10 phút tay ≤ 1,7 m/s, không NaN.
 - Ghế văn phòng + bảng ghim + ghi chú (G 17/10 "macbook 30% bigger, add wall board và office chair, research how office chair work…"): dựng bằng code
   theo GLB "60's Office Props" (SeanNicolas, CC-BY-NC, chỉ đo). Ghế (van/caravan.js): chân sao 5 nhánh + bánh, ben hơi, mâm XOAY, lưng NGẢ (nhóm
-  `studyChairRig.base / swivel / back`, mỗi nhóm gộp lưới riêng); mặt đệm giữ cao 0,4875 đv. `studyChairAt(off, sx, sw)` (engineer/schedule.js) lăn
+  `studyChairRig.base / swivel / back`, mỗi nhóm gộp lưới riêng); mặt đệm giữ cao 0,4875 đv. `studyChairAt(off, sx, sw)` (engineer/mind/schedule.js) lăn
   dọc (off) / ngang (sx) + xoay (sw) và CẬP NHẬT `STUDY_SEAT.pos / yaw / fx fz xx xz` ⇒ người xoay, lăn theo ghế. Lưng ngả theo `e.seatLean` < 0,
   nghĩ / đọc thì xoay nhẹ qua lại. Bảng bần 0,72 × 0,5 đv treo vách phòng tắm (x 2,86 đv xe) giữa bàn và cửa lùa, mép dưới hơn mặt bàn 9 cm.
   Việc nhỏ `note` (laptop-work.js, ~8%, 9,4 s): viết giấy dán bên phải laptop (tay phải) → xoay ghế −0,95 rad + lăn 0,17 đv (đầu gối không chạm
@@ -436,7 +471,7 @@ lò xo) ⇒ lên bậc voxel 0,6 đv thì chân trước lên trước, thân ng
   (noRender) ⇒ `updateWorldMatrix` trước khi đọc. Đo: IK 0 cm, tay ≤ 1,35 m/s, không NaN.
 - Nút "▶ Chơi" drone (G 17/10 "click to the drone/rc to select play then engineer will come and use drone"): bấm drone / tay cầm (khi nằm trên bàn)
   ⇒ bảng `#toolPop` (page.html, xử lý ở ui/xray-lifecycle.js — danh sách `TOOLS`, chung kiểu `.panel`); chặn kèm lý do: ngủ 21–6 h, mưa, gió > 9 m/s, đang bay, mẫu chưa
-  tải. Bấm Chơi ⇒ `engForceAct = 'drone'` (engineer/schedule.js, `engWantAct` trả 'drone' trước lịch) ⇒ đổi việc như thường (đứng dậy, ra xe, tới bàn
+  tải. Bấm Chơi ⇒ `engForceAct = 'drone'` (engineer/mind/schedule.js, `engWantAct` trả 'drone' trước lịch) ⇒ đổi việc như thường (đứng dậy, ra xe, tới bàn
   trà, bay 1 vòng ~165 s, cất) ⇒ xong thì xoá, về lịch cũ; chỉ đánh dấu xong việc 1-lần khi đang trong khung `drone@` của lịch. Tới giờ ngủ xoá lệnh.
   Bấm drone có xe van phía sau không bật xem xuyên xe.
 - Bấm giỏ táo / sào hái trái → "🍎 Hái táo" (G 17/10 "làm tương tự cho hái táo"): cùng bảng `#toolPop` (mục `TOOLS` thứ 2), `engForceAct = 'apples'`.
@@ -535,14 +570,14 @@ lò xo) ⇒ lên bậc voxel 0,6 đv thì chân trước lên trước, thân ng
   (`HOV.hover.led`) ⇒ trắng + chuỗi quầng cộng sáng nhỏ (0,12) rải dọc chính 2 dải (đỉnh cách nhau ≥ 3 cm, ≤ 30 / bên, 1 vật liệu chung) ⇒ cả dải toả sáng.
   **Bẫy**: 1 quầng to ở góc đèn thành đốm chói che chi tiết; quầng đặt ở tâm cụm đèn thì vỏ đèn che. Chú thích cuối dòng giữa 1 dòng lệnh dài sẽ nuốt phần sau.
   **Bấm động cơ** (G "click to the engine show the button start engine"): `engineClick` chỉ chặn bật/tắt xem xuyên; bảng dụng cụ (`engineTool` trong TOOLS,
-  `vis: engineSeen`, objs thêm khi máy nạp) hiện "▶ Khởi động máy" → `engForceAct = 'engine'`. **Kỹ sư kiểm tra máy** (engineer/engine-check.js, pha
+  `vis: engineSeen`, objs thêm khi máy nạp) hiện "▶ Khởi động máy" → `engForceAct = 'engine'`. **Kỹ sư kiểm tra máy** (engineer/tasks/engine-check.js, pha
   'engine', ENG_ACTS.engine): đi tới đứng X −3,62 trước ba-đờ-xốc (đang ở hông xe thì nhắm góc đầu xe (−4,05, ±1,65) trước — hết lệnh góc khi X < −3,45),
   bước nốt vào chỗ → tra chìa sau logo (tay phải, Transit Mk8 mở ca-pô bằng chìa sau logo) → `vanPartToggle(hood)` → 2 tay theo mép trước ca-pô tới 35° →
   cúi 0,55 xem khoang (tay trái mép ga-lăng, tay phải dò nắp máy) 6,4 s → giơ chìa khoá điều khiển (hộp đen ở e.wrists[0]) bấm `engineToggle(true, noX)` (không
   tự xem xuyên vì ca-pô mở) → xem máy 28,3 s → bấm tắt (chạy đúng 30 s) → chờ 2,2 s → 2 tay kéo mép ca-pô xuống, buông ở ~15° (chỉ khi chính kỹ sư mở).
   Cắt ngang (mưa, ngủ, đổi việc): `engineJob.idle()` cuối loop-update (tắt máy, đóng ca-pô nếu đã mở, cất chìa). Bảng ghi chép ẩn trong pha này; 5 câu suy nghĩ
   'engine' (thoughts.js). Thử: $SP/engtest.js engJobShots (tua theo pha, máy chạy 29,93 s).
-  **Tự chủ theo nhu cầu — đợt 1** (engineer/autonomy.js, G 18/10 "bảng điều khiển ngược (nếu a chủ động play) và vẫn để engineer automate … curiosity bar";
+  **Tự chủ theo nhu cầu — đợt 1** (engineer/mind/autonomy.js, G 18/10 "bảng điều khiển ngược (nếu a chủ động play) và vẫn để engineer automate … curiosity bar";
   đợt 2 (đã làm, xem mục Tự chủ đợt 2): phản ứng môi trường 6 voxel + ngắm sao / ngắm mưa / trồng cà rốt; đợt 3: mạng nơ-ron nhỏ thay luật — dạy ≤ 5 phút / mạng). Lịch ENG_DAY vẫn là khung ngày;
   `engWantAct` (sau engForceAct) hỏi `autoWant(e, hh, sched)`: giờ RẢNH (outdoor, rest, read, music, fish) mỗi phút chấm điểm AUTO_ACTS — Σ hệ số × (1 − nhu
   cầu/100)², ±10% ngẫu nhiên, việc của lịch +0,15 giữ chỗ, ngưỡng 0,4; nhu cầu < 15 trong giờ cho phép chen (thêm nghiên cứu, trú mưa) ⇒ autoFix(k); 21:00–6:00 tắt.
@@ -577,7 +612,7 @@ lò xo) ⇒ lên bậc voxel 0,6 đv thì chân trước lên trước, thân ng
   thiết kế ⇒ lưỡi gần nằm ngang). Dây giật = ống trụ 4 mm giữa lỗ dây và tay phải. Vụn cỏ 220 lá dẹt (văng trái lưỡi, cản gió, nằm trên cỏ rồi teo), khói xả 8 cụm.
   Rê chuột / bấm: hovAdd đăng ký SAU khi mẫu nạp, picks theo hộp riêng ba lô / cần (hộp chung cả bộ bị kéo về gốc toạ độ bởi dây giật đang ẩn + hộp bao cũ của
   ống mềm — **bẫy**: lưới động phải computeBoundingBox mỗi lần đổi đỉnh, lưới ẩn ở gốc phải bỏ khỏi hộp dò). Bảng "▶ Cắt cỏ" trong TOOLS (ui/xray-lifecycle.js).
-  · `engineer/trim-grass.js`: TRIM.pend khi mưa ≥ 2 phút rồi tạnh; trimWant (đầu engWantAct, trước tầng tự chủ): cỏ ráo (sceneWet < 0,15 — ban ngày khô sau ~5
+  · `engineer/tasks/trim-grass.js`: TRIM.pend khi mưa ≥ 2 phút rồi tạnh; trimWant (đầu engWantAct, trước tầng tự chủ): cỏ ráo (sceneWet < 0,15 — ban ngày khô sau ~5
   phút), 6:40–17:20, chen giờ rảnh / nghiên cứu, vòng cỏ đã cắt ≥ 60% thì thôi; đang làm dở thì làm cho xong (mưa lại: tự thôi cắt, cất máy đúng quy trình).
   Quy trình: giật dây (lần 1 hắt hơi, lần 2 nổ) → quay lưng ngồi xuống xỏ quai, đứng lên → nhấc cần khỏi đống củi → các vòng quanh bếp lửa bán kính 3,5 / 4,6 /
   5,7 / 6,8 m (điểm cách 0,45 m, chừa vật cản ≥ 0,6 m + nước + chỗ không cỏ, đoạn ≥ 4 điểm, nối đoạn gần nhất) đi 0,22 m/s, chu kỳ lia 1,7 s (phải → trái sát
@@ -586,7 +621,7 @@ lò xo) ⇒ lên bậc voxel 0,6 đv thì chân trước lên trước, thân ng
   > 2,4 m đủ 1 s — có trễ, không chập chờn), quá 6 s bỏ ~2 m đường. Đi xa (ra chỗ để, tới đầu đoạn, về) dùng bảng BFS buildFlowField (không có thì kẹt sau xe).
   · `nature/meadow.js` cutAt(x, z, r): ô có tâm trong tầm lưỡi ⇒ lá 3–5 cm, mất hoa, đất dưới ô sáng + ngả vàng xanh (thấy cả khi nhìn xa lá đã ẩn); ô đang
   hiện ghi thẳng thuộc tính instance (slot ghi trong cull). grassNear / cutFrac cho lập vòng và điều kiện. Mô phỏng: cả việc ~5,3 phút, cắt ~56% vành 3,2–7,4 m.
-- **Dấu chân trên đất ướt** (G 18/10 "trời mưa xong mà engineer cắt cỏ, thì đi có dấu chân 2-3 bước", `engineer/footprints.js`): độ ẩm ĐẤT `footprints.soil`
+- **Dấu chân trên đất ướt** (G 18/10 "trời mưa xong mà engineer cắt cỏ, thì đi có dấu chân 2-3 bước", `engineer/body/footprints.js`): độ ẩm ĐẤT `footprints.soil`
   tách khỏi độ ướt MẶT cỏ sceneWet (khô sau ~5 phút): mưa ngấm nhanh (~2 phút đẫm), tạnh khô chậm (ngày ~50 phút, đêm ~2,5 giờ) ⇒ lúc cắt cỏ sau mưa đất còn
   mềm. Bàn chân chuyển từ vung → trụ (engWalkFeet: F.sw true → false) ⇒ 1 dấu đế ủng có gai (canvas, màu bùn, polygonOffset, không ghi độ sâu) ở F.w + 3,6 cm
   về mũi, đúng hướng F.fx/F.fz, chân trái lật gương (DoubleSide). 6 dấu xoay vòng; độ đậm theo thứ hạng mới → cũ [0,78, 0,62, 0,42], thứ 4 mờ hẳn ⇒ vệt 2–3 bước;
@@ -600,7 +635,7 @@ lò xo) ⇒ lên bậc voxel 0,6 đv thì chân trước lên trước, thân ng
   1,0), máy cắt cỏ nổ < 4,5 m quanh người VÀ < 3,2 m quanh lưỡi (chạy 3,5–4,5 m), chó chạy (> 0,6 m/s) < 2 m, gấu mèo < 2,5 m — mô phỏng cắt cỏ: gà luôn
   ≥ 3 m tới lưỡi đang quay, kỹ sư đợi gà ~24 s / lượt. Trưa 12:00–13:30 ngồi nghỉ; mưa / 18:15–5:50 về dưới bạt hiên đuôi xe (vanPt(2,35, 0, 1,55)…) ngồi ngủ.
   Né vật cản: đẩy ra + trượt vòng (bên lệch của đích) + CHẶN CỨNG ngoài r + 0,14 (bản đầu chỉ đẩy ⇒ gà đi xuyên lò chiminea); 30 phút mô phỏng: lọt 0.
-  Trim job (engineer/trim-grass.js animalNear) tính cả gà.
+  Trim job (engineer/tasks/trim-grass.js animalNear) tính cả gà.
 - **Chim sẻ theo cấu trúc mẫu "Flying Bird"** (G 18/10 "study glb small bird then apply to our small bird structure (keep our colourful bird)",
   animals/songbird.js makeSparrow): mẫu của sandeep.s (CC-BY-4.0) CHỈ ĐO, không đưa vào trang — thân thon tiết diện bát giác, rộng / dài ~0,3, đuôi
   ~40% chiều dài, cánh 1 tấm cong vồng (camber ~4°), mép trước xuôi mạnh ở nửa ngoài, sải / dài 1,27; hoạt cảnh 1 s = 2 nhịp (lớn −27° → +49°,
@@ -620,7 +655,7 @@ lò xo) ⇒ lên bậc voxel 0,6 đv thì chân trước lên trước, thân ng
   / ở cửa thì xếp hàng), lối định sẵn [đỉnh ván → trong cửa → dưới sào → nhảy lên sào] đi 0,16 m/s (quay xong mới bước), ngồi ngủ; cả 3 lên sào ⇒ cửa hạ.
   Sáng: cửa mở, từng con cách ~4 s đứng dậy, lối ngược ra, kiếm ăn quanh tâm cách cửa 3,5 m. Mưa ban ngày: mỗi con tới điểm trú gần nhất (gầm chuồng · bạt
   hiên đuôi xe · gốc 2 cây táo — điểm thứ i cho con thứ i), đứng / ngồi chờ tạnh. Trưa ra gầm chuồng nghỉ. Độ cao dưới đất làm mượt (bậc voxel 0,6 m thành
-  cú nhảy). Mở trang lúc đêm: gà đã trên sào. Mô phỏng: 17:09 cả đàn vào trong 41 s, cửa đóng; 5:50 ra hết trong ~12 s; mưa: 2 con gầm chuồng, 1 con chỗ
+  cú nhảy — 23/10 thay bằng nhảy thật, xem "Cánh gà"). Mở trang lúc đêm: gà đã trên sào. Mô phỏng: 17:09 cả đàn vào trong 41 s, cửa đóng; 5:50 ra hết trong ~12 s; mưa: 2 con gầm chuồng, 1 con chỗ
   khác gần hơn. Bảng việc dụng cụ (#toolPop) nền 75% (G "make these background 75% visible") — luật chung `.panel … 0,5 !important` ở cuối app.css nên
   phải `#toolPop.panel { … !important }`.
 - **Gà to 10 %, thỏ nhỏ 10 %, chữ "Kỹ sư" → "Engineer", cây táo dời** (G 18/10 "Make the chicken 10% bigger; cho thỏ nhỏ lại 10%, thay toàn bộ từ
@@ -629,6 +664,188 @@ lò xo) ⇒ lên bậc voxel 0,6 đv thì chân trước lên trước, thân ng
   cỡ mới). Mọi chữ hiện ra (bảng chỉ số, chú thích nút, ý nghĩ, tên vật, aria-label, page.html) "Kỹ sư" → "Engineer"; nút thanh công cụ vẫn là
   👷🏻‍♂️; chú thích trong mã giữ tiếng Việt. Cây táo ft1 (nature/forest.js) đặt thẳng ở trang (62; 90): gốc ở góc sau–phải chuồng gà (toạ độ chuồng
   (0,96; −0,67), cách vách 0,3–0,46 m), tán che chuồng; mọi thứ đọc ft1 (vật cản thân, hái táo, chỗ trú mưa của gà, appleTrees) dựng SAU dòng dời.
+- **Cánh gà + nhảy bậc / vỗ cánh** (G 23/10 "study geometry của con gà… restructure… add thêm xương… thi thoảng nhảy lên, vỗ cánh, nhất là khi nhảy lên
+  một cái bậc, hoặc từ bậc trên xuống bậc dưới", animals/chickens.js). Mẫu 17 xương: spine_00 thân dưới → head_01 lưng trên → bone_02 gốc cổ / ngực;
+  chuỗi tail_011 thật ra là ĐẦU; chân đùi 0,061 + 3 đốt ~0,018. Thân 1 khối, không cánh. **Cánh** = mỗi bên 1 SkinnedMesh 76 tam giác: tấm trong (bao cánh
+  + thứ cấp mép so le) + tấm ngoài (sơ cấp răng cưa; khép thì lùa dưới tấm trong, chỉ lòi chóp; dang thì cổ tay ra mép ⇒ sải gần gấp đôi), morph = dang
+  (phẳng + khum lên). Dáng khép thiết kế từ bảng độ cao sườn đo bằng tia chiếu (thân quả lê ⇒ mặt phẳng nghiêng 36° ôm sườn, uốn dọc bán kính 0,16 m),
+  độ hở 3 mm đo lúc tạo với đường viền thật của 2 tấm. **Bẫy** (đã thử, hỏng): gắn cứng vào 1 xương — spine_00 xoay 56–91° lúc mổ / ngồi mà thân không
+  xoay theo; neo 3 cụm đỉnh da — ngồi thì đỉnh vai tụt 18 cm, đi thì gốc cổ nhấp 3 cm, cánh lệch tới 10 cm. **Cách chốt**: chép trọng số 4 đỉnh da gần nhất
+  (weight transfer) + bộ XƯƠNG ĐẠI DIỆN (tấm × xương thân, P = B(t)·B(t0)⁻¹·G0·F, không trong cây cảnh, tự đặt matrixWorld) ⇒ khép thì cánh biến dạng y
+  như sườn ở mọi hoạt cảnh; dang thì từng xương đại diện lerp / slerp về xương VAI / CỔ TAY theo độ dang s ⇒ chuyển liền mạch. Khung dang = trung bình
+  quaternion xương đại diện tấm trong (bỏ đùi — lắc theo bước). Bên phải lật bằng toạ độ (x → −x, quaternion (x, −y, −z, w), đảo chiều tam giác), không
+  scale âm. wingTick chạy SAU khi đặt vị trí / hướng con gà (không trễ 1 khung). Vỗ 8–9 Hz (rũ lông 6 Hz; gà thịt 17 → 10 nhát/s theo tuổi — ASABE),
+  +72° / −37°, lông sơ cấp trễ pha. **Nhảy**: steer() nhìn trước 0,24 m (xuống: 0,12 m) thấy chênh > 0,12 ⇒ NGẮM (0,15–0,35 s; xuống 0,3–0,7 s, chúi ngó)
+  → NHÚN (gập chân Z đùi +0,3k · gối −2,4k · cổ chân +2,1k, thân hạ 0,03·k^1,8 — dò lưới để bàn chân đứng yên) → BAY (lên: bốc trước tiến sau, vồng
+  0,12 + 0,15·cao; xuống: tiến trước rơi sau, vỗ hãm 9,5 Hz; co chân −0,5k · −2,4k · +2,9k, bàn chân lên 5 cm) → ĐÁP (nhún 0,75–1 — gà mái đáp nhanh
+  gấp 2–3 lần loài bay giỏi, León & cs. 2021; dang giữ thăng bằng rồi khép). Lên > 0,95 m / xuống > 2,2 m / chỗ đáp không đứng được ⇒ vật cản. Thay cho
+  làm mượt độ cao cũ (gà trượt lên bậc 0,6 m). **Hành vi**: vỗ cánh rũ lông 3–7 phút / lần (vươn ngực, dang vỗ 0,8 s, lắc thân); chạy xổng + nhảy chơi
+  2,5–11 phút (sáng dày hơn; chơi vận động — Sci Rep 2022); giật mình chạy vừa vỗ cánh 1 s đầu; lên / xuống sào vỗ cánh co chân, nhún khi đáp. Sửa kèm:
+  dòng 'queue' bị chú thích giữa dòng nuốt startPath (gà xếp hàng không bao giờ lên chuồng) — build.py giờ bắt cả 2 chú thích liền nhau + break; cuối dòng.
+- **Bướm nhỏ 10% · rêu tường 5% · cá / thỏ / hươu theo tập tính** (G 23/10 "em cho bướm nhỏ lại 10%; do research and study about rabbit, fish behaviour then
+  improve its react and behaviour, do research and study about hươu behaviour then improve; add 5% rêu lên tường building"). Bướm: animals/insects.js
+  0,78 → 0,78 × 0,9. **Rêu tường** (core/surface-style.js, mọi vật liệu công trình K 1–4): rêu / tảo bám chỗ ẩm lâu khô — mặt khuất nắng hướng bắc (uSfNo),
+  chân tường (mưa bắn, ẩm leo), vệt nước chảy, thoát nước kém; mảng = 0,42·nhiễu lớn + 0,28·nhiễu vừa + 0,6·chân tường + 0,15·hướng bắc + 0,38·vệt nước,
+  mép lấm tấm, màu theo độ ẩm (uSfWet) như rêu cây. Ngưỡng SF_WALL_T theo loại (bê tông 1,31 · vữa 0,64 · ván 0,94 · gỗ chuồng 0,98) đo bằng LẤY MẪU THEO DIỆN
+  TÍCH trên tường thật trong cảnh (hàm nhiễu chép sang JS) ⇒ mỗi loại phủ ~5% mặt đứng, vữa 65% rêu dưới 1,2 m. **Cá koi** (animals/fish.js fishLife, gọi trước
+  đuổi lá): giật mình chữ C (trễ 0,15–0,5 s → uốn C quay ra xa nguồn → phóng 2,2 m/s lặn đáy → nấp 6–14 s → dè chừng 20 s) khi bóng cò bay thấp / cò lội
+  < 1 m / chó / người bước vội sát mép; cò lội < 2,2 m: lảng ra; ủi bùn chúc đầu −0,55 rad ban ngày (15–45 s / lần, sủi bùn); đàn lỏng (tâm nhóm 3 m, giãn
+  ≥ 0,45 m, ngày lỏng · chạng vạng chặt); đón người: kỹ sư đứng yên > 2 s sát mép (FL_BEG: ô nước gần nhất trong 2,6 m) ⇒ con bạo dạn tới trước, lượn sát
+  mặt nước ngóc đầu đớp (gợn vòng); nhiệt độ: tốc độ 0,45–1,15 ×, lạnh xuống sâu / ấm lên gần mặt. **Thỏ** (animals/bunny-life.js đợt 2): chạy về CHỖ NẤP
+  (bunRefuge: gốc cây · khe hiên xe · gầm chuồng gà; phạt chỗ nấp gần như về phía kẻ săn / kẻ săn tới trước; chỗ sát chó nằm kém) — khoảng bỏ chạy tăng theo
+  quãng tới chỗ nấp (+8%/m) và CHỈ ĐỦ khi kẻ săn đang TIẾN LẠI (đứng yên / đi xa: ½; chó lao nhanh ×1,4); khoảng cảnh giác 1,6 × (nằm im 0,5 s → ngồi dựng
+  nhìn); canh > 3 s mà nó không tới ⇒ lảng ra (avoid); trốn tới nơi ⇒ nằm nép 5–12 s → ló ra ngó; kiếm ăn toả quanh chỗ nấp (> 5 m thì nhảy ngả về) + giãn xa
+  chỗ chó; ngó canh dày hơn khi xa chỗ nấp; quen kỹ sư (L.hab ≤ 0,8, quên ~20 phút). Bẫy đã sửa: chó tới thì bỏ dở luống cà rốt (bunnyDogNear, giữ 40 s) +
+  bỏ dở đào / gặm củ khi kẻ săn vào khoảng bỏ chạy (trước đó đang ăn là bỏ qua mọi mối đe doạ); L.zz (né vật cản) tắt dần khi chạy về chỗ nấp. Đo 5 phút:
+  gặm 49% · ngó 22% · cảnh giác 8% · chạy 1,4%, cách chó TB 10 m (trước: nằm nấp 48 s liền cạnh chó đang ngủ). **Hươu** (animals/deer-crab-bunny.js stagTick
+  viết lại): tỉa lá (cổ vươn) · gặm cỏ (cổ −2,25, chúi vai, nhích 0,4 m mỗi 3–8 s, tránh nước) · NGẨNG CANH 2–5 s mỗi 8–25 s khi ăn · liếm lông sườn (cổ
+  ngoái 2,2 rad) · NẰM NHAI LẠI 5–15 phút (trưa 10:30–15:30 thường tìm bóng cây; nằm: chân trước gập trước, dậy: chân sau trước — fk gập như bò, hông lùi vào
+  giữa thân, thân hạ 0,95; nhai lệch hàm 52 s / 55 s) · báo động: đứng sững nhìn → dậm chân trước 3 nhát (rig.free[0]) + phì mũi (giật đầu) → chạy nước kiệu
+  đuôi dựng cờ (stagFlee: hướng ra xa, lệch tránh nước) → dừng ngoái nhìn; chó 9 m (chạy 13), người 6 m (quen dần), máy cắt cỏ 12 m.
+- **Ngắm sao: màn kéo trước mặt + chạm để dò (GOTO) + thiên hà trên kính ×2** (G 23/10 "khi ngắm sao, em cho animation phía trên telescope và cho animation x2
+  bigger, engineer có thể dùng tay adjust the screen … face down to his eye, … touch the screen to remote rotate the telescope slowly"), engineer/tasks/sky-watch.js:
+  telSplit tách ỐNG KÍNH khỏi chân + giá lúc nạp (mẫu là 1 lưới: tam giác có cả 3 đỉnh trong ống trụ r < 13 cm quanh trục back → front, đo bằng biểu đồ r theo t)
+  → khớp 'Khớp ống kính (GOTO)' ngay trên đầu giá (0,0038; 1,1; −0,2454 hệ mẫu — trục ống đi qua phía trên tâm chân ở cao 1,17), thứ tự YXZ = phương vị · độ
+  cao; xoay tới đích ≤ 0,07 rad/s, gia tốc 0,05 rad/s² (tăng tốc / hãm êm); đích lệch ≤ ±0,7 phương vị, +0,08…0,56 độ cao (ngẩng hơn 0,6 thì đuôi ống chạm
+  đầu chân). Màn iPad trên TAY ĐỠ 2 KHÚC (0,62 + 0,62 m, khuỷu nhô lên như tay đèn bàn) gắn đầu giá — không theo ống; tư thế nghỉ (hệ kính, đi theo kính khi xách)
+  ↔ trước mặt (TEL.sv, vòng cung nhấc 0,12 giữa đường): tâm màn cách mắt 0,38 theo hướng mặt (mắt ≈ tâm thảm −0,7 dọc thảm, cao 0,2; hướng mặt ngả 0,2 rad về
+  phía chân), mặt màn úp thẳng mắt, đỉnh màn về phía đỉnh đầu ⇒ chữ đọc xuôi từ mắt. scrHand (tay phía kính: kính bên phải ⇒ tay phải): nằm 2,5 s ⇒ với
+  mép dưới màn 0,7 s → kéo 1,3 s → buông 0,6 s; chu kỳ thiên hà mini ('out' 3,5 s) giờ CHỜ CHẠM: TEL.tapReq ⇒ giơ tay ấn mặt màn (vòng sóng chạm vẽ trên
+  canvas) ⇒ telGoto: đích mới, pha 'in' dài = thời gian xoay + 2,5 s, màn lia theo đúng tiến độ ống (TEL.sl), 'lock' khi ống dừng; dậy: đẩy màn về trước
+  rồi mới ngồi dậy, ống quay về chỗ cũ trong lúc thu thảm. Thiên hà mini lên trên kính (khớp ống + 0,95), scale 0,3 → 0,6, cỡ hạt ×2. Bẫy đã sửa: vectơ đích
+  bàn tay dùng chung _b bị ghi đè khi tính hướng lòng bàn tay; khung đầu 'pull' dùng k của trạng thái trước ⇒ màn giật 1 khung.
+- **Nhãn kỹ sư gộp vào bong bóng suy nghĩ · đom đóm mỗi con một nhịp** (G 23/10 "em merge engineer label into bong bóng thought, em cho đom đóm phát sáng ở các
+  tần số khác nhau, cả đàn ko thể cùng sáng cùng tắt"). ui/follow-tags.js bỏ thẻ "👷🏻‍♂️ việc" của kỹ sư (gấu mèo, hươu giữ); engineer/mind/thought-bubble.js
+  drawEngineerLabel: dòng đầu đám mây = "👷🏻‍♂️ " + việc đang làm (SIM_DO[simDoing].lab) + phần còn lại của tiêu đề suy nghĩ (bỏ chữ việc lặp lại); không có suy
+  nghĩ mà nút Nhãn bật (labelGroup.visible) ⇒ đám mây gọn 1 dòng (drawThoughtCloud message '' ⇒ cao 50, chữ 23 đậm); đám mây đặt theo ĐỈNH ĐẦU thế giới
+  (đầu + 0,78) ⇒ nằm / ngồi bệt không lệch ngang nữa — bỏ phép bù góc ngả thân cũ ở engineer/body/seats.js. Đom đóm (animals/insects.js + loop/main-loop-rest.js):
+  bỏ ghép pha xung Mirollo–Strogatz (bản 21/10 cố ý cho cả cây cổ thụ chớp đồng loạt); nhịp riêng 1,4–4 s (con cái đậu 3–4,5 s), mỗi lần chớp lệch ±15%,
+  ~30% con đực chớp đôi (nhát 2 sau 0,42 s), con cái trong 4 m đáp lời con đực sau 1,2–2 s (50%). Đo 60 s: TB 21% số con đang sáng, chưa lúc nào ≥ 50%.
+- **Số % lúc mở trang · Ngân Hà mini khi ngắm sao** (G 23/10 "add % loading number when start; and add new animation milkway to ngắm sao, slowly rotate
+  and search"). SỐ %: src/page.html `#loading` = số lớn + vạch + chữ chặng; script nhỏ ngay sau định nghĩa `window.__ld(p, trần, chữ)` (p: chắc chắn đã xong;
+  lúc chờ mạng số bò dần về trần, không vượt; 100 ⇒ mờ dần 0,4 s). Chặng: tải mã cảnh 0–8 · three.js 8–18 (core/boot.js) · dựng cảnh 18–68 · mẫu 3D 68–85 ·
+  biên dịch shader 85–100 (loop/main-loop-rest.js). Dựng cảnh vốn chạy một mạch (trình duyệt không vẽ được gì) ⇒ `build` thành async, build.py chèn
+  `if (ldStep(phần mã đã chạy)) await ldYield();` giữa các mảnh tới hết core/collide.js (88 nhịp; sau đó là trình nghe sự kiện + vòng vẽ: không nhường);
+  ~70 ms nhường 1 khung (rAF; 150 ms không có khung — khung nhúng ngoài màn hình — thì tự đi tiếp; trang ẩn không nhường). BẪY: nhường luồng giữa chừng ⇒
+  mẫu tải xong chạy hàm gắn trước khi tệp sau khai báo biến (xe: attach → VPART của van/van-doors.js ⇒ ReferenceError) ⇒ `ldGate` mở ở cuối dựng cảnh, mọi
+  chuỗi nạp mẫu chờ cổng NGAY TRƯỚC bước gắn vào cảnh (`.then(ldAfter)` / thêm vào Promise.all đã có fetch / `await ldGate`) — tải vẫn song song với dựng.
+  `ldTrack(promise)` bọc 11 lần nạp lúc mở trang (trăng, vỏ cây, bơm, nấm, xe, máy cắt cỏ, drone, gà, kính + thiên hà, Ngân Hà, bồn cầu): khung đầu chờ đủ
+  (tối đa 6 s) rồi mới biên dịch shader ⇒ hết cảnh mẫu hiện dần sau màn chờ; biên dịch: % theo số chương trình shader đã isReady() (không chặn luồng). Thử:
+  Chromium không GPU dựng 2,4 s, 104 lần cập nhật số; nhịp chậm cố ý 120 ms × 88: đủ mẫu, không lỗi.
+  NGÂN HÀ MINI (engineer/tasks/sky-watch.js): models/milkyway.jpg từ "Milky Way Skybox HDRI panorama" (Aliaksandr.melas, CC BY — mẫu chỉ là quả cầu 559 đỉnh + PNG
+  1024² 1,6 MB, ảnh trụ ép vuông ⇒ thu 1024 × 512 JPEG 85 KB). Quả cầu Ø 1,1 (64 × 40, 2 mặt, cộng sáng) cùng chỗ thiên hà mini, THAY PHIÊN mỗi lượt dò
+  (lượt đầu mỗi buổi = Ngân Hà, dò lõi thiên hà; đổi lượt mờ chéo ~2 s). Shader: mặt trong = trời nhìn từ tâm (u = atan(−x, z) ⇒ không ngược trái phải), co góc
+  quanh ô ngắm uF ⇒ phóng uZ lần (1 → 3,6), textureGrad với đạo hàm u không gãy ở mép ảnh, ảnh^1,7 × 2,1 (bụi sao tối, dải sáng nổi), vạch quét; mặt ngoài
+  chỉ lưới 30° + viền; ô ngắm đỏ (vòng 0,16 rad + 4 vạch) vẽ ngay trong shader. Chờ chạm: cầu tự quay 0,12 rad/s quanh trục nghiêng, ô ngắm lượn quanh giữa
+  (camera trực giao: điểm giữa mặt trong phía xa = hướng nhìn). Chạm màn: đích = 1 trong 14 điểm sáng trên dải (dò sẵn: đỉnh độ sáng mỗi vùng 70 px), ô ngắm
+  rời chỗ cũ (1/3 đầu) rồi xoắn ốc 3,2 vòng bán kính 0,42 → 0 rad theo đúng tiến độ ống xoay; cầu quay theo (slerp 2,4/s) giữ ô ngắm ở giữa → khoá: ô ngắm
+  thu 0,13 và nhịp → thu nhỏ, lại tự quay. Màn iPad cùng lượt vẽ ảnh Ngân Hà thật quanh ô ngắm (cắt từ ảnh trụ, qua mép ảnh vẽ 2 khúc), "TRACKING SGR A*"
+  (lõi) / "HIP …". Bẫy: ShaderMaterial không có sẵn PI (tự #define).
+- **Hố đen mini khi ngắm sao** (G 23/10 "nén tiếp blackhole vào trong telescope"), engineer/tasks/sky-watch.js: mẫu "Blackhole" (rubykamen, CC BY) 8,4 MB = cầu
+  lõi đen + ~12 lớp vỏ cầu (bán kính 59 + gờ xích đạo tới 66, UV chiếu phẳng từ trục z: uv = 0,5 + xy · 0,0071) chồng vỏ đen sát vỏ phát sáng ⇒ chỉ lộ viền,
+  xoay theo hoạt cảnh 10 s ⇒ giả vòng sáng quanh bóng; đĩa phẳng 16 tam giác bán kính 195. 17 lưới ~220k tam giác — bỏ hết hình, chỉ giữ ảnh đĩa →
+  models/blackhole.jpg 512² 22 KB (phát sáng × alpha + màu nền × alpha × 0,35). Hố đen dựng lại bằng shader dò tia (bhMat) trên tấm vuông luôn quay về
+  camera (uSize 0,7): mỗi điểm ảnh 1 tia song song (camera trực giao) đổi sang hệ hố đen bằng uVL (hàng = trục hệ hố đen trong hệ camera), r_s = 1, gia tốc
+  tương đương −1,5 h² r⃗ / r⁵, bước 0,025–0,7 theo r, ≤ 160 bước, bỏ qua tia có tham số va chạm > 9,4; cắt mặt đĩa 2,6–8,4 ⇒ cộng ảnh đĩa quay 0,3 rad/s ×
+  Doppler g³ (β = 0,32 √(2,6/r)) × √(1 − 1/r), hấp thụ 85%; rơi vào r < 1 ⇒ bóng (alpha 0,88); hoà nhân sẵn alpha; nén sáng mềm 1 − e^(−1,2c); mờ tròn mép
+  tấm. Đĩa tính theo camera (ảnh nổi luôn quay về người xem): chờ — cuộn ±0,3, nghiêng 17–34° so với mặt màn; dò — nghiêng về 8° (vòng cung ảnh đĩa phía
+  sau qua đỉnh bóng rõ dần), phóng ×1,8, ô ngắm xoắn ốc về giữa theo tiến độ ống; khoá — ô ngắm giữa nhịp. Vòng chiếu: Ngân Hà → hố đen → thiên hà mini
+  (bỏ qua lượt nào ảnh chưa tải). Màn iPad: hình vẽ hố đen đơn giản (đĩa elip quay, vòng cung, bóng, vòng photon, nửa đĩa trước), TRACKING M87* / CYG X-1 ….
+- **Kính sát chỗ nằm · phụ kiện kính nghiệp dư · tia laser** (G 24/10 "vị trí engineer nằm nên gần telescope; research private hobby telescope system, improve
+  detail, add laser tracking"), engineer/tasks/sky-watch.js. Tâm chân kính cách trục thảm TEL_OFF 1,0 → 0,72 (vòng chân ba càng 0,278 × 1,1 ⇒ càng gần nhất cách mép thảm
+  ~3 cm); vật cản 0,5 → 0,38, ENG_PROPS 0,45 → 0,36. Nghiên cứu: kính khúc xạ nghiệp dư = ống + vòng ôm, ống chỉnh nét (Crayford 2 tốc) + gương chéo 90° +
+  thị kính, kính tìm trên đế đuôi én, ống che sương; bút laser lục 532 nm gắn ống thay / phụ kính tìm (mắt nhạy nhất ở màu lục ⇒ tia thấy rõ) — luật: chỉ bật khi
+  cần, không chiếu máy bay, không chiếu dưới chân trời; giá GoTo cân chỉnh 2 sao rồi mới GOTO + bám theo vật khi Trái Đất quay. Mẫu GLB đã có ống + vòng ôm,
+  ống chỉnh nét + gương chéo + thị kính, kính tìm, giá xích đạo có đối trọng. telKit thêm (hệ mẫu, trên ống: hệ khớp): bút laser Ø 22 × 130 mm trong 2 vòng kẹp
+  + chân đế trên vòng ôm sau (lệch phải-trên 0,135 khỏi trục, song song trục quang, nút đỏ ở đuôi); đai sưởi chống sương quanh ống che sương (bán kính đo từ
+  lưới ống) + hộp điều khiển trên càng + dây (Line CatmullRom) dọc ống; bình điện 12 V 0,2 × 0,22 × 0,12 dưới chân ở khe giữa 2 càng xa đầu người nằm + dây lên
+  đầu giá; khay thị kính tam giác (trụ 3 cạnh) ở cao 0,42 giữa 3 càng (góc càng = cụm đỉnh y < 0,05; bán kính càng nội suy 0,036 ở 0,95 → 0,278 ở đất) + 3 thị
+  kính. TIA LASER: dải 9 đoạn, nở ngang trong vertex shader theo hướng tia trên màn (nửa bề ngang 3,2 điểm ảnh × pixelRatio, luôn thấy ở mọi zoom), cộng sáng
+  2 MẶT (chiều quấn tam giác trên màn đổi theo hướng tia — 1 mặt thì bị cắt mất), lõi Gauss + quầng, e^(−s/30), lấp lánh nhẹ, dài 70; gốc = miệng bút
+  (J.localToWorld), hướng = trục quang (transformDirection). Bật (êm 0,12 s) khi nằm, TEL.op > 0,5, pha 'in' / 'lock', nightFactor > 0,4, tia ngẩng > 0,03;
+  tắt lúc thu nhỏ / chờ. 2 lần chạm đầu mỗi buổi = "ALIGN 1/2 · 2/2" (TEL.al), màn iPad có đèn "● LASER".
+- **Ống ×2 trên cột nối · laser đúng trục quang · chĩa 75–80° chậm hơn · màn ×1,5 · Jupiter · lắp ráp + căn chỉnh** (G 24/10 "ống kính thiên văn x2 bigger,
+  make sure laser align with kính, add them jupiter; remove ống ngắm trên animation của blackhole; hướng lên trời 75 – 80°, moving slower; màn hình x1.5; research
+  engineer lắp ráp kính thiên văn + căn chỉnh trước khi nằm"), engineer/tasks/sky-watch.js. TRỤC QUANG THẬT: khớp vòng tròn (Kasa) các lát cắt lưới ống ⇒ phần ống
+  trước + phần sau song song (lệch nhau 2 cm), hướng (0,0073; 0,4899; −0,8717) dốc 29,3°; điểm neo 'front' − 'back' của mẫu lệch 4° ⇒ tia cũ chệch ~5 m ở 70 m.
+  Khớp tách: azJ (phương vị, đỉnh đầu giá) → TEL.tube (độ cao, đỉnh CỘT NỐI cao 0,46) → tubeS (ống ×2 quanh điểm kẹp TUBE_MNT: trên trục cách tâm lát trước
+  0,45 về đuôi, dưới trục 0,09). Cột nối = pier extension (người chơi kính dùng 10 – 40 cm để ống dài không đập vào chân khi chĩa gần thiên đỉnh): đuôi ống ×2
+  sụt 0,45 khi chĩa 80° ⇒ cần > 0,42. Đầu alt-az (hộp + núm đỏ) quay theo phương vị, ray đuôi én dưới ống. GOTO: độ cao thật 75 – 80° (altOf), phương vị đổi
+  0,35 – 0,9 rad trong ±1, ≤ 0,04 rad/s, gia tốc 0,025 (trước 0,07 / 0,05); ảnh nổi cao 2,2 trên khớp. Màn iPad ×1,5. Hố đen bỏ ô ngắm (shader + bhTick).
+  JUPITER (Mieke Roth, CC BY → models/jupiter.jpg 1024 × 512, 76 KB; mép trên ảnh là cực NAM): quả cầu 48 × 32 hoà nhân sẵn alpha + ghi độ sâu (trăng sau hành
+  tinh bị che), tối dần về mép, xích đạo luôn quay về người xem (nhóm theo quaternion camera, trục nghiêng 3°), tự quay 1 vòng / 50 s; 4 trăng Galileo trên mặt
+  phẳng xích đạo nghiêng 4° (thấy gần thẳng hàng như qua kính) — quỹ đạo nén 0,62 / 0,78 / 0,98 / 1,25, chu kỳ 12 / 24 / 48 / 113 s (cộng hưởng 1 : 2 : 4);
+  dò: quay đích về giữa (góc quay = 2π(0,25 − u)), phóng ×2,2, dời theo trục lên camera cho đích vào giữa, trăng mờ đi; lượt đầu mỗi buổi = Vết Đỏ Lớn (chọn đích
+  chỉ trong lượt Jupiter). Vòng chiếu Ngân Hà → hố đen → Jupiter → thiên hà mini; màn iPad: nửa cầu cắt từ ảnh + 4 trăng thẳng hàng, "TRACKING JUPITER · GRS".
+  LẮP RÁP (asmStep, theo trình tự kính xích đạo — Sky at Night, Astroshop, HighPoint): 'pick' chỉ lấy chân + giá (ống để lại) → 'tset' → cuộn thảm để sẵn ở đầu
+  thảm (S.roll 'ground') → 'tlvl' ngồi vặn khoá 2 càng gần nhất, nhìn bọt thuỷ → 'tcw' 2 tay đẩy quả đối trọng (tâm đỉnh lệch tâm 0,55 – 0,95 của lưới chân) →
+  'tfe' về xe → 'tpk' cúi lấy ống → 'tca' bê ống ngang hông (heldM: trục theo hướng mặt) → 'tota' nâng ống lên đỉnh cột (blendM giữa tư thế bê và tư thế trên
+  giá, 2 tay đỡ theo ống cùng khung) → 'tbal' tay trượt ống trong vòng ôm, chỉnh quả đối trọng → 'tpol' ngồi xổm nhìn ống ngắm cực về bắc (Bắc Cực Tinh 14°)
+  → 'tfnd' tay đưa ống tới sao ~40°, mắt vào thị kính, tay trái vặn ốc giá kẹp bút, laser chớp → trải thảm → nằm (~60 s từ lúc lấy đồ; ống nguội dần — kính
+  khúc xạ cần 30 – 60 phút). Đang lắp mà phải dừng ⇒ ống lắp ngay (telMount) rồi cất như cũ. Cất ở 'put' / idle ⇒ TEL.tubeOn = false.
+- **Kỹ sư đi vòng vật cản · bước lên / xuống bậc voxel · nằm cách kính ≤ 4 voxel · kính xoay chậm thêm 75%** (G 24/10 "engineer get stuck and struggle to go
+  around; research how engineer avoid object, react, step higher voxel, lower voxel; khi ngắm sao nằm trong khoảng 4 voxel so với telescope; telescope moving slower
+  75%"), engineer/body/pose-ik-walk.js. LỖI: lưới cấm chung rasterize vật cản bằng VÒNG TRÒN (xe = chuỗi vòng + 0,3) ⇒ cửa xe (HOME_ST, dưới bạt) nằm trong ô cấm; walkTo
+  của ngắm sao tắt hẳn bảng khi đích dưới bạt, còn né cục bộ bỏ lực đẩy của chính vật đang chứa đích ⇒ từ phía bên kia xe đi thẳng vào hông xe, colSlide men qua
+  lại (đo navTest: vòng quanh xe R 5 / 8 về cửa xe — 5/12 · 7/12 tới trong 40 – 50 s, phần còn lại lắc lư cách đích 2,4 – 3,4). SỬA: ENG_NAV — lớp va chạm xong
+  dựng lưới cấm từ VA CHẠM THẬT quanh xe ± 45 m (ô có ≥ 2/5 điểm colHit trong tầm thân 0,25 – 1,85 + nước; ngoài vùng giữ lưới chung) + độ cao mọi ô; engField(đích):
+  BFS 8 hướng, không qua cạnh chênh > 1 voxel (ENG_STEP_MAX 0,65 — voxel 0,6 ≈ ngang gối người thật: cao hơn thì đi vòng), không cắt góc ô cấm / góc vách, mở 0,5
+  quanh đích, nhớ 24 bảng (LRU). engDir: ô kề rẻ nhất tới được theo cạnh hợp lệ, hướng vào tâm ô (ffDir lấy trung bình mọi ô kề rẻ hơn ⇒ chỉ cả vào ô bên kia vách 2
+  voxel, kỹ sư đứng ì trước vách). engStep dùng bảng riêng cho mọi đích xa > 1,2 (cả dưới bạt); chỗ đứng không nối tới đích thì đi như cũ. Theo bảng mà bước kế
+  chênh > 1 voxel ⇒ men dọc gờ (±0,5 / ±1 / ±1,5 rad). KẸT (quãng còn lại theo bảng không giảm 0,15 trong 2,5 s) ⇒ đứng lại nhìn quanh 0,6 s rồi đi vòng 2 s lệch
+  75° về phía thoáng hơn (đếm ô trống), lần sau đổi phía, chậm 30% (nghiên cứu Moussaïd 2009 / Huber 2014: chọn hẳn 1 phía, giảm tốc khi quyết định). BẬC: nhìn
+  trước 0,55 theo hướng đi — lên ≥ 0,25: nhìn mép bậc, chậm 15%, chồm thêm 0,06 · xuống ≥ 0,25: nhìn chỗ đáp, chậm 25% (nghiên cứu: người nhìn mép + mặt bậc 1 – 2
+  bước trước, bước định từ bước áp chót; xuống bậc gối chân sau gập sâu — IK bàn chân sẵn có lo phần bước). Kết quả navTest: R 5 / 8 / 11 / 14 — 16/16 · 16/16 ·
+  16/16 · 14/14 tới, đường đi ≈ 1,3 – 1,4 × đường thẳng, đứng ì lâu nhất 0,8 s. NGẮM SAO: kính nằm cạnh đầu thảm (hông người nằm cách tâm chân kính ~3 voxel, đầu
+  ~1,2 voxel); findSpot dò lại chỗ thảm thì đặt lại kính theo (bỏ vật cản cũ của kính) — trang xem thử trước gọi findSpot làm thảm dời đi xa kính. GOTO 0,04 → 0,01
+  rad/s, gia tốc 0,00625, bước phương vị 0,15 – 0,35 rad (mỗi lượt dò 20 – 32 s), căn kính tìm ở sao ~68°.
+- **Bảng Engineer 2 thẻ: Tools · Nhu cầu** (G 24/10 "em cho 2 tabs: 1 tab Tools; 1 tab Nhu cầu"): src/page.html — bảng Engineer (#simPanel) và bảng Tools
+  (#toolsPanel) thành 2 trang thẻ (role tabpanel) trong 1 khung #engPanel (vị trí, nền đục, cuộn của .sim-panel); đầu khung .eng-tabs kiểu nút chia đoạn (Tools
+  trái, Nhu cầu phải; thẻ mở nền sáng). ui/tools-panel.js engTabs(): khung hiện khi 1 trong 2 thẻ mở, cập nhật aria-selected; bấm thẻ ⇒ toolsShow / simToggle như
+  cũ (mở thẻ này đóng thẻ kia), ← → trên thanh thẻ đổi thẻ. Nút Engineer mở thẻ Nhu cầu, nút Tools (rê chuột) mở thẻ Tools; bỏ nút Tools nhỏ ở đầu bảng Engineer.
+- **Bấm drone đang bay ⇒ cận cảnh + bám theo · nút Chọn vật thể kiểu trình biên tập** (G 24/10 "khi chơi drone, nếu click vào drone, camera sẽ close up và
+  tự động follow drone; do research and study để improve the chọn vật thể button"). (1) ui/xray-lifecycle.js (pointerup của bảng công cụ, trước raycast TOOLS): drone
+  ở arm / flying / land và điểm bấm cách hình chiếu drone < 48 px (drone 0,5 m, tia khó trúng cánh quạt) ⇒ camFollow(droneToy.g, 55, { exact, off +0,12, rate 7 }).
+  ui/follow-tags.js camFollow nhận opt { exact (zoom đúng số, có thể lùi), off (điểm nhìn = gốc + off), rate (độ bám) }; drone hạ cánh ⇒ theo kỹ sư, zoom
+  min(hiện tại, 18). Con lăn (ui/labels-controls.js): đang > 30 thì lăn ra êm, lăn vào giữ nguyên (trước: giật về 30). Bám: 2 s tới, lệch 0,03 m; bay 8 s lệch 0,3 m.
+  (2) Chọn vật thể (ui/labels-controls.js, theo Unity Scene picking: bấm lại cùng chỗ đổi vật chồng nhau, viền vật rê chuột khác viền vật đang chọn, F khung vật):
+  rê chuột (trễ 120 ms) ⇒ hộp trắng + thẻ "tên · bấm để chọn" (vật đang chọn thì thôi); pickLevels: cả vật (tổ tiên có tên cao nhất, không có thì chính lưới) →
+  phần có tên gần nhất → mảnh (bỏ với InstancedMesh — trải cả bản đồ) → bản sao; bấm lại cùng chỗ (< 8 px, < 2,5 s) xuống cấp, Alt + bấm đổi vật kế dọc tia,
+  bấm đúp (< 320 ms) trả về cấp trước cặp bấm rồi pickFrame (zoom 72 / cạnh dài, 0,5 – 30, exact; bản sao: mốc đứng yên PK.anc ở tâm); nút "Tới", phím F, Esc bỏ
+  chọn / thoát; bảng thêm Kích thước (rộng × cao × sâu), Gồm (số phần con), Cấp chọn i/n · vật j/m dọc tia; pickTick: khung đỏ bám vật đang chạy 10 Hz.
+- **Kiểm tra hành vi kỹ sư cả ngày + sửa lỗi + sắp xếp lại tệp** (G 24/10 "em kiểm tra lại các hành vi của engineer: ngắm sao chỉ có thể làm sau 19:00 pm, sắp
+  xếp lại files hành vi, để dễ chỉnh sửa, engineer đang bị lỗi, liệt kê lỗi task theo thời gian"). Bộ kiểm tra src/tools/engineer-audit/ (run.cjs: 8 đoạn giờ song song,
+  mỗi đoạn 1 Chromium ẩn tua 1/20 s; lỗi kẹt / vật lộn / đứng trong vật cản / lơ lửng / nhảy vị trí / ngắm sao trước 19:00 / đồ bỏ dở / việc 1-lần bỏ dở, kèm giờ).
+  Lỗi tìm được và cách sửa: (1) bảng đường riêng cho đi chéo khi góc chênh ≤ 1 voxel so với ô XUẤT PHÁT, engDir đi ngược lại so với ô hiện tại ⇒ ô có số bước mà
+  không hướng nào đi được (góc 5,4 giữa 6,0 và 6,6 cạnh cột khí tượng) ⇒ đi thẳng vào gờ 1,2 m, đứng ì 2 phút (dạo khám phá 14:55, 15:06): engCornerOk — mỗi ô góc
+  chênh ≤ 1 voxel với CẢ 2 đầu, dùng chung cho BFS và engDir. (2) Gờ > 1 voxel chỉ chặn khi đang theo bảng (đích > 1,2) ⇒ cắt cỏ sau mưa rơi xuống dốc 2,4 m: chặn
+  mọi bước; vòng cắt bỏ điểm khác mặt bằng trại > 1 voxel + ngắt đoạn khi 2 điểm liền chênh > 1 voxel. (3) Đếm kẹt cả khi đích sát bên ⇒ cắt cỏ cứ ~20 s đứng
+  nhìn quanh rồi đi vòng: không tính kẹt khi đích < 0,6. (4) Chân chống bạt (cột mảnh) + đèn lồng treo mép bạt (đáy ~1,4 m) không có trong vật cản ⇒ về ghế đi xuyên
+  cột, ra ghế câu xuyên đèn: vào ENG_PROPS (nav: true ⇒ lưới cấm riêng) + làn ghế cắm trại; máy cắt cỏ đang cất (ba lô + cần chĩa ngang gối, vấp 5 lần khi dạo
+  trại) vào ENG_NAV.extra (chỉ lưới cấm — còn phải tới lấy máy); dạo trại không chọn đích ở ô cấm (engNavBlocked — trước chọn điểm sát lò rồi đâm vào).
+  Đã thử rồi bỏ: chặn cả vật nhỏ obstacleCoords (r ≤ 1: đống củi, lò, gốc táo) ⇒ lối giữa bếp lửa và đống củi hẹp lại, về ghế kẹt 8 lần / 2 đoạn giờ. (5) Việc 1-lần xong sớm sang việc kế, nhưng khoá việc kế chỉ đặt khi
+  tới giờ khung ⇒ ăn trưa xong 11:22 đứng không trong xe tới 11:25: chuỗi khoá + tập hợp e.doneSet (engDone / engMarkDone). (6) Ngủ trưa bị gọi dậy chăm luống 4
+  lần + vuốt chó (12:15–13:00): đang 'nap' thì không cắt cỏ / chăm luống / ăn táo / việc tự chọn; ngồi câu, đang ăn cũng không bị việc tự chọn gọi đi (AUTO_ABSORB) —
+  chỉ nhu cầu cạn < 15. (7) Điều kiện muốn tắt giữa lúc đứng dậy (thỏ thôi ăn) ⇒ đứng lên 3 s rồi ngồi lại: việc tự chọn vừa bắt đầu giữ ≥ 20 s (ENG_WANT_HOLD).
+  (8) Đang nghiên cứu, tò mò cạn là bỏ bàn đi dạo (vừa mở trang đã đi): chỉ nhu cầu thân thể (đói, vệ sinh, năng lượng, tắm) gọi khỏi bàn (AUTO_BODY). (9) Dạo
+  khám phá chỉ chọn điểm đi bộ tới được (engField). (10) Ngắm sao chỉ sau 19:00: mind/hours.js ENG_HOURS.stars (trước 18:00 + mặt trời < −8°), bảng Tools ghi
+  "Ngắm sao chỉ sau 19:00.", lệnh ngoài khung giờ bị bỏ trước khi bắt đầu (ENG_CMD_HOURS); skyWatch.update cũng không bắt đầu ngoài khung giờ (chặn tận gốc — G báo "loop ngắm sao cả ngày": trang xem thử g-mw giao lệnh lặp, code cũ cho chạy cả ban ngày). Không phải lỗi: 20:42 trời mây 92% (thời tiết thật) ⇒ đọc sách.
+- **Khung gầm GAZ-69 cho xe + hình động cơ nổi tách chi tiết con** (G 24/10 "@gaz-69_vehicle_chassis__frame.glb em do research and study these glb files then
+  modify to fit to the van. khi engineer fixing the engine: remove the hologram lightning only show the hologram engine parts, then when engineer check each part it
+  will break into small parts branches"). (1) van/chassis.js + models/chassis.glb 62 KB (src/tools/chassis/ — README có số đo, mặt cắt, bẫy): khung thang + 2 cầu
+  liền + 4 nhíp + các-đăng + hộp số phụ của GAZ-69 (CC-BY Peter Gatchev, ghi công dock) kéo dài 1,26 m ở mặt cắt Z −0,68, hạ 9 cm, lật trái–phải, nở thanh dọc
+  trước chừa động cơ; toạ độ = đv xe, gắn thẳng caravanObj, xem xuyên giữ, ẩn cầu tạm 'Cầu bánh xe'; hộp số dựng bằng code nối đuôi động cơ → hộp số phụ.
+  Trần MODELS_KB 2900 → 3000. (2) van/engine-holo.js: bỏ tia chiếu nón + đường trục toả từ tâm + nhấp nháy (sáng / phồng theo nhịp) ⇒ chỉ còn bộ phận; nhãn vùng
+  sửa theo hình thật (vùng 'front' là 2 turbo + puli, 'turboL/R' thật ra là cổ góp xả — tô màu kiểm). Mỗi bộ phận có chi tiết con (SUB: điều kiện theo tâm tam
+  giác cho vỏ quét; cơ cấu trong theo từng chi tiết dựng: 4 / 6 / 4): tới lượt soi ⇒ chi tiết con toả ra SUB_D 0,28 theo hướng từ tâm bộ phận (+ chếch lên), cành
+  nét mảnh tĩnh từ tâm bộ phận, nhãn nhỏ đầu cành; soi lần lượt T_SUB 0,95 s / chi tiết (trắng, nhìn + chỉ tay, bong bóng "bộ phận › chi tiết"); bộ phận khác mờ;
+  nhãn cha ẩn lúc tách. Lịch H.tl theo số chi tiết ⇒ cả lượt 74 s (trước ~30 s). Hình nâng 0,75 → 1,55 trên đầu (bong bóng nhận xét nằm dưới hình).
+  Đợt 2 (G 24/10 "tăng độ visible của Engine parts lên 50%; và tô màu; nghiên cứu sao cho label ko đè lên hologram"): độ đục + phát sáng ×1,5 (bộ phận thường
+  đục hẳn); màu theo hệ (holoMat(col): màu nền = phát sáng = màu hệ, màu đỉnh mẫu quét nhân theo) — khí xả đỏ cam, khí nạp xanh dương, dầu hổ phách, đánh lửa
+  tím, dàn cò / trục cam vàng đồng, chi tiết quay thép, nước làm mát xanh ngọc, thân máy xám xanh; chi tiết đang soi pha trắng 35%. NHÃN NGOÀI (Ali, Hartmann &
+  Strothotte 2005; Stein & Décoret): nhãn ra nhóm H.labG (toạ độ thế giới), mỗi khung layout(): hộp bao các lưới đang hiện → khung chữ nhật trên màn hình;
+  nhãn chia cột trái / phải theo neo (giữ cột cũ, chỉ đổi khi neo vượt giữa 40 px; cân 2 cột khi lệch > 2), xếp theo độ cao neo, giãn ≥ 6 px, cách mép hình 26 px,
+  cỡ cố định theo px (34 / 28 px cao — upp = (right − left) / zoom / W()), trượt êm (1 − e^(−10·dt)); đường dẫn H.lead từ tâm chi tiết tới mép nhãn.
 - **Bàn ghế trà dưới bạt · đường nối đập · đập làm lại** (G 18/10 "move the chair and table under cover · Connect the road · do the research, study and
   improve the dam structure"). (1) camp/chairs-lantern-fire.js đặt ghế + bàn theo toạ độ cục bộ xe (campLocal): bạt x −0,75 … 2,9 · z 1,06 … 3,4, cửa lùa
   x −0,55 … 0,83; ghế (1,5; 2,3) quay ra ngoài, tâm cách trục cửa 1,09 m (vòng ENG_PROPS 0,75 + 0,32 không đẩy người ra vào cửa); bàn (2,42; 2,0) dọc thân
@@ -642,13 +859,13 @@ lò xo) ⇒ lên bậc voxel 0,6 đv thì chân trước lên trước, thân ng
   quay; cửa van cung = cung tròn tâm gối quay (aT phải trừ 2π, không thì quay vòng 320°), mở hé 0,12 rad, nhà tời + cáp trên cầu; khoang 4 = nhà máy lòng
   sông (đầu nước ~3,2 m ⇒ tổ máy bóng đèn): lưới chắn rác, gian máy, 2 cửa ống hút, máy biến áp trên đỉnh; bỏ 2 tháp lấy nước. Nước tràn: fallBlocks có
   path (z, y) bám mặt ogee, màn nước liền trong mờ phủ mặt tràn, rồi tấm nước trườn dưới mặt hạ lưu / bọt cuộn nước nhảy (loop/main-loop.js).
-- **Engineer gầy 5% · thanh trượt nét viền xe · hái táo 3 quả ăn trong ngày** (G 18/10 tối). (1) ENG_SLIM 0,95 (engineer/constants.js): cuối engineer()
-  (engineer/model.js) mỗi mảnh thân (lưới / nhóm mũ, tóc, khăn) thu x + z quanh trục khớp, vị trí x/z của khớp cũng ×0,95 (vai ±0,323, hông ±0,1425);
+- **Engineer gầy 5% · thanh trượt nét viền xe · hái táo 3 quả ăn trong ngày** (G 18/10 tối). (1) ENG_SLIM 0,95 (engineer/body/constants.js): cuối engineer()
+  (engineer/body/model.js) mỗi mảnh thân (lưới / nhóm mũ, tóc, khăn) thu x + z quanh trục khớp, vị trí x/z của khớp cũng ×0,95 (vai ±0,323, hông ±0,1425);
   khớp KHÔNG đổi tỉ lệ (con của khớp quay mà khớp méo thì tay gập bị co) · đồ cầm tay giữ cỡ · tỉ lệ x = z nên hợp mọi phép xoay quanh y ⇒ chiều cao,
   tầm với, IK không đổi. Chỗ ghi cứng vai/hông (seats.js, meal-read.js, angling.js, reactions.js), mũ rời trong xe, dấu đế ủng nhân ENG_SLIM. (2) Nét viền
   xe dùng vật liệu riêng vanLine(m) (core/axes-pin-bake.js; caravan.js đổi mọi nét của xe lúc dựng, transit-glb.js cho nét GLB): gộp lượt vẽ xếp theo
   THUỘC TÍNH vật liệu nên nét xe và nét công trình cùng lô — đổi độ mờ thì draw-batch tự tách nét xe ra vẽ riêng. Thanh trượt #vanLineRange (page.html, ngay
-  trên thanh nút) 0–100 → opacity, 0 = tắt vật liệu; mở trang luôn 100; thanh tối giản (vạch 1 px + nút đứng 4 × 13 px, không nền) — ngày đen, đêm trắng (.night theo nightFactor > 0,5, vanLineTone). (3) engineer/apple-pick.js: N_PICK 3, SLOTS 3 (lớp đáy giỏ);
+  trên thanh nút) 0–100 → opacity, 0 = tắt vật liệu; mở trang luôn 100; thanh tối giản (vạch 1 px + nút đứng 4 × 13 px, không nền) — ngày đen, đêm trắng (.night theo nightFactor > 0,5, vanLineTone). (3) engineer/tasks/apple-pick.js: N_PICK 3, SLOTS 3 (lớp đáy giỏ);
   sào cầm lệch phải 0,24 (không cắt ngang mặt); chống sào: rổ ngang ngực lệch trái, chân sào về trước–trái 34° (cách gốc cây ≥ 0,5 m); bỏ quả vào giỏ:
   xoay người 52° về phía giỏ + plantDrop (sào trượt xa, ngả thấp) ⇒ rổ cách đầu ≥ 0,5 m. Ăn táo: việc 'eatApple' → pha 'appleEat' (eat(): ra giỏ ngồi
   xổm lấy quả → engUseSeat ghế cắm trại → 5 miếng 6,5 s, quả ×1 → 0,3 bề ngang, từ miếng 4 thịt màu kem → ném lõi theo đường đạn vào buồng đốt chiminea).
@@ -659,20 +876,20 @@ lò xo) ⇒ lên bậc voxel 0,6 đv thì chân trước lên trước, thân ng
   trà (tới x 2,01) từng cắm vào góc bàn (bàn từ 1,96); giờ khe ~7 cm. Thanh nét viền gọi VAN_LINES.onShell (ui/xray-lifecycle.js, gán sau vì
   labels-controls.js chạy trước — TDZ): mỗi mặt vỏ 'shell' lấy độ mờ min(xem xuyên ? 0,25 : 1, k), 0 ⇒ shellHidden (ẩn nhưng vẫn bấm trúng xe),
   vỏ trong khoang (xrayHide) ẩn ngay khi k < 1; vách phòng tắm (userData.vanWall, caravan.js) không theo thanh ⇒ thanh 0 còn nội thất + vách.
-- **Tự chủ đợt 2: môi trường · ngắm sao · ngắm mưa · luống cà rốt** (G 18/10 tối "làm đợt 2"). 3 tệp mới sau engineer/reactions.js:
-  (1) engineer/env-react.js — tầm 6 voxel (6 × BLOCK = 3,6 đv): mỗi 0,25 s chấm điểm chim sẻ / bướm / ong / thỏ / gà / đom đóm (loài × gần × trước mặt ×
+- **Tự chủ đợt 2: môi trường · ngắm sao · ngắm mưa · luống cà rốt** (G 18/10 tối "làm đợt 2"). 3 tệp mới sau engineer/mind/reactions.js:
+  (1) engineer/mind/env-react.js — tầm 6 voxel (6 × BLOCK = 3,6 đv): mỗi 0,25 s chấm điểm chim sẻ / bướm / ong / thỏ / gà / đom đóm (loài × gần × trước mặt ×
   quen dần 25 s), nhìn theo 2–5 s; chim đáp cỏ lúc đang đi ⇒ RX.hold 'still' · thỏ ⇒ 'crouch' (ngồi xổm 1,6 s) · gà chạy ⇒ cười · ong sát mặt ⇒ xua ·
   hoa dại (meadow.flowerNear, ban ngày) ⇒ 'flower' ngửi · cầu vồng ⇒ chỉ tay ('point') · hoàng hôn ⇒ 'sunset' · trăng ⇒ ngẩng nhìn. Bướm trong tầm tay khi
   đứng yên / ngồi nghỉ ⇒ cử chỉ 'finger', bf.mode = 'hand' ⇒ animals/insects vòng bướm gọi envBflyHand TRƯỚC bflyShelter (bay tới, đậu khép mở cánh), rời
   tay = 'fromPerch' (về đường bay cũ). ~1/4 lần bướm chọn điểm mới thì quanh người (envBflyLure trong nextButterflyTarget). Hook: envTick cuối engReactPre,
   envHold nhánh else của engReactHold, envArms nhánh default của engReactArms; RX_GP/RX_TXT thêm khoá.
-  (2) engineer/sky-watch.js — 'stars' (lịch 20:00–20:30 + tự chủ; mặt trời < −8°, mây < 60%, không mưa, < 20:54): thảm cuộn ở vách xe trái cửa lùa →
+  (2) engineer/tasks/sky-watch.js — 'stars' (lịch 20:00–20:30 + tự chủ; mặt trời < −8°, mây < 60%, không mưa, < 20:54): thảm cuộn ở vách xe trái cửa lùa →
   bãi phẳng phía nam bếp lửa (findSpot dò 1 lần: phẳng dưới cả thảm, cách vật cản ≥ 1,3, cây ≥ 5) → trải (cuộn lăn, cắt cỏ dưới thảm) → ngồi → nằm ngửa:
   kỹ sư xoay YXZ ⇒ rotation.x = −π/2 là ngửa mặt; gốc tính ngược từ điểm hông (khoá KEY: đứng → xổm → ngồi bệt → nằm), e.seatCtl + noFootIK; tay lót gáy
   (đích không thấp hơn thảm + 0,05), cằm thu 0,35 cho mũ khỏi cấn đất. Sao băng (nightSky.meteors, đủ sáng) ⇒ quay đầu theo vệt; chỉ tay tối đa 1 lần / 45 s
   (Orionids tháng 10: ~2 vệt / phút). engWantAct bọc engWantAct0: việc đổi khi đang có thảm ⇒ giữ 'stars', skyWatch.stop() để cuộn thảm cất xong. 21:00 bị
   cắt ngang ⇒ idle() trả rotation.x / pose.rawRX = 0. 'rainwatch': đang trú mưa ngồi 4–7 phút ⇒ ra mép bạt trước cửa lùa (x 0, z RX_AW.z1 − 0,3) 70–110 s.
-  (3) engineer/carrot-garden.js — luống 2,0 × 0,62 ở x65,6 z97,4, 2 × 4 khóm lớn 40 phút (tưới / mưa ×1,4); thỏ: ban ngày, có khóm chín, 4–7 phút / củ,
+  (3) engineer/tasks/carrot-garden.js — luống 2,0 × 0,62 ở x65,6 z97,4, 2 × 4 khóm lớn 40 phút (tưới / mưa ×1,4); thỏ: ban ngày, có khóm chín, 4–7 phút / củ,
   người không ở luống ⇒ bảng DP tới mép luống, ngửi → nhổ → gặm 12 s (hook carrotBed.bunny sau bunnyRain trong vòng thỏ); người đi sát < 1,6 thì bỏ chạy.
   Kỹ sư 'garden' (gardenWant: ≥ 2 hố trống hoặc 3 giờ chưa tưới, giờ rảnh ngoài trời 6:48–17:36): trồng từng hố (bay xới, cây con, vỗ đất) · bình tưới 2 chỗ
   · thỏ đang ăn ⇒ ngồi xổm cách 2,4 xem. Đi quanh luống bằng bedRoute (đoạn thẳng cắt luống ⇒ vòng qua đầu luống).
@@ -683,7 +900,7 @@ lò xo) ⇒ lên bậc voxel 0,6 đv thì chân trước lên trước, thân ng
   chu trình cào 4 nhát (2 chân xen kẽ, 0,3 s / nhát — xương đùi · cẳng · bàn quay quanh x cục bộ, cộng SAU mixer.update; đất văng 24 hạt dùng chung) → 'back'
   lùi 7 cm (walking timeScale −0,55) → 'inspect' (clip 'pecking' dừng ở 0,3 s: mỏ hạ nửa chừng) → 'peck' đúng 1 (60%) / 2 vòng clip (1 vòng 0,875 s = 1 cú
   mổ, đo đầu mỏ chạm đất 0,47 / 0,62 s) → 'look' ngẩng 0,7–2,2 s (×1,6 khi không con nào khác đang ngẩng — canh gác luân phiên). Nguồn: Cresswell 2003,
-  Caraco 1982, ACES (61% thời gian kiếm ăn), preprint rs-10362834. engineer/cooking.js: trước chỉ đặt VỊ TRÍ tay phải ⇒ IK tự xoay cổ tay, xẻng (gắn dọc +z cổ
+  Caraco 1982, ACES (61% thời gian kiếm ăn), preprint rs-10362834. engineer/tasks/cooking.js: trước chỉ đặt VỊ TRÍ tay phải ⇒ IK tự xoay cổ tay, xẻng (gắn dọc +z cổ
   tay, model.js) chĩa ngang. ckTool(e, đầu dụng cụ cục bộ, điểm chạm): hướng cán từ vai xuống điểm khuấy, engHandFor đặt cổ tay cho ĐẦU xẻng / đũa nằm đúng
   trong chảo / nước nồi; ckGrip: tay trái nắm cán chảo (miệng chữ C úp, lỗ theo cán).
 - **Nội thất xe đúng lòng vỏ GLB · pin mặt trời xe + chuồng bò** (G 19/10). BẪY: nội thất (van/caravan.js) dựng theo vỏ CODE (TR.inW ±0,98, TR.ceil
@@ -821,6 +1038,8 @@ va chạm dùng hình đơn giản / lưới va chạm riêng, chân đặt bằ
 - Bản gỡ lỗi: `make_debug.py` chèn `window.__dbg` (view, frames, snap, xray, engObj, clock…) và `window.__ev(code)` (đánh giá
   trong phạm vi `build()`). Tua nhanh: vá `clock.getDelta` trả `clock.__dt` (mặc định 1/20) + `window.__hourOverride` cho giờ cảnh.
   Các công cụ này nằm ở thư mục nháp của phiên làm việc (bị xoá giữa các phiên — dựng lại từ lịch sử phiên).
+  Từ 24/10 có bản lưu trong repo: src/tools/engineer-audit/ (make-debug.py · harness.js: simSetup / runFor / envTo / wxLock + kiểm tra hành vi · run.cjs chạy
+  cả ngày song song, server tạm tự phục vụ /models · summary.py in lỗi theo giờ) — xem README ở đó.
 - `__dbg.frames(1)` gọi thẳng `loop()` (không có ts ⇒ bỏ qua bộ điều chỉnh độ phân giải). Pane trình duyệt ẩn ⇒ rAF dừng.
 - Mẫu kiểm: chạy câu cá 150 s và so `fishLinePos` với vị trí khoen/ngọn thật (sai số phải = 0), đặt `clock.__dt = 0` một khung để thử
   NaN, đổi `clock.__dt` = 1/15, 1/60, 1/144 để thử tính độc lập tốc độ khung.
@@ -860,7 +1079,7 @@ va chạm dùng hình đơn giản / lưới va chạm riêng, chân đặt bằ
 - IK chân bỏ qua lắc ngang của thân / không cho dạng hông ⇒ bàn chân trượt ngang theo nhịp lắc. Bàn chân đang "nhích về chỗ" lúc bắt đầu đi
   từng bị bỏ quên (chân duỗi dài ra sau) — nhánh settle phải chạy cả khi đang đi.
 - **Chú thích // chèn giữa dòng nuốt câu lệnh phía sau** (18/10, 4 chỗ): `…setScalar(1.1);   // ghi chú scene.add(g);` ⇒ gà không bao giờ vào cảnh;
-  chim sẻ mất `bodyP.scale.setScalar(P.fluff.x)` (hết xù lông khi ngủ / lạnh); engineer/drone.js `park()` mất `bub.visible = false;
+  chim sẻ mất `bodyP.scale.setScalar(P.fluff.x)` (hết xù lông khi ngủ / lạnh); engineer/tasks/drone.js `park()` mất `bub.visible = false;
   phoneM.color.setScalar(0)` (từ 29183c3: màn tay cầm trên bàn sáng mãi, dừng giữa chừng thì khung camera treo trên đầu) và `sizeBubble()` mất
   `SH = SW * SCR.h / SCR.w` (từ 19d8dbb: hình camera trong khung bẹp còn 52 % chiều cao); fishing/angling.js mất `anglingEvent('bite', 0.55)` (từ
   3a78d71: ý nghĩ "cá rỉa mồi" không bao giờ nảy). build.py giờ DỪNG khi chú thích cuối dòng kết thúc bằng 1 câu lệnh ASCII (`swallowed()`: `a.b(…);` /
@@ -896,7 +1115,7 @@ skinWeight float 9,5 — động vật gộp vẽ) + instanced 16 · 130 texture
 - Cỏ (nature/meadow.js): bảng ô → mặt địa hình (`tops`) và ô → ô cỏ (`byIJ`) từ Map → mảng chứa mảng (~10 + 3 MB heap) sang CSR (`tS`/`tD`
   — chỉ số lưới << 24 | instance, `bS`/`bQ`). Điểm lá cổ thụ / táo, hoa anh đào, tán rừng (wind-field `canopy`) → Float32Array (x, y, z liền);
   `makeLeafFall` nhận cả mảng [x, y, z] lẫn mảng số. Heap V8 (Chromium) 50,7 → 42,4 MB.
-- Drone `park()` (engineer/drone.js): `rt.dispose()` + `frameRT.dispose()` (khung tay cầm MSAA ~25 MB) — bay lại three tự dựng, `frameDirty` vẽ lại khung.
+- Drone `park()` (engineer/tasks/drone.js): `rt.dispose()` + `frameRT.dispose()` (khung tay cầm MSAA ~25 MB) — bay lại three tự dựng, `frameDirty` vẽ lại khung.
 
 ### Radio táp-lô (van/radio.js — G 19/10)
 
@@ -929,10 +1148,10 @@ thẻ có số trong dải (FM 87,5–108, AM 531–1602) thì đúng chỗ, cò
 
 ### Ngắm sao 1 tiếng · kính thiên văn + màn hình · thiên hà mini · chó · trăng GLB · cò bay theo cột khí nóng (G 19/10 khuya)
 
-- Giờ ngủ = hằng số `ENG_SLEEP_H` 21,75 (engineer/constants.js) — lịch, ngủ / thức (loop-update), tự chủ, chỉ số Sims, thông báo "đang ngủ" đều đọc nó
+- Giờ ngủ = hằng số `ENG_SLEEP_H` 21,75 (từ 24/10 ở engineer/mind/hours.js cùng `ENG_WAKE_H` và khung giờ từng việc `ENG_HOURS`) — lịch, ngủ / thức (loop-update), tự chủ, chỉ số Sims, thông báo "đang ngủ" đều đọc nó
   (trước rải số 21 ở 6 tệp). Lịch tối: 20:00 học bài nghe nhạc · 20:42–21:42 NGẮM SAO (trời quang; mây / mưa thì đọc sách) · 21:42 mép giường · 21:45 ngủ.
   Ngắm sao: `ok()` tới 21:43, nằm tới khi khung giờ còn < 60 s (bỏ trần 25 phút). Mô phỏng: 21:41 dậy cuộn thảm, 21:42:25 ngồi giường, 21:45 ngủ.
-- Kính thiên văn (engineer/sky-watch.js `TEL`): models/telescope.glb (công cụ src/tools/stargaze/, "Telescope" sieminskaola CC BY: bỏ vỏ viền đen, ảnh màu
+- Kính thiên văn (engineer/tasks/sky-watch.js `TEL`): models/telescope.glb (công cụ src/tools/stargaze/, "Telescope" sieminskaola CC BY: bỏ vỏ viền đen, ảnh màu
   nướng thành màu đỉnh, 3,9k tam giác, 57 KB; điểm neo base / back / front / axis trong extras), ×1,1 đv/m, dựng cố định cạnh đầu thảm phía trống hơn
   (`telPlace` sau khi GLB về — tìm chỗ thảm luôn lúc đó), đuôi ống về phía đầu người nằm; vào ENG_PROPS + obstacleCoords. Màn hình iPad 11" (0,272 × 0,196)
   trên tay đỡ từ đuôi ống, tâm cao 0,72 cách chân kính 0,45 về phía đầu, mặt màn quay về đầu chúc 6° — chúc thẳng vào mắt thì nhìn từ trên chỉ thấy lưng
@@ -1055,11 +1274,11 @@ thẻ có số trong dải (FM 87,5–108, AM 531–1602) thì đúng chỗ, cò
   BẪY: lưới đã gộp lượt vẽ (draw-batch) chuyển sang LỚP 31 ⇒ `pickRay` (lớp 0) không trúng ghế, trúng lèo tèo cần câu ⇒ hộp bấm vô hình (`box(o)`: hộp bao
   thế giới + 3 cm, MeshBasic visible:false — tia vẫn trúng vật liệu ẩn) làm `objs`. Lò chiminea dùng bakeStatic (lớp 0) nên bấm thẳng được.
 - `toolBusy()` việc theo lệnh khác: 'Engineer đang ' + `ENG_ACTS[act].label` viết thường. Mưa huỷ lệnh ngoài trời, TRỪ 'chair' (ghế dưới bạt) và 'wood'.
-- Farming (engineer/carrot-garden.js): lệnh 'garden' → hố trống thì trồng; luống không còn hố ⇒ nhổ ≤ 2 củ chín (g ≥ 1, thỏ chưa nhắm) — pha 'pull': ngồi
+- Farming (engineer/tasks/carrot-garden.js): lệnh 'garden' → hố trống thì trồng; luống không còn hố ⇒ nhổ ≤ 2 củ chín (g ≥ 1, thỏ chưa nhắm) — pha 'pull': ngồi
   xổm, nắm gốc lá giật lên 0,9 s (`sl.pull` như thỏ nhổ), hố hiện, củ (bản sao root + tuft của khóm 0) theo cổ tay phải về túi bên hông rồi ẩn, vào 'plant'
   với `J.k = 0.6` (đang ngồi xổm sẵn, không đứng lên ngồi lại). Luôn tưới khi theo lệnh. Xem thỏ ăn xong thì nối thêm hố mới vào danh sách trồng (trước: hố
   thỏ vừa ăn bị bỏ). Xong ⇒ loop-update xoá lệnh. `gardenJob.crouch` xuất ra cho việc khác dùng.
-- Ghế (engineer/tool-jobs.js `chairTea`, act 'chair' → `engChairPhase` trả pha 'read', `e.timer` 600, `e.rtK` 25): đọc (`engRead`) ⇄ cứ 45 s đặt `e.rtTea`,
+- Ghế (engineer/tasks/tool-jobs.js `chairTea`, act 'chair' → `engChairPhase` trả pha 'read', `e.timer` 600, `e.rtK` 25): đọc (`engRead`) ⇄ cứ 45 s đặt `e.rtTea`,
   `e.teaT = TEA_T − 0,5` ⇒ 1 vòng `engTea` (2 ngụm, ~21 s); lúc nhấp trà sách úp mở trên đùi (spine (0, 0,02, 0,44), xoay (0, π/2, π)). BẪY: đầu loop-update
   trả cốc về tay vịn khi pha ≠ 'tea' ⇒ thêm ngoại lệ `e.rtTea && pha 'read' && act 'chair'` (đổi việc giữa ngụm thì vẫn trả cốc + xoá rtTea).
 - Bỏ củi (`woodJob`, pha 'wood'): đống củi 'Đống củi (Woodpile)' cách lò 1 m — chỗ đứng lấy củi dò 16 điểm vòng 1,2 quanh đống, trống (vật cản r + 0,35, ngoài
@@ -1161,8 +1380,8 @@ thẻ có số trong dải (FM 87,5–108, AM 531–1602) thì đúng chỗ, cò
 
 ### Dọn nhà vệ sinh / nhà tắm sau khi dùng · nấm giảm sáng 50% (G 21/10 khuya)
 
-- Kế hoạch (engineer/schedule.js): toilet ['wc', 'cleanWc', 'sink'] · shower ['shelfOff', 'shower', 'towel', 'cleanBath', 'shelfOn']. Trạm mới ở engineer/van-stations.js
-  (đăng ký VAN_STATIONS — engineer/cooking.js): `stCleanWc` lật nắp → cầm chổi → cọ lòng bồn 6 s → cắm chổi → đậy nắp, xả; `stCleanBath` (nút 'shelf') lấy gạt
+- Kế hoạch (engineer/mind/schedule.js): toilet ['wc', 'cleanWc', 'sink'] · shower ['shelfOff', 'shower', 'towel', 'cleanBath', 'shelfOn']. Trạm mới ở engineer/tasks/van-stations.js
+  (đăng ký VAN_STATIONS — engineer/tasks/cooking.js): `stCleanWc` lật nắp → cầm chổi → cọ lòng bồn 6 s → cắm chổi → đậy nắp, xả; `stCleanBath` (nút 'shelf') lấy gạt
   trên vách lùi → gạt kính rèm 4 s (hết mờ hơi: showerFx.steam) → gạt sàn 4 s (VBATH.wet → 0) → treo lại. Đồ cầm tay: `bathHold` attach vào cổ tay phải /
   trả về `userData.home` trong nhóm phòng tắm. Bị ngắt (keep false) thì trả đồ ngay.
 - Đồ (van/caravan.js, bathRig): cốc + 'Chổi cọ bồn cầu' góc sau −z · 'Cây gạt nước' trên vách lùi (z 0,78) · 'Vệt nước sàn buồng tắm' (opacity 0,4 × wet; tắm
@@ -1171,12 +1390,12 @@ thẻ có số trong dải (FM 87,5–108, AM 531–1602) thì đúng chỗ, cò
 
 ### Kỹ sư cảm nhận thời tiết: nóng · lạnh · mưa ướt · nắng chói (G 22/10 "research human behaviour about weather… add behaviour reaction")
 
-- Mô hình (engineer/weather-feel.js `WX`, `wxTick` gọi đầu engReactPre — cả khi trong xe): nhiệt độ biểu kiến Steadman / BoM 1994 AT = Ta + 0,348·e − 0,70·v + 0,70·Q/(v+10)
+- Mô hình (engineer/mind/weather-feel.js `WX`, `wxTick` gọi đầu engReactPre — cả khi trong xe): nhiệt độ biểu kiến Steadman / BoM 1994 AT = Ta + 0,348·e − 0,70·v + 0,70·Q/(v+10)
   − 4,25 (e từ relative_humidity_2m; v = gió tại đầu RX.wm, dưới bạt ×0,5, trong xe 0,1; Q = 0,2 × shortwave_radiation giờ hiện tại khi ngoài nắng, dưới bạt / trong
   xe = 0) + việc (`WX.act`: ngồi −1 · đi +1,5 · đi vội +2,5 · lao động chân tay +3,5) + lửa (≤ 6 trong 3,2 m lửa trại / 5 trong 3 m lò) + trong xe (1,5 + 2 × đêm) − 4 × ướt.
   `WX.body` = AT trễ τ 240 s; `hotK` = smoothstep(body, 28, 34), `coldK` = 1 − smoothstep(body, 13, 20). Ướt: mưa ngoài mái +max(0,15, rainK)/25 mỗi giây, khô /600
   (nắng, gió, lửa, trong xe nhanh hơn). Dữ liệu thời tiết đọc lại mỗi 10 s (`wxEnv`).
-- Phản ứng (engineer/reactions.js `rxWeather`, sau rxIdle; ngưỡng nhiệt cứng cũ trong rxIdle bỏ): lạnh — khom (lean +0,05·coldK), khép khuỷu (elbowFlexT 0,3·coldK),
+- Phản ứng (engineer/mind/reactions.js `rxWeather`, sau rxIdle; ngưỡng nhiệt cứng cũ trong rxIdle bỏ): lạnh — khom (lean +0,05·coldK), khép khuỷu (elbowFlexT 0,3·coldK),
   cúi đầu (pAdd +0,06·coldK), coldK > 0,65 run (sp.y, pAdd dao động 46–53 rad/s ở engReactPost); rảnh tay: hơ lửa · khoanh tay 'hug' (đứng yên; đang cầm bảng thì ép bảng
   vào ngực, tay phải ôm bắp tay trái) · 'rub' / 'blow' (≤ 12 °C). Nóng — 'fan' (tay phải) · 'fanClip' (bảng ghi chép tay trái) · 'wipe'; dày hơn khi càng nóng
   (40 − 25·hotK s). Đi bộ ×(1 + 0,1·max(coldK, hotK khi nắng)). Ướt > 0,12 tới chỗ khô (đứng / ngồi, 2 tay rảnh): 'shakeOff' (vuốt 2 bắp tay, lắc đầu). Nắng xiên chói
@@ -1184,8 +1403,8 @@ thẻ có số trong dải (FM 87,5–108, AM 531–1602) thì đúng chỗ, cò
 - Alliesthesia (wxTick → `rxWxEvent`): body ≥ 29 mà AT tụt ≥ 4 (bóng râm, gió) / body ≤ 18 mà AT lên ≥ 4 (lửa) ⇒ 'relief' (ngẩng, ưỡn ngực) + moodlet "Mát mẻ dễ
   chịu" / "Ấm áp" 1 giờ (`simMood`); body 21–28 mà AT tụt ≥ 5 ⇒ 'brr'; AT lên ≥ 6 ngoài nắng ⇒ 'shade'. Hồi 4–5 phút.
 - Việc: nóng (hotK > 0,5) đang 'wander' quá 5 phút chưa uống ⇒ 'drink'; 'wander' nóng + nắng ⇒ đích dưới mái bạt (`wxShadeSpot`), lạnh mà lửa cháy ⇒ vòng 1,7–2,6 m
-  quanh bếp (engineer/loop-update.js). Bảng nhu cầu (ui/sim-needs.js): `wxNeeds` (tắm rửa −2,5·hotK/giờ, năng lượng −(hotK + 0,8·coldK)/giờ), `wxMoods` (Nóng nực /
-  Nóng bức, Lạnh run / Rét buốt, Ướt mưa, Trời đẹp — Keller 2005: dễ chịu + ở ngoài ≥ 30 phút). Câu nghĩ: thẻ feelHot / feelCold / wet / nice (engineer/thoughts.js).
+  quanh bếp (engineer/mind/loop-update.js). Bảng nhu cầu (ui/sim-needs.js): `wxNeeds` (tắm rửa −2,5·hotK/giờ, năng lượng −(hotK + 0,8·coldK)/giờ), `wxMoods` (Nóng nực /
+  Nóng bức, Lạnh run / Rét buốt, Ướt mưa, Trời đẹp — Keller 2005: dễ chịu + ở ngoài ≥ 30 phút). Câu nghĩ: thẻ feelHot / feelCold / wet / nice (engineer/mind/thoughts.js).
 - Thấy được: giọt mồ hôi (sprite, nóng + nắng / vận động), hơi thở thành khói (≤ 10 °C, mỗi ~3,6 s), áo phản quang + quần + tóc sẫm tới 40% và bóng hơn khi ướt.
 - Thử: scratchpad wxtest.js (`wxRun(o, giờ, giây, độ ẩm)`), wxgest.js / wxgest2.js; khoá thời tiết `wxLock` dựng lại trong reacttest.js (bản cũ bị dọn).
 
@@ -1199,10 +1418,10 @@ thẻ có số trong dải (FM 87,5–108, AM 531–1602) thì đúng chỗ, cò
   mờ dần) → tách 3 s (độ lệch `off` mỗi khối × đường cong "back" có đà) → soi 11 bộ phận × 2,2 s (sáng trắng + phát sáng xanh nhịp 9 rad/s, phồng 8%, nhãn tên — sprite
   canvas 0,64 × 0,12 luôn trên cùng (G 22/10 nhỏ lại 20%); khối khác mờ còn 0,55) → lắp lại 3 s → tắt 1,2 s. Đường trục lắp ráp (LineSegments chỗ lắp → chỗ tách) và tia nón cộng màu từ bảng ghi
   chép lên đáy hình. Vật liệu Lambert trong suốt nhuộm 0x9fd6ff + emissive xanh.
-- engineer/engine-check.js: pha mới 'holo' sau 'check' (trước 'start'): bảng ghi chép giơ trước ngực, nhìn (cúi/ngẩng + headYawT) theo bộ phận đang soi, tay phải chỉ
+- engineer/tasks/engine-check.js: pha mới 'holo' sau 'check' (trước 'start'): bảng ghi chép giơ trước ngực, nhìn (cúi/ngẩng + headYawT) theo bộ phận đang soi, tay phải chỉ
   (R[0] dọc hướng vai → bộ phận), nhận xét từng bộ phận trong bong bóng (`holoSay`, HOLO_TXT); xong ⇒ nổ máy như cũ. Bị cắt ngang: `idle()` tắt hình.
 - GHẾ BẬC (G 22/10 "cho engineer sử dụng step stool để nhìn máy"; đứng đất mắt chỉ cao hơn nắp máy 0,32, cách đầu máy ~0,65 ⇒ ca-lăng che khoang máy): ghế nhựa
-  đúc 2 bậc dựng trong engineer/engine-check.js (`engineJob.stool`, 2 lưới gộp: nhựa 0x55708c + cao su; bậc dưới 0,14, mặt trên 0,28 đv ≈ 31 cm thật, rộng 0,38,
+  đúc 2 bậc dựng trong engineer/tasks/engine-check.js (`engineJob.stool`, 2 lưới gộp: nhựa 0x55708c + cao su; bậc dưới 0,14, mặt trên 0,28 đv ≈ 31 cm thật, rộng 0,38,
   sâu 0,40). Chỗ cất HOME: lưng sát vách bên cửa lùa, xe (−1,45, z 1,30) cạnh bánh trước (bát nước chó −0,75, thảm sao −0,62); chỗ làm FRONT: lưng sát cản (mặt
   nhô nhất x −3,27 ở cao 0,5–0,8; dưới 0,35 trống), bậc quay ra đầu xe. Pha mới: lift → 'fetch' (bong bóng "Khoang máy cao quá…") → 'fetchN' → 'pick' → 'carry'
   → 'carryN' → 'set' → 'up' → check … cool → close (trên ghế) → 'down' → 'grab' → 'back' → 'backN' → 'stow'. Đi giữa hông xe ⇄ đầu xe: `vanWalk` qua góc

@@ -11,12 +11,14 @@
       const onBootPageHide = e => { if (!e.persisted) cancelBoot(); };
       window.__cancelGardenBoot = cancelBoot;
       window.addEventListener('pagehide', onBootPageHide);
+      window.__ld?.(8, 18, 'Đang tải three.js…');   // SỐ % lúc mở trang (src/page.html): mã cảnh đã tải xong
       Promise.all([import('https://esm.sh/three@0.160.0'), import('https://esm.sh/three@0.160.0/examples/jsm/utils/BufferGeometryUtils.js')])
         .then(([m, u]) => {
           window.removeEventListener('pagehide', onBootPageHide);
           if (window.__cancelGardenBoot === cancelBoot) delete window.__cancelGardenBoot;
           if (bootCancelled) return;
-          build(m, u.mergeGeometries); cleanupBuild = null;
+          window.__ld?.(18, 19, 'Đang ghép voxel + line-art…');
+          return build(m, u.mergeGeometries).then(() => { cleanupBuild = null; });
         }).catch(e => {
           if (bootCancelled) return;
           cancelBoot();
@@ -24,7 +26,17 @@
           console.error(e); fail(e.message);
         });
 
-      function build(THREE, mergeGeometries) {
+      async function build(THREE, mergeGeometries) {
+        // NHỊP TẢI (G 23/10 "add % loading number when start"): build.py chèn `if (ldStep(phần mã đã chạy)) await ldYield();` giữa các mảnh mã tới hết
+        //  core/collide.js (sau đó là trình nghe sự kiện giao diện, vòng vẽ) ⇒ cứ ~70 ms nhường 1 khung cho trình duyệt vẽ số % (18 → 68%); trang ẩn thì không nhường.
+        //  rAF không tới (khung nhúng ngoài màn hình) ⇒ 150 ms tự đi tiếp. ldTrack(promise): mẫu 3D / ảnh tải lúc mở trang — khung đầu chờ (tối đa 6 s, loop/main-loop-rest.js)
+        let ldT = performance.now();
+        //  ldGate: mở ở cuối dựng cảnh (loop/main-loop-rest.js) — mẫu 3D tải xong giữa 2 nhịp nhường vẫn chờ cổng rồi mới gắn vào cảnh (hàm gắn dùng biến của tệp sau,
+        //  vd attach() xe → VPART của van/van-doors.js: gắn sớm = lỗi biến chưa khai báo); tải vẫn chạy song song với dựng cảnh
+        let ldOpen = null; const ldGate = new Promise(r => { ldOpen = r; }), ldAfter = v => ldGate.then(() => v);   // .then(ldAfter): chờ cổng, giữ giá trị
+        const ldNeed = [], ldTrack = p => { ldNeed.push(Promise.resolve(p).catch(() => {})); return p; };
+        const ldStep = f => { window.__ld?.(18 + 50 * f, 19 + 50 * f); return !document.hidden && performance.now() - ldT > 70; };
+        const ldYield = () => new Promise(r => { const go = () => { clearTimeout(id); ldT = performance.now(); r(); }, id = setTimeout(go, 150); requestAnimationFrame(() => setTimeout(go, 0)); });
         let disposed = false, frameId = 0, copyTimer = null, suspended = document.hidden, offscreen = false, viewObserver = null;
         const sceneEvents = new AbortController(), windUniforms = new Map(), flightRoots = [];
         const butterflies = [], bees = [], extraGeometries = new Set(), sceneWeather = window.gardenWeather;

@@ -2,7 +2,7 @@
         const studyLaptop = { hinge: null, screen: null, light: null, open: 0, target: 0 };   // laptop bàn học: nắp mở/đóng + màn hình sáng khi kỹ sư làm việc
         const studyChairRig = { obj: null, home: 0, off: 0, sx: 0, sw: 0 };   // ghế văn phòng bàn học: kéo ra / đẩy vào dọc trục trước–sau + trượt ngang (sx) + xoay mâm (sw) (đv xe)
         const studyBoard = { g: null };   // bảng ghim ghi chú cạnh bàn học (G 17/10)
-        const LAP_K = 1.3;   // G 17/10 "macbook 30% bigger" (khung tay cầm drone giữ cỡ cũ: engineer/drone.js chia lại)
+        const LAP_K = 1.3;   // G 17/10 "macbook 30% bigger" (khung tay cầm drone giữ cỡ cũ: engineer/tasks/drone.js chia lại)
         function updateStudyLamp() {
           const hh = liveWeather.localHour, on = hh >= 18.5 || hh < 6;
           if (!studyDeskLighting.light || on === studyDeskLighting.on) return;
@@ -73,7 +73,7 @@
         function engHelmetProp() {   // mũ bảo hộ rời (đv xe = cỡ mũ đang đội: ×ENGINEER_BASE_SCALE); gốc ở đáy 2 ốp tai (mũ đặt xuống thì tì trên ốp tai)
           const g = new THREE.Group(); g.name = 'Mũ bảo hộ (đã tháo)'; g.userData.noBake = true;
           const h = legoHelmet(engHelm, caravanDark); h.position.y = 0.07; g.add(h);   // cùng hình mũ đang đội; tì trên 2 ốp tai
-          g.scale.set(ENGINEER_BASE_SCALE * ENG_SLIM, ENGINEER_BASE_SCALE, ENGINEER_BASE_SCALE * ENG_SLIM); return g;   // gầy 5% như mũ đang đội (engineer/model.js)
+          g.scale.set(ENGINEER_BASE_SCALE * ENG_SLIM, ENGINEER_BASE_SCALE, ENGINEER_BASE_SCALE * ENG_SLIM); return g;   // gầy 5% như mũ đang đội (engineer/body/model.js)
         }
         function caravan() {
           const g = new THREE.Group();
@@ -221,7 +221,7 @@
           // ---- GHẾ VĂN PHÒNG (G 17/10 "add … office chair": dáng ghế giám đốc da nâu tay vịn ống crôm trong GLB "60's Office Props" — SeanNicolas,
           //      CC-BY-NC, chỉ đo). Cơ cấu ghế văn phòng: chân sao 5 nhánh có bánh xe (5 nhánh mới không lật — BIFMA X5.1), trụ ben hơi nâng hạ, mâm XOAY
           //      360°, cơ cấu NGẢ: lưng ngả theo người tựa ra sau (lò xo căng); tay vịn để chống khi ngồi xuống / đứng lên. Lối đi trong xe hẹp ⇒ không
-          //      vòng ra sau ghế được: đứng cạnh ghế, XOAY ghế về phía mình, ngồi, xoay về bàn rồi lăn vào (engineer/van-stations.js). Mặt đệm cao 0,4875 đv.
+          //      vòng ra sau ghế được: đứng cạnh ghế, XOAY ghế về phía mình, ngồi, xoay về bàn rồi lăn vào (engineer/tasks/van-stations.js). Mặt đệm cao 0,4875 đv.
           //      Nhóm: ghế (lăn: z kéo ra / đẩy vào, x trượt ngang) ⊃ chân sao + bánh (càng xoay theo hướng lăn) · mâm xoay ⊃ lưng ngả ----
           const studyChair = new THREE.Group(); studyChair.name = 'Ghế bàn học'; studyChair.userData.noBatch = true;
           const chairX = dX - .02, chairZ = dZ + DD / 2 + .39, SEAT_TOP = .4875;   // mép đệm cách mép bàn ~15 cm
@@ -257,7 +257,7 @@
           study.add(studyChair); studyChairRig.obj = studyChair; studyChairRig.home = studyChair.position.z;
 
           // ---- BẢNG GHIM (G 17/10 "add wall board", theo bảng bần trong "60's Office Props"): khung gỗ sẫm, mặt bần, giấy ghi + đinh ghim đỏ. Treo vách
-          //      trước phòng tắm, bên phải bàn học, mép dưới cao hơn mặt bàn ~9 cm: ngồi ghế xoay sang + lăn tới là với tới (engineer/laptop-work.js 'note').
+          //      trước phòng tắm, bên phải bàn học, mép dưới cao hơn mặt bàn ~9 cm: ngồi ghế xoay sang + lăn tới là với tới (engineer/tasks/laptop-work.js 'note').
           //      Toạ độ bảng: +x dọc bảng (về phía lối đi), +y lên, +z ra khỏi vách ----
           {
             const BW = .62, BH = .5, bd = new THREE.Group(); bd.name = 'Bảng ghim ghi chú'; bd.position.set(x1 - .03, yIn + 1.32, -dz + .36); bd.rotation.y = -Math.PI / 2;
@@ -427,7 +427,7 @@
           const towelBar = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.28, 8), metalMat); towelBar.rotation.z = Math.PI / 2; towelBar.position.set(towelX, flY + 0.98, wcZ + 0.05); bath.add(towelBar);
           const towel = bx(0.26, 0.4, 0.035, towelM, true, true, lineDark); towel.position.set(towelX, flY + 0.78, wcZ + 0.045); towel.name = 'Khăn tắm'; towel.userData.noBake = true; bath.add(towel);
           // ĐỒ DỌN SAU KHI DÙNG (G 21/10 "sau khi đi vệ sinh hoặc tắm là dọn nhà vệ sinh nhà tắm"): chổi cọ bồn cầu trong cốc ở góc sau −z cạnh bồn · cây gạt
-          //  nước treo vách lùi (cạnh kệ mũ) · vệt nước trên sàn buồng tắm (ướt khi tắm, gạt về phễu thì khô, tự khô ~25 phút) — engineer/van-stations.js stCleanWc / stCleanBath
+          //  nước treo vách lùi (cạnh kệ mũ) · vệt nước trên sàn buồng tắm (ướt khi tắm, gạt về phễu thì khô, tự khô ~25 phút) — engineer/tasks/van-stations.js stCleanWc / stCleanBath
           const brushM = new THREE.MeshLambertMaterial({ color: 0x5b8fb0 }), bristleM = new THREE.MeshLambertMaterial({ color: 0xe8e2d2 });
           const brCup = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.05, 0.16, 12), brushM); brCup.position.set(xB - 0.09, flY + 0.08, -dz + 0.1); brCup.castShadow = true; bath.add(brCup);
           const brush = new THREE.Group(); brush.name = 'Chổi cọ bồn cầu'; brush.position.set(xB - 0.09, flY + 0.05, -dz + 0.1); bath.add(brush);
@@ -590,7 +590,7 @@
             study: study.userData.layout,
             sleepPosition: [bedX1 - 0.1 - 2.33 * ENGINEER_BASE_SCALE, yIn + 0.49 + 0.05, bedZ], sleepHead: [bedX1 - 0.25, 3.2, bedZ],   // đỉnh đầu cách đầu giường 10 cm (gốc kỹ sư dưới gót 0,3 · cao 2,03 đv mẫu)
             stool: { obj: stool, rest: STOOL_REST, in: STOOL_IN, x: TX }, bath: bathRig, bedHelmet, kitchen, cerealBowl, tableUdon, studyCoke: coke,
-            bedTop: yIn + mattTop, duvet, duvetMat: cushMat, bedGroup: bed   // engineer/sleep.js: mặt nệm, chăn gấp cuối giường (ẩn khi trải chăn đắp)
+            bedTop: yIn + mattTop, duvet, duvetMat: cushMat, bedGroup: bed   // engineer/tasks/sleep.js: mặt nệm, chăn gấp cuối giường (ẩn khi trải chăn đắp)
           };
           // xem xuyên: mặc định mọi thứ của xe là vỏ; sàn, nội thất, bánh xe & đèn lồng hiên giữ nguyên
           g.userData.xray = 'shell';

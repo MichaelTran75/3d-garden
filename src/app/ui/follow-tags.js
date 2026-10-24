@@ -1,9 +1,8 @@
-        // ===== NHÃN + ĐƯỜNG DẪN theo con vật / người (G 18/10 "add leader và label vào engineer, racoon, con hươu"): như nhãn drone (engineer/drone.js) — thẻ cỡ cố định
-        //  trên màn hình (34 px, ngang nhãn cảnh), đường dẫn 64 px chỉ xuống đỉnh đầu, đi theo mỗi khung; ẩn khi vật ẩn (gấu mèo chỉ ra chạng vạng – đêm). Kỹ sư: chữ = việc đang làm
-        //  (bảng Kỹ sư — ui/sim-needs.js). Nằm trong labelGroup ⇒ nút "Nhãn" tắt cùng các nhãn khác. Mỗi khung: followTagsTick (loop/main-loop-rest.js) ----
+        // ===== NHÃN + ĐƯỜNG DẪN theo con vật / người (G 18/10 "add leader và label vào engineer, racoon, con hươu"): như nhãn drone (engineer/tasks/drone.js) — thẻ cỡ cố định
+        //  trên màn hình (34 px, ngang nhãn cảnh), đường dẫn 64 px chỉ xuống đỉnh đầu, đi theo mỗi khung; ẩn khi vật ẩn (gấu mèo chỉ ra chạng vạng – đêm). Kỹ sư: G 23/10 gộp
+        //  vào bong bóng suy nghĩ (dòng đầu = việc đang làm — engineer/mind/thought-bubble.js). Nằm trong labelGroup ⇒ nút "Nhãn" tắt cùng các nhãn khác. Mỗi khung: followTagsTick (loop/main-loop-rest.js) ----
         const _ftP = new THREE.Vector3(), _ftB = new THREE.Box3();
         const FTAGS = [
-          { o: engObj.g, col: '#e8892a', txt: () => '👷🏻‍♂️ ' + ((SIM_DO[simDoing(engObj)] || {}).lab || 'Đi lại'), top: () => engObj.head.getWorldPosition(_ftP).setY(_ftP.y + 0.3) },
           { o: raccoonObj, col: '#6b6f78', txt: () => 'Gấu mèo' },
           { o: stag && stag.g, col: '#9b6e43', txt: () => 'Hươu' }];
         function followTagsTick() {
@@ -39,12 +38,15 @@
         }
         // ---- CAMERA THEO KỸ SƯ (G 18/10 "when click vào kỹ sư, camera will move to him"): bấm nút "Kỹ sư" mở bảng ⇒ điểm nhìn lướt tới kỹ sư 1,2 s (êm hai đầu),
         //  zoom vào ít nhất ×18, rồi bám theo kỹ sư; kéo phải (dời khung), phím W/A/S/D/mũi tên, nút về mặc định hoặc đóng bảng ⇒ thôi theo (kéo trái xoay vẫn theo) ----
-        const CAMF = { o: null, k: 1, from: new THREE.Vector3(), z0: 1, z1: 1 };
-        function camFollow(o, zoom = 18) { CAMF.o = o; CAMF.k = 0; CAMF.from.copy(target); CAMF.z0 = camera.zoom; CAMF.z1 = Math.max(camera.zoom, zoom); autoRotate = false; }
+        //  opt.exact: zoom đúng số (khung vừa vật — có thể zoom ra) · opt.off: điểm nhìn = gốc vật + off (thế giới; mặc định cao 1) · opt.rate: độ bám (vật bay nhanh: cao hơn)
+        const CAMF = { o: null, k: 1, from: new THREE.Vector3(), z0: 1, z1: 1, off: null, rate: 3 };
+        function camFollow(o, zoom = 18, opt = {}) { CAMF.o = o; CAMF.k = 0; CAMF.from.copy(target); CAMF.z0 = camera.zoom; CAMF.z1 = opt.exact ? zoom : Math.max(camera.zoom, zoom); CAMF.off = opt.off ? opt.off.clone() : null; CAMF.rate = opt.rate || 3; autoRotate = false; }
         function camFollowTick(dt) {
-          if (!CAMF.o) return; const p = CAMF.o.getWorldPosition(_ftP); p.y += 1.0;
+          if (!CAMF.o) return;
+          if (CAMF.o === droneToy.g && !/^(arm|flying|land)$/.test(droneToy.state.st)) camFollow(engObj.g, Math.min(camera.zoom, 18), { exact: true });   // drone đã hạ cánh ⇒ camera lùi về theo kỹ sư (đang đem drone cất), zoom ×18 thay cho cận cảnh drone
+          const p = CAMF.o.getWorldPosition(_ftP); if (CAMF.off) p.add(CAMF.off); else p.y += 1.0;
           if (CAMF.k < 1) { CAMF.k = Math.min(1, CAMF.k + dt / 1.2); const e = CAMF.k * CAMF.k * (3 - 2 * CAMF.k); target.lerpVectors(CAMF.from, p, e); camera.zoom = CAMF.z0 + (CAMF.z1 - CAMF.z0) * e; camera.updateProjectionMatrix(); }
-          else target.lerp(p, Math.min(1, dt * 3));
+          else target.lerp(p, Math.min(1, dt * CAMF.rate));
         }
         listen(dom, 'pointerdown', e => { if (e.button === 2) CAMF.o = null; });
         listen(window, 'keydown', e => { if (/^(w|a|s|d|arrow)/i.test(e.key)) CAMF.o = null; });

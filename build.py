@@ -24,7 +24,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 SRC = HERE / 'src'
 SINGLE = HERE.parent / '3D garden.html'
 STAMP = HERE / '.single-stamp'          # băm của bản một tệp dựng lần trước (không đưa lên git)
-MODELS_KB = 2900                         # trần dung lượng THÔ của models/ (KB) — mẫu tải sau, không tính vào ngân sách gzip bên dưới (18/10: 1500 → 2200 khi thêm xe Transit GLB transit.bin ~550 KB; 2200 → 2500 cho tệp trọng số mạng nơ-ron của kỹ sư); 19/10: 2500 → 2900 cho kính thiên văn + thiên hà mini + mặt trăng GLB (G duyệt)
+MODELS_KB = 3000                         # 24/10: 2900 → 3000 cho khung gầm GAZ-69 chassis.glb 62 KB · trần dung lượng THÔ của models/ (KB) — mẫu tải sau, không tính vào ngân sách gzip bên dưới (18/10: 1500 → 2200 khi thêm xe Transit GLB transit.bin ~550 KB; 2200 → 2500 cho tệp trọng số mạng nơ-ron của kỹ sư); 19/10: 2500 → 2900 cho kính thiên văn + thiên hà mini + mặt trăng GLB (G duyệt)
 BUDGET_KB = {'js/app.js': 750, 'tổng': 775}   # ngân sách dung lượng NÉN gzip (KB) người xem phải tải — vượt thì --check báo lỗi (14/10: 380 → 400 khi thêm chim sẻ + thuyền; 15/10: G nâng 420/440; 16/10: bỏ cả chú thích cuối dòng ⇒ app.js 420 → 359 KB, còn trống ~60 KB; 17/10 khuya: G nâng 440/460 để dựng lại xe theo Ford Transit L3H2; 18/10: G nâng 490/510 cho kỹ sư tự chủ + mạng nơ-ron); 19/10: G nâng 500/520 cho radio táp-lô, kính thiên văn + thiên hà mini, chó ngắm sao, cò bay theo cột khí nóng; 21/10: G nâng 750/775 (bảng Tools: kính thiên văn, cắt cỏ, câu cá, drone, Farming, ghế đọc sách uống trà, bỏ củi lò — app.js 503 KB, tăng ~29 KB/ngày từ 16/10)
 args = set(sys.argv[1:])
 
@@ -46,7 +46,17 @@ if len(parts) != len(set(parts)): die('manifest có tệp trùng')
 listed = {'app/' + r for r in parts}
 stray = sorted(str(p.relative_to(SRC)) for p in (SRC / 'app').rglob('*.js') if str(p.relative_to(SRC)) not in listed)
 if stray: die('có tệp chưa ghi trong src/app/manifest.txt: ' + ', '.join(stray))
-app = '\n'.join(read('app/' + r) for r in parts)
+# NHỊP TẢI (G 23/10 "add % loading number when start"): giữa các mảnh mã cảnh — từ sau core/boot.js tới hết LD_LAST — chèn 1 dòng
+# `if (ldStep(phần mã đã chạy)) await ldYield();` (core/boot.js: dựng cảnh là hàm async, cứ ~70 ms nhường 1 khung để trình duyệt vẽ số %); phần tính theo số ký tự mã
+# đã chạy. Sau LD_LAST là trình nghe sự kiện giao diện + vòng vẽ: không nhường (sự kiện tới giữa chừng sẽ gặp biến chưa khai báo).
+LD_LAST = 'core/collide.js'
+if LD_LAST not in parts: die('manifest thiếu ' + LD_LAST + ' (mốc cuối nhịp tải)')
+srcs = [read('app/' + r) for r in parts]
+ld_k = parts.index(LD_LAST); ld_tot = sum(len(t) for t in srcs[1:ld_k + 1]); ld_acc = 0; chunks = [srcs[0]]
+for i in range(1, len(parts)):
+    if i <= ld_k + 1: chunks.append('        if (ldStep(%.3f)) await ldYield();' % (ld_acc / ld_tot))
+    chunks.append(srcs[i]); ld_acc += len(srcs[i])
+app = '\n'.join(chunks)
 
 css, weather, flight = read('css/app.css'), read('js/weather.js'), read('js/flight-nav.js')
 page = (SRC / 'page.html').read_text(encoding='utf-8')
@@ -127,6 +137,7 @@ def strip_js_comments(src):
 # kết thúc bằng 1 câu lệnh ASCII `a.b(…);` / `a = …;` (ngoặc cân) — chữ Việt có dấu nên văn xuôi không bị bắt nhầm
 _ID = r'[A-Za-z_$][A-Za-z0-9_$]*'
 SWALLOW = re.compile(r'(?:^|[\s;:,(])(' + _ID + r'(?:\.' + _ID + r')*(?:\([\x20-\x7e]*\)|\s*[-+*/]?=\s*[^=;\s][\x20-\x7e]*?));\s*$')
+TAIL = re.compile(r'(?:\s*\b(?:break|continue|return\b[\x20-\x7e]*?);)+\s*$')   # bỏ break; / continue; / return …; ở cuối để thấy câu lệnh đứng trước
 def _balanced(s):
     d = 0
     for ch in s:
@@ -137,8 +148,11 @@ def swallowed(rel, src):
     txt = js_scan(src, False)[0]   # dòng giữ nguyên số thứ tự; chú thích // thành \x01
     for i, (a, b) in enumerate(zip(txt.split('\n'), src.split('\n')), 1):
         if '\x01' not in a or not a.replace('\x01', '').strip(): continue   # chỉ xét chú thích cuối dòng (sau mã), bỏ dòng chỉ có chú thích
-        k = b.find('//', len(a) - 1); m = SWALLOW.search(b[k + 2:]) if k >= 0 else None
-        if m and _balanced(m.group(1)): yield '%s:%d  …%s' % (rel, i, b[k:][-90:])
+        k = b.find('//', len(a) - 1)
+        if k < 0: continue
+        for c in b[k + 2:].split('//'):   # 2 chú thích liền nhau: câu bị nuốt đứng trước chú thích thứ 2, có khi kèm break; (23/10: gà xếp hàng không lên chuồng)
+            m = SWALLOW.search(TAIL.sub('', c))
+            if m and _balanced(m.group(1)): yield '%s:%d  …%s' % (rel, i, b[k:][-90:]); break
 sw = [w for r in parts for w in swallowed('src/app/' + r, read('app/' + r))]
 sw += [w for r, t in (('src/js/weather.js', weather), ('src/js/flight-nav.js', flight)) for w in swallowed(r, t)]
 if sw: die('chú thích // nuốt mất câu lệnh phía sau (đưa câu lệnh lên TRƯỚC chú thích):\n  ' + '\n  '.join(sw))

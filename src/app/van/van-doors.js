@@ -4,7 +4,7 @@
         //  3 px, con trỏ bàn tay, vùng bấm rộng hơn nút 3 cm, bỏ nút quay lưng camera; logo chỉ viền ô xanh + chữ mạ — đế đen khuất sau nan ga-lăng làm viền phình).
         //  Bấm tay nắm: tay nắm bật ra 7 mm → cửa mở 66° (lò xo hơi dư như dây hãm cửa, ~0,9 s) · bấm lại: cửa khép, chạm khung nảy nhẹ rồi nằm. Bấm logo: logo lún
         //  4 mm → ca-pô bật chốt ~3° → nâng lên 52° (lò xo êm như ty chống, ~1,3 s) · bấm lại: hạ, chạm, nảy rồi nằm (kỹ sư đang kiểm tra máy thì logo không nhận —
-        //  engineer/engine-check.js). Ca-pô mở ⇒ thấy máy V6: rê lên máy có viền, bấm ra bảng "Khởi động máy". Mỗi khung: vanPartsTick (loop/main-loop-rest.js) ----
+        //  engineer/tasks/engine-check.js). Ca-pô mở ⇒ thấy máy V6: rê lên máy có viền, bấm ra bảng "Khởi động máy". Mỗi khung: vanPartsTick (loop/main-loop-rest.js) ----
         const VPART = { parts: [], btns: [], hoodBtn: null, led: null };
         const VP_OPEN = { door: 66 * Math.PI / 180, hood: 52 * Math.PI / 180 };
         const VP_NAME = { FrontDoorR: 'Cửa lái (cửa trước phải)', FrontDoorL: 'Cửa phụ (cửa trước trái)', Hood: 'Ca-pô', HandleR: 'Tay nắm cửa lái', HandleL: 'Tay nắm cửa phụ', Logo: 'Logo Ford (bấm mở ca-pô)' };

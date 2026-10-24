@@ -189,7 +189,7 @@
             for (let i = 0; i < 6; i++) { const j = k + i * 2; markIndices.push(j, j + 1, j + 3, j, j + 3, j + 2); }
           }
           const marksGeo = new THREE.BufferGeometry(); marksGeo.setAttribute('position', new THREE.Float32BufferAttribute(marks, 3)); marksGeo.setIndex(markIndices); marksGeo.computeVertexNormals(); dMat.side = THREE.DoubleSide;
-          const marksM = new THREE.Mesh(marksGeo, dMat); fg.add(marksM);   // không gộp tĩnh: cá đổi màu sống → chín, bị cắn dần, được cầm / xiên / cắm lại (engineer/meal-read.js)
+          const marksM = new THREE.Mesh(marksGeo, dMat); fg.add(marksM);   // không gộp tĩnh: cá đổi màu sống → chín, bị cắn dần, được cầm / xiên / cắm lại (engineer/tasks/meal-read.js)
 
           // ---- than hồng ở tâm (dư âm ngọn lửa): quầng sáng loang trên tro + ụ than góc cạnh dưới chân củi, vẫn âm ỉ khi lửa còn 5% ----
           const glowC = document.createElement('canvas'); glowC.width = glowC.height = 128; const gc = glowC.getContext('2d');
@@ -402,7 +402,7 @@
         }
         const placeFire = (obj, ox, oz, ry) => { const X = pf.x + ox, Z = pf.z + oz; obj.position.set(X, cowY(X, Z), Z); if (ry != null) obj.rotation.y = ry; scene.add(obj); };
         // ---- góc bàn-ghế uống trà DƯỚI BẠT HIÊN (G 18/10 "move the chair and table under cover"; trước ở mép bạt (65–66, _, 100–101): người ngồi + bàn dầm
-        //      mưa — mà trú mưa chính là ngồi ghế này, engineer/loop-update.js 'shelter'). Toạ độ cục bộ xe (trước khi nhân CAMP_SCALE): bạt x −0,75 … 2,9
+        //      mưa — mà trú mưa chính là ngồi ghế này, engineer/mind/loop-update.js 'shelter'). Toạ độ cục bộ xe (trước khi nhân CAMP_SCALE): bạt x −0,75 … 2,9
         //      dọc thân · z 1,06 (vách) … 3,4 (mép trước); cửa lùa x −0,55 … 0,83 (bậc 0,07 … 0,61). Ghế (1,45; 1,82) quay ra ngoài nhìn bếp lửa, lưng sát
         //      vách ~0,3, chân người ngồi còn trong mép bạt, tâm cách bậc cửa ~1 m (vòng né của ghế không đẩy người ra vào cửa). Bàn (2,55; 2,0) bên tay
         //      trái người ngồi (cốc trà ở tay vịn trái), dọc thân xe, mép −z của bàn quay ra ngoài ⇒ chỗ đứng lấy drone (0,85 m trước mép, drone.js
@@ -421,7 +421,7 @@
            tb.rotation.y = caravanObj.rotation.y + Math.PI; tb.name = 'Bàn trà (Camp Table)'; scene.add(tb); }   // dọc thân xe, −z của bàn quay ra ngoài
         // ---- CỐC TRÀ của kỹ sư (G 15/10): cốc men trắng có nước trà, đặt trong VÒNG KHAY CỐC trên tay vịn trái ghế cắm trại — bàn trà thấp 0,56 m, cách ghế
         //      ~1 m (gần nhất 0,92 m tới vai, tay với 0,57 m) nên ngồi không với tới; ca đen trên bàn là ca nấu nước. Khói trà bốc từ cốc. Uống: engTea
-        //      (engineer/meal-read.js) nhấc cốc khỏi vòng, uống xong đặt lại đúng chỗ ----
+        //      (engineer/tasks/meal-read.js) nhấc cốc khỏi vòng, uống xong đặt lại đúng chỗ ----
         let campTeaCup = null;
         { const ch = scene.getObjectByName('Ghế cắm trại (Camp Chair)'), c = new THREE.Group(), wM = new THREE.MeshLambertMaterial({ color: 0xece8de, side: THREE.DoubleSide }), H = 0.09;
           const add = (m, y) => { m.position.y = y; c.add(m); return m; };

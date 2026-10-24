@@ -47,7 +47,7 @@
         const SIM_DOG0 = '2026-10-05', SIM_WORK_DAY = 5.8;   // giờ nghiên cứu theo lịch / ngày ⇒ hiệu suất 100%
         const sim = { n: {}, moods: [], doing: 'walk', hour: null, today: {}, day: '', perDay: null, panel: null, open: false, last: 0 };
         function simDoing(e) {   // việc đang làm thật → lớp việc của bảng tốc độ
-          const hh = liveWeather.localHour; if (hh >= ENG_SLEEP_H || hh < 6) return 'sleep';
+          const hh = liveWeather.localHour; if (!engAwake(hh)) return 'sleep';
           const V = e.inVan && e.van, st = V && V.station, ph = e.phase;
           if (V) {
             if (st === 'wc') return 'toilet'; if (st === 'cleanWc' || st === 'cleanBath') return 'clean'; if (st === 'shower' || st === 'towel') return 'shower'; if (st === 'sink' || st === 'dishes') return 'wash';
@@ -74,7 +74,7 @@
             sim.doing = doing;
           }
         }
-        function simMood(name, emo, w, hours) { sim.moods = sim.moods.filter(m => m.name !== name); sim.moods.push({ name, emo, w, left: hours }); }   // moodlet có hạn (vd. thở phào khi mát / ấm lại — engineer/reactions.js)
+        function simMood(name, emo, w, hours) { sim.moods = sim.moods.filter(m => m.name !== name); sim.moods.push({ name, emo, w, left: hours }); }   // moodlet có hạn (vd. thở phào khi mát / ấm lại — engineer/mind/reactions.js)
         function simInit(h) {   // tua lịch từ giờ ngủ hôm trước (ENG_SLEEP_H) tới giờ h (bước 2 phút)
           sim.n = { hunger: 45, bladder: 55, energy: 18, hygiene: 75, fun: 55, social: 45, curiosity: 60 }; sim.moods = []; sim.today = {}; sim.doing = 'sleep';
           const span = (h - ENG_SLEEP_H + 24) % 24, st = 1 / 30;
@@ -90,7 +90,7 @@
           for (const [k] of SIM_NEEDS) { const v = sim.n[k], s = SIM_LOW[k]; if (v < 12) L.push({ name: s[1], emo: s[2], w: 3 }); else if (v < 30) L.push({ name: s[0], emo: s[2], w: 1 }); }
           const D = SIM_DO[sim.doing]; if (D && D.mood) L.push({ name: D.mood[0], emo: D.mood[1], w: D.mood[2] });
           if (SIM_OUT.has(sim.doing) && engObj && !engObj.inVan && !liveWeather.state.raining) L.push({ name: 'Thích ngoài trời', emo: 'happy', w: 1 });   // tính cách Thích ngoài trời
-          wxMoods(L);   // nóng nực · lạnh run · ướt mưa · trời đẹp (engineer/weather-feel.js)
+          wxMoods(L);   // nóng nực · lạnh run · ướt mưa · trời đẹp (engineer/mind/weather-feel.js)
           for (const m of sim.moods) L.push(m);
           const sum = {}; for (const m of L) sum[m.emo] = (sum[m.emo] || 0) + m.w;
           let best = 'fine', bw = 0; for (const k in sum) if (sum[k] > bw) { bw = sum[k]; best = k; }
@@ -106,7 +106,7 @@
           const P = document.getElementById('simPanel'); if (!P) return null;
           const U = { P, emo: P.querySelector('#simEmo'), doing: P.querySelector('#simDoing'), plum: P.querySelector('#simPlumbob'), moods: P.querySelector('#simMoods'), needs: {}, skills: {}, dog: null, job: null };
           const grid = P.querySelector('#simNeeds'); for (const [k, lab, icon] of SIM_NEEDS) { const b = simBar(icon, lab); grid.append(b.row); U.needs[k] = b;
-            b.row.classList.add('sim-cmd'); listen(b.row, 'click', () => simCommand(k)); }   // bảng điều khiển ngược: bấm thanh ⇒ kỹ sư đi lấp nhu cầu (engineer/autonomy.js)
+            b.row.classList.add('sim-cmd'); listen(b.row, 'click', () => simCommand(k)); }   // bảng điều khiển ngược: bấm thanh ⇒ kỹ sư đi lấp nhu cầu (engineer/mind/autonomy.js)
           const sk = P.querySelector('#simSkills'); for (const [k, lab, icon] of SIM_SKILLS) { const b = simBar(icon, lab); sk.append(b.row); U.skills[k] = b; }
           const rel = P.querySelector('#simRel'); U.dog = simBar('ti-paw', 'Pet'); U.job = simBar('ti-briefcase', 'Hiệu suất hôm nay'); rel.append(U.dog.row, U.job.row);
           listen(P.querySelector('#simClose'), 'click', () => { simToggle(false); CAMF.o = null; });
@@ -138,7 +138,7 @@
         function simToggle(on = !sim.open) {
           if (on && !sim.panel) sim.panel = simBuild(); if (!sim.panel) return;
           if (on && sim.hour === null) simInit(liveWeather.localHour);   // bấm trước nhịp đầu: tua lịch ngay
-          sim.open = on; sim.panel.P.hidden = !on; document.getElementById('btnSim')?.classList.toggle('active', on); if (on) simRender();
+          sim.open = on; sim.panel.P.hidden = !on; document.getElementById('btnSim')?.classList.toggle('active', on); if (on) simRender(); engTabs();   // thẻ Nhu cầu của khung #engPanel
         }
         { const b = document.getElementById('btnSim'); if (b) listen(b, 'click', () => { simToggle(); if (sim.open) camFollow(engObj.g); else CAMF.o = null; }); }   // mở bảng ⇒ camera lướt tới + theo kỹ sư (ui/follow-tags.js)
         function simNeedsTick(t) {   // gọi mỗi khung (main-loop-rest) — tính 1 lần / giây
@@ -146,7 +146,7 @@
           const h = liveWeather.localHour, day = new Date().toDateString();
           if (sim.hour === null) simInit(h);
           let dt = h - sim.hour; if (dt < -12) dt += 24;
-          if (dt < 0 || dt > 0.2) simInit(h); else if (dt > 0) { if (sim.hour > h) sim.today = {}; simStep(simDoing(engObj), dt, h); wxNeeds(dt); }   // nóng / lạnh: tụt thêm (engineer/weather-feel.js)   // qua nửa đêm: giờ hôm nay về 0
+          if (dt < 0 || dt > 0.2) simInit(h); else if (dt > 0) { if (sim.hour > h) sim.today = {}; simStep(simDoing(engObj), dt, h); wxNeeds(dt); }   // nóng / lạnh: tụt thêm (engineer/mind/weather-feel.js)   // qua nửa đêm: giờ hôm nay về 0
           if (day !== sim.day) { sim.day = day; sim.perDay = null; }
           sim.hour = h; if (sim.open) simRender();
         }

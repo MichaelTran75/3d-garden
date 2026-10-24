@@ -18,11 +18,11 @@ Chỉ sửa trong `src/`. Đọc `src/ARCHITECTURE.md` trước: khung hình ch�
 | `src/app/world/` | thủy điện, tua-bin, pin mặt trời, nhà, đường, trạm biến áp, đèn đường, xuồng |
 | `src/app/nature/` | gió, cây, cỏ hoa, mưa, mặt nước, khói, đầm sen |
 | `src/app/animals/` | bò, hươu, chó, gấu mèo, cò, chim sẻ, cá koi, ong, bướm |
-| `src/app/engineer/` | kỹ sư: dáng người, tư thế, lịch ngày, ăn, ngủ, câu cá, hái táo, drone |
+| `src/app/engineer/` | kỹ sư: `body/` (dáng, bước, ghế, mặt) · `mind/` (giờ giấc `hours.js`, lịch, nhu cầu, bảng việc, điều phối) · `tasks/` (mỗi tệp một việc) — bản đồ: `engineer/README.md` |
 | `src/app/van/`, `camp/`, `fishing/` | xe van, đồ cắm trại, cần câu |
 | `src/app/ui/`, `src/app/loop/` | điều khiển camera, nhãn, vòng lặp khung hình |
-| `src/models/` | mẫu dùng nguyên (drone + tay cầm DJI Mini 3, xe Ford Transit, động cơ trong khoang máy, ảnh vân vỏ cây cắt từ bản quét), trang tải sau khi cảnh chạy |
-| `src/tools/` | công cụ dựng lại mẫu dùng nguyên (`transit/`: xe Transit → `transit.bin` · `engine/`: động cơ → `engine.glb`) |
+| `src/models/` | mẫu dùng nguyên (drone + tay cầm DJI Mini 3, xe Ford Transit, động cơ trong khoang máy, khung gầm GAZ-69, ảnh vân vỏ cây cắt từ bản quét), trang tải sau khi cảnh chạy |
+| `src/tools/` | công cụ dựng lại mẫu dùng nguyên (`transit/` → `transit.bin` · `engine/` → `engine.glb` · `chassis/` → `chassis.glb`) · `engineer-audit/`: kiểm tra hành vi kỹ sư cả ngày, liệt kê lỗi theo giờ |
 
 Các mảnh trong `src/app/` được nối nguyên văn theo `manifest.txt` thành một khối script, dùng chung phạm vi biến (không `import`/`export`).
 Thêm tệp mới thì thêm một dòng vào manifest, đúng thứ tự.

@@ -3,21 +3,24 @@
             if (f === angling.fish) { if (f.leafT) endLeafChase(f); f.dy = f.pitch = 0; continue; } // Its existing mesh is controlled by the bait/hook for this visit.
             if (f === returningFishingFish) { updateReturningFishingFish(f, dt, t); continue; }
             if (f.ang === undefined) { f.ang = Math.random() * 6.283; f.cx = f.base.x; f.cz = f.base.z; f.vmag = 0.7 + Math.random() * 0.7; f.wob = (Math.random() - 0.5) * 0.8; f.rad = Math.max(f.rx, f.rz) + 1.6; }
+            if (fishLife(f, dt, t)) continue;   // tập tính: giật mình chữ C → nấp đáy, ủi bùn, đón người, né cò, bơi theo đàn, theo nhiệt độ nước (animals/fish.js)
             if (f.leafT && fishChaseLeaf(f, dt, t)) continue;   // đang đuổi đớp một chiếc lá
             f.wob += (Math.random() - 0.5) * 2.2 * dt; f.wob = Math.max(-1.1, Math.min(1.1, f.wob)); f.ang += f.wob * dt;   // hướng đổi ngẫu nhiên, mượt
             const bx = f.base.x - f.cx, bz = f.base.z - f.cz, distB = Math.hypot(bx, bz);
             if (distB > f.rad) { let d = Math.atan2(bz, bx) - f.ang; while (d > Math.PI) d -= 6.283; while (d < -Math.PI) d += 6.283; f.ang += d * Math.min(1, (distB - f.rad) * 0.9) * dt * 3.0; }   // lượn về khi đi quá xa
-            f.cx += Math.cos(f.ang) * f.vmag * dt; f.cz += Math.sin(f.ang) * f.vmag * dt;
+            f.cx += Math.cos(f.ang) * f.vmag * (f.vk || 1) * dt; f.cz += Math.sin(f.ang) * f.vmag * (f.vk || 1) * dt;
             f.dy = (f.dy || 0) * Math.exp(-dt / 1.2); f.pitch = (f.pitch || 0) * Math.exp(-dt / 0.6);   // sau cú đớp: về dần độ sâu & tư thế bơi thường
-            f.g.position.set(f.cx, f.base.y + Math.sin(t * 0.9 + f.ph) * 0.05 + f.dy, f.cz);
+            f.dzS = (f.dzS || 0) + ((f.dz || 0) - (f.dzS || 0)) * Math.min(1, dt * 0.5);   // độ sâu ưa thích theo nhiệt độ / dè chừng, đổi chậm
+            f.g.position.set(f.cx, f.base.y + Math.sin(t * 0.9 + f.ph) * 0.05 + f.dy + f.dzS, f.cz);
             f.g.rotation.set(0, -f.ang, f.pitch);
             f.swT = (f.swT ?? t) + dt; f.swim(f.swT, f.wob);   // sóng thân chạy đầu→đuôi + uốn theo hướng rẽ (đồng hồ riêng: đuổi lá thì quẫy nhanh hơn)
           }
-          carrotBed.update(dt, t);   // luống cà rốt lớn dần, đất ướt sau tưới / mưa (engineer/carrot-garden.js)
+          carrotBed.update(dt, t);   // luống cà rốt lớn dần, đất ướt sau tưới / mưa (engineer/tasks/carrot-garden.js)
           for (const b of bunnies) {                                  // chú thỏ: random-walk + mỗi 60s đào 1 củ cà rốt lên ăn
             if (b.bed && (liveWeather.state.raining || !daytimeAnimals.visible)) carrotBed.bunnyCancel(b);
             if (bunnyRain(b, dt, t, liveWeather.state.raining)) continue;   // mưa: trú dưới hiên caravan
-            if (carrotBed.bunny(b, dt, t)) { bunnyEars(b, dt, t); continue; }   // có khóm chín ở luống: nhảy tới nhổ ăn
+            if (b.bed && bunnyDogNear(b, dt)) { carrotBed.bunnyCancel(b); b.bedHold = t + 40; }   // chó tới: bỏ dở luống (người thì luống tự lo — kỹ sư đứng xem thỏ ăn)
+            if (!(b.bedHold > t) && !(b.life && /ale|thu|fle|hid|pee|avo/.test(b.life.st)) && carrotBed.bunny(b, dt, t)) { bunnyEars(b, dt, t); continue; }   // có khóm chín ở luống: nhảy tới nhổ ăn (đang sợ thì thôi)
             if (bunnyLife(b, dt, t, cowY(b.x, b.z))) { bunnyEars(b, dt, t); continue; }   // tập tính: cảnh giác, sợ – dậm chân – chạy, rửa mặt, nghỉ trưa, flop, binky (animals/bunny-life.js)
             const gy = cowY(b.x, b.z);
             if (b.state === 'dig') {
@@ -71,7 +74,7 @@
           const rainNow = liveWeather.state.raining;
           if (insectsAwake) {
             for (const bf of butterflies) {
-              if (bf.mode === 'hand' && envBflyHand(bf, dt, t)) continue;   // đang bay tới / đậu trên tay kỹ sư (engineer/env-react.js)
+              if (bf.mode === 'hand' && envBflyHand(bf, dt, t)) continue;   // đang bay tới / đậu trên tay kỹ sư (engineer/mind/env-react.js)
               if (bflyShelter(bf, dt, t, rainNow)) continue;   // mưa: đậu cành cây cổ thụ
               if (animateInsectFlight(bf, dt) === 'arrived') nextButterflyTarget(bf);
               const beat = bflyFlap(bf, dt), bobY = Math.sin(t * 3.5 + bf.ph) * 0.18 + beat, bobX = Math.cos(t * 2.0 + bf.ph) * 0.12;   // vỗ – lượn theo loài, thân nhấp nhô theo nhịp
@@ -91,11 +94,13 @@
             ff.wL.rotation.z = ff.wR.rotation.z = fly ? 0.35 + Math.sin(t * 60 + ff.ph) * 0.6 : 0;   // cánh màng vỗ (2 bên đối xứng gương: cùng góc)
             if (fly) ff.elL.rotation.set(0, -0.3, 0.55 + 0.04 * Math.sin(t * 30 + ff.ph)); else ff.elL.rotation.set(0, 0, 0); ff.elR.rotation.copy(ff.elL.rotation);   // cánh cứng nâng chếch, toả 2 bên
             ff.fp += dt / ff.per; ff.fl += dt;
-            if (ff.fp >= 1) {   // tới nhịp ⇒ chớp; con trong bán kính 5 bị kéo pha lên (ghép xung) ⇒ dần chớp cùng nhịp
-              ff.fp -= 1; ff.fl = 0;
-              for (const o of fireflies) if (o !== ff && o.fl > 0.6 && o.g.position.distanceToSquared(ff.g.position) < 25) o.fp = Math.min(0.999, o.fp * 1.07 + 0.015);
+            if (ff.reply > 0 && (ff.reply -= dt) <= 0) { ff.reply = 0; ff.fl = 0; ff.fp = 0.3 * Math.random(); }   // con cái đáp lời
+            if (ff.fp >= 1) {   // tới nhịp riêng ⇒ chớp; lệch ngẫu nhiên ±15% mỗi lần ⇒ không con nào giữ mãi cùng pha (G 23/10: bỏ ghép xung đồng bộ)
+              ff.fp -= 1 + (Math.random() - 0.5) * 0.3; ff.fl = 0;
+              if (!ff.perch) for (const o of fireflies) if (o.perch && !(o.reply > 0) && o.fl > 1 && Math.random() < 0.5 && o.g.position.distanceToSquared(ff.g.position) < 16) o.reply = 1.2 + 0.8 * Math.random();   // con cái gần đó đáp sau 1,2–2 s
             }
-            const I = ff.fl < 0.08 ? ff.fl / 0.08 : ff.fl < 0.23 ? 1 : Math.max(0, 1 - (ff.fl - 0.23) / 0.3), L = 0.06 + 0.94 * I;   // sáng: lên 0,08 s · giữ 0,15 s · tắt dần 0,3 s
+            const pulse = x => x < 0 ? 0 : x < 0.08 ? x / 0.08 : x < 0.23 ? 1 : Math.max(0, 1 - (x - 0.23) / 0.3);   // sáng: lên 0,08 s · giữ 0,15 s · tắt dần 0,3 s
+            const I = Math.min(1, pulse(ff.fl) + (ff.dbl ? 0.85 * pulse(ff.fl - 0.42) : 0)), L = 0.06 + 0.94 * I;   // chớp đôi: nhát thứ 2 sau 0,42 s
             ff.lampM.color.setRGB(0.85 + 0.05 * L, 0.82 + 0.18 * L, 0.66 - 0.3 * L); ff.sp.material.opacity = (0.12 + 0.88 * I) * (ff.dim || 1); ff.sp.scale.setScalar(0.22 + 0.4 * I * (ff.dim || 1));
             if (!fly) continue;
             ff.g.position.y += 0.35 * I * dt;   // nét "J": vọt lên khi chớp
@@ -176,11 +181,22 @@
           }
           updateAnimalVisibility(); updateDrawBatches();
           fluids.update(dt, t, rainK);   // gửi bước mô phỏng nước + khói cho luồng phụ (kèm các cú chạm nước trong khung này), nhận kết quả bước trước
-          if (skyOn) updateSky(); vanLineTone(nightFactor > 0.5); nightSky.update(dt, t, skyOn); fitSunShadow(); updateCloseLod(); droneToy.render(); vanPartsTick(dt); trimWatch(dt); trimKit.tick(dt, t); waterPump.tick(dt, t); footprints.tick(dt); chickens.update(dt, t); hovTick(); camFollowTick(dt); followTagsTick(); btnTagsTick(); radio.tick(dt); mossTick(); renderer.render(scene, camera); mastLabel?.updateScreen(); updateZoomPct(); simNeedsTick(t); toolsTick(t); engineTick(dt, t);
-          if (!started) { started = true; const l = document.getElementById('loading'); if (l) l.style.display = 'none'; }
+          if (skyOn) updateSky(); vanLineTone(nightFactor > 0.5); nightSky.update(dt, t, skyOn); fitSunShadow(); updateCloseLod(); droneToy.render(); vanPartsTick(dt); trimWatch(dt); trimKit.tick(dt, t); waterPump.tick(dt, t); footprints.tick(dt); chickens.update(dt, t); hovTick(); pickTick(t); camFollowTick(dt); followTagsTick(); btnTagsTick(); radio.tick(dt); mossTick(); renderer.render(scene, camera); mastLabel?.updateScreen(); updateZoomPct(); simNeedsTick(t); toolsTick(t); engineTick(dt, t);
+          if (!started) { started = true; const l = document.getElementById('loading'); if (window.__ld) window.__ld(100); else if (l) l.style.display = 'none'; }   // 100% rồi mờ dần
         }
-        // biên dịch shader SONG SONG (KHR_parallel_shader_compile) trước khung đầu → luồng chính không khựng lúc mở trang; trình duyệt không hỗ trợ thì như cũ
+        // biên dịch shader SONG SONG (KHR_parallel_shader_compile) trước khung đầu → luồng chính không khựng lúc mở trang; trình duyệt không hỗ trợ thì như cũ.
+        //  Trước đó chờ mẫu 3D / ảnh đang tải (ldTrack, 68 → 85%; tối đa 6 s — mạng chậm thì hiện cảnh trước, mẫu hiện sau như cũ) ⇒ shader của mẫu biên dịch luôn,
+        //  không hiện dần từng mẫu · biên dịch: 85 → 99% theo số chương trình shader đã xong (isReady, không chặn luồng)
         const startLoop = () => { if (!disposed && !suspended && !frameId) loop(); };
-        if (renderer.compileAsync) renderer.compileAsync(scene, camera).then(startLoop, startLoop); else startLoop();
+        ldOpen(); let ldN = 0; window.__ld?.(68, 70, 'Đang tải mẫu 3D…');   // mở cổng: mọi biến của dựng cảnh đã khai báo xong
+        for (const p of ldNeed) p.then(() => { ldN++; window.__ld?.(68 + 17 * ldN / ldNeed.length, 68 + 17 * Math.min(1, (ldN + 1) / ldNeed.length)); });
+        await Promise.race([Promise.all(ldNeed), new Promise(r => setTimeout(r, 6000))]);
+        if (disposed) return;
+        window.__ld?.(85, 86, 'Đang biên dịch shader…');
+        if (renderer.compileAsync) {
+          const progs = renderer.info.programs || []; let cDone = false;
+          const fin = () => { cDone = true; startLoop(); }, poll = () => { if (cDone) return; const n = progs.length, k = progs.filter(p => !p.isReady || p.isReady()).length; window.__ld?.(85 + 14 * k / Math.max(1, n), 85 + 14 * Math.min(1, (k + 1) / Math.max(1, n))); requestAnimationFrame(poll); };
+          renderer.compileAsync(scene, camera).then(fin, fin); poll();
+        } else startLoop();
       }
     })();

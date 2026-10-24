@@ -24,13 +24,13 @@
           const MAT = { paint: M.body, paintO: lam(M.body.color.getHex()), paintIn: M.body, black: M.black, chrome: M.chrome, glass: M.glass, frost: M.frost, lens: lam(0xdde4e6, { transparent: true, opacity: 0.55, depthWrite: false }),
             bulb: M.led, red: M.red, blue: M.blue, steel: lam(0x9a9d9f), tire: lam(0x2b2925), trim: lam(0xcfccc4), dash: lam(0x5d6163), dashTop: lam(0x46494b), ctrl: lam(0x3e4244),
             seat: lam(0x6f706c), yellow: lam(0xe8cf3a) };
-          Promise.all([import('https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js'), import('https://esm.sh/three@0.160.0/examples/jsm/libs/meshopt_decoder.module.js'),
-            fetch(VAN_GLB).then(r => r.ok ? r.arrayBuffer() : Promise.reject(new Error('HTTP ' + r.status)))]).then(([{ GLTFLoader }, { MeshoptDecoder }, buf]) => {
+          ldTrack(Promise.all([import('https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js'), import('https://esm.sh/three@0.160.0/examples/jsm/libs/meshopt_decoder.module.js'),
+            fetch(VAN_GLB).then(r => r.ok ? r.arrayBuffer() : Promise.reject(new Error('HTTP ' + r.status))), ldGate]).then(([{ GLTFLoader }, { MeshoptDecoder }, buf]) => {
             const b = new Uint8Array(buf); let s = 0x2545F491;   // bỏ lớp XOR (cùng dòng với công cụ ghi tệp)
             for (let i = 0; i < b.length; i++) { s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0; b[i] ^= s & 255; }
             const ldr = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
-            ldr.parse(b.buffer, '', gl => { attach(gl.scene); ldr.loadAsync(ENG_GLB).then(eg => engine(eg.scene)).catch(err => console.warn('Engine GLB:', err)); }, err => console.warn('Transit GLB:', err));
-          }).catch(err => console.warn('Transit GLB:', err));
+            return new Promise(ok => ldr.parse(b.buffer, '', gl => { attach(gl.scene); ok(); ldr.loadAsync(ENG_GLB).then(eg => engine(eg.scene)).catch(err => console.warn('Engine GLB:', err)); }, err => { console.warn('Transit GLB:', err); ok(); }));   // số %: chờ tới lúc xe gắn vào cảnh
+          }).catch(err => console.warn('Transit GLB:', err)));
           function attach(src) {
             src.updateMatrixWorld(true);
             const bins = new Map(), m4 = new THREE.Matrix4(), nm = new THREE.Matrix3(), v = new THREE.Vector3();

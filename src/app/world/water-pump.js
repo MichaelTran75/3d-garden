@@ -114,8 +114,8 @@
           const P = { pump: null, valve: null, lamp: null, on: false, L: 0.6, t: 0 };
           const lampM = new THREE.MeshBasicMaterial({ color: 0x1d3a22 });
           const PUMP_GLB = window.__pumpGlb || 'https://michaeltran75.github.io/3d-garden/models/pump.glb';
-          Promise.all([import('https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js'), import('https://esm.sh/three@0.160.0/examples/jsm/libs/meshopt_decoder.module.js')])
-            .then(([{ GLTFLoader }, { MeshoptDecoder }]) => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(PUMP_GLB)).then(gl => {
+          ldTrack(Promise.all([import('https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js'), import('https://esm.sh/three@0.160.0/examples/jsm/libs/meshopt_decoder.module.js')])
+            .then(([{ GLTFLoader }, { MeshoptDecoder }]) => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(PUMP_GLB)).then(ldAfter).then(gl => {
               const mat = new THREE.MeshLambertMaterial({ vertexColors: true });
               gl.scene.traverse(o => { if (o.isMesh) { o.material = mat; o.castShadow = o.receiveShadow = true; } });
               const pump = gl.scene.getObjectByName('pump'), valve = gl.scene.getObjectByName('valve'), X = pump.userData;
@@ -124,7 +124,7 @@
               g.updateMatrixWorld(true); const lz = (X.motorZ ? X.motorZ[1] : -0.21) - 0.12, rc = new THREE.Raycaster(_pY.set(P0.x + 0.1, P0.y + 2, P0.z + lz), _pD.set(0, -1, 0)), hit = rc.intersectObject(pump, true)[0];   // đèn báo: chiếu tia xuống nóc hộp động cơ
               P.lamp = add(new THREE.Mesh(new THREE.SphereGeometry(0.028, 8, 6), lampM), 0.1, (hit ? hit.point.y - P0.y : Y_B + 0.45) + 0.02, lz);
               if (Math.hypot(X.outX[0] - A.outX[0], X.outX[1] - A.outX[1], X.outX[2] - A.outX[2]) > 0.01) console.warn('pump.glb: điểm neo họng bơm đã đổi — cập nhật A trong world/water-pump.js');
-            }).catch(err => console.warn('Pump GLB:', err));
+            }).catch(err => console.warn('Pump GLB:', err)));
           // ---- mực bồn theo mùa + nhịp ngày; bơm chạy theo nắng ----
           function level() {
             const d = new Date(), doy = (Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) - Date.UTC(d.getFullYear(), 0, 0)) / 864e5, hh = liveWeather.localHour;
