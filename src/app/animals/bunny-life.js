@@ -29,8 +29,12 @@
           const a = Math.atan2(R.z - src.z, R.x - src.x); return { x: R.x + Math.cos(a) * R.r, z: R.z + Math.sin(a) * R.r };
         }
         function bunnyDogNear(b, dt) {   // đang ở luống cà rốt (vòng thỏ gọi trước bunnyLife): chó dưới 4 m, hoặc dưới 7 m mà đang tiến lại ⇒ bỏ dở luống mà chạy
-          const d = dogObj.position, dd = Math.hypot(d.x - b.x, d.z - b.z), ap = b.dd0 !== undefined && (b.dd0 - dd) / Math.max(dt, 1e-3) > 0.25; b.dd0 = dd;
-          return dogObj.visible !== false && (dd < 4 || (dd < 7 && ap));
+          //  G 25/10: "đang tiến lại" = vận tốc CỦA CHÓ chiếu về phía thỏ, làm mượt ~0,7 s (trước đo khoảng cách co lại ⇒ chính thỏ nhảy về luống cạnh chỗ chó
+          //  nằm cũng bị tính là chó lao tới; chó nằm nhúc nhích 3 cm cũng vậy ⇒ thỏ tới luống rồi bỏ, hiếm khi được ăn)
+          if (!(clock.elapsedTime - (b.dgT ?? -9) < 0.5)) { (b.dgP || (b.dgP = new THREE.Vector3())).copy(dogObj.position); b.dApR = 0; } b.dgT = clock.elapsedTime;   // lâu không đo (thỏ mới quay lại luống): đo lại từ đầu
+          const d = dogObj.position, dd = Math.hypot(d.x - b.x, d.z - b.z), P = b.dgP, rate = dd > 1e-3 ? ((d.x - P.x) * (b.x - d.x) + (d.z - P.z) * (b.z - d.z)) / dd / Math.max(dt, 1e-3) : 0; P.copy(d);
+          b.dApR = (b.dApR || 0) + (rate - (b.dApR || 0)) * Math.min(1, dt * 1.5);
+          return dogObj.visible !== false && (dd < 4 || (dd < 7 && b.dApR > 0.3));
         }
         function bunnyLife(b, dt, t, gy) {
           const L = b.life || (b.life = { st: '', k: 0, d: 0, vt: 6 + 8 * Math.random(), zz: 0 }), hh = liveWeather.localHour, R = Math.random;
@@ -44,7 +48,7 @@
             b.hop = (b.hop + dt * f * BUN_CAD) % 1; const lift = Math.max(0, Math.sin(b.hop * Math.PI)) * 0.5 * (sp > 3 ? 1.4 : 1); b.ang = ang;
             const nx = b.x + Math.cos(ang) * sp * BUN_SLOW * dt, nz = b.z + Math.sin(ang) * sp * BUN_SLOW * dt;   // G 24/10: chậm 50%
             if (bunOK(nx, nz) && (!b.col || colStepOK(b.col, b.x, b.z, nx, nz, ang))) { b.x = nx; b.z = nz; } else L.zz += 2.4;
-            pose(0, -lift, -0.45 - lift * 0.4, 0); return lift;
+            pose(bunnyHopPitch(b), -lift, bunnyHopPaw(b), 0); return lift;   // dáng nhảy chung (animals/bunny.js)
           };
           if (!(L.rT > t)) { L.rT = t + 0.5; L.ref = bunRefuge(b.x, b.z, null, dogObj.visible !== false ? dogObj.position : null); L.dRef = L.ref ? Math.hypot(L.ref.x - b.x, L.ref.z - b.z) : 20; }   // chỗ nấp hợp nhất (0,5 s đo lại 1 lần)
           L.hab = Math.max(0, (L.hab || 0) - dt / 1200);   // quen người: quên dần (~20 phút hết)
@@ -58,7 +62,7 @@
           const kD = dd / fD, kE = ed / fE, thr = kD < 1.6 || kE < 1.6 ? (kD <= kE ? dg : E) : null, tk = Math.min(kD, kE);   // tk < 1: trong khoảng bỏ chạy · < 1,6: khoảng cảnh giác
           L.cd = (L.cd || 0) - dt;   // hồi sau 1 lần sợ: mối đe doạ đứng yên ngoài tầm thì ngồi ngó canh chừng, không giật mình lại liên tục
           const busy = b.state === 'dig' || b.state === 'eatCarrot';   // đang đào / gặm củ: chỉ bỏ dở khi mối đe doạ đã vào khoảng bỏ chạy
-          if (thr && (L.cd <= 0 || tk < 1) && !/ale|thu|fle|hid/.test(L.st) && (!busy || tk < 1)) { if (busy) { b.carrot.visible = b.mound.visible = false; b.carrot.position.y = -0.1; b.state = 'sniff'; b.digTmr = 30; } L.byEng = thr === E; L.hi = 0; go('alert', 8); }
+          if (thr && (L.cd <= 0 || tk < 1) && !/ale|thu|fle|hid/.test(L.st) && (!busy || tk < 1)) { if (busy) { bunnyDropCarrot(b); b.state = 'sniff'; b.digTmr = 30; } L.byEng = thr === E; L.hi = 0; go('alert', 8); }
           const mid = hh >= 11 && hh < 15.5, peak = (hh >= 5.5 && hh < 8) || (hh >= 16.5 && hh < 18.5);
           if (!L.st && (b.state === 'sniff' || b.state === 'hop')) {
             if (mid) { let tb = null, bd = 12; for (const T of treeCoords) { const d = Math.hypot(T.x - b.x, T.z - b.z); if (d < bd) { bd = d; tb = T; } } if (tb) { L.to = { x: tb.x + (b.x - tb.x) / bd * 1.1, z: tb.z + (b.z - tb.z) / bd * 1.1 }; go('shade', 40); } else go('loaf', 90 + 60 * R()); }

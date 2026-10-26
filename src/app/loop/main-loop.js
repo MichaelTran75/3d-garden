@@ -53,7 +53,7 @@
           const cowWantHut = cowHutWanted();
           cowWatch(dt);   // người xem zoom cận bò / máng nước (animals/cows-hut.js)
           for (const c of cows) { if (!cowHome(c, dt, t, cowWantHut && cowLetGo(c))) { cowFreeTick(c, dt, t); cowUnstick(c, dt); } cowPose(c, dt, t); }   // hành vi → dáng (animals/cows-hut.js)
-          if (stag) stagTick(dt, t);   // chú hươu: hành vi + bộ chân IK (animals/deer-crab-bunny.js)
+          if (stag) stagTick(dt, t);   // chú hươu: hành vi + bộ chân IK (animals/deer-crab.js)
 
 
           // ---- chú cua hoạt cảnh bò ngang ----

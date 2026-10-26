@@ -227,6 +227,10 @@
       opacity: 0.8;
     }
 
+    .line-bar i {
+      font-size: 39px;   /* G 25/10: icon xe ×3 (đặt sau luật chung 13px) */
+    }
+
     .line-bar input,
     .rl input {
       -webkit-appearance: none;

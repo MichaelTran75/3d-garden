@@ -23,7 +23,8 @@ nature/fluids.js                       # CHẤT LỎNG ở luồng phụ: nướ
 animals/fish.js                        # cá koi, cá đớp lá
 nature/clouds-rain.js                  # mây tích, mưa, sương góc
 animals/cows-hut.js                    # đàn bò + chuồng bò (mái bấm mờ 50%; mưa: chờ chó lùa)
-animals/deer-crab-bunny.js             # hươu, cua, thỏ
+animals/deer-crab.js                   # hươu, cua
+animals/bunny.js                       # THỎ: hình, vòng sống mỗi khung (gặm – nhảy, đào cà rốt hoang), củ trước mõm (bunnyDropCarrot), ụ đất mờ dần
 world/barn-tank.js                     # nhà kho, bồn nước nông thôn
 world/rowboat.js                       # XUỒNG GỖ mép hồ thượng lưu (68, _, 50): dựng theo số đo mẫu Boat (CC-BY), kéo nửa lên bờ, dây buộc cọc
 world/water-pump.js                    # TRẠM BƠM mép hồ (x66 z58, mẫu GLB P-0301 B CC-BY: bơm + khớp nối + động cơ + van) + ĐƯỜNG ỐNG lên tháp nước (đoạn ngầm nhìn xuyên dải đất 50%), mực bồn theo mùa

@@ -662,7 +662,7 @@ lò xo) ⇒ lên bậc voxel 0,6 đv thì chân trước lên trước, thân ng
   phải `#toolPop.panel { … !important }`.
 - **Gà to 10 %, thỏ nhỏ 10 %, chữ "Kỹ sư" → "Engineer", cây táo dời** (G 18/10 "Make the chicken 10% bigger; cho thỏ nhỏ lại 10%, thay toàn bộ từ
   Kỹ sư = Engineer, move cây táo tới x62 z90"): gà ×1,1 (cao 0,40 → 0,44 m) ⇒ chuồng nâng chân 0,45 → 0,5 m, cửa chui 0,24 × 0,30 → 0,26 × 0,34 (sàn
-  0,53 m, sào 0,79 m — gà ngồi trên sào đỉnh ~1,1 m, mái tại sào 1,25 m). Thỏ 0,8³ × 0,9 (animals/deer-crab-bunny.js; khối va chạm đo lúc dựng nên theo
+  0,53 m, sào 0,79 m — gà ngồi trên sào đỉnh ~1,1 m, mái tại sào 1,25 m). Thỏ 0,8³ × 0,9 (animals/bunny.js; khối va chạm đo lúc dựng nên theo
   cỡ mới). Mọi chữ hiện ra (bảng chỉ số, chú thích nút, ý nghĩ, tên vật, aria-label, page.html) "Kỹ sư" → "Engineer"; nút thanh công cụ vẫn là
   👷🏻‍♂️; chú thích trong mã giữ tiếng Việt. Cây táo ft1 (nature/forest.js) đặt thẳng ở trang (62; 90): gốc ở góc sau–phải chuồng gà (toạ độ chuồng
   (0,96; −0,67), cách vách 0,3–0,46 m), tán che chuồng; mọi thứ đọc ft1 (vật cản thân, hái táo, chỗ trú mưa của gà, appleTrees) dựng SAU dòng dời.
@@ -699,7 +699,7 @@ lò xo) ⇒ lên bậc voxel 0,6 đv thì chân trước lên trước, thân ng
   nhìn); canh > 3 s mà nó không tới ⇒ lảng ra (avoid); trốn tới nơi ⇒ nằm nép 5–12 s → ló ra ngó; kiếm ăn toả quanh chỗ nấp (> 5 m thì nhảy ngả về) + giãn xa
   chỗ chó; ngó canh dày hơn khi xa chỗ nấp; quen kỹ sư (L.hab ≤ 0,8, quên ~20 phút). Bẫy đã sửa: chó tới thì bỏ dở luống cà rốt (bunnyDogNear, giữ 40 s) +
   bỏ dở đào / gặm củ khi kẻ săn vào khoảng bỏ chạy (trước đó đang ăn là bỏ qua mọi mối đe doạ); L.zz (né vật cản) tắt dần khi chạy về chỗ nấp. Đo 5 phút:
-  gặm 49% · ngó 22% · cảnh giác 8% · chạy 1,4%, cách chó TB 10 m (trước: nằm nấp 48 s liền cạnh chó đang ngủ). **Hươu** (animals/deer-crab-bunny.js stagTick
+  gặm 49% · ngó 22% · cảnh giác 8% · chạy 1,4%, cách chó TB 10 m (trước: nằm nấp 48 s liền cạnh chó đang ngủ). **Hươu** (animals/deer-crab.js stagTick
   viết lại): tỉa lá (cổ vươn) · gặm cỏ (cổ −2,25, chúi vai, nhích 0,4 m mỗi 3–8 s, tránh nước) · NGẨNG CANH 2–5 s mỗi 8–25 s khi ăn · liếm lông sườn (cổ
   ngoái 2,2 rad) · NẰM NHAI LẠI 5–15 phút (trưa 10:30–15:30 thường tìm bóng cây; nằm: chân trước gập trước, dậy: chân sau trước — fk gập như bò, hông lùi vào
   giữa thân, thân hạ 0,95; nhai lệch hàm 52 s / 55 s) · báo động: đứng sững nhìn → dậm chân trước 3 nhát (rig.free[0]) + phì mũi (giật đầu) → chạy nước kiệu
@@ -1504,7 +1504,7 @@ thẻ có số trong dải (FM 87,5–108, AM 531–1602) thì đúng chỗ, cò
   `lanternLit` bật khi mặt trời < ~3° trên chân trời (sunElevSin < 0,05), tắt khi > ~6° (0,1) — có độ trễ; `lanternK` mờ dần ~1 s nhân vào cường độ. Tắt: đèn vẫn
   còn, cường độ 0 (bỏ đèn đi thì số đèn đổi ⇒ mọi vật liệu biên dịch lại), bóng đổi sang `lanternKit.bulbOffMat` (Lambert kính mờ; lô gộp tự tách mảnh khi đổi vật
   liệu). `lanBody` ghi `l.userData.glow`. Đo (Gia Lai 24/10): 12:00 tắt · 17:30 bật · đêm sáng · 6:12 tắt.
-- THỎ CHẬM 50% (animals/deer-crab-bunny.js `BUN_SLOW` 0,5 · `BUN_CAD` 0,75): `b.spd` 2,4 → 1,2 (nhảy kiếm ăn, trú mưa, ra luống cà rốt cùng dùng); bunny-life
+- THỎ CHẬM 50% (animals/bunny.js `BUN_SLOW` 0,5 · `BUN_CAD` 0,75): `b.spd` 2,4 → 1,2 (nhảy kiếm ăn, trú mưa, ra luống cà rốt cùng dùng); bunny-life
   `hopTo` nhân tốc độ 0,5 (chạy trốn 6,5 → 3,25, đo 2,95 m/s có zíc-zắc), nhịp nhảy ×0,75 mọi chỗ (bước nhảy ngắn lại chút, không cuống); chạy về chỗ nấp được 12 s
   (trước 6 s), không có chỗ nấp thì chạy 5,2 s.
 - LỬA TRẠI THEO NHIỆT ĐỘ: `campFire` { out, small, douse } (camp/chairs-lantern-fire.js, trước `campfireLevel`). out = kỹ sư đã dập ⇒ campRainTick không tự nhen
@@ -1654,3 +1654,24 @@ thẻ có số trong dải (FM 87,5–108, AM 531–1602) thì đúng chỗ, cò
 - Sửa 23:14 (G "research and study ford engine to improve: khi tách và tô màu hologram, các bộ phận part bị gãy hoặc mất, màu bị tô sai, các chi tiết nhỏ
   hơn bị vẽ thiếu"): van/engine/engine-holo.js dựng lại hình động cơ nổi bằng code theo Ford 3.5L EcoBoost V6 thế hệ 2 — xem mục "Hình động cơ nổi ×3".
   engineer/tasks/engine-check.js: HOLO_TXT theo 14 bộ phận mới, gọi engHolo.warm() lúc ra đầu xe.
+- Sửa 25/10 17:10 (G "cho vết nứt và vết dơ trên đường road random và in different random size, more natural"): world/solar-buildings-road.js — nứt + mảng bong
+  bỏ khỏi ô lặp 6 m (loang nền nhạt đi) ⇒ `roadDecal` bảng 4 × 2 ô (nứt dọc / ngang / mai rùa / nhánh · vệt dầu / bùn / bong đá dăm / vệt bánh — loang = chấm mờ mềm +
+  hạt nhỏ) + `roadDecals(stations)` rải theo lý trình khoảng cách ngẫu nhiên kiểu mũ (trung bình 3,2 m), dài 0,4–2,6 m, xoay / lật / theo mép + vệt bánh; lưới
+  5 × 2 bám trạm nổi 4 mm, trong suốt + bump, polygonOffset. Tuyến chính 34 miếng, nhánh lên đập 2.
+- Sửa 25/10 17:56 (G "em tách mã nguồn thỏ, và tìm hiểu sao thỏ ko ăn cà rốt hay vừa nhảy vừa ngậm cà rốt? đây là thỏ behaviour hay lỗi"): LỖI, không phải tập
+  tính. (1) Tách: hình thỏ + vòng mỗi khung → animals/bunny.js (`bunnyTick`, `bunnyDropCarrot`, `bunnyDigFade`); animals/deer-crab-bunny.js → deer-crab.js;
+  loop/main-loop-rest.js chỉ gọi bunnyTick. (2) Ngậm củ khi nhảy: carrotBed.bunnyCancel (chó / tối / mưa) bỏ luống lúc đang gặm mà không giấu củ ⇒ thỏ
+  mang củ trước mõm đi nhảy, ngồi, chạy tới khi đào củ hoang kế (mô phỏng 2 h: 510 s). Nay mọi lối bỏ dở gọi bunnyDropCarrot + lưới an toàn đầu bunnyTick ⇒ 0.
+  (3) Ít được ăn: bunnyDogNear coi "khoảng cách co lại" là chó tiến tới ⇒ chính thỏ nhảy về luống (cạnh chỗ chó nằm ~7 m) cũng bị tính, cùng nhiễu chó nhúc
+  nhích ⇒ 120 lần bỏ luống / 2 h. Nay đo vận tốc CỦA CHÓ chiếu về phía thỏ, làm mượt ~0,7 s, đo lại từ đầu khi thỏ quay lại luống ⇒ 7 bữa / 2 h, 21 lần bỏ
+  (đều lúc chó đi về phía thỏ hoặc < 4 m — đúng tập tính).
+- Sửa 25/10 18:06 (G "thỏ đang di chuyển bị sai, có lúc nhảy bằng đầu"): LỖI giao dáng giữa 4 bộ điều khiển (trú mưa · ra luống · tập tính · kiếm ăn) —
+  ra luống / trú mưa chỉ đặt hướng, giữ nguyên độ nghiêng của dáng tập tính đang dở (ngồi dựng 0,55 rad, nằm lật 1,25 rad) ⇒ thỏ nhảy trong tư thế ngửa / lật
+  (mô phỏng 1 h: 21% khung đi luống). animals/bunny.js `bunnyUpright` (bộ khác giành dáng: bỏ dáng tập tính dở, thân thẳng); luống chỉ bắt đầu khi thỏ rảnh
+  (không ngó / rửa mặt / nằm nghỉ). Dáng nhảy chung `bunnyHopPitch` / `bunnyHopPaw` (mọi kiểu nhảy): bật lên ngóc mũi 0,16, rơi xuống chúc mũi + 2 tay trước với
+  trước đón đất, 0 khi chạm đất. Mô phỏng sáng (có mưa) + trưa: 0 khung sai dáng (trước 2 298), vẫn 6 bữa cà rốt / h.
+- Sửa 26/10 19:11 (G "dùng loại cỏ của thảm cỏ cho mọc random ở dọc đường"): nature/meadow.js — (1) dải 0–0,95 m ngoài mép lề: ô chọn theo nhiễu khóm ~2 m
+  + hạt (`vergeAt`) thành ô THẢM NGẮN (lá 9–15 cm, 3 bản/ô, hoa li ti), không tô lại màu nền (khỏi lộ ô vuông xanh); (2) khóm nhỏ ngay trên LỀ SỎI + 12% ở kẽ
+  mép nhựa: đi theo trạm tuyến chính + nhánh đập (campusRoad.userData.road) mỗi 0,35 m mỗi bên, nhiễu khóm ~1,7 m, gốc đúng cao độ mặt đường, mã độ tươi
+  +2 (> 3,5) ⇒ shader `narrow`: lá toả ±0,1 m (vừa dải lề 0,24 m), gốc màu đất cỏ xanh. RNG riêng (2610, 2611) ⇒ thảm cỏ cũ y nguyên.
+

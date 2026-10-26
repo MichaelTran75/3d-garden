@@ -2,7 +2,7 @@
         //  Luống gỗ nâng 2,0 × 0,62 (x65,6 z97,4 — bãi phẳng phía bắc bạt, giữa xe và cây táo, nhìn thấy từ ghế cắm trại), 2 hàng × 4 khóm. Mỗi khóm lớn
         //  dần theo giờ thật (40 phút từ cây con tới củ lớn, tưới / mưa trong 30 phút thì nhanh ×1,4): lá lông chim cao dần, củ đủ lớn thì vai cam nhô khỏi đất.
         //  Mở trang: các khóm đã trồng sẵn, lớn ngẫu nhiên 40–110%.
-        //  THỎ (animals/deer-crab-bunny.js · loop/main-loop-rest.js): ban ngày, không mưa, có khóm chín, đã 4–7 phút từ củ trước (củ đầu: 1 phút), người không ở luống ⇒ bỏ đào cà rốt hoang,
+        //  THỎ (animals/bunny.js): ban ngày, không mưa, có khóm chín, đã 4–7 phút từ củ trước (củ đầu: 1 phút), người không ở luống ⇒ bỏ đào cà rốt hoang,
         //  nhảy theo bảng dẫn đường tới mép luống cạnh khóm chín, ngửi, nhổ củ (lá rung, củ trồi lên) rồi ngồi ôm gặm 12 s — khóm thành hố trống. Người đi sát (< 1,6) thì bỏ củ nhảy đi.
         //  KỸ SƯ (pha 'garden'): luống có ≥ 2 hố trống, hoặc 3 giờ chưa tưới / chưa mưa, trong giờ rảnh ngoài trời ban ngày ⇒ ra luống: ngồi xổm cạnh
         //  từng hố, bay xới 3 nhát, đặt cây con, vỗ đất · lấy bình tưới ở đầu luống, tưới dọc 2 chỗ, cất bình. Thỏ đang ăn ở luống mà kỹ sư đang rảnh ngoài
@@ -71,7 +71,7 @@
             }
             J.k += dt; const sl = J.sl;
             if (J.st !== 'go' && J.st !== 'quit' && engNear(b.g.position, 1.6, 0.3)) {   // người đi lại sát: bỏ củ, nhảy đi
-              if (J.st === 'eat') { b.carrot.visible = false; b.carrot.position.y = -0.1; B.eatAt = clock.elapsedTime; } else if (sl.pull) { sl.pull = 0; show(sl); }
+              if (J.st === 'eat') { bunnyDropCarrot(b); B.eatAt = clock.elapsedTime; } else if (sl.pull) { sl.pull = 0; show(sl); }
               J.st = 'quit';
             }
             if (J.st === 'go') {
@@ -82,12 +82,12 @@
                 let da = Math.atan2(uz, ux) - b.ang; da = Math.atan2(Math.sin(da), Math.cos(da)); b.ang += dd < 0.6 ? da * Math.min(1, dt * 8) : da * Math.min(1, dt * 5);
                 b.hop = (b.hop + dt * 3.2 * BUN_CAD) % 1; const lift = Math.max(0, Math.sin(b.hop * Math.PI)) * 0.5, step = Math.min(dd, b.spd * dt * (0.5 + lift));
                 const mv = b.col && dd > 0.5 ? colSlide(b.col, b.x, b.z, b.ang, step, dt) : [b.x + Math.cos(b.ang) * step, b.z + Math.sin(b.ang) * step]; if (mv) { b.x = mv[0]; b.z = mv[1]; }
-                b.g.position.set(b.x, cowY(b.x, b.z) + lift, b.z); b.g.rotation.y = -b.ang; b.paws[0].rotation.z = b.paws[1].rotation.z = -0.45 - lift * 0.4; b.head.rotation.z = 0;
+                b.g.position.set(b.x, cowY(b.x, b.z) + lift, b.z); b.g.rotation.set(0, -b.ang, bunnyHopPitch(b)); b.paws[0].rotation.z = b.paws[1].rotation.z = bunnyHopPaw(b); b.head.rotation.z = 0;
               }
             } else if (J.st === 'quit') { sl.taken = false; b.bed = null; B.bunny = null; b.paws[0].rotation.z = b.paws[1].rotation.z = 0; b.head.rotation.z = 0; b.state = 'hop'; b.tmr = 2.5; b.ang += Math.PI * (0.7 + 0.6 * Math.random()); return false; }
             else {
               const sp = world(sl, _cgA), ta = Math.atan2(sp.z - b.z, sp.x - b.x); let da = ta - b.ang; da = Math.atan2(Math.sin(da), Math.cos(da)); b.ang += da * Math.min(1, dt * 6);
-              b.g.position.set(b.x, cowY(b.x, b.z), b.z); b.g.rotation.y = -b.ang;
+              b.g.position.set(b.x, cowY(b.x, b.z), b.z); b.g.rotation.set(0, -b.ang, 0);
               if (J.st === 'sniff') {   // ngửi khóm lá: đầu gật, lá rung
                 b.head.rotation.z = -0.25 + Math.sin(t * 16) * 0.08; b.paws[0].rotation.z = b.paws[1].rotation.z = 0; sl.wob = Math.sin(t * 9) * 0.15;
                 if (J.k > 1.6) { J.st = 'pull'; J.k = 0; }
@@ -102,7 +102,7 @@
             }
             return true;
           }
-          function bunnyCancel(b) { if (b.bed) { b.bed.sl.taken = false; if (b.bed.sl.pull) { b.bed.sl.pull = 0; show(b.bed.sl); } b.bed = null; B.bunny = null; } }   // mưa / tối: bỏ dở
+          function bunnyCancel(b) { if (b.bed) { if (b.bed.st === 'eat') { bunnyDropCarrot(b); B.eatAt = clock.elapsedTime; } b.bed.sl.taken = false; if (b.bed.sl.pull) { b.bed.sl.pull = 0; show(b.bed.sl); } b.bed = null; B.bunny = null; } }   // mưa / tối / chó: bỏ dở — đang gặm thì buông củ (G 25/10: trước quên giấu ⇒ thỏ vừa nhảy vừa ngậm củ)
           const _cgA = new THREE.Vector3();
           return { C, L, W, H, AX, SD, slots, B, world, show, update, bunny, bunnyCancel, ripe, field: fieldTo,
             empty: () => slots.filter(s => s.st === 'empty' || s.st === 'eaten'), dry: () => clock.elapsedTime - B.lastWater > 10800 && !liveWeather.state.raining,   // 3 giờ chưa tưới / chưa mưa

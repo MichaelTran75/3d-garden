@@ -16,61 +16,7 @@
             f.swT = (f.swT ?? t) + dt; f.swim(f.swT, f.wob);   // sóng thân chạy đầu→đuôi + uốn theo hướng rẽ (đồng hồ riêng: đuổi lá thì quẫy nhanh hơn)
           }
           carrotBed.update(dt, t);   // luống cà rốt lớn dần, đất ướt sau tưới / mưa (engineer/tasks/carrot-garden.js)
-          for (const b of bunnies) {                                  // chú thỏ: random-walk + mỗi 60s đào 1 củ cà rốt lên ăn
-            if (b.bed && (liveWeather.state.raining || !daytimeAnimals.visible)) carrotBed.bunnyCancel(b);
-            if (bunnyRain(b, dt, t, liveWeather.state.raining)) continue;   // mưa: trú dưới hiên caravan
-            if (b.bed && bunnyDogNear(b, dt)) { carrotBed.bunnyCancel(b); b.bedHold = t + 40; }   // chó tới: bỏ dở luống (người thì luống tự lo — kỹ sư đứng xem thỏ ăn)
-            if (!(b.bedHold > t) && !(b.life && /ale|thu|fle|hid|pee|avo/.test(b.life.st)) && carrotBed.bunny(b, dt, t)) { bunnyEars(b, dt, t); continue; }   // có khóm chín ở luống: nhảy tới nhổ ăn (đang sợ thì thôi)
-            if (bunnyLife(b, dt, t, cowY(b.x, b.z))) { bunnyEars(b, dt, t); continue; }   // tập tính: cảnh giác, sợ – dậm chân – chạy, rửa mặt, nghỉ trưa, flop, binky (animals/bunny-life.js)
-            const gy = cowY(b.x, b.z);
-            if (b.state === 'dig') {
-              b.tmr -= dt;
-              const mp = Math.min(1, 1 - b.tmr / 7.2), ms = 0.6 + mp * 0.7;
-              b.mound.visible = true; b.mound.scale.set(ms, ms * 0.32, ms);                           // ụ đất lớn dần theo nhát cào
-              if (b.tmr <= 0) {
-                b.state = 'eatCarrot'; b.tmr = 12.0; b.carrot.visible = true; b.carrot.scale.setScalar(1);
-                // để lại 1 ụ đất vĩnh viễn tại chỗ đào (FIFO 10 hố)
-                const dm = new THREE.Mesh(digMarkGeo, bunnyMoundMat.clone()); dm.material.transparent = true;
-                dm.scale.set(0.95, 0.3, 0.95).multiplyScalar(NATURE_SCALE); dm.position.set(b.x + Math.cos(b.ang) * 0.62 * NATURE_SCALE, gy + 0.02 * NATURE_SCALE, b.z + Math.sin(b.ang) * 0.62 * NATURE_SCALE); dm.receiveShadow = true; scene.add(dm);   // đặt đúng chỗ hố TRƯỚC MẶT thỏ (khớp ụ đất tạm), không phải tâm thỏ
-                digMarks.push({ m: dm, born: t });
-                while (digMarks.length > 10) dropDigMark(digMarks.shift());
-              }
-            } else if (b.state === 'eatCarrot') {
-              b.tmr -= dt; b.g.position.set(b.x, gy, b.z);
-              const ep = 1 - Math.max(0, b.tmr) / 12.0;
-              b.carrot.position.y = -0.1 + Math.min(0.3, ep * 0.7);                                   // cà rốt nhô dần khỏi đất
-              b.carrot.scale.setScalar(Math.max(0.06, 1 - ep * ep));                                  // rồi vơi dần vì bị gặm
-              b.paws[0].rotation.z = b.paws[1].rotation.z = 0.9;                                      // hai tay ôm củ cà rốt
-              b.head.rotation.z = -0.28 + Math.sin(t * 14) * 0.12;                                    // gật gù nhai
-              if (b.tmr <= 0) {
-                b.carrot.visible = false; b.mound.visible = false; b.carrot.position.y = -0.1;
-                b.paws[0].rotation.z = b.paws[1].rotation.z = 0; b.head.rotation.z = 0;
-                b.digTmr = 60; b.state = 'sniff'; b.tmr = 2 + Math.random() * 2;                       // hẹn 60s cho củ tiếp theo → vòng lặp
-              }
-            } else {
-              b.digTmr -= dt; b.tmr -= dt;
-              if (b.digTmr <= 0) { b.state = 'dig'; b.tmr = 7.2; b.hop = 0; b.g.rotation.x = 0; }      // tới giờ: dừng mọi việc, đào cà rốt (7.2s = x3)
-              else if (b.tmr <= 0) {
-                if (b.state === 'sniff') { b.state = 'hop'; b.tmr = 0.35 + Math.random() * 0.6; b.ang += (Math.random() - 0.5) * 1.6; }   // gặm – nhảy 1–2 cú – gặm (trước nhảy liền 1,4–3,6 s)
-                else { b.state = 'sniff'; b.tmr = (1.2 + Math.random() * 2.6) * 3; } // dừng ăn cỏ lâu gấp 3 lần (3.6s - 11.4s)
-              }
-              if (b.state === 'hop') {
-                b.hop = (b.hop + dt * 3.2 * BUN_CAD) % 1;
-                const lift = Math.max(0, Math.sin(b.hop * Math.PI)) * 0.5;          // lift when jumping
-                const nx = b.x + Math.cos(b.ang) * b.spd * dt * (0.5 + lift), nz = b.z + Math.sin(b.ang) * b.spd * dt * (0.5 + lift);
-                if (bunOK(nx, nz) && (!b.col || b.col.ghost > 0 || colStepOK(b.col, b.x, b.z, nx, nz, b.ang))) { b.x = nx; b.z = nz; if (b.col) b.col.stuck = 0; }
-                else { b.ang += 2.3 + Math.random(); if (b.col) colStuck(b.col, dt); }   // vướng (nước, gốc cây, đồ vật thật — core/collide.js): nhảy hướng khác
-                b.g.position.set(b.x, gy + lift, b.z); b.g.rotation.y = -b.ang; b.g.rotation.x = 0; // vertical posture
-                b.paws[0].rotation.z = b.paws[1].rotation.z = -0.45 - lift * 0.4;   // arms retracted when jumping
-                b.head.rotation.z = 0;
-              } else if (b.state === 'sniff') {                                     // chỉ chạy pose gặm cỏ khi đúng là sniff (không đè 1 frame lên dig vừa kích hoạt)
-                b.hop = 0; b.g.position.set(b.x, gy, b.z); b.g.rotation.x = 0;
-                b.paws[0].rotation.z = b.paws[1].rotation.z = 0;
-                b.head.rotation.z = -0.32 + Math.sin(t * 10 + b.ph) * 0.1;          // cúi đầu nhai gặm cỏ (pitch đúng trục — trước dùng .x là roll)
-              }
-            }
-            bunnyEars(b, dt, t);   // tai có quán tính theo cú nhảy
-          }
+          for (const b of bunnies) bunnyTick(b, dt, t);   // chú thỏ (animals/bunny.js)
           const rainNow = liveWeather.state.raining;
           if (insectsAwake) {
             for (const bf of butterflies) {
@@ -144,14 +90,7 @@
           updateClouds(dt, t);
           updateWeatherRain(dt, t);
           updateStorkLife(dt, t); updateSparrows(dt, t);
-          if (digMarks.length && (t | 0) !== _digTick) {   // kiểm 1 lần/giây là đủ cho fade 20 phút
-            _digTick = t | 0;
-            for (let i = digMarks.length - 1; i >= 0; i--) {
-              const dm2 = digMarks[i], age = t - dm2.born;
-              if (age > 1200) { dropDigMark(dm2); digMarks.splice(i, 1); }
-              else if (age > 960) dm2.m.material.opacity = 1 - (age - 960) / 240;   // 4 phút cuối mờ dần về 0
-            }
-          }
+          bunnyDigFade(t);   // ụ đất thỏ đào mờ dần sau 16–20 phút (animals/bunny.js)
           if (dogObj) dogBrain.update(dt, t);   // chó: hành vi (nằm sưởi · vươn vai · đánh hơi · theo chủ · uống nước · chạy vòng · vào xe khi mưa/tối) + dáng đi IK (animals/dog-brain.js)
           if (raccoonObj) raccoonBrain.update(dt, t);   // gấu mèo: chạng vạng → đêm, kiếm ăn, cào bới, đứng 2 chân, trộm táo, bỏ chạy về hang (animals/raccoon-brain.js)
           if (coordMoved && coordOn && !drag) {                       // hover địa hình → cập nhật tọa độ + ghim
