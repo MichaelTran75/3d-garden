@@ -310,9 +310,9 @@
         const _thoughtCmp = (v, op, x) => op === '<' ? v < x : op === '<=' ? v <= x : op === '>' ? v > x : v >= x;
         const THOUGHT_NEED = {   // trạng thái cảnh & việc đang làm
           caught: () => angling.catches > 0, noCatch: () => angling.catches === 0, waiting: () => angling.stage === 'wait' || angling.stage === 'approach',
-          storks: () => storksAwake(), bees: () => liveWeather.wildlifeAwake && !liveWeather.state.raining,
-          dogFire: () => dogPettable(), dogVan: () => !!dogRain.st && dogRain.st !== 'toFire',
-          cowsHome: () => cowHutWanted(), cowsOut: () => !cowHutWanted(), cowsGoingHome: () => cowHutWanted() && cows.some(c => !(c.mode === 'home' && c.leg === 'in')),
+          storks: () => !!worldSee('storks')?.awake, bees: () => liveWeather.wildlifeAwake && !liveWeather.state.raining,
+          dogFire: () => !!worldSee('dog')?.pettable(), dogVan: () => { const s = worldSee('dog')?.shelter; return !!s && s !== 'toFire'; },
+          cowsHome: () => !!worldSee('cows')?.wantHome(), cowsOut: () => !worldSee('cows')?.wantHome(), cowsGoingHome: () => !!worldSee('cows')?.wantHome() && worldSee('cows').list.some(c => !(c.mode === 'home' && c.leg === 'in')),
           toFish: () => engObj.phase === 'toFish', toMast: () => engObj.phase === 'toMast',
           headwind: () => { const y = engObj.g.rotation.y; return Math.sin(y) * sceneWind.dir.x + Math.cos(y) * sceneWind.dir.y < -0.5; },   // đi ngược hướng gió thổi
           rainLong: ctx => ctx.rainLong,

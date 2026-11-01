@@ -38,8 +38,8 @@
         // ---- 2 cây táo (ĐỆ QUY) cạnh caravan ----
         function fruitTree(s, seed, o = {}) {   // o (G 24/10, cây táo thứ 3): trunkK thân to × · rootK cành cấp 1 / thân · firstSplitN cành chính · nMax rẽ tối đa · leafK chùm lá giữa × · reach cành vươn (recTree)
           const g = new THREE.Group();
-          const barkMat = new THREE.MeshLambertMaterial({ color: 0x5f5347, transparent: true, opacity: 0.90 }); barkMat.userData.sfTex = 1; surfaceStyle(barkMat, 'bark');   // ảnh vỏ quét   // thân cây rõ hơn 20% (0.75 * 1.2 = 0.90) · vân vỏ cây · G 17/10 nâu xám như bản quét
-          const { tips, rnd, segs } = recTree(g, { seed, s, barkMat, trunkLen: 1.7 * s, trunkR: 0.125 * s * (o.trunkK || 1), maxDepth: 4, nMin: 2, nMax: o.nMax || 3, lenK: 0.74, radK: 0.6, spread: 0.72, upBias: 0.22, firstSplitN: o.firstSplitN || 4, rootK: o.rootK, reach: o.reach });
+          const barkMat = new THREE.MeshLambertMaterial({ color: 0x5f5347, transparent: true, opacity: 0.90 }); barkMat.userData.sfApple = 1; surfaceStyle(barkMat, 'bark');   // G 26/10: vỏ táo nứt vảy thủ tục (core/surface-style.js sfApple) thay ảnh vỏ quét   // thân cây rõ hơn 20% (0.75 * 1.2 = 0.90) · vân vỏ cây · G 17/10 nâu xám như bản quét
+          const { tips, rnd, segs } = recTree(g, { seed, s, barkMat, appleBark: true, trunkLen: 1.7 * s, trunkR: 0.125 * s * (o.trunkK || 1), maxDepth: 4, nMin: 2, nMax: o.nMax || 3, lenK: 0.74, radK: 0.6, spread: 0.72, upBias: 0.22, firstSplitN: o.firstSplitN || 4, rootK: o.rootK, reach: o.reach });
           const pts = []; for (const tp of tips) cloudPts(rnd, tp.x, tp.y + 0.08 * s, tp.z, 0.62 * s, 40, pts);
           cloudPts(rnd, 0, 2.7 * s, 0, 1.05 * s, Math.round(130 * (o.leafK || 1)), pts);   // chùm trung tâm cho tán dày ruột
           tuftInstanced(g, rnd, pts, leafHexGeo(0.09 * s), [0x86a364, 0x78935b, 0x6e8754, 0x61784a], 0.60); g.userData.leafPts = Float32Array.from(pts.flat());   // điểm lá: lá rụng theo cơn giật (nature/wind-field.js)   // lá cây trong suốt hơn 20% (0.75 * 0.8 = 0.60)
@@ -105,9 +105,13 @@
           return out;
         }
 
-        const ft1 = fruitTree(1.25, 1337), ft2 = fruitTree(1.35, 2024);
+        // G 31/10 "cho tán lá cây táo + các nhánh cây dài ra và che chuồng gà" (mũi tên từ tán chĩa qua chuồng): cây táo cạnh chuồng (x62 z90) thêm 3 cành cấp 1
+        //  dài ×1,8, nghiêng 72° chĩa qua chuồng gà (x61,4 z91) vượt hẳn ra phía hang thỏ (x60,4 z92,6) — nhìn từ góc G (trên cao, đông nam) tán phủ cả chuồng;
+        //  rẽ tiếp như cành thường ⇒ tán xoè trên mái chuồng (mái cao ~1,3 m, lá thấp nhất ~2,3 m) · G 31/10 "nhánh mới quá dài, mất cân đối, ngắn lại 1/2": lenK 1,8 → 0,9
+        const FT1_YAW = -1.852, FT1_REACH = new THREE.Vector3(60.4 - 62, 0, 92.6 - 90).normalize().applyAxisAngle(new THREE.Vector3(0, 1, 0), -FT1_YAW);   // hướng vươn trong toạ độ cây
+        const ft1 = fruitTree(1.25, 1337, { reach: { dir: FT1_REACH, n: 3, lenK: 0.9, tilt: 1.25 } }), ft2 = fruitTree(1.35, 2024);
         ft1.scale.multiplyScalar(NATURE_SCALE); ft2.scale.multiplyScalar(NATURE_SCALE);
-        ft1.position.copy(worldCell(21.5, 31.5)); ft1.rotation.y = -1.852; scene.add(ft1);
+        ft1.position.copy(worldCell(21.5, 31.5)); ft1.rotation.y = FT1_YAW; scene.add(ft1);
         ft1.position.set(X0 + 62, surfaceY(Math.round((20 + 5 / 6) * S), 32.5 * S), Z0 + 90);   // G 18/10 "move cây táo tới x62 z90" (toạ độ trang X = x − X0, Z = z − Z0): sát góc sau–phải chuồng gà (camp/chicken-coop.js) — bóng mát + chỗ trú cho gà
         ft2.position.copy(worldCell(24.5, 34.5)); ft2.rotation.y = -0.794; scene.add(ft2);
         // ---- CÂY TÁO THỨ 3 (G 24/10 "em cho thêm 1 cây táo ở vị trí x 100 z103; với gốc thân to x3 và nhiều cành lá hơn x2"): cây táo già cách trại ~33 m —
@@ -119,7 +123,7 @@
         // G 24/10 tối "em tiếp tục cho thêm tán lá mọc over cây gỗ": thêm 2 cành vươn ×1,25 chĩa vuông góc qua khúc gỗ chết (từ gốc ra trục khúc gỗ rồi vượt qua)
         const FT3_LOG = new THREE.Vector3(0.961, 0, 0.275).applyAxisAngle(new THREE.Vector3(0, 1, 0), -FT3_YAW);   // hướng gốc → trục khúc gỗ (toạ độ cây)
         const ft3 = fruitTree(1.35, 7171, { trunkK: 3, rootK: 0.27, firstSplitN: 5, nMax: 4, leafK: 2, reach: [{ dir: FT3_REACH, n: 2, lenK: 1.35, tilt: 1.0 }, { dir: FT3_LOG, n: 2, lenK: 1.25, tilt: 1.0 }] }); ft3.scale.multiplyScalar(NATURE_SCALE); ft3.userData.noPick = true; ft3.userData.colR = 1.0;   // colR: core/collide.js giữ tam giác thân trong 1 m quanh gốc (rễ choãi tới ~0,9 m; cây cũ 0,7)
-        { const X = X0 + FT3_X, Z = Z0 + FT3_Z; ft3.position.set(X, surfaceY(Math.round(X / BLOCK + cx - 0.5), Math.round(Z / BLOCK + cz - 0.5)), Z); ft3.rotation.y = FT3_YAW; scene.add(ft3); }   // ô lưới = nghịch đảo wx / wz (x2gi khai báo sau tệp này) · lùi 0,2 m khỏi khúc gỗ chết (x 101 z 104,5) + xoay 3,2 cho rễ choãi né: đúng x100 z103 thì cành cụt của khúc gỗ đâm vào chân rễ ~5 cm — giờ hở 0,23 m
+        { const X = X0 + FT3_X, Z = Z0 + FT3_Z; ft3.position.set(X, surfaceY(Math.round(X / BLOCK + cx - 0.5), Math.round(Z / BLOCK + cz - 0.5)), Z); ft3.rotation.y = FT3_YAW; scene.add(ft3); }   // ô lưới = nghịch đảo wx / wz (viết tay từ khi x2gi còn khai báo sau tệp này; nay ở core/helpers.js) · lùi 0,2 m khỏi khúc gỗ chết (x 101 z 104,5) + xoay 3,2 cho rễ choãi né: đúng x100 z103 thì cành cụt của khúc gỗ đâm vào chân rễ ~5 cm — giờ hở 0,23 m
         flightRoots.push(ft1, ft2, ft3);
         const appleTrees = [ft1, ft2, ft3];   // kỹ sư hái táo (engineer/tasks/apple-pick.js — trừ cây noPick)
         for (const T of appleTrees) obstacleCoords.push({ x: T.position.x, y: T.position.y, z: T.position.z, r: T === ft3 ? 0.75 : 0.35, h: 3 });   // thân cây: người & chó đi vòng (cây 3 thân to ×3)
@@ -151,9 +155,37 @@
           const logMain = new THREE.Mesh(bkAttr(new THREE.CylinderGeometry(0.56, 0.70, 7.6, 8, 1, true), 7.6), logBarkMat);
           logMain.castShadow = true; logMain.receiveShadow = true; logGroup.add(logMain);
 
-          // Lớp lõi rỗng bên trong x2 (openEnded = true)
-          const logInner = new THREE.Mesh(new THREE.CylinderGeometry(0.44, 0.58, 7.64, 8, 1, true), innerWoodMat);
+          // Lớp lõi rỗng bên trong x2 (openEnded = true) — G 01/11 "make sure gấu mèo từ khúc gỗ chui ra và từ bên ngoài chui vào lại" (ảnh: miệng gỗ như 1 mặt gỗ đặc
+          //  màu be + 1 tam giác xanh): lòng gỗ sáng đều như mặt ngoài ⇒ nhìn vào miệng thấy vách trong phía xa như mặt cắt đặc; trục dốc 0,08 rad, đầu nhỏ (b) thấp hơn
+          //  0,58 m nên mặt đất cỏ (y 7,2) lấn vào lòng gỗ thành mảng xanh. Nay: lòng gỗ (vách + đáy) tối dần theo độ sâu kể từ miệng gần nhất (khuất sáng: 1 ở miệng →
+          //  ~0,1 sau ~1 m), vành gỗ dày 12 cm ở 2 đầu (thớ gỗ mục), đáy lót đất mục đúng chỗ mặt đất cắt lòng gỗ (che cỏ) ⇒ miệng gỗ thành hốc tối; gấu mèo bò trên
+          //  đáy này (animals/dog-raccoon.js racMouth / racInside)
+          const hollowMat = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, side: THREE.DoubleSide });
+          const cWood = new THREE.Color(0xd7b889), cEnd = new THREE.Color(0x8a7457), cSoil = new THREE.Color(0x3b2d20), HL = 3.82;
+          const shade = y => 0.09 + 0.91 * Math.exp(-(HL - Math.abs(y)) / 0.4);   // khuất sáng theo độ sâu kể từ miệng gần nhất (y dọc trục, ±3,82 = 2 miệng)
+          const paint = (geo, col, f) => { const P = geo.attributes.position, C = new Float32Array(P.count * 3); for (let i = 0; i < P.count; i++) { const k = f(P.getY(i)); C[i * 3] = col.r * k; C[i * 3 + 1] = col.g * k; C[i * 3 + 2] = col.b * k; }
+            geo.deleteAttribute('uv'); geo.setAttribute('color', new THREE.BufferAttribute(C, 3)); return geo; };
+          const innerR = y => 0.58 + (0.44 - 0.58) * (y + HL) / (2 * HL);
+          const logInner = new THREE.Mesh(paint(new THREE.CylinderGeometry(0.44, 0.58, 2 * HL, 8, 64, true), cWood, shade), hollowMat);
           logInner.castShadow = true; logInner.receiveShadow = true; logGroup.add(logInner);
+          for (const [y, r1] of [[-3.8, 0.70], [3.8, 0.56]]) {   // vành gỗ 2 đầu (giữa vỏ và lõi): mặt thớ gỗ mục
+            const ring = new THREE.Mesh(paint(new THREE.RingGeometry(innerR(y), r1, 8, 1), cEnd, () => 1), hollowMat);
+            ring.position.y = y; ring.rotation.x = Math.PI / 2; ring.receiveShadow = true; logGroup.add(ring);
+          }
+          {   // đáy lót đất mục: dải trên mặt đất trong lòng gỗ, rộng = dây cung tiết diện 8 cạnh ở độ cao mặt đất (dưới đáy gỗ thì bề rộng 0)
+            const P = [], C = [], I = [], up = new THREE.Vector3(1, 0, 0).transformDirection(logGroup.matrixWorld), lat = new THREE.Vector3(0, 0, 1).transformDirection(logGroup.matrixWorld).setY(0).normalize();
+            const chord = (h, r) => { let w = 0; for (let k = 0; k < 8; k++) { const a0 = k * Math.PI / 4, x0 = r * Math.sin(a0), z0 = r * Math.cos(a0), x1 = r * Math.sin(a0 + Math.PI / 4), z1 = r * Math.cos(a0 + Math.PI / 4);
+              if ((x0 - h) * (x1 - h) <= 0 && x0 !== x1) w = Math.max(w, Math.abs(z0 + (z1 - z0) * (h - x0) / (x1 - x0))); } return w; };
+            const c = new THREE.Vector3(), q = new THREE.Vector3();
+            for (let n = 0; n <= 76; n++) {
+              const y = -3.8 + 0.1 * n; logGroup.localToWorld(c.set(0, y, 0));
+              const gy = surfaceY(Math.round(c.x / BLOCK + cx - 0.5), Math.round(c.z / BLOCK + cz - 0.5)) + 0.012, w = 0.96 * chord((gy - c.y) / up.y, innerR(y)), k = shade(y);
+              for (const sd of [-1, 1]) { logGroup.worldToLocal(q.set(c.x + lat.x * sd * w, gy, c.z + lat.z * sd * w)); P.push(q.x, q.y, q.z); C.push(cSoil.r * k, cSoil.g * k, cSoil.b * k); }
+              if (n) I.push(2 * n - 2, 2 * n - 1, 2 * n, 2 * n - 1, 2 * n + 1, 2 * n);
+            }
+            const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); geo.setAttribute('color', new THREE.Float32BufferAttribute(C, 3)); geo.setIndex(I); geo.computeVertexNormals();
+            const floor = new THREE.Mesh(geo, hollowMat); floor.receiveShadow = true; logGroup.add(floor);
+          }
 
           // Các nhánh gỗ mọc tủa ra đệ quy (3 nhánh đệ quy bằng recTree)
           const branch1 = new THREE.Group();

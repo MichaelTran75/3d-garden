@@ -77,6 +77,7 @@
               for (const k in M) { const node = gl.scene.getObjectByName(k), mesh = node && node.children[0]; if (!mesh || !M[k].length) continue; mesh.updateMatrix();
                 const im = new THREE.InstancedMesh(mesh.geometry, MAT[k], M[k].length); M[k].forEach((m, i) => im.setMatrixAt(i, _m2.multiplyMatrices(m, mesh.matrix))); im.computeBoundingSphere();
                 im.castShadow = im.receiveShadow = true; im.name = NAME[k]; im.userData.noBatch = im.userData.noBake = im.userData.noCollide = true; scene.add(im);
+                worldJoin('smallShadow', 20, S => S.add(im));   // bóng nấm chỉ khi zoom gần (dịch vụ 'smallShadow' — loop/close-up.js mục 4)
                 if (k !== 'fly') { const X = node.userData, r = X.r || 0.1, h = X.h || 0.1;   // tâm quầng: giữa bề dày nấm giá / 0,6 chiều cao cụm nấm; ngang ~1,6–2 lần bề rộng nấm
                   for (const m of M[k]) { _a.setFromMatrixPosition(m); const sc = _s.setFromMatrixScale(m).x; halos.push([_a.x, _a.y + (k === 'bracket' ? 0.4 : 0.6) * h * sc, _a.z, (k === 'bracket' ? 3.2 : 5) * r * sc]); } } }
               const haloMat = new THREE.ShaderMaterial({ uniforms: { uC: { value: GLOW.clone() }, uA: { value: 0 } }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,

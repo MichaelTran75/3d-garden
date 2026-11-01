@@ -19,7 +19,7 @@
           for (let j = 0; j < GZ; j++) for (let i = 0; i < GX; i++) if (isWater(i, j)) { wd[i + j * GX] = 0; q[qt++] = i + j * GX; }
           while (qh < qt) { const c = q[qh++], d = wd[c] + 1; if (d > 40) continue; const ci = c % GX, cj = (c / GX) | 0;
             for (const n of [ci > 0 ? c - 1 : -1, ci < GX - 1 ? c + 1 : -1, cj > 0 ? c - GX : -1, cj < GZ - 1 ? c + GX : -1]) if (n >= 0 && wd[n] > d) { wd[n] = d; q[qt++] = n; } }
-          const door = vanPt(0.345, 0, 2.16), camps = [[pf.x, pf.z, 3.2], [door.x, door.z, 1.8]];
+          const door = VAN.toWorld(0.345, 0, 2.16), camps = [[pf.x, pf.z, 3.2], [door.x, door.z, 1.8]];
           // ---- THẢM CỎ NGẮN (G 15/10 "thảm cỏ ngắn vào khu vực này": bãi quanh khúc gỗ chết + 2 gốc cây): ô trong vùng luôn có cỏ, lá thấp 9–15 cm
           //      (cỏ mềm 15–39 cm), mảnh hơn 40%, dày gấp 3 (3 bản/ô, hạt giống khác), gốc lá tối hơn nền chút ⇒ thấy vân thảm cả khi zoom vừa; mép loang theo nhiễu cho khỏi thành hình elip. Không tính vào 45% của thảm cỏ
           //      mềm (ngưỡng chọn ô giữ nguyên, ô cỏ mềm sẵn có giữ nguyên); RNG riêng ⇒ cỏ chỗ khác y như cũ. Lõi khúc gỗ rỗng bỏ trống (nhìn qua miệng gỗ thấy cỏ) ----
@@ -31,14 +31,20 @@
           //      Lá trong ô toả ±0,3 m nên mép trong lấn vào chân lề như cỏ bò ra đường; RNG riêng ⇒ thảm cũ y nguyên ----
           const vergeAt = (i, j, x, z) => { if (roadContains(x, z, 0.02) || !roadContains(x, z, 0.95)) return 0; const n = vnoise(i * 0.33 + 91, j * 0.33 + 57) + 0.25 * (hsh(i + 7, j + 3) - 0.5);
             return n > 0.45 && hsh(i, j + 41) < 0.85 ? 0.12 + 0.88 * THREE.MathUtils.smoothstep(n, 0.45, 0.72) : 0; };
+          // ---- CỎ TRƯỚC HANG THỎ (G 31/10 "add thêm cỏ trước chỗ thỏ"): vùng elip 1,9 × 1,5 m ngoài miệng hang (animals/bunny/burrow.js, vách x59,7 z92,4, quay +x)
+          //      luôn có cỏ mềm, rậm gấp 4 (thêm 3 bản/ô như thảm ngắn) + cao như mảng cỏ già (bỏ trống ụ đất ngay trước cửa và phần trên bậc phía tây) ⇒ thỏ nằm ló đầu ra khoảng cỏ rậm ----
+          const burrowGrass = (x, z) => { const u = (x - X0 - 60.9) / 1.9, v = (z - Z0 - 92.4) / 1.5, w = 1 - u * u - v * v;
+            return w > 0 && x > X0 + 59.75 && Math.hypot(x - X0 - 60.0, z - Z0 - 92.4) > 0.6 ? Math.min(1, 0.35 + w * 1.4) : 0; };
+          const drCover = (x, z, m = 0.5) => stormDrain.net.covers.some(([cx, cz, r]) => Math.hypot(x - cx, z - cz) < r + m);   // nắp hố ga, song chắn hố thu (world/storm-drain.js): lá ô kề toả ±0,3 m ⇒ chừa cả ô chéo
           let land = 0; const cand = [], lawnPad = [], verge = [];
           for (let j = 4; j < GZ - 4; j++) for (let i = 4; i < GX - 4; i++) {
             if (isWater(i, j)) continue; land++;
             const x = wx(i), z = wz(j), onPad = padH(i, j) !== null, Lw = lawnAt(i, j, x, z);
             const moist = Math.exp(-wd[i + j * GX] / 9), Vg = Lw ? 0 : vergeAt(i, j, x, z);
-            if (Vg) { if (!obstacleCoords.some(o => Math.hypot(x - o.x, z - o.z) < o.r * 0.85)) verge.push([0, i, j, moist, Vg, 1]); continue; }   // cỏ thảm dọc đường
+            if (hydroTurbine && hydroTurbine.inPH(x, z)) continue;   // trong khối nhà máy đập (vỏ mờ 25%, đất đã bỏ — world/hydro-turbine.js)
+            if (Vg) { if (!obstacleCoords.some(o => Math.hypot(x - o.x, z - o.z) < o.r * 0.85) && !drCover(x, z)) verge.push([0, i, j, moist, Vg, 1]); continue; }   // cỏ thảm dọc đường
             if (onPad && !Lw) continue;   // nền san phẳng: cỏ mềm không mọc, riêng vùng thảm ngắn thì có (bãi khúc gỗ nằm trên nền san phẳng)
-            if (roadContains(x, z, 0.3) || obstacleCoords.some(o => Math.hypot(x - o.x, z - o.z) < o.r * 0.85)) continue;   // không mọc trên đường nhựa, chân thân cây / xe / bếp / đồ đạc
+            if (roadContains(x, z, 0.3) || obstacleCoords.some(o => Math.hypot(x - o.x, z - o.z) < o.r * 0.85) || drCover(x, z)) continue;   // không mọc trên đường nhựa, chân thân cây / xe / bếp / đồ đạc, nắp cống
             if (onPad) { lawnPad.push([0, i, j, moist, Lw]); continue; }
             let sc = 0.62 * vnoise(i * 0.045, j * 0.045) + 0.38 * vnoise(i * 0.14 + 17, j * 0.14 + 5) + 0.28 * moist;
             for (const [cx, cz, r] of camps) { const d = Math.hypot(x - cx, z - cz); if (d < r) sc -= 0.8 * (1 - d / r); }
@@ -53,10 +59,10 @@
                 for (let u = 0; u < seg; u += 0.35) { const f = u / seg, sAl = acc + u, x0 = a.x + (b.x - a.x) * f, z0 = a.z + (b.z - a.z) * f, y0 = a.y + (b.y - a.y) * f, nx = a.nx + (b.nx - a.nx) * f, nz = a.nz + (b.nz - a.nz) * f, nl = Math.hypot(nx, nz) || 1;
                   for (const sd of [-1, 1]) { const n = vnoise(sAl * 0.6 + (sd > 0 ? 37 : 0), 11.3); if (n < 0.52 || vr() > 0.75) continue;
                     const crack = vr() < 0.12, off = sd * (crack ? roadWidth / 2 - 0.04 - 0.12 * vr() : roadWidth / 2 + 0.05 + 0.15 * vr()), x = x0 + nx / nl * off, z = z0 + nz / nl * off;
-                    if (obstacleCoords.some(o => Math.hypot(x - o.x, z - o.z) < o.r * 0.85)) continue;
+                    if (obstacleCoords.some(o => Math.hypot(x - o.x, z - o.z) < o.r * 0.85) || drCover(x, z, 0.15)) continue;   // kẽ mép nhựa: song chắn hố thu nằm ngay đó (khóm nhỏ toả ±0,1 m)
                     verge.push([0, Math.round(x2gi(x)), Math.round(z2gj(z)), 0.4, (crack ? 0.25 : 0.3) + 0.7 * THREE.MathUtils.smoothstep(n, 0.52, 0.75), 2, x, y0 + 0.004, z]); } }
                 acc += seg; } } }
-          const cells = cand.filter(c => c[0] >= thr), lawn = [...lawnPad, ...verge, ...cand.filter(c => c[4] > 0 && c[0] < thr)];   // ô cỏ mềm sẵn có trong vùng vẫn giữ lá cao (bụi cỏ giữa thảm)
+          const cells = cand.filter(c => c[0] >= thr || burrowGrass(wx(c[1]), wz(c[2]))), lawn = [...lawnPad, ...verge, ...cand.filter(c => c[4] > 0 && c[0] < thr), ...cand.filter(c => burrowGrass(wx(c[1]), wz(c[2])))];   // trước hang thỏ: thêm 3 bản/ô (lá cao, hạt khác) ⇒ cỏ rậm gấp 4   // ô cỏ mềm sẵn có trong vùng vẫn giữ lá cao (bụi cỏ giữa thảm)
           // ---- KHẢM CỎ CAO / THẤP (G 23/10 "ngoài tự nhiên nhóm cỏ cao hơn nhóm khác, nhìn nhấp nhô"): đồng cỏ có bò là KHẢM MẢNG — bò gặm đi gặm lại chỗ cỏ non
           //      thành mảng thấp (bò ưa < ~10 cm), chừa mảng cao ở chỗ cỏ già cứng và quanh BÃI PHÂN (bò tránh gặm ⇒ cỏ rậm, xanh đậm vì giàu đạm); mảng vài mét,
           //      ranh khá rõ (Plant Soil Environ. 2019 · Frontiers Vet. Sci. 2021 "patch grazing" · luận án Edinburgh: bò gặm làm thảm cỏ lệch cao thấp nhiều hơn
@@ -107,8 +113,9 @@
               if (L && sc < thr) {   // thảm ngắn (ô cỏ mềm sẵn có trong vùng: sc ≥ thr, giữ lá cao): lá 9–15 cm (thấp dần ra mép), độ tươi mã hoá +2 (shader nhận ra để vẽ lá mảnh), hoa li ti trắng / vàng ~2,5%
                 const lr = vg ? vrnd : lrnd; C4[n * 4] = (0.09 + 0.06 * lr()) * (0.45 + 0.55 * Math.min(1, L / 0.25)); C4[n * 4 + 1] = lr(); C4[n * 4 + 2] = 2.75 + 0.12 * (lr() - 0.5) + (vg === 2 ? 2 : 0); C4[n * 4 + 3] = lr() < 0.025 ? 1 + ((lr() * 2) | 0) : 0;   // vg: cỏ dọc đường (RNG riêng)
               } else {
-                const dens = Math.min(1, (sc - thr) / Math.max(1e-3, top - thr)), edge = Math.min(1, (sc - thr) / 0.09);
-                const pk = patchK(i, j, x, z), lush = Math.max(0, Math.min(1, lushOf(i, j, moist) + 0.32 * (pk - 1))), h = Math.min(0.62, (0.15 + 0.17 * Math.pow(dens, 0.7) + 0.07 * moist) * (0.88 + 0.24 * rnd()) * (0.4 + 0.6 * edge) * pk);   // × khảm mảng · mảng cao tươi hơn
+                const bg = burrowGrass(x, z), scB = bg ? Math.max(sc, thr + (top - thr) * (0.5 + 0.4 * bg)) : sc;   // trước hang thỏ: đậm như cỏ rậm
+                const dens = Math.min(1, (scB - thr) / Math.max(1e-3, top - thr)), edge = Math.min(1, (scB - thr) / 0.09);
+                const pk = bg ? Math.max(patchK(i, j, x, z), 1 + 0.35 * bg) : patchK(i, j, x, z), lush = Math.max(0, Math.min(1, lushOf(i, j, moist) + 0.32 * (pk - 1))), h = Math.min(0.62, (0.15 + 0.17 * Math.pow(dens, 0.7) + 0.07 * moist) * (0.88 + 0.24 * rnd()) * (0.4 + 0.6 * edge) * pk);   // × khảm mảng · mảng cao tươi hơn
                 C4[n * 4] = h; C4[n * 4 + 1] = rnd(); C4[n * 4 + 2] = lush; C4[n * 4 + 3] = rnd() < 0.06 ? 1 + ((rnd() * 4) | 0) : 0;   // chiều cao · hạt giống · độ tươi · hoa dại (0 = không, 1–4 = màu)
               }
               const key = i + j * GX; if (vg === 2) _c.setRGB(0.25, 0.34, 0.15); else if (topN(key)) { topIm(key, 0).getColorAt(topK(key, 0), _c); _c.multiply(texMean); } else _c.setRGB(0.3, 0.42, 0.18);   // gốc lá trên lề: màu đất cỏ xanh như ô thảm (màu sỏi làm lá ngả rơm)
@@ -145,10 +152,10 @@
             uPush: { value: [new THREE.Vector4(0, 0, 1, 0), new THREE.Vector4(0, 0, 1, 0), new THREE.Vector4(0, 0, 1, 0)] } };
           const mat = new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide });
           mat.onBeforeCompile = shader => {
-            Object.assign(shader.uniforms, sceneWind.u, U); windUniforms.set(mat.uuid, shader.uniforms);
+            Object.assign(shader.uniforms, sceneWind.u, U, DRAIN_BAND.u); windUniforms.set(mat.uuid, shader.uniforms);
             shader.vertexShader = WIND_GLSL_COMMON + '\n' + GRASS_GLSL + `
               attribute vec4 aBlade; attribute float aIdx; attribute vec3 aRoot; attribute vec4 aCell; attribute vec3 aBase;
-              uniform float uFade, uDensity, uMTime; uniform vec3 uCamRight; uniform vec4 uPush[3];
+              uniform float uFade, uDensity, uMTime; uniform vec3 uCamRight; uniform vec4 uPush[3]; uniform sampler2D uDrBand; uniform vec4 uDrBox; uniform float uDrOn;
               varying float vT, vLush, vBend, vFlower, vShade, vLawn; varying vec3 vBase;
               ` + shader.vertexShader
               .replace('#include <beginnormal_vertex>', 'vec3 objectNormal = vec3( 0.0, 1.0, 0.0 );   // pháp tuyến mặt đất')
@@ -156,6 +163,7 @@
                 float t = position.y, sd = aBlade.x, seed = aCell.y, lawn = step(1.5, aCell.z), narrow = step(3.5, aCell.z);   // độ tươi > 1,5 = ô thảm cỏ ngắn · > 3,5 = khóm hẹp trên lề đường
                 float flower = (aIdx < 0.001 && aCell.w > 0.5) ? aCell.w : 0.0;
                 float h = aCell.x * aBlade.z * uFade * step(aIdx, uDensity - 1e-4) * (flower > 0.0 ? 1.18 : 1.0);
+                if (uDrOn > 0.5) h *= 1.0 - texture2D(uDrBand, (aRoot.xz - uDrBox.xy) * uDrBox.zw).r;   // xem cống (world/storm-drain.js): cỏ trong dải đất mờ ẩn
                 float ra = seed * 6.2832, cr = cos(ra), sr = sin(ra);   // xoay cả ô ⇒ ô cạnh nhau không lặp mẫu
                 vec2 off = vec2(position.x * cr - position.z * sr, position.x * sr + position.z * cr) * (1.0 - 0.65 * narrow);
                 vec3 root = aRoot + vec3(off.x, 0.0, off.y);
@@ -233,12 +241,23 @@
             let b = -1, bd = r; cellsIn(x, z, r, q => { if (!C4[q * 4 + 3] || cutT[q]) return; const d = Math.hypot(R[q * 3] - x, R[q * 3 + 2] - z); if (d < bd) { bd = d; b = q; } });
             return b < 0 ? null : [R[b * 3], R[b * 3 + 1], R[b * 3 + 2]];
           }
+          // ---- CỎ CHO BÒ GẶM (G 31/10 "bò tìm cỏ để ăn, không ăn trên mặt voxel không có cỏ" — animals/cows/herd-hut.js): chỉ tính ô chưa cắt, lá ≥ 7 cm, không phải khóm
+          //      trên lề sỏi / kẽ nhựa (độ tươi mã hoá ≥ 4) ----
+          const feedH = q => !cutT[q] && C4[q * 4 + 2] < 4 && C4[q * 4] >= 0.07 ? C4[q * 4] : 0;
+          function grassFeed(x, z, r) { let s = 0; cellsIn(x, z, r, q => { s += feedH(q); }); return s; }   // lượng cỏ quanh (x, z): tổng chiều cao lá
+          function grassSpots(x, z, r, n) {   // ≤ n khóm cỏ tốt nhất trong bán kính r → [{ x, z, h, d }], điểm = cao lá − 0,012 × khoảng cách (gần, rậm trước)
+            const out = [];
+            cellsIn(x, z, r, q => { const h = feedH(q); if (h < 0.12) return; const d = Math.hypot(R[q * 3] - x, R[q * 3 + 2] - z), sc = h - 0.012 * d;
+              if (out.length >= n && sc <= out[out.length - 1].sc) return;
+              let k = out.length; while (k > 0 && out[k - 1].sc < sc) k--; out.splice(k, 0, { x: R[q * 3], z: R[q * 3 + 2], h, d, sc }); if (out.length > n) out.pop(); });
+            return out;
+          }
           function cutFrac(x, z, r0, r1) {   // phần ô đã cắt trong vành khăn r0–r1 quanh (x, z)
             let a = 0, c = 0; cellsIn(x, z, r1, q => { if (Math.hypot(R[q * 3] - x, R[q * 3 + 2] - z) < r0) return; a++; if (cutT[q]) c++; }); return a ? c / a : 1;
           }
           const _cr = new THREE.Vector3(), _cd = new THREE.Vector3(), _sd = new THREE.Vector3();
           return {
-            cells: nC, land, frac: nC / land, cellAt: k => [R[k * 3], R[k * 3 + 1], R[k * 3 + 2]], cutAt, grassNear, flowerNear, cutFrac,   // (đo kiểm) · cắt cỏ
+            cells: nC, land, frac: nC / land, cellAt: k => [R[k * 3], R[k * 3 + 1], R[k * 3 + 2]], cutAt, grassNear, flowerNear, cutFrac, grassFeed, grassSpots,   // (đo kiểm) · cắt cỏ
             update(dt, t) {
               const ppu = renderer.domElement.height / ((camera.top - camera.bottom) / camera.zoom);   // điểm ảnh / đv
               const fade = Math.max(0, Math.min(1, (ppu - 9) / 8));
@@ -253,9 +272,10 @@
               if (changed) { last.set(camera.matrixWorld.elements); last[16] = camera.zoom; cull(); }
               // giẫm: kỹ sư (ngoài trời), chó, gấu mèo
               const P = U.uPush.value, put = (k, o, r, on) => { if (on) P[k].set(o.x, o.z, r, 1); else P[k].w = 0; };
-              put(0, engObj.g.position, 0.55, !engObj.inVan && engObj.g.parent === scene);
-              put(1, dogObj.position, 0.42, !dogRain.st || dogRain.st === 'toDoor' || dogRain.st === 'toFire');
-              put(2, raccoonObj.position, 0.38, raccoonObj.visible);
+              const fE = worldSee('engineer'), fD = worldSee('dog'), fR = worldSee('raccoon');   // mặt công khai (core/world.js)
+              put(0, fE && fE.pos, 0.55, !!fE && fE.out);
+              put(1, fD && fD.pos, 0.42, !!fD && (!fD.shelter || fD.shelter === 'toDoor' || fD.shelter === 'toFire'));
+              put(2, fR && fR.pos, 0.38, !!fR && fR.shown);
               // giờ vàng: mặt trời còn trên chân trời nhưng thấp (≈1–10°) → nắng xiên xuyên qua ngọn lá, ửng vàng; tắt khi lặn
               const sm = (a, b, x) => { const k = Math.max(0, Math.min(1, (x - a) / (b - a))); return k * k * (3 - 2 * k); };
               //   nhìn NGƯỢC nắng (mặt trời ở phía trước camera) thì lá sáng xuyên rõ nhất, xuôi nắng còn ~1/3

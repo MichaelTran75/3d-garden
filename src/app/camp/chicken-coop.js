@@ -3,7 +3,7 @@
         //  nam–đông nam (về phía trại / bãi kiếm ăn). Kiểu chuồng gà sân vườn: nhà gỗ 1,0 × 0,7 m trên 4 chân cao 0,5 m (gà 0,44 m chui gầm trú mưa / nắng
         //  được), mái tôn 2 mái chữ Λ, cửa chui 0,26 × 0,34 m sát sàn có CỬA TỰ ĐỘNG trượt dọc (mở lúc mặt trời mọc, đóng khi cả 3 con đã lên sào), cầu
         //  thang ván 0,22 m dốc 34° (dài 0,8 m) có nẹp ngang chống trượt, sào đậu Ø 3,6 cm cao 0,26 m trên sàn (3 chỗ), ổ đẻ chìa hông trái có rơm.
-        //  Vật liệu như hộp tổ chim sẻ: ván thông vân gỗ — mặt 25% (75% trong suốt, thấy gà ngủ bên trong), nét viền đen 100%. Gà: animals/chickens.js ----
+        //  Vật liệu như hộp tổ chim sẻ: ván thông vân gỗ — mặt 25% (75% trong suốt, thấy gà ngủ bên trong), nét viền đen 100%. Gà: animals/chickens/chickens.js ----
         const chickenCoop = (() => {
           const PX = X0 + 61.4, PZ = Z0 + 91.0, YAW = 0.42, gY = cowY(PX, PZ);
           const g = new THREE.Group(); g.name = 'Chuồng gà (Chicken coop)'; g.position.set(PX, gY, PZ); g.rotation.y = YAW; scene.add(g);
@@ -63,8 +63,11 @@
             return gY + FY * Math.max(0, Math.min(1, 1 - (q.z - D / 2) / RAMP_L));
           };
           C.inside = (x, z) => { const q = g.worldToLocal(new THREE.Vector3(x, gY, z)); return Math.abs(q.x) < W / 2 - 0.03 && Math.abs(q.z) < D / 2 - 0.03; };
-          obstacleCoords.push({ x: PX, z: PZ, r: 0.8, y: gY, h: LEG + 0.03 + H + PEAK + 0.04, coop: true });   // y / h: lưới bay của ong, bướm cũng đọc (thiếu ⇒ hộp NaN, hỏng cả lưới)   // người / chó / bò đi vòng chuồng (gà thì chui gầm — animals/chickens.js bỏ vòng này, chỉ né 4 chân)
+          obstacleCoords.push({ x: PX, z: PZ, r: 0.8, y: gY, h: LEG + 0.03 + H + PEAK + 0.04, coop: true });   // y / h: lưới bay của ong, bướm cũng đọc (thiếu ⇒ hộp NaN, hỏng cả lưới)   // người / chó / bò đi vòng chuồng (gà thì chui gầm — animals/chickens/chickens.js bỏ vòng này, chỉ né 4 chân)
+          C.update = dt => { const H = worldSee('chickens'); C.want = H && H.allIn ? 0 : 1; C.tick(Math.min(dt, 0.05)); };   // tự xem đàn gà (mặt gà allIn: cả đàn đã lên sào) ⇒ hạ cửa; sáng ra mở
           C.tick = dt => { C.open += (C.want - C.open) * Math.min(1, dt * 1.5); door.position.set(HOLE.x, FY + (HOLE.h + 0.02) / 2 + 0.005 + C.open * (HOLE.h + 0.02), D / 2 - th - 0.012); };
           C.tick(1);
           return C;
         })();
+        worldFace('coop', chickenCoop);   // MẶT CÔNG KHAI (core/world.js): COOP — chuồng gà: g, YAW, sào perch, ván rampTop / rampFoot, lối entry, gầm under, chân legs · update() (vòng lặp)
+        worldTick('ground', 30, dt => chickenCoop.update(dt));   // MỖI KHUNG (sổ tick core/world.js): chuồng gà tự đóng / mở cửa theo đàn gà

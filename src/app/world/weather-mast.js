@@ -172,3 +172,22 @@
         const wmast = weatherMast(X0 + 73, Z0 + 89); scene.add(wmast.g);   // cột khí tượng ở tọa độ góc (73, _, 89), chân cột đặt đúng mặt đất
         const wmini = tripodStation(X0 + 75.8, Z0 + 88.4); scene.add(wmini.g);   // trạm mini chân ba cách cột chính ~2,8 m về phía đông
 
+        // MỖI KHUNG (loop/main-loop.js, sau đèn chuồng bò): phong kế cột chính + chén gió trạm mini quay theo gió tại chỗ, chong chóng hướng gió, nhãn gió, đèn nháy — dời nguyên văn khỏi vòng lặp (G 01/11)
+        function weatherMastTick(dt, t) {
+          if (wmast) {
+            const w = liveWeather.state;
+            // phong kế: tốc độ quay ∝ gió TẠI CHỖ (gồm cơn giật) — cánh quạt ~1,6·V, chén gió ~1·V rad/s (thu chậm cho mắt theo kịp);
+            // quán tính theo "hằng số quãng đường" ~2,5 m: gió càng mạnh rô-to càng bắt nhịp nhanh
+            for (const [obj, k, cap] of [[wmast.prop, 1.6, 18], [wmini.anem, 1.0, 12]]) {
+              const u = obj.userData; if (!u.hub) { u.hub = obj.getWorldPosition(new THREE.Vector3()); u.hubZ = Math.max(1, u.hub.y - cowY(u.hub.x, u.hub.z)); u.w = 0; }
+              windAt(u.hub.x, u.hub.y, u.hub.z, u.hubZ, _rotW);
+              const V = sceneWind.ms * Math.hypot(_rotW.x, _rotW.z) / sceneWind.U;
+              u.w += (Math.min(cap, k * V) - u.w) * (1 - Math.exp(-dt * Math.max(0.5, V) / 2.5));
+            }
+            wmast.prop.rotation.x += wmast.prop.userData.w * dt;
+            wmini.anem.rotation.y += wmini.anem.userData.w * dt;
+            if (w.fresh && w.windDirection !== null) wmast.vane.rotation.y = Math.PI / 2 - w.windDirection * Math.PI / 180;
+            wmast.setWindBadge(w.fresh && w.windDirection !== null ? w.windDirection : NaN, w.windSpeed);   // nhãn hướng gió (chỉ vẽ lại khi số đổi)
+            wmast.light.visible = Math.sin(t * 4) > 0;
+          }
+        }

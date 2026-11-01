@@ -128,7 +128,7 @@
           const tx = new THREE.CanvasTexture(c); tx.anisotropy = 4;
           const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tx, transparent: true, opacity: 0.95, depthTest: false, depthWrite: false })); sp.renderOrder = 25; sp.scale.set(3.4, 3.4, 1); return sp;
         }
-        const obstacleCoords = [];
+        // danh sách vật cản chung obstacleCoords ở core/helpers.js (tua-bin là công trình đầu tiên đẩy vào)
         let wtn = 0;
         for (const c of windCells) {
           const i = c[0] * S, j = c[1] * S; if (isRiver(i, j)) continue; wtn++;
@@ -149,3 +149,15 @@
         // Architecture and solar shrink about their existing ground anchors; terrain, dam and poles stay fixed.
         const ARCHITECTURE_SCALE = 0.90;
 
+        // MỖI KHUNG (loop/main-loop.js, ngay sau gió cảnh + uTime shader): rô-to tua-bin quay theo gió tại trục — dời nguyên văn khỏi vòng lặp (G 01/11)
+        function updateRotors(dt) {
+          // tua-bin: quay theo gió TẠI ĐỘ CAO TRỤC (profile log + cơn giật) kiểu đường công suất — dưới 2,5 m/s chạy không tải chậm,
+          // tăng dần tới định mức ~11 m/s, trên 25 m/s cắt (xoay cánh tránh gió, dừng); rô-to nặng nên đổi tốc độ chậm (quán tính ~5 s)
+          for (const r of rotors) {
+            if (!r.hub) { r.hub = r.rotor.getWorldPosition(new THREE.Vector3()); r.hubZ = Math.max(2, r.hub.y - cowY(r.hub.x, r.hub.z)); r.w = r.sp * 0.5; }
+            windAt(r.hub.x, r.hub.y, r.hub.z, r.hubZ, _rotW);
+            const V = sceneWind.ms * Math.hypot(_rotW.x, _rotW.z) / sceneWind.U;   // m/s tại trục
+            const g = V > 25 ? 0 : V < 2.5 ? 0.12 : 0.12 + 1.6 * Math.min(1, (V - 2.5) / 8.5);
+            r.w += (r.sp * g - r.w) * (1 - Math.exp(-dt / 5)); r.rotor.rotation.z += r.w * dt;
+          }
+        }

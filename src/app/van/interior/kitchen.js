@@ -1,19 +1,23 @@
         // ===== BẾP THEO MẪU (toạ độ cục bộ galley: mặt tủ x ≈ 2,40 quay ra lối đi, vách xe x ≈ 2,97, mặt đá y = 1,865; z −0,91 → 0,91 = trái → phải nhìn từ lối đi)
         //  · tủ chậu: chậu inox, vòi cổ ngỗng + cần gạt, khay xà phòng, miếng rửa bát hồng, gờ chắn sau + gờ đầu tủ
         //  · bàn sơ chế: thớt xanh nhạt trên mặt đá; tấm bảng đục lỗ (pegboard) phía sau, móc treo thớt xanh ngọc, dao, chảo rán
-        //  · khối bếp riêng: mặt bếp đen 4 họng lửa, 2 vỉ gang (khung + nan toả vào họng lửa), nắp dựng phía sau, tấm chắn gió bên phải mở chếch
-        //  Đồ động (lửa, nồi, chảo, dao, bát, hành, nước vòi) để riêng, không gộp lưới; trả về cho lịch nấu ăn của kỹ sư điều khiển ----
-        function motorhomeKitchen(galley, ceilY = 3.56) {   // ceilY: trần xe trong toạ độ tủ bếp (ống gió máy hút mùi chạy tới đó)
+        //  · khối bếp riêng: mặt bếp đen 2 họng lửa (G 31/10 "stove chỉ có 2 thay vì 4"), 2 vỉ gang (khung + nan toả vào họng lửa), nắp dựng phía sau, tấm chắn gió bên phải mở chếch
+        //  Đồ động (lửa, nồi, chảo, dao, bát, hành, nước vòi) để riêng, không gộp lưới; trả về cho mặt xe (van/face.js VAN.kitchen — người nấu chạm qua đó,
+        //  xe tự diễn lửa / hơi / khói: van/interior/galley-fx.js) ----
+        function motorhomeKitchen(galley, ceilY = 3.56, ext = 0) {   // ceilY: trần xe trong toạ độ tủ bếp (ống gió máy hút mùi chạy tới đó) · ext: đuôi mặt bếp nối dài về phía phòng tắm (cục bộ z −0,91 − ext)
           const lam = (c, o = {}) => new THREE.MeshLambertMaterial({ color: c, ...o });
           const M = { counter: lam(0xd8d0bc), steel: lam(0x98a7a4), dark: lam(0x2e3436), iron: lam(0x1f2224), peg: lam(0xd9c49a), hole: lam(0x5a4a33), boardG: lam(0x9fd6a4),
             boardT: lam(0x6fb0a0), wood: lam(0x7a4a2a), blade: lam(0xc8ced2), cap: lam(0x3b3f42), sponge: lam(0xe36f9a), soap: lam(0xe9e6dc), lid: lam(0x9aa5a8),
+            cab: lam(0xa58e69), front: lam(0xd0ccc0), pull: lam(0x43494b),
             hood: lam(0x98a7a4, { transparent: true, opacity: 0.5, depthWrite: false }), hoodDk: lam(0x2e3436, { transparent: true, opacity: 0.5, depthWrite: false }) };   // máy hút mùi trong suốt 50% (G 19/10), nét viền giữ nguyên
           const S = new THREE.Group(); S.name = 'Bếp: phần cố định';
           const P = new THREE.Group(); P.name = 'Bếp: đồ dùng'; P.userData.noBake = true;
           const box = (par, w, h, d, x, y, z, mat, out = false) => { const m = bx(w, h, d, mat, true, out, lineDark); m.position.set(x, y, z); par.add(m); return m; };
           const TOP = 1.865;
           // mặt đá liền (tủ chậu + bàn sơ chế) có lỗ chậu
-          const shape = new THREE.Shape(); shape.moveTo(2.37, -0.91); shape.lineTo(2.95, -0.91); shape.lineTo(2.95, 0.255); shape.lineTo(2.37, 0.255); shape.closePath();   // lưng mặt đá 2,95 ⇒ sát vách vỏ GLB (19/10)
+          const zE = -0.91 - ext, shape = new THREE.Shape(); shape.moveTo(2.37, zE); shape.lineTo(2.95, zE); shape.lineTo(2.95, 0.255); shape.lineTo(2.37, 0.255); shape.closePath();   // lưng mặt đá 2,95 ⇒ sát vách vỏ GLB (19/10)
+          // G 01/11 vách phòng tắm thẳng: thân tủ (van/body/transit.js) dừng ở z −0,91 ⇒ đoạn nối tới vách là tủ kéo hẹp (đựng gia vị / chai lọ) cùng màu thân + cánh tủ, mặt đá liền
+          if (ext > 0.01) { box(S, 0.51, 0.725, ext, 2.665, 1.4325, -0.91 - ext / 2, M.cab, true); box(S, 0.012, 0.65, ext - 0.016, 2.403, 1.405, -0.91 - ext / 2, M.front, true); box(S, 0.018, 0.16, 0.025, 2.39, 1.6, -0.91 - ext / 2, M.pull); }
           const hole = new THREE.Path(); hole.moveTo(2.47, -0.86); hole.lineTo(2.47, -0.5); hole.lineTo(2.81, -0.5); hole.lineTo(2.81, -0.86); hole.closePath(); shape.holes.push(hole);
           const geo = new THREE.ExtrudeGeometry(shape, { depth: 0.07, bevelEnabled: false });
           const top = new THREE.Mesh(geo, M.counter); top.rotation.x = Math.PI / 2; top.position.y = TOP; top.name = 'Mặt đá có lỗ chậu'; top.castShadow = top.receiveShadow = true; edge(top, geo, lineDark); S.add(top);
@@ -32,7 +36,7 @@
           box(S, 0.055, 0.008, 0.09, 2.885, TOP + 0.004, -0.545, M.steel); box(S, 0.042, 0.026, 0.07, 2.885, TOP + 0.021, -0.545, M.sponge, true);
           // gờ chắn sau chậu + gờ đầu tủ (phía phòng tắm)
           box(S, 0.035, 0.135, 0.44, 2.932, TOP + 0.0675, -0.69, M.counter, true);
-          box(S, 0.58, 0.135, 0.025, 2.66, TOP + 0.0675, -0.8975, M.counter, true);
+          box(S, 0.58, 0.135, 0.025, 2.66, TOP + 0.0675, zE + 0.0125, M.counter, true);
           // thớt nhựa xanh nhạt trên bàn sơ chế
           box(S, 0.3, 0.022, 0.46, 2.63, TOP + 0.011, -0.15, M.boardG, true);
           // tấm bảng đục lỗ (thấp dưới bậu cửa sổ 2,27): 2 hàng lỗ, móc treo
@@ -42,20 +46,20 @@
           for (const z of [-0.32, -0.19, 0.0, 0.12, 0.22]) { box(S, 0.035, 0.008, 0.008, 2.912, 2.215, z, M.steel); box(S, 0.008, 0.02, 0.008, 2.897, 2.225, z, M.steel); }
           // thớt xanh ngọc treo móc (tai thớt có lỗ)
           box(S, 0.012, 0.2, 0.16, 2.918, 2.09, -0.32, M.boardT, true); box(S, 0.012, 0.04, 0.07, 2.918, 2.205, -0.32, M.boardT, true); box(S, 0.013, 0.014, 0.026, 2.917, 2.21, -0.32, M.hole);
-          // khối bếp: mặt đen 4 họng lửa, viền inox
+          // khối bếp: mặt đen 2 họng lửa giữa bề sâu, viền inox
           box(S, 0.56, 0.03, 0.63, 2.67, 1.835, 0.59, M.dark, true);
           box(S, 0.012, 0.016, 0.63, 2.392, 1.857, 0.59, M.steel); box(S, 0.012, 0.016, 0.63, 2.948, 1.857, 0.59, M.steel);
           for (const z of [0.278, 0.902]) box(S, 0.56, 0.016, 0.012, 2.67, 1.857, z, M.steel);
-          const BURN = [[2.55, 0.43], [2.79, 0.43], [2.55, 0.75], [2.79, 0.75]];   // [x, z]: trước–trái, sau–trái, trước–phải, sau–phải
+          const BURN = [[2.67, 0.43], [2.67, 0.75]];   // [x, z]: trái (chảo chiên cơm), phải (nồi luộc udon)
           for (const [x, z] of BURN) {
             const r = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.048, 0.012, 16), M.steel); r.position.set(x, 1.856, z); S.add(r);
             const c = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.012, 14), M.cap); c.position.set(x, 1.866, z); S.add(c);
           }
-          for (const zc of [0.43, 0.75]) {   // vỉ gang: khung chữ nhật + nan toả vào 2 họng lửa + chân
-            const z0 = zc - 0.145, z1 = zc + 0.145, x0 = 2.42, x1 = 2.92, y = 1.888;
+          for (const zc of [0.43, 0.75]) {   // vỉ gang vuông mỗi họng: khung + nan toả vào họng lửa + chân
+            const z0 = zc - 0.145, z1 = zc + 0.145, x0 = 2.525, x1 = 2.815, y = 1.888;
             box(S, x1 - x0, 0.012, 0.012, (x0 + x1) / 2, y, z0, M.iron); box(S, x1 - x0, 0.012, 0.012, (x0 + x1) / 2, y, z1, M.iron);
-            box(S, 0.012, 0.012, z1 - z0, x0, y, zc, M.iron); box(S, 0.012, 0.012, z1 - z0, x1, y, zc, M.iron); box(S, 0.012, 0.012, z1 - z0, 2.67, y, zc, M.iron);
-            for (const bxp of [2.55, 2.79]) {
+            box(S, 0.012, 0.012, z1 - z0, x0, y, zc, M.iron); box(S, 0.012, 0.012, z1 - z0, x1, y, zc, M.iron);
+            for (const bxp of [2.67]) {
               for (const s of [-1, 1]) { box(S, 0.012, 0.012, 0.1, bxp, y, zc + s * 0.095, M.iron); }
               for (const s of [-1, 1]) { const f = box(S, 0.085, 0.012, 0.012, bxp + s * 0.08, y, zc, M.iron); }
               for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { const d = box(S, 0.012, 0.012, 0.11, bxp + sx * 0.06, y, zc + sz * 0.06, M.iron); d.rotation.y = sx * sz * Math.PI / 4; }
@@ -88,8 +92,8 @@
             const inner = new THREE.Mesh(new THREE.TorusGeometry(0.033, 0.004, 4, 18), new THREE.MeshBasicMaterial({ color: 0xbfe0ff, transparent: true, opacity: 0.9, depthWrite: false })); inner.rotation.x = Math.PI / 2; inner.position.y = 0.004; f.add(inner);
             return f;
           });
-          // 4 núm vặn ga (xoay khi bật / tắt): thứ tự theo họng lửa BURN · đèn máy hút mùi (sáng khi nấu)
-          const KNOB_Z = [0.47, 0.37, 0.71, 0.81];
+          // 2 núm vặn ga (xoay khi bật / tắt): thứ tự theo họng lửa BURN · đèn máy hút mùi (sáng khi nấu)
+          const KNOB_Z = [0.47, 0.71];
           const knobs = KNOB_Z.map(z => {
             const k = new THREE.Group(); k.position.set(2.372, 1.812, z); k.rotation.order = 'ZYX'; P.add(k);
             const c = new THREE.Mesh(new THREE.CylinderGeometry(0.017, 0.019, 0.022, 12), M.iron); c.rotation.z = Math.PI / 2; k.add(c);

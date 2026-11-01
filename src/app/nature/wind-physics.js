@@ -6,7 +6,7 @@
         // 3) Cường độ nhiễu loạn I = σu/U lấy từ hệ số giật G = giật/TB (G = 1 + g·I, g ≈ 3,2; thiếu số liệu → 0,22); σv = 0,8σu; σw theo ĐỘ ỔN ĐỊNH khí quyển
         //    kiểu Pasquill: trưa nắng gió nhẹ → bất ổn (đối lưu mạnh, σw lớn, khói "vòng lượn"); đêm quang gió nhẹ → ổn định (σw nhỏ, khói "dàn quạt").
         // Tốc độ hiển thị: U10_cảnh = 0,25 + 0,2·U10 (m/s) đv/s — cảnh thu nhỏ, dùng tốc độ thật thì lá bay khỏi khung trong vài giây.
-        const WIND_N = 6, WIND_Z0 = 0.1, WIND_M_PER_U = 1.15, WIND_LAMS = [34, 21, 13, 8, 5, 3.2], TAU = Math.PI * 2;
+        const WIND_N = 6, WIND_Z0 = 0.1, WIND_M_PER_U = 1.15, WIND_LAMS = [34, 21, 13, 8, 5, 3.2];
         const WIND_SREF = 0.25 + 0.2 * (30 / 3.6);   // U10_cảnh ở 30 km/h — mốc chuẩn hoá lực gió
         const TREE_SWAY_K = 0.25;   // cây (thân, cành, lá, rừng) rung lắc: đã giảm 2 lần × ½
         const sceneWind = {

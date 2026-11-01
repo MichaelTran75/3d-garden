@@ -3,7 +3,7 @@
         const stDesk = { node: 'mid', tick(e, V, dt, t, keep) {   // bàn học: nghiên cứu ban ngày · học bài nghe nhạc buổi tối
           // lối đi trong Transit chỉ ~0,55 m (giường ↔ tủ bếp) ⇒ không vòng ra sau ghế được: đứng cạnh ghế phía đầu giường, nắm tay vịn XOAY ghế về phía mình
           // (lăn lùi 10 cm cho tay vịn khỏi vướng mép bàn), quay lưng ngồi xuống, xoay cả người + ghế về bàn rồi nhích vào; hết giờ làm ngược lại, trả ghế về
-          const g = e.g, P = engStudyPts, C = STUDY_SEAT, R = studyChairRig, SW = Math.PI / 2, OUT = STUDY_PULL;
+          const g = e.g, P = engStudyPts, C = STUDY_SEAT, R = VAN.studyChair, SW = Math.PI / 2, OUT = STUDY_PULL;
           const face = (dx, dz, k = 8) => { let d = Math.atan2(dx, dz) - g.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); g.rotation.y += d * Math.min(1, dt * k); };
           const walkIn = (Q, spd = 0.85) => {   // đi trong xe: thẳng tới điểm
             const dx = Q.x - g.position.x, dz = Q.z - g.position.z, dd = Math.hypot(dx, dz);
@@ -12,7 +12,7 @@
             const st = Math.min(dd, e.vel * dt); g.position.x += dx / dd * st; g.position.z += dz / dd * st; face(dx, dz);
             g.position.y = VAN_FLOOR - ENG_FEET + engGait(e, st) * CAMP_SCALE; e.walking = true; return false;
           };
-          const vp = (x, z) => vanPt(x, TR.yIn, z);
+          const vp = (x, z) => VAN.toWorld(x, VAN.dims.yIn, z);
           const sidePt = () => vp(P.cx - 0.5, P.cz + 0.1), standPt = () => vp(P.cx - STUDY_FZ, P.cz + R.off);   // cạnh ghế (đầu giường) · trước mặt ghế đã xoay về −x
           const turnChair = (o0, o1, s0, s1, dur, grip) => {   // lăn + xoay mâm ghế: đứng thì 2 tay nắm tay vịn kéo xoay, ngồi thì người xoay theo ghế
             V.k = Math.min(1, V.k + dt / dur); const m = minJerk(V.k);
@@ -124,12 +124,12 @@
         const stWc = { node: 'wcIn', tick(e, V, dt, t, keep) {   // buồng WC: lật nắp → quay lưng → ngồi (khuỷu tì đùi) → đứng dậy → đậy nắp, bấm xả → ra
           const C = TOILET_SEAT, s = e.seat;
           if (!V.st) V.st = 'go';
-          if (!keep && (V.st === 'go' || V.st === 'face')) { LID.target = 0; V.st = 'back'; }
+          if (!keep && (V.st === 'go' || V.st === 'face')) { VBATH.lid(0); V.st = 'back'; }
           if (!keep && V.st === 'seated') V.until = 0;
           if (V.st === 'go') { if (vanWalkTo(e, TOILET_STAND, dt, 0.4)) V.st = 'face'; }
           else if (V.st === 'face') {
-            LID.target = 1;
-            if (engSeatTurn(e, VY.pz, dt, vanFloor) && LID.k >= 1) { e.seat = engNewSeat(C, 'sit'); engSeatStartSit(e, C, e.seat); V.st = 'sit'; }
+            VBATH.lid(1);
+            if (engSeatTurn(e, VY.pz, dt, vanFloor) && VBATH.lidK >= 1) { e.seat = engNewSeat(C, 'sit'); engSeatStartSit(e, C, e.seat); V.st = 'sit'; }
           }
           else if (V.st === 'sit') { e.seatCtl = true; if (engSitStep(e, C, s, dt, t)) { s.st = 'seated'; V.st = 'seated'; V.until = clock.elapsedTime + ENG_WC_SIT; } }
           else if (V.st === 'seated') {
@@ -141,7 +141,7 @@
           else if (V.st === 'turn') { if (engSeatTurn(e, VY.nz, dt, vanFloor)) { V.st = 'flush'; V.k = 0; } }
           else if (V.st === 'flush') {
             V.k += dt; const r = segK(V.k, 0, 0.7) * (1 - segK(V.k, 1.5, 2.2));
-            if (V.k > 0.3) LID.target = 0;
+            if (V.k > 0.3) VBATH.lid(0);
             e.arms[0].rotation.x = -1.25 * r; e.lean = 0.22 * r; e.head.rotation.x = 0.3 * r;
             if (V.k > 2.4) V.st = 'back';
           }
@@ -153,12 +153,12 @@
           if (V.st === 'face') { if (engSeatTurn(e, VY.pz, dt, vanFloor)) { V.st = 'wash'; V.k = 0; } }
           else {
             V.k += dt; const k = V.k, on = k > 0.8 && k < 12.5, rt = e.armRollT || (e.armRollT = [0, 0]);
-            VBATH.tapWater.visible = on; if (on) VBATH.tapWater.scale.set(1 + Math.sin(t * 40) * 0.15, 1, 1 + Math.cos(t * 37) * 0.15);
+            VBATH.tap(on, t);
             const reach = segK(k, 0, 0.7) * (1 - segK(k, 13, 13.8)), rub = on ? Math.sin(t * 8) * 0.1 : 0;
             e.arms[0].rotation.x = -0.95 * reach + rub; e.arms[1].rotation.x = -0.95 * reach - rub; rt[0] = 0.2 * reach; rt[1] = -0.2 * reach;
             e.lean = 0.16 * reach; e.head.rotation.x = k > 12.6 && k < 14.6 ? -0.12 : 0.32 * reach;
             if (k > 13.8 && k < 15) e.arms[0].rotation.x = e.arms[1].rotation.x = -0.35 + Math.sin(t * 30) * 0.12;
-            if (k > 15.2) { VBATH.tapWater.visible = false; return 'released'; }
+            if (k > 15.2) { VBATH.tap(false); return 'released'; }
           }
           return 'busy';
         } };
@@ -170,8 +170,8 @@
             const head = on ? segK(k, 0.65, 1.1) * (1 - segK(k, 1.35, 1.9)) : segK(k, 0, 0.55) * (1 - segK(k, 0.7, 1.1));
             const shelf = on ? segK(k, 0, 0.5) * (1 - segK(k, 0.65, 1.0)) : segK(k, 0.75, 1.2) * (1 - segK(k, 1.45, 1.9));
             e.arms[0].rotation.x = e.arms[1].rotation.x = -2.7 * head - 1.15 * shelf; e.head.rotation.x = 0.12 * shelf - 0.05 * head;
-            if (on) { if (k > 0.55 && VBATH.shelfHelmet.visible) { VBATH.shelfHelmet.visible = false; } if (k > 1.15 && !e.helmet.visible) engHelmet(e, 'head'); }
-            else { if (k > 0.6 && e.helmet.visible) { e.helmet.visible = false; e.hair.visible = true; } if (k > 1.25 && !VBATH.shelfHelmet.visible) engHelmet(e, 'shelf'); }
+            if (on) { if (k > 0.55 && VBATH.helmetOn) { VBATH.helmet(false); } if (k > 1.15 && !e.helmet.visible) engHelmet(e, 'head'); }
+            else { if (k > 0.6 && e.helmet.visible) { e.helmet.visible = false; e.hair.visible = true; } if (k > 1.25 && !VBATH.helmetOn) engHelmet(e, 'shelf'); }
             if (k > 2.0) return 'released';
           }
           return 'busy';
@@ -184,39 +184,39 @@
           else if (V.st === 'tapOn' || V.st === 'tapOff') {
             V.k += dt; const r = segK(V.k, 0, 0.6) * (1 - segK(V.k, 1.0, 1.6));
             e.arms[0].rotation.x = -1.15 * r; e.lean = 0.12 * r; e.head.rotation.x = 0.25 * r;
-            if (V.k > 0.6) showerFx.on = V.st === 'tapOn';
+            if (V.k > 0.6) VBATH.shower(V.st === 'tapOn');
             if (V.k > 1.7) {
               if (V.st === 'tapOn') { V.st = 'wash'; V.until = clock.elapsedTime + ENG_SHOWER_WASH; }
               else { V.st = 'drip'; V.k = 0; }
             }
           }
           else if (V.st === 'wash') {
-            VAN_DOORS.wc.target = 0; showerFx.on = true; VBATH.wet = 1;   // sàn buồng tắm ướt (dọn: stCleanBath)
+            VBATH.shower(true); VBATH.soak();   // sàn buồng tắm ướt (dọn: stCleanBath)
             const ph = (t + V.ph) % 24, rt = e.armRollT || (e.armRollT = [0, 0]);
             if (ph < 9) { e.arms[0].rotation.x = -2.5 + Math.sin(t * 7) * 0.16; e.arms[1].rotation.x = -2.55 - Math.sin(t * 7) * 0.16; e.head.rotation.x = 0.18; e.headRollT = Math.sin(t * 1.7) * 0.08; }
             else if (ph < 17) { e.arms[0].rotation.x = -0.95 + Math.sin(t * 6) * 0.22; e.arms[1].rotation.x = -0.75; rt[0] = 0.35; rt[1] = -0.1; e.head.rotation.x = 0.3; }
             else { e.arms[0].rotation.x = -0.25; e.arms[1].rotation.x = -0.25; e.head.rotation.x = -0.32; e.lean = -0.04; }
             if (clock.elapsedTime >= V.until) { V.st = 'tapOff'; V.k = 0; }
           }
-          else if (V.st === 'drip') { V.k += dt; VAN_DOORS.wc.target = 0; e.headYawT = Math.sin(t * 15) * 0.35 * Math.max(0, 1 - V.k / 1.6); if (V.k > 2.6) V.st = 'back'; }
+          else if (V.st === 'drip') { V.k += dt; e.headYawT = Math.sin(t * 15) * 0.35 * Math.max(0, 1 - V.k / 1.6); if (V.k > 2.6) V.st = 'back'; }
           else if (V.st === 'back') { if (vanWalkTo(e, VN.wcIn, dt, 0.4)) return 'released'; }
           return 'busy';
         } };
         // ---- DỌN NHÀ VỆ SINH / NHÀ TẮM sau khi dùng (G 21/10): nếp sống xe van (phòng tắm ướt, bồn cầu cassette) — đi xong cọ lòng bồn bằng chổi rồi xả, tắm xong
         //      gạt nước kính + sàn về phễu thoát cho khô nhanh, đỡ mốc. Đồ cầm tay: gắn vào cổ tay phải (attach giữ cỡ thế giới), xong trả về chỗ cũ ----
         const ENG_CLEAN_WC = 6, ENG_SQUEEGEE = 8;
-        function bathHold(e, o, on) { if (on) { e.wrists[0].attach(o); o.position.set(0, -0.3, 0.03); o.rotation.set(0, 0, 0); } else { VBATH.group.attach(o); o.position.copy(o.userData.home.p); o.quaternion.copy(o.userData.home.q); } }
+        function bathHold(e, name, on) { VBATH.hand(name, on ? e.wrists[0] : null); }   // chổi / gạt nước của xe: xe trao vào cổ tay phải (on) hoặc cất về chỗ
         const stCleanWc = { node: 'wcIn', tick(e, V, dt, t, keep) {   // lật nắp → cầm chổi → cọ lòng bồn (vòng tròn) → cắm chổi lại → đậy nắp, xả → ra
           if (!V.st) V.st = 'go';
-          const hold = VBATH.brush.parent !== VBATH.group;
-          if (!keep && V.st !== 'flush' && V.st !== 'back') { if (hold) bathHold(e, VBATH.brush, false); LID.target = 0; V.st = 'back'; }
+          const hold = VBATH.held('brush');
+          if (!keep && V.st !== 'flush' && V.st !== 'back') { if (hold) bathHold(e, 'brush', false); VBATH.lid(0); V.st = 'back'; }
           if (V.st === 'go') { if (vanWalkTo(e, TOILET_STAND, dt, 0.4)) V.st = 'face'; }
-          else if (V.st === 'face') { LID.target = 1; if (engSeatTurn(e, VY.nz, dt, vanFloor) && LID.k >= 1) { V.st = 'take'; V.k = 0; } }
+          else if (V.st === 'face') { VBATH.lid(1); if (engSeatTurn(e, VY.nz, dt, vanFloor) && VBATH.lidK >= 1) { V.st = 'take'; V.k = 0; } }
           else if (V.st === 'take' || V.st === 'put') {
             V.k += dt; const r = segK(V.k, 0, 0.6) * (1 - segK(V.k, 0.9, 1.5)), take = V.st === 'take';
             e.arms[0].rotation.x = -0.55 * r; e.lean = 0.45 * r; e.head.rotation.x = 0.4 * r;
-            if (V.k > 0.6 && hold !== take) bathHold(e, VBATH.brush, take);
-            if (V.k > 1.6) { V.k = 0; if (take) V.st = 'scrub'; else { V.st = 'flush'; LID.target = 0; } }
+            if (V.k > 0.6 && hold !== take) bathHold(e, 'brush', take);
+            if (V.k > 1.6) { V.k = 0; if (take) V.st = 'scrub'; else { V.st = 'flush'; VBATH.lid(0); } }
           }
           else if (V.st === 'scrub') {
             V.k += dt; const rt = e.armRollT || (e.armRollT = [0, 0]);
@@ -227,42 +227,42 @@
           else if (V.st === 'back') { if (vanWalkTo(e, VN.wcIn, dt, 0.4)) return 'released'; }
           return 'busy';
         } };
-        const stCleanBath = { node: 'shelf', tick(e, V, dt, t, keep) {   // lấy gạt trên vách lùi → gạt kính rèm (nét dọc, hết mờ hơi) → gạt sàn về phễu (khô) → treo lại
+        const stCleanBath = { node: 'shelf', tick(e, V, dt, t, keep) {   // lấy gạt trên vách trước → gạt kính rèm (nét dọc, hết mờ hơi) → gạt sàn về phễu (khô) → treo lại
           if (!V.st) V.st = 'face';
-          const hold = VBATH.squee.parent !== VBATH.group;
+          const hold = VBATH.held('squee');
           if (!keep && !['ret', 'face2', 'hang'].includes(V.st)) V.st = hold ? 'ret' : 'done';
           if (V.st === 'done') return 'released';
           if (V.st === 'face' || V.st === 'face2') { if (engSeatTurn(e, VY.nx, dt, vanFloor)) { V.st = V.st === 'face' ? 'take' : 'hang'; V.k = 0; } }
           else if (V.st === 'take' || V.st === 'hang') {
             V.k += dt; const r = segK(V.k, 0, 0.5) * (1 - segK(V.k, 0.8, 1.3)), take = V.st === 'take';
             e.arms[0].rotation.x = -1.3 * r; e.head.rotation.x = -0.05 * r;
-            if (V.k > 0.5 && hold !== take) bathHold(e, VBATH.squee, take);
+            if (V.k > 0.5 && hold !== take) bathHold(e, 'squee', take);
             if (V.k > 1.4) { if (!take) return 'released'; V.st = 'go'; V.k = 0; }
           }
           else if (V.st === 'go') { if (vanWalkTo(e, SHOWER_SPOT, dt, 0.4)) V.st = 'faceGlass'; }
           else if (V.st === 'faceGlass') { if (engSeatTurn(e, VY.pz, dt, vanFloor)) { V.st = 'glass'; V.k = 0; } }
           else if (V.st === 'glass') {   // kính rèm: nét dọc trên → dưới
             V.k += dt; const u = (V.k % 1.6) / 1.6; e.arms[0].rotation.x = -2.6 + 1.9 * u; e.head.rotation.x = -0.2 + 0.4 * u; e.headYawT = Math.sin(V.k * 0.8) * 0.3;
-            showerFx.steam = Math.max(0, showerFx.steam - dt / 4);
+            VBATH.airOut(dt / 4);
             if (V.k > ENG_SQUEEGEE * 0.5) V.st = 'faceFloor';
           }
           else if (V.st === 'faceFloor') { if (engSeatTurn(e, VY.nz, dt, vanFloor)) { V.st = 'floor'; V.k = 0; } }
           else if (V.st === 'floor') {   // sàn: cúi gạt từ góc về phễu thoát
             V.k += dt; const u = (V.k % 1.4) / 1.4; e.lean = 0.55; e.head.rotation.x = 0.5; e.arms[0].rotation.x = -0.35 - 0.5 * (1 - u);
-            VBATH.wet = Math.max(0, VBATH.wet - dt / (ENG_SQUEEGEE * 0.5));
+            VBATH.mop(dt / (ENG_SQUEEGEE * 0.5));
             if (V.k > ENG_SQUEEGEE * 0.5) V.st = 'ret';
           }
           else if (V.st === 'ret') { if (vanWalkTo(e, VN.shelf, dt, 0.4)) V.st = 'face2'; }
           return 'busy';
         } };
-        const stTowel = { node: 'towel', tick(e, V, dt, t, keep) {   // khăn trên vách WC: lấy khăn vắt cổ → lau tóc, lau mặt → treo khăn lại
+        const stTowel = { node: 'towel', tick(e, V, dt, t, keep) {   // khăn trên cửa sau phòng tắm (quay về +x): lấy khăn vắt cổ → lau tóc, lau mặt → treo khăn lại
           if (!V.st) V.st = 'face';
           if (!keep && V.st === 'dry') { V.st = 'hang'; V.k = 0; }
-          if (V.st === 'face') { if (!keep && !e.towel.visible) return 'released'; if (engSeatTurn(e, VY.nz, dt, vanFloor)) { V.st = e.towel.visible ? 'hang' : 'take'; V.k = 0; } }
+          if (V.st === 'face') { if (!keep && !e.towel.visible) return 'released'; if (engSeatTurn(e, VY.px, dt, vanFloor)) { V.st = e.towel.visible ? 'hang' : 'take'; V.k = 0; } }
           else if (V.st === 'take' || V.st === 'hang') {
             V.k += dt; const r = segK(V.k, 0, 0.7) * (1 - segK(V.k, 1.1, 1.8));
             e.arms[0].rotation.x = e.arms[1].rotation.x = -0.9 * r; e.lean = 0.3 * r; e.head.rotation.x = 0.3 * r;
-            if (V.k > 0.8) { const take = V.st === 'take'; e.towel.visible = take; VBATH.towel.visible = !take; }
+            if (V.k > 0.8) { const take = V.st === 'take'; e.towel.visible = take; VBATH.towel(!take); }
             if (V.k > 1.9) { if (V.st === 'take') { V.st = 'dry'; V.k = 0; } else return 'released'; }
           }
           else {

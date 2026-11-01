@@ -1,47 +1,4 @@
-        // ---- hiệu ứng: tia nước vòi sen + hơi nước làm mờ kính · nốt nhạc bay từ laptop · Zzz ngủ trưa · gói khoai tây chiên · màn hình trình phát nhạc ----
-        const showerFx = (() => {
-          const N = 96, pos = new Float32Array(N * 6), geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-          const lines = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: 0xd4ecff, transparent: true, opacity: 0.8, depthWrite: false }));
-          lines.frustumCulled = false; lines.visible = false; lines.name = 'Tia nước vòi sen'; scene.add(lines);
-          const sh = VBATH.showerHead, head = vanPt(sh[0], sh[1] - 0.04, sh[2]), dir = vanPt(sh[0], sh[1] - 0.9, sh[2] + 0.435).sub(vanPt(sh[0], sh[1], sh[2])).normalize();
-          const side = new THREE.Vector3(Math.cos(VYAW), 0, -Math.sin(VYAW)), up2 = new THREE.Vector3().crossVectors(dir, side).normalize();
-          const D = Array.from({ length: N }, () => ({ p: new THREE.Vector3(), v: new THREE.Vector3(), live: false })), floorY = VAN_FLOOR - 0.02;
-          const sc = document.createElement('canvas'); sc.width = sc.height = 64; const sx = sc.getContext('2d'), gr = sx.createRadialGradient(32, 32, 2, 32, 32, 31);
-          gr.addColorStop(0, 'rgba(255,255,255,0.9)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); sx.fillStyle = gr; sx.fillRect(0, 0, 64, 64);
-          const steamTex = new THREE.CanvasTexture(sc);
-          const puffs = Array.from({ length: 7 }, (_, i) => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: steamTex, transparent: true, opacity: 0, depthWrite: false })); s.visible = false; s.name = 'Hơi nước phòng tắm'; scene.add(s); return { s, t: i * 0.85, x: 0, z: 0 }; });
-          const doorOp = VBATH.doorMat.opacity, wallOp = VBATH.wallMat.opacity;
-          let live = 0, idle = false;
-          const fx = { on: false, steam: 0, update(dt) {
-            if (VBATH.wet > 0 || VBATH.wetFloor.visible) { VBATH.wet = Math.max(0, VBATH.wet - dt / 1500); VBATH.wetM.opacity = 0.4 * VBATH.wet; VBATH.wetFloor.visible = VBATH.wet > 0.01; }   // sàn buồng tắm: ướt khi tắm, tự khô ~25 phút (gạt nước: van-stations.js)
-            if (!fx.on && !live && !fx.steam) { if (!idle) { idle = true; lines.visible = false; for (const p of puffs) p.s.visible = false; } return; }   // tắt nước, hết hơi: không tính gì
-            idle = false;
-            const h = Math.min(dt, 0.05);
-            const st0 = fx.steam; fx.steam = Math.max(0, Math.min(1, fx.steam + (fx.on ? h / 40 : -h / 70)));
-            if (fx.steam !== st0) { VBATH.doorMat.opacity = doorOp + 0.3 * fx.steam; VBATH.wallMat.opacity = wallOp + 0.2 * fx.steam; }   // kính và vách mờ hơi nước
-            let any = false;
-            for (let i = 0; i < N; i++) {
-              const d = D[i];
-              if (!d.live) {
-                if (!fx.on || Math.random() > 0.3) { pos.fill(0, i * 6, i * 6 + 6); continue; }
-                d.live = true; d.p.copy(head).addScaledVector(side, (Math.random() - 0.5) * 0.1).addScaledVector(up2, (Math.random() - 0.5) * 0.1);
-                d.v.copy(dir).multiplyScalar(1.5 + Math.random() * 0.5).addScaledVector(side, (Math.random() - 0.5) * 0.4).addScaledVector(up2, (Math.random() - 0.5) * 0.4);
-              }
-              d.v.y -= 9.8 * h; d.p.addScaledVector(d.v, h);
-              if (d.p.y < floorY) { d.live = false; pos.fill(0, i * 6, i * 6 + 6); continue; }
-              any = true; pos[i * 6] = d.p.x; pos[i * 6 + 1] = d.p.y; pos[i * 6 + 2] = d.p.z;
-              pos[i * 6 + 3] = d.p.x - d.v.x * 0.04; pos[i * 6 + 4] = d.p.y - d.v.y * 0.04; pos[i * 6 + 5] = d.p.z - d.v.z * 0.04;   // vệt nước ngắn theo hướng rơi
-            }
-            live = any ? 1 : 0; lines.visible = any; if (any) geo.attributes.position.needsUpdate = true;
-            for (const p of puffs) {   // đám hơi nước: sinh sát sàn buồng WC, bốc lên trần, nở ra rồi tan
-              p.t += h; if (p.t > 6) { p.t -= 6; p.x = 3.08 + Math.random() * 0.75; p.z = -1.35 + Math.random() * 0.8; }
-              const k = p.t / 6; p.s.visible = fx.steam > 0.02 && p.x > 0;
-              if (!p.s.visible) continue;
-              const w = vanPt(p.x, TR.yIn + 0.55 + k * 1.45, p.z); p.s.position.copy(w); p.s.scale.setScalar(0.35 + k * 0.7); p.s.material.opacity = 0.28 * Math.sin(Math.PI * k) * fx.steam;
-            }
-          } };
-          return fx;
-        })();
+        // ---- hiệu ứng: (vòi sen là của xe: van/interior/bath-fx.js) · nốt nhạc bay từ laptop · Zzz ngủ trưa · gói khoai tây chiên · màn hình trình phát nhạc ----
         const musicFx = (() => {   // nốt nhạc (vẽ bằng nét, không phụ thuộc font) bay lên từ laptop, đung đưa, xuyên qua mái xe bay lên trời rồi mờ dần
           const cols = ['#ffd34a', '#7fd1ff', '#ff8fb1', '#a6f08c'];
           const texs = [0, 1, 2, 3].map(i => {
@@ -67,10 +24,10 @@
           });
           let acc = 0, idx = 0; const src = new THREE.Vector3();
           return { update(dt, t, on) {
-            if (on && studyLaptop.group) {
+            if (on && VAN.laptop.group) {
               acc += dt;
               if (acc > 0.5) {
-                acc = 0; const n = pool[idx++ % pool.length]; studyLaptop.group.getWorldPosition(src);
+                acc = 0; const n = pool[idx++ % pool.length]; VAN.laptop.group.getWorldPosition(src);
                 n.o.set(src.x + (Math.random() - 0.5) * 0.12, src.y + 0.2, src.z + (Math.random() - 0.5) * 0.12); n.t = 0; n.life = 4 + Math.random() * 1.5;
                 n.ph = Math.random() * 6.28; n.dx = (Math.random() - 0.5) * 0.6; n.dz = (Math.random() - 0.5) * 0.6; n.m.visible = true;
               }
@@ -121,7 +78,7 @@
           const chipM = new THREE.MeshLambertMaterial({ color: 0xe8c25a });
           for (let k = 0; k < 4; k++) { const ch = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.004, 9), chipM); ch.scale.z = 0.75; ch.position.set(-0.03 + k * 0.02, 0.163 + (k % 2) * 0.006, (k - 1.5) * 0.008); ch.rotation.set(0.9 + k * 0.3, k, 0.4 * (k - 1.5)); g.add(ch); }
           table.add(g); table.updateMatrixWorld(true);
-          const chair = table.worldToLocal(campChairPos.clone()), best = [chair.x > 0 ? 0.25 : -0.25, 0.2];   // góc gần ghế (17/10: nửa xa ghế là chỗ drone DJI — drone.js tableLay lật theo cùng phía)
+          const chair = table.worldToLocal(CAMP.chairPos.clone()), best = [chair.x > 0 ? 0.25 : -0.25, 0.2];   // góc gần ghế (17/10: nửa xa ghế là chỗ drone DJI — drone.js tableLay lật theo cùng phía)
           g.position.set(best[0], table.userData.top ?? 0.45, best[1]); g.rotation.y = Math.atan2(chair.x - best[0], chair.z - best[1]);   // mặt nhãn quay về phía ghế
           return g;
         })();
@@ -132,7 +89,7 @@
         //      công suất, la bàn hướng gió thật · cửa sổ Ghi chú đang gõ + con trỏ · CON TRỎ CHUỘT lượn qua biểu đồ hiện nhãn giá trị · THÔNG BÁO trượt vào góc
         //      phải 45 s/lần · mở nắp: MÀN KHOÁ (giờ to, Touch ID) 1,8 s rồi mở khoá · buổi tối: cửa sổ Nhạc (đĩa quay, phổ nhạc, tiến độ) ----
         const LAP_NOTE = ['Đối chiếu sản lượng thủy điện với mực hồ…', 'Tấm pin: −0,4%/°C khi nóng; kiểm nhiệt độ tấm', 'Tuabin: cắt vào 3 m/s, định mức 12 m/s', 'Pin lưu trữ san tải giờ cao điểm 17–20 h', 'Mai kiểm tra cánh tuabin #2'];
-        const lapHist = [[], [], []], LW = MBP.CW, LH = MBP.CH, LAP_CH = [['#5ec27a', 'Thủy điện', 30], ['#f0a040', 'Mặt trời', 55], ['#65b3ff', 'Gió', 80]];
+        const lapHist = [[], [], []], LW = VAN.laptop.spec.CW, LH = VAN.laptop.spec.CH, LAP_CH = [['#5ec27a', 'Thủy điện', 30], ['#f0a040', 'Mặt trời', 55], ['#65b3ff', 'Gió', 80]];
         let lapWall = null;
         const lapRR = (x, X, Y, w, h, r, fill) => { x.fillStyle = fill; x.beginPath(); x.roundRect(X, Y, w, h, r); x.fill(); };
         const lapClock = (hh, sec) => String(Math.floor(hh)).padStart(2, '0') + ':' + String(Math.floor(hh * 60 % 60)).padStart(2, '0') + (sec ? ':' + String(Math.floor(hh * 3600 % 60)).padStart(2, '0') : '');
@@ -215,20 +172,21 @@
           const bx0 = X + WW / 2; x.fillStyle = '#f3eaff'; x.fillRect(bx0 - 6, Y + 172, 4, 14); x.fillRect(bx0 + 2, Y + 172, 4, 14);   // tạm dừng = đang phát
           for (const sg of [-1, 1]) { const q = bx0 + sg * 30; x.fillRect(q + sg * 5, Y + 173, 2, 12); x.beginPath(); x.moveTo(q + sg * 5, Y + 179); x.lineTo(q - sg * 4, Y + 173); x.lineTo(q - sg * 4, Y + 185); x.fill(); }   // bài trước / sau
         }
+        const LAPS = { mode: 'dash', drawnAt: -1 };   // phiên màn hình của kỹ sư (laptop là của xe: VAN.laptop): lần vẽ cuối, màn khoá (awake, wakeAt), chế độ, con trỏ, nhịp số liệu biểu đồ
         function laptopScreenTick(t, music) {   // màn hình laptop: bảng vận hành (nghiên cứu) · Nhạc (buổi tối) · màn khoá khi vừa mở nắp
-          const L = studyLaptop; if (!L.ctx) return;
-          if (L.open < 0.3) L.awake = false;
-          if (L.open < 0.5 || Math.abs(t - L.drawnAt) < 0.125) return;
+          const LP = VAN.laptop, L = LAPS; if (!LP.ctx) return;
+          if (LP.open < 0.3) L.awake = false;
+          if (LP.open < 0.5 || Math.abs(t - L.drawnAt) < 0.125) return;
           if (!L.awake) { L.awake = true; L.wakeAt = t; }
           L.drawnAt = t; L.mode = music ? 'music' : 'dash';
-          const x = L.ctx; lapWall = lapWall || lapWallpaper(); x.drawImage(lapWall, 0, 0);
+          const x = LP.ctx; lapWall = lapWall || lapWallpaper(); x.drawImage(lapWall, 0, 0);
           if (t - L.wakeAt < 1.8) {   // màn khoá: giờ to, ngày, ảnh đại diện, Touch ID
             x.fillStyle = 'rgba(0,0,0,0.25)'; x.fillRect(0, 0, LW, LH); x.textAlign = 'center'; x.fillStyle = '#fff';
             x.font = '10px Arial, sans-serif'; const d = new Date(); x.fillText(['Chủ nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'][d.getDay()] + ', ' + d.getDate() + ' tháng ' + (d.getMonth() + 1), LW / 2, 50);
             x.font = 'bold 54px Arial, sans-serif'; x.fillText(lapClock(liveWeather.localHour), LW / 2, 104);
             x.fillStyle = '#f08c00'; x.beginPath(); x.arc(LW / 2, 220, 18, 0, TAU); x.fill(); x.fillStyle = '#fff'; x.font = 'bold 13px Arial, sans-serif'; x.fillText('KS', LW / 2, 225);
             x.font = '9px Arial, sans-serif'; x.fillText('Engineer GHC', LW / 2, 252); x.fillStyle = 'rgba(255,255,255,0.7)'; x.fillText('Chạm Touch ID để mở khoá', LW / 2, 268); x.textAlign = 'left';
-            lapRR(x, LW / 2 - 23, -5, 46, 16, 5, '#000'); L.tex.needsUpdate = true; return;
+            lapRR(x, LW / 2 - 23, -5, 46, 16, 5, '#000'); LP.shown(); return;
           }
           let rows = [];
           if (music) lapMusic(t, x); else rows = laptopDash(t, x, L);
@@ -252,5 +210,5 @@
               const lab = h[k].toFixed(1).replace('.', ',') + ' MW'; x.font = 'bold 7px Arial, sans-serif'; const lw = x.measureText(lab).width + 8; lapRR(x, C.x + 6, C.y - 16, lw, 12, 3, 'rgba(10,12,16,0.85)'); x.fillStyle = LAP_CH[r[4]][0]; x.fillText(lab, C.x + 10, C.y - 7.5); }
           }
           x.fillStyle = '#fff'; x.strokeStyle = '#000'; x.lineWidth = 0.8; x.beginPath(); x.moveTo(C.x, C.y); x.lineTo(C.x, C.y + 11); x.lineTo(C.x + 3, C.y + 8); x.lineTo(C.x + 5.5, C.y + 13); x.lineTo(C.x + 7, C.y + 12.3); x.lineTo(C.x + 4.6, C.y + 7.4); x.lineTo(C.x + 8, C.y + 7.4); x.closePath(); x.fill(); x.stroke();
-          L.tex.needsUpdate = true;
+          LP.shown();
         }

@@ -9,6 +9,13 @@
         //  quay được, bấm mở ở van/body/van-doors.js. Nạp sau khi cảnh chạy; tới lúc đó vỏ code (transitBody — van/body/transit.js) làm bản tạm. Nạp xong: gộp theo (vai trò xem xuyên, lớp vật liệu) → ~20 lượt vẽ, dùng chung
         //  vật liệu vỏ code (sơn kem bán trong suốt như cũ ở khoang ở; mũi xe + 2 cửa cabin sơn đục — khoang máy không có gì để xem), ẩn vỏ + táp-lô + nội thất cabin + bánh code; giữ thảm sàn cabin, biển số Jade (dời biển sau ra cửa
         //  sau thật), thang leo nóc dời theo cửa sau. Va chạm (core/collide.js) vẫn đọc vỏ code lúc khởi động — 2 vỏ cùng số đo.
+        //  L4 (G 01/11 "đổi sang bản 6,70 m"): lúc gắn, mọi đỉnh sau mặt cắt x = TR.cut (2,65 — ngay sau hốc bánh sau, đoạn vỏ thẳng) lùi thêm TR.ext ⇒ thân,
+        //  lớp lót trong, ốp chân đen giãn dài 0,72 m; cửa sau, đèn hậu, cản sau lùi nguyên khối. Góc dưới-sau ô kính (cả ô dập Kombi vách +z) là 1 nét vát thẳng
+        //  (2,49; 1,73) → (2,74; 1,94) vắt qua 2,65 — cắt ở đó thì nét vát kéo thành đường xiên dài 1 m ⇒ dải ngang ô kính cắt chỗ khác: vách −z (ô kính thật)
+        //  y 1,55–2,10 cắt ở 2,455 (đoạn khung đáy còn thẳng) ⇒ góc vát + bo + kính mờ lùi nguyên khối, ô kính dài thêm 0,72 m; vách +z y 1,55–2,60 cắt ở 2,765
+        //  (sau ô dập; trước nó là mép cửa lùa đang mở 2,44–2,52 xen với đầu nét vát) ⇒ ô dập giữ cỡ L3. Chọn dải bằng đếm tam giác lật (pháp tuyến đảo chiều sau
+        //  khi giãn ⇒ nét viền gấp): không thêm tam giác lật ở lớp có nét viền. Ranh kính trong / kính mờ của ô kính −z (x 2,27 = vách phòng tắm L3) dời tới vách
+        //  phòng tắm mới (bathX) ⇒ bàn học rộng ra vẫn nhìn qua kính trong.
         const VAN_GLB = window.__vanBin || 'https://michaeltran75.github.io/3d-garden/models/transit.bin';   // đường dẫn tuyệt đối: bản một tệp nhúng Wix cũng nạp được
         // ĐỘNG CƠ trong khoang máy (G 18/10 "research about new glb và apply van engine to the model"): mẫu "Nelson Racing Engine B" (Rudy, CC-BY-4.0) — lưới
         //  quét AI 1,9 triệu tam giác + màu đỉnh, gộp 20 khúc, hàn đỉnh, giảm lưới giữ màu (simplifyWithAttributes, sai lệch ~1,4 cm) → 36k tam giác,
@@ -19,7 +26,7 @@
         const ENG_GLB = window.__engineGlb || 'https://michaeltran75.github.io/3d-garden/models/engine.glb', ENG_AT = { x: -2.64, y: 0.55, s: 0.902 };
         const vanGlb = { ready: false }, _ledV = new THREE.Vector3();
         const LINE_CLS = new Set(['paint', 'paintO', 'black', 'glass', 'frost', 'lens', 'chrome', 'red']);   // lớp vật liệu được vẽ nét viền (G 18/10 "bring back van border art line 100% visible")
-        function transitGlb(g, body) {
+        function transitGlb(g, body, bathX) {
           const M = body.M, lam = (c, o = {}) => new THREE.MeshLambertMaterial({ color: c, side: THREE.DoubleSide, ...o });
           const MAT = { paint: M.body, paintO: lam(M.body.color.getHex()), paintIn: M.body, black: M.black, chrome: M.chrome, glass: M.glass, frost: M.frost, lens: lam(0xdde4e6, { transparent: true, opacity: 0.55, depthWrite: false }),
             bulb: M.led, red: M.red, blue: M.blue, steel: lam(0x9a9d9f), tire: lam(0x2b2925), trim: lam(0xcfccc4), dash: lam(0x5d6163), dashTop: lam(0x46494b), ctrl: lam(0x3e4244),
@@ -31,6 +38,11 @@
             const ldr = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
             return new Promise(ok => ldr.parse(b.buffer, '', gl => { attach(gl.scene); ok(); ldr.loadAsync(ENG_GLB).then(eg => engine(eg.scene)).catch(err => console.warn('Engine GLB:', err)); }, err => { console.warn('Transit GLB:', err); ok(); }));   // số %: chờ tới lúc xe gắn vào cảnh
           }).catch(err => console.warn('Transit GLB:', err)));
+          const l4 = (v, cls) => {   // L4: giãn đuôi tại TR.cut, riêng dải ngang ô kính cắt chỗ khác (đầu tệp) · ranh kính trong / mờ vách −z theo vách phòng tắm
+            if ((cls === 'glass' || cls === 'frost') && v.z < 0 && Math.abs(v.x - 2.27) < 0.004) { v.x = bathX; return; }
+            const band = v.y >= 1.55 && v.y <= (v.z < 0 ? 2.10 : 2.60), cut = !band ? TR.cut : v.z < 0 ? 2.455 : 2.765;
+            if (v.x > cut || (cls === 'frost' && v.z < 0 && v.x > 2.455)) v.x += TR.ext;
+          };
           function attach(src) {
             src.updateMatrixWorld(true);
             const bins = new Map(), m4 = new THREE.Matrix4(), nm = new THREE.Matrix3(), v = new THREE.Vector3();
@@ -41,7 +53,7 @@
               const cls = o.material.name, key = (piv ? piv.name : '') + '|' + (btn ? btn.name : '') + '|' + role + '|' + cls; let bin = bins.get(key);
               if (!bin) bins.set(key, bin = { role, cls, piv, btn, at: piv ? piv.getWorldPosition(new THREE.Vector3()) : new THREE.Vector3(), P: [], N: [], I: [], n: 0 });
               const geo = o.geometry, P = geo.attributes.position, N = geo.attributes.normal, I = geo.index; m4.copy(o.matrixWorld); nm.getNormalMatrix(m4); const flip = m4.determinant() < 0;
-              for (let i = 0; i < P.count; i++) { v.fromBufferAttribute(P, i).applyMatrix4(m4).sub(bin.at); bin.P.push(v.x, v.y, v.z); v.fromBufferAttribute(N, i).applyMatrix3(nm).normalize(); bin.N.push(v.x, v.y, v.z); }
+              for (let i = 0; i < P.count; i++) { v.fromBufferAttribute(P, i).applyMatrix4(m4); l4(v, cls); v.sub(bin.at); bin.P.push(v.x, v.y, v.z); v.fromBufferAttribute(N, i).applyMatrix3(nm).normalize(); bin.N.push(v.x, v.y, v.z); }
               for (let i = 0; i < I.count; i += 3) { const a = bin.n + I.getX(i), b2 = bin.n + I.getX(i + 1), c = bin.n + I.getX(i + 2); if (flip) bin.I.push(a, c, b2); else bin.I.push(a, b2, c); }   // nút lật (ghế phụ) ⇒ đảo thứ tự đỉnh
               bin.n += P.count;
             });
@@ -56,8 +68,8 @@
               if (bin.cls === 'paintIn') mesh.userData.xrayHide = true;   // vỏ trong khoang hàng: xem xuyên thì ẩn hẳn (nội thất rõ 100% — G 18/10)
               if (bin.role === 'shell' && LINE_CLS.has(bin.cls)) edge(mesh, geo, vanLine(lineDark));   // nét viền kết cấu xe (mép tấm vỏ, khung kính, gờ ≥ 30°) — con của mặt vỏ ⇒ còn khi xem xuyên
             }
-            for (const nm2 of ['Vỏ Ford Transit L3H2', 'Táp-lô', 'Nội thất cabin', 'Bánh xe']) { const o = g.getObjectByName(nm2); if (o) o.visible = false; }
-            const rearPlate = body.plates.children[1]; if (rearPlate) rearPlate.position.x = 3.174;   // cửa sau GLB ở X 3,162 (vỏ code 3,05)
+            for (const nm2 of ['Vỏ Ford Transit L4H2', 'Táp-lô', 'Nội thất cabin', 'Bánh xe']) { const o = g.getObjectByName(nm2); if (o) o.visible = false; }
+            const rearPlate = body.plates.children[1]; if (rearPlate) rearPlate.position.x = 3.174 + TR.ext;   // cửa sau GLB ở X 3,162 + TR.ext (vỏ code TR.rear = 3,05 + TR.ext)
             const lad = g.getObjectByName('Thang leo nóc'); if (lad) lad.position.x += 0.105;
             g.add(grp.shell, grp.keep); xrayAdopt(grp.shell);
             vanGlb.ready = true; vanGlb.groups = grp; vanPartsInit([...parts.values()]);   // cửa trước, ca-pô, tay nắm, logo ⇒ nút bấm mở (van/body/van-doors.js)
@@ -79,6 +91,6 @@
             src.traverse(o => { if (o.isMesh) { o.material = mat; o.castShadow = false; o.receiveShadow = true; } });
             const g2 = new THREE.Group(); g2.name = 'Động cơ V6 tăng áp kép (mẫu GLB)'; g2.rotation.y = -Math.PI / 2; g2.scale.setScalar(ENG_AT.s); g2.position.set(ENG_AT.x, ENG_AT.y, 0);
             g2.add(src); vanGlb.groups.keep.add(g2); vanGlb.engine = g2; vanGlb.engineSrc = src; vanGlb.engineMat = mat;
-            engineTool.objs.push(g2); hovAdd(g2, { on: engineSeen, skip: m => m.material !== mat });   // rê: viền (chỉ vỏ máy) · bấm: bảng "Khởi động máy" (ui/xray-lifecycle.js)
+            worldJoin('hover', 40, H => H.add(g2, { on: engineSeen, skip: m => m.material !== mat }));   // rê: viền (chỉ vỏ máy — dịch vụ 'hover') · bấm: bảng "Khởi động máy" (ui/xray-lifecycle.js đọc VAN.engineModel)
           }
         }

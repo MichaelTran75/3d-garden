@@ -15,7 +15,7 @@
         //  Gọi trong engineer/mind/loop-update.js: engReactHold (đứng lại thay việc) · engReactPre (trước lớp tư thế) · engReactPost (sau IK chân: nhìn,
         //  nhịp cử chỉ — trước engSeatPost) · engReactArms (đích tay — sau engSeatPost, trước engArmPost).
         const RX_NO = [false, false], RX_YES = [true, true], RX_R = [true, false];
-        const RX_BUSY = new Set(['pet', 'apple', 'appleEat', 'trim', 'drone', 'drink', 'grab', 'plant', 'toPlant', 'toSmoker', 'smokeIn', 'toSmokerOut', 'smokeOut', 'toGrill', 'eatFish', 'tossFish', 'fish', 'eat', 'read', 'nap', 'stars', 'garden']);
+        const RX_BUSY = new Set(['pet', 'apple', 'appleEat', 'trim', 'drone', 'drink', 'grab', 'plant', 'toPlant', 'toSmoker', 'smokeIn', 'toSmokerOut', 'smokeOut', 'toStoke', 'stoke', 'toGrill', 'eatFish', 'tossFish', 'fish', 'eat', 'read', 'nap', 'stars', 'garden']);
         const RX_STOP = new Set(['wander', 'check', 'toMast', 'toChair', 'toShelter', 'toFish', 'toDog']);   // việc đi / đứng dừng lại được
         // ưu tiên cử chỉ: cử chỉ cao hơn mới chen ngang được
         const RX_GP = { yawn: 1, sigh: 1, wipe: 1, rub: 1, warm: 1, fan: 1, fanClip: 1, blow: 1, hug: 1, palm: 2, shade: 2, relief: 2, brr: 3, shakeOff: 3, clap: 2, laugh: 2, wave: 3, cough: 3, catch: 3, look: 3, drop: 3, brush: 3, helmet: 4, pat: 4, shield: 5, cover: 6 };
@@ -53,14 +53,10 @@
         const _rxQ = new THREE.Quaternion(), _rxQ2 = new THREE.Quaternion(), _rxQ3 = new THREE.Quaternion(), _rxUp = new THREE.Vector3(0, 1, 0), _rxDn = new THREE.Vector3(0, -1, 0);
         const RX = { t: 0, rain: null, hold: null, gest: null, look: null, lookP: new THREE.Vector3(), gp: new THREE.Vector3(), gw: 0, po: 0, pAdd: 0, sp: { x: 0, y: 0 },
           wv: new THREE.Vector3(), wm: 0, calm: 0, leaf: null, leafT: 0, bolt: -1, boltP: new THREE.Vector3(), flinch: 0, smkT: 0, smkN: 0,
-          zoomSeen: false, zc: 0, dc: 0, still: 0, idle: 0, teaW: false, nx: {}, say: {}, pole: [new THREE.Vector3(), new THREE.Vector3()], poles: [null, null], patSpot: new THREE.Vector3() };
+          zoomSeen: false, zc: 0, dc: 0, still: 0, idle: 0, teaW: false, nx: {}, say: {}, pole: [new THREE.Vector3(), new THREE.Vector3()], poles: [null, null], patSpot: new THREE.Vector3(), patCall: null };
         // mái bạt hiên xe (hệ toạ độ xe): đứng trong vùng này là đã khỏi mưa
-        const RX_AW = (() => {
-          let a = null; caravanObj.traverse(o => { const p = o.isMesh && o.geometry.parameters; if (p && (p.height === 0.014 || p.height === 0.04) && p.depth === 2.4) a = o; });   // tấm bạt (18/10 mỏng còn 1,4 cm — trước đó dò 4 cm nên hụt, rxDry luôn sai)
-          if (!a) return null; const w = a.geometry.parameters.width / 2;
-          return { x0: a.position.x - w + 0.1, x1: a.position.x + w - 0.1, z0: a.position.z - 1.2, z1: a.position.z + 1.05 };
-        })();
-        const rxDry = p => { if (!RX_AW) return false; const l = caravanObj.worldToLocal(_rxL.copy(p)); return l.x > RX_AW.x0 && l.x < RX_AW.x1 && l.z > RX_AW.z0 && l.z < RX_AW.z1; };
+        const RX_AW = VAN.awning;   // mặt xe: { x0, x1, z0, z1 } | null
+        const rxDry = p => { if (!RX_AW) return false; const l = VAN.object.worldToLocal(_rxL.copy(p)); return l.x > RX_AW.x0 && l.x < RX_AW.x1 && l.z > RX_AW.z0 && l.z < RX_AW.z1; };
         const rxRaining = () => !!(liveWeather.state.fresh && liveWeather.state.raining);
         const rxOutside = e => !e.inVan && e.phase !== 'van' && e.g.parent === scene;
         const rxSS = (x, a, b) => THREE.MathUtils.smoothstep(x, a, b);
@@ -70,7 +66,7 @@
           if (!rxOutside(e)) return RX_NO;
           const s = e.seat && e.seat.st, P = e.phase, H = e.hold || {};
           if (s && s !== 'go' && s !== 'leave' && s !== 'stood') return s === 'seated' && (P === 'shelter' || (P === 'tea' && e.teaIdle)) ? RX_YES : RX_NO;
-          if (e.armsBusy || e.noFootIK && !(RX.hold && RX.hold.k === 'pat') || RX_BUSY.has(P) || grill.st === 'held' || grill.st === 'carried') return RX_NO;
+          if (e.armsBusy || e.noFootIK && !(RX.hold && RX.hold.k === 'pat') || RX_BUSY.has(P) || CAMP.grill.st === 'held' || CAMP.grill.st === 'carried') return RX_NO;
           if (H.spoon || H.bottle || H.book || H.chop || H.knife || H.spatula || H.coke || H.cup || (e.dish && e.dish.at === 'hand')) return RX_NO;
           return !clipOk && e.clip && e.clip.visible ? RX_R : RX_YES;
         }
@@ -118,8 +114,8 @@
         }
         function rxFire(e) {   // lửa đang cháy gần (lò chiminea khi mưa / lửa trại buổi tối) để hơ tay
           const g = e.g.position;
-          if (chiminea.lit() > 0.2 && chiminea.g.position.distanceTo(g) < 3.8) return _rxC.copy(chiminea.g.position).setY(chiminea.g.position.y + 0.5);
-          if (campfireLevel(liveWeather.localHour) * campRain.flameK > 0.25 && Math.hypot(pf.x - g.x, pf.z - g.z) < 4) return _rxC.set(pf.x, pf.y + 0.4, pf.z);
+          if (CHIMINEA.lit() > 0.2 && CHIMINEA.g.position.distanceTo(g) < 3.8) return _rxC.copy(CHIMINEA.g.position).setY(CHIMINEA.g.position.y + 0.5);
+          if (CAMP.fireLevel(liveWeather.localHour) * CAMP.fireRain.flameK > 0.25 && Math.hypot(pf.x - g.x, pf.z - g.z) < 4) return _rxC.set(pf.x, pf.y + 0.4, pf.z);
           return null;
         }
         function rxSmokeAt(S, p, r) {   // độ đậm khói quanh p: tổng độ đục các điểm sợi khói trong bán kính r (toạ độ sợi khói tính từ gốc nguồn)
@@ -142,7 +138,7 @@
           if (RX.hold) rxHoldEnd(); RX.gest = null; RX.look = null; RX.gw = 0; RX.po = 0; RX.flinch = 0;
           e.spd = 1.1;
         }
-        function rxHoldEnd() { RX.hold = null; const B = dogBrain.state; B.patAt = null; B.patReady = false; }
+        function rxHoldEnd() { RX.hold = null; RX.patCall = null; }   // thôi gọi chó (mặt kỹ sư: callPat) — chó tự thôi chờ
         function rxRainEvent(e, start) {
           const s = e.seat && e.seat.st, seated = !!s && s !== 'go' && s !== 'leave' && s !== 'stood';
           if (start) {
@@ -166,10 +162,10 @@
             if (H.t > 0.35 && H.t < 0.5 && rxHands(e)[0]) rxGest('palm', 2.1);
             if (H.t >= H.dur) rxHoldEnd();
           } else if (H.k === 'pat') {
-            const B = dogBrain.state, dp = dogObj.position;
-            if (B.st !== 'follow' || dogRain.st || H.t > 10) { rxHoldEnd(); return true; }
+            const D = worldSee('dog'), dp = D && D.pos;   // chó nhìn từ ngoài (animals/dog/face.js)
+            if (!D || D.st !== 'follow' || D.shelter || H.t > 10) { rxHoldEnd(); return true; }
             if (!H.on) {
-              if (B.patReady || (H.t > 4 && Math.hypot(dp.x - gp.x, dp.z - gp.z) < 1)) { H.on = true; H.t0 = H.t; rxSay('pat', RX_TXT.pat, 'Chơi với chó', false); }
+              if (D.patReady || (H.t > 4 && Math.hypot(dp.x - gp.x, dp.z - gp.z) < 1)) { H.on = true; H.t0 = H.t; rxSay('pat', RX_TXT.pat, 'Chơi với chó', false); }
               else if (H.t > 6.5) { rxHoldEnd(); return true; }
             }
             // quay mặt về chỗ chó ngồi
@@ -241,8 +237,9 @@
           else if (C && (C.k === 'hug' || C.k === 'brr' || C.k === 'blow')) e.lean += 0.06 * (C.w || 0);   // co người giữ ấm
         }
         function rxDog(e, dt, t, onFoot, seated) {
-          if (!dogObj || dogRain.st) { RX.zoomSeen = false; return; }
-          const B = dogBrain.state, dp = dogObj.position, gp = e.g.position, d = Math.hypot(dp.x - gp.x, dp.z - gp.z);
+          const B = worldSee('dog');   // chó nhìn từ ngoài (animals/dog/face.js): st, k, shake, pos
+          if (!B || B.shelter) { RX.zoomSeen = false; return; }
+          const dp = B.pos, gp = e.g.position, d = Math.hypot(dp.x - gp.x, dp.z - gp.z);
           if (B.shake > 0.3 && d < 1.8 && !(RX.gest && RX.gest.k === 'shield')) {   // chó giũ nước sát người: giơ tay che, ngoảnh đi
             if (rxHands(e, true)[0] && rxTeaLeft(e) > 1.5 && rxGest('shield', 0.45 + B.shake / 1.2)) rxSay('shake', RX_TXT.shake, 'Chơi với chó', false);
             rxLookAway(e, dp, 4, 0.5 + B.shake / 1.2);
@@ -260,11 +257,11 @@
             for (const a of [-0.6, -1.2, 0, -1.8, 0.6]) {
               sp.set(gp.x + Math.sin(yaw + a) * 0.62, 0, gp.z + Math.cos(yaw + a) * 0.62);
               if (isWater(Math.round(x2gi(sp.x)), Math.round(z2gj(sp.z))) || Math.abs(cowY(sp.x, sp.z) - gy) > 0.3) continue;
-              if (ENG_PROPS.some(o => Math.hypot(sp.x - o.x, sp.z - o.z) < o.r + 0.25) || obstacleCoords.some(o => o.r < 1.2 && Math.hypot(sp.x - o.x, sp.z - o.z) < o.r + 0.2)) continue;
+              if (PROPS.some(o => Math.hypot(sp.x - o.x, sp.z - o.z) < o.r + 0.25) || obstacleCoords.some(o => o.r < 1.2 && Math.hypot(sp.x - o.x, sp.z - o.z) < o.r + 0.2)) continue;
               ok = true; break;
             }
             RX.nx.pat = t + (ok ? 75 : 5);
-            if (ok) { B.patAt = sp; B.patReady = false; RX.hold = { k: 'pat', t: 0, dur: 10 }; }
+            if (ok) { RX.patCall = sp.clone(); RX.hold = { k: 'pat', t: 0, dur: 10 }; }   // gọi: chỗ ngồi nêu trên mặt kỹ sư, chó tự chạy tới
           }
         }
         // ---- lá / cánh hoa đang rơi gần mặt: theo dõi (chọn lại mỗi 0,15 s); rơi trúng mũ (xét mỗi khung) thì nằm lại trên mũ ----
@@ -292,7 +289,7 @@
           if (t < RX.smkT) return; RX.smkT = t + 0.3;
           e.head.updateWorldMatrix(true, false); const f = e.head.localToWorld(_rxA.set(0, -0.02, 0.22));
           let s = 0, src = null;
-          for (const S of [campSmoke, chiminea.smoke]) { if (!S || !S.on || S.mesh.position.distanceTo(f) > 5) continue; const v = rxSmokeAt(S, f, 0.4); if (v > s) { s = v; src = S.mesh.position; } }
+          for (const S of [CAMP.fireSmoke, CHIMINEA.smoke]) { if (!S || !S.on || S.mesh.position.distanceTo(f) > 5) continue; const v = rxSmokeAt(S, f, 0.4); if (v > s) { s = v; src = S.mesh.position; } }
           RX.smkN = s > RX_SMOKE0 ? RX.smkN + 1 : 0; RX.smk = s;
           if (RX.smkN >= 2 && t >= (RX.nx.smoke || 0)) {
             RX.nx.smoke = t + 9; rxGest(rxHands(e)[0] && rxTeaLeft(e) > 3 ? 'wave' : 'cough', 2.6); rxLookAway(e, src, 3.5, 2.6); rxSay('smoke', RX_TXT.smoke, 'Khói lửa trại', false);
@@ -521,7 +518,7 @@
               const c = Math.sin(Math.PI * Math.max(0, Math.min(1, (u - 0.35) / 2.3))); if (c > 0.02) rxHand(e, 0, engMouthW(e, _rxA).addScaledVector(ax.f, 0.07 * e.g.scale.y), rxQ(e, 0, _rxB.copy(ax.f).negate(), _rxQ), w * c); break;
             }
             case 'pat': {   // xoa đầu chó: lòng tay úp lên đỉnh đầu, vỗ nhẹ 3 cái
-              const hd = dogObj.userData.head.getWorldPosition(_rxA); hd.y += 0.08 + 0.035 * Math.max(0, Math.sin(u * TAU * 1.7));
+              const hd = worldSee('dog').head.getWorldPosition(_rxA); hd.y += 0.08 + 0.035 * Math.max(0, Math.sin(u * TAU * 1.7));
               rxHand(e, 0, hd, rxQ(e, 0, _rxDn, _rxQ), w); break;
             }
             default: envArms(e, G, w, u, ax);   // chìa tay cho bướm đậu · chỉ tay (engineer/mind/env-react.js)
@@ -532,12 +529,13 @@
           const cand = (p, prio) => { if (prio > bp) { bp = prio; P.copy(p); } };
           if (L && t < L.until) cand(L.k === 'sky' ? rxSky(e, _rxA) : RX.lookP, L.prio);
           if (G && (G.k === 'look' || G.k === 'catch' || G.k === 'drop' || (G.k === 'palm' && G.t > 0.5 && G.t < 1.5) || (G.k === 'finger' && ENV.bf && ENV.bf.st === 'on'))) cand(e.wrists[0].getWorldPosition(_rxA), 3.2);
-          if ((G && G.k === 'pat') || (RX.hold && RX.hold.k === 'pat')) cand(dogObj.userData.head.getWorldPosition(_rxA), 4);
+          const D = worldSee('dog');   // chó nhìn từ ngoài (animals/dog/face.js)
+          if (D && ((G && G.k === 'pat') || (RX.hold && RX.hold.k === 'pat'))) cand(D.head.getWorldPosition(_rxA), 4);
           if (RX.leaf && (RX.leaf.st === 'track' || RX.leaf.st === 'catch')) cand(RX.leaf.q.p, 3);
-          if (dogObj && !dogRain.st) {
-            const B = dogBrain.state, dp = dogObj.position, d = Math.hypot(dp.x - e.g.position.x, dp.z - e.g.position.z);
-            if (B.st === 'zoom' && d < 18) { RX.zc += dt; if (RX.zc % 7.5 < 5) cand(dogObj.userData.head.getWorldPosition(_rxA), 2.6); } else RX.zc = 0;
-            if (d < 2.6 && B.st !== 'lie') { RX.dc += dt; if (RX.dc % 8 < 1.6) cand(dogObj.userData.head.getWorldPosition(_rxA), 1.5); } else RX.dc = 0;
+          if (D && !D.shelter) {
+            const dp = D.pos, d = Math.hypot(dp.x - e.g.position.x, dp.z - e.g.position.z);
+            if (D.st === 'zoom' && d < 18) { RX.zc += dt; if (RX.zc % 7.5 < 5) cand(D.head.getWorldPosition(_rxA), 2.6); } else RX.zc = 0;
+            if (d < 2.6 && D.st !== 'lie') { RX.dc += dt; if (RX.dc % 8 < 1.6) cand(D.head.getWorldPosition(_rxA), 1.5); } else RX.dc = 0;
           }
           const wT = bp > 0 ? (free >= 0.8 || bp >= 3 ? free : bp >= 2 ? free * 0.6 : 0) * (e.walking && bp < 4 ? 0.75 : 1) : 0;
           RX.gw += (wT - RX.gw) * (1 - Math.exp(-dt * 5));

@@ -26,10 +26,16 @@
           // ---- danh sách đài thật (1 lần, lúc bật lần đầu) ----
           async function load() {
             if (R.loaded) return; R.loaded = 1; let L = [];
-            for (const h of ['de1', 'nl1', 'at1']) { try { const r = await fetch('https://' + h + '.api.radio-browser.info/json/stations/search?countrycode=VN&hidebroken=true&order=clickcount&reverse=true&limit=80'); if (r.ok) { L = await r.json(); break; } } catch (e) { L = []; } }
+            // G 30/10: đài quanh vị trí trình duyệt (xin quyền định vị; 60 km rồi nới 300 km) · từ chối / không có ⇒ nước theo ngôn ngữ trình duyệt (en-AU ⇒ AU) · cuối cùng VN
+            const hlsOk = !!audio.canPlayType('application/vnd.apple.mpegurl');   // luồng HLS chỉ phát thẳng được trên Safari
+            const usable = s => /^https:/.test(s.url_resolved || '') && /mp3|aac/i.test(s.codec || '') && (hlsOk || !s.hls);
+            const get = async q => { for (const h of ['de1', 'nl1', 'at1']) { try { const r = await fetch('https://' + h + '.api.radio-browser.info/json/stations/search?' + q + '&hidebroken=true&order=clickcount&reverse=true&limit=80'); if (r.ok) return (await r.json()).filter(usable); } catch (e) {} } return []; };
+            const pos = await new Promise(res => { if (!navigator.geolocation) return res(null); try { navigator.geolocation.getCurrentPosition(p => res(p.coords), () => res(null), { timeout: 10000, maximumAge: 3600e3 }); } catch (e) { res(null); } });
+            if (pos) for (const km of [60, 300]) { L = await get('geo_lat=' + pos.latitude.toFixed(3) + '&geo_long=' + pos.longitude.toFixed(3) + '&geo_distance=' + km * 1000); if (L.length >= 8) break; }
+            if (L.length < 8) { const cc = (/[-_]([A-Z]{2})\b/.exec(navigator.language || '') || [])[1]; if (cc) L = await get('countrycode=' + cc); }
+            if (L.length < 8) L = await get('countrycode=VN');
             const free = [], used = { FM: new Set(), AM: new Set() };
             for (const s of L) {
-              if (!/^https:/.test(s.url_resolved || '') || !/mp3|aac/i.test(s.codec || '')) continue;
               const t = s.name + ' ' + s.tags, st = { name: s.name.trim().slice(0, 32), url: s.url_resolved, news: /news|talk|tin|thời sự|vov1/i.test(t) };
               const fm = t.match(/(?:^|[^\d.,])(\d{2,3}[.,]\d)(?!\d)/), am = t.match(/(\d{3,4})\s*(?:khz)?\s*am\b|\bam\s*(\d{3,4})/i), f = fm && parseFloat(fm[1].replace(',', '.')), a = am && +(am[1] || am[2]);
               if (f >= 87.5 && f <= 108 && !used.FM.has(Math.round(f * 10))) { st.n = Math.round(f * 10); used.FM.add(st.n); R.st.FM.push(st); }
@@ -106,7 +112,7 @@
             const pl = R.on && !!R.cur && R.s > 0.4 && !audio.paused; if (pl !== R.play) { R.play = pl; draw(); }
             if (pl && (R.et -= dt) <= 0) { R.et = 0.08; for (let i = 0; i < 7; i++) R.eq[i] += (Math.random() * (1 - Math.abs(i - 3) * 0.1) - R.eq[i]) * 0.6; draw(); }   // cột sóng táp-lô ~12 lần/giây
             if (pop.style.display !== 'none') wave(clock.elapsedTime);
-            const show = hovShown(caravanObj) && (upp < 0.05 || R.on && upp < 0.12);
+            const show = shownInScene(caravanObj) && (upp < 0.05 || R.on && upp < 0.12);
             if (!tag && show) { tag = addLabel('📻 Radio', '#e0662b', new THREE.Vector3(), new THREE.Vector3(), true, undefined, true); }
             if (tag) {
               tag.sprite.visible = tag.line.visible = show; const playing = R.on && R.cur && R.s > 0.4 && !audio.paused;
@@ -121,3 +127,5 @@
           }
           return { tick, open, tagClick, power, state: R, g };
         })();
+        worldJoin('hover', 20, H => H.claim(e => radio.tagClick(e)));   // bấm trúng nhãn 📻 ⇒ mở bảng — bộ chọn rê chuột (dịch vụ 'hover') hỏi trước mọi vật khác
+        worldTick('sound', 10, dt => radio.tick(dt));   // MỖI KHUNG (sổ tick core/world.js): radio táp-lô

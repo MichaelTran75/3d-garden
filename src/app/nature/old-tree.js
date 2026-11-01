@@ -1,23 +1,61 @@
         // ---- CÂY CỔ THỤ mọc tự nhiên (thân xoắn · vài nhánh gỗ chết · tán lá xum xuê) tại góc (89, 7, 117) ----
-        // ---- CỤM 3 ĐÁ CUỘI ĐA GIÁC (1 Lớn · 1 Vừa · 1 Nhỏ) + NỀN ĐẤT quanh gốc cây ----
+        // ---- 3 TẢNG ĐÁ HỘC PHỦ RÊU (1 Lớn · 1 Vừa · 1 Nhỏ) + NỀN ĐẤT quanh gốc cây ----
+        //  G 01/11 "gốc cây cổ thụ, em sửa lại các tảng đá sao cho giống đá ngay miệng cống xả nước": cùng kiểu đá hộc chân cửa xả (world/storm-drain.js) — lưới cầu
+        //  20 mặt chia 1 lần, mỗi đỉnh co giãn ngẫu nhiên 0,8–1,12 ⇒ khối đá vỡ góc cạnh, mặt phẳng (flatShading), cùng vật liệu đá xám nâu; rêu = thảm rêu dùng chung
+        //  (core/surface-style.js mossCoat) như mũ rêu đá hộc: lượng rêu từng đỉnh (aRk) — mũ trên nóc, sườn khuất nắng, chân sát đất ẩm; lá rêu mọc theo
+        //  (nature/moss-lawn.js). Giữ chỗ + cỡ + độ lún của 3 tảng trước (G 31/10 tối: granite bo tròn, hạt fenspat, địa y vẽ trong shader — đã bỏ). Rễ cổ thụ lách theo
+        //  vòng ôm đo thật ở mặt đất từng tảng (oldTreeStones); nấm (nature/fungi.js) tìm nhóm này theo vị trí (nhóm không tên) ----
+        const oldTreeStones = [];
         (function stoneRing() {
           const g = new THREE.Group(); g.position.set(X0 + 89, 7.0, Z0 + 117); scene.add(g); flightRoots.push(g);
           const dirtMatRound = new THREE.MeshLambertMaterial({ color: 0x3d3024 });   // đất bùn đậm quanh gốc
-          const rockMat = new THREE.MeshLambertMaterial({ color: 0x827b72, flatShading: true });   // đá ấm đa giác góc cạnh
           // Nền đất nâu sẫm tròn quanh gốc
           const dirtDisc = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.5, 0.12, 16), dirtMatRound);
           dirtDisc.position.y = 0.06; dirtDisc.receiveShadow = true; g.add(dirtDisc);
-          // Đúng 3 hòn đá (1 Lớn, 1 Vừa, 1 Nhỏ)
-          const geo = new THREE.DodecahedronGeometry(0.85, 0);
-          const stones = [
-            { pos: [0.3, 0.42, 1.25], sc: [1.45, 0.95, 1.3], rot: [0.4, 0.8, -0.2] },      // 1 LỚN (Big)
-            { pos: [1.5, 0.34, -0.4], sc: [1.0, 0.7, 0.9], rot: [-0.3, 1.4, 0.5] },       // 1 VỪA (Medium)
-            { pos: [-1.35, 0.26, 0.5], sc: [0.62, 0.45, 0.58], rot: [0.6, -0.7, 0.2] }     // 1 NHỎ (Small)
-          ];
-          for (const s of stones) {
-            const m = new THREE.Mesh(geo, rockMat); m.position.set(...s.pos); m.scale.set(...s.sc); m.rotation.set(...s.rot);
-            m.castShadow = true; m.receiveShadow = true; g.add(m);
-          }
+          const h3 = (i, j, k) => { const s = Math.sin(i * 127.1 + j * 311.7 + k * 74.7) * 43758.5453; return s - Math.floor(s); };
+          const vn3 = (x, y, z) => { const i = Math.floor(x), j = Math.floor(y), k = Math.floor(z), u = x - i, v = y - j, w = z - k, a = u * u * (3 - 2 * u), b = v * v * (3 - 2 * v), c = w * w * (3 - 2 * w), l = (o, p, q) => h3(i + o, j + p, k + q);
+            return ((l(0, 0, 0) * (1 - a) + l(1, 0, 0) * a) * (1 - b) + (l(0, 1, 0) * (1 - a) + l(1, 1, 0) * a) * b) * (1 - c) + ((l(0, 0, 1) * (1 - a) + l(1, 0, 1) * a) * (1 - b) + (l(0, 1, 1) * (1 - a) + l(1, 1, 1) * a) * b) * c; };
+          const fbm = (x, y, z) => 0.55 * vn3(x, y, z) + 0.3 * vn3(x * 2.1 + 5.2, y * 2.1, z * 2.1 + 1.7) + 0.15 * vn3(x * 4.3 + 9.1, y * 4.3 + 3.3, z * 4.3);
+          const groundAt = (x, z) => cowY(g.position.x + x, g.position.z + z) - g.position.y + 0.12 * Math.max(0, Math.min(1, (2.5 - Math.hypot(x, z)) / 0.3));   // + nền đất (trụ r 2,2 → 2,5)
+          const rnd = mulberry32(8890), NO = SF_NO.value, ss = THREE.MathUtils.smoothstep, tmp = new THREE.Vector3(), nrm = new THREE.Vector3();
+          // [x, z, bán trục a (ngang x) · b (cao) · c (ngang z), phần lún, hướng] — giữ chỗ + cỡ 3 hòn cũ (rễ đã lách quanh)
+          const SPEC = [[0.3, 1.25, 1.0, 0.74, 0.86, 0.3, 0.5], [1.5, -0.4, 0.66, 0.46, 0.56, 0.3, 1.9], [-1.35, 0.5, 0.42, 0.28, 0.36, 0.32, -0.8]];
+          const POS = [], NRM = [], RK = [], IDX = [];
+          SPEC.forEach(([sx, sz, A, B, C, bur, yaw], n) => {
+            // lưới cầu 20 mặt chia 1 lần như đá hộc cửa xả (gộp đỉnh trùng ⇒ có chỉ số cho lá rêu), co giãn từng đỉnh 0,8–1,12 theo băm toạ độ (+ số tảng: 3 hình khác nhau)
+            const ico = new THREE.IcosahedronGeometry(1, 1), Pi = ico.attributes.position, key = new Map(), D = [], T = [];
+            for (let i = 0; i < Pi.count; i++) { const k = Math.round(Pi.getX(i) * 1e4) + ',' + Math.round(Pi.getY(i) * 1e4) + ',' + Math.round(Pi.getZ(i) * 1e4); let id = key.get(k); if (id === undefined) { id = D.length / 3; key.set(k, id); D.push(Pi.getX(i), Pi.getY(i), Pi.getZ(i)); } T.push(id); }
+            ico.dispose();
+            const rot = new THREE.Quaternion().setFromEuler(new THREE.Euler((rnd() - 0.5) * 0.2, yaw, (rnd() - 0.5) * 0.2)), nV = D.length / 3, L = new Float32Array(nV * 3);
+            for (let i = 0; i < nV; i++) {
+              const x = D[i * 3], y = D[i * 3 + 1], z = D[i * 3 + 2], h = Math.abs(Math.sin(x * 12.9898 + y * 78.233 + z * 37.719 + n * 3.7) * 43758.5453) % 1, k = 0.8 + 0.32 * h;
+              tmp.set(x * k * A, y * k * B, z * k * C).applyQuaternion(rot); L[i * 3] = tmp.x; L[i * 3 + 1] = tmp.y; L[i * 3 + 2] = tmp.z;
+            }
+            let y0 = Infinity, y1 = -Infinity; for (let i = 0; i < nV; i++) { y0 = Math.min(y0, L[i * 3 + 1]); y1 = Math.max(y1, L[i * 3 + 1]); }
+            const gy = groundAt(sx, sz), cy = gy - y0 - bur * (y1 - y0);   // lún ~30% chiều cao vào đất
+            const geo = new THREE.BufferGeometry(); for (let i = 0; i < nV; i++) { L[i * 3] += sx; L[i * 3 + 1] += cy; L[i * 3 + 2] += sz; }
+            geo.setAttribute('position', new THREE.BufferAttribute(L, 3)); geo.setIndex(T); geo.computeVertexNormals();
+            const Nn = geo.attributes.normal, base = POS.length / 3; let foot = 0;
+            for (let i = 0; i < nV; i++) {
+              const x = L[i * 3], y = L[i * 3 + 1], z = L[i * 3 + 2], hA = y - groundAt(x, z); nrm.fromBufferAttribute(Nn, i);
+              if (hA > -0.05 && hA < 0.12) foot = Math.max(foot, Math.hypot(x - sx, z - sz));   // vòng ôm ở mặt đất cho rễ
+              const pt = fbm(x * 1.1 + 20, y * 1.1, z * 1.1), up = ss(nrm.y, 0.15, 0.7), north = Math.max(0, nrm.x * NO.x + nrm.z * NO.y) * (1 - Math.abs(nrm.y));
+              let mo = up * ss(pt + 0.22 * up, 0.34, 0.56);   // mũ rêu trên nóc (như đá hộc: mặt hướng trời, loang)
+              mo = Math.max(mo, 0.8 * north * ss(pt, 0.38, 0.58));   // sườn khuất nắng
+              mo = Math.max(mo, (1 - ss(hA, 0.04, 0.32)) * ss(fbm(x * 2.3 + 40, y * 2.3, z * 2.3), 0.36, 0.6));   // chân sát đất ẩm
+              POS.push(x, y, z); NRM.push(nrm.x, nrm.y, nrm.z); RK.push(Math.min(1, mo));
+            }
+            for (let t = 0; t < T.length; t += 3) { const a = T[t], b = T[t + 1], c = T[t + 2]; if (Math.max(L[a * 3 + 1], L[b * 3 + 1], L[c * 3 + 1]) < groundAt(L[a * 3], L[a * 3 + 2]) - 0.12) continue; IDX.push(base + a, base + b, base + c); }   // bỏ tam giác chôn hẳn
+            geo.dispose(); oldTreeStones.push({ x: sx, z: sz, r: foot || Math.max(A, C) });
+          });
+          const geo = new THREE.BufferGeometry();
+          geo.setAttribute('position', new THREE.Float32BufferAttribute(POS, 3)); geo.setAttribute('normal', new THREE.Float32BufferAttribute(NRM, 3));
+          geo.setAttribute('aRk', new THREE.Float32BufferAttribute(RK, 1)); geo.setIndex(IDX); geo.computeBoundingSphere();
+          // vật liệu đá hộc cửa xả (bản sao) + thảm rêu như mũ rêu đá hộc (nature/bank-moss.js)
+          const rockMat = mossCoat(stormDrain.mats.stone.clone(), 'otRk2', { vHead: 'attribute float aRk; varying float vMk;', vMain: ' vMk = aRk;', fHead: 'varying float vMk;',
+            sq: '(abs(vMcN.y) > 0.6 ? vMcP.xz : abs(vMcN.x) > abs(vMcN.z) ? vMcP.zy : vMcP.xy)', mo: 'smoothstep(0.3, 0.6, vMk + 0.25 * (sfMossCu(mcQ, mcF) - 0.45))' });
+          const rocks = new THREE.Mesh(geo, rockMat); rocks.name = 'Đá hộc phủ rêu quanh gốc cổ thụ'; rocks.castShadow = rocks.receiveShadow = true;
+          Object.assign(rocks.userData, { noBake: true, noBatch: true, rockMoss: true }); g.add(rocks);   // giữ thuộc tính aRk (lá rêu đọc lượng rêu từng đỉnh)
           bakeStatic(g);
         })();
 
@@ -26,8 +64,8 @@
         (function oldTree() {
           const g = new THREE.Group(); g.position.set(X0 + 89, 7, Z0 + 117); g.scale.setScalar(2.76); g.rotation.set(0, 0, 0.62); g.name = 'Cây cổ thụ (Old Tree)'; scene.add(g);   // ngả thân về phía dòng sông (-x)
           oldTreeGroup = g;
-          const TOP = 0.935;   // G 18/10 "cây cổ thụ 10% more visible": vỏ 0,85 → 0,935 (lá 0,76 → 0,836, cây con theo cùng tỉ lệ)
-          const barkMat = new THREE.MeshLambertMaterial({ color: 0x4a3420, transparent: true, opacity: TOP }), deadMat = new THREE.MeshLambertMaterial({ color: 0xE2D6C0, transparent: true, opacity: TOP });
+          // G 31/10 "cây cổ thụ 100% visible": vỏ, rễ, cây con, lá đều đặc (trước: vỏ 0,935 · cây con 0,715 · lá 0,836) ⇒ bỏ luôn lượt độ sâu của vỏ trong suốt
+          const barkMat = new THREE.MeshLambertMaterial({ color: 0x4a3420 }), deadMat = new THREE.MeshLambertMaterial({ color: 0xE2D6C0 });
           barkMat.userData.sfOld = deadMat.userData.sfOld = 1; deadMat.userData.sfMoss = 0.35;   // G 17/10 "cây cổ thụ render tệ, nhìn giả, sửa lại về render cũ": vân vỏ bản trước (không ảnh quét, không địa y loang)   // G 17/10: vết loang trên thân cổ thụ màu NÂU ĐEN (không xám trắng)
           // cây cổ thụ: thân to, tán nặng → dao động riêng chậm ~0,32 Hz, cản nhỏ (gỗ già ít tắt dần); cành xa thân rung ~1 Hz
           const tw = makeTreeWind({ freq: 0.32, zeta: 0.08, lean: 0.45, branchAmp: 0.07 });
@@ -236,7 +274,7 @@
             }
             cloudPts(rnd, tp.pos.x, tp.pos.y + 0.08, tp.pos.z, radius, count, pts);
           }
-          tuftInstanced(g, rnd, pts, leafHexGeo(0.05), leafCols, 0.836, 0.7, tw, 0.04);   // lá cây cổ thụ trong suốt hơn 10% (0.85 * 0.9 = 0.76)
+          tuftInstanced(g, rnd, pts, leafHexGeo(0.05), leafCols, 1, 0.7, tw, 0.04);   // lá cây cổ thụ đặc (G 31/10 "100% visible")
           g.userData.leafPts = Float32Array.from(pts.flat());   // lá vàng rụng sinh từ chính các chùm lá (toạ độ cục bộ) — mảng số x, y, z liền (G 19/10: bản [x, y, z] từng điểm tốn ~1 MB)
 
           bakeStatic(g);
@@ -251,7 +289,7 @@
           } else {
             scene.add(g);
           }
-          const barkMat = new THREE.MeshLambertMaterial({ color: 0x4a3420, transparent: true, opacity: 0.715 }); barkMat.userData.sfOld = 1; surfaceStyle(barkMat, 'bark');   // vân vỏ như cây mẹ (bản cũ)
+          const barkMat = new THREE.MeshLambertMaterial({ color: 0x4a3420 }); barkMat.userData.sfOld = 1; surfaceStyle(barkMat, 'bark');   // vân vỏ như cây mẹ (bản cũ)
           const leafCols = [0x4e7a39, 0x5e8c44, 0x6fa052, 0x42692f];
           const V = (x, y, z) => new THREE.Vector3(x, y, z);
 
@@ -332,8 +370,8 @@
           const sLeafPts = [];
           const perTip = Math.max(20, Math.round(810 / sTips.length));   // tổng ~810 điểm lá = gấp 3 lần trước (3 cụm × 90 = 270)
           for (const tp of sTips) cloudPts(rnd, tp.x, tp.y + 0.05, tp.z, 0.55, perTip, sLeafPts);
-          tuftInstanced(g, rnd, sLeafPts, leafHexGeo(0.05), leafCols, 0.935);
-          // ---- điểm treo TỔ ONG trên cành cây con (tổ ong giỏ rơm dựng ở animals/beehive.js, treo thẳng đứng từ điểm này) ----
+          tuftInstanced(g, rnd, sLeafPts, leafHexGeo(0.05), leafCols, 1);   // lá cây con đặc (G 31/10)
+          // ---- điểm treo TỔ ONG trên cành cây con (tổ ong giỏ rơm dựng ở animals/bees/hive.js, treo thẳng đứng từ điểm này) ----
           const hiveAnchor = new THREE.Object3D(); hiveAnchor.position.set(-3.4425, 3.5108, 0.3995); g.add(hiveAnchor); g.userData.hiveAnchor = hiveAnchor;
 
           bakeStatic(g);
@@ -346,7 +384,7 @@
           oldTreeGroup.updateMatrixWorld(true);
           oldTreeWind = oldTreeGroup.userData.treeWind; finalizeTreeWind(oldTreeWind, oldTreeGroup);   // gốc/chiều cao/tán đo SAU khi thu theo NATURE_SCALE
           oldTreeLeafCtl = makeLeafFall({ name: 'Lá cây cổ thụ rụng theo gió', group: oldTreeGroup, pts: oldTreeGroup.userData.leafPts, n: 16,
-            geo: new THREE.CylinderGeometry(0.045 * 2.3, 0.045 * 2.3, 0.0015 * 2.3, 6), opacity: 0.836, color: () => Math.random() < 0.85 ? 0xe5b82c : 0x5e8c44,   // 85% lá vàng, 15% lá xanh
+            geo: new THREE.CylinderGeometry(0.045 * 2.3, 0.045 * 2.3, 0.0015 * 2.3, 6), opacity: 1, color: () => Math.random() < 0.85 ? 0xe5b82c : 0x5e8c44,   // 85% lá vàng, 15% lá xanh
             scale: NATURE_SCALE, tw: oldTreeWind, g: 3.5, vTerm: 0.7, flutA: 0.7, flutW: [2.2, 3.2], tumble: 0.35, tumbleW: [6, 10], slideU: 0.6, rate0: 0.05, rateK: 3.0, shake0: 0.012, restLife: [12, 24], floatLife: [30, 55], sinkP: 0.35, sinkV: [0.06, 0.1], leeway: 0.03 });
         }
 
@@ -362,12 +400,12 @@
         //      TIM rễ mẹ ở đúng độ cao đó. Nhóm riêng theo toạ độ thế giới (đất quanh gốc phẳng + nền đất 0,12 của stoneRing), KHÔNG gắn shader gió ----
         (function oldTreeRoots() {
           const cx = X0 + 89, cz = Z0 + 117, gy = cowY(cx, cz), g = new THREE.Group(); g.name = 'Rễ cây cổ thụ'; g.position.set(cx, gy, cz); scene.add(g); flightRoots.push(g);
-          const mat = new THREE.MeshLambertMaterial({ color: 0x4a3420, transparent: true, opacity: 0.935 }); mat.userData.sfOld = 1; mat.userData.sfMoss = 1.35; mat.userData.sfTop = 1.6; surfaceStyle(mat, 'bark');   // sát đất cả rễ ⇒ rêu gốc phủ kín nếu để mặc định (G 19/10 "rễ cây trên mặt đất x3 moss": 0,15 → 0,45; G 20/10 "rễ nhiều rêu xanh hơn x3": 0,45 → 1,35 + phủ mặt trên 1,6)
+          const mat = new THREE.MeshLambertMaterial({ color: 0x4a3420 }); mat.userData.sfOld = 1; mat.userData.sfMoss = 1.35; mat.userData.sfTop = 1.6; surfaceStyle(mat, 'bark');   // sát đất cả rễ ⇒ rêu gốc phủ kín nếu để mặc định (G 19/10 "rễ cây trên mặt đất x3 moss": 0,15 → 0,45; G 20/10 "rễ nhiều rêu xanh hơn x3": 0,45 → 1,35 + phủ mặt trên 1,6)
           const rnd = mulberry32(4242), V = (x, y, z) => new THREE.Vector3(x, y, z), L = [], SAMP = [], STEP = 0.26, KE = 0.5, EM = -0.35, E1 = -2.0;   // rễ thuôn còn 50% ở đoạn nổi · nổi e 0,3 → −0,35 rồi cắm DỐC (~35°, quãng ~2,2 r) xuống −2 r · SAMP: mẫu các rễ đã dựng (rễ sau vắt qua)
           const water = (x, z) => isWater(Math.round(x2gi(cx + x)), Math.round(z2gj(cz + z)));
           const ground = (x, z) => cowY(cx + x, cz + z) - gy + 0.12 * Math.max(0, Math.min(1, (2.5 - Math.hypot(x, z)) / 0.3));   // + nền đất quanh gốc (stoneRing: trụ r 2,2 → 2,5, cao 0,12)
-          // vòng ôm (x, z, r): 3 đá của stoneRing (12 mặt r 0,85 × tỉ lệ ⇒ ~0,8 bán kính ngoại tiếp) + gốc cây con (x + 2)
-          const OBST = [[0.3, 1.25, 1.02], [1.5, -0.4, 0.68], [-1.35, 0.5, 0.42], [2.0, 0.0, 0.42]];
+          // vòng ôm (x, z, r): 3 tảng đá của stoneRing (bán kính đo ở mặt đất — oldTreeStones) + gốc cây con (x + 2)
+          const OBST = [...oldTreeStones.map(t => [t.x, t.z, t.r]), [2.0, 0.0, 0.42]];
           // ---- múi bạnh THẬT: bán kính chân thân theo góc (đỉnh lưới vỏ cao 0,05–0,55 trên đất; ô trống giữa 2 vòng lưới nội suy) → đỉnh cục bộ = chỗ rễ chính chui ra ----
           const NB = 72, rho = new Float32Array(NB), v = V(0, 0, 0), sub = oldTreeGroup.getObjectByName('Cây con (Small Sub-Tree)');
           oldTreeGroup.updateMatrixWorld(true);

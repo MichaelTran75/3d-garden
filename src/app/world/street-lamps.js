@@ -111,7 +111,7 @@
 
         /* ===== VEGETATION INSTANCING — gom cỏ/cây/hoa tĩnh thành InstancedMesh (≈2000 mesh → 7 draw call).
            Hình học gốc chuẩn hoá (bán kính/cao ~1) rồi đặt qua ma trận per-instance; màu lá/cỏ/cánh hoa qua instanceColor. */
-        const NATURE_SCALE = 0.90; // Whole-object size; world scatter and flight/walk paths stay independent.
+        // NATURE_SCALE (cỡ cả vật tự nhiên) ở core/helpers.js
         const flowerMats = [0xe8556d, 0xf2c14e, 0xE2D6C0, 0xb07fd4, 0xe8843a].map(c => new THREE.MeshLambertMaterial({ color: c }));
         const flCen = new THREE.MeshLambertMaterial({ color: 0xf4d24f }), flStem = new THREE.MeshLambertMaterial({ color: 0x4f7a34 });
         const bladeGreenCols = [0x5d8f34, 0x6fa343, 0x7ab84e, 0x53842f].map(c => new THREE.Color(c));
@@ -146,13 +146,14 @@
         }
         const _blobDefs = [[0, 3.2, 0, 1.7], [0.85, 2.7, 0.42, 1.25], [-0.75, 2.8, -0.4, 1.3], [0.3, 3.8, -0.25, 1.1]];
         const _forestVariants = [];   // mẫu nhánh đệ quy dùng chung (điền sau khi recTree sẵn sàng)
+        const forestGreens = [0x78935b, 0x58763f, 0x3c5a2c].map(c => new THREE.Color(c)), forestYellow = new THREE.Color(0xd2ad34);   // G 30/10: 3 tông xanh (hiện tại → đậm) mỗi cây 1 tông · 10% khối tán vàng
         function addTreeInst(s, px, py, pz, rotY) {   // 1 cây rừng: thân + NHÁNH ĐỆ QUY (instanced) + tán lá triangle-ball ở đầu cành
           s *= NATURE_SCALE; // Scale branches, tip offsets and canopy together around this tree's ground root.
-          const lc = leafMats[(Math.random() * leafMats.length) | 0].color; vegGroup(px, py, pz, rotY, 1);
+          const lc = forestGreens[(Math.random() * forestGreens.length) | 0]; vegGroup(px, py, pz, rotY, 1);
           const V0 = _forestVariants[(Math.random() * _forestVariants.length) | 0];
           const Href = V0.top * s * 0.875;   // chiều cao cây (để gió uốn ∝ (độ cao/H)²)
           vegPush(vegPools[V0.key], _vp.set(0, 0, 0), _vqI, _vs.set(s, s * 0.875, s), undefined, [0, Href]);   // Tăng chiều cao thêm 25% (0.7 * 1.25 = 0.875)
-          for (const tp of V0.tips) vegPush(vegPools.blob, _vp.set(tp.x * s, tp.y * s * 0.875, tp.z * s), _vqI, _vs.set(0.62 * s, 0.62 * s * 1.012, 0.62 * s), lc, [Math.max(0.01, tp.y * s * 0.875), Href]);
+          for (const tp of V0.tips) vegPush(vegPools.blob, _vp.set(tp.x * s, tp.y * s * 0.875, tp.z * s), _vqI, _vs.set(0.62 * s, 0.62 * s * 1.012, 0.62 * s), Math.random() < 0.1 ? forestYellow : lc, [Math.max(0.01, tp.y * s * 0.875), Href]);
           return V0;
         }
         function addGrassTuft(px, py, pz, rotY, s) {
@@ -164,3 +165,12 @@
           }
         }
         const flowerCoords = [];
+
+        // MỖI KHUNG (loop/main-loop.js, sau gợn nước): đèn đường theo nightFactor — dời nguyên văn khỏi vòng lặp (G 01/11)
+        function streetLampsTick() {
+          for (const lamp of streetLamps) {   // đèn đường: tắt ban ngày, sáng ấm ban đêm
+            lamp.light.intensity = 60 * nightFactor; lamp.ledMat.color.setRGB(0.37 + 0.63 * nightFactor, 0.38 + 0.55 * nightFactor, 0.4 + 0.32 * nightFactor);
+            const lit = nightFactor > 0.05; lamp.beam.visible = lamp.pool.visible = lit;   // vệt sáng + chùm sáng chỉ khi trời tối
+            if (lit) { lamp.beamMat.uniforms.uOpacity.value = 0.14 * nightFactor; lamp.pool.userData.mat.uniforms.uOpacity.value = 0.34 * nightFactor; }
+          }
+        }

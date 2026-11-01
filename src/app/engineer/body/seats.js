@@ -8,15 +8,16 @@
         // bàn chân rời đất buông thõng; đứng dậy làm ngược lại. Hông và thân đi theo quỹ đạo giật tối thiểu (Flash–Hogan): vận tốc, gia tốc = 0 ở hai đầu.
         const SEAT_S = ENGINEER_BASE_SCALE * CAMP_SCALE, SEAT_HIP = ENG_HIP_Y * SEAT_S - ENG_FEET, SEAT_ANK = ENG_SOLE * SEAT_S, SEAT_LEGX = 0.15 * ENG_SLIM * SEAT_S;
         const SEAT_T_SIT = 2.3, SEAT_T_RISE = 2.2;   // giây: ngồi xuống (với tay vịn → hạ người → chạm ghế → nhích lùi) · đứng dậy (nhích ra mép → dồn đà → duỗi → ổn định)
-        const minJerk = s => { s = Math.max(0, Math.min(1, s)); return s * s * s * (10 + s * (6 * s - 15)); };
+        // minJerk (quỹ đạo giật tối thiểu 0..1) ở core/helpers.js
         const segK = (u, a, b) => Math.max(0, Math.min(1, (u - a) / (b - a)));
         const _sp = new THREE.Vector3(), _sa = new THREE.Vector3(), _sb = new THREE.Vector3(), _sw = new THREE.Vector3();
         // toạ độ cục bộ ghế (đv thế giới): x sang phải ghế, z ra phía trước mặt ghế
         const seatW = (C, lx, lz, out = new THREE.Vector3()) => out.set(C.pos.x + C.xx * lx + C.fx * lz, C.pos.y, C.pos.z + C.xz * lx + C.fz * lz);
         const seatL = (C, x, z) => { const dx = x - C.pos.x, dz = z - C.pos.z; return [dx * C.xx + dz * C.xz, dx * C.fx + dz * C.fz]; };
         function makeSeat(o) {   // mô tả ghế: hông khi ngồi (seatZ), chỗ đứng trước mặt ghế (standZ), tay vịn, vùng cấm quanh ghế, làn tiếp cận (điểm cuối = chỗ quay người)
-          const C = Object.assign({ seatZ: 0.144, standZ: 0.50, seatDrop: 0.53 * CAMP_SCALE, legs: [-1.48, -1.42], knees: [1.32, 1.25],
-            arm: { x: 0.436, y: 0.83, z0: -0.32, z1: 0.30 }, keep: [0.74, -0.70, 0.56], lane: [], props: [], ground: (x, z) => cowY(x, z) }, o);
+          const K = CAMP.chairK;   // ghế xếp ×0,9² (G 31/10, 2 lần): số đo theo ghế co theo, mặt ghế thấp đi 0,52·(1 − K) ⇒ hông hạ thêm chừng đó
+          const C = Object.assign({ seatZ: 0.144 * K, standZ: 0.50 * K, seatDrop: 0.53 * CAMP_SCALE + 0.52 * (1 - K), legs: [-1.48, -1.42], knees: [1.32, 1.25],
+            arm: { x: 0.436 * K, y: 0.83 * K, z0: -0.32 * K, z1: 0.30 * K }, keep: [0.74 * K, -0.70 * K, 0.56 * K], lane: [], props: [], ground: (x, z) => cowY(x, z) }, o);
           C.fx = Math.sin(C.yaw); C.fz = Math.cos(C.yaw); C.xx = Math.cos(C.yaw); C.xz = -Math.sin(C.yaw);
           C.hipSeat = ENG_HIP_Y * SEAT_S - engSitDrop(1, C.seatDrop);   // khớp hông trên mặt đất khi đã ngồi hẳn
           if (C.contactZ === undefined) C.contactZ = C.seatZ + 0.12;      // mông chạm nửa trước mặt ghế rồi mới nhích lùi
@@ -30,19 +31,19 @@
         const FISH_SEAT = makeSeat({ name: 'fish', outdoor: true, pos: engObj.wp[3].clone(), yaw: engObj.faceWater,
           lane: [[-1.35, -0.45], [-1.30, 0.28], [-0.65, 0.72], [0, 0.62]] });
         // ghế cắm trại: phía trước thoáng (bàn trà sát tay vịn phải, xe van phía sau, bếp lửa trước–trái) ⇒ vào thẳng từ phía trước
-        const CAMP_SEAT = makeSeat({ name: 'camp', outdoor: true, pos: campChairPos.clone(), yaw: campChairFaceY,
+        const CAMP_SEAT = makeSeat({ name: 'camp', outdoor: true, pos: CAMP.chairPos.clone(), yaw: CAMP.chairYaw,
           lane: [[0.35, 1.30], [0, 0.75]] });
-        const ENG_PROPS = [];   // vật nhỏ quanh 2 ghế: đi thường (lang thang, ra cột khí tượng, tới chó) cũng phải vòng tránh
+        // vật nhỏ quanh 2 ghế vào PROPS (core/world.js): đi thường (lang thang, ra cột khí tượng, tới chó) cũng phải vòng tránh
         {
-          const push = (C, w, r) => { ENG_PROPS.push({ x: w.x, z: w.z, r }); const [lx, lz] = seatL(C, w.x, w.z); C.props.push([lx, lz, r]); };
-          for (const C of [FISH_SEAT, CAMP_SEAT]) ENG_PROPS.push(Object.assign({ r: 0.75 }, (({ x, z }) => ({ x, z }))(seatW(C, 0, -0.03))));   // vòng đẩy phủ cả 4 góc ghế (tay vịn, chân sau)
+          const push = (C, w, r) => { PROPS.push({ x: w.x, z: w.z, r }); const [lx, lz] = seatL(C, w.x, w.z); C.props.push([lx, lz, r]); };
+          for (const C of [FISH_SEAT, CAMP_SEAT]) PROPS.push(Object.assign({ r: 0.75 }, (({ x, z }) => ({ x, z }))(seatW(C, 0, -0.03))));   // vòng đẩy phủ cả 4 góc ghế (tay vịn, chân sau)
           push(FISH_SEAT, seatW(FISH_SEAT, -0.83, -0.05), 0.15);                         // xô tôn
-          if (lanternObj) push(FISH_SEAT, lanternObj.g.position, 0.22);                  // cọc đèn lồng
+          if (CAMP.lantern) push(FISH_SEAT, CAMP.lantern.g.position, 0.22);                  // cọc đèn lồng
           const table = scene.getObjectByName('Bàn trà (Camp Table)'); if (table) push(CAMP_SEAT, table.position, 0.66);   // bàn trà to thêm 25% (17/10): nửa đường chéo 0,51 m
           // chân chống bạt + đèn lồng treo mép bạt (đáy ~1,4 m — ngang đầu): G 24/10 "engineer đang bị lỗi" — kiểm tra cả ngày thấy đi xuyên cột bạt khi về ghế, xuyên đèn khi ra ghế câu
-          caravanObj.updateMatrixWorld(true);
-          for (const [lx, lz] of caravanObj.userData.awPoles || []) { push(CAMP_SEAT, caravanObj.localToWorld(new THREE.Vector3(lx, 0, lz)), 0.12); ENG_PROPS[ENG_PROPS.length - 1].nav = true; }
-          if (awLan) { push(CAMP_SEAT, awLan.getWorldPosition(new THREE.Vector3()), 0.2); ENG_PROPS[ENG_PROPS.length - 1].nav = true; }
+          VAN.object.updateMatrixWorld(true);
+          for (const [lx, lz] of VAN.awPoles || []) { push(CAMP_SEAT, VAN.object.localToWorld(new THREE.Vector3(lx, 0, lz)), 0.12); PROPS[PROPS.length - 1].nav = true; }
+          if (VAN.awningLamp) { push(CAMP_SEAT, VAN.awningLamp.getWorldPosition(new THREE.Vector3()), 0.2); PROPS[PROPS.length - 1].nav = true; }
           // ghế vào lưới cấm của bảng DP (mọi bảng dựng sau đây — cột khí tượng, gấu mèo, chó, thỏ, bò — đều đi vòng ghế)
           for (const C of [FISH_SEAT, CAMP_SEAT]) {
             const i0 = Math.max(0, Math.floor(x2gi(C.pos.x - 1.2))), i1 = Math.min(GX - 1, Math.ceil(x2gi(C.pos.x + 1.2)));
@@ -51,7 +52,7 @@
               const [lx, lz] = seatL(C, wx(i), wz(j)); if (Math.abs(lx) < 0.73 && lz > -0.69 && lz < 0.47) ffBlocked[i + j * GX] = 1;
             }
           }
-          for (const o of ENG_PROPS.slice(2)) {   // xô, cọc đèn lồng, bàn trà: ô chứa tâm + các ô trong bán kính vào lưới cấm (bảng DP không dẫn xuyên qua)
+          for (const o of PROPS.slice(2)) {   // xô, cọc đèn lồng, bàn trà: ô chứa tâm + các ô trong bán kính vào lưới cấm (bảng DP không dẫn xuyên qua)
             const rr = o.r + 0.15, ic = Math.round(x2gi(o.x)), jc = Math.round(z2gj(o.z)); ffBlocked[ic + jc * GX] = 1;
             for (let j = Math.max(0, jc - 2); j <= Math.min(GZ - 1, jc + 2); j++) for (let i = Math.max(0, ic - 2); i <= Math.min(GX - 1, ic + 2); i++) if (Math.hypot(wx(i) - o.x, wz(j) - o.z) < rr) ffBlocked[i + j * GX] = 1;
           }
@@ -249,7 +250,7 @@
           if (e.phase === 'appleEat') return applePick.eatStand;   // rời ghế ra giỏ táo
           if (e.phase === 'stars') return skyWatch.goal(); if (e.phase === 'garden') return gardenJob.goal(); if (e.phase === 'rainwatch') return skyWatch.rwSpot;
           if (e.phase === 'toMast' || e.phase === 'check') return e.wp[2];
-          if ((e.phase === 'toDog' || e.phase === 'pet') && dogObj) return dogObj.position;
+          if ((e.phase === 'toDog' || e.phase === 'pet') && worldSee('dog')) return worldSee('dog').pos;
           return pf;
         }
         function engSeatPost(e, dt) {   // sau lớp tư thế: dang tay (tay vịn) · đầu quay dẫn hướng · giữ đám mây suy nghĩ thẳng đứng trên hông khi cúi/ngả người
@@ -263,4 +264,3 @@
           e.head.rotation.y = e.headYaw; e.headYawT = 0;
         }
         const mastField = buildFlowField(engObj.wp[2].x, engObj.wp[2].z);    // → cột khí tượng
-        const racField = buildFlowField(racApproach.x, racApproach.z);       // → điểm về hang gấu mèo

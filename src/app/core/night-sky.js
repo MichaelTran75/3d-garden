@@ -246,5 +246,5 @@
             mg.setDrawRange(0, nq * 6); meteorMesh.visible = nq > 0 && stars.visible;
             if (nq) { mg.attributes.position.needsUpdate = mg.attributes.aC.needsUpdate = mg.attributes.aT.needsUpdate = true; }
           }
-          return { update, U, meteors, spawn: spawnMeteor, get lim() { return lim; } };
+          return { update, U, meteors, spawn: spawnMeteor, mk, toNdc, fromNdc, stars, get lim() { return lim; } };   // mk, toNdc, fromNdc, stars: nét chòm sao (core/constellations.js)
         })();

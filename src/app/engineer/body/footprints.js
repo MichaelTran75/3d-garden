@@ -1,11 +1,11 @@
         // ===== DẤU CHÂN TRÊN ĐẤT ƯỚT (G 18/10 "trời mưa xong mà engineer cắt cỏ, thì đi có dấu chân 2-3 bước") =====
-        //  ĐỘ ẨM ĐẤT (soil 0–1) tách khỏi độ ướt MẶT cỏ (sceneWet — khô sau ~5 phút): mưa thì đất ngấm nhanh (~2 phút mưa vừa là đẫm), tạnh thì khô chậm —
+        //  ĐỘ ẨM ĐẤT (soilWet 0–1, nature/soil.js) tách khỏi độ ướt MẶT cỏ (sceneWet — khô sau ~5 phút): mưa thì đất ngấm nhanh (~2 phút mưa vừa là đẫm), tạnh thì khô chậm —
         //  ban ngày ~50 phút, đêm ~2,5 giờ ⇒ lúc kỹ sư cắt cỏ sau mưa (cỏ đã ráo, đất còn mềm) mỗi bước để lại dấu đế ủng. Mỗi lần 1 bàn chân đặt xuống (chân
         //  vung → trụ, engWalkFeet ở engineer/body/pose-ik-walk.js) ⇒ 1 dấu: đế ủng bảo hộ có gai (vẽ canvas), màu bùn ướt, nằm phẳng trên đất dưới bàn chân, đúng
         //  hướng bàn chân, chân trái lật gương. Chỉ 3 dấu mới nhất còn thấy (đậm → nhạt), dấu thứ 4 mờ đi trong ~0,5 s ⇒ vệt 2–3 bước sau lưng; đứng yên lâu
         //  thì dấu cũ nhạt dần (sau 20 s). Không in trong xe, trên đường nhựa, mép nước; trong cỏ cao dấu khuất dưới lá như thật, cỏ vừa cắt thì rõ ----
         const footprints = (() => {
-          const N = 6, FW = 0.19 * ENG_SLIM, FL = 0.27 * ENG_SLIM, F = { soil: 0, n: 0, prev: [false, false] };   // cỡ dấu (m): đế ủng 0,26 × 0,36 đv mẫu người × 0,79
+          const N = 6, FW = 0.19 * ENG_SLIM, FL = 0.27 * ENG_SLIM, F = { n: 0, prev: [false, false] };   // cỡ dấu (m): đế ủng 0,26 × 0,36 đv mẫu người × 0,79
           const tex = (() => {   // đế ủng: gót – eo – mũi bè, gai ngang (khe trống), mép mềm; mũi ở đỉnh ảnh
             const c = document.createElement('canvas'); c.width = 64; c.height = 128; const x = c.getContext('2d');
             x.fillStyle = '#fff'; x.shadowColor = '#fff'; x.shadowBlur = 5;
@@ -32,8 +32,7 @@
             m.material.opacity = U.op; m.visible = true;
           }
           function tick(dt) {   // mỗi khung (loop/main-loop-rest.js), sau khi kỹ sư đã bước
-            F.soil = Math.max(0, Math.min(1, F.soil + (liveWeather.state.raining ? dt * 0.008 * (0.4 + rainK) : -dt / (nightFactor > 0.5 ? 9000 : 3000))));
-            const e = engObj, K = e.wk, s = Math.max(0, Math.min(1, (F.soil - 0.12) / 0.45));
+            const e = engObj, K = e.wk, s = Math.max(0, Math.min(1, (soilWet.v - 0.12) / 0.45));
             if (K && K.on && !e.inVan && e.g.parent === scene) for (let i = 0; i < 2; i++) { const Ft = K.feet[i]; if (F.prev[i] && !Ft.sw && s > 0) place(Ft, i, s); F.prev[i] = Ft.sw; }
             else F.prev[0] = F.prev[1] = false;
             for (const m of prints) {
@@ -44,3 +43,4 @@
           }
           return Object.assign(F, { tick });
         })();
+        worldTick('ground', 10, dt => footprints.tick(dt));   // MỖI KHUNG (sổ tick core/world.js): dấu chân trên đất ướt

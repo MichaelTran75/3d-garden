@@ -1,10 +1,13 @@
-        // ==== FORD TRANSIT L3H2 (Mk8, 2014+) làm nhà di động — vỏ thân, cabin lái, bánh xe dựng hoàn toàn bằng code (G 17/10) ====
+        // ==== FORD TRANSIT L4H2 (Mk8, 2014+) làm nhà di động — vỏ thân, cabin lái, bánh xe dựng hoàn toàn bằng code (G 17/10) ====
         // Số đo lấy từ GLB "Ford Transit L2H2" (geyges, Sketchfab Standard — CHỈ ĐO, không nhúng lưới): bắn tia quanh mẫu lấy mặt cắt thân, biên dạng
         // mũi xe theo từng mức cao, kính chắn gió, kính cửa cabin, hốc bánh, mui cao H2. Đổi đơn vị: 1,1 đv/m (kỹ sư 1,95 đv kể cả mũ ≈ người 1,75 m),
         // GLB (x ngang, y cao, z dọc tới) → xe: X = 0,0272 − 1,1·z, Y = 0,1128 + 1,1·y (+ nâng mui 6 cm để khoang cao 1,88 m đúng H2), Z = 1,1·x.
         // Thân L3 = L2 + 0,45 m chèn giữa cửa lùa và hốc bánh sau ⇒ dài 5,98 m · cơ sở 3,77 m · rộng thân 2,06 m · cao ~2,7 m (lốp AT, nâng gầm 7 cm).
+        // Thân L4 (G 01/11 "đổi sang bản 6,70 m để có thêm diện tích bàn học và toilet & sink" — bản Transit long wheelbase kéo dài đuôi: Mỹ 148" EL 263,9 in,
+        //  châu Âu L4): L3 + 0,72 m (TR.ext 0,792 đv) đuôi sau hốc bánh sau, cơ sở giữ 3,77 m ⇒ dài 6,70 m. Vỏ GLB kéo giãn tại TR.cut (van/body/transit-glb.js),
+        //  khung gầm tại x 2,8 (van/body/chassis.js).
         // Khung xe (đv): mũi xe ở −x, cửa lùa ở +z (tay lái nghịch kiểu Úc: vô-lăng bên phải = −z), mặt sàn khoang y = 0,83.
-        const TR = { yIn: 0.83, xP: -0.58, xF: -2.12, xR: 2.03, wr: 0.44, wz: 0.955, front: -3.264, rear: 3.05, rc: 0.12, sill: 0.608, T: 0.035,
+        const TR = { yIn: 0.83, xP: -0.58, xF: -2.12, xR: 2.03, wr: 0.44, wz: 0.955, front: -3.264, rear: 3.05 + 0.792, ext: 0.792, cut: 2.65, rc: 0.12, sill: 0.608, T: 0.035,
           door: [-0.55, 0.83, 0.83, 2.72], archR: 0.535, archY: 0.52, inW: 0.98, ceil: 2.90 };
         const TR_SEC = [[0.608, 1.018], [0.718, 1.06], [1.015, 1.063], [1.30, 1.065], [1.543, 1.065], [1.631, 1.044], [1.72, 1.034], [1.763, 1.030], [2.093, 1.022],
           [2.319, 1.007], [2.572, 1.001], [2.697, 0.985], [2.813, 0.949]];   // y → nửa bề ngang vỏ khoang (gờ vai ở 1,54–1,63; trên vai hơi khum vào)
@@ -24,7 +27,8 @@
           ceil: [[0, 2.857], [0.35, 2.841], [0.5, 2.84], [0.6, 2.814], [0.75, 2.798], [0.8, 2.768], [0.85, 2.582], [0.9, 2.305]] };
         const trInW = y => trLerp(TR_IN.wall, y), trInCeil = z => trLerp(TR_IN.ceil, Math.abs(z));   // nửa bề ngang lòng xe ở độ cao y · trần lòng xe ở |z|
         const trXh = z => -1.513 + 0.10 * (z / 0.949) ** 2;                   // mép trên kính chắn gió cong lùi ra 2 bên
-        const TR_ROOF_X = [-1.30, -1.20, -1.10, -1.0, -0.9, -0.8, -0.6, -0.35, 0.0, 0.5, 1.0, 1.6, 2.2, 2.93];
+        const trXE = TR.rear - TR.rc;   // mép sau đoạn thân thẳng (bắt đầu góc bo đuôi): L3 2,93 · L4 3,722
+        const TR_ROOF_X = [-1.30, -1.20, -1.10, -1.0, -0.9, -0.8, -0.6, -0.35, 0.0, 0.5, 1.0, 1.6, 2.2, 2.8, 3.3, trXE];
         // MŨI XE ĐO DÀY từ GLB (Transit bản nâng cấp 2019+: ga-lăng bát giác đen viền mạ + logo bầu dục, đèn pha mảnh vuốt ngược có viền LED, cản trên sơn
         //  màu thân, cản dưới đen, đèn sương mù chữ nhật trong hốc đen, 2 hốc gió trên ca-pô — G 18/10 "đầu xe giống glb 100%"): mỗi hàng = đường đồng mức
         //  mặt trước ở độ cao yg (m GLB), tia toả vào trục (0, yg, zc) theo K + 1 góc 0 → 90° (thẳng mũi → hông); r = khoảng cách trục → mặt vỏ (mm);
@@ -55,7 +59,7 @@
           const M = { body: lam(0xE2D6C0, { transparent: true, opacity: 0.5, depthWrite: false, side: THREE.DoubleSide }), glass: lam(0x8fc1e3, { transparent: true, opacity: 0.25, depthWrite: false, side: THREE.DoubleSide }),
             frost: lam(0xdfe9ec, { transparent: true, opacity: 0.6, depthWrite: false, side: THREE.DoubleSide }), black: lam(0x3a3f41, two), grille: lam(0x24292b, two), lamp: lam(0xdde4e6, two),
             chrome: lam(0xc9cdd0, two), red: lam(0xb8322a, two), amber: lam(0xe39a32, two), mirror: lam(0xb3ccd0), blue: lam(0x1f3f7a, two), dark: lam(0x4a5052), led: new THREE.MeshBasicMaterial({ color: 0xf2f6ff, side: THREE.DoubleSide }), blackD: lam(0x2c3133, { side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }), lampD: lam(0x59636b, { side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 }) };
-          const shell = new THREE.Group(); shell.name = 'Vỏ Ford Transit L3H2'; shell.userData.xray = 'shell'; g.add(shell);
+          const shell = new THREE.Group(); shell.name = 'Vỏ Ford Transit L4H2'; shell.userData.xray = 'shell'; g.add(shell);
           const T = TR.T, IN = V3(0.4, 1.6, 0), seam = [];
           const triGeo = (p, n) => { const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(p, 3)); if (n) geo.setAttribute('normal', new THREE.Float32BufferAttribute(n, 3)); else geo.computeVertexNormals(); geo.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(p.length / 3 * 2), 2)); return geo; };
           const mesh = (geo, mat, name, outline = false, par = shell) => { const m = new THREE.Mesh(geo, mat); m.name = name; m.castShadow = mat !== M.glass && mat !== M.frost; m.receiveShadow = true; if (outline) edge(m, geo, lineDark); par.add(m); return m; };
@@ -97,7 +101,7 @@
           const roofRows = [wsRows[wsRows.length - 1], ...TR_ROOF_X.map(x => full(RZ.map(z => [z, roofSec(x, z)]), ([z, y], s) => V3(x, y, s * z)))];
           gridMeshes(roofRows, () => 'body', 'Mui cao');
           // gân dọc mui (tôn mui H2 có gân chạy dọc) — trên đoạn mui phẳng
-          for (const z of [-0.6, -0.3, 0.3, 0.6]) box('Gân mui', 2.3, 0.014, 0.05, 1.7, roofSec(1.7, z) + 0.006, z, M.body);
+          for (const z of [-0.6, -0.3, 0.3, 0.6]) box('Gân mui', 2.3 + TR.ext, 0.014, 0.05, 1.7 + TR.ext / 2, roofSec(1.7, z) + 0.006, z, M.body);
 
           // ===== VÁCH HÔNG (mỗi bên 1 tấm): viền theo mũi/trụ A/mui/đuôi, khoét hốc bánh, kính cửa cabin, cửa lùa (+z), cửa sổ nhà xe =====
           //  Tấm phẳng (x, y) chia tam giác có điểm lưới phụ (Steiner) rồi uốn theo mặt cắt thân z = trSideZ(x, y) ⇒ giữ được gờ vai và khum trên
@@ -107,11 +111,11 @@
           // (2 hốc bánh: đi từ sau ra trước theo đáy vách ⇒ cung hốc sau quét π − aS → aS ngược chiều kim đồng hồ khi nhìn từ +z)
           const archRear = arc(TR.xR, Math.PI - aS, aS, 14), archFront = arc(TR.xF, aS, aP0, 12);
           const CONT = [[-2.393, 0.98], ...[1.0, 1.15, 1.3, 1.45, 1.543, 1.598].map(y => [-2.393, y]), [-2.24, 1.642], [-1.98, 1.873], [-1.735, 2.093], [-1.44, 2.33],
-            [xhE, trTop(xhE)], ...TR_ROOF_X.map(x => [x, trTop(x)]), ...SY.slice(0, -1).reverse().map(y => [2.93, y]),
+            [xhE, trTop(xhE)], ...TR_ROOF_X.map(x => [x, trTop(x)]), ...SY.slice(0, -1).reverse().map(y => [trXE, y]),
             ...archRear.slice().reverse(), ...archFront.slice(0, -1)];
           const DOOR_GLASS = [[-0.935, 2.26], [-0.941, 1.73], [-1.073, 1.642], [-1.293, 1.565], [-1.513, 1.521], [-1.733, 1.488], [-1.854, 1.499], [-1.862, 1.93], [-1.685, 2.093], [-1.535, 2.215], [-1.45, 2.285], [-1.02, 2.295]];
           const rr = (x0, y0, x1, y1, r = 0.06) => { const p = []; for (const [cx, cy, a0] of [[x1 - r, y0 + r, -Math.PI / 2], [x1 - r, y1 - r, 0], [x0 + r, y1 - r, Math.PI / 2], [x0 + r, y0 + r, Math.PI]]) for (let k = 0; k <= 3; k++) { const a = a0 + k * Math.PI / 6; p.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]); } return p; };
-          const WIN = { 1: [rr(2.42, 2.04, 2.82, 2.44)], [-1]: [rr(-0.30, 1.86, 1.22, 2.46), rr(1.52, 1.98, 2.16, 2.46)] };   // cửa sổ nhà xe: +z phòng tắm (kính mờ) · −z trên giường, trên bàn học
+          const WIN = { 1: [rr(2.42 + TR.ext, 2.04, 2.82 + TR.ext, 2.44)], [-1]: [rr(-0.30, 1.86, 1.22, 2.46), rr(1.52, 1.98, 2.16, 2.46)] };   // cửa sổ nhà xe: +z phòng tắm (kính mờ) · −z trên giường, trên bàn học
           const DOOR = TR.door, doorHole = [[DOOR[0], DOOR[2]], [DOOR[1], DOOR[2]], [DOOR[1], DOOR[3]], [DOOR[0], DOOR[3]]];
           const inPoly = (x, y, P) => { let c = false; for (let i = 0, j = P.length - 1; i < P.length; j = i++) { const [xi, yi] = P[i], [xj, yj] = P[j]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c; } return c; };
           const segD = (x, y, P) => { let d = 9; for (let i = 0; i < P.length; i++) { const [ax, ay] = P[i], [bx2, by] = P[(i + 1) % P.length], vx = bx2 - ax, vy = by - ay, t = Math.max(0, Math.min(1, ((x - ax) * vx + (y - ay) * vy) / (vx * vx + vy * vy || 1))); d = Math.min(d, Math.hypot(x - ax - vx * t, y - ay - vy * t)); } return d; };
@@ -119,7 +123,7 @@
           for (const s of [1, -1]) {
             const holes = [DOOR_GLASS, ...WIN[s], ...(s > 0 ? [doorHole] : [])], steiner = [];
             const YS = [0.66, 0.718, 0.85, 1.0, 1.15, 1.3, 1.45, 1.543, 1.587, 1.631, 1.70, 1.763, 1.9, 2.093, 2.2, 2.319, 2.45, 2.572, 2.697, 2.765];
-            for (let x = -2.33; x < 2.92; x += 0.16) for (const y of YS) if (inPoly(x, y, CONT) && !holes.some(h => inPoly(x, y, h)) && segD(x, y, CONT) > 0.035 && holes.every(h => segD(x, y, h) > 0.035)) steiner.push([x, y]);
+            for (let x = -2.33; x < trXE - 0.01; x += 0.16) for (const y of YS) if (inPoly(x, y, CONT) && !holes.some(h => inPoly(x, y, h)) && segD(x, y, CONT) > 0.035 && holes.every(h => segD(x, y, h) > 0.035)) steiner.push([x, y]);
             const flat = [CONT, ...holes, ...steiner.map(p => [p])], faces = THREE.ShapeUtils.triangulateShape(CONT.map(p => V2(...p)), [...holes, ...steiner.map(p => [p])].map(h => h.map(p => V2(...p))));
             const P2 = flat.flat(), pos = [], idx = [];
             for (const [x, y] of P2) pos.push(x, y, s * trSideZ(x, y));
@@ -145,7 +149,7 @@
             const on = (x, y) => [x, y, s * (trSideZ(x, y) + 0.003)], ln = pts => { for (let i = 0; i < pts.length - 1; i++) seam.push(...pts[i], ...pts[i + 1]); };
             ln([0.98, 1.2, 1.5, 1.7].map(y => on(-2.03, y)).concat([on(-1.88, 1.92), on(-1.70, 2.11), on(-1.52, 2.36)]));
             ln([0.62, 1.0, 1.5, 2.0, 2.4].map(y => on(-0.70, y)).concat([on(-0.70, 2.62)])); ln([on(-2.03, 0.98), on(-1.59, 0.98)]); ln([on(-1.59, 0.62), on(-0.70, 0.62)]);
-            ln([-2.3, -1.6, -0.9, -0.55].map(x => on(x, 1.587))); ln([0.83, 1.5, 2.2, 2.93].map(x => on(x, 1.587)));
+            ln([-2.3, -1.6, -0.9, -0.55].map(x => on(x, 1.587))); ln([0.83, 1.5, 2.2, trXE].map(x => on(x, 1.587)));
             if (s < 0) ln([-0.55, 0.2, 0.83].map(x => on(x, 1.587)));
             // ốp nhựa đen chân thân (xe Transit bản thường): dải giữa 2 hốc bánh + sau hốc sau; bên cửa lùa chừa ô cửa (tấm cửa mang dải riêng)
             const band = (x0, x1, y0, y1, name) => { const g2 = new THREE.PlaneGeometry(x1 - x0, y1 - y0, Math.max(1, Math.round((x1 - x0) / 0.3)), 3); g2.translate((x0 + x1) / 2, (y0 + y1) / 2, 0); const r2 = g2.attributes.position;
@@ -153,7 +157,7 @@
             const xa = TR.xF + Math.sqrt(TR.archR ** 2 - (TR.sill - TR.archY) ** 2), xb = TR.xR - Math.sqrt(TR.archR ** 2 - (TR.sill - TR.archY) ** 2), xc = TR.xR + (TR.xR - xb);
             if (s > 0) { band(xa, DOOR[0], TR.sill, 0.95, 'Ốp chân thân'); band(DOOR[0], DOOR[1], TR.sill, DOOR[2] - 0.005, 'Ốp chân thân'); band(DOOR[1], xb, TR.sill, 0.95, 'Ốp chân thân'); }
             else band(xa, xb, TR.sill, 0.95, 'Ốp chân thân');
-            band(xc, 2.93, TR.sill, 1.0, 'Ốp góc đuôi');
+            band(xc, trXE, TR.sill, 1.0, 'Ốp góc đuôi');
             // ốp vòm bánh (nhựa đen) theo cung hốc, nổi 2 cm
             for (const [cx, a1] of [[TR.xF, aP0], [TR.xR, Math.PI - aS]]) { const rg = new THREE.RingGeometry(TR.archR, TR.archR + 0.075, 22, 1, aS, a1 - aS); rg.translate(cx, TR.archY, 0); const r2 = rg.attributes.position;
               for (let i = 0; i < r2.count; i++) r2.setZ(i, s * (trSideZ(r2.getX(i), Math.max(TR.sill, r2.getY(i))) + 0.02)); rg.computeVertexNormals(); mesh(rg, M.black, 'Ốp vòm bánh', true); }
@@ -165,10 +169,10 @@
             box('Tay nắm cửa cabin', 0.17, 0.045, 0.03, -1.05, 1.62, s * (trSideZ(-1.05, 1.62) + 0.016), M.black);
           }
           // ===== ĐUÔI XE: góc bo đứng (r 12 cm) + mép mui sau bo tròn → mặt sau phẳng có 2 cánh cửa mở (kính mờ phòng tắm), đèn hậu đứng ở 2 góc =====
-          const SEC_HALF = [...SY.map(y => [trLerp(TR_SEC, y), y]), ...[0.902, 0.825, 0.715, 0.55, 0.33].map(z => [z, roofSec(2.93, z)]), [0, roofSec(2.93, 0)]];   // từ đáy vách +z lên, qua mui tới giữa
+          const SEC_HALF = [...SY.map(y => [trLerp(TR_SEC, y), y]), ...[0.902, 0.825, 0.715, 0.55, 0.33].map(z => [z, roofSec(trXE, z)]), [0, roofSec(trXE, 0)]];   // từ đáy vách +z lên, qua mui tới giữa
           const SEC = [...SEC_HALF, ...SEC_HALF.slice(0, -1).reverse().map(([z, y]) => [-z, y])];
           const SN = SEC.map((p, i) => { const a = SEC[Math.max(0, i - 1)], b = SEC[Math.min(SEC.length - 1, i + 1)]; let nz = b[1] - a[1], ny = -(b[0] - a[0]); const l = Math.hypot(nz, ny) || 1; nz /= l; ny /= l; if (nz * p[0] + ny * (p[1] - 1.6) < 0) { nz = -nz; ny = -ny; } return [nz, ny]; });
-          const capRows = []; for (let j = 0; j <= 5; j++) { const f = j / 5 * Math.PI / 2, d = TR.rc * (1 - Math.cos(f)), x = 2.93 + TR.rc * Math.sin(f); capRows.push(SEC.map(([z, y], i) => V3(x, y - SN[i][1] * d, z - SN[i][0] * d))); }
+          const capRows = []; for (let j = 0; j <= 5; j++) { const f = j / 5 * Math.PI / 2, d = TR.rc * (1 - Math.cos(f)), x = trXE + TR.rc * Math.sin(f); capRows.push(SEC.map(([z, y], i) => V3(x, y - SN[i][1] * d, z - SN[i][0] * d))); }
           const nS = SY.length, L = SEC.length, cKey = (r, c) => {   // ô ở góc đứng: chân đen · đèn hậu đỏ / hổ phách / đỏ (bọc góc) · còn lại vỏ
             if (c >= nS - 1 && c < L - nS) return 'body'; const y = (SEC[c][1] + SEC[c + 1][1]) / 2; return y < 1.015 ? 'black' : y < 1.30 ? 'red' : y < 1.543 ? 'amber' : y < 1.72 ? 'red' : 'body'; };
           gridMeshes(capRows, cKey, 'Góc bo đuôi xe');
@@ -355,9 +359,9 @@
           box(cabinets, 'Ô kính cửa lò', .006, .2, .34, 2.396, 1.42, .59, M.matte);
           for (const z of [-.53, .19, .8]) box(cabinets, 'Tay nắm tủ', .018, .11, .05, 2.39, 1.42, z, M.mat);
           box(cabinets, 'Khe tách khối bếp', .55, .76, .014, 2.665, 1.45, .263, M.matte);
-          for (let i = 0; i < 4; i++) {
-            const k = cyl(.027, .027, .03, M.matte, true, false, null, 12); k.rotation.z = Math.PI / 2; k.position.set(2.386, 1.722, .395 + i * .13); cabinets.add(k);
-            const rg = cyl(.036, .036, .006, M.mat, false, false, null, 12); rg.rotation.z = Math.PI / 2; rg.position.set(2.398, 1.722, .395 + i * .13); cabinets.add(rg);
+          for (let i = 0; i < 2; i++) {   // 2 núm (bếp 2 họng, G 31/10)
+            const k = cyl(.027, .027, .03, M.matte, true, false, null, 12); k.rotation.z = Math.PI / 2; k.position.set(2.386, 1.722, .46 + i * .26); cabinets.add(k);
+            const rg = cyl(.036, .036, .006, M.mat, false, false, null, 12); rg.rotation.z = Math.PI / 2; rg.position.set(2.398, 1.722, .46 + i * .26); cabinets.add(rg);
           }
           const gasPipe = cyl(.016, .016, .08, M.handle, true, false, null, 8); gasPipe.rotation.x = Math.PI / 2; gasPipe.position.set(2.8, 1.2, .95); gasPipe.name = 'Ống ga'; cabinets.add(gasPipe);
           bakeStatic(cabinets); galley.add(cabinets); cab.add(galley);

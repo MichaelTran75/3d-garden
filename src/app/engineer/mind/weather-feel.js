@@ -29,9 +29,9 @@
           WX.act = WX_WORK.has(e.phase) ? 3.5 : e.walking ? (e.spd > 1.3 ? 2.5 : 1.5) : sit ? -1 : 0;
           let fire = 0;
           if (out) {   // bức xạ nhiệt của lửa trại / lò chiminea trong 3 m
-            const fk = campfireLevel(liveWeather.localHour) * campRain.flameK, d = Math.hypot(pf.x - g.x, pf.z - g.z), dc = chiminea.g.position.distanceTo(g);
+            const fk = CAMP.fireLevel(liveWeather.localHour) * CAMP.fireRain.flameK, d = Math.hypot(pf.x - g.x, pf.z - g.z), dc = CHIMINEA.g.position.distanceTo(g);
             if (fk > 0.2 && d < 3.2) fire = 6 * fk * (1 - d / 3.2) ** 2;
-            if (chiminea.lit() > 0.2 && dc < 3) fire = Math.max(fire, 5 * chiminea.lit() * (1 - dc / 3) ** 2);
+            if (CHIMINEA.lit() > 0.2 && dc < 3) fire = Math.max(fire, 5 * CHIMINEA.lit() * (1 - dc / 3) ** 2);
           }
           if (out && rain && !dry) WX.wet = Math.min(1, WX.wet + dt * Math.max(0.15, rainK) / 25);   // mưa to ~25 s là ướt sũng
           else WX.wet = Math.max(0, WX.wet - dt * (1 + (Q > 50 ? 2 : 0) + 0.3 * v + (fire > 1 ? 1 : 0) + (out ? 0 : 0.5)) / 600);   // khô ~10 phút, nắng / gió / lửa nhanh hơn
@@ -83,8 +83,8 @@
         function wxShadeSpot(e) {   // nóng + nắng: điểm trống dưới mái bạt hiên xe để đứng tránh nắng (null nếu không có)
           if (!RX_AW || WX.hotK < 0.35 || sunElevSin < 0.15) return null;
           for (let k = 0; k < 12; k++) {
-            const w = caravanObj.localToWorld(_wxA.set(RX_AW.x0 + Math.random() * (RX_AW.x1 - RX_AW.x0), 0, RX_AW.z0 + 0.3 + Math.random() * (RX_AW.z1 - RX_AW.z0 - 0.6)));
-            if (ENG_PROPS.some(o => Math.hypot(w.x - o.x, w.z - o.z) < o.r + 0.5) || !engLineClearOfSeats(e.g.position.x, e.g.position.z, w.x, w.z)) continue;
+            const w = VAN.object.localToWorld(_wxA.set(RX_AW.x0 + Math.random() * (RX_AW.x1 - RX_AW.x0), 0, RX_AW.z0 + 0.3 + Math.random() * (RX_AW.z1 - RX_AW.z0 - 0.6)));
+            if (PROPS.some(o => Math.hypot(w.x - o.x, w.z - o.z) < o.r + 0.5) || !engLineClearOfSeats(e.g.position.x, e.g.position.z, w.x, w.z)) continue;
             return new THREE.Vector3(w.x, 0, w.z);
           }
           return null;

@@ -22,7 +22,7 @@ Lý do chọn mẫu: xe nhà di động kiểu overland hay được độ 4×4 
 
 **Bỏ:** lốp, vành (xe Transit đã có bánh), cản trước kèm biển số (`Fender`), 2 cần số (sẽ thò lên cabin).
 
-**Sửa cho vừa Transit L3H2.** Đơn vị của xe: 1,1 đơn vị (đv) = 1 m. Mũi xe hướng −X, cửa lùa ở +Z. Cầu trước ở x −2,12, cầu sau ở x 2,03, tâm bánh y 0,44, bánh xe ở z ±0,955 (xem `TR` trong `van/body/transit.js`).
+**Sửa cho vừa Transit L3H2.** (Từ 01/11 xe là L4H2. Tệp GLB không đổi. Lúc nạp, `van/body/chassis.js` lùi mọi đỉnh có x > 2,8 thêm `TR.ext` 0,792 đv; chỉ 2 thanh dọc vắt qua mặt cắt này.) Đơn vị của xe: 1,1 đơn vị (đv) = 1 m. Mũi xe hướng −X, cửa lùa ở +Z. Cầu trước ở x −2,12, cầu sau ở x 2,03, tâm bánh y 0,44, bánh xe ở z ±0,955 (xem `TR` trong `van/body/transit.js`).
 
 - **Dài:** chèn 1,262 m ở mặt cắt Z −0,68 của mẫu, chỗ chỉ có 2 thanh dọc đi qua. Nhờ vậy chiều dài cơ sở 2,51 m thành 3,77 m.
   - Vật cứng (cầu, nhíp, khớp chữ thập, giảm xóc, moay-ơ) dời nguyên khối theo vị trí tâm của nó.

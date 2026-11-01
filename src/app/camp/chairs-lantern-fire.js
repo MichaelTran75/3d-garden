@@ -1,6 +1,7 @@
         // ---- ghế xếp dã ngoại (camp chair) hướng ra hồ ----
         // ghế đạo diễn gấp: khung gỗ vuông, chữ X hai bên dưới mặt ngồi, vải ngồi võng giữa có viền may sẫm, tựa lưng vải cong ôm lưng,
         // tay vịn gỗ bo đầu, túi vải treo tay vịn phải (khay cốc), chân bọc nút nhựa đen; mặt ngồi giữ cao 0,65 cho dáng ngồi của kỹ sư
+        const CHAIR_K = 0.9 * 0.9;   // G 31/10 "cho camp chair và fishing chair nhỏ đi 10%", rồi "tiếp tục nhỏ đi 10%" (cốc trà trên tay vịn giữ cỡ thật; chỗ ngồi của kỹ sư: engineer/body/seats.js)
         function campChair(fabricMat = chairFabric, frameMat = chairFrame) {
           const g = new THREE.Group(), W = 0.92, FZ = 0.33, BZ = -0.43, SY = 0.62;
           const hemMat = new THREE.MeshLambertMaterial({ color: fabricMat.color.clone().multiplyScalar(0.62) });
@@ -42,16 +43,16 @@
           // túi vải treo ngoài tay vịn phải + vòng khay cốc
           const pocket = put(new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.24, 0.3), hemMat)); pocket.position.set(W / 2 + 0.075, 0.79, -0.05);
           const cupRing = put(new THREE.Mesh(new THREE.TorusGeometry(0.045, 0.008, 6, 18), ringMat)); cupRing.rotation.x = Math.PI / 2; cupRing.position.set(W / 2 + 0.012, 0.935, 0.2);
-          g.scale.set(1.026, 0.9747, 1.026).multiplyScalar(CAMP_SCALE); return g;
+          g.scale.set(1.026, 0.9747, 1.026).multiplyScalar(CAMP_SCALE * CHAIR_K); return g;
         }
-        { const ch = campChair(chairFabric, campFrameWood), p = worldCell(CHAIR_CELL[0], CHAIR_CELL[1]); ch.position.copy(p); ch.rotation.y = engObj.faceWater; ch.name = 'Ghế câu cá (Fishing Chair)'; scene.add(ch); }
+        { const ch = campChair(chairFabric, campFrameWood), p = worldCell(CHAIR_CELL[0], CHAIR_CELL[1]); ch.position.copy(p); ch.rotation.y = FISH_FACE; ch.name = 'Ghế câu cá (Fishing Chair)'; scene.add(ch); }
         // ---- bên ghế câu: xô tôn nhỏ rỗng (trái) · cần câu nằm nghiêng dưới đất bên phải khi kỹ sư không ngồi câu ----
         const groundRod = fishingRod(); groundRod.name = 'Cần câu để dưới đất (Rod on Ground)';
         {
           const ch = scene.getObjectByName('Ghế câu cá (Fishing Chair)'); ch.updateMatrixWorld(true);
           const onGround = (lx, lz) => { const v = ch.localToWorld(new THREE.Vector3(lx, 0, lz)); v.y = cowY(v.x, v.z); return v; };
-          const bucket = metalBucket(); bucket.scale.setScalar(0.095); bucket.position.copy(onGround(-0.9, -0.05)); bucket.rotation.y = engObj.faceWater + 0.6; scene.add(bucket);   // cao ~0,25 m
-          const k = ENGINEER_BASE_SCALE * CAMP_SCALE, butt = onGround(0.85, 0.25), far = onGround(1.45, -2.85);
+          const bucket = metalBucket(); bucket.scale.setScalar(0.095); bucket.position.copy(onGround(-0.9, -0.05)); bucket.rotation.y = FISH_FACE + 0.6; scene.add(bucket);   // cao ~0,25 m
+          const k = worldSee('engineer').size.base * CAMP_SCALE, butt = onGround(0.85, 0.25), far = onGround(1.45, -2.85);
           const d = far.clone().sub(butt).setY(0).normalize(), side = new THREE.Vector3(d.z, 0, -d.x), chairX = new THREE.Vector3(Math.cos(ch.rotation.y), 0, -Math.sin(ch.rotation.y));
           if (side.dot(chairX) < 0) side.negate();   // máy câu chĩa ra ngoài, không đâm vào chân ghế
           groundRod.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3().crossVectors(d, side), d, side));
@@ -75,14 +76,13 @@
         }
 
         const lanternObj = lantern();
-        let lanternLit = false, lanternK = 0;   // đèn lồng bật lúc chạng vạng, tắt khi sáng (loop/main-loop.js — G 24/10)
+        let lanternLit = false, lanternK = 0;   // đèn lồng bật lúc chạng vạng, tắt khi sáng (lanternsTick cuối tệp — G 24/10)
         {
           const p = worldCell(LANTERN_CELL[0], LANTERN_CELL[1]), chW = worldCell(CHAIR_CELL[0], CHAIR_CELL[1]);
           lanternObj.g.position.copy(p); lanternObj.g.rotation.y = Math.atan2(chW.x - p.x, chW.z - p.z); scene.add(lanternObj.g);
         }
 
         // ---- lửa trại trước cửa caravan ----
-        const FIRE_CELL = _rc(25, 32);
         const fireStone = new THREE.MeshLambertMaterial({ color: 0x9a958c }), fireAsh = new THREE.MeshLambertMaterial({ color: 0x39322e }), fireLog = new THREE.MeshLambertMaterial({ color: 0x6b4a2e });
         const flameCols = [0xff5a14, 0xffa024, 0xffd24a];
         // Củi cháy sém dựng bằng code:
@@ -117,7 +117,6 @@
         // Mức lửa theo giờ Pleiku: 19:00 = 100%, giảm đều tới 5% lúc 07:00; ban ngày (07:00–19:00) giữ 5%. Lửa nhỏ nướng cá: tối đa 30%
         const campfireLevel = h => Math.min(campFire.small ? 0.3 : 1, (h >= 7 && h < 19) ? 0.05 : 1 - 0.95 * (((h - 19 + 24) % 24) / 12));
         const CAMP_FLAME = 0.5;   // cỡ ngọn lửa trại so với bản đầu (tia lửa, sức nóng cột khói, tầm chiếu sáng theo cùng)
-        const CAMP_K = 0.5;   // G 24/10 tối "em cho camp fire in screenshot nhỏ lại 50%": CẢ CỤM bếp (lòng bếp, giá treo + ấm reo, que cá) ×0,5 quanh tâm — vòng né, đèn, việc nhóm / dập lửa, cá nướng theo cùng
         const CAMP_PIT = 0.7 * CAMP_K;   // lòng bếp (tro, vòng đá, củi, lửa, than, tia lửa) so với bản đầu: G 24/10 "nhỏ đi 30%" (0,7) rồi tối "nhỏ lại 50%" ⇒ 0,35 (vòng đá r ~0,27 m)
         const CAMP_FISH = 1.44 * CAMP_K;   // cỡ que cá (đv nhóm bếp): 1,44 cũ (cá dài ~0,6 m) ×0,5 ⇒ cá ~0,3 m — engineer/tasks/meal-read.js đọc
         function campfire() {
@@ -229,7 +228,7 @@
         //      Mưa: lụi theo hàm mũ — ngọn lửa tắt trước (heat 0,9 → 0,45), than hồng tàn sau (0,55 → 0,03). G 21/10 "khi mưa thì camp fire tắt lửa, và ít khói
         //      lại": τ 10 s (mưa to) … 40 s (mưa phùn) thay cho 60 s / cường độ (cũ: tới 3,5 phút); mưa làm nguội mặt than nên khói tắt theo (đám cháy bị mưa
         //      "đậy nắp": nhiệt còn dưới, mặt nguội hết bốc khói) ⇒ hơi dập lửa (quench) chỉ còn 1 làn ngắn, gỗ ướt âm ỉ phai τ 1,5 phút (cũ 20 phút), nguồn khói
-        //      nền nhân heat (main-loop.js) ⇒ tắt hẳn chỉ còn sợi khói rất mỏng. Tạnh: đất ráo bớt (sceneWet < 0,6) thì bếp nhen lại dần (τ 4 phút). Mở trang giữa
+        //      nền nhân heat (campfireTick) ⇒ tắt hẳn chỉ còn sợi khói rất mỏng. Tạnh: đất ráo bớt (sceneWet < 0,6) thì bếp nhen lại dần (τ 4 phút). Mở trang giữa
         //      cơn mưa: bếp đã tắt sẵn ----
         const campRain = { heat: 1, quench: 0, flameK: 1, emberK: 1, smolder: 1, init: false }, _wetCoal = new THREE.Color(0.07, 0.065, 0.06);
         function campRainTick(dt) {
@@ -245,7 +244,6 @@
         }
 
         // ---- bàn dã ngoại thấp + ghế bệt + đống củi & cọc gỗ quanh bếp lửa ----
-        const pf = worldCell(FIRE_CELL[0], FIRE_CELL[1]);
         // ---- ẤM REO CẮM TRẠI dựng bằng code:
         //      thân vòm tiện theo biên dạng (đáy loe Ø1,45 · vai cong · miệng có gờ cuộn · nắp vồng), khoen nắp,
         //      quai thép dẹt uốn cung, vòi ngắn chếch 40° với nắp còi nhựa đen + cần gạt; màu tô theo vùng nhiệt:
@@ -325,7 +323,8 @@
         const campCupSteam = []; let campPanRig = null;   // chảo trên bàn trà: chỉ hiện khi bữa tối được mang ra
         function campTable() {   // G 17/10: to thêm 25% (0,66 × 0,48 × 0,45 → 0,825 × 0,6 × 0,5625 m) cho drone + tay cầm nằm gọn trên mặt bàn · userData.top / size cho đồ đặt lên
           const g = new THREE.Group();
-          const L = 0.825, W = 0.6, H = 0.5625, beech = new THREE.MeshLambertMaterial({ color: 0xd9b98a }), beech2 = new THREE.MeshLambertMaterial({ color: 0xcaa774 });
+          const L = 0.825 * 1.1, W = 0.6 * 1.1, H = 0.5625,   // G 01/11 "cho cái bàn to ra thêm 10%": mặt bàn dài + rộng ×1,1, cao giữ (đồ trên bàn đọc userData.top / size)
+          beech = new THREE.MeshLambertMaterial({ color: 0xd9b98a }), beech2 = new THREE.MeshLambertMaterial({ color: 0xcaa774 });
           const ironBlack = new THREE.MeshLambertMaterial({ color: 0x1e1f21 });
           const slatN = 9, slatW = (W - (slatN - 1) * 0.006) / slatN;
           for (let i = 0; i < slatN; i++) { const s2 = bx(L, 0.018, slatW, i % 2 ? beech2 : beech, true, true, lineDark); s2.position.set(0, H - 0.009, -W / 2 + slatW / 2 + i * (slatW + 0.006)); g.add(s2); }   // nan mặt bàn
@@ -415,12 +414,11 @@
         //      vách ~0,3, chân người ngồi còn trong mép bạt, tâm cách bậc cửa ~1 m (vòng né của ghế không đẩy người ra vào cửa). Bàn (2,55; 2,0) bên tay
         //      trái người ngồi (cốc trà ở tay vịn trái), dọc thân xe, mép −z của bàn quay ra ngoài ⇒ chỗ đứng lấy drone (0,85 m trước mép, drone.js
         //      tableLay) vẫn dưới bạt; khe sau bàn sát vách cho thỏ trú mưa (animals/rain-shelter.js) ----
-        caravanObj.updateMatrixWorld(true);
-        const campLocal = (x, z) => { const p = caravanObj.localToWorld(new THREE.Vector3(x, 0, z)); p.y = cowY(p.x, p.z); return p; };
-        // ---- vị trí + hướng ngồi của ghế cắm trại (dùng lại cho lịch trình kỹ sư) · bán kính né bếp lửa khi đi ngang qua ----
+        VAN.object.updateMatrixWorld(true);
+        const campLocal = (x, z) => { const p = VAN.object.localToWorld(new THREE.Vector3(x, 0, z)); p.y = cowY(p.x, p.z); return p; };
+        // ---- vị trí + hướng ngồi của ghế cắm trại (dùng lại cho lịch trình kỹ sư) · vòng né bếp lửa FIRE_AVOID_R: core/site.js ----
         const campChairPos = campLocal(1.45, 1.82);   // G 18/10 "lùi ghế xuống gần xát với xe": lưng ghế sát vách (hộp bao cách vách ~2 cm)
-        const campChairFaceY = caravanObj.rotation.y;   // ghế quay ra ngoài như +z cục bộ xe
-        const FIRE_AVOID_R = (1.17 * CAMP_K + 0.22) * CAMP_SCALE;   // vòng né = chân giá treo xa nhất (1,17 đv × CAMP_K) + nửa thân người: bếp nhỏ 50% (G 24/10 tối) ⇒ 1,2 → 0,72 m
+        const campChairFaceY = VAN.object.rotation.y;   // ghế quay ra ngoài như +z cục bộ xe
         obstacleCoords.push({ x: pf.x, y: pf.y, z: pf.z, r: FIRE_AVOID_R, h: 2.2 * CAMP_SCALE * CAMP_K });   // bếp lửa vào danh sách vật cản → flow field & repel & côn trùng đều né
         // G 24/10 tối "em sắp xếp làm sao cho chiminea facing camp chair và its table" (chiều hôm đó G vẽ mũi tên đặt lò ngay chỗ đèn lồng TRƯỚC mặt ghế + bàn;
         //  em đặt ra sau đầu bạt hiên ⇒ lò lệch trái ghế 64°): dãy lò ra TRƯỚC ghế + bàn — ghế (nhìn ra bếp lửa) thấy lò lệch trái 15°, bếp lửa lệch phải 15°;
@@ -437,7 +435,7 @@
         obstacleCoords.push({ x: WOOD_P.x, y: woodCampY, z: WOOD_P.z, r: 0.55, h: 1.0 });                 // đống củi vào danh sách vật cản (world coordinates)
         { const ch = campChair(campFabricYellow, campFrameWood); ch.position.copy(campChairPos); ch.rotation.y = campChairFaceY; ch.name = 'Ghế cắm trại (Camp Chair)'; scene.add(ch); }   // ghế dã ngoại dạng gấp tương tự ghế câu cá
         { const tb = campTable(); tb.position.copy(campTablePos);   // dưới bạt, bên trái ghế: mặt bàn x 2,09 … 3,01 · z 1,67 … 2,33 (cục bộ xe) — G 18/10 tối: tay vịn + cốc trà ghế (tới x 2,01) từng chồng lên góc bàn ⇒ ghế lùi 0,1, bàn ra 0,13
-           tb.rotation.y = caravanObj.rotation.y + Math.PI; tb.name = 'Bàn trà (Camp Table)'; scene.add(tb); }   // dọc thân xe, −z của bàn quay ra ngoài
+           tb.rotation.y = VAN.object.rotation.y + Math.PI; tb.name = 'Bàn trà (Camp Table)'; scene.add(tb); }   // dọc thân xe, −z của bàn quay ra ngoài
         // ---- CỐC TRÀ của kỹ sư (G 15/10): cốc men trắng có nước trà, đặt trong VÒNG KHAY CỐC trên tay vịn trái ghế cắm trại — bàn trà thấp 0,56 m, cách ghế
         //      ~1 m (gần nhất 0,92 m tới vai, tay với 0,57 m) nên ngồi không với tới; ca đen trên bàn là ca nấu nước. Khói trà bốc từ cốc. Uống: engTea
         //      (engineer/tasks/meal-read.js) nhấc cốc khỏi vòng, uống xong đặt lại đúng chỗ ----
@@ -457,9 +455,111 @@
           ch.add(c); c.position.set(0.472, 0.932, 0.2); c.rotation.y = 1.68; c.scale.set(1 / ch.scale.x, 1 / ch.scale.y, 1 / ch.scale.z);
           c.userData.home = { parent: ch, p: c.position.clone(), s: c.scale.clone() }; campTeaCup = c;
         }
-        { const wc = woodCamp(); wc.name = 'Đống củi (Woodpile)'; wc.position.copy(WOOD_P); wc.rotation.y = CHIM_YAW + WOOD_SIDE * Math.PI / 2; scene.add(wc); }   // dãy củi dọc hông lò, đầu khúc củi nhìn về ghế · z cục bộ đống = dọc dãy ra xa lò
+        { const wc = woodCamp(); wc.name = 'Đống củi (Woodpile)'; wc.position.copy(WOOD_P); wc.rotation.y = CHIM_YAW + WOOD_SIDE * Math.PI / 2;
+          // G 31/10 "củi nhỏ đi 10%": ×0,9 quanh mép đống sát lò (cục bộ z −0,34 — dãy củi xếp dọc z, +z ra xa lò) ⇒ vẫn sát buồng đốt như cũ
+          const WOOD_K = 0.9; wc.scale.setScalar(WOOD_K); wc.position.add(new THREE.Vector3(0, 0, -0.34).multiplyScalar(1 - WOOD_K).applyEuler(wc.rotation)); scene.add(wc); }   // dãy củi dọc hông lò, đầu khúc củi nhìn về ghế · z cục bộ đống = dọc dãy ra xa lò
         // ---- khói bếp lửa + hơi ấm reo = SỢI KHÓI theo trường Navier–Stokes đối xứng trục (nature/fluids.js, kỹ thuật luồng khói động cơ ở sân bay):
         //      lưới 30 × 90 ô 8 cm (bán kính 2,4 · cao 7,2 đv) · 900 hạt (140 hạt hơi) × vệt 14 điểm; nổi vì nóng, cuộn rối, gió thật làm ngả chùm khói ----
         const campSmoke = fluids.addSmoke({ NR: 30, NZ: 90, H: 0.08, NP: 900, NS: 140, NT: 14, buoy: 4, kNu: 0.03, nu0: 0.002, tauT: 6, iters: 36, dens: 0.8 },
           { name: 'Khói bếp lửa (sợi khói Navier–Stokes)', opacity: 0.6 });
         campSmoke.rF = 0.3 * CAMP_PIT;   // vùng lửa cấp nhiệt + khói theo lòng bếp (0,3 m ở cỡ gốc) — bếp nhỏ 50% ⇒ ~0,1 m
+
+        // MỖI KHUNG (loop/main-loop.js, sau cầu vồng): khói ca trà trên bàn trà — dời nguyên văn khỏi vòng lặp (G 01/11)
+        function campCupSteamTick(t) {
+          const cGrp = campCupSteam.length ? campCupSteam[0].m.parent : null; if (cGrp) cGrp.localToWorld(_plS.set(0, 0, 0));
+          for (const p of campCupSteam) {   // khói ca trà: luồng nổi rất yếu, dưới mái bạt nên gió chỉ ~½
+            const k = (t * 0.22 + p.ph) % 1;
+            plumeOffset(_plS, k / 0.22, CUP_PLUME, _plA); windInLocal(cGrp, _plA, _cupW);
+            p.m.position.set(_cupW.x + Math.sin(t * 1.3 + p.ph * 9) * 0.02 * k, Math.max(_cupW.y, k * 0.05), _cupW.z + Math.cos(t * 1.1 + p.ph * 7) * 0.015 * k);
+            p.m.scale.setScalar(0.6 + k * 2.2); p.m.material.opacity = 0.32 * Math.sin(k * Math.PI);
+          }
+        }
+
+        // MỖI KHUNG (loop/main-loop.js, sau khói ca trà, trước chiminea.update): mưa dập lửa, hơi ấm reo, ngọn lửa, khói sợi / khói cũ, tia lửa, đèn lửa, than — dời nguyên văn khỏi vòng lặp (G 01/11)
+        function campfireTick(dt, t) {
+          if (campObj) {
+            const CR = campRainTick(dt);   // mưa dập lửa: ngọn lửa tắt trước, than tàn sau, còn khói (camp/chairs-lantern-fire.js)
+            const fireScale = campfireLevel(liveWeather.localHour) * CR.flameK;   // 100% lúc 19:00 → 5% lúc 07:00, ban ngày 5%
+            const fireSize = fireScale * CAMP_FLAME;   // cỡ ngọn lửa thật (G thấy lửa trại cháy dữ quá ⇒ thu còn 50%)
+            const steamAmt = Math.min(1, Math.max(0, (chiminea.lit() - 0.2) / 0.55));   // ấm reo trên nóc lò nướng chiminea (G 24/10 khuya): lò cháy to → ấm sôi phụt hơi qua còi
+            const kGrp = kettleSteam.length ? kettleSteam[0].m.parent : null; if (kGrp) kGrp.localToWorld(_plS.set(0, 0, 0));
+            for (const p of kettleSteam) {   // tia hơi phụt khỏi còi, chậm dần, rồi bốc lên (nổi yếu, trần thấp) và bị gió tại độ cao vòi cuốn đi
+              const k = (t * 0.45 + p.ph) % 1, a = k / 0.45, jet = 0.16 * (1 - Math.exp(-a * 4));
+              plumeOffset(_plS, a, KETTLE_PLUME, _plA); windInLocal(kGrp, _plA, _steamW);
+              p.m.position.set(p.dir.x * jet + _steamW.x, 0.02 + _steamW.y, p.dir.z * jet + _steamW.z);
+              p.m.scale.setScalar(0.5 + k * 2.8); p.m.material.opacity = steamAmt * 0.4 * Math.sin(k * Math.PI);
+            }
+            for (const fl of campObj.flames) { fl.m.visible = fireSize > 0.002; fl.m.scale.y = fireSize * Math.max(0.6, 0.92 + 0.24 * Math.sin(t * 7 + fl.ph) + 0.12 * Math.sin(t * 13 + fl.ph * 1.6)); fl.m.scale.x = fl.m.scale.z = fireSize * (0.82 + 0.2 * Math.sin(t * 7 + fl.ph * 1.3)); fl.m.material.opacity = 0.72 + 0.26 * Math.sin(t * 12 + fl.ph); }
+            if (campSmoke) {   // khói + hơi = sợi khói: lửa cấp nhiệt & khói theo cỡ lửa, ấm reo phụt hơi theo hướng vòi
+              for (const sm of campObj.smoke) sm.m.visible = false;
+              const S = campSmoke, B = S.base; campObj.g.localToWorld(B.set(0, 0, 0)); campObj.g.localToWorld(_smokeTop.set(0, 0.75 * CAMP_PIT, 0));   // đỉnh vùng lửa theo lòng bếp
+              S.zF = Math.max(0.3, _smokeTop.y - B.y); const lv = 0.3 + 0.7 * campfireLevel(liveWeather.localHour), q = CR.quench * lv, smk = CR.smolder * (1 - CR.flameK) * lv;   // hơi dập lửa + khói gỗ ướt âm ỉ theo cỡ đống lửa (ngày chỉ còn than 5% ⇒ ít)
+              const wet = rainK > 0.05 ? Math.max(0.12, CR.heat) : 1;   // mưa: mặt than nguội ⇒ nguồn khói nền tắt theo (G 21/10 "ít khói lại")
+              S.heat = (0.45 + 0.3 * q + 0.2 * smk) * wet + 1.05 * fireSize; S.smoke = (0.5 + 0.45 * q + 0.35 * smk) * wet + 2.5 * fireSize; S.rate = (0.12 + 0.15 * q + 0.1 * smk) * wet + 0.88 * fireSize; S.steam = 0;   // ấm đã dời sang lò chiminea: sợi khói bếp lửa không còn hơi ấm   // mưa rơi vào than nóng: 1 làn hơi ngắn
+              plumeLight(S, _plumeSmokeC.copy(PLUME_COL.smoke).lerp(PLUME_COL.steam, 0.55 * q), PLUME_COL.steam, _plumeGlow.copy(PLUME_COL.glow).multiplyScalar((0.25 + 0.75 * fireScale) * CR.emberK));
+            } else campObj.g.localToWorld(_plS.set(0, 0.9, 0));
+            // khói bếp lửa kiểu cũ (dự phòng): luồng nổi Briggs (xem plumeOffset) — cụm khói nở theo độ cao bốc, loãng dần; trời ổn định thì dẹt ra như quạt
+            if (!campSmoke) for (const sm of campObj.smoke) {
+              const life = 6, a = ((t / life + sm.ph) % 1) * life, pr = a / life;
+              const z = plumeOffset(_plS, a, CAMP_PLUME, _plA); windInLocal(campObj.g, _plA, _smokeW);
+              sm.m.position.set(_smokeW.x, 0.9 + _smokeW.y, _smokeW.z);
+              const r = 0.6 + 0.5 * z + 0.12 * a, fan = Math.max(0, sceneWind.stab);
+              sm.m.scale.set(r * (1 + 0.6 * fan), r * (1 - 0.45 * fan), r * (1 + 0.6 * fan)); sm.m.rotation.y = sm.ph * 6 + t * 0.2;
+              sm.m.material.opacity = 0.24 * Math.min(1, a / 0.5) * Math.pow(1 - pr, 1.3) * Math.min(1, 1.2 / r);
+            }
+            if (campObj.sparks) {
+              for (const sp of campObj.sparks) {
+                sp.m.position.y += dt * sp.spd; if (sp.m.position.y > 0.4 + 1.8 * CAMP_FLAME) { sp.m.position.y = 0.4; sp.m.position.x = (Math.random() - 0.5) * 0.3 * CAMP_FLAME; sp.m.position.z = (Math.random() - 0.5) * 0.3 * CAMP_FLAME; }
+                const pr = (sp.m.position.y - 0.4) / (1.8 * CAMP_FLAME); sp.m.material.opacity = Math.sin((1 - pr) * 3.14159) * 0.95 * fireScale; sp.m.position.x += Math.sin(t * 3.5 + sp.ph) * 0.006;   // tia lửa mờ theo cỡ lửa ngày/đêm
+              }
+            }
+            const flicker = 0.55 + 0.28 * Math.sin(t * 12) + 0.14 * Math.sin(t * 23.7);
+            campObj.light.intensity = 6.0 * flicker * (fireScale + 0.03 * CR.emberK * (1 - CR.flameK)) * (0.2 + 0.8 * CAMP_FLAME) * CAMP_PIT;   // lửa nhỏ đi một nửa ⇒ sáng còn ~60%
+            campObj.light.distance = 6.0 + 11.0 * fireSize;
+            campObj.logMat.emissiveIntensity = (0.35 + 1.45 * fireScale) * (0.85 + 0.25 * Math.sin(t * 3.1)) * CR.emberK;   // vết nứt than đỏ, thở theo lửa; ban ngày vẫn âm ỉ
+            campObj.cutMat.emissiveIntensity = 0.6 * fireScale;
+            campObj.emberMat.color.setRGB(0.15 + 0.76 * fireScale, 0.1 + 0.25 * fireScale, 0.06 + 0.03 * fireScale).lerp(_wetCoal, 1 - CR.emberK);   // ướt nguội: than đen
+            const glowLv = (0.45 + 0.55 * fireScale) * (0.88 + 0.12 * Math.sin(t * 1.7) + 0.05 * Math.sin(t * 4.3)) * CR.emberK;   // than tâm: dư âm vẫn hồng khi lửa 5%
+            campObj.glowMat.opacity = glowLv; campObj.hotMat.color.setRGB(1, 0.22 + 0.2 * glowLv, 0.04).multiplyScalar(0.55 + 0.45 * glowLv).lerp(_wetCoal, 1 - CR.emberK);
+            campObj.dimMat.emissiveIntensity = (0.5 + 0.6 * glowLv) * CR.emberK;
+          }
+        }
+
+        // MỖI KHUNG (loop/main-loop.js, sau chiminea.update): đèn lồng cọc của trại — dời nguyên văn khỏi vòng lặp (G 01/11); đèn lồng bạt hiên là của xe, tự bật
+        //  cùng luật (van/interior/caravan.js vanFrameTick)
+        function lanternsTick(dt, t) {
+          // G 24/10 "cho đèn latern tắt vào buổi sáng, sáng vào buổi tối": 2 đèn lồng (cọc đèn · bạt hiên) tự bật lúc chạng vạng (mặt trời < ~3° trên chân trời),
+          //  tắt khi sáng hẳn (> ~6°); bật / tắt mờ dần ~1 s. Tắt: đèn còn nguyên nhưng cường độ 0 (bỏ đèn đi thì mọi vật liệu phải biên dịch lại), bóng đổi sang kính mờ
+          lanternLit = lanternLit ? sunElevSin < 0.1 : sunElevSin < 0.05; lanternK += ((lanternLit ? 1 : 0) - lanternK) * Math.min(1, dt * 1.5);
+          for (const L of [lanternObj && lanternObj.lan]) if (L && L.userData.glow) { const m = lanternK > 0.5 ? lanternKit.bulbMat : lanternKit.bulbOffMat; if (L.userData.glow.material !== m) L.userData.glow.material = m; }
+          if (lanternObj) { lanternObj.light.intensity = lanternK * (0.5 + nightFactor * 2.6 + (0.2 + nightFactor * 0.4) * Math.sin(t * 8.5) + 0.12 * Math.sin(t * 18.3)); lanternObj.light.distance = 8 + nightFactor * 7; lanternObj.lan.rotation.z = Math.sin(t * 1.1) * 0.04; }
+        }
+        // ==== MẶT CÔNG KHAI CỦA TRẠI (core/world.js · G 01/11 "các object cũng độc lập"): đơn vị khác đọc qua CAMP (= worldSee('camp')); muốn đổi lửa / cần câu
+        //      thì gọi chỗ chạm — trại tự đổi trạng thái của mình (tâm bếp pf, vòng né FIRE_AVOID_R: bản đồ khu trại core/site.js) ----
+        worldFace('camp', {
+          get fire() { return campObj; },                              // bếp lửa (g, que cá fish, …)
+          get fireState() { return campFire; },                        // { out: đã tắt, small: lửa nhỏ nướng cá, douse: đang tắt dần 0–1 } — đọc, không ghi
+          get fireRain() { return campRain; },                         // mưa trên bếp: heat, smolder, flameK, emberK
+          get fireSmoke() { return campSmoke; },                       // cột khói (fluids)
+          fireLevel: h => campfireLevel(h),                            // cỡ lửa theo giờ (0–1)
+          get pitK() { return CAMP_PIT; }, get fishK() { return CAMP_FISH; },   // cỡ lòng bếp, que cá (đv nhóm bếp)
+          get hangerFeet() { return HANGER_FEET; },                    // 4 chân giá treo chạm đất (thế giới)
+          get chairPos() { return campChairPos; }, get chairYaw() { return campChairFaceY; }, get chairK() { return CHAIR_K; },   // ghế cắm trại sát xe
+          get lantern() { return lanternObj; },                        // đèn lồng cạnh ghế câu
+          get teaCup() { return campTeaCup; },                         // cốc trà trên tay vịn ghế cắm trại (đọc khung: localToWorld, hướng — không ghi)
+          get teaHeld() { return campTeaCup.parent !== campTeaCup.userData.home.parent; },   // cốc đang ở tay người (ngoài vòng tay vịn)
+          get teaRing() { return campTeaCup.userData.home.parent; }, get teaSpot() { return campTeaCup.userData.home.p; },   // vòng tay vịn (khung để đọc) · chỗ cốc trong vòng
+          teaHand: (hand, q, p, k) => { const C = campTeaCup; hand.add(C); C.quaternion.copy(q); C.position.copy(p); C.scale.setScalar(k); },   // CHỖ CHẠM: người đưa khung cổ tay ⇒ cốc tự vào tay: hướng q, chỗ p, cỡ k (trong khung tay)
+          teaPut: yaw => { const C = campTeaCup, Hm = C.userData.home; Hm.parent.add(C); C.position.copy(Hm.p); C.rotation.set(0, yaw, 0); C.scale.copy(Hm.s); },   // CHỖ CHẠM: cốc về vòng tay vịn, đứng thẳng, quai quay góc yaw
+          get grill() { return grill; },                               // cá nướng xiên que (camp/grill.js): st, cook, eat · đọc point / homeW / homeQ / stand / handQ · chỗ chạm grab, toHand, toss, skewer, replant, bite, smokedOn, toKeeper, lost, toBucket, atHome, set
+          get groundRod() { return groundRod; },                       // cần câu nằm dưới đất
+          douse: () => { campFire.douse = 1; campFire.out = true; campFire.small = false; },   // dội cả xô: lửa tắt hẳn
+          wet: k => { campFire.douse = Math.max(campFire.douse, k); },   // hắt nước: tắt dần (≥ k)
+          light: small => { campFire.out = false; campFire.small = small; campRain.heat = Math.max(campRain.heat, 0.62); campRain.smolder = Math.max(campRain.smolder, 0.8); },   // nhóm lại: lửa nhỏ (nướng cá) / thường
+          grow: () => { campFire.small = false; },                     // lửa nhỏ thành lửa thường
+          restRod: v => { groundRod.visible = v; },                    // cần câu nằm đất: hiện khi chủ không cầm
+          servePan: (on, food) => { if (!campPanRig) return; campPanRig.pan.visible = on; if (on) setFood(campPanRig.food, food, 0); },   // chảo bữa tối trên bàn trà: hiện + phần cơm còn lại (0–1)
+        });
+        // MỖI KHUNG (sổ tick core/world.js, lượt 'things'): khói ca trà · lửa trại + hơi ấm reo · 2 đèn lồng bật lúc chạng vạng, tắt khi sáng
+        worldTick('things', 10, (dt, t) => campCupSteamTick(t)); worldTick('things', 20, campfireTick); worldTick('things', 40, lanternsTick);
+        worldJoin('collide', 100, C => C.moving(() => [campTeaCup, campObj.fish.stick]));   // va chạm: tách trà, que cá nướng là đồ cầm tay (thân động)

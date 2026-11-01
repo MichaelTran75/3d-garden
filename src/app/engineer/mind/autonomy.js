@@ -16,15 +16,15 @@
         const AUTO_BODY = new Set(['hunger', 'bladder', 'energy', 'hygiene']), AUTO_ABSORB = new Set(['nap', 'fish', 'eat', 'eatFish']), AUTO_LEISURE = new Set(['read', 'music', 'rest', 'outdoor', 'explore', 'fish']), AUTO_FREE = new Set(['outdoor', 'rest', 'read', 'music', 'fish', 'shelter']), AUTO_BREAK = new Set(['research', 'outdoor', 'rest', 'read', 'music', 'fish', 'shelter']);
         function autoOk(act, hh) {   // việc làm được lúc này (mưa: bỏ việc ngoài trời · câu cá chỉ trước 19:30 · vuốt chó khi chó ở bếp lửa)
           const D = AUTO_ACTS[act]; if (D.out && liveWeather.state.raining) return false;
-          if (act === 'fish' && !engHourOk('fish', hh)) return false; if (act === 'pet' && !dogPettable()) return false;
+          if (act === 'fish' && !engHourOk('fish', hh)) return false; if (act === 'pet' && !worldSee('dog')?.pettable()) return false;
           if (act === 'stars') return skyWatch.want(hh); if (act === 'rainwatch') return !!liveWeather.state.raining;
-          if (act === 'garden') return engHourOk('garden', hh) && clock.elapsedTime >= gardenJob.next && (carrotBed.empty().length > 0 || carrotBed.dry() || carrotBed.eating());
+          if (act === 'garden') return engHourOk('garden', hh) && clock.elapsedTime >= gardenJob.next && (worldSee('carrotBed').empty().length > 0 || worldSee('carrotBed').dry() || gardenEating());
           return true;
         }
         function autoFix(k, hh) {   // việc lấp nhu cầu k (bấm thanh / nhu cầu cạn)
           const rain = liveWeather.state.raining, dark = engHourOk('dark', hh);
           return { hunger: 'snack', bladder: 'toilet', energy: 'rest', hygiene: 'shower', fun: rain ? 'rainwatch' : skyWatch.want(hh) ? 'stars' : dark ? 'music' : 'fish',
-            social: dogPettable() ? 'pet' : 'outdoor', curiosity: rain ? 'read' : skyWatch.want(hh) ? 'stars' : dark ? 'read' : 'explore' }[k];
+            social: worldSee('dog')?.pettable() ? 'pet' : 'outdoor', curiosity: rain ? 'read' : skyWatch.want(hh) ? 'stars' : dark ? 'read' : 'explore' }[k];
         }
         function autoWant(e, hh, sched) {   // engWantAct (engineer/mind/schedule.js): việc tự chủ thay việc của lịch, hoặc null
           if (!engAwake(hh) || sched === 'sleep' || sched === 'bedtime') { AUTO.act = null; AUTO.cmd = false; return null; }

@@ -1,45 +1,4 @@
-        // ---- labels ----
-        const labelGroup = new THREE.Group(); scene.add(labelGroup);
-        function rr(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
-        const annotationLabelScale = 0.65; // Same text size as the Gia Lai weather label.
-        // emoji trong nhãn (👷🏻‍♂️ của kỹ sư): texture nhãn không gắn sRGB ⇒ bộ vẽ mã hoá sRGB thêm lần nữa, chữ đen không sao nhưng emoji bạc màu — vẽ emoji
-        //  qua canvas phụ, đổi điểm ảnh sRGB → tuyến tính trước để ra đúng màu, giữ nguyên màu nền các nhãn khác
-        const LBL_EMO = /(\p{Extended_Pictographic}(?:\p{Emoji_Modifier}|️|‍\p{Extended_Pictographic})*️?)/u;
-        const LBL_LIN = Uint8Array.from({ length: 256 }, (_, i) => { const c = i / 255; return Math.round(255 * (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)); });
-        function fillLabelText(x, s, px, py, maxW) {
-          if (!LBL_EMO.test(s)) { x.fillText(s, px, py, maxW); return; }
-          const o = document.createElement('canvas'), ox = o.getContext('2d', { willReadFrequently: true });
-          s.split(LBL_EMO).forEach((part, i) => { if (!part) return; const w = x.measureText(part).width;
-            if (i % 2) { o.width = Math.ceil(w) + 8; o.height = 96; ox.font = x.font; ox.textBaseline = 'middle'; ox.fillText(part, 4, 48);
-              const d = ox.getImageData(0, 0, o.width, o.height), a = d.data; for (let j = 0; j < a.length; j += 4) { a[j] = LBL_LIN[a[j]]; a[j + 1] = LBL_LIN[a[j + 1]]; a[j + 2] = LBL_LIN[a[j + 2]]; }
-              ox.putImageData(d, 0, 0); x.drawImage(o, px - 4, py - 48); } else x.fillText(part, px, py);
-            px += w; });
-        }
-        function addLabel(text, dot, pos, to, dynamic = false, labelScale = annotationLabelScale, solid = false) {   // solid: nền + viền + đường dẫn 100% (nhãn gắn nhân vật / vật trên xe — G 19/10)
-          const c = document.createElement('canvas'), f = '600 46px Inter, system-ui, Arial', pad = 92, h = 108, k = 0.052 * labelScale;
-          const measure = c.getContext('2d'); measure.font = f;
-          // A dynamic label reuses one fixed-size texture. Only its UV crop and sprite width change.
-          c.width = dynamic ? 1536 : Math.ceil(measure.measureText(text).width + pad + 40); c.height = h;
-          const x = c.getContext('2d'), t = new THREE.CanvasTexture(c); t.anisotropy = 4;
-          const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, transparent: true, opacity: 1, depthTest: false, depthWrite: false }));
-          sp.renderOrder = 20; sp.position.copy(pos); labelGroup.add(sp);
-          const lg = new THREE.BufferGeometry().setFromPoints([pos.clone().add(new THREE.Vector3(0, -h * k * 0.5, 0)), to]);
-          const ln = new THREE.Line(lg, new THREE.LineBasicMaterial({ color: 0x3a3530, transparent: true, opacity: solid ? 1 : 0.5, depthTest: false })); ln.renderOrder = 19; labelGroup.add(ln);
-          let currentText = null;
-          function update(nextText) {
-            if (nextText === currentText) return;
-            currentText = nextText; x.clearRect(0, 0, c.width, h); x.font = f;
-            const width = Math.min(c.width, Math.ceil(x.measureText(nextText).width + pad + 40));
-            rr(x, 3, 3, width - 6, h - 6, 40); x.fillStyle = solid ? '#e2d6c0' : 'rgba(226,214,192,0.5)'; x.fill();
-            x.lineWidth = 3; x.strokeStyle = solid ? '#4b4a46' : 'rgba(75,74,70,0.5)'; x.stroke();
-            x.beginPath(); x.arc(54, h / 2, 16, 0, 7); x.fillStyle = dot; x.fill();
-            x.fillStyle = '#000000'; x.globalAlpha = 1; x.textBaseline = 'middle'; fillLabelText(x, nextText, pad, h / 2 + 2, width - pad - 40);
-            t.repeat.set(width / c.width, 1); t.needsUpdate = true; sp.scale.set(width * k, h * k, 1);
-            sp.name = 'Nhãn: ' + nextText;
-          }
-          update(text);
-          return { sprite: sp, line: ln, texture: t, canvas: c, update, get text() { return currentText; } };
-        }
+        // ---- labels: lớp nhãn (labelGroup, addLabel, rr, annotationLabelScale) ở core/labels.js — hạ tầng, mọi đơn vị gắn nhãn vào ----
         function addMastWeatherCard(pos, to, labelScale = annotationLabelScale) {
           const cardWidth = 1536, cardHeight = 118, resolution = 2;
           const c = document.createElement('canvas'); c.width = cardWidth * resolution; c.height = cardHeight * resolution;
@@ -121,13 +80,10 @@
         sceneEvents.signal.addEventListener('abort', unsubscribeMastWeather, { once: true });
 
         // ---- controls ----
-        let theta = Math.PI * 0.27, phi = 0.9, tTheta = theta, tPhi = phi, radius = 400, autoRotate = true;
-        const target = new THREE.Vector3(0, 5, 0);
-        const keys = {};
+        // trạng thái camera (theta, phi, tTheta, tPhi, radius, autoRotate, target, keys) + bám vật: core/view.js (01/11 đợt 11) — ở đây chuột / phím ghi vào
         listen(window, 'keydown', e => { if (e.target && (['INPUT', 'SELECT', 'TEXTAREA', 'BUTTON'].includes(e.target.tagName) || e.target.isContentEditable)) return; if (['w', 'a', 's', 'd', 'W', 'A', 'S', 'D', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) keys[e.key.toLowerCase()] = true; });   // đang gõ ô nhập X/Y/Z (panel Chọn) → không pan camera
         listen(window, 'keyup', e => { if (['w', 'a', 's', 'd', 'W', 'A', 'S', 'D', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) keys[e.key.toLowerCase()] = false; });
         listen(document.getElementById('weather-city'), 'focus', () => { for (const key in keys) keys[key] = false; });
-        const dom = renderer.domElement;
         let drag = false, dragMode = null, dragPointerId = null, lx = 0, ly = 0, cursorBeforeDrag = '';
         dom.style.touchAction = 'none';
         function finishDrag(e) {
@@ -189,6 +145,7 @@
         const ZOOM_BASE = 0.5, zoomBtn = document.getElementById('zoomPct'), zoomText = zoomBtn?.querySelector('span');
         let shownZoom = -1;
         function updateZoomPct() { if (!zoomText || camera.zoom === shownZoom) return; shownZoom = camera.zoom; const z = Math.round(camera.zoom / ZOOM_BASE * 100) + '%'; zoomText.textContent = z; zoomBtn.title = 'Zoom ' + z + ' · bấm để về 100%'; zoomBtn.setAttribute('aria-label', 'Zoom ' + z + ', bấm để về 100%'); }
+        worldTick('afterRender', 1, () => updateZoomPct());   // MỖI KHUNG (sổ tick, sau khi vẽ — trước bảng Tools): số % zoom
         if (zoomBtn) listen(zoomBtn, 'click', () => { camera.zoom = ZOOM_BASE; camera.updateProjectionMatrix(); updateZoomPct(); });
         const bA = document.getElementById('btnAxes');
         if (bA) listen(bA, 'click', () => { coordOn = !coordOn; axesGroup.visible = coordOn; bA.style.opacity = coordOn ? '1' : '0.5'; numSprites.forEach(s => s.visible = coordOn); if (!coordOn) { coordTip.style.display = 'none'; pin.visible = false; } });
@@ -198,11 +155,12 @@
         const vlR = document.getElementById('vanLineRange'), vlV = document.getElementById('vanLineVal');
         function setVanLines(v) {
           v = Math.max(0, Math.min(100, Math.round(+v || 0))); VAN_LINES.k = v / 100;
-          for (const m of vanLineMats.values()) { m.opacity = VAN_LINES.k; m.visible = v > 0; } if (VAN_LINES.onShell) VAN_LINES.onShell();   // mặt vỏ mờ theo (ui/xray-lifecycle.js)
+          for (const m of vanLineMats.values()) { m.opacity = VAN_LINES.k; m.visible = v > 0; } if (VAN_LINES.onShell) VAN_LINES.onShell();   // mặt vỏ mờ theo (van/body/xray.js)
           if (vlR && +vlR.value !== v) vlR.value = v; if (vlV) vlV.textContent = v; return v;
         }
         if (vlR) { setVanLines(100); listen(vlR, 'input', () => setVanLines(vlR.value)); }   // G 18/10: mở trang luôn ở 100 (không nhớ mức cũ)
         const vlBar = document.getElementById('vanLineBar'); let vlNight = null;
+        worldTick('viewer', 5, () => vanLineTone(nightFactor > 0.5));   // MỖI KHUNG (sổ tick, lượt người xem): thanh nét viền trắng ban đêm / đen ban ngày
         function vanLineTone(night) { if (vlBar && night !== vlNight) { vlNight = night; vlBar.classList.toggle('night', night); } }   // đêm: thanh trắng sáng · ngày: đen
 
         // ═══════ CHỌN OBJECT (click-to-inspect): click bất kỳ vật thể nào (kể cả 1 instance riêng lẻ trong cụm hoa/cỏ)
@@ -211,7 +169,7 @@
         const pickEditRow = document.getElementById('pickEditRow'), pickXIn = document.getElementById('pickX'), pickYIn = document.getElementById('pickY'), pickZIn = document.getElementById('pickZ');
         let pickMode = false, pickDownX = 0, pickDownY = 0, pickTarget = null;
         const pickRay = new THREE.Raycaster(); pickRay.layers.enableAll();   // mảnh hình đã gộp vẽ nằm ở lớp ẩn HIDE_LAYER — vẫn chọn được
-        const pickBox = new THREE.Box3Helper(new THREE.Box3(), 0xff2d55); pickBox.visible = false; pickBox.renderOrder = 30; scene.add(pickBox);
+        const pickBox = new THREE.Box3Helper(new THREE.Box3(), 0xff2d55); pickBox.visible = false; pickBox.renderOrder = 30; scene.add(pickBox); pickBox.userData.noBatch = true;   // khung chọn: không gộp lượt vẽ (core/draw-batch.js)
         // G 24/10 "research and study để improve chọn vật thể button" — theo Unity Scene picking (bấm chọn; bấm lặp chỗ chồng lấn ⇒ xoay vòng các vật; khung vật
         //  chọn khác màu phần con; phím F khung camera vào vật chọn): RÊ CHUỘT ⇒ khung trắng + tên vật dưới con trỏ (trễ 0,12 s, 1 tia mỗi lần dừng tay) · BẤM ⇒
         //  chọn CẢ VẬT (tổ tiên có tên cao nhất: cả kính, cả cây, cả xe) · bấm lại đúng chỗ ⇒ sâu 1 cấp (phần có tên → mảnh → bản sao trong cụm hoa / cỏ) · Alt +
@@ -253,6 +211,7 @@
           if (e.key === 'Escape') { if (PK.sel) clearPickHighlight(); else bP?.click(); }
           else if (e.key === 'f' || e.key === 'F') pickFrame();
         });
+        worldTick('viewer', 20, (dt, t) => pickTick(t));   // MỖI KHUNG (sổ tick, lượt người xem — sau viền rê chuột)
         function clearPickHighlight() { pickBox.visible = false; pickPanel.style.display = 'none'; pickEditRow.style.display = 'none'; pickTarget = null; PK.sel = PK.top = null; }
         function fmtN(n) { return (Math.round(n * 1000) / 1000).toString(); }
         function worldBoxOf(obj, instanceId) {   // Box3 thế giới của mesh (hoặc đúng 1 instance riêng) — dùng vẽ khung viền đỏ
@@ -357,3 +316,32 @@
         { const f = document.getElementById('pickFocus'); if (f) listen(f, 'click', pickFrame); }
         if (bP) listen(bP, 'click', () => { pickMode = !pickMode; bP.classList.toggle('active', pickMode); dom.style.cursor = pickMode ? 'crosshair' : ''; if (!pickMode) { clearPickHighlight(); clearTimeout(PK.hovH); pickHovBox.visible = false; pickHov.style.display = 'none'; } });
 
+        // MỖI KHUNG (loop/main-loop-rest.js, sau gấu mèo): rê chuột trên địa hình ⇒ ô toạ độ X Y Z, ghim rơi, sáng khối dưới mũi tên — dời nguyên văn khỏi vòng lặp (G 01/11)
+        worldTick('pointer', 10, (dt, t) => coordHoverTick(t));   // MỖI KHUNG (sổ tick core/world.js, lượt 'pointer'): ô toạ độ + ghim dưới con trỏ
+        function coordHoverTick(t) {
+          if (coordMoved && coordOn && !drag) {                       // hover địa hình → cập nhật tọa độ + ghim
+            coordMoved = false;
+            ray.setFromCamera(ndc, camera);
+            const hit = ray.intersectObjects(terrainMeshes, false)[0];
+            if (hit) {
+              const p = hit.point;
+              const gx = Math.max(0, Math.round(p.x - X0)), gy = Math.max(0, Math.round(p.y)), gz = Math.max(0, Math.round(p.z - Z0));   // tọa độ theo góc → luôn dương, số nguyên
+              coordTip.innerHTML = '<span style="color:#c0473a">X ' + gx + '</span>&nbsp;&nbsp;<span style="color:#3a7d44">Y ' + gy + '</span>&nbsp;&nbsp;<span style="color:#2f6fb0">Z ' + gz + '</span>';
+              coordTip.style.display = 'block';
+              if (!pin.visible) { pin.visible = true; pinDropStart = t; }   // bắt đầu hoạt ảnh thả khi vào địa hình
+              pin.position.set(p.x, p.y, p.z);
+              setGlow(hit.object, hit.instanceId);                          // làm sáng khối dưới mũi tên
+            } else { coordTip.style.display = 'none'; pin.visible = false; clearGlow(); }
+          } else if (drag) { coordTip.style.display = 'none'; pin.visible = false; clearGlow(); }
+          if (!pin.visible) clearGlow();
+          if (pin.visible) {                                          // mũi tên rơi từ trên xuống chạm đất (ease-out); cột & vòng tròn đỉnh cố định
+            const dp = pinDropStart < 0 ? 1 : Math.min(1, (t - pinDropStart) / 0.4);
+            if (dp < 1 || pinHead.position.y !== 0) pinHead.position.y = Math.pow(1 - dp, 3) * 9;
+          }
+          if (pin.visible && coordOn) {                               // nhãn toạ độ neo vào ĐUÔI mũi tên (đỉnh cán ~y+2.5), chiếu ra màn hình mỗi frame
+            _tailV.set(pin.position.x, pin.position.y + 2.5, pin.position.z).project(camera);
+            const rc = dom.getBoundingClientRect();
+            coordTip.style.left = (rc.left + (_tailV.x * 0.5 + 0.5) * rc.width + 12) + 'px';
+            coordTip.style.top = (rc.top + (-_tailV.y * 0.5 + 0.5) * rc.height - 10) + 'px';
+          }
+        }

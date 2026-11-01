@@ -112,13 +112,17 @@
               Object.assign(K, { pack, shaft, blade, bladeSpin: spin, bladeMesh: bm, disc, starter });
               starter.userData.home = starter.position.clone();
               planHome(); K.ready = true; K.setHome(); cable.visible = true;
-              { const tip = homeA.clone().addScaledVector(homeDir, K.A.shaft.blade[2] * 0.6), pk = new THREE.Vector3().setFromMatrixPosition(homePack);   // máy đang cất: ba lô dưới đất + cần chĩa ngang gối ⇒ lưới cấm đường đi riêng của kỹ sư
-                ENG_NAV.extra.push({ x: pk.x, z: pk.z, r: 0.3, nav: true }, { x: tip.x, z: tip.z, r: 0.3, nav: true }); if (ENG_NAV.blk) engNavBuild(); }   // (G 24/10 kiểm tra cả ngày: dạo trại vấp cần 5 lần 6:19–7:11)
-              hovAdd(g, { pad: 0.03, skip: m => !!m.userData.noHov, on: () => !trimJob.busy(), picks: [{ o: pack }, { o: shaft }] });   // rê chuột: viền trắng (ui/hover-select.js) — dò theo hộp riêng ba lô / cần
+              { const tip = homeA.clone().addScaledVector(homeDir, K.A.shaft.blade[2] * 0.6), pk = new THREE.Vector3().setFromMatrixPosition(homePack);   // máy đang cất: ba lô dưới đất + cần chĩa ngang gối ⇒ đồ chặn lối chung (NAV_MARKS) + báo tin: ai có lưới đường đi riêng tự dựng lại
+                NAV_MARKS.push({ x: pk.x, z: pk.z, r: 0.3, nav: true }, { x: tip.x, z: tip.z, r: 0.3, nav: true }); worldTell('navMarks'); }   // (G 24/10 kiểm tra cả ngày: dạo trại vấp cần 5 lần 6:19–7:11)
+              worldJoin('hover', 50, H => H.add(g, { pad: 0.03, skip: m => !!m.userData.noHov, on: () => !worldSee('engineer')?.trimming, picks: [{ o: pack }, { o: shaft }] }));   // rê chuột: viền trắng (dịch vụ 'hover', ui/hover-select.js) — dò theo hộp riêng ba lô / cần
             }).catch(err => console.warn('Trimmer GLB:', err)));
           // ---- tư thế các bộ phận (job ghi trạng thái, tick đặt sau khi tay đã giải IK) ----
           K.setHome = () => { K.packMode = 'home'; K.shaftMode = 'home'; K.packU = 0; K.eng.on = false; K.eng.thr = 0; K.pull = 0; K.e = null; };
           K.homeA = homeA; K.homeDir = homeDir; K.homePack = homePack;
+          // chỗ chạm cho người dùng máy (engineer/tasks/trim-grass.js): ai cầm, giật dây nổ, máy nổ / tắt / tay ga, ba lô (home → don → back), cần về khung
+          K.use = e => { K.e = e; }; K.cord = pl => { K.pull = pl; };
+          K.start = thr => { K.eng.on = true; K.eng.thr = thr; }; K.stop = () => { K.eng.on = false; }; K.throttle = thr => { K.eng.thr = thr; };
+          K.carry = (mode, u) => { if (mode) K.packMode = mode; if (u != null) K.packU = u; }; K.shaftHome = () => { K.shaftMode = 'home'; };
           const mount = new THREE.Matrix4(), _mp = new THREE.Vector3(), _mq = new THREE.Quaternion(), _ms = new THREE.Vector3(), _hp = new THREE.Vector3(), _hq = new THREE.Quaternion(), _hs = new THREE.Vector3();
           K.backMatrix = (e, out) => {   // ba lô trên lưng: mặt đệm áp lưng áo (eo + 0,28, sau 0,16 — đv kỹ sư), đơn vị mét (bù tỉ lệ người)
             e.spine.updateWorldMatrix(true, false); const s = 1 / e.g.scale.x;
@@ -164,3 +168,5 @@
           K.emit = emit; K.puff = puff;
           return K;
         })();
+        worldFace('trimmer', trimKit);   // MẶT CÔNG KHAI (core/world.js): TRIMMER — máy nổ eng { on, rpm… }, ready, shaftMode, bladeW(), g; chỗ chạm use · cord · start / stop / throttle · carry · shaftHome (người dùng máy không ghi thẳng vào máy)
+        worldTick('tools', 40, (dt, t) => trimKit.tick(dt, t));   // MỖI KHUNG (sổ tick core/world.js): máy cắt cỏ — máy nổ, tư thế các bộ phận

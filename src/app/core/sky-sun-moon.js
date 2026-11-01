@@ -78,6 +78,10 @@
         }
         const smooth01 = (a, b, x) => { const k = Math.max(0, Math.min(1, (x - a) / (b - a))); return k * k * (3 - 2 * k); };
         const viaUp = (a, b, t, out) => (t < 0.5 ? out.copy(a).lerp(SKY_UP, t * 2) : out.copy(SKY_UP).lerp(b, t * 2 - 1)).normalize();   // a → thiên đỉnh → b
+        // ---- trời theo giờ thật / cố định (nút #btnSky ở ui/xray-lifecycle.js; 01/11 đợt 11 — dời từ đó): skyOn = false ⇒ setSkyDefault — nền, nắng, ánh sáng
+        //      ban ngày cố định; vòng lặp chỉ updateSky khi skyOn ----
+        let skyOn = true;
+        function setSkyDefault() { scene.background.copy(dayBg); if (scene.fog) scene.fog.color.copy(dayBg); sun.position.set(72, 112, 52).add(sun.target.position); sun.intensity = 0.98; sun.color.copy(dayLi); hemi.intensity = 0.82; amb.intensity = 0.28; sky.visible = false; sunGlow.visible = false; nightFactor = 0; skyDusk = 0; }
         function updateSky() {
           const n = sceneDay(liveWeather.localHour), sq = sunEq(n), mq = moonEq(n);
           if (Math.abs(sq.dec - pathLine.userData.dec) > 3e-4) fillPath(pathLine, sq);   // xích vĩ mặt trời đổi ~0,4°/ngày, trăng tới ~6°/ngày

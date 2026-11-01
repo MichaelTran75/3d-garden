@@ -7,7 +7,7 @@
         //  vẽ sau cùng, bỏ kiểm độ sâu, chỉ ngoài mặt nạ ⇒ vỏ xe / nan ga-lăng xung quanh không che. Mảnh gốc đã gộp lượt vẽ (lớp ẩn) vẫn có con ở lớp thường ⇒ viền vẫn
         //  hiện; ngoài viền trắng có quầng tối mờ 1,5 px cho nổi trên sơn kem. Bỏ lưới cộng sáng (lửa), vô hình, InstancedMesh. Bấm: hovClick (ui/xray-lifecycle.js) gọi it.click nếu vật có (tay nắm, logo); bảng việc của drone, giỏ,
         //  sào, động cơ vẫn do bảng dụng cụ mở ----
-        const HOV = { items: [], hover: null, mx: null, my: 0, down: false, moved: true, res: new THREE.Vector2(1, 1) };
+        const HOV = { items: [], hover: null, mx: null, my: 0, down: false, moved: true, res: new THREE.Vector2(1, 1), claims: [] };
         const _hvM = new THREE.Matrix4(), _hvR = new THREE.Ray(), _hvP = new THREE.Vector3(), _hvV = new THREE.Vector3(), _hvQ = new THREE.Quaternion(), _hvN = new THREE.Vector2(), _hvB = new THREE.Box3(), _hvM2 = new THREE.Matrix4();
         // viền: kiểm độ sâu sau khi nhích về phía camera 6 cm ⇒ vẫn đè được mặt ngay sau / sát nút (nan ga-lăng quanh logo, da cửa quanh tay nắm) nhưng vật che thật ở trước
         //  (cỏ trước giỏ, ấm trước tay cầm, nét viền vỏ xe trước động cơ) che luôn viền — không thành vệt trắng hình vật che
@@ -23,7 +23,6 @@
           HOV.items.push(it); return it; }
         const hovUse = (it, m) => { if (!m.isMesh || m.isInstancedMesh || m.userData.hovFx || (it.skip && it.skip(m))) return false; const M = [].concat(m.material)[0];
           return !!M && M.visible !== false && M.blending === THREE.NormalBlending && !(M.transparent && M.opacity < 0.05); };
-        const hovShown = o => { for (let p = o; p; p = p.parent) if (!p.visible) return false; return true; };
         function hovBox(it, p = it.rp) {   // hộp bao trong hệ của vùng p.o (+ lề pad thế giới), đo lại tối đa 1 lần/giây
           const now = performance.now(); if (now - p.bt < 1000) return p.box; p.bt = now;
           const R = p.o, b = p.box.makeEmpty(); R.updateWorldMatrix(true, true); const inv = _hvM.copy(R.matrixWorld).invert();
@@ -37,7 +36,7 @@
           const r = dom.getBoundingClientRect(); pickRay.setFromCamera(_hvN.set((x - r.left) / r.width * 2 - 1, -(y - r.top) / r.height * 2 + 1), camera);
           let best = null, bd = Infinity, bdd = Infinity;
           for (const it of HOV.items) {
-            if (!hovShown(it.root) || (it.on && !it.on())) continue;
+            if (!shownInScene(it.root) || (it.on && !it.on())) continue;
             for (const p of it.picks) {
               if (p.on && !p.on()) continue; const box = hovBox(it, p); if (box.isEmpty()) continue;
               _hvR.copy(pickRay.ray).applyMatrix4(_hvM.copy(p.o.matrixWorld).invert());
@@ -63,7 +62,7 @@
           HOV.hover = it; if (it) { hovFx(it); for (const c of it.fxs) c.visible = true; }
         }
         function hovClick(e) {   // bấm (pointerup): vật dưới con trỏ có hành động riêng (tay nắm, logo) ⇒ làm, trả true để bỏ bấm xe / máy
-          if (radio.tagClick(e)) return true;   // nhãn 📻 radio táp-lô (van/interior/radio.js)
+          for (const fn of HOV.claims) if (fn(e)) return true;   // bấm trúng nhãn của vật (📻 radio táp-lô — van/interior/radio.js tự xin: H.claim)
           const it = hovPick(e.clientX, e.clientY); if (!it || !it.click) return false;
           it.click(); return true;
         }
@@ -72,7 +71,8 @@
         listen(dom, 'pointerup', () => { HOV.down = false; HOV.moved = true; });
         listen(dom, 'pointerleave', () => { HOV.mx = null; HOV.moved = true; });
         listen(dom, 'wheel', () => { HOV.moved = true; }, { passive: true });
-        function hovTick() {   // mỗi khung (loop/main-loop-rest.js, trước khi vẽ)
+        worldTick('viewer', 10, () => hovTick());   // MỖI KHUNG (sổ tick core/world.js, lượt người xem, trước khi vẽ)
+        function hovTick() {
           if (HOV.moved) { HOV.moved = false; const it = HOV.mx === null || HOV.down ? null : hovPick(HOV.mx, HOV.my); hovSet(it);
             if (!HOV.down && (it ? dom.style.cursor !== 'pointer' : dom.style.cursor === 'pointer')) dom.style.cursor = it ? 'pointer' : ''; }   // chỉ trả con trỏ do mình đặt
           const it = HOV.hover; if (!it) return;
@@ -81,7 +81,14 @@
           it.uA.value.copy(c).setComponent(k, c.getComponent(k) - h).applyMatrix4(it.root.matrixWorld); it.uB.value.copy(c).setComponent(k, c.getComponent(k) + h).applyMatrix4(it.root.matrixWorld);
         }
         // vật chọn được ngoài trời + trong xe (tay nắm, logo, động cơ đăng ký khi mẫu Transit nạp xong)
-        for (const o of [droneToy.g, droneToy.rc, applePick.basket, applePick.pole, groundRod, engObj.rod, chiminea.g]) if (o) hovAdd(o);
-        hovAdd(studyLaptop.group, { on: () => caravanXray });
-        { const k = caravanObj.getObjectByName('Bếp dọc vách cửa hông'); if (k) hovAdd(k, { on: () => caravanXray }); }
-        hovAdd(cowHut.roof, { pad: 0.05, picks: [{ o: cowHut.roofSheet }], click: () => cowHut.roofToggle() });   // mái chuồng bò: bấm ⇒ mờ 50% / đặc lại (animals/cows-hut.js); vùng rê = tấm tôn (hộp mỏng theo dốc mái)
+        for (const o of [DRONE.object, DRONE.rc, ENGINEER.appleBasket, ENGINEER.applePole, CAMP.groundRod, ENGINEER.rod, CHIMINEA.g]) if (o) hovAdd(o);
+        hovAdd(VAN.laptop.group, { on: () => VAN.xray });
+        { const k = VAN.object.getObjectByName('Bếp dọc vách cửa hông'); if (k) hovAdd(k, { on: () => VAN.xray }); }
+        { const H = worldSee('cows').hut; hovAdd(H.roof, { pad: 0.05, picks: [{ o: H.roofSheet }], click: () => H.roofToggle() }); }   // mái chuồng bò: bấm ⇒ mờ 50% / đặc lại (animals/cows/herd-hut.js); vùng rê = tấm tôn (hộp mỏng theo dốc mái)
+        if (hydroTurbine) hovAdd(hydroTurbine.ph, { pad: 0.08, click: () => hydroTurbine.click() });   // nhà máy đập: bấm ⇒ tới gần xem tổ máy + bảng số; bấm lần nữa ⇒ dừng / khởi động lại (world/hydro-turbine.js)
+        hovAdd(stormDrain.outfall, { pad: 0.08, click: () => stormDrain.toggle() });   // cửa xả cống ra sông: bấm ⇒ đất quanh tuyến cống mờ 75%, thấy ống / đặc lại (world/storm-drain.js)
+        // DỊCH VỤ 'hover' (01/11 đợt 11): vật tự xin rê chuột chọn — worldJoin('hover', thứ tự, H => H.add(gốc, tuỳ chọn)) — không cần biết bộ chọn ở đâu
+        //  (cửa trước + ca-pô + động cơ: van/body/van-doors.js, transit-glb.js · máy cắt cỏ: camp/trimmer.js). H.add(root, o) như hovAdd · H.claim(fn): fn(e) trả
+        //  true = cú bấm này của tôi (nhãn 📻 radio) · H.current: vật đang rê (it.led ⇒ LED trước sáng) · H.moved(): bộ phận đang chạy ⇒ dò lại vật dưới con trỏ ·
+        //  H.busy(): con trỏ đang bận (chế độ Chọn / đang trỏ vật) ⇒ chòm sao không sáng (core/constellations.js)
+        worldServe('hover', { add: hovAdd, claim: fn => { HOV.claims.push(fn); }, get current() { return HOV.hover; }, moved: () => { HOV.moved = true; }, busy: () => pickMode || !!HOV.hover });

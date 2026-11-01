@@ -292,9 +292,9 @@
         //      sau 40 – 50 s). Nay: lớp va chạm xong thì dựng LƯỚI CẤM TỪ VA CHẠM THẬT quanh trại (± 45 m: ô có ≥ 2/5 điểm chạm vật ở tầm thân 0,25 – 1,85,
         //      + nước) và độ cao mọi ô; BẢNG DP RIÊNG mỗi đích: 8 hướng, KHÔNG CẮT GÓC ô cấm, KHÔNG qua bậc chênh > 1 voxel (0,6 ≈ ngang gối người thật — gờ
         //      cao hơn thì đi vòng, không leo / nhảy), mở 0,5 quanh đích, nhớ 24 bảng gần nhất. engStep dùng cho mọi đích xa > 1,2 (cả dưới bạt) ----
-        const ENG_NAV = { blk: null, h: null, cache: new Map(), extra: [] }, ENG_STEP_MAX = 0.65;   // extra: vật chỉ vào lưới cấm (không đẩy người — vd máy cắt cỏ đang cất: còn phải tới lấy)
+        const ENG_NAV = { blk: null, h: null, cache: new Map() }, ENG_STEP_MAX = 0.65;   // + đồ chỉ chặn lối NAV_MARKS (core/world.js — vd máy cắt cỏ đang cất: còn phải tới lấy)
         function engNavBuild() {
-          const M = COL_M.eng, H = ENG_NAV.h = new Float32Array(FF_N), B = new Uint8Array(FF_N), c = caravanObj.position, R0 = 45;
+          const M = engCol, H = ENG_NAV.h = new Float32Array(FF_N), B = new Uint8Array(FF_N), c = VAN.object.position, R0 = 45;
           for (let j = 0; j < GZ; j++) for (let i = 0; i < GX; i++) { const n = i + j * GX; H[n] = cowY(wx(i), wz(j)); B[n] = ffBlocked[n]; }
           const i0 = Math.max(0, Math.floor(x2gi(c.x - R0))), i1 = Math.min(GX - 1, Math.ceil(x2gi(c.x + R0))), j0 = Math.max(0, Math.floor(z2gj(c.z - R0))), j1 = Math.min(GZ - 1, Math.ceil(z2gj(c.z + R0)));
           for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
@@ -302,10 +302,11 @@
             for (const [dx, dz] of [[0, 0], [0.16, 0], [-0.16, 0], [0, 0.16], [0, -0.16]]) if (colHit(7, x + dx, z + dz, g + M.lo, g + M.hi)) k++;
             B[n] = k >= 2 || isWater(i, j) ? 1 : 0;
           }
-          for (const o of [...ENG_PROPS, ...ENG_NAV.extra]) { if (!o.nav) continue; const rr = o.r + 0.15, ic = Math.round(x2gi(o.x)), jc = Math.round(z2gj(o.z));   // vật mảnh giữa bãi (chân chống bạt, đèn lồng treo — engineer/body/seats.js; máy cắt cỏ đang cất): 5 điểm lấy mẫu va chạm lọt qua. KHÔNG thêm cả vật nhỏ obstacleCoords (đống củi, lò…): đã thử 24/10 — lối giữa bếp lửa và đống củi hẹp lại, kẹt 8 lần khi về ghế
+          for (const o of [...PROPS, ...NAV_MARKS]) { if (!o.nav) continue; const rr = o.r + 0.15, ic = Math.round(x2gi(o.x)), jc = Math.round(z2gj(o.z));   // vật mảnh giữa bãi (chân chống bạt, đèn lồng treo — engineer/body/seats.js; máy cắt cỏ đang cất): 5 điểm lấy mẫu va chạm lọt qua. KHÔNG thêm cả vật nhỏ obstacleCoords (đống củi, lò…): đã thử 24/10 — lối giữa bếp lửa và đống củi hẹp lại, kẹt 8 lần khi về ghế
             for (let j = jc - 1; j <= jc + 1; j++) for (let i = ic - 1; i <= ic + 1; i++) if (i >= 0 && j >= 0 && i < GX && j < GZ && (i === ic && j === jc || Math.hypot(wx(i) - o.x, wz(j) - o.z) < rr)) B[i + j * GX] = 1; }
           ENG_NAV.blk = B; ENG_NAV.cache.clear();
         }
+        worldHear('navMarks', () => { if (ENG_NAV.blk) engNavBuild(); });   // tin "thêm đồ chặn lối" (máy cắt cỏ cất xong…): lưới đã dựng thì dựng lại ngay
         const engNavBlocked = (x, z) => { const B = ENG_NAV.blk; if (!B) return false; const i = Math.round(x2gi(x)), j = Math.round(z2gj(z)); return i < 0 || j < 0 || i >= GX || j >= GZ || !!B[i + j * GX]; };   // ô có vật cản thật (va chạm / nước / vật mảnh)
         function engField(tx, tz) {
           const ti = Math.round(x2gi(tx)), tj = Math.round(z2gj(tz)); if (ti < 0 || tj < 0 || ti >= GX || tj >= GZ) return null;
@@ -355,7 +356,7 @@
           const fdir = reach ? engDir(own, e.g.position.x, e.g.position.z) : (field && dist > 1.5) ? ffDir(field, e.g.position.x, e.g.position.z) : null;
           if (fdir) {                                                                                  // bảng DP dẫn đường: đường ngắn nhất, né mọi vật cản từ xa — hết kẹt loop
             ux = fdir.x; uz = fdir.z; const gx0 = ux, gz0 = uz;
-            for (const ob of ENG_PROPS) {   // vật nhỏ lọt giữa các ô lưới 0,6 m (cọc đèn lồng, xô, ghế, bàn trà): đẩy ra + trượt vòng qua
+            for (const ob of PROPS) {   // vật nhỏ lọt giữa các ô lưới 0,6 m (cọc đèn lồng, xô, ghế, bàn trà): đẩy ra + trượt vòng qua
               const fx = e.g.position.x - ob.x, fz = e.g.position.z - ob.z, fd = Math.hypot(fx, fz), rr = ob.r + 0.32;
               if (fd >= rr || fd < 1e-4) continue;
               const push = (rr - fd) / rr, nx2 = fx / fd, nz2 = fz / fd, s = (gx0 * -nz2 + gz0 * nx2) >= 0 ? 1 : -1;
@@ -379,7 +380,7 @@
               if (Math.hypot(tgt.x - ob.x, tgt.z - ob.z) < ob.r + 0.6) continue;                         // đích nằm sát/vào vật cản này → chủ đích tới đó, không đẩy (vd: đi tới cột khí tượng)
               repel(ob.x, ob.z, ob.r + 0.35);
             }
-            for (const ob of ENG_PROPS) repel(ob.x, ob.z, ob.r + 0.32);   // ghế · xô · cọc đèn · bàn trà: không bao giờ là đích đi bộ thường ⇒ luôn đẩy
+            for (const ob of PROPS) repel(ob.x, ob.z, ob.r + 0.32);   // ghế · xô · cọc đèn · bàn trà: không bao giờ là đích đi bộ thường ⇒ luôn đẩy
             const ul = Math.hypot(ux, uz) || 1; ux /= ul; uz /= ul;
           }
           // ---- vật lý bước đi: xoay thân có giới hạn tốc độ góc · tăng/giảm tốc mượt · chậm lại khi phải ngoặt gắt hoặc sắp tới đích ·
@@ -405,8 +406,8 @@
           let mx = Math.sin(e.g.rotation.y) * 0.75 + ux * 0.25, mz = Math.cos(e.g.rotation.y) * 0.75 + uz * 0.25; const ml = Math.hypot(mx, mz) || 1; mx /= ml; mz /= ml;
           const step = Math.min(e.vel * dt, dist);
           let nx = e.g.position.x + mx * step, nz = e.g.position.z + mz * step;
-          if (COL.ready && step > 0 && COL_M.eng) {   // vật cản thật chưa có trong bảng né (gốc cây, chân cột, đồ vặt): men theo; kẹt thì đứng (core/collide.js)
-            const mv = colSlide(COL_M.eng, e.g.position.x, e.g.position.z, Math.atan2(mz, mx), step, dt);
+          if (COL.ready && step > 0 && engCol) {   // vật cản thật chưa có trong bảng né (gốc cây, chân cột, đồ vặt): men theo; kẹt thì đứng (core/collide.js)
+            const mv = colSlide(engCol, e.g.position.x, e.g.position.z, Math.atan2(mz, mx), step, dt);
             if (!mv) { e.vel *= 0.5; e.walking = true; return false; }
             nx = mv[0]; nz = mv[1];
           }
@@ -427,3 +428,11 @@
           return false;
         }
 
+        let engCol = null;   // VA CHẠM (core/collide.js, worldJoin('collide')): thân kỹ sư — men theo vật cản; đồ cầm tay (vỉ nướng) là thân động
+        worldJoin('collide', 60, C => {
+          engCol = C.mover({ kind: 'eng', a: 0.24, b: 0.24, lo: 0.25, hi: 1.85, w: 2, x: () => engObj.g.position.x, z: () => engObj.g.position.z, ang: () => 0, on: () => !engObj.inVan && engObj.g.parent === scene && engObj.phase !== 'van',
+            mask: () => Math.hypot(engObj.g.position.x - VAN.doorStep.x, engObj.g.position.z - VAN.doorStep.z) < 1.3 ? 5 : 7,   // sát bậc cửa xe (bậc cao 26 cm lọt vào dải va chạm): bỏ lớp xe, lộ trình lên xuống bậc riêng
+            ignore: o => o.kind === 'dog' && !!worldSee('engineer')?.withDog });
+          C.moving(() => [engObj.g, fishKeep.g]);
+        });
+        worldJoin('drawBatch', 5, B => B.skip(engObj.g));   // gộp lượt vẽ: kỹ sư tự vẽ từng mảnh — đổi cha (xe/ghế/giường), ẩn/hiện mũ-tóc liên tục; gộp từng làm mất đầu

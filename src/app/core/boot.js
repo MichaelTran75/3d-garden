@@ -64,6 +64,7 @@
         const container = document.getElementById('scene');
         const W = () => container.clientWidth, Hv = () => container.clientHeight;
         const clock = new THREE.Clock();
+        const SHADER_TIME_LOOP = 1140 * Math.PI;              // ≈ 3581 s: ω = 3,0 · 2,2 · 7,5 (nước) và 3,5 (cỏ cây) đều quay số nguyên vòng — chu kỳ thời gian đưa vào shader (dời từ loop/main-loop.js 01/11)
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         const scene = new THREE.Scene();
         function releaseScene() {
@@ -88,6 +89,18 @@
           if (window.__disposeGarden === destroyGarden) { delete window.__disposeGarden; delete window.__info; }
         }
         cleanupBuild = releaseScene;
+        // ---- dừng vẽ / dọn cảnh (01/11 đợt 11 — dời từ ui/xray-lifecycle.js): tab ẩn, khung 3D cuộn khuất ⇒ pauseScene; rời trang ⇒ destroyGarden (báo tin
+        //      'gardenGone' — đơn vị tự thả dữ liệu của mình — rồi releaseScene). Chạy tiếp + nghe sự kiện trang: loop/lifecycle.js ----
+        function pauseScene() {
+          suspended = true; if (frameId) cancelAnimationFrame(frameId); frameId = 0;
+          clock.stop();
+        }
+        function destroyGarden() {
+          if (disposed) return;
+          pauseScene();
+          worldTell('gardenGone');   // đơn vị tự thả dữ liệu của mình (đàn cò: animals/storks/face.js)
+          releaseScene();
+        }
         // trần ĐIỂM ẢNH khung vẽ (G 19/10 "giảm độ phân giải … ko ảnh hưởng vật lý hiệu ứng"): màn 6K 3008 × 1692 điểm × 1,6 ⇒ ~12 triệu điểm ảnh, khung hình
         // MSAA 4× ≈ 36 byte / điểm ⇒ ~440 MB RAM đồ hoạ chỉ cho khung vẽ. G 19/10 "giảm độ phân giải 6k xuống 2k": trần = 2K (2048 × 1080 ≈ 2,2 triệu điểm ảnh)
         // ⇒ khung vẽ ≤ ~80 MB ở mọi màn (6K toàn màn hình: hệ số ~0,68). Mô phỏng / hạt / gió / va chạm không phụ thuộc độ phân giải
@@ -98,6 +111,7 @@
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
         renderer.toneMappingExposure = 1.05;
         container.appendChild(renderer.domElement);
+        const dom = renderer.domElement;   // khung vẽ: ô điều khiển, rê chuột, nhãn, radio đọc chỗ trên màn hình qua đây (dời từ ui/labels-controls.js 01/11)
         scene.background = new THREE.Color(0xE2D6C0);
         scene.fog = new THREE.Fog(0xE2D6C0, 280, 700);
         const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 4000); camera.zoom = 0.5;   // mặc định: zoom-out tối đa khi mở trang

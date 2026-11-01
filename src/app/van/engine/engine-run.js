@@ -55,6 +55,7 @@
           ENGR.on = on; if (on && !ENGR.parts && vanGlb.engineSrc) { ENGR.parts = engineParts(); vanGlb.engineSrc.add(ENGR.parts.g); ENGR.base = vanGlb.engine.position.clone(); }
           if (on) { ENGR.t0 = 0; ENGR.autoX = !noX && !caravanXray; if (ENGR.autoX) setCaravanXray(true); } else if (ENGR.autoX) { ENGR.autoX = false; setCaravanXray(false); }
         }
+        worldTick('afterRender', 10, engineTick);   // MỖI KHUNG (sổ tick core/world.js, sau khi vẽ): động cơ chạy
         function engineTick(dt, t) {
           const P = ENGR.parts; if (!P) return;
           ENGR.k += ((ENGR.on ? 1 : 0) - ENGR.k) * Math.min(1, dt * 3); const k = ENGR.k;

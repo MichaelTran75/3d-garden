@@ -72,9 +72,8 @@
         const treeCoords = [];   // cây rừng đặt SAU khi dựng mẫu nhánh đệ quy (xem bên dưới, sau recTree)
 
         // ---- CÂY ĐỆ QUY (fractal): grow() tự rẽ 2-3 nhánh mỗi cấp — giảm dần dài/bán kính, lá & quả
-        //      mọc tự nhiên ở cành TẬN CÙNG (không hardcode cấp nhánh). Seeded RNG (mulberry32) để cây
+        //      mọc tự nhiên ở cành TẬN CÙNG (không hardcode cấp nhánh). Seeded RNG (mulberry32, core/helpers.js) để cây
         //      TÁI SINH Y HỆT mỗi lần tải → nút "Chọn" vẫn chỉnh được từng tán như cây cổ thụ. ----
-        function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let z = Math.imul(a ^ a >>> 15, 1 | a); z = (z + Math.imul(z ^ z >>> 7, 61 | z)) ^ z; return ((z ^ z >>> 14) >>> 0) / 4294967296; }; }
         const _rtUp = new THREE.Vector3(0, 1, 0), _rtA = new THREE.Vector3(), _rtB = new THREE.Vector3(), _rtAx = new THREE.Vector3();
         // ---- CÂY ĐỆ QUY KIỂU TỰ NHIÊN (o.natural — G 15/10 "learn this glb natural tree branch then improve our recursive"; mẫu "Low Poly Tree Scene Free",
         //      Nicholas-3D, CC-BY-4.0 — chỉ đo dáng cành): THÂN CHÍNH chạy suốt tới ngọn (ưu thế ngọn), gốc trơn ~1/4 chiều cao rồi CÀNH BÊN rải dọc thân,
@@ -190,6 +189,18 @@
           }
           return [m, mb, gr];
         }
+        // ---- VỎ TÁO NỨT VẢY (G 26/10 "research + study và tạo vết real nứt trên thân cây táo"): vỏ táo trưởng thành xám nâu ↔ nâu tím, nứt thành VẢY mỏng
+        //      bong ra lộ vỏ trong nâu đỏ (Naturalis — Flora of the Burren; Minnesota Seasons), có khe dọc; cành non nhẵn. Khe nứt do thân lớn ngang làm vỏ ngoài
+        //      căng rách theo dải dọc rồi đứt ngang (Lefebvre & Neyret "Synthesizing Bark" 2002; Kratt et al. "Woodification" 2015) ⇒ GỜ + RÃNH DỌC lớn, trên đó
+        //      vảy dài theo thân. Lưới thân (cây táo, chuỗi đủ to) chỉ khoét RÃNH DỌC lớn (appleRidge: nhiễu giá trị 8 ô / đv vân quanh thân, 1,6 / đv dọc ⇒ gờ
+        //      cách ~12 cm, uốn lượn dài ~0,5 m, sâu ~2 cm) — vảy + khe nhỏ do shader vẽ (core/surface-style.js sfApple). Hàm rãnh Y HỆT bên shader (sfARidge —
+        //      băm số nguyên 32 bit ⇒ CPU và GPU ra cùng gờ): lòng rãnh khoét trên lưới cũng là chỗ shader tô tối ----
+        const _abU = (x, y) => { let h = Math.imul(x, 0x27d4eb2d) ^ Math.imul(y, 0x165667b1); h = Math.imul(h ^ (h >>> 15), 0x85ebca6b); h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+        function appleRidge(bx, by, bm) {   // bx, by = toạ độ vân vỏ (aBk.x, aBk.y) · bm = số đv vân quanh thân → 0–1 (thấp = lòng rãnh); nhiễu giá trị tuần hoàn quanh thân (chu kỳ 8·bm)
+          const x = bx * 8, y = by * 1.6 + 3, P = 8 * bm, ix = Math.floor(x), iy = Math.floor(y); let fx = x - ix, fy = y - iy; fx = fx * fx * (3 - 2 * fx); fy = fy * fy * (3 - 2 * fy);
+          const x0 = ((ix % P) + P) % P, x1 = (((ix + 1) % P) + P) % P, y0 = iy + 4096, y1 = y0 + 1;
+          return (_abU(x0, y0) * (1 - fx) + _abU(x1, y0) * fx) * (1 - fy) + (_abU(x0, y1) * (1 - fx) + _abU(x1, y1) * fx) * fy;
+        }
         function barkTubes(L, o = {}) {
           const P = [], N = [], UV = [], BK = [], AD = [], I = [], FB = [], F = o.flare ?? 0.6, lobes = o.lobes ?? 5, wS = o.wS ?? 0.9, RP = o.rope;
           const T = new THREE.Vector3(), Nf = new THREE.Vector3(), Bf = new THREE.Vector3(), q = new THREE.Vector3();
@@ -214,12 +225,13 @@
             for (let i = 0; i < ch.length - 1; i++) { const e = ends[i]; R[e] = Math.min(R[e], 0.5 * (R[e - 1] + R[e + 1])); }
             const n = C.length, last = C[n - 1], dl = T.subVectors(last, C[n - 2]).normalize().clone();
             const Q = [C[0].clone().addScaledVector(T0, -(kind === 1 ? 1.4 * r0 : C[0].distanceTo(C[1]))), ...C, last.clone().addScaledVector(dl, last.distanceTo(C[n - 2]))];
-            const S = [], SR = [], cI = [], rp = RP && r0 * wS >= RP.minR ? ropeChain(RP, kind, r0 * wS, ci) : null;
+            const S = [], SR = [], cI = [], rp = RP && r0 * wS >= RP.minR ? ropeChain(RP, kind, r0 * wS, ci) : null, pfE = kind === 1 && head.par.fr, bmE = pfE ? pfE.bm : Math.max(1, Math.round(6.2832 * r0 * wS / 0.9)), fine = o.appleBark && r0 * wS >= 0.05 && 6.2832 * r0 * wS / 0.035 >= 24 * bmE;   // fine: thân cây táo — lưới ~3,5 cm quanh × 6 cm dọc, đủ ≥ 3 đỉnh / chu kỳ gờ (cành to kế thừa vân thân mịn hơn ⇒ chỉ shader)
             for (let j = 0; j < n - 1; j++) {
               // số vòng / đoạn theo cỡ thật: thân 4 · cành 3 · cành nhỏ 2 · ngọn mảnh 1 (đoạn ngọn Bézier đã đủ mịn) — đoạn đầu cành con dày hơn (chỗ tách)
               const rw = R[j] * wS, k = rp && rw >= 0.3 ? 8 : rp && rw >= 0.18 ? 6 : rw >= 0.12 ? 4 : rw >= 0.035 ? 3 : rw >= 0.015 ? 2 : 1; cI.push(S.length);   // sợi bện: vòng dày hơn (~7 cm)
-              const ts = j === 0 && kind === 0 ? [0] : j === 1 && kind === 0 ? (rp ? [0, 0.04, 0.08, 0.13, 0.19, 0.26, 0.34, 0.43, 0.53, 0.64, 0.76, 0.88] : [0, 0.06, 0.14, 0.25, 0.4, 0.6, 0.8])
+              let ts = j === 0 && kind === 0 ? [0] : j === 1 && kind === 0 ? (rp ? [0, 0.04, 0.08, 0.13, 0.19, 0.26, 0.34, 0.43, 0.53, 0.64, 0.76, 0.88] : [0, 0.06, 0.14, 0.25, 0.4, 0.6, 0.8])
                 : j === 0 && kind ? (rw >= 0.09 ? [0, 0.12, 0.26, 0.42, 0.6, 0.8] : rw >= 0.03 ? [0, 0.2, 0.4, 0.65] : [0, 0.35, 0.7]) : Array.from({ length: k }, (_, i) => i / k);
+              if (fine && !(j === 0 && kind === 0)) { const kf = Math.ceil(Q[j + 1].distanceTo(Q[j + 2]) * wS / 0.06); if (kf > ts.length) ts = Array.from({ length: kf }, (_, i) => i / kf); }   // vòng mỗi ~6 cm (gờ dọc thay đổi chậm theo thân)
               for (const t of ts) { S.push(crPt(Q[j], Q[j + 1], Q[j + 2], Q[j + 3], t, new THREE.Vector3())); SR.push(R[j] + (R[j + 1] - R[j]) * t); }
             }
             cI.push(S.length); S.push(last.clone()); SR.push(R[n - 1]);
@@ -231,11 +243,12 @@
                 for (let t = 0.2; t <= 0.8; t += 0.05) { crPt(Q[j], Q[j + 1], Q[j + 2], Q[j + 3], t, T); const dd = T.distanceToSquared(q); if (dd < bd) { bd = dd; sg[8] = T.x; sg[9] = T.y; sg[10] = T.z; } } } });
             const tE = ch[ch.length - 1].Te, nRing = S.length, rb = SR[nRing - 1], hc = 0.7 * rb;   // vòm khép ngọn chuỗi (cao 0,7 bán kính)
             for (const ph of [0.55, 1.05]) { S.push(last.clone().addScaledVector(tE, hc * Math.sin(ph))); SR.push(rb * Math.cos(ph)); }
-            const tip = last.clone().addScaledVector(tE, hc), M = S.length, seg = rp ? Math.max(18, Math.min(96, Math.round(r0 * wS * 56))) : Math.max(5, Math.min(o.segMax ?? 14, Math.round(4 + r0 * wS * 45))), S1 = seg + 1, GD = [];
+            const tip = last.clone().addScaledVector(tE, hc), M = S.length, seg = rp ? Math.max(18, Math.min(96, Math.round(r0 * wS * 56))) : Math.max(5, Math.min(o.segMax ?? 14, Math.round(4 + r0 * wS * 45)), fine ? Math.min(110, Math.round(6.2832 * r0 * wS / 0.035)) : 0), S1 = seg + 1, GD = [];
             // khung vận chuyển song song + lưới đỉnh (gốc thân: bạnh múi tắt dần theo độ cao · cành mọc ngang: cổ cành phình ra ngoài mặt cành mẹ)
             const G = [], tan = S.map((s, i) => i >= nRing - 1 ? tE.clone() : new THREE.Vector3().subVectors(S[Math.min(M - 1, i + 1)], S[Math.max(0, i - 1)]).normalize());
             // cành con mọc ở ngọn: khung mặt cắt + toạ độ vân vỏ NỐI TỪ cành mẹ ⇒ vân chạy liền qua đường tách
             const pf = kind === 1 && head.par.fr; if (pf) Nf.copy(pf.N); else { Nf.set(1, 0, 0); if (Math.abs(tan[0].x) > 0.9) Nf.set(0, 0, 1); }
+            const offA = pf ? pf.along - 1.4 * r0 : (ci * 7.31 + 3.7) % 11, bmA = pf ? pf.bm : Math.max(1, Math.round(6.2832 * r0 * wS / 0.9));   // toạ độ vân vỏ của chuỗi (y như off / bm khối đỉnh bên dưới) ⇒ khe nứt hình học trùng khe shader
             const y0 = head.P[0].y, H = (o.flareH ?? 1.1) * r0, sIn = head.pr != null ? head.pr / Math.max(0.35, head.pT ? q.crossVectors(T0, head.pT).length() : 1) : 1.5 * r0, len = [0], FN = [];   // sIn: quãng từ tim cành mẹ ra tới mặt vỏ
             for (let i = 0; i < M; i++) {
               if (i) len.push(len[i - 1] + S[i].distanceTo(S[i - 1]));
@@ -245,7 +258,8 @@
               for (let k = 0; k < seg; k++) { const a = k / seg * 6.2832, c = Math.cos(a), s = Math.sin(a), rq = rp ? ropeAt(rp, len[i] * wS, a, SR[i] * wS, F ? fl / F : 0) : null;
                 if (rp) GD.push(0.02 + 0.98 * (i < nRing ? rq[2] : 0));   // 0,02–1,0 rãnh · tới 1,49 lòng hốc mục   // > 0,01 = chuỗi có sợi bện (shader phân biệt với cành thường = 0)
                 const r = SR[i] * col * (1 + nd) * (1 + fl * (rq ? 0.2 + 0.8 * rq[1] ** 1.8 : 0.72 + 0.28 * Math.cos(lobes * a + 0.7))) * (rq && i < nRing ? rq[0] : 1);   // bạnh = sống sợi loe thành gờ nhọn
-                G.push(new THREE.Vector3(S[i].x + (Nf.x * c + Bf.x * s) * r, S[i].y + (Nf.y * c + Bf.y * s) * r, S[i].z + (Nf.z * c + Bf.z * s) * r)); }
+                let rr = r; if (fine && i < nRing) { const gA = THREE.MathUtils.smoothstep(SR[i] * wS, 0.03, 0.15); if (gA > 0) rr -= 0.02 * gA / wS * (1 - THREE.MathUtils.smoothstep(appleRidge(k / seg * bmA, (len[i] + offA) * wS / 0.9, bmA), 0.22, 0.5)); }   // lòng rãnh dọc sâu ~2 cm (thân to)
+                G.push(new THREE.Vector3(S[i].x + (Nf.x * c + Bf.x * s) * rr, S[i].y + (Nf.y * c + Bf.y * s) * rr, S[i].z + (Nf.z * c + Bf.z * s) * rr)); }
             }
             // hộp bao TỪNG ĐOẠN (bản đồ bay của ong / bướm: 1 lưới cả cây mà chỉ có 1 hộp thì chặn kín cả tán — bản cũ có hộp từng trụ / cầu đã gộp)
             for (let j = 0; j < n; j++) { const i0 = cI[j], i1 = j < n - 1 ? cI[j + 1] : M - 1, b = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity];

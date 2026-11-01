@@ -2,9 +2,9 @@
         //  thỏ trong bán kính 6 voxel square") =====
         //  Tầm nhận biết ENV_R = 6 voxel (6 × BLOCK 0,6 = 3,6 đv) quanh kỹ sư, chỉ khi ở ngoài trời. Mỗi 0,25 s chấm điểm thứ đáng chú ý nhất: độ hấp dẫn
         //  của loài × gần × trước mặt × lạ (vừa nhìn con đó trong 25 s thì còn 30% — quen dần, không nhìn chằm chằm), nhìn theo 2–5 s rồi thôi:
-        //   · CHIM SẺ đậu dưới cỏ trong tầm lúc đang đi ⇒ khựng lại 3–5 s cho chim ăn tiếp (người đứng yên thì chim chỉ bay khi < 1 m — animals/songbird.js);
+        //   · CHIM SẺ đậu dưới cỏ trong tầm lúc đang đi ⇒ khựng lại 3–5 s cho chim ăn tiếp (người đứng yên thì chim chỉ bay khi < 1 m — animals/sparrows/songbird.js);
         //   · BƯỚM lượn tới trong tầm tay khi đứng yên / ngồi nghỉ ⇒ chìa tay, bướm đáp lên mu bàn tay 3–6 s, khép mở cánh rồi bay đi. ~1/4 số lần bướm chọn
-        //     điểm bay mới thì chọn quanh người đang ở ngoài trời (bướm hay sà quanh người — áo sáng màu, mồ hôi) — animals/insects.js nextButterflyTarget;
+        //     điểm bay mới thì chọn quanh người đang ở ngoài trời (bướm hay sà quanh người — áo sáng màu, mồ hôi) — bướm tự chọn (animals/insects/butterflies.js bflyLure);
         //   · THỎ trong tầm ⇒ ngồi xổm thật chậm (1,6 s) xem thỏ gặm 6–9 s, không lại gần · GÀ chạy toán loạn vì mình ⇒ bật cười;
         //   · ONG bay sát mặt (< 0,7) ⇒ phẩy tay xua · ĐOM ĐÓM chớp gần ⇒ nhìn theo;
         //   · CÂY CỎ: đang đi sát ô có hoa dại (meadow.flowerNear) ⇒ ngồi xổm cúi ngửi hoa (tối đa 1 lần / 2 phút);
@@ -28,7 +28,7 @@
         });
         const envNeed = (c, f) => { if (!sim.n || sim.n.curiosity === undefined) return; sim.n.curiosity = Math.min(100, sim.n.curiosity + c); sim.n.fun = Math.min(100, (sim.n.fun ?? 60) + f); };
         const envPos = T => T.kind === 'bunny' ? T.o.g.position : T.kind === 'bird' ? T.o.root.position : T.o.g.position;
-        const envAlive = T => T.kind === 'bunny' ? daytimeAnimals.visible && !T.o.shelter : T.kind === 'bfly' || T.kind === 'bee' ? liveWeather.wildlifeAwake && T.o.g.visible : T.kind === 'hen' ? T.o.level === 'ground' : T.kind === 'fly' ? !liveWeather.wildlifeAwake : true;
+        const envAlive = T => T.kind === 'bunny' ? daytimeAnimals.visible && !T.o.shelter && !T.o.home : T.kind === 'bfly' || T.kind === 'bee' ? liveWeather.wildlifeAwake && T.o.g.visible : T.kind === 'hen' ? T.o.level === 'ground' : T.kind === 'fly' ? !liveWeather.wildlifeAwake : true;
         function envScan(e, t) {   // thứ đáng nhìn nhất trong tầm 6 voxel (null nếu không có)
           const g = e.g.position, yaw = e.g.rotation.y, fx = Math.sin(yaw), fz = Math.cos(yaw);
           let best = null, bs = 0;
@@ -38,14 +38,14 @@
             const s0 = ENV.seen.get(o), s = w * (1.3 - d / ENV_R) * (0.75 + 0.25 * fr) * (s0 !== undefined && t - s0 < 25 ? 0.3 : 1);
             if (s > bs) { bs = s; best = { kind, o }; }
           };
-          for (const b of [songbird, ...flock.birds, ...nestPairs.flat(), ...sparrowGang.birds]) { const S = b.state; if (S.st !== 'sleep' && !(S.at && S.at.local)) cand('bird', b, b.root.position, S.st === 'fly' ? 0.9 : S.at && S.at.kind === 'ground' ? 1.3 : 0.8); }
+          for (const b of worldSee('sparrows')?.all() || []) { const S = b.state; if (S.st !== 'sleep' && !(S.at && S.at.local)) cand('bird', b, b.root.position, S.st === 'fly' ? 0.9 : S.at && S.at.kind === 'ground' ? 1.3 : 0.8); }
           if (liveWeather.wildlifeAwake && daytimeAnimals.visible) {
             for (const bf of butterflies) if (bf.mode === 'nav') cand('bfly', bf, bf.g.position, 1.25);
             for (const b of bees) if (b.g.visible) cand('bee', b, b.g.position, 0.5);
           }
-          if (daytimeAnimals.visible) for (const b of bunnies) if (!b.shelter) cand('bunny', b, b.g.position, 1.6);
-          for (const h of chickens.list) if (h.level === 'ground') cand('hen', h, h.g.position, h.st === 'flee' ? 1.4 : 0.7);
-          if (!liveWeather.wildlifeAwake) for (const f of fireflies) if (f.fl < 0.3) cand('fly', f, f.g.position, 0.8);
+          if (daytimeAnimals.visible) for (const b of worldSee('bunnies')?.list || []) if (!b.shelter && !b.home) cand('bunny', b, b.g.position, 1.6);
+          for (const h of worldSee('chickens')?.list || []) if (h.level === 'ground') cand('hen', h, h.g.position, h.st === 'flee' ? 1.4 : 0.7);
+          if (!liveWeather.wildlifeAwake) for (const f of worldSee('fireflies')?.list || []) if (f.fl < 0.3) cand('fly', f, f.g.position, 0.8);
           return best;
         }
         function envStart(e, n, t, onFoot) {   // bắt đầu chú ý tới n: nhìn + (tuỳ loài) đứng lại / ngồi xổm / cười / xua tay
@@ -65,11 +65,12 @@
           } else if (k === 'fly') rxSay('fly', RX_TXT.fly, 'Đom đóm', false);
         }
         function envReset() {
-          ENV.tgt = null; if (ENV.bf) envBflyLeave(ENV.bf.bf);
+          ENV.tgt = null; if (ENV.bf) envBflyEnd();
           const H = RX.hold; if (H && (H.k === 'still' || H.k === 'crouch' || H.k === 'flower' || H.k === 'sunset')) rxHoldEnd();
         }
         // ---- mỗi khung (cuối engReactPre, chỉ khi ngoài trời) ----
         function envTick(e, dt, t, onFoot, seated) {
+          envBflySync();   // bướm đã mời: đậu / bay đi chưa
           if (t >= ENV.t) {
             ENV.t = t + 0.25;
             if (!ENV.tgt || t > ENV.tgt.until) { if (ENV.tgt) { ENV.seen.set(ENV.tgt.o, t); ENV.tgt = null; } const n = envScan(e, t); if (n) envStart(e, n, t, onFoot); }
@@ -79,7 +80,7 @@
           // bướm trong tầm tay khi đứng yên / ngồi nghỉ (tay rảnh) ⇒ chìa tay mời bướm đậu
           if (T && T.kind === 'bfly' && !ENV.bf && !RX.gest && t >= (ENV.nx.bfly || 0) && !rxRaining() && (onFoot ? !e.walking && RX.still > 0.6 : seated && (e.phase === 'shelter' || (e.phase === 'tea' && e.teaIdle))) && rxHands(e)[0] && rxTeaLeft(e) > 6) {
             e.arms[0].getWorldPosition(_evA); const dur = Math.min(9.5, rxTeaLeft(e) - 0.5);   // uống trà: xong trước khi tay phải với cốc
-            if (_evA.distanceTo(T.o.g.position) < 1.3 && rxGest('finger', dur)) { ENV.bf = { bf: T.o, st: 'to', k: 0, dur: Math.min(3 + 3 * Math.random(), dur - 2.5) }; T.o.mode = 'hand'; T.until = t + dur; }
+            if (_evA.distanceTo(T.o.g.position) < 1.3 && rxGest('finger', dur)) { ENV.bf = { bf: T.o, st: 'to', dur: Math.min(3 + 3 * Math.random(), dur - 2.5), t0: t }; T.until = t + dur; }
           }
           envWeather(e, t, onFoot);
           envFlower(e, t, onFoot);
@@ -139,42 +140,15 @@
             rxHand(e, 0, _evD.copy(_evA).addScaledVector(d, 0.46 * e.g.scale.y / 0.79), aimQ(_evQ, palm, _evA.copy(d).negate()), w);
           }
         }
-        // ---- BƯỚM ĐẬU TAY (animals/insects.js gọi trước bflyShelter khi bf.mode === 'hand'): bay tới mu bàn tay · đậu, khép mở cánh · bay đi ----
-        function envBflyHand(bf, dt, t) {
-          const B = ENV.bf; if (!B || B.bf !== bf) { bf.mode = 'fromPerch'; bf.vis.copy(bf.g.position); return false; }
-          const e = engObj, G = RX.gest;
-          if (liveWeather.state.raining) { ENV.bf = null; bf.mode = 'toPerch'; bf.vis.copy(bf.g.position); if (G && G.k === 'finger') rxGestEnd(G); return false; }   // mưa: đi trú như mọi con
-          if (!G || G.k !== 'finger' || !e.handW || !rxOutside(e)) { envBflyLeave(bf); return false; }
-          B.k += dt; e.wrists[0].updateWorldMatrix(true, false); const hp = e.wrists[0].localToWorld(_evD.set(0, 0.02, 0.055));   // giữa lòng bàn tay chữ C (+z cổ tay), nhỉnh lên
-          if (B.st === 'to') {
-            const p = bf.g.position, dx = hp.x - p.x, dy = hp.y - p.y, dz = hp.z - p.z, dd = Math.hypot(dx, dy, dz);
-            if (dd < 0.02 && G.w > 0.95) { B.st = 'on'; B.k = 0; rxSay('bfly', RX_TXT.bfly, 'Bướm', false); envNeed(4, 4); }
-            else if (B.k > 6) { envBflyLeave(bf); return false; }
-            else {
-              const s = Math.min(dd, bf.spd * (dd < 0.4 ? 0.6 : 1.2) * dt), wob = Math.min(1, dd * 1.2);   // lượn vòng nhỏ, sát tay thì vào thẳng, chậm lại
-              p.set(p.x + dx / dd * s + Math.cos(t * 2.3 + bf.ph) * 0.006 * wob, p.y + dy / dd * s + Math.sin(t * 3.7 + bf.ph) * 0.01 * wob, p.z + dz / dd * s);
-              let turn = Math.atan2(dx, dz) - bf.g.rotation.y; turn = Math.atan2(Math.sin(turn), Math.cos(turn)); bf.g.rotation.y += turn * Math.min(1, dt * 5);
-              bflyFlap(bf, dt, dd < 0.3 ? 0.8 : 1.1);
-            }
-          } else {   // đậu: theo tay, cánh khép dựng rồi thỉnh thoảng mở phẳng phơi nắng
-            bf.g.position.copy(hp); bf.g.rotation.y += 0.15 * dt;
-            const o = Math.pow(0.5 + 0.5 * Math.sin(B.k * 1.7 + bf.ph), 3), a = 1.3 - 1.15 * o;
-            bf.wL.rotation.z = a; bf.wR.rotation.z = -a; bf.wL.userData.hind.rotation.z = bf.wR.userData.hind.rotation.z = 0;
-            if (B.k > B.dur) { envBflyLeave(bf); return false; }
-          }
-          return true;
-        }
-        function envBflyLeave(bf) {   // bay đi: về lại đường bay cũ (bflyShelter 'fromPerch'), 40 s sau mới mời bướm khác
-          ENV.bf = null; ENV.nx.bfly = RX.t + 40; if (bf.mode === 'hand') { bf.mode = 'fromPerch'; bf.vis.copy(bf.g.position); }
+        // ---- BƯỚM ĐẬU TAY — phần kỹ sư (G 01/11 tách: bướm tự nhận lời, bay tới, đậu, bỏ đi — animals/insects/butterflies.js bflyHand — rồi nêu việc của nó ở
+        //      bf.hand { st: to | on, of }): mỗi khung (đầu envTick) kỹ sư nhìn con đã mời — đậu rồi ⇒ nói, lấp nhu cầu; bay đi ⇒ hạ tay, 40 s sau mới mời con khác
+        //      (mưa thì thôi chờ). Lời mời ENV.bf { bf, dur: đậu bao lâu, st } + tay chìa ra / lòng bàn tay nêu ở mặt kỹ sư (engineer/face.js: handOffer, handOut, palm) ----
+        function envBflySync() {
+          const B = ENV.bf; if (!B) return;
+          const S = B.bf.hand;
+          if (S && S.of === B) { B.took = true; if (S.st === 'on' && B.st !== 'on') { B.st = 'on'; rxSay('bfly', RX_TXT.bfly, 'Bướm', false); envNeed(4, 4); } return; }   // vừa đậu tay
+          if (!B.took && RX.t - B.t0 < 0.5) return;   // chưa thấy bướm nhận lời: chờ chút
+          ENV.bf = null; if (!liveWeather.state.raining) ENV.nx.bfly = RX.t + 40;   // đã bay đi / không tới
           const G = RX.gest; if (G && G.k === 'finger') rxGestEnd(G);
         }
-        function envBflyLure(bf) {   // animals/insects.js nextButterflyTarget: ~1/4 số lần chọn điểm bay quanh kỹ sư đang ở ngoài trời (cách 0,6–1,8 đv, ngang ngực – đầu)
-          const e = engObj; if (!e || !rxOutside(e) || liveWeather.state.raining || Math.random() > 0.25 || !flightNav) return false;
-          const p = e.g.position; if (Math.hypot(p.x - bf.pos.x, p.z - bf.pos.z) > 30) return false;
-          for (let k = 0; k < 12; k++) {
-            const a = Math.random() * TAU, r = 0.6 + Math.random() * 1.2, x = p.x + Math.cos(a) * r, z = p.z + Math.sin(a) * r;
-            _evD.set(x, flightNav.ground(x, z) + 1.1 + Math.random() * 0.8, z); flightNav.snapToVoxel(_evD, _evD);
-            if (flightNav.pointClear(_evD) && _evD.distanceToSquared(bf.pos) > 4) { bf.target.copy(_evD); return true; }
-          }
-          return false;
-        }
+        function envBflyEnd() { ENV.bf = null; ENV.nx.bfly = RX.t + 40; const G = RX.gest; if (G && G.k === 'finger') rxGestEnd(G); }   // kỹ sư thôi mời (vào xe …): bướm thấy mất lời mời thì tự bay đi

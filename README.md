@@ -8,22 +8,24 @@ Trang: https://michaeltran75.github.io/3d-garden/ (nhúng Wix bằng iframe).
 ## Sửa ở đâu
 
 Chỉ sửa trong `src/`. Đọc `src/ARCHITECTURE.md` trước: khung hình chạy gì, vật lý, IK, va chạm, gộp lượt vẽ, cách thử và các bẫy đã gặp.
+Mỗi tác tử (kỹ sư, từng loài thú) và mỗi vật (xe, trại, đồ câu, luống) là một đơn vị độc lập: đơn vị khác chỉ đọc mặt công khai của nó qua `worldSee` (`src/app/core/world.js`, ARCHITECTURE mục 1b); `build.py --check` dừng nếu có chỗ dính mới.
 
 | Thư mục / tệp | Nội dung |
 |---|---|
 | `src/page.html`, `src/css/` | khung trang, giao diện |
 | `src/js/` | thời tiết Open-Meteo, dẫn đường bay cho ong và bướm |
 | `src/app/manifest.txt` | thứ tự ghép các mảnh mã cảnh (mỗi dòng một tệp, kèm mô tả) |
-| `src/app/core/` | khởi động, bầu trời, mặt trời và mặt trăng, trời đêm, va chạm, gộp lượt vẽ, chất liệu bề mặt |
+| `src/app/core/` | khởi động, bầu trời, mặt trời và mặt trăng, trời đêm, va chạm, gộp lượt vẽ, chất liệu bề mặt, tiện ích dùng chung (`helpers.js`), mặt đứng `cowY` (`ground.js`), dẫn đường flow field (`flow-field.js`) |
 | `src/app/world/` | thủy điện, tua-bin, pin mặt trời, nhà, đường, trạm biến áp, đèn đường, xuồng |
 | `src/app/nature/` | gió, cây, cỏ hoa, mưa, mặt nước, khói, đầm sen |
 | `src/app/animals/` | bò, hươu, chó, gấu mèo, cò, chim sẻ (16 con: trại, 2 cặp làm tổ, đàn 5, bầy 6 trống / mái quanh trại — `sparrow-gang.js`), cá koi, ong, bướm |
 | `src/app/engineer/` | kỹ sư: `body/` (dáng, bước, ghế, mặt) · `mind/` (giờ giấc `hours.js`, lịch, nhu cầu, bảng việc, điều phối) · `tasks/` (mỗi tệp một việc) — bản đồ: `engineer/README.md` |
 | `src/app/van/` | xe van: `body/` (vỏ, cửa, khung gầm) · `interior/` (nội thất, bếp, radio) · `engine/` (động cơ chạy, hình nổi Ford 3.5L EcoBoost dựng bằng code) — bản đồ: `van/README.md` |
-| `src/app/camp/`, `fishing/` | đồ cắm trại, cần câu |
+| `src/app/camp/` | đồ cắm trại |
+| `src/app/props/` | xưởng dựng đồ vật (hàm thuần): bát, chảo, lon nước, mũ LEGO, cần câu, xô — mỗi đơn vị dựng bản riêng của mình |
 | `src/app/ui/`, `src/app/loop/` | điều khiển camera, nhãn, vòng lặp khung hình |
 | `src/models/` | mẫu dùng nguyên (drone + tay cầm DJI Mini 3, xe Ford Transit, động cơ trong khoang máy, khung gầm GAZ-69, gấu mèo, ảnh vân vỏ cây cắt từ bản quét), trang tải sau khi cảnh chạy |
-| `src/tools/` | công cụ dựng lại mẫu dùng nguyên (`transit/` → `transit.bin` · `engine/` → `engine.glb` · `chassis/` → `chassis.glb`) · `engineer-audit/`: kiểm tra hành vi kỹ sư cả ngày, liệt kê lỗi theo giờ |
+| `src/tools/` | công cụ dựng lại mẫu dùng nguyên (`transit/` → `transit.bin` · `engine/` → `engine.glb` · `chassis/` → `chassis.glb`) · `engineer-audit/`: kiểm tra hành vi kỹ sư cả ngày, liệt kê lỗi theo giờ · `boundaries/`: kiểm ranh giới đơn vị (`check.py`, `baseline.json`) |
 
 Các mảnh trong `src/app/` được nối nguyên văn theo `manifest.txt` thành một khối script, dùng chung phạm vi biến (không `import`/`export`).
 Thêm tệp mới thì thêm một dòng vào manifest, đúng thứ tự.

@@ -636,6 +636,19 @@
       text-underline-offset: 2px;
     }
 
+    .dock-credits-3d {
+      border-top: 1px solid rgba(60, 53, 39, .28);
+      padding-top: 8px;
+    }
+
+    .dock-credits .credit-head {
+      flex-basis: 100%;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      text-decoration: none;
+    }
+
     #weather-mast {
       position: absolute;
       z-index: 4;
@@ -1108,6 +1121,13 @@
     .sim-bar.tl-row {
       padding: 4px 6px;
       margin: 2px -6px;
+    }
+
+    /* nhóm dụng cụ (G 31/10): tiêu đề nhóm + đường kẻ ngăn phía trên (cả nhóm đầu: tách khỏi dòng hướng dẫn của bảng) */
+    .ph.tl-sec {
+      margin: 7px 0 2px;
+      padding-top: 6px;
+      border-top: 1px solid rgba(60, 53, 39, .28);
     }
 
     .tl-msg {

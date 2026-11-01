@@ -12,10 +12,11 @@
         //  Bị cắt ngang (giờ ngủ, việc khác): máy về chỗ ngay (idle). Mưa lại giữa chừng: tự thôi cắt, mang máy về cất đúng quy trình ----
         const TRIM = { pend: false, rainS: 0 };
         const TRIM_SLOT = new Set(['outdoor', 'rest', 'read', 'music', 'fish', 'research', 'drone', 'apples']);
+        worldTick('tools', 30, trimWatch);   // MỖI KHUNG (sổ tick core/world.js): đếm giờ mưa — tạnh sau hơn 2 phút mưa thì hẹn phát cỏ
         function trimWatch(dt) { if (liveWeather.state.raining) TRIM.rainS += dt; else { if (TRIM.rainS > 120) TRIM.pend = true; TRIM.rainS = 0; } }
         function trimWant(e, hh, sched) {   // engWantAct (engineer/mind/schedule.js): 'trim' hoặc null
           if (trimJob.busy()) return 'trim';   // đang làm dở: làm cho xong (kể cả mưa lại: tự cất máy)
-          if (!TRIM.pend || !trimKit.ready || engForceAct) return null;
+          if (!TRIM.pend || !TRIMMER.ready || engForceAct) return null;
           if (!engHourOk('trim', hh) || liveWeather.state.raining || sceneWet > 0.15 || !TRIM_SLOT.has(sched)) return null;
           if (trimJob.cutFrac() > 0.6) { TRIM.pend = false; return null; }
           return 'trim';
@@ -25,13 +26,13 @@
           const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3(), _d = new THREE.Vector3(), _l = new THREE.Vector3(), _f = new THREE.Vector3(), _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), UP = new THREE.Vector3(0, 1, 0);
           const ease = x => { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); };
           const go = st => { J.st = st; J.k = 0; };
-          const K = trimKit, A = () => K.A, R_GRIP = [-0.06, 1.58, 0.12];   // tay ga: toạ độ kỹ sư theo eo (đv mẫu người; eo 1,255, vai 1,86)
+          const K = TRIMMER, A = () => K.A, R_GRIP = [-0.06, 1.58, 0.12];   // tay ga: toạ độ kỹ sư theo eo (đv mẫu người; eo 1,255, vai 1,86)
           // ---- vòng cắt: các vòng tròn quanh bếp lửa, chia đoạn theo vật cản / nước / chỗ không có cỏ; nối đoạn gần nhất kế tiếp ----
           function plan() {
-            const segs = [], a0 = Math.atan2(caravanObj.position.z - pf.z, caravanObj.position.x - pf.x);   // bắt đầu mỗi vòng ở phía xe (luôn bị chặn) ⇒ đoạn không bị cắt đôi ở góc 0
+            const segs = [], a0 = Math.atan2(VAN.object.position.z - pf.z, VAN.object.position.x - pf.x);   // bắt đầu mỗi vòng ở phía xe (luôn bị chặn) ⇒ đoạn không bị cắt đôi ở góc 0
             const y0 = cowY(pf.x, pf.z), clear = (x, z) => { if (isWater(Math.round(x2gi(x)), Math.round(z2gj(z))) || Math.abs(cowY(x, z) - y0) > ENG_STEP_MAX) return false;   // khác mặt bằng trại > 1 voxel (dốc xuống hồ): bỏ — trước: bước hụt xuống dốc 2,4 m
               for (const o of obstacleCoords) if (Math.hypot(x - o.x, z - o.z) < o.r + 0.6) return false;
-              for (const o of ENG_PROPS) if (Math.hypot(x - o.x, z - o.z) < o.r + 0.55) return false;
+              for (const o of PROPS) if (Math.hypot(x - o.x, z - o.z) < o.r + 0.55) return false;
               return meadow.grassNear(x, z, 1.25); };
             [3.5, 4.6, 5.7, 6.8].forEach((r, ri) => { const n = Math.ceil(2 * Math.PI * r / 0.45); let cur = [];
               for (let k = 0; k <= n; k++) { const a = a0 + (ri % 2 ? -1 : 1) * k / n * 2 * Math.PI, x = pf.x + Math.cos(a) * r, z = pf.z + Math.sin(a) * r;
@@ -65,7 +66,7 @@
           function stand(e) { engStandStill(e); e.vel = 0; e.g.position.y = cowY(e.g.position.x, e.g.position.z) - ENG_FEET; }
           function face(e, yaw, dt) { const d = Math.atan2(Math.sin(yaw - e.g.rotation.y), Math.cos(yaw - e.g.rotation.y)); e.g.rotation.y += d * Math.min(1, dt * 5); }
           function look(e, p) { e.head.getWorldPosition(_c); e.head.rotation.x = Math.max(-0.7, Math.min(0.85, -Math.atan2(p.y - _c.y, Math.hypot(p.x - _c.x, p.z - _c.z)) - 0.8 * (e.lean || 0))); }
-          const animalNear = (p, r) => { for (const o of [dogObj, raccoonObj, stag && stag.g, ...chickens.list.map(c => c.g)]) if (o && o.visible !== false && hovShown(o) && Math.hypot(o.position.x - p.x, o.position.z - p.z) < r) return o; return null; };
+          const animalNear = (p, r) => { for (const o of [worldSee('dog')?.object, worldSee('raccoon')?.object, worldSee('deer')?.object, ...(worldSee('chickens')?.list || []).map(c => c.g)]) if (o && o.visible !== false && shownInScene(o) && Math.hypot(o.position.x - p.x, o.position.z - p.z) < r) return o; return null; };
           const _z = new THREE.Vector3(), zone = e => _z.set(e.g.position.x + Math.sin(e.g.rotation.y), 0, e.g.position.z + Math.cos(e.g.rotation.y));   // vùng lưỡi lia: 1 m trước mặt (không theo nhịp lia ⇒ không chập chờn)
           const F = { kit: null, grab: null, seg: [] };   // bảng dẫn đường (BFS né vật cản) tới chỗ để máy / chỗ nhấc cần / đầu từng đoạn
           // chỗ đứng: giật máy (hông +X của ba lô — phía tay giật), đeo / tháo (trước đệm lưng, quay lưng vào ba lô), nhấc / đặt cần (bên phải ống, cạnh tay ga)
@@ -77,7 +78,7 @@
           }
           function update(e, dt, t) {   // pha 'trim' của kỹ sư (engineer/mind/loop-update.js): true = xong
             if (!K.ready) return true;
-            if (J.st === 'idle') { J.segs = plan(); J.si = 0; J.wi = 0; J.pulls = 0; J.rain = false; spots(); K.e = e; go('toStart');
+            if (J.st === 'idle') { J.segs = plan(); J.si = 0; J.wi = 0; J.pulls = 0; J.rain = false; spots(); K.use(e); go('toStart');
               K.homePack.decompose(_a, _q, _b); F.kit = buildFlowField(_a.x, _a.z); F.grab = buildFlowField(spot.grab.x, spot.grab.z); F.seg = []; idleThoughtAt = Math.min(idleThoughtAt, Date.now() + 12000); }
             J.k += dt; const k = J.k, E = K.eng, H = e.hold || (e.hold = {}); H.pole = J.st !== 'toStart' && J.st !== 'start' && J.st !== 'toDon' && J.st !== 'don' && J.st !== 'doff' && J.st !== 'wipe' && J.st !== 'done';
             if (liveWeather.state.raining && !J.rain && ['go', 'go2', 'cut', 'wait'].includes(J.st)) { J.rain = true; go('back'); }   // mưa lại: thôi cắt, cất máy
@@ -88,20 +89,20 @@
                 stand(e); face(e, Math.atan2(-1, 0), dt); const sq = ease(k / 0.6) * (1 - ease((k - 4.6) / 0.7)); crouch(e, sq, 0.2); e.lean = 0.28 * sq; e.spineT = { x: 0.25 * sq, y: 0.15 * sq };
                 R[1] = K.anchorW('pack', 'top', new THREE.Vector3()); const port = K.anchorW('pack', 'starter', new THREE.Vector3()); look(e, port);
                 const T0 = 0.9, T1 = 2.6, pullAt = tt => { const x = (k - tt); return x < 0 ? 0 : x < 0.32 ? ease(x / 0.32) : x < 0.45 ? 1 : 1 - ease((x - 0.45) / 0.7); };   // giật nhanh 0,32 s · giữ · thả dây cuộn về 0,7 s
-                const pl = Math.max(pullAt(T0), pullAt(T1)); K.pull = pl;
+                const pl = Math.max(pullAt(T0), pullAt(T1)); K.cord(pl);
                 R[0] = port.clone().add(_b.set(0.42 * pl, 0.3 * pl, 0.06 * pl)); e.elbowFlexT = [0.05 * pl, 0];
                 if (k > T0 + 0.3 && J.pulls === 0) { J.pulls = 1; K.puff(false); }   // lần 1: máy hắt hơi
-                if (k > T1 + 0.3 && J.pulls === 1) { J.pulls = 2; E.on = true; E.thr = 0.1; K.puff(true); K.puff(true); }   // lần 2: nổ
-                if (k > 5.3) { K.pull = 0; e.noFootIK = false; go('toDon'); }
+                if (k > T1 + 0.3 && J.pulls === 1) { J.pulls = 2; K.start(0.1); K.puff(true); K.puff(true); }   // lần 2: nổ
+                if (k > 5.3) { K.cord(0); e.noFootIK = false; go('toDon'); }
                 break;
               }
               case 'toDon': if (engStep(e, spot.don, dt, t, pf, FIRE_AVOID_R, F.kit)) { e.g.position.x = spot.don.x; e.g.position.z = spot.don.z; go('don'); } break;
               case 'don': {   // quay lưng vào ba lô, ngồi xuống, 2 tay nắm quai, đứng lên (ba lô lên lưng), kéo quai trước ngực
-                stand(e); face(e, 0, dt); K.packMode = 'don';
-                const down = ease(k / 0.8), up = ease((k - 1.3) / 1.1), sq = down * (1 - up); crouch(e, sq, 0.3); e.lean = 0.22 * sq; K.packU = up;
+                stand(e); face(e, 0, dt); K.carry('don');
+                const down = ease(k / 0.8), up = ease((k - 1.3) / 1.1), sq = down * (1 - up); crouch(e, sq, 0.3); e.lean = 0.22 * sq; K.carry(null, up);
                 if (k < 1.25) { R[0] = packPt(-0.13, 0.2, 0.04); R[1] = packPt(0.13, 0.2, 0.04); }   // với ra sau nắm 2 quai
                 else { const tug = k > 2.5 ? Math.sin(Math.min(1, (k - 2.5) / 0.9) * Math.PI) : 0; R[0] = engBodyW(e, -0.13, 1.72 - 0.06 * tug, 0.2, new THREE.Vector3()); R[1] = engBodyW(e, 0.13, 1.72 - 0.06 * tug, 0.2, new THREE.Vector3()); }   // tay giữ quai trước ngực, đứng lên rồi kéo quai
-                if (k > 2.4) { K.packMode = 'back'; K.packU = 1; } if (k > 3.5) { e.noFootIK = false; go('toGrab'); }
+                if (k > 2.4) K.carry('back', 1); if (k > 3.5) { e.noFootIK = false; go('toGrab'); }
                 break;
               }
               case 'toGrab': if (engStep(e, spot.grab, dt, t, pf, FIRE_AVOID_R, F.grab)) { e.g.position.x = spot.grab.x; e.g.position.z = spot.grab.z; go('grab'); } break;
@@ -111,26 +112,26 @@
                 tube(e, 0.05, 0.38, _a, _b); _c.copy(K.homeA).lerp(_a, lift); _q.setFromUnitVectors(UP, K.homeDir); _q2.setFromUnitVectors(UP, _b); _q.slerp(_q2, lift); _d.copy(UP).applyQuaternion(_q);
                 K.shaftPose(_c, _d); grips(e, _c, _d); look(e, K.shaftPt(_c, _d, LOOP_L, _l));
                 if (J.st === 'grab' && k > 2.0) { e.noFootIK = false; go(J.segs.length ? 'go' : 'back'); }
-                if (J.st === 'lay' && k > 1.55) K.shaftMode = 'home';
+                if (J.st === 'lay' && k > 1.55) K.shaftHome();
                 if (J.st === 'lay' && k > 2.1) { e.noFootIK = false; go('toDoff'); }
                 break;
               }
               case 'go': {   // mang cần (lưỡi nhấc cao ~0,35 m, ga nhỏ) tới đầu đoạn cắt kế tiếp
-                const seg = J.segs[J.si]; E.thr = 0.12; e.spd = 0.75; tube(e, 0.05, 0.36, _a, _b); K.shaftPose(_a, _b); grips(e, _a, _b); e.spineT = { x: 0.04, y: 0 };
+                const seg = J.segs[J.si]; K.throttle(0.12); e.spd = 0.75; tube(e, 0.05, 0.36, _a, _b); K.shaftPose(_a, _b); grips(e, _a, _b); e.spineT = { x: 0.04, y: 0 };
                 if (!F.seg[J.si]) F.seg[J.si] = buildFlowField(seg[0].x, seg[0].z);
                 if (engStep(e, seg[0], dt, t, pf, FIRE_AVOID_R, F.seg[J.si])) { J.wi = 1; J.ph = 0; go('cut'); }
                 break;
               }
               case 'go2': {   // bỏ qua chỗ có con vật: mang cần (lưỡi nhấc) tới điểm kế tiếp của đoạn rồi cắt tiếp
-                const wp = J.segs[J.si][J.wi]; E.thr = 0.15; e.spd = 0.6; tube(e, 0.05, 0.3, _a, _b); K.shaftPose(_a, _b); grips(e, _a, _b); e.spineT = { x: 0.04, y: 0 };
+                const wp = J.segs[J.si][J.wi]; K.throttle(0.15); e.spd = 0.6; tube(e, 0.05, 0.3, _a, _b); K.shaftPose(_a, _b); grips(e, _a, _b); e.spineT = { x: 0.04, y: 0 };
                 if (engStep(e, wp, dt, t, pf, FIRE_AVOID_R)) go('cut');
                 break;
               }
               case 'cut': case 'wait': {   // đi chậm theo đoạn + lia lưỡi; con vật lại gần lưỡi ⇒ đợi
                 const seg = J.segs[J.si], cyc = 1.7; let s, hb;
                 if (J.st === 'cut') { J.ph = (J.ph + dt) % cyc; const p = J.ph;
-                  if (p < 1.0) { s = -1 + 2 * ease(p / 1.0); hb = 0.05; E.thr = 1; } else { const r = (p - 1.0) / 0.7; s = 1 - 2 * ease(r); hb = 0.05 + 0.07 * Math.sin(Math.PI * r); E.thr = 0.6; }
-                } else { s = 0; hb = 0.3; E.thr = 0.15; }
+                  if (p < 1.0) { s = -1 + 2 * ease(p / 1.0); hb = 0.05; K.throttle(1); } else { const r = (p - 1.0) / 0.7; s = 1 - 2 * ease(r); hb = 0.05 + 0.07 * Math.sin(Math.PI * r); K.throttle(0.6); }
+                } else { s = 0; hb = 0.3; K.throttle(0.15); }
                 e.spineT = { x: 0.1, y: 0.42 * (s || 0) - 0.04 };
                 tube(e, 0.05 + 0.14 * (s || 0), hb, _a, _b); K.shaftPose(_a, _b); grips(e, _a, _b);
                 const bp = K.shaftPt(_a, _b, _c.set(0, -0.04, A().shaft.blade[2]), _l); look(e, bp);
@@ -147,22 +148,22 @@
                 break;
               }
               case 'back': {   // về chỗ để máy (lưỡi nhấc, ga nhỏ)
-                E.thr = 0.12; e.spd = 0.75; tube(e, 0.05, 0.36, _a, _b); K.shaftPose(_a, _b); grips(e, _a, _b); e.spineT = { x: 0.04, y: 0 };
+                K.throttle(0.12); e.spd = 0.75; tube(e, 0.05, 0.36, _a, _b); K.shaftPose(_a, _b); grips(e, _a, _b); e.spineT = { x: 0.04, y: 0 };
                 if (engStep(e, spot.grab, dt, t, pf, FIRE_AVOID_R, F.grab)) { e.g.position.x = spot.grab.x; e.g.position.z = spot.grab.z; go('stop'); }
                 break;
               }
               case 'stop': {   // nhả ga, ngón cái bấm công tắc tắt máy trên tay ga, chờ lưỡi dừng
-                stand(e); face(e, spot.grabYaw, dt); E.thr = 0; tube(e, 0.05, 0.36, _a, _b); K.shaftPose(_a, _b); grips(e, _a, _b);
-                const bp = K.shaftPt(_a, _b, _c.set(0, 0, A().shaft.grip[2]), _l); look(e, bp); if (k > 0.6 && E.on) { E.on = false; K.puff(true); }
+                stand(e); face(e, spot.grabYaw, dt); K.throttle(0); tube(e, 0.05, 0.36, _a, _b); K.shaftPose(_a, _b); grips(e, _a, _b);
+                const bp = K.shaftPt(_a, _b, _c.set(0, 0, A().shaft.grip[2]), _l); look(e, bp); if (k > 0.6 && E.on) { K.stop(); K.puff(true); }
                 if (k > 1.6 && K.eng.spin < 3) go('lay');
                 break;
               }
               case 'toDoff': if (engStep(e, spot.don, dt, t, pf, FIRE_AVOID_R, F.kit)) { e.g.position.x = spot.don.x; e.g.position.z = spot.don.z; go('doff'); } break;
               case 'doff': {   // quay lưng về chỗ để, ngồi xuống đặt ba lô xuống cỏ, rút tay khỏi quai, đứng lên
                 stand(e); face(e, 0, dt); const down = ease(k / 1.1), up = ease((k - 1.6) / 0.8), sq = down * (1 - up); crouch(e, sq, 0.3); e.lean = 0.22 * sq;
-                K.packMode = 'don'; K.packU = 1 - down;
+                K.carry('don', 1 - down);
                 if (k < 1.2) { R[0] = engBodyW(e, -0.13, 1.7, 0.2, new THREE.Vector3()); R[1] = engBodyW(e, 0.13, 1.7, 0.2, new THREE.Vector3()); }   // tay giữ quai trước ngực khi ngồi xuống
-                if (k > 1.15) { K.packMode = 'home'; K.packU = 0; } if (k > 2.5) { e.noFootIK = false; go('wipe'); }
+                if (k > 1.15) K.carry('home', 0); if (k > 2.5) { e.noFootIK = false; go('wipe'); }
                 break;
               }
               case 'wipe': {   // lau mồ hôi trán bằng mu bàn tay phải (2 lượt), ngẩng nhìn vòng cỏ vừa cắt

@@ -352,15 +352,15 @@
             for (let i = nl * 2; i < 192; i++) LP.setXYZ(i, 0, -1e4, 0);   // đường dẫn thừa: giấu dưới đất
             LP.needsUpdate = true; H.lead.geometry.setDrawRange(0, nl * 2); H.lead.material.opacity = 0.7 * Math.min(1, act.reduce((m, a) => Math.max(m, a.lab.userData.op), 0));
           }
-          function start(e) {   // gọi 1 lần khi vào pha 'holo': đặt hình trên đầu, hơi về phía xe; trục dài của máy nằm ngang tầm nhìn
+          function start(v) {   // gọi 1 lần khi vào pha 'holo' (v: mặt công khai người xem — head, yaw): đặt hình trên đầu, hơi về phía xe; trục dài của máy nằm ngang tầm nhìn
             while (!warm());   // chưa dựng xong (lệnh tới sớm): dựng nốt ngay
-            const S = caravanObj.scale.x * ENG_AT.s * 3, hd = e.head.getWorldPosition(_a), y = e.g.rotation.y;
+            const S = caravanObj.scale.x * ENG_AT.s * 3, hd = v.head.getWorldPosition(_a), y = v.yaw;
             H.yaw = y + Math.PI / 2; H.base.set(hd.x + Math.sin(y) * 0.2, hd.y + 1.55, hd.z + Math.cos(y) * 0.2);   // trên hẳn bong bóng suy nghĩ (24/10: 0,75 → 1,55 — bong bóng không đè đáy hình)
             H.g.scale.setScalar(S); H.g.position.copy(H.base); H.g.rotation.set(0, H.yaw, 0); H.t = 0; H.on = true; H.done = false; H.cur = H.sub = -1; H.g.visible = H.labG.visible = true; H.dclT = -9;
             return true;
           }
           function stop() { H.on = false; if (H.g) H.g.visible = H.labG.visible = false; declutter(false); if (H.lgv !== undefined) { labelGroup.visible = H.lgv; H.lgv = undefined; } }
-          function tick(e, dt, t) {   // → { look: điểm nhìn, point: điểm chỉ tay | null, part, idx, sub: chi tiết con đang soi | null, sidx } ; H.done khi diễn xong
+          function tick(dt, t) {   // → { look: điểm nhìn, point: điểm chỉ tay | null, part, idx, sub: chi tiết con đang soi | null, sidx } ; H.done khi diễn xong
             if (!H.on) return null; H.t += dt; const u = H.t, D = dur();
             if (H.t - H.dclT > 2) { H.dclT = H.t; declutter(true); }   // giấu nhãn khác (dò lại mỗi 2 s)
             if (H.lgv === undefined) H.lgv = labelGroup.visible; labelGroup.visible = false;   // nhóm nhãn cảnh tắt mỗi khung (nhãn tạo giữa chừng — 'Click' khi zoom gần — cũng ẩn); tắt hình thì trả nút "Nhãn" như cũ

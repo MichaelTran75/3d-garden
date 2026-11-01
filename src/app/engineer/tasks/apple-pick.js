@@ -69,7 +69,7 @@
           function standOK(S, tr) {
             if (isWater(Math.round(x2gi(S.x)), Math.round(z2gj(S.z))) || Math.abs(cowY(S.x, S.z) - tr.base.y) > 0.05) return false;
             for (const o of obstacleCoords) if (Math.hypot(S.x - o.x, S.z - o.z) < o.r + 0.3) return false;
-            for (const o of ENG_PROPS) if (Math.hypot(S.x - o.x, S.z - o.z) < o.r + 0.6) return false;
+            for (const o of PROPS) if (Math.hypot(S.x - o.x, S.z - o.z) < o.r + 0.6) return false;
             return true;
           }
           const plan = (() => {   // chỗ đứng cố định mỗi ngày: quanh gốc cây có nhiều quả với tới nhất
@@ -90,7 +90,7 @@
           if (!plan) { pole.visible = basket.visible = false; return { update() { return true; }, tick() {}, busy: false, pole, basket, avail: () => 0, room: () => 0 }; }
           // chỗ đặt giỏ sau khi hái: trên đất cạnh bàn trà, phía xa ghế cắm trại
           const table = scene.getObjectByName('Bàn trà (Camp Table)');
-          const basketDrop = (() => { const tp = table ? table.position.clone() : pf.clone(); const away = tp.clone().sub(campChairPos).setY(0).normalize(); const p = tp.clone().addScaledVector(away, 0.75); p.y = cowY(p.x, p.z); return p; })();
+          const basketDrop = (() => { const tp = table ? table.position.clone() : pf.clone(); const away = tp.clone().sub(CAMP.chairPos).setY(0).normalize(); const p = tp.clone().addScaledVector(away, 0.75); p.y = cowY(p.x, p.z); return p; })();
           const basketStand = basketDrop.clone().add(plan.S.clone().sub(basketDrop).setY(0).normalize().multiplyScalar(0.62)); basketStand.y = cowY(basketStand.x, basketStand.z);
           const St = { st: 'idle', k: 0, cfg: cfgNew(), c0: cfgNew(), c1: cfgNew(), cur: null, picked: 0, inBasket: [], basketAt: 'home', day: '', handApple: null, cupApple: null, swing: [], eat: null, core: null, lastEatH: -9 };
           const placeBasket = (p, yaw) => { basket.position.copy(p); basket.rotation.set(0, yaw, 0); basket.updateMatrixWorld(true); };
@@ -294,7 +294,7 @@
           // ---- ĂN TÁO (G 18/10 "hái táo thì phải ăn trong ngày"): ra giỏ cạnh bàn trà, ngồi xổm lấy quả trên cùng (tay phải) → về ghế cắm trại → 5 miếng:
           //      đưa lên miệng · cắn · giật nhẹ ra · hạ về đùi · nhai; quả vơi dần (bề ngang ×1 → 0,3), miếng thứ 4 lộ thịt táo màu kem ⇒ còn lõi · ném lõi
           //      theo đường đạn vào miệng lò chiminea. Ngắt giữa chừng: chưa cắn thì trả quả vào giỏ, cắn rồi thì bỏ ----
-          const outV = new THREE.Vector3(Math.sin(caravanObj.rotation.y), 0, Math.cos(caravanObj.rotation.y));   // từ vách xe ra ngoài
+          const outV = new THREE.Vector3(Math.sin(VAN.object.rotation.y), 0, Math.cos(VAN.object.rotation.y));   // từ vách xe ra ngoài
           const eatStand = basketDrop.clone().addScaledVector(outV, 0.58); eatStand.y = cowY(eatStand.x, eatStand.z);   // phía ngoài giỏ, xa bàn trà
           const fleshM = new THREE.MeshLambertMaterial({ color: 0xf2e2b2 });   // thịt táo lộ ra sau mấy miếng cắn
           const EAT_N = 5, EAT_T = 6.5, BITE_SXZ = [1, 0.84, 0.69, 0.55, 0.42, 0.3], BITE_SY = [1, 0.97, 0.95, 0.93, 0.9, 0.86];

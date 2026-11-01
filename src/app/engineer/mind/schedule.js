@@ -1,16 +1,15 @@
         // ---- bàn học trong caravan (nghiên cứu ban ngày, học bài buổi tối): lối giữa → sau ghế → kéo ghế ra → vòng ra trước → ngồi, mở laptop ----
         const engStudyPts = (() => {
-          const ch = caravanObj.userData.interior.study.chair.center, cx = ch[0], cz = ch[1];
-          return { cx, cz, aisle: vanPt(1.30, TR.yIn, 0.12), yaw: caravanObj.rotation.y + Math.PI };   // ghế quay về −Z cục bộ (mặt bàn)
+          const ch = VAN.inside.study.chair.center, cx = ch[0], cz = ch[1];
+          return { cx, cz, aisle: VAN.toWorld(1.30, VAN.dims.yIn, 0.12), yaw: VAN.object.rotation.y + Math.PI };   // ghế quay về −Z cục bộ (mặt bàn)
         })();
         // ghế bàn học: lối đi Transit hẹp ⇒ đứng cạnh ghế, xoay ghế về phía mình, ngồi rồi xoay về bàn (engineer/tasks/van-stations.js stDesk)
         const STUDY_PULL = 0.1, STUDY_FZ = 0.37;   // ghế lùi 10 cm khi xoay (tay vịn khỏi vướng mép bàn)
         const STUDY_SEAT = makeSeat({ name: 'study', indoor: true, pos: new THREE.Vector3(), yaw: engStudyPts.yaw, seatZ: 0, standZ: STUDY_FZ * CAMP_SCALE, contactZ: 0.09,
-          seatDrop: 0.56, legs: [-1.48, -1.44], knees: [0.98, 0.94], arm: null, ground: () => dogInside.y });   // ghế thấp hơn ghế xếp: cẳng chân chếch ra trước dưới gầm bàn
-        function studyChairAt(off, sx = studyChairRig.sx, sw = studyChairRig.sw) {   // ghế văn phòng: lăn dọc trục trước–sau (off) + ngang (sx) (đv xe), xoay mâm sw (rad)
-          const R = studyChairRig; R.off = off; R.sx = sx; R.sw = sw;                  // + cập nhật mô tả ghế (vị trí, hướng) cho bộ điều khiển ngồi: người xoay / lăn theo ghế
-          if (R.obj) { R.obj.position.z = R.home + off; R.obj.position.x = sx; R.swivel.rotation.y = sw; }
-          STUDY_SEAT.pos.copy(vanPt(engStudyPts.cx + sx, TR.yIn, engStudyPts.cz + off));
+          seatDrop: 0.56, legs: [-1.48, -1.44], knees: [0.98, 0.94], arm: null, ground: () => VAN.doorIn.y });   // ghế thấp hơn ghế xếp: cẳng chân chếch ra trước dưới gầm bàn
+        function studyChairAt(off, sx = VAN.studyChair.sx, sw = VAN.studyChair.sw) {   // ghế văn phòng: lăn dọc trục trước–sau (off) + ngang (sx) (đv xe), xoay mâm sw (rad)
+          VAN.studyChair.roll(off, sx, sw);                                             // + cập nhật mô tả ghế (vị trí, hướng) cho bộ điều khiển ngồi: người xoay / lăn theo ghế
+          STUDY_SEAT.pos.copy(VAN.toWorld(engStudyPts.cx + sx, VAN.dims.yIn, engStudyPts.cz + off));
           const y = engStudyPts.yaw + sw, C = STUDY_SEAT; C.yaw = y; C.fx = Math.sin(y); C.fz = Math.cos(y); C.xx = Math.cos(y); C.xz = -Math.sin(y);
         }
         studyChairAt(0);
@@ -38,14 +37,16 @@
           eatApple: { label: 'Ăn táo' },   // giỏ còn táo hái hôm nay: ra giỏ lấy 1 quả, về ghế ăn (engineer/tasks/apple-pick.js eat / eatWant)
           stars: { label: 'Ngắm sao' }, rainwatch: { label: 'Ngắm mưa' }, garden: { label: 'Chăm luống cà rốt' },   // tự chủ đợt 2 (engineer/tasks/sky-watch.js, carrot-garden.js)
           chair: { label: 'Ngồi đọc sách, uống trà' }, wood: { label: 'Bỏ củi vào lò' },   // chỉ theo lệnh bảng Tools / bấm ghế, lò (engineer/tasks/tool-jobs.js)
-          fire: { label: 'Dập / nhóm lửa trại' }   // > 30 °C dập, < 28 °C (hoặc cần nướng cá) nhóm lại (engineer/tasks/campfire-keep.js)
+          fire: { label: 'Dập / nhóm lửa trại' },   // > 30 °C dập, < 28 °C (hoặc cần nướng cá) nhóm lại (engineer/tasks/campfire-keep.js)
+          smoke: { label: 'Nướng cá trong lò chiminea' }   // chỉ theo lệnh bảng Tools: câu 1 con → vỉ lò nướng → chờ chín khói → lấy ra ăn (engineer/tasks/smoker.js smokePhase)
         };
         function engScheduleAt(h) {
           let k = 0; for (let i = 1; i < ENG_DAY.length; i++) if (h >= ENG_DAY[i][0]) k = i;
           const end = k + 1 < ENG_DAY.length ? ENG_DAY[k + 1][0] : 24, n = (k + 1) % ENG_DAY.length;
           return { k, act: ENG_DAY[k][1], end, left: (end - h) * 3600, next: ENG_DAY[n][1], nextEnd: n + 1 < ENG_DAY.length ? ENG_DAY[n + 1][0] : 24 };
         }
-        let engForceAct = null;   // người xem bấm dụng cụ (ui/xray-lifecycle.js): 'drone' (▶ Chơi) · 'apples' (Hái táo) · 'engine' (▶ Khởi động máy) · 'trim' — hoặc bảng Tools (ui/tools-panel.js): + 'stars', 'fish' — làm ngay việc này, xong thì về lịch cũ
+        let engForceAct = null;   // người xem bấm dụng cụ (ui/xray-lifecycle.js): 'drone' (▶ Chơi) · 'apples' (Hái táo) · 'engine' (▶ Khởi động máy) · 'trim' — hoặc bảng Tools (ui/tools-panel.js): + 'stars', 'fish', 'cook' (→ 'lunch' / 'dinner'), 'smoke', 'research' — làm ngay việc này, xong thì về lịch cũ
+        let engForceLast = null, engForceT0 = 0;   // lệnh đang chạy từ lúc nào (nghiên cứu theo lệnh: 20 phút)
         // việc 1-lần đã xong hôm nay: khoá việc@giờ-hết-khung@ngày (G 24/10: tập hợp thay 1 khoá — việc kế xong sớm không xoá dấu việc trước)
         const engDone = (e, key) => e.doneAct === key || (!!e.doneSet && e.doneSet.has(key));
         function engMarkDone(e) { if (!e.onceKey) return; e.doneAct = e.onceKey; (e.doneSet || (e.doneSet = new Set())).add(e.onceKey); }
@@ -61,7 +62,10 @@
           if (ENG_CMD_HOURS[engForceAct] && !engHourOk(ENG_CMD_HOURS[engForceAct], hh)) {   // lệnh ngoài khung giờ (vd ngắm sao trước 19:00 — engineer/mind/hours.js): bỏ; việc đã bắt đầu thì làm nốt
             const started = engForceAct === 'stars' ? skyWatch.busy() : engForceAct === 'garden' ? gardenJob.busy() : engForceAct === 'trim' ? trimJob.busy() : e.phase === 'fish';
             if (!started) engForceAct = null; }
-          if (engForceAct) { const w = liveWeather.state; if ((w.raining && engForceAct !== 'chair' && engForceAct !== 'wood') || (engForceAct === 'drone' && (w.windSpeed || 0) / 3.6 > 9)) engForceAct = null; else { e.actLeft = 900; return engForceAct; } }   // mưa: huỷ việc ngoài trời (ghế dưới bạt, lò thì vẫn làm)
+          if (engForceAct !== engForceLast) { engForceLast = engForceAct; engForceT0 = clock.elapsedTime; }
+          if (engForceAct === 'research' && clock.elapsedTime - engForceT0 > 1200) engForceAct = null;   // nghiên cứu theo lệnh: 20 phút rồi về lịch
+          if (engForceAct) { const w = liveWeather.state, dry = ['chair', 'wood', 'cook', 'lunch', 'dinner', 'research'].includes(engForceAct) || (engForceAct === 'smoke' && (CAMP.grill.st === 'held' || CHIMINEA.oven.fish.ready() >= 0));   // trong xe / dưới bạt / cá đã chín: mưa vẫn làm
+            if ((w.raining && !dry) || (engForceAct === 'drone' && (w.windSpeed || 0) / 3.6 > 9)) engForceAct = null; else { e.actLeft = engForceAct === 'dinner' ? 1200 : 900; return engForceAct; } }   // mưa: huỷ việc ngoài trời · ăn tối theo lệnh: 5 phút ăn
           const s = engScheduleAt(hh); let act = s.act, left = s.left;
           const napping = e.phase === 'nap';   // đang ngủ trưa trên ghế (G 24/10: trước bị gọi dậy chăm luống 4 lần, vuốt chó 1 lần trong 45 phút nghỉ trưa)
           { const fw = napping && !fireJob.busy() ? null : fireWant(e, hh, act); if (fw) { e.actLeft = 600; return fw; } }   // lửa trại theo nhiệt độ: > 30 °C dập · < 28 °C hoặc cá cần nướng thì nhóm (engineer/tasks/campfire-keep.js)
@@ -85,13 +89,14 @@
           const au = autoWant(e, hh, act); if (au) { e.actLeft = Math.max(30, AUTO.until - clock.elapsedTime); return au; }   // tự chủ theo nhu cầu / lệnh bấm thanh (engineer/mind/autonomy.js)
           e.actLeft = Math.max(0, left); return act;
         }
-        const engPhaseFor = act => ENG_ACTS[act].van ? 'van' : act === 'dinner' && grill.st === 'ready' ? 'toGrill' : act === 'dinner' && grill.st !== 'held' && chiminea.oven.fish.ready() >= 0 ? 'toSmokerOut' : act === 'fish' ? 'toFish' : act === 'apples' ? 'apple' : act === 'eatApple' ? 'appleEat' : act === 'drone' ? 'drone' : act === 'engine' ? 'engine' : act === 'trim' ? 'trim' : act === 'stars' ? 'stars' : act === 'rainwatch' ? 'rainwatch' : act === 'garden' ? 'garden' : act === 'wood' ? 'wood' : act === 'fire' ? 'fire' : act === 'pet' ? 'toDog' : act === 'explore' ? 'explore' : act === 'outdoor' ? 'toMast' : act === 'shelter' ? 'toShelter' : 'toChair';
+        const engPhaseFor = act => ENG_ACTS[act].van ? 'van' : act === 'smoke' ? smokePhase() : act === 'dinner' && CAMP.grill.st === 'ready' ? 'toGrill' : act === 'dinner' && CAMP.grill.st !== 'held' && CHIMINEA.oven.fish.ready() >= 0 ? 'toSmokerOut' : act === 'fish' ? 'toFish' : act === 'apples' ? 'apple' : act === 'eatApple' ? 'appleEat' : act === 'drone' ? 'drone' : act === 'engine' ? 'engine' : act === 'trim' ? 'trim' : act === 'stars' ? 'stars' : act === 'rainwatch' ? 'rainwatch' : act === 'garden' ? 'garden' : act === 'wood' ? 'wood' : act === 'fire' ? 'fire' : act === 'pet' ? 'toDog' : act === 'explore' ? 'explore' : act === 'outdoor' ? 'toMast' : act === 'shelter' ? 'toShelter' : 'toChair';
         function engChairPhase(e, act) {   // đã ngồi ghế cắm trại: làm gì, bao lâu
-          if (act === 'dinner' && grill.st === 'held') { e.timer = e.eatLen = 76; return 'eatFish'; }   // cầm que cá nướng về: ăn cá trước (8 miếng), rồi mới ăn cơm chiên
+          if (act === 'dinner' && CAMP.grill.st === 'held') { e.timer = e.eatLen = 76; return 'eatFish'; }   // cầm que cá nướng về: ăn cá trước (8 miếng), rồi mới ăn cơm chiên
           if (act === 'lunch' || act === 'dinner') { e.timer = Math.max(60, Math.min(1200, e.actLeft - 900)); return 'eat'; }
           if (act === 'rest') { e.timer = Math.max(30, Math.min(720, e.actLeft - 1200)); return 'tea'; }
           if (act === 'read') return 'read';
-          if (act === 'chair') { e.timer = 600; e.rtK = 25; e.rtTea = false; return 'read'; }   // Tools "Ghế cắm trại": đọc sách xen uống trà 10 phút (chairTea, engineer/tasks/tool-jobs.js)
+          if (act === 'chair') { e.timer = 600; e.rtK = 25; e.rtTea = false; return 'read'; }
+          if (act === 'smoke') { if (CAMP.grill.st === 'held') { e.timer = e.eatLen = 76; return 'eatFish'; } e.timer = 45; return 'tea'; }   // nướng cá theo lệnh: cầm cá khói thì ăn · cá còn trong lò thì uống trà chờ (45 s xem lại lò)   // Tools "Ghế cắm trại": đọc sách xen uống trà 10 phút (chairTea, engineer/tasks/tool-jobs.js)
           if (act === 'shelter') return 'shelter';
           e.timer = 150; return 'tea';   // dạo trại: ngồi nghỉ chân uống trà
         }
@@ -106,16 +111,16 @@
           if (A.van) {
             const V = e.van = engVanNew('hall'); e.inVan = true; V.act = act; V.plan = A.plan || []; V.idx = 0;
             const at = (node, station, st) => { V.node = node; V.station = station; V.st = st; };
-            if (act === 'research' || act === 'music') { studyChairAt(0, 0, 0); e.seat = engNewSeat(STUDY_SEAT, 'seated'); at('mid', 'desk', 'work'); studyLaptop.open = 1; }
+            if (act === 'research' || act === 'music') { studyChairAt(0, 0, 0); e.seat = engNewSeat(STUDY_SEAT, 'seated'); at('mid', 'desk', 'work'); VAN.laptop.lidNow(1); }
             else if (act === 'breakfast' || act === 'lunch') {
               stoolAt(STOOL_IN); e.seat = engNewSeat(STOOL_SEAT, 'seated'); at('tbl', 'table', 'eat');
               e.dish = { kind: act === 'lunch' ? 'udon' : 'cereal', at: 'table', food: 1 }; V.t0 = clock.elapsedTime; V.f0 = 1; V.dur = Math.max(90, Math.min(act === 'lunch' ? 900 : 720, e.actLeft - 150));
             }
             else if (act === 'cook') { at('stove', 'stove', null); e.g.position.set(VN.stove.x, VAN_FLOOR - ENG_FEET, VN.stove.z); e.g.rotation.set(0, VY.pz, 0); }
             else if (act === 'bedtime') { e.seat = engNewSeat(BED_SEAT, 'seated'); at('bed', 'bed', 'seated'); V.k = 3; engHelmet(e, 'bed'); }
-            else if (act === 'toilet') { e.seat = engNewSeat(TOILET_SEAT, 'seated'); LID.k = LID.target = 1; at('wcIn', 'wc', 'seated'); V.until = clock.elapsedTime + Math.max(30, Math.min(240, e.actLeft - 75)); }
+            else if (act === 'toilet') { e.seat = engNewSeat(TOILET_SEAT, 'seated'); VBATH.lidNow(1); at('wcIn', 'wc', 'seated'); V.until = clock.elapsedTime + Math.max(30, Math.min(240, e.actLeft - 75)); }
             else if (act === 'shower') {
-              engHelmet(e, 'shelf'); at('wcIn', 'shower', 'wash'); V.idx = 1; V.until = clock.elapsedTime + Math.max(60, Math.min(600, e.actLeft - 130)); showerFx.on = true; showerFx.steam = 0.6;
+              engHelmet(e, 'shelf'); at('wcIn', 'shower', 'wash'); V.idx = 1; V.until = clock.elapsedTime + Math.max(60, Math.min(600, e.actLeft - 130)); VBATH.shower(true); VBATH.steamNow(0.6);
               e.g.position.set(SHOWER_SPOT.x, VAN_FLOOR - ENG_FEET, SHOWER_SPOT.z); e.g.rotation.set(0, VY.nz, 0);
             }
           } else if (act === 'dinner' || act === 'rest' || act === 'read' || act === 'shelter') {

@@ -1,6 +1,6 @@
         // ---- electrical substation and distribution lines ----
         let substationAnim = null;
-        function worldCell(oi, oj, y = 0) { const i = oi * S, j = oj * S; return new THREE.Vector3(wx(i), surfaceY(i, j) + y, wz(j)); }
+        // worldCell (ô gốc → điểm trên mặt đất) ở core/helpers.js
         function poleBadgeTex(txt) {
           const c = document.createElement('canvas'); c.width = 128; c.height = 128; const x = c.getContext('2d');
           x.clearRect(0, 0, 128, 128);

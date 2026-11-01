@@ -27,7 +27,7 @@
         }
         // mỗi khung khi ngủ (trước engPoseEnd): đích khớp, gốc nằm trên nệm, tay đặt theo điểm, thở, cử động nhỏ, mặt ngủ
         function engSleepTick(e, dt, t, hh) {
-          const I = caravanObj.userData.interior, S = e.g.scale.x, night = hh >= 21 ? hh : hh + 24, day = Math.floor(Date.now() / 864e5) - (hh < 12 ? 1 : 0);   // 1 dãy tư thế cho cả đêm (qua nửa đêm vẫn là đêm hôm trước)
+          const I = VAN.inside, S = e.g.scale.x, night = hh >= 21 ? hh : hh + 24, day = Math.floor(Date.now() / 864e5) - (hh < 12 ? 1 : 0);   // 1 dãy tư thế cho cả đêm (qua nửa đêm vẫn là đêm hôm trước)
           if (SLEEP.day !== day) { SLEEP.day = day; SLEEP.plan = sleepPlan(day); }
           const P = SLEEP.plan; let i = 0; while (i + 1 < P.length && P[i + 1][0] <= night) i++;
           const cur = SLEEP_POSE[P[i][1]], prev = SLEEP_POSE[i ? P[i - 1][1] : P[i][1]], k = Math.min(1, (night - P[i][0]) * 900);   // trở mình 4 s
@@ -53,18 +53,18 @@
           for (let j = 0; j < 2; j++) { const h = Q.hand[j]; H[j].set(h[0], h[1] + 0.015 * br + (mk === 1 && j === 0 ? 0.08 * mv : 0) + (j === 1 ? 0.03 * tw : 0), h[2]); e.g.localToWorld(H[j]); R[j] = H[j]; }
           const U = e.g.userData; if (U.face && U.face.mat.map !== U.face.sleep) { U.face.mat.map = U.face.sleep; U.face.mat.needsUpdate = true; }
           if (U.torso) { U.torso.scale.set(1 + 0.012 * br, 1, 1 + 0.03 * br); }
-          if (I.duvet.visible) I.duvet.visible = false;
+          if (VAN.bed.duvetOn) VAN.bed.duvet(false);
         }
         // cuối khung khi ngủ (sau IK tay): chăn phủ theo thân đã hiển thị
         function engSleepPost(e) {
-          const I = caravanObj.userData.interior, B = SLEEP.blanket || (SLEEP.blanket = sleepBlanket(I));
+          const I = VAN.inside, B = SLEEP.blanket || (SLEEP.blanket = sleepBlanket(I));
           B.mesh.visible = true; e.g.updateMatrixWorld(true);
-          const S = e.g.scale.x, v = SLEEP._v, side = Math.abs(Math.cos(e.g.rotation.x)), lp = (o) => caravanObj.worldToLocal(o.getWorldPosition(new THREE.Vector3()));
+          const S = e.g.scale.x, v = SLEEP._v, side = Math.abs(Math.cos(e.g.rotation.x)), lp = (o) => VAN.object.worldToLocal(o.getWorldPosition(new THREE.Vector3()));
           const hipC = lp(e.legs[0]).add(lp(e.legs[1])).multiplyScalar(0.5), shC = lp(e.arms[0]).add(lp(e.arms[1])).multiplyScalar(0.5);
           const brk = 1 + 0.035 * (SLEEP.br || 0);
           const caps = [[hipC, shC, S * (0.15 + 0.1 * side) * brk, S * (0.27 - 0.12 * side)]];   // thân: [A, B, nửa cao, nửa rộng]
           for (let j = 0; j < 2; j++) {   // chân khối vuông 0,26 × 0,27: góc khối cách trục 0,19 ⇒ bán kính phủ 0,19 · giày: cổ chân → mũi giày
-            const kn = lp(e.knees[j]), an = lp(e.ankles[j]), toe = caravanObj.worldToLocal(e.ankles[j].localToWorld(new THREE.Vector3(0, -0.04, 0.22)));
+            const kn = lp(e.knees[j]), an = lp(e.ankles[j]), toe = VAN.object.worldToLocal(e.ankles[j].localToWorld(new THREE.Vector3(0, -0.04, 0.22)));
             caps.push([lp(e.legs[j]), kn, 0.19 * S, 0.19 * S], [kn, an, 0.185 * S, 0.185 * S], [an, toe, 0.13 * S, 0.15 * S]);
           }
           const { NX, NZ, x0, z0, zF, Wb, OV } = B, pos = B.geo.attributes.position, hgt = B.h, x1 = shC.x + 0.04;
@@ -92,43 +92,43 @@
           geo.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array((NX + 1) * (NZ + 1) * 3), 3));
           for (let iz = 0; iz < NZ; iz++) for (let ix = 0; ix < NX; ix++) { const a = iz * (NX + 1) + ix; idx.push(a, a + NX + 1, a + 1, a + 1, a + NX + 1, a + NX + 2); }
           geo.setIndex(idx);
-          const mat = I.duvetMat.clone(); mat.side = THREE.DoubleSide;
+          const mat = VAN.bed.duvetMat.clone(); mat.side = THREE.DoubleSide;   // may chăn đắp riêng từ vải chăn của giường
           const mesh = new THREE.Mesh(geo, mat); mesh.name = 'Chăn đắp khi ngủ'; mesh.castShadow = mesh.receiveShadow = true; mesh.frustumCulled = false; mesh.userData.noBatch = mesh.userData.noBake = true; mesh.visible = false;
-          caravanObj.add(mesh);
+          VAN.mount(mesh);
           return { mesh, geo, NX, NZ, x0, z0, zF, Wb, OV, h: new Float32Array((NX + 1) * (NZ + 1)) };
         }
         function engSleepEnd(e) {   // dậy (06:00) hoặc rời giường: mặt thức, thân thở về 1, chăn gấp lại cuối giường
-          const I = caravanObj.userData.interior, U = e.g.userData;
+          const U = e.g.userData;
           if (U.face && U.face.mat.map !== U.face.awake) { U.face.mat.map = U.face.awake; U.face.mat.needsUpdate = true; }
           if (U.torso) U.torso.scale.set(1, 1, 1);
           e.ankles[0].rotation.x = e.ankles[1].rotation.x = 0;
           if (SLEEP.blanket) SLEEP.blanket.mesh.visible = false;
-          I.duvet.visible = true;
+          VAN.bed.duvet(true);
         }
         // ---- NGỦ ĐÊM (21:45 – 06:00, engineer/mind/hours.js): bộ điều phối engineer/mind/loop-update.js gọi mỗi khung — lên giường trong xe (lần đầu: cất mũ, khăn,
         //  đồ cầm tay, đóng cửa phòng tắm, tắt nước), tư thế ngủ / trở mình engSleepTick, Zzz bay lên, bảng đếm giờ thức (chỉ vẽ lại khi chuỗi đổi) ----
         function engNightTick(e, dt, t, hh) {
-          resetFishingBite(); engForceAct = null; studyLaptop.target = 0; e.seat = null; e.act = 'sleep'; e.phase = 'van'; e.inVan = true; e.van = null; e.enter = null;
-          if (studyChairRig.off || studyChairRig.sw) studyChairAt(0, 0, 0);   // (đã đẩy ghế vào trước khi lên giường)
-          if (e.g.parent !== caravanObj) {
-            caravanObj.add(e.g);
+          resetFishingBite(); engForceAct = null; VAN.laptop.lid(0); e.seat = null; e.act = 'sleep'; e.phase = 'van'; e.inVan = true; e.van = null; e.enter = null;
+          if (VAN.studyChair.off || VAN.studyChair.sw) studyChairAt(0, 0, 0);   // (đã đẩy ghế vào trước khi lên giường)
+          if (e.g.parent !== VAN.object) {
+            VAN.mount(e.g);
             e.g.scale.setScalar(ENGINEER_BASE_SCALE); // The scaled van supplies the single 0.90 factor while sleeping.
-            e.g.position.fromArray(caravanObj.userData.interior.sleepPosition);   // tư thế nằm, chăn, thở, trở mình: engSleepTick (engineer/tasks/sleep.js)
+            e.g.position.fromArray(VAN.inside.sleepPosition);   // tư thế nằm, chăn, thở, trở mình: engSleepTick (engineer/tasks/sleep.js)
             e.arms[0].rotation.set(0, 0, 0); e.arms[1].rotation.set(0, 0, 0);
-            e.rodGrp.visible = false; groundRod.visible = true;
+            e.rodGrp.visible = false; CAMP.restRod(true);
             checkBubbleSprite.visible = false;
             // ngủ: mũ để cuối giường, khăn trên giá, đồ cầm tay cất, ghế đẩu kéo ra, cửa phòng tắm & nắp bồn cầu đóng, tắt nước
-            engHelmet(e, 'bed'); e.towel.visible = false; VBATH.towel.visible = true;
-            e.dish = null; kitchenReset(); engDishShow(e);
+            engHelmet(e, 'bed'); e.towel.visible = false; VBATH.towel(true);
+            e.dish = null; VKIT.reset(); engDishShow(e);
             for (const k in e.props) e.props[k].visible = false; if (e.clip) e.clip.visible = false;
-            stoolAt(VSTOOL.rest); VAN_DOORS.entry.target = VAN_DOORS.wc.target = 0; LID.target = 0; showerFx.on = false; VBATH.tapWater.visible = false; chipsBag.visible = false;
+            stoolAt(VSTOOL.rest); VAN_DOORS.entry.want(0); VBATH.lid(0); VBATH.shower(false); VBATH.tap(false); chipsBag.visible = false;
           }
           engSleepTick(e, dt, t, hh);
           fishLine.visible = false; bobber.visible = false;
           zzzGroup.visible = true;
           for (const z of zzzs) {
             const p = (t * 0.42 + z.ph) % 1.0;
-            z.m.position.set(caravanObj.userData.interior.sleepHead[0] + Math.sin(t * 1.8 + z.ph) * 0.25, caravanObj.userData.interior.sleepHead[1] + p * 3.6, caravanObj.userData.interior.sleepHead[2]);
+            z.m.position.set(VAN.inside.sleepHead[0] + Math.sin(t * 1.8 + z.ph) * 0.25, VAN.inside.sleepHead[1] + p * 3.6, VAN.inside.sleepHead[2]);
             z.m.material.opacity = (1 - p) * 0.85;
             z.m.scale.setScalar((0.5 + p * 0.95) * 1.2);
           }

@@ -1,16 +1,10 @@
-        // ====== khu cắm trại của kỹ sư: caravan + ghế xếp câu cá bên bờ tây hồ hạ lưu ======
-        // dời cả cụm câu cá (ghế · đèn · kỹ sư · caravan · lửa · phao · chó) về tọa độ góc (75, _, 99)
-        const _ofI = x2gi(X0 + 74) / S - 27.3, _ofJ = z2gj(Z0 + 103) / S - 30.5;   // offset cell so với ghế gốc → cụm ở (74, _, 103)
-        const _rot = 35 * Math.PI / 180;   // xoay cụm ngược chiều kim đồng hồ 35°, lấy ghế làm tâm
-        const _rc = (oi, oj) => { const di = oi - 27.3, dj = oj - 30.5, c = Math.cos(_rot), s = Math.sin(_rot); return [27.3 + di * c - dj * s + _ofI, 30.5 + di * s + dj * c + _ofJ]; };
-        const CHAIR_CELL = _rc(27.3, 30.5), CARAVAN_CELL = _rc(23, 33);
-        const _bc = _rc(29.4, 30.2); const bobberBase = worldCell(_bc[0], _bc[1]); bobberBase.y = lakeY + 0.05;   // phao nổi giữa mặt hồ, trước mặt kỹ sư
+        // ====== kỹ sư ở khu cắm trại: caravan + ghế xếp câu cá bên bờ tây hồ hạ lưu (ô ghế CHAIR_CELL, phao bobberBase: core/site.js) ======
         const engObj = (() => {
           const g = engineer();
           const wp = [_rc(20, 32), _rc(24, 30.5), _rc(26.4, 29.7), CHAIR_CELL, _rc(22, 29)].map(c => worldCell(c[0], c[1]));  // [2]=cột khí tượng · [3]=ghế câu cá
           obstacleCoords.push({ x: wp[2].x, y: wp[2].y, z: wp[2].z, r: 2.0, h: 12 });
           g.position.copy(wp[0]); g.position.y -= ENG_FEET; g.name = 'Engineer'; g.rotation.order = 'YXZ'; scene.add(g);   // YXZ: quay hướng trước, nghiêng người theo thân sau
-          const chairW = wp[3], faceWater = Math.atan2(bobberBase.x - chairW.x, bobberBase.z - chairW.z);
+          const chairW = wp[3], faceWater = FISH_FACE;   // hướng ghế câu ra phao (core/site.js)
           return {
             g, elbows: g.userData.elbows, wrists: g.userData.wrists, spine: g.userData.spine, legs: g.userData.legs, knees: g.userData.knees, ankles: g.userData.ankles, arms: g.userData.arms, head: g.userData.head,
             rodGrp: g.userData.rodGrp, rodTilt: g.userData.rodTilt, rodTip: g.userData.rodTip, rod: g.userData.rod, clip: g.userData.clip, props: g.userData.props,

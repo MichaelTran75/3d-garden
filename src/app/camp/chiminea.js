@@ -102,7 +102,7 @@
           const needle = new THREE.Group(); needle.position.set(0, DH / 2 - 0.045, 0.017); needle.userData.noBake = true; odoor.add(needle);
           const nd = new THREE.Mesh(new THREE.BoxGeometry(0.003, 0.024, 0.002), new THREE.MeshBasicMaterial({ color: 0xb3261e })); nd.position.y = 0.011; needle.add(nd);
           // G 24/10 khuya "đặt ấm đun nước lên trên bề mặt chiminea, em remove cái ống pipe kết nối 2 box": bỏ ống dẫn nhiệt đồng + núm van gió; ẤM REO (campKettle,
-          //  dời từ giá treo bếp lửa) ngồi giữa nóc phẳng lò nướng, vòi chĩa ra phía ngoài; hơi phụt khỏi còi theo lửa lò (loop/main-loop.js)
+          //  dời từ giá treo bếp lửa) ngồi giữa nóc phẳng lò nướng, vòi chĩa ra phía ngoài; hơi phụt khỏi còi theo lửa lò (campfireTick, camp/chairs-lantern-fire.js)
           const ket = campKettle(); ket.scale.setScalar(0.2); ket.position.set(OX, YB + H, 0); ket.rotation.y = OS > 0 ? 0.4 : Math.PI + 0.4; g.add(ket);
           ket.updateMatrix(); const kTip = new THREE.Vector3(0.93, 1.03, 0.07).applyMatrix4(ket.matrix), kDir = new THREE.Vector3(0.77, 0, 0).applyQuaternion(ket.quaternion);
           const kSteam = new THREE.Group(); kSteam.userData.noBake = true; kSteam.position.copy(kTip); g.add(kSteam);
@@ -186,3 +186,5 @@
             if (smoke.on) { g.localToWorld(smoke.base.set(0, smokeTop, 0)); smoke.heat = 0.5 + 0.7 * L; smoke.smoke = 0.5 + 1.5 * L; smoke.rate = 0.15 + 0.7 * L; smoke.draft = 0.6 + 0.9 * L; plumeLight(smoke, PLUME_COL.smoke, PLUME_COL.steam, _plumeGlow.setRGB(0, 0, 0)); }
           } };
         })();
+        worldFace('chiminea', chiminea);   // MẶT CÔNG KHAI (core/world.js): CHIMINEA — g, oven, lit, fuel, door, smoke, addWood(), see(), update()
+        worldTick('things', 30, (dt, t) => chiminea.update(dt, t));   // MỖI KHUNG (sổ tick core/world.js): mưa ⇒ lửa chuyển sang lò, lò nướng nóng / nguội, cá hun, khói ống

@@ -1,6 +1,7 @@
         // ---- DETAILED hydro power station (spans the river) ----
         const fallBlocks = [], tailJets = [], sprayBits = [], rainbowMats = [], damIMs = [], damMist = [];
         let damRainbow = null;   // cầu vồng chân đập (đậm nhạt theo mặt trời)
+        let damPH = null;   // nhà máy (khoang 4): nhóm vỏ mờ 25% + số đo cục bộ đập — tổ máy thủy điện dựng trong đó (world/hydro-turbine.js)
         // Mặt đi được trên đập (toạ độ thế giới): đỉnh đập + 2 dốc nối bờ + chiếu nghỉ. Mỗi đoạn: x0..x1, at(x) → tâm z, nửa bề rộng, cao độ mặt.
         // Bò dùng làm cầu qua sông; ngoài mép (lan can) có dải cấm để không ai "xuyên lan can" nhảy xuống bờ.
         const damWalk = [], damExits = [];
@@ -133,15 +134,25 @@
               const rope = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, d.length(), 4), metalMat); rope.position.copy(A).add(B).multiplyScalar(0.5); rope.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize()); g.add(rope); }
           }
           // ---- NHÀ MÁY LÒNG SÔNG (khoang 4): khối cửa lấy nước + gian máy, lưới chắn rác thượng lưu, cửa ống hút hạ lưu, cầu trục gian máy ----
+          //  G 31/10 tối "đặt turbine vào đập nước, simulate cách turbine chạy; chỗ building structure để turbine: làm cho vùng đó 75% transparent": khối cửa lấy nước,
+          //  phần dưới (buồng xoắn / ống hút), gian máy, mái, kính, cửa ra nhóm riêng 'ph' — vật liệu riêng mờ 25% (không ghi độ sâu, không đổ bóng, không gộp / bake),
+          //  nét viền giữ 100%. Tổ máy Francis trục đứng + buồng xoắn + ống áp lực + ống hút dựng trong đó (world/hydro-turbine.js). Cửa ống hút hạ xuống chìm
+          //  dưới mực nước hạ lưu (miệng ống hút thật luôn ngập): y 1,4…2,4 (cũ 3,19…4,19 nhô trên mặt nước 3,0)
           {
             const xa = x0 + bayPitch * PH + pierW, xb = x0 + Wd, w = xb - xa, xm = (xa + xb) / 2;
-            prism([[-faceZ, 0], [-faceZ, Hd], [faceZ, Hd], [faceZ, 0]], xa, xb, concreteMat);   // khối cửa lấy nước
-            const sub = bx(w, sillY + 0.6, 5.6, concreteMat, true, true, lineDark); sub.position.set(xm, (sillY + 0.6) / 2, faceZ + 2.8); g.add(sub);   // phần dưới nước: buồng xoắn / ống hút
-            const hall = bx(w - 0.4, 4.2, 5.0, concreteMat, true, true, lineDark); hall.position.set(xm, sillY + 0.6 + 2.1, faceZ + 2.7); g.add(hall); hall.name = 'Nhà máy thủy điện (Powerhouse)';
-            const roof = bx(w + 0.2, 0.3, 5.6, concreteDark, true, true, lineDark); roof.position.set(xm, sillY + 0.6 + 4.35, faceZ + 2.7); g.add(roof);
-            for (let k = 0; k < 4; k++) { const win = bx(0.9, 1.6, 0.05, gateMat, false, false); win.position.set(xa + 0.9 + k * (w - 1.8) / 3, sillY + 0.6 + 2.6, faceZ + 5.21); g.add(win); }   // dải cửa kính gian máy
-            const door = bx(2.2, 2.6, 0.06, warningMat, false, false, lineDark); door.position.set(xm, sillY + 0.6 + 1.3, faceZ + 0.21 + 5.0 - 5.0); g.add(door);
-            for (const sx of [-1, 1]) { const dt = bx(1.7, 1.0, 0.08, lineDark, false, false); dt.position.set(xm + sx * w / 4, sillY + 0.15, faceZ + 5.61); g.add(dt); }   // 2 cửa ống hút (tổ máy bóng đèn)
+            const ph = new THREE.Group(); ph.name = 'Nhà máy thủy điện (Powerhouse)'; ph.userData.noBake = ph.userData.noBatch = true; g.add(ph);
+            const seeM = c => new THREE.MeshLambertMaterial({ color: c, transparent: true, opacity: 0.25, depthWrite: false });
+            const phConc = seeM(concreteMat.color), phDark = seeM(concreteDark.color), phGlass = seeM(0x7d93a6), phDoor = seeM(warningMat.color), phHole = seeM(0x10161c);
+            phGlass.opacity = phDoor.opacity = 0.35;
+            const see = m => { m.castShadow = false; m.receiveShadow = false; m.renderOrder = 1; ph.add(m); return m; };
+            const intake = prism([[-faceZ, 0], [-faceZ, Hd], [faceZ, Hd], [faceZ, 0]], xa, xb, phConc); see(intake); intake.name = 'Khối cửa lấy nước (Intake)';   // khối cửa lấy nước
+            const sub = bx(w, sillY + 0.6, 5.6, phConc, false, true, lineDark); sub.position.set(xm, (sillY + 0.6) / 2, faceZ + 2.8); see(sub); sub.name = 'Phần dưới nhà máy (Substructure)';   // phần dưới nước: buồng xoắn / ống hút
+            const hall = bx(w - 0.4, 4.2, 5.0, phConc, false, true, lineDark); hall.position.set(xm, sillY + 0.6 + 2.1, faceZ + 2.7); see(hall); hall.name = 'Gian máy (Generator Hall)';
+            const roof = bx(w + 0.2, 0.3, 5.6, phDark, false, true, lineDark); roof.position.set(xm, sillY + 0.6 + 4.35, faceZ + 2.7); see(roof);
+            for (let k = 0; k < 4; k++) { const win = bx(0.9, 1.6, 0.05, phGlass, false, false); win.position.set(xa + 0.9 + k * (w - 1.8) / 3, sillY + 0.6 + 2.6, faceZ + 5.21); see(win); }   // dải cửa kính gian máy
+            const door = bx(2.2, 2.6, 0.06, phDoor, false, false, lineDark); door.position.set(xm, sillY + 0.6 + 1.3, faceZ + 0.21 + 5.0 - 5.0); see(door);
+            for (const sx of [-1, 1]) { const dt = bx(1.7, 1.0, 0.08, phHole, false, false); dt.position.set(xm + sx * w / 4, 1.9, faceZ + 5.61); see(dt); }   // 2 cửa ống hút (ống hút chia đôi bởi trụ giữa), chìm dưới mặt nước hạ lưu
+            damPH = { g, ph, xa, xb, xm, w, faceZ, zAx: faceZ + 2.7, sillY, Hd, subTop: sillY + 0.6, outY: 1.9, outZ: faceZ + 5.6, outX: w / 4, z0: -faceZ, z1: faceZ + 5.6, mats: [phConc, phDark, phGlass, phDoor, phHole] };
             const rack = new THREE.Group(); rack.position.set(xm, 0, -faceZ - 0.06); g.add(rack);   // lưới chắn rác: khung + thanh đứng dày
             const fr = bx(w - 0.6, 0.18, 0.12, gateMat, true, false); fr.position.y = resTopY - 0.1; rack.add(fr); const fr2 = fr.clone(); fr2.position.y = 1.4; rack.add(fr2);
             for (let k = 0; k <= 22; k++) { const bar = bx(0.04, resTopY - 1.5, 0.1, gateMat, false, false); bar.position.set(-(w - 0.8) / 2 + k * (w - 0.8) / 22, (resTopY + 1.3) / 2, 0); rack.add(bar); }
@@ -186,3 +197,45 @@
           bakeStatic(g);   // gộp ~100 mesh tĩnh của đập (tường·trụ pin·lan can·cẩu trục·tháp lấy nước) — nước/cầu vồng noBake giữ động
         })();
 
+        // MỖI KHUNG (loop/main-loop.js, sau rô-to tua-bin): nước tràn mặt ogee, màn nước, bọt bể tiêu năng, tia xả + bụi nước hạ lưu theo gió — dời nguyên văn khỏi vòng lặp (G 01/11)
+        function damWaterTick(t) {
+          const dox = damMist.length ? damMist[0].wx : 0, doz = damMist.length ? damMist[0].wz : 0;
+          for (const f of fallBlocks) {   // bọt/màn nước = instance: compose ma trận vào scratch rồi setMatrixAt (85 mesh lẻ → 4 draw call)
+            const p = (t * 0.16 + f.ph) % 1, P = f.path;
+            if (p < 0.62) {   // trượt bám mặt tràn ogee (world/hydro-dam.js path: dãy (z, y) từ mép cửa van tới đáy bể), nghiêng theo độ dốc mặt
+              const u = (p / 0.62) ** 1.35 * (P.length - 1), i = Math.min(P.length - 2, u | 0), k = u - i, A = P[i], B = P[i + 1];
+              _dmP.set(f.x, A[1] + (B[1] - A[1]) * k, A[0] + (B[0] - A[0]) * k);
+              _dmQ.setFromEuler(_dmE.set(Math.atan2(A[1] - B[1], B[0] - A[0]), 0, 0)); _dmS.set(1, 1 + k * 0.1, 1);
+            } else if (!f.foam) {   // màn nước: trườn phẳng dưới mặt nước hạ lưu về ngưỡng cuối, mỏng dần
+              const k = (p - 0.62) / 0.38; _dmP.set(f.x, downY - 0.32, f.toeZ + 0.3 + k * 4.8); _dmQ.identity(); _dmS.set(1, Math.max(0.05, 0.45 * (1 - k)), 1);
+            } else {   // bọt: nước nhảy trong bể tiêu năng: cuộn lên mặt nước hạ lưu rồi trôi về ngưỡng cuối, gió làm dạt bọt
+              const k = (p - 0.62) / 0.38, smK = Math.sin(k * Math.PI * 0.5);
+              windAt(dox + f.x, downY + 1, doz + f.toeZ, 1, _plA);
+              _dmP.set(f.x + _plA.x * k * 0.4 + Math.sin(f.ph * 40 + k * 6) * 0.3, downY - 0.25 + Math.sin(k * Math.PI) * 0.75, f.toeZ + 0.4 + k * 4.6 + _plA.z * k * 0.4);
+              _dmQ.setFromEuler(_dmE.set(-0.6 + k * 1.4, k * 2, 0)); _dmS.set(1 + smK * 0.3, 1 - smK * 0.35, 1 + smK * 0.3);
+            }
+            f.im.setMatrixAt(f.id, _dmM.compose(_dmP, _dmQ, _dmS));
+          }
+          _dmQ.identity();
+          // bọt mặt nước trôi lệch theo gió mặt nước
+          for (const j of tailJets) { const p = (t * (j.sp * 0.5) + j.ph) % 1; windAt(dox + j.x, j.y, doz + j.z0 + p * j.len, 0.5, _plA); _dmP.set(j.x + Math.sin(t * 1.0 + j.ph * 6) * 0.5 + _plA.x * p * 1.2, j.y + Math.sin(p * 3.14159) * 0.25, j.z0 + p * j.len + _plA.z * p * 1.2); _dmS.setScalar(j.sc * Math.max(0.08, Math.sin(p * 3.14159))); j.im.setMatrixAt(j.id, _dmM.compose(_dmP, _dmQ, _dmS)); }   // nước xả hạ lưu chậm 1/2
+          // màn hơi chân đập & bụi nước: bị gió (độ cao ~3 đv, gồm cơn giật) đẩy lệch; đập không xoay nên trục cục bộ = thế giới
+          for (const s of sprayBits) { const a = (t * (s.sp * 0.5) + s.ph) % 1, kk = Math.sin(a * 3.14159); windAt(dox + s.x, s.y0 + kk * s.h, doz + s.z, 1 + kk * s.h, _plA); _dmP.set(s.x + Math.sin(t * 1.2 + s.ph * 7) * 0.3 + _plA.x * a * 1.4, s.y0 + kk * s.h + _plA.y * a * 0.5, s.z + _plA.z * a * 1.4); _dmS.setScalar(s.r * (0.5 + 0.7 * kk)); s.im.setMatrixAt(s.id, _dmM.compose(_dmP, _dmQ, _dmS)); }
+          for (const im of damIMs) im.instanceMatrix.needsUpdate = true;
+        }
+
+        // MỖI KHUNG (loop/main-loop.js, sau mặt nước): cầu vồng bụi nước chân đập theo độ cao mặt trời, mây, sét, gió — dời nguyên văn khỏi vòng lặp (G 01/11)
+        function damRainbowTick() {
+          if (rainbowMats.length && damRainbow) {
+            // CẦU VỒNG = ánh nắng khúc xạ–phản xạ trong giọt bụi nước, cung tròn 42° quanh điểm ĐỐI MẶT TRỜI: chỉ có khi có nắng trực tiếp,
+            // đậm nhất lúc mặt trời thấp (sáng/chiều), nhạt dần khi mặt trời lên cao và biến mất khi cao hơn 42° (đỉnh cung chìm dưới chân trời);
+            // mây dày che nắng thì nhạt. Mặt cung luôn quay về phía mặt trời, tâm cung hạ thấp khi mặt trời lên cao (cung còn nửa vòng nhỏ hơn).
+            const e = Math.asin(Math.max(-1, Math.min(1, sunElevSin))) * 180 / Math.PI, sm = (a, b, x) => { const k = Math.max(0, Math.min(1, (x - a) / (b - a))); return k * k * (3 - 2 * k); };
+            const w = liveWeather.state, cur = w.fresh ? w.data?.current : null, cloud = cur && Number.isFinite(cur.cloud_cover) ? cur.cloud_cover / 100 : 0.3;
+            const vis = sm(0, 4, e) * (1 - sm(30, 42, e)) * (1 - 0.85 * cloud) * (w.thunder ? 0.3 : 1) * (0.7 + 0.3 * Math.min(1, sceneWind.k + 0.4));
+            for (const mat of rainbowMats) mat.opacity = 0.45 * vis;
+            damRainbow.visible = vis > 0.01;
+            const sx = _wp.x, sz = _wp.z; if (Math.hypot(sx, sz) > 1e-3) damRainbow.rotation.y = Math.atan2(sx, sz);
+            damRainbow.position.y = damRainbow.userData.baseY - 5.6 * Math.max(0, e) / 42;
+          }
+        }

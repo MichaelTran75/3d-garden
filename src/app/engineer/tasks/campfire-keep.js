@@ -11,10 +11,10 @@
         // đang dở việc (trong xe, đang ăn, đang cầm dụng cụ việc khác): làm xong mới ra — ban ngày lửa chỉ còn 5% than, chờ vài phút không sao
         const FIRE_WAIT = new Set(['sleep', 'shower', 'toilet', 'cook', 'breakfast', 'lunch', 'snack', 'dinner', 'eatApple', 'drone', 'engine', 'trim', 'garden', 'apples', 'wood']);
         function fireNeed() {   // 'douse' · 'light' · 'small' · null
-          const T = liveWeather.state.temperature ?? 24, cooking = grill.st === 'cooking';
-          if (!campFire.out && campRain.heat > 0.15 && T > 30 && !cooking) return 'douse';
-          if (campFire.out && sceneWet < 0.6 && (T < 28 || cooking)) return T < 28 ? 'light' : 'small';
-          if (campFire.small && T < 28) campFire.small = false;   // mát lại: lửa nhỏ nướng cá thành lửa thường
+          const T = liveWeather.state.temperature ?? 24, cooking = CAMP.grill.st === 'cooking';
+          if (!CAMP.fireState.out && CAMP.fireRain.heat > 0.15 && T > 30 && !cooking) return 'douse';
+          if (CAMP.fireState.out && sceneWet < 0.6 && (T < 28 || cooking)) return T < 28 ? 'light' : 'small';
+          if (CAMP.fireState.small && T < 28) CAMP.grow();   // mát lại: lửa nhỏ nướng cá thành lửa thường
           return null;
         }
         function fireWant(e, hh, sched) {   // engWantAct (engineer/mind/schedule.js): 'fire' hoặc null
@@ -45,28 +45,28 @@
           match.add(new THREE.Mesh(new THREE.CylinderGeometry(0.003, 0.003, 0.05, 4).translate(0, 0.025, 0), new THREE.MeshLambertMaterial({ color: 0xd9c08a })));
           const flame = new THREE.Mesh(new THREE.ConeGeometry(0.008, 0.026, 6).translate(0, 0.063, 0), new THREE.MeshBasicMaterial({ color: 0xffb347 })); match.add(flame);
           const drops = new THREE.InstancedMesh(new THREE.SphereGeometry(0.014, 5, 4), new THREE.MeshBasicMaterial({ color: 0xa9d4e8, transparent: true, opacity: 0.8 }), 30);
-          drops.frustumCulled = false; drops.count = 0; scene.add(drops); const dT = new Float32Array(30).map(() => Math.random()), dO = Array.from({ length: 30 }, () => [(Math.random() - 0.5) * 0.4 * CAMP_PIT, (Math.random() - 0.5) * 0.4 * CAMP_PIT]);
+          drops.frustumCulled = false; drops.count = 0; scene.add(drops); const dT = new Float32Array(30).map(() => Math.random()), dO = Array.from({ length: 30 }, () => [(Math.random() - 0.5) * 0.4 * CAMP.pitK, (Math.random() - 0.5) * 0.4 * CAMP.pitK]);
           for (const o of [bucket, poker, sticks, match, drops]) tag(o);
           // ---- chỗ để xô + que cời: vòng FIRE_AVOID_R + 0,45 … + 0,7 quanh bếp (bếp nhỏ 50%: ~1,2–1,4 m), trống, gần phía đống củi ----
           const pile = scene.getObjectByName('Đống củi (Woodpile)'), PP = pile ? pile.position : pf, KIT = new THREE.Vector3(), aPile = Math.atan2(PP.z - pf.z, PP.x - pf.x);
           { let best = 1e9; for (const r of [FIRE_AVOID_R + 0.45, FIRE_AVOID_R + 0.7]) for (let i = 0; i < 48; i++) { const a = i / 48 * TAU, x = pf.x + Math.cos(a) * r, z = pf.z + Math.sin(a) * r;   // bếp nhỏ 30% (G 24/10): xô gần lại theo vòng né
-              if (isWater(Math.round(x2gi(x)), Math.round(z2gj(z))) || obstacleCoords.some(o => Math.hypot(o.x - x, o.z - z) < (o.r > 1.5 ? o.r + 0.2 : o.r + 0.4)) || ENG_PROPS.some(o => Math.hypot(o.x - x, o.z - z) < o.r + 0.35)) continue;
+              if (isWater(Math.round(x2gi(x)), Math.round(z2gj(z))) || obstacleCoords.some(o => Math.hypot(o.x - x, o.z - z) < (o.r > 1.5 ? o.r + 0.2 : o.r + 0.4)) || PROPS.some(o => Math.hypot(o.x - x, o.z - z) < o.r + 0.35)) continue;
               const d = Math.abs(Math.atan2(Math.sin(a - aPile - 0.6), Math.cos(a - aPile - 0.6))); if (d < best) { best = d; KIT.set(x, cowY(x, z), z); } } }
           const out = _a.subVectors(KIT, pf).setY(0).normalize().clone(), side = new THREE.Vector3(-out.z, 0, out.x);
           // chỗ đứng dội nước / nhóm lửa: lệch khỏi hướng xô ~29° (cùng hướng thì chỉ cách xô 0,34 m — vòng đẩy quanh xô đẩy kỹ sư qua lại, kẹt 60 s)
-          const PIT_R = 0.75 * CAMP_SCALE * CAMP_PIT;   // mép ngoài vòng đá (~0,24 m — bếp nhỏ 50%)
+          const PIT_R = 0.75 * CAMP_SCALE * CAMP.pitK;   // mép ngoài vòng đá (~0,24 m — bếp nhỏ 50%)
           const LIGHT_D = FIRE_AVOID_R + 0.05;   // chỗ ngồi nhóm lửa: ngoài 4 chân giá treo (bếp nhỏ 50%: sát vòng đá thì cúi thổi đầu chúi qua ấm reo) — tay vươn vào lòng bếp
           const rot = a => new THREE.Vector3(out.x * Math.cos(a) - out.z * Math.sin(a), 0, out.x * Math.sin(a) + out.z * Math.cos(a));
           // bếp nhỏ 50% (G 24/10 tối): vòng né chỉ 0,72 m < 1,5 ⇒ bỏ chính vòng bếp khỏi phép thử vật cản · chỗ nhóm lửa (sát vòng đá) né 4 chân giá treo ≥ 0,32 m
           let pd = rot(0.5); for (const a of [0.5, -0.5, 0.8, -0.8, 1.1, -1.1]) { const d = rot(a), p = _b.copy(pf).addScaledVector(d, FIRE_AVOID_R + 0.12), q = _c.copy(pf).addScaledVector(d, LIGHT_D);
-            if (Math.hypot(p.x - KIT.x, p.z - KIT.z) > 0.75 && !obstacleCoords.some(o => o.r < 1.5 && Math.hypot(o.x - pf.x, o.z - pf.z) > 0.01 && Math.hypot(o.x - p.x, o.z - p.z) < o.r + 0.4) && !ENG_PROPS.some(o => Math.hypot(o.x - p.x, o.z - p.z) < o.r + 0.35)
-              && HANGER_FEET.every(f => Math.hypot(f.x - q.x, f.z - q.z) > 0.32 && Math.hypot(f.x - p.x, f.z - p.z) > 0.32)) { pd = d; break; } }
+            if (Math.hypot(p.x - KIT.x, p.z - KIT.z) > 0.75 && !obstacleCoords.some(o => o.r < 1.5 && Math.hypot(o.x - pf.x, o.z - pf.z) > 0.01 && Math.hypot(o.x - p.x, o.z - p.z) < o.r + 0.4) && !PROPS.some(o => Math.hypot(o.x - p.x, o.z - p.z) < o.r + 0.35)
+              && CAMP.hangerFeet.every(f => Math.hypot(f.x - q.x, f.z - q.z) > 0.32 && Math.hypot(f.x - p.x, f.z - p.z) > 0.32)) { pd = d; break; } }
           const KIT_ST = KIT.clone().addScaledVector(out, 0.5), POUR_ST = pf.clone().addScaledVector(pd, FIRE_AVOID_R + 0.12), LIGHT_ST = pf.clone().addScaledVector(pd, LIGHT_D);
           const PK_HOME = KIT.clone().addScaledVector(side, 0.28);
           let PICK_ST = PP.clone(); { let bd = 1e9; for (let i = 0; i < 16; i++) { const a = i / 16 * TAU, x = PP.x + Math.cos(a) * 1.2, z = PP.z + Math.sin(a) * 1.2, d = Math.hypot(x - LIGHT_ST.x, z - LIGHT_ST.z);
             if (d < bd && Math.hypot(x - pf.x, z - pf.z) > FIRE_AVOID_R + 0.15 && obstacleCoords.every(o => Math.hypot(o.x - x, o.z - z) > o.r + 0.35)) { bd = d; PICK_ST.set(x, PP.y, z); } } }
           const pileTop = pile ? new THREE.Box3().setFromObject(pile).max.y : pf.y + 0.4;
-          ENG_PROPS.push({ x: KIT.x, z: KIT.z, r: 0.18 });
+          PROPS.push({ x: KIT.x, z: KIT.z, r: 0.18 });
           function home() {   // xô đầy nước, quai nằm rạp · que cời nằm cạnh, đầu cháy chĩa ra ngoài
             bucket.position.set(KIT.x, KIT.y + 0.39, KIT.z); bucket.rotation.set(0, Math.atan2(out.x, out.z), 0); bail.rotation.set(1.35, 0, 0); water.visible = true; water.scale.setScalar(1); J.water = 1;
             poker.position.set(PK_HOME.x, PK_HOME.y + 0.015, PK_HOME.z); poker.rotation.set(0, Math.atan2(out.x, out.z), 0); poker.rotateX(-0.02);
@@ -102,7 +102,7 @@
               case 'pour': case 'pour2': {   // dội nước: lửa tắt trong ~2 s, hơi nước bốc (campFire.douse) · lần 1 dội nửa xô, lần 2 dội nốt
                 engStandStill(e); face(e, pf, dt); const L = J.st === 'pour' ? 1.8 : 1.6; J.pour = sm(k / 0.55) * (1 - sm((k - L + 0.45) / 0.45)); pourPose(e, J.pour);
                 e.lean = 0.1 * J.pour; rxLook('job', 3.5, 0.3, pf);
-                if (J.pour > 0.6) { campFire.douse = 1; campFire.out = true; campFire.small = false; J.water = Math.max(J.st === 'pour' ? 0.5 : 0, J.water - dt * 0.45); }
+                if (J.pour > 0.6) { CAMP.douse(); J.water = Math.max(J.st === 'pour' ? 0.5 : 0, J.water - dt * 0.45); }
                 if (k > L) { J.pour = 0; go(J.st === 'pour' ? 'stir' : 'check'); }
                 break;
               }
@@ -110,7 +110,7 @@
                 engStandStill(e); face(e, pf, dt); const sq = sm(k / 0.5) * (1 - sm((k - 2.6) / 0.5)); gardenJob.crouch(e, sq * 0.85, pf);
                 const ax = engAxesW(e); engHandSet(e, 1, engBodyW(e, 0.1 + 0.04 * Math.cos(k * 7), 1.0 + 0.03 * Math.sin(k * 7), 0.48, _b), aimQ(_q, ax.f, UP));
                 engHandSet(e, 0, engBodyW(e, -0.3, 0.72, 0.18, _c), aimQ(_q2, ax.f, UP));
-                campFire.douse = Math.max(campFire.douse, 0.35);
+                CAMP.wet(0.35);
                 if (k > 3.1) go('pour2');
                 break;
               }
@@ -142,7 +142,7 @@
                   if (k > 0.9) go('light');
                 } else if (J.st === 'light') {   // châm diêm vào que mồi
                   const u = sm(k / 0.8); engHandSet(e, 0, engBodyW(e, 0.02, 1.1, 0.32, _b).lerp(mid, u), aimQ(_q, ax.f, UP));
-                  if (k > 1.0) { campFire.out = false; campFire.small = J.mode === 'small'; campRain.heat = Math.max(campRain.heat, 0.62); campRain.smolder = Math.max(campRain.smolder, 0.8); J.held.m = false; go('blow'); }
+                  if (k > 1.0) { CAMP.light(J.mode === 'small'); J.held.m = false; go('blow'); }
                 } else {   // cúi thổi nhẹ cho lửa bắt
                   e.lean = 0.42 * sm(k / 0.4) * (1 - sm((k - 2.2) / 0.4)); rxLook('job', 3.5, 0.3, mid);
                   if (k > 2.6) { rxSay('fireLit', J.mode === 'small' ? ['Lửa nhỏ vừa đủ nướng cá.', 'Bắt lửa rồi, để than đỏ là được.'] : ['Bắt lửa rồi.', 'Lửa lên rồi, ấm hẳn.'], 'Lửa trại', false); return finish(); }
@@ -153,7 +153,7 @@
             return false;
           }
           function tick(e, dt, t) {   // sau IK tay: xô · que cời · que mồi · diêm theo bàn tay; tia nước; que mồi cháy hết thì ẩn
-            if (sticks.visible && !J.held.s && (campRain.heat > 0.8 || campFire.out)) sticks.visible = false;
+            if (sticks.visible && !J.held.s && (CAMP.fireRain.heat > 0.8 || CAMP.fireState.out)) sticks.visible = false;
             if (J.held.s) { sticks.visible = true; e.wrists[1].updateWorldMatrix(true, false); sticks.position.copy(e.wrists[1].localToWorld(_a.set(0, 0, 0.05))); sticks.rotation.set(0, e.g.rotation.y, 0); }
             match.visible = J.held.m; if (J.held.m) { e.wrists[0].updateWorldMatrix(true, false); match.position.copy(e.wrists[0].localToWorld(_a.set(0, 0.02, 0.06))); match.rotation.set(0.3, e.g.rotation.y, 0); flame.scale.set(1, 0.8 + 0.3 * Math.sin(t * 31), 1); }
             const pouring = J.st === 'pour' || J.st === 'pour2';
@@ -162,7 +162,7 @@
             }
             if (J.held.p) {   // que cời: từ bàn tay trái chĩa xuống trước · đảo / chọc tro: đầu que vào lòng bếp
               e.wrists[1].updateWorldMatrix(true, false); poker.position.copy(e.wrists[1].localToWorld(_a.set(0, 0, 0.04)));
-              const tip = J.st === 'stir' || J.st === 'check' ? _b.set(pf.x + 0.23 * CAMP_PIT * Math.cos(J.k * 7), pf.y + 0.115 * CAMP_PIT, pf.z + 0.23 * CAMP_PIT * Math.sin(J.k * 7)) : _b.copy(poker.position).addScaledVector(engAxesW(e).f, 0.5).add(_c.set(0, -0.9, 0));
+              const tip = J.st === 'stir' || J.st === 'check' ? _b.set(pf.x + 0.23 * CAMP.pitK * Math.cos(J.k * 7), pf.y + 0.115 * CAMP.pitK, pf.z + 0.23 * CAMP.pitK * Math.sin(J.k * 7)) : _b.copy(poker.position).addScaledVector(engAxesW(e).f, 0.5).add(_c.set(0, -0.9, 0));
               poker.lookAt(tip);
             }
             water.visible = J.water > 0.02 && J.pour < 0.3; water.position.y = -0.17 - 0.2 * (1 - J.water); water.scale.setScalar(1 - 0.18 * (1 - J.water));   // đang lật xô: mặt nước nghiêng theo xô trông sai ⇒ ẩn

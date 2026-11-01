@@ -25,35 +25,6 @@
           return lamp;
         }
 
-        // ---- LON NƯỚC NGỌT 330 ml dựng bằng code: thân tiện theo biên dạng lon nhôm chuẩn (Ø 66 mm, cao 115,7 mm, cổ thắt, đáy vòm),
-        //      nhãn tự vẽ trên canvas; phiStart = π để giữa nhãn (u = 0,5) quay về +z cục bộ ----
-        function sodaCan() {
-          const g = new THREE.Group(); g.name = 'Lon nước ngọt';
-          const lathe = pts => new THREE.LatheGeometry(pts.map(([r, y]) => new THREE.Vector2(r, y)), 32, Math.PI, Math.PI * 2);
-          const W = 512, Hc = 256, c = document.createElement('canvas'); c.width = W; c.height = Hc; const k = c.getContext('2d');
-          k.fillStyle = '#c3202b'; k.fillRect(0, 0, W, Hc);
-          k.fillStyle = '#e8e2d6'; k.fillRect(0, 0, W, 14); k.fillRect(0, Hc - 14, W, 14);   // 2 viền nhôm trơn trên/dưới
-          k.fillStyle = '#f6f1e7'; k.beginPath(); k.moveTo(0, 168);   // dải lượn trắng chạy quanh lon (tuần hoàn để không lộ đường nối)
-          for (let x = 0; x <= W; x += 8) k.lineTo(x, 160 + Math.sin(x / W * Math.PI * 4) * 22);
-          for (let x = W; x >= 0; x -= 8) k.lineTo(x, 182 + Math.sin(x / W * Math.PI * 4 + .6) * 22);
-          k.fill();
-          k.fillStyle = '#ffffff'; k.textAlign = 'center'; k.textBaseline = 'middle';
-          k.font = 'italic 900 78px Georgia, serif'; k.fillText('Cola', 256, 92);
-          k.font = '700 20px Arial, sans-serif'; k.fillText('PLEIKU', 256, 38);
-          k.fillStyle = '#7a1218'; k.font = '700 16px Arial, sans-serif'; k.fillText('330 ml', 256, 214);
-          k.fillStyle = '#ffffff'; k.font = '700 22px Arial, sans-serif'; k.fillText('Cola', 64, 100); k.fillText('Cola', 448, 100);
-          const label = new THREE.CanvasTexture(c); label.colorSpace = THREE.SRGBColorSpace; label.anisotropy = 4;
-          const body = [[.0331, .0095], [.0331, .1035], [.031, .1085], [.0275, .1135], [.0272, .1148]];
-          const bodyGeo = lathe(body), uv = bodyGeo.attributes.uv, pos = bodyGeo.attributes.position;
-          for (let i = 0; i < uv.count; i++) uv.setY(i, (pos.getY(i) - .0095) / (.1148 - .0095));   // v theo chiều cao (nhãn phủ từ đáy thẳng tới cổ)
-          const metal = new THREE.MeshLambertMaterial({ color: 0xb9bcbf });
-          const parts = [[bodyGeo, new THREE.MeshLambertMaterial({ map: label }), 'Thân lon'],
-            [lathe([[.0272, .1148], [.0278, .1156], [.0268, .1159], [.0255, .1151], [0, .1149]]), metal, 'Nắp lon'],
-            [lathe([[0, .0045], [.021, .0028], [.0265, 0], [.0295, .0012], [.0322, .0055], [.0331, .0095]]), metal, 'Đáy lon']];
-          for (const [geo, mat, name] of parts) { const m = new THREE.Mesh(geo, mat); m.name = name; m.castShadow = m.receiveShadow = true; g.add(m); }
-          const tab = bx(.022, .0008, .015, metal, false, false); tab.name = 'Khoen lon'; tab.position.set(-.004, .1155, 0); tab.rotation.z = .08; g.add(tab);
-          return g;
-        }
         // ---- 3 MÓN ĂN SÁNG trên bàn vuông caravan, dựng bằng code + nhãn tự vẽ canvas: hộp ngũ cốc, hộp cà phê (2 hộp nằm như sách), chai sữa thuỷ tinh.
         //      Mỗi món: gốc ở tâm đáy, mặt nhãn hướng +z, kích thước (rộng, cao, dày) theo BREAKFAST_SIZE ----
         const BREAKFAST_SIZE = { cereal: [0.155, 0.186, 0.035], coffee: [0.126, 0.2155, 0.0295], milk: [0.089, 0.234, 0.089] };

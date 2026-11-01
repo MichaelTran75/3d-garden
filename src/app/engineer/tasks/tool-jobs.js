@@ -5,8 +5,8 @@
         //  GHẾ CẮM TRẠI (việc 'chair' → pha 'read' — "khi click thì ra ngồi đọc sách uống trà"): ngồi ghế (engChairPhase), đọc sách ~45 s (engRead) ⇄ úp sách
         //  mở lên đùi, nhấp trà 2 ngụm (1 vòng engTea ~21 s, cốc ở vòng tay vịn) — 10 phút rồi về lịch ----
         const woodJob = (() => {
-          chiminea.g.updateMatrixWorld(true); const J = { st: 'idle', k: 0, held: false }, pile = scene.getObjectByName('Đống củi (Woodpile)'), P = pile.position, top = new THREE.Box3().setFromObject(pile).max.y;
-          const door = chiminea.door(new THREE.Vector3()), F = new THREE.Vector3(Math.sin(chiminea.g.rotation.y), 0, Math.cos(chiminea.g.rotation.y));
+          CHIMINEA.g.updateMatrixWorld(true); const J = { st: 'idle', k: 0, held: false }, pile = scene.getObjectByName('Đống củi (Woodpile)'), P = pile.position, top = new THREE.Box3().setFromObject(pile).max.y;
+          const door = CHIMINEA.door(new THREE.Vector3()), F = new THREE.Vector3(Math.sin(CHIMINEA.g.rotation.y), 0, Math.cos(CHIMINEA.g.rotation.y));
           const feedSt = door.clone().addScaledVector(F, 0.55); let pickSt = P.clone(), bd = 1e9;   // chỗ đứng lấy củi: vòng 1,2 quanh đống, trống (cách vật cản ≥ r + 0,35, ngoài vòng né bếp lửa), gần cửa lò nhất
           for (let i = 0; i < 16; i++) { const a = i / 16 * TAU, x = P.x + Math.cos(a) * 1.2, z = P.z + Math.sin(a) * 1.2, d = Math.hypot(x - feedSt.x, z - feedSt.z);
             if (d < bd && Math.hypot(x - pf.x, z - pf.z) > FIRE_AVOID_R + 0.15 && obstacleCoords.every(o => Math.hypot(o.x - x, o.z - z) > o.r + 0.35)) { bd = d; pickSt.set(x, P.y, z); } }
@@ -33,7 +33,7 @@
               case 'carry': if (engStep(e, feedSt, dt, t, pf, FIRE_AVOID_R)) go('feed'); else if (k > 60) return done(); break;
               case 'feed': {   // ngồi xổm trước cửa lò, đẩy củi vào lòng lò
                 engStandStill(e); const sq = sm(k / 0.6) * (1 - sm((k - 2.7) / 0.6)), u = sm((k - 0.5) / 0.8) * (1 - sm((k - 1.9) / 0.6));
-                gardenJob.crouch(e, sq, door); hands(e, u, door); if (k > 1.5 && J.held) { J.held = false; logs.visible = false; chiminea.addWood(); }
+                gardenJob.crouch(e, sq, door); hands(e, u, door); if (k > 1.5 && J.held) { J.held = false; logs.visible = false; CHIMINEA.addWood(); }
                 if (k > 3.4) return done();
                 break;
               }

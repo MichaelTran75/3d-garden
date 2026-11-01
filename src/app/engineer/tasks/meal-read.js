@@ -10,7 +10,7 @@
         const mrHand = [[new THREE.Vector3(), new THREE.Quaternion()], [new THREE.Vector3(), new THREE.Quaternion()]];   // đích tay (vị trí · hướng) cấp sẵn
         function engMouthW(e, out) { e.head.updateWorldMatrix(true, false); return e.head.localToWorld(out.set(0, -0.03, 0.2)); }
         function engBodyW(e, x, y, z, out) { e.spine.updateWorldMatrix(true, false); return e.spine.localToWorld(out.set(x, y - 1.255, z)); }   // toạ độ kỹ sư, theo eo
-        const _axR = new THREE.Vector3(), _axF = new THREE.Vector3(), _axM = new THREE.Matrix4(), _aqX = new THREE.Vector3(), _aqY = new THREE.Vector3(), _aqZ = new THREE.Vector3(), _aqM = new THREE.Matrix4();
+        const _axR = new THREE.Vector3(), _axF = new THREE.Vector3(), _axM = new THREE.Matrix4();
         function engAxesW(e) { e.spine.updateWorldMatrix(true, false); _axM.extractRotation(e.spine.matrixWorld); return { r: _axR.set(-1, 0, 0).applyMatrix4(_axM), f: _axF.set(0, 0, 1).applyMatrix4(_axM) }; }   // phải · trước (thế giới)
         const _wuA = new THREE.Vector3(), _wuB = new THREE.Vector3();
         function engWristUp(e, i, dir) {   // "trục +y" cho khung cổ tay giữ CỔ TAY THẲNG: hướng tay → khuỷu (cẳng tay của lần giải IK trước), không phải trời —
@@ -18,10 +18,6 @@
           const f = e.foreW && e.foreW[i]; if (!f || f.lengthSq() < 0.5) return _mrUp;
           _wuA.copy(f).negate(); if (_wuB.crossVectors(_wuA, dir).lengthSq() < 0.04) _wuA.lerp(_mrUp, 0.5).normalize();   // thìa gần song song cẳng tay: kéo về trời cho khỏi lật
           return _wuA;
-        }
-        function aimQ(out, dir, up) {   // trục +z → dir, trục +y gần up nhất
-          const z = _aqZ.copy(dir).normalize(), x = _aqX.crossVectors(up, z); if (x.lengthSq() < 1e-8) x.set(1, 0, 0); x.normalize();
-          return out.setFromRotationMatrix(_aqM.makeBasis(x, _aqY.crossVectors(z, x), z));
         }
         function engHandSet(e, i, pos, q) {   // đặt đích tay i: vị trí thế giới của tâm bàn tay + hướng khung cổ tay
           const R = e.reachT || (e.reachT = [null, null]), Q = e.handQ || (e.handQ = [null, null]);
@@ -31,51 +27,12 @@
           engHandSet(e, i, _mrC.copy(local).multiplyScalar(e.g.scale.y).applyQuaternion(q).negate().add(worldP), q);
         }
 
-        // ---------- CÁ NƯỚNG: trạng thái + màu sống → chín, bị cắn dần, cầm / quăng / xiên / cắm ----------
-        //  ready · cooking (trên que cạnh lửa) · held (tay phải) · fly (quăng vào lửa) · empty · swim (cá rô dưới hồ đang cắn câu) · bucket · carried (tay trái) · plant
-        const grill = (() => {
-          const F = campObj.fish, S = F.stick, home = { p: S.position.clone(), q: S.quaternion.clone() }, fgP = F.fg.position.clone(), fgQ = F.fg.quaternion.clone();
-          const cCook = F.fMat.color.clone(), cSmoked = new THREE.Color(0x8a5226), cRaw = new THREE.Color(0x8b979c), finCook = F.finMat.color.clone(), finRaw = new THREE.Color(0x66767c), cBone = new THREE.Color(0xe2d5b5);
-          const W = CAMP_FISH * CAMP_SCALE, GRIP = 0.5, TOP = 1.12, MID = 0.78;   // cỡ que thế giới · điểm cầm · đầu que (qua miệng cá) · tâm cá (đv que)
-          const qGrip = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, -Math.PI / 2));   // que (+y) luồn qua nắm tay chữ C (trục x cổ tay)
-          const keep = { g: new THREE.Group(), wig: new THREE.Group(), mouth: new THREE.Vector3(0.25, 0, 0), keeper: true };
-          keep.g.name = 'Cá rô cắn câu'; keep.g.visible = false; keep.g.scale.setScalar(W); keep.g.add(keep.wig); scene.add(keep.g);
-          const qSwim = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3(0, 0, 1), new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 1, 0)));   // đầu cá +x, lưng lên
-          keep.swim = (t, s) => { keep.wig.rotation.y = Math.sin(t * 9) * (0.08 + 0.3 * s); };
-          const G = { st: 'ready', cook: 1, eat: 0, fly: null, kept: false, home, keep };
-          S.traverse(o => { o.userData.noBatch = true; });   // que + cá di chuyển, đổi cha lúc chạy: vẽ riêng, không gộp vào khối tĩnh của bếp (bị cắt khung theo bếp)
-          function paint() {
-            const k = G.cook, b = G.eat;
-            F.fMat.color.copy(cRaw).lerp(cCook, k).lerp(cSmoked, G.smoked || 0).lerp(cBone, Math.max(0, (b - 0.75) / 0.25) * 0.85); F.finMat.color.copy(finRaw).lerp(finCook, k);
-            F.marks.visible = k > 0.55 && b < 0.6; F.body.scale.set(0.5 * (1 - 0.72 * b), 1, 1 - 0.25 * b);   // cắn dần: thân mỏng đi, cuối còn xương
-          }
-          function put(o, parent, p, q, s) { parent.add(o); o.position.copy(p); o.quaternion.copy(q); o.scale.setScalar(s); }
-          G.set = st => { G.st = st; S.visible = !['empty', 'swim', 'bucket', 'carried'].includes(st); F.fg.visible = !['empty', 'bucket'].includes(st); };
-          G.atHome = () => { put(S, campObj.g, home.p, home.q, CAMP_FISH); put(F.fg, S, fgP, fgQ, 1); };
-          G.grab = (e, i) => { const s = W / e.g.scale.y; put(S, e.wrists[i], _mrA.set(0, -GRIP, 0).applyQuaternion(qGrip).multiplyScalar(s), qGrip, s); G.set('held'); };   // que trong tay i
-          G.handQ = (stickQ, out) => out.copy(stickQ).multiply(_mrQ2.copy(qGrip).invert());   // hướng cổ tay để que có hướng stickQ
-          G.point = (y, out) => S.localToWorld(out.set(0, y, 0));   // điểm trên que (đv que)
-          G.homeW = (y, out) => { campObj.g.updateWorldMatrix(true, false); return campObj.g.localToWorld(out.set(0, y * CAMP_FISH, 0).applyQuaternion(home.q).add(home.p)); };
-          G.homeQ = out => { campObj.g.getWorldQuaternion(out); return out.multiply(home.q); };
-          G.stand = out => { G.homeW(0, out); const dx = out.x - pf.x, dz = out.z - pf.z, d = Math.hypot(dx, dz) || 1; out.x += dx / d * 0.52; out.z += dz / d * 0.52; out.y = 0; return out; };   // chỗ đứng lấy/cắm que (vẫn ngoài vòng tránh lửa)
-          G.toss = (v) => { S.updateWorldMatrix(true, false); const p = new THREE.Vector3(), q = new THREE.Quaternion(); S.getWorldPosition(p); S.getWorldQuaternion(q); put(S, scene, p, q, W); G.fly = { v, t: 0, spin: 7 }; G.set('fly'); };
-          G.toKeeper = () => { put(F.fg, keep.wig, _mrA.set(0, 0, 0), qSwim, 1); G.eat = 0; G.cook = 0; G.smoked = 0; paint(); keep.g.visible = true; G.set('swim'); return keep; };
-          G.lost = () => { keep.g.visible = false; G.atHome(); G.set('empty'); };   // cá rô sổng lưỡi: lại không có cá nướng
-          G.toBucket = () => { keep.g.visible = false; G.set('bucket'); G.kept = true; };
-          G.toHand = (e) => { const s = W / e.g.scale.y; put(F.fg, e.wrists[1], _mrA.set(0, -0.06, 0.12), _mrQ.setFromEuler(new THREE.Euler(Math.PI / 2, 0, 0)), s); G.set('carried'); };
-          G.skewer = () => { put(F.fg, S, fgP, fgQ, 1); };
-          G.update = (dt, h) => {
-            const jump = G.lastH === undefined || Math.abs(((h - G.lastH + 36) % 24) - 12) > 0.5; G.lastH = h;
-            if (jump && !['held', 'fly', 'swim', 'bucket', 'carried', 'plant'].includes(G.st)) { G.keep.g.visible = false; G.atHome(); G.cook = 1; G.eat = 0; G.set(h >= 17.25 && h < 19.6 ? 'empty' : 'ready'); paint(); }   // mở trang / tua giờ: sau bữa tối tới lúc câu về thì que trống
-            if (G.st === 'cooking') { G.cook = Math.min(1, G.cook + dt / (17 * 60) * (campRain.emberK > 0.2 ? 1 : 0)); if (G.cook >= 1) G.set('ready'); paint(); }   // ~17 phút cạnh than thì chín vàng (bếp đã dập: chờ kỹ sư nhóm lửa nhỏ)
-            if (G.fly) {   // que bay theo đường đạn vào lòng bếp (~0,7 s), chạm than thì cháy mất
-              const f = G.fly; f.t += dt; f.v.y -= 9.81 * dt; S.position.addScaledVector(f.v, dt); S.rotateX(f.spin * dt);
-              if (f.t >= 0.7) { G.fly = null; G.atHome(); G.eat = 0; G.smoked = 0; paint(); G.set('empty'); }
-            }
-          };
-          G.paint = paint;
-          return G;
-        })();
+        // ---------- CÁ RÔ CẮN CÂU (đồ của kỹ sư, 01/11 đợt 12): khung giữ con cá rô trên lưỡi — thân cá là cá nướng của trại (camp/grill.js): CAMP.grill.toKeeper(wig)
+        //  đặt thân cá vào khung lắc `wig`; cá sổng / vào xô ⇒ kỹ sư tự cất khung; trại đặt lại cá nướng (tua giờ) ⇒ tin 'grillReset' ----------
+        const fishKeep = { g: new THREE.Group(), wig: new THREE.Group(), mouth: new THREE.Vector3(0.25, 0, 0), keeper: true };
+        fishKeep.g.name = 'Cá rô cắn câu'; fishKeep.g.visible = false; fishKeep.g.scale.setScalar(CAMP.fishK * CAMP_SCALE); fishKeep.g.add(fishKeep.wig); scene.add(fishKeep.g);
+        fishKeep.swim = (t, s) => { fishKeep.wig.rotation.y = Math.sin(t * 9) * (0.08 + 0.3 * s); };
+        worldHear('grillReset', () => { fishKeep.g.visible = false; });
 
         // ---------- ĂN CƠM CHIÊN: tay trái giữ cán chảo trước bụng (mặt chảo ngang), tay phải xúc thìa → đưa lên → vào miệng → nhai ----------
         const SPOON_TIP = new THREE.Vector3(0, -0.03, 0.28), PAN_IN = new THREE.Vector3(0, 0.03, 0);
@@ -116,11 +73,11 @@
         function engEatAtTable(e, t, ph, meal) {
           const H = e.hold, P = e.props, sc = e.g.scale.y, food = e.dish ? e.dish.food : 1; e.armsBusy = true; e.elbowPole = EAT_POLE;
           const ax = engAxesW(e), right = _mrD.copy(ax.r), fwd = _mrF.copy(ax.f), UP = _mrUp;
-          const bowl = meal === 'udon' ? VTUDON : VCEREAL; bowl.updateWorldMatrix(true, false);
+          const bowl = VAN.tableBowl(meal);   // bát trên bàn ăn (mặt xe): tâm .pos(v) · điểm trên bát .pt(v)
           const mouth = engMouthW(e, new THREE.Vector3()), shoulderR = engBodyW(e, -0.34 * ENG_SLIM, 1.86, 0, new THREE.Vector3());
           // --- tay trái: cốc cà phê (sáng) — tựa bàn / nhấc lên nhấp; trưa: bưng bát húp (2 tay) ---
           const sp = (t + ph * 1.7) % (meal === 'udon' ? 22 : 21), sipU = minJerk(segK(sp, 0, 0.9)) * (1 - minJerk(segK(sp, 2.4, 3.3))), sipping = sipU > 0.02;
-          const bowlC = bowl.getWorldPosition(new THREE.Vector3()), dirF = _eD.copy(fwd).setY(0).normalize();
+          const bowlC = bowl.pos(new THREE.Vector3()), dirF = _eD.copy(fwd).setY(0).normalize();
           if (meal !== 'udon') {
             H.spoon = H.cup = true;
             const restCup = bowlC.clone().addScaledVector(right, -0.2 * sc).addScaledVector(dirF, 0.02 * sc), tilt = 0.25 + 0.55 * minJerk(segK(sp, 1.0, 2.3));
@@ -128,12 +85,12 @@
             const lip = mouth.clone().addScaledVector(fwd, 0.015 * sc), qL = new THREE.Quaternion().slerpQuaternions(qUp, qSip, sipU);
             const restLip = restCup.addScaledVector(UP, (CUP_LIP.y - CUP_BASE.y) * sc).addScaledVector(dirF, (CUP_LIP.z - CUP_BASE.z) * sc);   // vành cốc khi đáy cốc tựa mặt bàn
             engHandFor(e, 1, qL, CUP_LIP, arcTo(restLip, lip, sipU, UP, fwd, 0.04 * sc, 0.03 * sc, _eB));   // 1 đường liền: vành cốc từ chỗ nghỉ → môi
-          } else { H.chop = true; const rim = bowl.localToWorld(new THREE.Vector3(0.1, 0.05, -0.012)); engHandSet(e, 1, rim, aimQ(_eQ, _eA.subVectors(bowlC, rim).setY(0).normalize(), UP)); }   // udon: tay trái giữ vành bát bên trái cho vững (ăn mì đũa)
+          } else { H.chop = true; const rim = bowl.pt(new THREE.Vector3(0.1, 0.05, -0.012)); engHandSet(e, 1, rim, aimQ(_eQ, _eA.subVectors(bowlC, rim).setY(0).normalize(), UP)); }   // udon: tay trái giữ vành bát bên trái cho vững (ăn mì đũa)
           // --- tay phải: 1 miếng ---
           const T = meal === 'udon' ? 4.4 : 5.6, n = Math.floor((t + ph) / T), c = sipping ? 9 : (t + ph) % T;
           const surf = meal === 'udon' ? 0.05 : 0.022 + 0.021 * food;
-          const dip = bowl.localToWorld(new THREE.Vector3((hash01(n, 1) - 0.5) * 0.06, surf - 0.006, (hash01(n, 2) - 0.35) * 0.05)), near = bowl.localToWorld(new THREE.Vector3(0, surf + 0.01, -0.045));
-          const rest = bowl.localToWorld(new THREE.Vector3(-0.035, meal === 'udon' ? 0.11 : 0.085, -0.055)), front = mouth.clone().addScaledVector(fwd, 0.035 * sc), inside = mouth.clone().addScaledVector(fwd, 0.004 * sc);
+          const dip = bowl.pt(new THREE.Vector3((hash01(n, 1) - 0.5) * 0.06, surf - 0.006, (hash01(n, 2) - 0.35) * 0.05)), near = bowl.pt(new THREE.Vector3(0, surf + 0.01, -0.045));
+          const rest = bowl.pt(new THREE.Vector3(-0.035, meal === 'udon' ? 0.11 : 0.085, -0.055)), front = mouth.clone().addScaledVector(fwd, 0.035 * sc), inside = mouth.clone().addScaledVector(fwd, 0.004 * sc);
           const out = mouth.clone().addScaledVector(fwd, 0.055 * sc).addScaledVector(UP, -0.02 * sc);
           let tip, u, pitch = 0;
           if (meal !== 'udon') {
@@ -199,26 +156,27 @@
         }
         // cổ tay ở đâu để điểm `local` của cốc nằm ở W
         const teaWrist = (Qw, local, W) => local.clone().sub(TEA_GO).applyQuaternion(TEA_GQi).applyQuaternion(Qw).negate().add(W);
-        function teaGrab(e) { const C = campTeaCup, w = e.wrists[1], s = w.getWorldScale(_tA).x; e.teaQ0 = C.getWorldQuaternion(e.teaQ0 || new THREE.Quaternion()).multiply(TEA_GQ); e.teaG0 = C.localToWorld(TEA_GO.clone()); w.add(C); C.quaternion.copy(TEA_GQi); C.position.copy(TEA_GO).applyQuaternion(TEA_GQi).multiplyScalar(-1 / s); C.scale.setScalar(1 / s); }
+        const _tGp = new THREE.Vector3();   // chỗ cốc trong khung cổ tay (đưa cho trại đặt)
+        function teaGrab(e) { const C = CAMP.teaCup, w = e.wrists[1], s = w.getWorldScale(_tA).x; e.teaQ0 = C.getWorldQuaternion(e.teaQ0 || new THREE.Quaternion()).multiply(TEA_GQ); e.teaG0 = C.localToWorld(TEA_GO.clone()); CAMP.teaHand(w, TEA_GQi, _tGp.copy(TEA_GO).applyQuaternion(TEA_GQi).multiplyScalar(-1 / s), 1 / s); }   // cốc của trại tự vào tay (chỗ chạm teaHand)
         // về vòng tay vịn: đứng thẳng, giữ hướng quai (Qc: hướng cốc dự định — giữa khung, cổ tay chưa giải IK)
         function teaRelease(e, Qc) {
-          const C = campTeaCup, Hm = C && C.userData.home; if (e) e.teaT = e.teaPole = undefined; if (!C || C.parent === Hm.parent) return;
+          const C = CAMP.teaCup; if (e) e.teaT = e.teaPole = undefined; if (!C || !CAMP.teaHeld) return;
           C.updateWorldMatrix(true, false); const d = Qc ? _tA.set(1, 0, 0).applyQuaternion(Qc) : _tA.set(1, 0, 0).transformDirection(C.matrixWorld);
-          Hm.parent.updateWorldMatrix(true, false); d.transformDirection(_tM.copy(Hm.parent.matrixWorld).invert());
-          Hm.parent.add(C); C.position.copy(Hm.p); C.rotation.set(0, Math.atan2(-d.z, d.x), 0); C.scale.copy(Hm.s);
+          const R = CAMP.teaRing; R.updateWorldMatrix(true, false); d.transformDirection(_tM.copy(R.matrixWorld).invert());
+          CAMP.teaPut(Math.atan2(-d.z, d.x));   // trại tự đặt cốc về vòng tay vịn, quai theo hướng tay vừa buông
         }
         // trả true khi tay đang nghỉ, cốc trong vòng (được đứng dậy)
         function engTea(e, dt, t) {
-          const C = campTeaCup; if (!C) return true;
+          const C = CAMP.teaCup; if (!C) return true;
           // vào pha: nghỉ 3 s rồi mới với cốc
           e.teaT = (e.teaT ?? TEA_T - 3) + dt;
           let c = e.teaT % TEA_T, ph = 'rest', k = 1; for (const [n, d] of TEA) { if (c < d) { ph = n; k = c / d; break; } c -= d; }
-          const s = minJerk(k), sm = (a, b, x) => minJerk((x - a) / (b - a)), ax = engAxesW(e), fwd = _mrF.copy(ax.f), UP = _mrUp, Hm = C.userData.home;
-          let held = C.parent !== Hm.parent;
+          const s = minJerk(k), sm = (a, b, x) => minJerk((x - a) / (b - a)), ax = engAxesW(e), fwd = _mrF.copy(ax.f), UP = _mrUp, Hr = CAMP.teaRing, Hp = CAMP.teaSpot;
+          let held = CAMP.teaHeld;
           if (ph === 'grab' && k > 0.5 && !held) { teaGrab(e); held = true; }
-          e.armsBusy = true; Hm.parent.updateWorldMatrix(true, false);
+          e.armsBusy = true; Hr.updateWorldMatrix(true, false);
           const V = (x, y, z) => engBodyW(e, x, y, z, new THREE.Vector3()), to = (a, b) => b.clone().sub(a);
-          const ringB = Hm.parent.localToWorld(Hm.p.clone()).addScaledVector(UP, TEA_BODY.y), lapL = V(0.17, 1.32, 0.3), lapR = V(-0.17, 1.32, 0.3), elbL = V(0.3, 1.4, 0), elbR = V(-0.3, 1.4, 0);
+          const ringB = Hr.localToWorld(Hp.clone()).addScaledVector(UP, TEA_BODY.y), lapL = V(0.17, 1.32, 0.3), lapR = V(-0.17, 1.32, 0.3), elbL = V(0.3, 1.4, 0), elbR = V(-0.3, 1.4, 0);
           const chestB = V(-0.02, 1.62, 0.36), mouth = engMouthW(e, new THREE.Vector3()), face = fwd.clone().negate();
           const lips = mouth.clone().addScaledVector(fwd, 0.006).addScaledVector(UP, -0.012), blowB = mouth.clone().addScaledVector(fwd, 0.09).addScaledVector(UP, -0.075), preB = mouth.clone().addScaledVector(fwd, 0.07).addScaledVector(UP, -0.07);
           // f: phình ra trước (né vai)
@@ -319,7 +277,7 @@
         // ---------- LẤY CÁ NƯỚNG · ĂN CÁ · QUĂNG QUE · XIÊN & CẮM CÁ MỚI ----------
         const _grT = new THREE.Vector3();
         function engGrillPhase(e, dt, t) {   // toGrill → grab → (toChair) · toPlant → plant → (toChair) — trả true khi xong
-          const G = grill;
+          const G = CAMP.grill;
           if (e.phase === 'toGrill' || e.phase === 'toPlant') {
             if (engStep(e, G.stand(_grT), dt, t, pf, FIRE_AVOID_R, null)) { e.phase = e.phase === 'toGrill' ? 'grab' : 'plant'; e.timer = 0; }
             return;
@@ -331,10 +289,10 @@
             const bend = minJerk(segK(k, 0, 0.8)) * (1 - minJerk(segK(k, 1.3, 2.2)));
             e.spineT = { x: 1.4 * bend, y: 0 }; e.lean = 0.04 * bend; e.head.rotation.x = 0.2 * bend + 0.1; engCrouch(e, 1.25 * bend);   // gập eo + khuỵu gối, không nghiêng cả người · que cá nhỏ 50% (G 24/10 tối): chỗ cầm chỉ cao ~0,3 m ⇒ gập sâu hơn
             if (k < 1.0) engHandSet(e, 0, G.homeW(0.5, _grT), G.handQ(G.homeQ(_mrQ), new THREE.Quaternion()));
-            else { if (G.st !== 'held') G.grab(e, 0); engCarryFish(e, minJerk(segK(k, 1.0, 2.2))); }
-            if (k >= 2.4) { e.phase = 'toChair'; e.timer = 0; }
+            else { if (G.st !== 'held') G.grab(e.wrists[0], e.g.scale.y); engCarryFish(e, minJerk(segK(k, 1.0, 2.2))); }
+            if (k >= 2.4) { e.phase = e.act === 'smoke' ? smokePhase() : 'toChair'; e.timer = 0; }   // lệnh Nướng cá: que cá mang sang lò hun (engineer/tasks/smoker.js)
           } else {   // 'plant': que mới tay phải, cá tay trái → xiên cá vào que → cúi cắm que xiên xuống đất cạnh than
-            if (G.st === 'carried') { G.grab(e, 0); G.set('plant'); G.fishOnLeft = true; }   // que mới vào tay phải, cá vẫn ở tay trái
+            if (G.st === 'carried') { G.grab(e.wrists[0], e.g.scale.y); G.set('plant'); e.fishOnLeft = true; }   // que mới vào tay phải, cá vẫn ở tay trái
             const bend = minJerk(segK(k, 1.3, 2.1)) * (1 - minJerk(segK(k, 2.9, 3.6)));
             e.spineT = { x: 1.4 * bend, y: 0 }; e.lean = 0.04 * bend; e.head.rotation.x = 0.3 + 0.1 * bend; engCrouch(e, 1.25 * bend);
             if (k < 1.4) {   // trước ngực: tay phải dựng que, tay trái đưa cá luồn vào đầu que
@@ -342,9 +300,9 @@
               const sq = _mrQ2.setFromRotationMatrix(_mrM.makeBasis(_mrA.copy(ax.r).negate(), _mrUp, ax.f));
               engHandSet(e, 0, engBodyW(e, -0.2, 1.4, 0.45, _grT), G.handQ(sq, new THREE.Quaternion()));
               if (k > 0.3) { G.point(0.78 + 0.25 * (1 - minJerk(segK(k, 0.4, 1.3))), _mrC); engHandSet(e, 1, _mrC, q); }
-              if (k >= 1.3 && G.fishOnLeft) { G.skewer(); G.fishOnLeft = false; }
+              if (k >= 1.3 && e.fishOnLeft) { G.skewer(); e.fishOnLeft = false; }
             } else if (k < 2.9) engHandSet(e, 0, G.homeW(0.5, _grT), G.handQ(G.homeQ(_mrQ), new THREE.Quaternion()));   // cúi cắm que đúng chỗ cũ, nghiêng về phía lửa
-            else if (G.st === 'plant') { G.atHome(); G.cook = 0; G.eat = 0; G.paint(); G.set('cooking'); }
+            else if (G.st === 'plant') G.replant();
             if (k >= 3.6) { e.phase = engPhaseFor(e.act); if (e.phase === 'toPlant') e.phase = 'toChair'; e.timer = 0; }
           }
         }
@@ -354,21 +312,21 @@
         }
         function engCarryFish(e, k = 1) {   // đi đường: tay phải cầm que dựng đứng trước ngực bên phải
           const ax = engAxesW(e), sq = _mrQ.setFromRotationMatrix(_mrM.makeBasis(_mrA.copy(ax.r).negate(), _mrUp, ax.f));
-          const p = engBodyW(e, -0.3, 1.45, 0.38, _grT); if (k < 1) p.lerp(grill.homeW(0.5, _mrC), 1 - k);
-          engHandSet(e, 0, p, grill.handQ(sq, new THREE.Quaternion()));
+          const p = engBodyW(e, -0.3, 1.45, 0.38, _grT); if (k < 1) p.lerp(CAMP.grill.homeW(0.5, _mrC), 1 - k);
+          engHandSet(e, 0, p, CAMP.grill.handQ(sq, new THREE.Quaternion()));
         }
         function engEatFish(e, dt, t) {   // ngồi ghế: 2 tay cầm que nằm ngang như bắp ngô, đưa sườn cá lên miệng cắn, giật nhẹ, nhai — 8 miếng
-          const G = grill; e.timer -= dt; e.armsBusy = true; e.hold.fish = true;
+          const G = CAMP.grill; e.timer -= dt; e.armsBusy = true; e.hold.fish = true;
           const n = 8, T = 9, el = Math.max(0, e.eatLen - e.timer), bite = Math.floor(el / T), c = el % T;
           const up = minJerk(segK(c, 0.2, 1.1)) * (1 - minJerk(segK(c, 1.9, 2.6))), pull = minJerk(segK(c, 1.4, 1.8)) * (1 - segK(c, 1.9, 2.6));
-          G.eat = Math.min(1, (bite + segK(c, 1.1, 1.5)) / n); G.paint();
+          G.bite(Math.min(1, (bite + segK(c, 1.1, 1.5)) / n));
           const ax = engAxesW(e), right = _mrD.copy(ax.r), fwd = _mrF.copy(ax.f), sc = e.g.scale.y;
           const lap = engBodyW(e, 0.05, 1.55, 0.5, new THREE.Vector3()), m = engMouthW(e, new THREE.Vector3()).addScaledVector(fwd, (0.1 + 0.06 * pull) * sc);
           const slide = ((bite % 4) - 1.5) * 0.06;   // mỗi miếng cắn một khúc khác dọc thân
           const ctr = lap.lerp(m, up).addScaledVector(right, -slide * sc);
           // que nằm ngang theo vai: +y que (đuôi → miệng cá) về bên trái người, mặt sườn cá quay vào miệng
           const yq = _mrA.copy(right).negate(), xq = _mrB.copy(fwd).negate(), sq = _mrQ.setFromRotationMatrix(_mrM.makeBasis(xq, yq, _mrC.crossVectors(xq, yq)));
-          const W = CAMP_FISH * CAMP_SCALE, grip = ctr.clone().addScaledVector(yq, (0.5 - 0.78) * W), top = ctr.clone().addScaledVector(yq, (1.12 - 0.78) * W);
+          const W = CAMP.fishK * CAMP_SCALE, grip = ctr.clone().addScaledVector(yq, (0.5 - 0.78) * W), top = ctr.clone().addScaledVector(yq, (1.12 - 0.78) * W);
           const hq = G.handQ(sq, new THREE.Quaternion());
           engHandSet(e, 0, grip, hq); engHandSet(e, 1, top, hq);
           e.seatLean = 0.05 + 0.1 * up; e.seatSwing = 0;
@@ -376,7 +334,7 @@
           if (e.timer <= 0 || bite >= n) { e.phase = 'tossFish'; e.timer = 0; }
         }
         function engTossFish(e, dt, t) {   // vung tay phải quăng que + xương cá vào lòng bếp (đường đạn ~0,7 s)
-          const G = grill; e.timer += dt; const k = e.timer; e.armsBusy = true;
+          const G = CAMP.grill; e.timer += dt; const k = e.timer; e.armsBusy = true;
           const ax = engAxesW(e), toFire = _mrC.set(pf.x - e.g.position.x, 0, pf.z - e.g.position.z).normalize();
           if (G.st === 'held') {
             const back = minJerk(segK(k, 0, 0.5)), fw = minJerk(segK(k, 0.5, 0.75)), p = engBodyW(e, -0.32, 1.75, 0.25, _grT);   // vung ra sau–lên rồi phất tới về phía bếp
@@ -386,5 +344,5 @@
             if (k >= 0.72) { const p0 = G.point(0.78, _mrD), T = 0.7, v = new THREE.Vector3(pf.x - p0.x, 0, pf.z - p0.z).divideScalar(T); v.y = (pf.y + 0.15 - p0.y) / T + 0.5 * 9.81 * T; G.toss(v); }
           }
           e.seatLean = 0.04; e.head.rotation.x = 0.1; e.headYawT = 0.25;
-          if (k >= 1.6) { e.phase = 'eat'; e.timer = Math.max(60, Math.min(900, e.actLeft - 900)); e.eatT0 = e.timer; }   // rồi ăn cơm chiên
+          if (k >= 1.6) { if (e.act === 'smoke') { e.phase = 'tea'; e.timer = 30; if (engForceAct === 'smoke') engForceAct = null; return; } e.phase = 'eat'; e.timer = Math.max(60, Math.min(900, e.actLeft - 900)); e.eatT0 = e.timer; }   // rồi ăn cơm chiên · cá khói theo lệnh: ăn xong uống ngụm trà, về lịch
         }

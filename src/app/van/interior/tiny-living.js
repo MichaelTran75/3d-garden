@@ -14,6 +14,12 @@
               for (const o of T.children) if (o !== H) o.visible = false;
               H.clear(); H.position.set(0.047, TR.yIn + 0.466, 0); H.add(part('lid'));
               const lav = part('lav'); lav.position.set(0.052, TR.yIn, 0); T.add(lav);   // lưng két trùng lưng két cũ (sát vách)
-              const sh = part('shelf'); sh.position.set(2.9, 2.25, -0.1075); sh.rotation.y = -Math.PI / 2; caravanObj.getObjectByName('Bếp dọc vách cửa hông').add(sh);   // toạ độ tủ bếp: lưng sát vách, giữa tấm bảng đục lỗ
+              // kệ treo trong toạ độ tủ bếp (lưng sát vách, giữa tấm bảng đục lỗ). G 31/10 "shelve nhỏ đi 10%" rồi "tiếp tục nhỏ đi 5%" ⇒ ×0,9 × 0,95 so với cỡ gốc, chia cho cỡ tủ bếp (đã thu nhỏ) vì kệ là con
+              //  của tủ; gốc ở lưng kệ ⇒ vẫn sát vách. (Lần sửa trước lệnh add bị lọt vào chú thích cuối dòng ⇒ kệ mất khỏi bếp — G "cho kệ vào lại kitchen")
+              //  G 31/10 chiều "nhỏ đi thêm 10%, và move lên cao thêm 1 chút" ⇒ ×0,9 nữa (0,77 cỡ gốc), SH_UP nâng trong toạ độ tủ bếp
+              //  (gốc kệ thấp ⇒ thu nhỏ kéo đỉnh xuống; nâng 0,12 ⇒ đáy kệ lên 11 cm, đỉnh lên 6 cm, mui còn cách ~40 cm)
+              const sh = part('shelf'), K = caravanObj.getObjectByName('Bếp dọc vách cửa hông'), SH_UP = 0.12;
+              sh.position.set(2.9, 2.25 + SH_UP, -0.1075); sh.rotation.y = -Math.PI / 2; sh.scale.setScalar(0.9 * 0.95 * 0.9 / K.scale.x);
+              K.add(sh);
             }).catch(err => console.warn('bồn cầu / kệ treo:', err)));
         }

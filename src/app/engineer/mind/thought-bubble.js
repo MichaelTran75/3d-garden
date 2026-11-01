@@ -2,11 +2,13 @@
         // G 23/10 "merge engineer label into bong bóng thought": thẻ "👷🏻‍♂️ việc đang làm" (trước ở ui/follow-tags.js) thành DÒNG ĐẦU đám mây; không có suy nghĩ mà nút
         // Nhãn đang bật thì hiện đám mây gọn chỉ 1 dòng đó. Đám mây đặt theo ĐỈNH ĐẦU (thế giới) — trước theo trục thân nên nằm / ngồi bệt thì lệch ngang.
         // G 16/10: đám mây suy nghĩ (chữ + mây + bong bóng đuôi) nhỏ 50% (THOUGHT_K), thu về đáy giữa — đuôi vẫn trỏ xuống đầu; chữ câu cá giữ cỡ cũ.
-        // Canvas vẽ gấp đôi điểm ảnh (BUBBLE_RES) ⇒ chữ nhỏ đi vẫn đủ điểm ảnh, zoom gần không nhoè.
-        const BUBBLE_W = 640, BUBBLE_H = 352, BUBBLE_RES = 2, THOUGHT_K = 0.5;
+        // G 31/10 "chữ trong bong bóng khó đọc, độ phân giải cao hơn": canvas vẽ ĐÚNG số điểm ảnh bong bóng chiếm trên màn hình (BUBBLE_RES theo mức zoom × tỉ lệ điểm ảnh
+        //  thiết bị, vẽ lại khi zoom đổi > 10%), không mipmap ⇒ 1 điểm ảnh canvas = 1 điểm ảnh màn hình, chữ nét như chữ trang web. Bản cũ cố định ×2 (thử ×4 cũng vậy):
+        //  bong bóng nhỏ trên màn hình thì card đồ hoạ thu ảnh qua mipmap ⇒ chữ nhoè bất kể canvas to cỡ nào.
+        const BUBBLE_W = 640, BUBBLE_H = 352, THOUGHT_K = 0.5; let BUBBLE_RES = 2;
         const checkBubbleCanvas = document.createElement('canvas'); checkBubbleCanvas.width = BUBBLE_W * BUBBLE_RES; checkBubbleCanvas.height = BUBBLE_H * BUBBLE_RES;
         const cbCtx = checkBubbleCanvas.getContext('2d');
-        const checkBubbleTex = new THREE.CanvasTexture(checkBubbleCanvas); checkBubbleTex.colorSpace = THREE.SRGBColorSpace;
+        const checkBubbleTex = new THREE.CanvasTexture(checkBubbleCanvas); checkBubbleTex.colorSpace = THREE.SRGBColorSpace; checkBubbleTex.generateMipmaps = false; checkBubbleTex.minFilter = THREE.LinearFilter;
         const checkBubbleSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: checkBubbleTex, transparent: true, opacity: 0.97, depthWrite: false, depthTest: false }));
         checkBubbleSprite.name = 'Nhãn Engineer · câu cá và đám mây suy nghĩ';
         const BUBBLE_K = 0.65;   // cả nhãn (chữ + đám mây) nhỏ lại 35%
@@ -21,8 +23,9 @@
         function drawThoughtCloud(ctx, header, message, bottom, speech) {   // speech: BÓNG THOẠI (câu thốt ra — miệng nói theo, engineer/body/face.js) thay đám mây
           let size = 25, lines = [];
           if (message) for (; size >= 19; size--) { ctx.font = '600 ' + size + 'px Arial, sans-serif'; lines = wrapText(ctx, message, 470); if (lines.length <= 3) break; }
-          const lineH = size + 7, msgW = lines.length ? Math.max(...lines.map(l => ctx.measureText(l).width)) : 0, only = !lines.length, hs = only ? 23 : 19;   // only: chỉ dòng việc đang làm
-          ctx.font = (only ? '600 ' : '') + hs + 'px Arial, sans-serif'; const headW = ctx.measureText(header).width;
+          const lineH = size + 7, msgW = lines.length ? Math.max(...lines.map(l => ctx.measureText(l).width)) : 0, only = !lines.length; let hs = only ? 23 : 19;   // only: chỉ dòng việc đang làm
+          for (; ; hs--) { ctx.font = (only ? '600 ' : '') + hs + 'px Arial, sans-serif'; if (hs <= 15 || ctx.measureText(header).width <= 520) break; }   // dòng đầu dài thu chữ cho vừa mây (trước tràn "km/h" ra mép)
+          const headW = ctx.measureText(header).width;
           const w = Math.min(560, Math.max(only ? 150 : 250, Math.max(msgW, headW) + 56)), h = only ? 50 : 30 + lines.length * lineH + 18;
           const x0 = BUBBLE_W / 2 - w / 2, x1 = x0 + w, y1 = bottom, y0 = y1 - h;
           const lobes = [];
@@ -48,26 +51,35 @@
           ctx.restore();
           // chữ tối + quầng trắng mỏng: vẫn đọc rõ trên nền gần trong suốt (cỏ, nước, mái xe)
           ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
-          const halo = (txt, x, y, fill, lw) => { ctx.lineWidth = lw; ctx.strokeStyle = 'rgba(255, 255, 255, 0.82)'; ctx.strokeText(txt, x, y); ctx.fillStyle = fill; ctx.fillText(txt, x, y); };
-          ctx.font = (only ? '600 ' : '') + hs + 'px Arial, sans-serif'; halo(header, BUBBLE_W / 2, only ? (y0 + y1) / 2 : y0 + 17, only ? '#17222c' : '#2f4456', 4);
+          const halo = (txt, x, y, fill) => { ctx.fillStyle = fill; ctx.fillText(txt, x, y); };   // G 31/10: bỏ viền trắng quanh chữ (làm chữ nhoè)
+          ctx.font = (only ? '600 ' : '') + hs + 'px Arial, sans-serif'; halo(header, BUBBLE_W / 2, only ? (y0 + y1) / 2 : y0 + 17, '#17222c');   // dòng đầu cùng màu đậm (xám xanh cũ chìm vào kính mờ trên nền cỏ)
           ctx.font = '600 ' + size + 'px Arial, sans-serif';
-          lines.forEach((l, i) => halo(l, BUBBLE_W / 2, y0 + 30 + lineH * (i + 0.5) + 4, '#17222c', 5));
+          lines.forEach((l, i) => halo(l, BUBBLE_W / 2, y0 + 30 + lineH * (i + 0.5) + 4, '#17222c'));
           return { x0, y0, x1, y1, lines };
         }
-        let engineerLabelKey = ''; const _tbP = new THREE.Vector3();
+        let engineerLabelKey = ''; const _tbP = new THREE.Vector3(), _tbS = new THREE.Vector3();
+        function bubbleFitRes() {   // điểm ảnh màn hình (thật) / 1 đv canvas; đổi > 10% thì đổi cỡ canvas + vẽ lại
+          if (!camera.isOrthographicCamera) return;
+          const ppu = renderer.getPixelRatio() * Math.max(1, W()) * camera.zoom / (camera.right - camera.left);   // điểm ảnh thật / 1 đv thế giới (camera trực giao)
+          const res = Math.min(6, Math.max(1, checkBubbleSprite.getWorldScale(_tbS).x * ppu / BUBBLE_W));
+          if (Math.abs(res / BUBBLE_RES - 1) < 0.1) return;
+          BUBBLE_RES = res; checkBubbleCanvas.width = Math.round(BUBBLE_W * res); checkBubbleCanvas.height = Math.round(BUBBLE_H * res);
+          checkBubbleTex.dispose(); engineerLabelKey = '';   // cỡ ảnh đổi ⇒ cấp lại bộ nhớ ảnh trên card
+        }
         const fmtCountdown = s => s >= 3600 ? Math.floor(s / 3600) + ':' + String(Math.floor(s / 60) % 60).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0')
           : s >= 60 ? Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0') : s + 's';
         function drawEngineerLabel(t = 0, now = Date.now()) {
           const fishing = engObj.phase === 'fish', thought = engObj.phase === 'check' ? (checkBubbleSprite.userData.weatherThought || checkBubbleSprite.userData.thought) : checkBubbleSprite.userData.thought;
           const showThought = !!thought && (now < thoughtUntil || engObj.phase === 'check');
-          const lab = (SIM_DO[simDoing(engObj)] || {}).lab || 'Đi lại', tagOn = labelGroup.visible && hovShown(engObj.g);   // việc đang làm (bảng Kỹ sư) · nút Nhãn
+          const lab = (SIM_DO[simDoing(engObj)] || {}).lab || 'Đi lại', tagOn = labelGroup.visible && shownInScene(engObj.g);   // việc đang làm (bảng Kỹ sư) · nút Nhãn
           checkBubbleSprite.visible = (fishing || showThought || tagOn) && engObj.phase !== 'drone';   // bay drone: bong bóng màn hình camera thay chỗ (engineer/tasks/drone.js)
           engObj.head.getWorldPosition(_tbP); _tbP.y += 0.78 + Math.sin(t * 3.5) * 0.05; checkBubbleSprite.position.copy(engObj.g.worldToLocal(_tbP));   // trên đỉnh đầu dù đứng, ngồi bệt hay nằm
           if (!checkBubbleSprite.visible) return;
+          bubbleFitRes();
           const seconds = fishing ? Math.max(0, Math.ceil(engObj.timer)) : -1;
           const key = seconds + '|' + (showThought ? thought.revision : -1) + '|' + (fishing ? fishingStatusText() : '') + '|' + lab;
           if (key === engineerLabelKey) return; engineerLabelKey = key;
-          cbCtx.setTransform(BUBBLE_RES, 0, 0, BUBBLE_RES, 0, 0); cbCtx.clearRect(0, 0, BUBBLE_W, BUBBLE_H);
+          cbCtx.setTransform(checkBubbleCanvas.width / BUBBLE_W, 0, 0, checkBubbleCanvas.height / BUBBLE_H, 0, 0); cbCtx.clearRect(0, 0, BUBBLE_W, BUBBLE_H);
           cbCtx.textAlign = 'center'; cbCtx.textBaseline = 'middle';
           const rows = [];
           let cloud = null;

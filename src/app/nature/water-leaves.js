@@ -31,7 +31,7 @@
         }
         let waterFlowFilled = false;
         function fillWaterFlow() {   // vận tốc dòng mặt tại từng đỉnh mặt nước → shader cuốn gợn và bọt đúng chiều dòng (hồ gần như lặng, sông chảy, cửa xả tỏa ra)
-          waterFlowFilled = true; if (!waterSurfMesh) return;   // gọi ở khung đầu: waterFlow cần x2gi/z2gj khai báo ở phần sau
+          waterFlowFilled = true; if (!waterSurfMesh) return;   // gọi ở khung đầu (loop/main-loop.js) — đặt vậy khi x2gi/z2gj còn khai báo sau tệp này (nay core/helpers.js, lý do cũ hết); giữ chỗ gọi để kết quả y như trước: tới khung đầu fluids đã gán, nước nông chạy rồi thì lấy dòng thật
           const P = waterSurfMesh.geometry.attributes.position, A = waterSurfMesh.geometry.attributes.aWater, f = new THREE.Vector3();
           for (let v = 0; v < P.count; v++) { waterFlow(P.getX(v), P.getZ(v), 0, f); A.setXY(v, f.x, f.z); }
           A.needsUpdate = true;
@@ -183,9 +183,9 @@
               _lfQ.setFromUnitVectors(_lfA.set(0, 1, 0), _lfN.set(-gx / 0.2, 1, -gz / 0.2).normalize()); _lfQ2.setFromAxisAngle(_lfA.set(0, 1, 0), q.yaw); _lfQ.multiply(_lfQ2);
               if (q.rest >= q.sinkAt) {   // ngấm nước: bắt đầu chìm — cá gần đó để ý
                 q.st = 4; q.sinkV = o.sinkV[0] + Math.random() * (o.sinkV[1] - o.sinkV[0]); q.ph = Math.random() * TAU; q.look = 2;
-                q.p.y = wy - 0.02; fishAlertLeaf(q, 8, 0.9);
+                q.p.y = wy - 0.02; worldTell('leafOnWater', q, 8, 0.9);
               } else {
-                if ((q.look -= h) <= 0) { q.look = 3 + Math.random() * 2; if (!q.fish) fishAlertLeaf(q, 2.5, 0.15); }   // thỉnh thoảng cá ngoi lên đớp lá đang nổi
+                if ((q.look -= h) <= 0) { q.look = 3 + Math.random() * 2; if (!q.fish) worldTell('leafOnWater', q, 2.5, 0.15); }   // thỉnh thoảng cá ngoi lên đớp lá đang nổi
                 sc *= Math.max(0, Math.min(1, (q.life - q.rest) / 1.5));
                 const gi = Math.round(x2gi(q.p.x)), gj = Math.round(z2gj(q.p.z));
                 if (q.rest >= q.life || gi < -MX || gj < -MZ || gi >= GX + MX || gj >= GZ + MZ) q.st = 0;
@@ -203,7 +203,7 @@
               q.p.y = Math.min(q.p.y - q.sinkV * (0.7 + 0.6 * Math.abs(Math.sin(q.ph))) * h, top - 0.02);   // chìm nhanh nhất lúc lá dựng nghiêng
               _lfE.set(0.45 * Math.sin(q.ph), q.yaw, q.tilt); _lfQ.setFromEuler(_lfE);
               if (q.p.y <= bed + 0.012) { q.p.y = bed + 0.012; q.st = 5; q.rest = 0; q.life = 10 + Math.random() * 10; q.tilt = (Math.random() - 0.5) * 0.2; }
-              else if ((q.look -= h) <= 0) { q.look = 2; if (!q.fish) fishAlertLeaf(q, 8, 0.6); }
+              else if ((q.look -= h) <= 0) { q.look = 2; if (!q.fish) worldTell('leafOnWater', q, 8, 0.6); }
             }
             if (q.st === 5) {   // nằm dưới đáy rồi mờ dần
               q.rest += h; _lfE.set(q.tilt, q.yaw, 0); _lfQ.setFromEuler(_lfE);
@@ -221,10 +221,10 @@
             // cánh rơi trên mặt nước hoặc vắt qua mép bậc (4 góc không cùng độ cao) thì bỏ
             const F = ct.userData.fallen, m = new THREE.Matrix4(), p = new THREE.Vector3(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), inv = new THREE.Matrix4();
             ct.updateMatrixWorld(true); inv.copy(F.matrixWorld).invert();
-            const cell = (x, z) => [Math.round(x / BLOCK + cx - 0.5), Math.round(z / BLOCK + cz - 0.5)], hd = 0.09;   // (= x2gi/z2gj, khai báo sau tệp này)
+            const cell = (x, z) => [Math.round(x / BLOCK + cx - 0.5), Math.round(z / BLOCK + cz - 0.5)], hd = 0.09;   // (= x2gi/z2gj — viết tay từ khi chúng còn khai báo sau tệp này; nay ở core/helpers.js)
             for (let k = 0; k < F.count; k++) {
               F.getMatrixAt(k, m); m.decompose(p, q, sc); p.applyMatrix4(F.matrixWorld);
-              const ys = [[-hd, -hd], [hd, -hd], [-hd, hd], [hd, hd], [0, 0]].map(([dx, dz]) => { const [i, j] = cell(p.x + dx, p.z + dz); return waterCell(i, j) ? NaN : surfaceY(i, j); });   // (cowY chưa khai báo lúc này; quanh gốc anh đào không có mặt đập nên trùng nhau)
+              const ys = [[-hd, -hd], [hd, -hd], [-hd, hd], [hd, hd], [0, 0]].map(([dx, dz]) => { const [i, j] = cell(p.x + dx, p.z + dz); return waterCell(i, j) ? NaN : surfaceY(i, j); });   // (viết khi cowY còn khai báo sau tệp này — nay core/ground.js; quanh gốc anh đào không có mặt đập nên trùng nhau)
               const ok = ys.every(y => Math.abs(y - ys[4]) < 1e-3);
               if (ok) { p.y = ys[4] + 0.01; p.applyMatrix4(inv); } else sc.setScalar(0);
               F.setMatrixAt(k, m.compose(p, q, sc));

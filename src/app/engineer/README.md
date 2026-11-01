@@ -7,8 +7,9 @@ G 24/10: "sắp xếp lại files hành vi, để dễ chỉnh sửa". Mọi t�
 | Thư mục | Vai trò | Tệp |
 |---|---|---|
 | `body/` | Thân thể và chuyển động. Không quyết định làm gì | `constants` (vật liệu, cỡ người) · `model` (hình) · `instance-gait` (tạo kỹ sư, nhịp bước) · `pose-ik-walk` (tư thế lò xo, IK chân, đi bộ né vật cản, bậc voxel) · `seats` (ngồi / đứng dậy / rời ghế) · `face` (nét mặt, khẩu hình, tay nắm / mở) · `footprints` (dấu chân trên đất ướt) |
-| `mind/` | Đầu óc: chọn việc, phản ứng | `hours` (**giờ giấc: sửa giờ ở đây**) · `schedule` (lịch cả ngày `ENG_DAY`, bảng việc `ENG_ACTS`, chọn việc `engWantAct`, đặt chỗ khi mở trang `engSpawn`) · `autonomy` (nhu cầu kiểu The Sims) · `task-table` (bảng việc dùng dụng cụ `ENG_JOBS`) · `loop-update` (bộ điều phối mỗi khung) · `thoughts`, `thought-bubble` (suy nghĩ) · `reactions`, `env-react`, `weather-feel` (phản ứng với cảnh, môi trường, thời tiết) |
+| `mind/` | Đầu óc: chọn việc, phản ứng | `hours` (**giờ giấc: sửa giờ ở đây**) · `schedule` (lịch cả ngày `ENG_DAY`, bảng việc `ENG_ACTS`, chọn việc `engWantAct`, đặt chỗ khi mở trang `engSpawn`) · `needs` (nhu cầu kiểu The Sims 4: bảng tốc độ, moodlet, tua lịch, kỹ năng — mặt `needs`) · `autonomy` (tự chủ theo nhu cầu) · `offers` (việc nhận làm theo lệnh người xem: sẽ làm gì / vì sao chưa làm — mặt `offer(k)`) · `task-table` (bảng việc dùng dụng cụ `ENG_JOBS`) · `loop-update` (bộ điều phối mỗi khung) · `thoughts`, `thought-bubble` (suy nghĩ) · `reactions`, `env-react`, `weather-feel` (phản ứng với cảnh, môi trường, thời tiết) |
 | `tasks/` | Mỗi tệp một việc | xem bảng dưới |
+| (gốc `engineer/`) | MẶT CÔNG KHAI: đơn vị khác chỉ đọc kỹ sư qua `worldSee('engineer')` — chỗ đứng, đầu, ghế, việc đang làm, cỡ người, lưỡi câu, màu mũ… (ARCHITECTURE mục 1b). Bảng của người xem (ui/) đọc nhu cầu + việc nhận làm và giao việc qua mặt (`ENGINEER.needs / offer(k) / ask(k) / asked / askNeed(k)`, đợt 10). Kỹ sư đụng xe / trại chỉ qua chỗ chạm trên mặt của chúng: nấu ăn vặn núm `VAN.kitchen`, báo món `VAN.dish`, phòng tắm `VAN.bath` | `face.js` |
 
 ## Một ngày (`mind/schedule.js` ENG_DAY, giờ Pleiku)
 
@@ -23,9 +24,9 @@ G 24/10: "sắp xếp lại files hành vi, để dễ chỉnh sửa". Mọi t�
 | 12:15 · 15:50 | Nghỉ: trà rồi ngủ trưa trên ghế | `tasks/camp-routine.js` (tea → nap) |
 | 15:20 | Bay drone (gió > 9 m/s thì nghỉ) | `tasks/drone.js` |
 | 16:10 | Hái táo (+ ăn táo trong ngày) | `tasks/apple-pick.js` |
-| 17:15 | Ăn tối ở ghế cắm trại, cá nướng | `tasks/camp-routine.js` + `tasks/meal-read.js` |
+| 17:15 | Ăn tối ở ghế cắm trại, cá nướng | `tasks/camp-routine.js` + `tasks/meal-read.js` (que + cá là đồ của trại: `camp/grill.js`, chạm qua `CAMP.grill`) |
 | 18:00 | Tắm | `tasks/van-stations.js` |
-| 18:03 | Câu cá | `tasks/camp-routine.js` + `fishing/angling.js` |
+| 18:03 | Câu cá | `tasks/camp-routine.js` + `tasks/angling.js` |
 | 19:30 | Đọc sách, ăn khoai | `tasks/camp-routine.js` + `tasks/meal-read.js` (`engRead`) |
 | 20:00 | Học bài, nghe nhạc | `tasks/laptop-work.js` |
 | 20:42 – 21:42 | Ngắm sao (trời quang), không thì đọc tiếp | `tasks/sky-watch.js` |
@@ -45,12 +46,12 @@ Lịch, tầng tự chủ, bảng Tools và bấm vật trong cảnh đều hỏ
   2. Thêm 1 dòng `ENG_JOBS` (`mind/task-table.js`).
   3. Thêm 1 dòng `ENG_ACTS` và pha ở `engPhaseFor` (`mind/schedule.js`).
   4. Thêm khung giờ ở `mind/hours.js`.
-  5. Muốn bấm được thì thêm dòng ở `ui/tools-panel.js` TL_ITEMS.
+  5. Muốn bấm được: thêm 1 dòng `ENG_OFFERS` (`mind/offers.js`: sẽ làm gì, vì sao chưa làm được) + 1 dòng ở `ui/tools-panel.js` TL_ITEMS (icon, tên, nút).
   6. Ghi tệp vào `manifest.txt`.
 - **Việc quanh ghế cắm trại** (ăn, trà, đọc, dạo, vuốt chó, câu cá, trú mưa): `tasks/camp-routine.js`. Ngồi ghế làm gì, bao lâu: `engChairPhase` (`mind/schedule.js`).
 - **Đi lại, né vật cản, bậc voxel:** `engStep` và `engField` (`body/pose-ik-walk.js`).
 - **Ngồi xuống, đứng dậy:** `body/seats.js`. Phản ứng với mưa, gió, chó, lá: `mind/reactions.js`.
-- **Nhu cầu, tự chủ:** `mind/autonomy.js` (`AUTO_ACTS`: hệ số lấp nhu cầu, thời lượng).
+- **Nhu cầu, tự chủ:** `mind/needs.js` (bảng tốc độ `SIM_NEEDS`, `SIM_DO`, moodlet; bảng Kỹ sư ui/sim-needs.js chỉ vẽ) · `mind/autonomy.js` (`AUTO_ACTS`: hệ số lấp nhu cầu, thời lượng).
 
 ## Thứ tự mỗi khung (`mind/loop-update.js`)
 

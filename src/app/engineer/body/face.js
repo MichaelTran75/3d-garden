@@ -167,7 +167,7 @@
             if (read) set({ gy: 0.8, bt: -0.15, ms: 0.45 }, 0.8);
             if (ph === 'nap') set({ eo: 0, ms: 0.35, by: -0.1, lid: 0 }, 1);
             if (ph === 'stars') set({ eo: 1.08, by: 0.3, ms: 0.85, gy: -0.6 }, 0.8);
-            if (ph === 'engine') set(engHolo.state.on ? { eo: 1.1, by: 0.4, ms: 0.9 } : { bt: -0.3, by: -0.15, ms: 0.3 }, 0.8);
+            if (ph === 'engine') set(VAN.holo.state.on ? { eo: 1.1, by: 0.4, ms: 0.9 } : { bt: -0.3, by: -0.15, ms: 0.3 }, 0.8);
             if (ap === 'aim' || ap === 'cup' || ap === 'twist' || ph === 'garden' || ph === 'trim') set({ tg: ap === 'twist' || ap === 'cup' ? 1 : 0.6, bt: -0.4, by: -0.2, sq: 0.25, ms: 0.2, gy: -0.3 }, 1);   // việc khéo tay: chau mày, thè lưỡi
             if (ap === 'retract' && applePick.state.k < 1) set({ ms: 1, eh: 0.6, by: 0.25 }, 1);   // bứt được quả
             if (ap === 'inspect') set(applePick.state.k < 1 ? { by: 0.45, eo: 1.08, mr: 0.45, mo: 0.15, ms: 0.5, gy: 0.2 } : { ms: 1, eh: 0.5 }, 1);   // xoay quả xem vết dập · chà bóng xong: hài lòng

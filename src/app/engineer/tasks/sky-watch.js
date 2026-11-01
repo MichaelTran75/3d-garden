@@ -47,7 +47,7 @@
         //  từ lưới (điểm neo mẫu lệch 4°); đích GOTO cao 75 – 80°, phương vị đổi 0,35 – 0,9 rad, ≤ 2,3°/s; màn iPad ×1,5; hố đen không còn ô ngắm; JUPITER (Mieke Roth,
         //  CC-BY-4.0 → models/jupiter.jpg 1024 × 512, 76 KB) thành lượt thứ 3: Ngân Hà → hố đen → Jupiter → thiên hà mini. Chuỗi LẮP RÁP + CĂN CHỈNH: xem asmStep.
         //  CHÓ: kỹ sư bước lên thảm ⇒ chó (kể cả đang ngủ trong xe) ra nằm sát thảm phía bên kia, song song chủ, lim dim; sao băng thì ngẩng nhìn theo;
-        //  chủ ngồi dậy thì về chỗ (đêm: vào xe) — animals/dog-brain.js 'stars'.
+        //  chủ ngồi dậy thì về chỗ (đêm: vào xe) — animals/dog/brain.js 'stars'.
         //  NGẮM MƯA (pha 'rainwatch'): đang trú mưa dưới hiên, cứ 4–7 phút đứng dậy ra mép trước bạt (trong vùng khô) đứng 70–110 s: nhìn mưa ngoài
         //  hồ, ngẩng nhìn mép bạt nhỏ giọt, ngửa tay hứng mưa, khoanh tay; rồi về ghế. Cũng là việc tự chủ khi mưa (lấp Giải trí) ----
         const skyWatch = (() => {
@@ -65,9 +65,9 @@
           const roll = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, MW, 14), new THREE.MeshLambertMaterial({ color: 0x35627f })); roll.name = 'Thảm ngắm sao (cuộn)'; roll.castShadow = true; scene.add(roll);
           for (const o of [mat, sheet, roll]) o.userData.noBatch = o.userData.noBake = o.userData.noCollide = true;
           // chỗ dựng cuộn thảm: sát vách xe, bên trái cửa lùa, dưới bạt · chỗ đứng lấy (0,55 trước cuộn)
-          const HOME = vanPt(-0.62, 0, 1.22), HOME_ST = vanPt(-0.62, 0, 1.8); HOME.y = cowY(HOME.x, HOME.z);
+          const HOME = VAN.toWorld(-0.62, 0, 1.22), HOME_ST = VAN.toWorld(-0.62, 0, 1.8); HOME.y = cowY(HOME.x, HOME.z);
           const homeRoll = () => { roll.position.set(HOME.x, HOME.y + MW / 2, HOME.z); roll.quaternion.identity(); roll.scale.set(R0, 1, R0); roll.visible = true; };
-          homeRoll(); ENG_PROPS.push({ x: HOME.x, z: HOME.z, r: 0.12 });
+          homeRoll(); PROPS.push({ x: HOME.x, z: HOME.z, r: 0.12 });
           // ---- kính thiên văn + màn hình + thiên hà mini (xem đầu tệp) ----
           const TEL = { g: null, scr: null, holo: null, an: null, sd: 1, out: false, lift: 0, mv: 0, sc: new THREE.Vector3(), dog: null, scrOn: false, scrT: 0, op: 0, ph: 'out', pk: 0, e: 0, sl: 1, z: 1, tgt: new THREE.Vector3(), from: new THREE.Vector3(), v: [1.5, 1, 1.5, 1], n: 0,
             tube: null, az: 0, alt: 0, azT: 0, altT: 0, slV: 0, sl0: 1, inDur: 6.5, tapReq: false, touch: -1, tx: 0.5, ty: 0.55, sv: 0, viewP: null, viewQ: null, restP: null, restQ: null, arm: null,
@@ -312,13 +312,13 @@
           const TEL_OFF = 0.72;   // tâm chân kính cách trục thảm (G 24/10 "vị trí engineer nằm nên gần telescope": 1,0 → 0,72 — càng gần nhất cách mép thảm ~0,03)
           function telPlace() {   // dựng kính cạnh đầu thảm (phía trống hơn), màn hình hướng về mắt người nằm, chỗ nằm của chó phía bên kia
             const P = spot(), A = TEL.an; if (!P || !TEL.g) return;
-            const head = P.c.clone().addScaledVector(P.f, -0.72), clr = sd => { const x = head.x + P.f.x * 0.12 + P.side.x * sd * TEL_OFF, z = head.z + P.f.z * 0.12 + P.side.z * sd * TEL_OFF; let m = 9; for (const o of obstacleCoords) m = Math.min(m, Math.hypot(o.x - x, o.z - z) - o.r); for (const o of ENG_PROPS) m = Math.min(m, Math.hypot(o.x - x, o.z - z) - o.r); return m; };
+            const head = P.c.clone().addScaledVector(P.f, -0.72), clr = sd => { const x = head.x + P.f.x * 0.12 + P.side.x * sd * TEL_OFF, z = head.z + P.f.z * 0.12 + P.side.z * sd * TEL_OFF; let m = 9; for (const o of obstacleCoords) m = Math.min(m, Math.hypot(o.x - x, o.z - z) - o.r); for (const o of PROPS) m = Math.min(m, Math.hypot(o.x - x, o.z - z) - o.r); return m; };
             TEL.sd = clr(1) >= clr(-1) ? 1 : -1;
             const base = head.clone().addScaledVector(P.f, 0.12).addScaledVector(P.side, TEL.sd * TEL_OFF), yaw = Math.atan2(head.x - base.x, head.z - base.z), g = TEL.g;
             g.rotation.y = yaw; g.scale.setScalar(1.1); const ob = new THREE.Vector3(...A.base).multiplyScalar(1.1).applyAxisAngle(UP, yaw);
             g.position.set(base.x - ob.x, cowY(base.x, base.z), base.z - ob.z); g.updateMatrixWorld(true);
-            for (const [L, o] of [[ENG_PROPS, TEL.propR], [obstacleCoords, TEL.obsR]]) { const i = o ? L.indexOf(o) : -1; if (i >= 0) L.splice(i, 1); }   // đặt lại (chỗ thảm đổi): bỏ vật cản cũ của kính
-            ENG_PROPS.push(TEL.propR = { x: base.x, z: base.z, r: 0.36 }); obstacleCoords.push(TEL.obsR = { x: base.x, y: g.position.y, z: base.z, r: 0.38, h: 1.7 });   // vòng chân ba càng ~0,31 (×1,1)
+            for (const [L, o] of [[PROPS, TEL.propR], [obstacleCoords, TEL.obsR]]) { const i = o ? L.indexOf(o) : -1; if (i >= 0) L.splice(i, 1); }   // đặt lại (chỗ thảm đổi): bỏ vật cản cũ của kính
+            PROPS.push(TEL.propR = { x: base.x, z: base.z, r: 0.36 }); obstacleCoords.push(TEL.obsR = { x: base.x, y: g.position.y, z: base.z, r: 0.38, h: 1.7 });   // vòng chân ba càng ~0,31 (×1,1)
             const eye = head.clone(); eye.y = P.c.y + 0.17;
             // màn: tay đỡ từ đuôi ống chúc xuống, tâm màn cao 0,72 cách chân kính 0,45 về phía đầu người nằm; mặt màn quay về đầu, chúc 6° (người nằm nghiêng
             //  đầu sang là xem được; camera nhìn từ trên vẫn thấy mặt màn — hướng thẳng vào mắt thì màn chúc gần như úp xuống, nhìn từ trên chỉ thấy lưng)
@@ -455,7 +455,7 @@
               let ok = true;
               for (let u = -1.15; u <= 1.15 && ok; u += 0.23) for (let v = -0.55; v <= 0.55; v += 0.275) { const px = x + fx * u + fz * v, pz = z + fz * u - fx * v; if (Math.abs(cowY(px, pz) - y0) > 0.02 || isWater(Math.round(x2gi(px)), Math.round(z2gj(pz)))) { ok = false; break; } }
               if (!ok || rxDry(_a.set(x, y0, z))) continue;
-              let clr = 99; for (const o of obstacleCoords) clr = Math.min(clr, Math.hypot(o.x - x, o.z - z) - o.r); for (const o of ENG_PROPS) clr = Math.min(clr, Math.hypot(o.x - x, o.z - z) - o.r);
+              let clr = 99; for (const o of obstacleCoords) clr = Math.min(clr, Math.hypot(o.x - x, o.z - z) - o.r); for (const o of PROPS) clr = Math.min(clr, Math.hypot(o.x - x, o.z - z) - o.r);
               let tr = 99; for (const t of treeCoords) tr = Math.min(tr, Math.hypot(t.x - x, t.z - z)); for (const t of appleTrees) tr = Math.min(tr, Math.hypot(t.position.x - x, t.position.z - z));
               if (clr < 1.3 || tr < 5) continue;
               const s = Math.min(clr, 2.6) - 0.35 * Math.abs(r - 4.5); if (s > bs) { bs = s; best = { c: new THREE.Vector3(x, y0, z), yaw, f: new THREE.Vector3(fx, 0, fz) }; }
@@ -727,7 +727,7 @@
           }
           // ---- NGẮM MƯA ----
           const RW = { st: 'go', k: 0, dur: 90, act: null, at: 0 };
-          const rwSpot = (() => { const z = RX_AW ? RX_AW.z1 - 0.3 : 2.95; return vanPt(0.0, 0, z); })(), rwYaw = caravanObj.rotation.y;   // trước cửa lùa, cách đèn lồng treo (x 1,1) 1,1 đv
+          const rwSpot = (() => { const z = RX_AW ? RX_AW.z1 - 0.3 : 2.95; return VAN.toWorld(0.0, 0, z); })(), rwYaw = VAN.object.rotation.y;   // trước cửa lùa, cách đèn lồng treo (x 1,1) 1,1 đv
           function rainStart() { RW.st = 'go'; RW.k = 0; RW.act = null; RW.at = 0; }
           function rain(e, dt, t) {   // pha 'rainwatch': true = xong (tạnh / đủ giờ)
             if (!liveWeather.state.raining) return true;
@@ -739,7 +739,7 @@
               const r = Math.random(); RW.act = r < 0.35 ? 'look' : r < 0.55 ? 'drip' : r < 0.75 ? 'palm' : 'fold'; RW.at = RW.k + (RW.act === 'fold' ? 9 : 5 + 3 * Math.random()); RW.yo = (Math.random() - 0.5) * 0.7;
               const yw = rwYaw + RW.yo, h = e.g.position;
               if (RW.act === 'look') rxLook('rain', 2.8, 5, _a.set(h.x + Math.sin(yw) * 7, h.y + 1.2, h.z + Math.cos(yw) * 7));
-              else if (RW.act === 'drip') rxLook('rain', 2.8, 3, vanPt((Math.random() - 0.5) * 0.8, 2.25, RX_AW ? RX_AW.z1 + 0.12 : 3.4));
+              else if (RW.act === 'drip') rxLook('rain', 2.8, 3, VAN.toWorld((Math.random() - 0.5) * 0.8, 2.25, RX_AW ? RX_AW.z1 + 0.12 : 3.4));
               else if (RW.act === 'palm' && rxHands(e)[0]) rxGest('palm', 2.8);
               if (RW.act !== 'fold' && Math.random() < 0.3) rxSay('rainwatch', ['Mưa rơi lộp độp trên bạt, nghe vui tai.', 'Mặt hồ sủi bọt li ti dưới mưa.', 'Đất ướt thơm mùi ngai ngái.', 'Nước nhỏ giọt từ mép bạt thành hàng.'], 'Ngắm mưa', false);
             }
@@ -750,7 +750,7 @@
             return RW.k > RW.dur;
           }
           return { update, tick, idle, rain, rainStart, ok, want: hh => ok(hh) && clock.elapsedTime - S.done > 1800, busy: () => S.st !== 'idle', stop() { S.stop = true; }, goal: () => (S.spot && S.spot.unroll) || HOME_ST, rwSpot, state: S, findSpot: () => {   // dò lại chỗ thảm ⇒ kính dời theo (luôn cạnh đầu thảm, cách người nằm ≤ 4 voxel)
-              for (const [L, o] of [[ENG_PROPS, TEL.propR], [obstacleCoords, TEL.obsR]]) { const i = o ? L.indexOf(o) : -1; if (i >= 0) L.splice(i, 1); } TEL.propR = TEL.obsR = null;
+              for (const [L, o] of [[PROPS, TEL.propR], [obstacleCoords, TEL.obsR]]) { const i = o ? L.indexOf(o) : -1; if (i >= 0) L.splice(i, 1); } TEL.propR = TEL.obsR = null;
               S.spot = null; const P = spot(); if (P && TEL.g && TEL.an && S.st === 'idle') { const scr = TEL.scr; if (scr && scr.parent) scr.parent.remove(scr); scr.position.set(0, 0, 0); scr.quaternion.identity(); scr.scale.setScalar(1.5); telPlace(); } return P; },
-            dogWant: () => engObj.phase === 'stars' && (S.st === 'step' || S.st === 'turn' || S.st === 'down' || S.st === 'lie') && !!dogSpotOf(), dogSpot: dogSpotOf, tel: TEL };   // chó ra nằm cạnh khi chủ lên thảm (animals/dog-brain.js 'stars')
+            dogWant: () => engObj.phase === 'stars' && (S.st === 'step' || S.st === 'turn' || S.st === 'down' || S.st === 'lie') && !!dogSpotOf(), dogSpot: dogSpotOf, tel: TEL };   // chó ra nằm cạnh khi chủ lên thảm (animals/dog/brain.js 'stars')
         })();

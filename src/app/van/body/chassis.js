@@ -20,6 +20,13 @@
           .then(([{ GLTFLoader }, { MeshoptDecoder }]) => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(CHASSIS_GLB)).then(ldAfter).then(gl => {
             const root = gl.scene.getObjectByName('chassis'), mat = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
             root.traverse(o => { if (o.isMesh) { o.material = mat; o.castShadow = o.receiveShadow = true; } });
+            {   // L4 (G 01/11 "đổi sang bản 6,70 m"): khung dài theo đuôi xe — đỉnh sau x 2,8 (giữa quang nhíp sau và dầm ngang cuối: đoạn chỉ có 2 thanh dọc thẳng)
+                //  lùi TR.ext. Vị trí lưu dạng lượng tử (int16 + ma trận nút) ⇒ đổi sang Float32 trước khi giãn (giá trị mới vượt khung lượng tử)
+              root.updateMatrixWorld(true); const toRoot = root.matrixWorld.clone().invert(), w = new THREE.Vector3();
+              root.traverse(o => { if (!o.isMesh) return; const P = o.geometry.attributes.position, M = root.matrix.clone().multiply(toRoot.clone().multiply(o.matrixWorld)), Mi = M.clone().invert(), F = new Float32Array(P.count * 3);
+                for (let i = 0; i < P.count; i++) { w.fromBufferAttribute(P, i).applyMatrix4(M); if (w.x > 2.8) w.x += TR.ext; w.applyMatrix4(Mi).toArray(F, i * 3); }
+                o.geometry.setAttribute('position', new THREE.BufferAttribute(F, 3)); o.geometry.computeBoundingBox(); o.geometry.computeBoundingSphere(); });
+            }
             root.name = 'Khung gầm + 2 cầu + nhíp (GAZ-69)'; root.userData.xray = 'keep'; root.userData.noBake = true; caravanObj.add(root); chassis.g = root;
             const X = root.userData; if (Math.abs((X.axleF ?? -2.12) - TR.xF) > 0.01 || Math.abs((X.axleR ?? 2.03) - TR.xR) > 0.01) console.warn('chassis.glb: cầu lệch bánh xe — dựng lại bằng src/tools/chassis/');
             const old = caravanObj.getObjectByName('Cầu bánh xe'); if (old) old.visible = false;   // cầu tạm (2 ống + bầu vi sai) — đã có cầu thật

@@ -8,13 +8,24 @@
         //  3) Độ phân giải tự điều chỉnh: đo khoảng giữa các khung (rAF) — chậm (< ~45 hình/giây) 1,5 s thì hạ mật độ điểm ảnh ×0,85, nhanh 4 s thì nâng ×1,1
         //     (vùng đệm 17,8–22 ms chống dao động), sàn 0,6. Hạ mà không nhanh lên (màn 30 Hz, trình duyệt bóp nhịp, nghẽn ở CPU) thì trả lại và thôi thử 60 s.
         //     Trang thử nghiệm đặt window.__resLock = true để ảnh chụp giữ đúng cỡ.
+        //  4) Bóng cây cỏ nhỏ chỉ khi zoom gần (G 01/11): dương xỉ vách bờ (lá 10–30 cm, 34k tam giác) + 3 loại nấm (0,2–0,5 m, 64k tam giác) đổ bóng khi khung bóng
+        //     hẹp hơn mức rộng nhất (want ≤ 116/1,25 ⇒ điểm bóng ≤ 0,09 đv), tắt khi want > 104 (trễ 12%: lăn zoom quanh ngưỡng không bật/tắt liên tục). Đo ở zoom xa
+        //     (điểm bóng 0,113 đv, 1 điểm ảnh ≈ 0,09–0,45 đv): bỏ bóng của chúng chỉ lệch ≤ 8/255 ở ≤ 33 điểm ảnh — mắt không thấy; từ nấc 92,8 trở vào lệch rõ dần.
+        //     Chỉ đổi castShadow (không biên dịch lại shader), mỗi khung 1 phép so. Vật mới đăng ký vẫn đổ bóng 1 khung đầu rồi mới theo mức zoom ⇒ bản vật liệu độ sâu
+        //     (lá dương xỉ alphaTest + ảnh) biên dịch lúc mở trang như cũ, lần zoom vào đầu tiên không khựng. Cỏ rải, hoa, thảm cỏ, thảm rêu vốn không đổ bóng;
+        //     đầm sen nằm trong lô gộp vẽ (core/draw-batch.js) nên chưa tách được.
         scene.add(sun.target);   // đích nắng di chuyển theo vùng nhìn → phải nằm trong cảnh để ma trận được cập nhật
         const _cuX = new THREE.Vector3(), _cuY = new THREE.Vector3(), _cuZ = new THREE.Vector3(), _cuC = new THREE.Vector3(), _cuUp = new THREE.Vector3(0, 1, 0);
         let cuR = 116;
+        const smallShadow = { on: false, warm: 0, list: [] };   // mục 4: vật nhỏ chỉ đổ bóng khi khung bóng hẹp · đăng ký bằng smallShadowAdd (mẫu tải sau cổng ldGate)
+        function smallShadowAdd(o) { if (!o) return; smallShadow.list.push(o); smallShadow.warm = 2; }   // giữ castShadow như lúc tạo tới hết khung kế (warm)
+        worldServe('smallShadow', { add: smallShadowAdd });   // DỊCH VỤ 'smallShadow' (01/11 đợt 11): cây cỏ nhỏ tự xin — worldJoin('smallShadow', thứ tự, S => S.add(lưới)) (nature/ferns.js, fungi.js)
         function fitSunShadow() {
           const hx = (camera.right - camera.left) / 2 / camera.zoom, hy = (camera.top - camera.bottom) / 2 / camera.zoom;
           camera.getWorldDirection(_cuX); const se = Math.max(0.12, -_cuX.y);   // vùng đất trong khung nhìn dài thêm 1/sin(góc chúc) theo hướng nhìn
           const want = Math.min(116, Math.max(8, 1.15 * Math.hypot(hx, hy / se) + 3));   // + lề cho bóng của vật cao đứng ngoài khung
+          if (smallShadow.on ? want > 104 : want <= 92.8) { smallShadow.on = !smallShadow.on; smallShadow.warm = 1; }   // mục 4: trễ 92,8 ↔ 104
+          if (smallShadow.warm && !--smallShadow.warm) for (const o of smallShadow.list) o.castShadow = smallShadow.on;
           const R = 116 / Math.pow(1.25, Math.floor(Math.log(116 / want) / Math.log(1.25)));
           _cuZ.copy(sun.position).sub(sun.target.position).normalize();
           _cuX.crossVectors(_cuUp, _cuZ); if (_cuX.lengthSq() < 1e-8) _cuX.set(1, 0, 0); _cuX.normalize(); _cuY.crossVectors(_cuZ, _cuX);   // trục máy chụp bóng (như lookAt)
@@ -52,7 +63,7 @@
             g.computeBoundingSphere(); closeLod.push({ o, lo: g, hi: null, r: g.boundingSphere.radius, on: false }); o.userData.lodHi = false;
           });
         }
-        registerCloseLod(engObj && engObj.g); registerCloseLod(caravanObj);
+        registerCloseLod(worldSee('engineer')?.object); registerCloseLod(VAN.object);
         for (const o of scene.children) if (o.name && ['Ghế câu cá', 'Ghế cắm trại', 'Bếp lửa trại', 'Bàn trà', 'Giá treo nồi', 'Ấm reo', 'Cần câu để dưới đất', 'Xô nhỏ', 'Đống củi', 'Khúc gỗ đứng'].some(p => o.name.startsWith(p))) registerCloseLod(o);
         let lodPpu = -1;
         function updateCloseLod() {

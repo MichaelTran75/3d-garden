@@ -15,7 +15,7 @@
   ../3D garden.html                                                     — bản một tệp tự chứa (chỉ khi chạy trên máy, cạnh thư mục tests/)
 
   python3 build.py           dựng (luôn dừng nếu 1 chú thích // cuối dòng nuốt mất câu lệnh phía sau — xem swallowed())
-  python3 build.py --check   dựng + kiểm tra cú pháp JS bằng node + NGÂN SÁCH dung lượng nén gzip (dùng trên GitHub Actions)
+  python3 build.py --check   dựng + kiểm tra cú pháp JS bằng node + NGÂN SÁCH dung lượng nén gzip + RANH GIỚI ĐƠN VỊ (dùng trên GitHub Actions)
   python3 build.py --force   ghi đè "../3D garden.html" kể cả khi tệp đó đã bị sửa tay
 """
 import gzip, hashlib, pathlib, re, subprocess, sys, tempfile
@@ -24,7 +24,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 SRC = HERE / 'src'
 SINGLE = HERE.parent / '3D garden.html'
 STAMP = HERE / '.single-stamp'          # băm của bản một tệp dựng lần trước (không đưa lên git)
-MODELS_KB = 3400                         # 24/10 tối: 3000 → 3400 cho gấu mèo raccoon.glb 333 KB (avatrass CC-BY) · 24/10: 2900 → 3000 cho khung gầm GAZ-69 chassis.glb 62 KB · trần dung lượng THÔ của models/ (KB) — mẫu tải sau, không tính vào ngân sách gzip bên dưới (18/10: 1500 → 2200 khi thêm xe Transit GLB transit.bin ~550 KB; 2200 → 2500 cho tệp trọng số mạng nơ-ron của kỹ sư); 19/10: 2500 → 2900 cho kính thiên văn + thiên hà mini + mặt trăng GLB (G duyệt)
+MODELS_KB = 3700                         # 31/10 tối: 3500 → 3700 cho tổ máy thủy điện turbine.glb 232 KB (TadenStar CC-BY) · 31/10: 3400 → 3500 cho dương xỉ fern.glb 164 KB (PlantCatalog CC-BY) · 24/10 tối: 3000 → 3400 cho gấu mèo raccoon.glb 333 KB (avatrass CC-BY) · 24/10: 2900 → 3000 cho khung gầm GAZ-69 chassis.glb 62 KB · trần dung lượng THÔ của models/ (KB) — mẫu tải sau, không tính vào ngân sách gzip bên dưới (18/10: 1500 → 2200 khi thêm xe Transit GLB transit.bin ~550 KB; 2200 → 2500 cho tệp trọng số mạng nơ-ron của kỹ sư); 19/10: 2500 → 2900 cho kính thiên văn + thiên hà mini + mặt trăng GLB (G duyệt)
 BUDGET_KB = {'js/app.js': 750, 'tổng': 775}   # ngân sách dung lượng NÉN gzip (KB) người xem phải tải — vượt thì --check báo lỗi (14/10: 380 → 400 khi thêm chim sẻ + thuyền; 15/10: G nâng 420/440; 16/10: bỏ cả chú thích cuối dòng ⇒ app.js 420 → 359 KB, còn trống ~60 KB; 17/10 khuya: G nâng 440/460 để dựng lại xe theo Ford Transit L3H2; 18/10: G nâng 490/510 cho kỹ sư tự chủ + mạng nơ-ron); 19/10: G nâng 500/520 cho radio táp-lô, kính thiên văn + thiên hà mini, chó ngắm sao, cò bay theo cột khí nóng; 21/10: G nâng 750/775 (bảng Tools: kính thiên văn, cắt cỏ, câu cá, drone, Farming, ghế đọc sách uống trà, bỏ củi lò — app.js 503 KB, tăng ~29 KB/ngày từ 16/10)
 args = set(sys.argv[1:])
 
@@ -202,6 +202,9 @@ if '--check' in args:   # kiểm tra cú pháp 3 tệp JS + ngân sách dung lư
     if over: die('vượt ngân sách dung lượng nén (sửa BUDGET_KB nếu thật sự cần): ' + '; '.join(over))
     if models_kb > MODELS_KB: die('models/ %.0f KB > %d KB (sửa MODELS_KB nếu thật sự cần)' % (models_kb, MODELS_KB))
     print('Ngân sách gzip: app.js %.0f/%d KB · tổng %.0f/%d KB' % (gz['js/app.js'], BUDGET_KB['js/app.js'], gz['tổng'], BUDGET_KB['tổng']))
+    r = subprocess.run([sys.executable, str(HERE / 'src/tools/boundaries/check.py'), '--quiet'], capture_output=True, text=True)   # mỗi tác tử / vật chỉ đọc đơn vị khác qua worldSee
+    print(r.stdout.rstrip())
+    if r.returncode: die('chỗ dính MỚI giữa các đơn vị — đọc mặt công khai qua worldSee (src/ARCHITECTURE.md mục 1b)' + (('\n' + r.stderr) if r.stderr else ''))
 
 total = sum(len(t.encode('utf-8')) for t in files.values()) + len(index.encode('utf-8'))
 print('Đã dựng từ src/ (%d mảnh mã) → %d tệp, tổng %.2f MB' % (len(parts), len(files) + 1, total / 1e6))

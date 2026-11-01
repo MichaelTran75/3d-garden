@@ -32,7 +32,7 @@
           CW.set.call(c, 1); CHt.set.call(c, 1); put(s0);   // đổi cỡ xoá trạng thái context ⇒ đặt lại như trước khi thu
         }
         function memTrim() {
-          const van = new Set(); caravanObj.traverse(o => van.add(o));
+          const van = new Set(); VAN.object.traverse(o => van.add(o));
           const geos = new Set(), texs = new Set();
           scene.traverse(o => {
             if (van.has(o)) return;
