@@ -103,7 +103,7 @@
               #endif
               vSfP = (inverse(viewMatrix) * vec4(mvPosition.xyz, 1.0)).xyz; vSfN = normalize(mat3(modelMatrix) * sfN3);`);
             sh.fragmentShader = (U.sfApple ? '#define SF_APPLE\n' : '') + SF_GLSL + (K === 5 ? '\nvarying vec3 vSfB; varying float vSfD;' : '') + '\n' + sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
-              float sfHg = 0.0, sfMo = 0.0;   // sfMo: lượng rêu 0–1 (lá rêu mọc theo — nature/moss-lawn.js)
+              float sfHg = 0.0, sfMo = 0.0, sfCv = 0.0;   // sfMo: lượng rêu 0–1 (lá rêu mọc theo — nature/moss-lawn.js) · sfCv: mật độ hốc khuất của vỏ (bóng hốc — core/sky-shade.js cav)
               {
                 vec3 wn = normalize(vSfN); float wf = 1.0 - smoothstep(0.55, 0.85, abs(wn.y));   // mặt đứng
                 vec2 tg = abs(wn.y) < 0.9 ? normalize(vec2(-wn.z, wn.x) + 1e-5) : vec2(1.0, 0.0);
@@ -207,7 +207,7 @@
                   sfMo = max(sfMo * (1.0 + 0.35 * nf), 0.85 * sfl * uSfMs * step(0.01, uSfTm));
                   // G 31/10 "moss spread over these corners một cách không đồng đều": rêu lan từ HỐC KHUẤT (kẽ 2 rễ, chân rễ sát đất, rễ ôm đá, nách thân) ra ngoài
                   //  thành thuỳ loang không đều — mật độ vật rắn quanh điểm (uSfCv: mặt trống ~0,5, kẽ ~0,7) + nhiễu thuỳ ~0,7 m và ~20 cm làm mép lan lồi lõm
-                  vec3 cq = (vSfP + wn * 0.06 - uSfCv0) * uSfCv1; float cv = all(greaterThan(cq, vec3(0.02))) && all(lessThan(cq, vec3(0.98))) ? texture(uSfCv, cq).r : 0.0;
+                  vec3 cq = (vSfP + wn * 0.06 - uSfCv0) * uSfCv1; float cv = all(greaterThan(cq, vec3(0.02))) && all(lessThan(cq, vec3(0.98))) ? texture(uSfCv, cq).r : 0.0; sfCv = cv;
                   float cvM = smoothstep(0.0, 0.12, cv - 0.47 + 0.3 * (sfN(vSfP.xz * 1.4 + vSfP.y * 0.8 + 51.0) - 0.5) + 0.14 * (sfN(vSfP.xz * 5.0 + vSfP.y * 3.3 + 9.0) - 0.5)) * step(0.01, cv) * (1.0 - smoothstep(1.4, 3.2, hA)) * step(0.01, uSfTm);
                   vec3 an = abs(wn); vec2 sq = an.y > max(an.x, an.z) ? vSfP.xz : an.x > an.z ? vSfP.yz : vSfP.xy;
                   sfMo = max(sfMo, cvM * min(1.0, uSfMs));

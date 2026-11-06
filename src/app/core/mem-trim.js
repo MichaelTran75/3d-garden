@@ -3,7 +3,8 @@
         //  · LƯỚI VỎ CÂY (thuộc tính aBk: cây cổ thụ, rễ, cây con, táo, anh đào, khúc gỗ…): vẽ thẳng, tĩnh (gió lắc trong shader) ⇒ đánh dấu tải lại 1 lần, three gọi
         //    onUpload ngay sau khi lên GPU ⇒ bỏ mảng (freeAfterUpload — core/draw-batch.js); vật chưa từng vào khung nhìn thì bỏ khi lần đầu lên GPU. Bỏ qua bản
         //    gốc của lô gộp (lớp ẩn), vật đổi bản nhiều cạnh khi cận cảnh (userData.lodHi). Công cụ Chọn: bắt tia theo HỘP TỪNG ĐOẠN cành (bakedFlightBounds,
-        //    hộp vật cản bay đã có) thay cho từng tam giác. Mất ngữ cảnh WebGL rồi có lại ⇒ không tải lại được ⇒ ẩn các lưới này (hiếm).
+        //    hộp vật cản bay đã có) thay cho từng tam giác. Mất ngữ cảnh WebGL rồi có lại ⇒ không tải lại được ⇒ ẩn các lưới này và mọi lưới dùng chung mảng của
+        //    chúng (hiếm).
         //  · ẢNH CANVAS TĨNH (≥ 64 × 64, chưa vẽ lại lần nào — version 1, ngoài xe van): tải lại 1 lần, three gọi texture.onUpdate ngay sau khi lên GPU ⇒ thu canvas
         //    về 1 × 1. Lưới an toàn: canvas bị thu vẫn báo cỡ cũ (width / height), lần đầu code gọi BẤT KỲ hàm vẽ nào của context thì canvas trả về cỡ cũ +
         //    trạng thái vẽ (màu, phông, ma trận…) rồi mới vẽ ⇒ ảnh vẽ lại đúng như trước (chỉ mất nội dung cũ — mọi ảnh động đều xoá rồi vẽ lại cả tấm) ----
@@ -53,4 +54,6 @@
           for (const t of texs) { t.onUpdate = mtCanvasFree; t.needsUpdate = true; }
           memTrim.n = [geos.size, texs.size];
         }
-        listen(renderer.domElement, 'webglcontextrestored', () => { for (const o of MT_MESH) if (!o.geometry.attributes.position.array) o.visible = false; });
+        listen(renderer.domElement, 'webglcontextrestored', () => scene.traverse(o => {   // lưới vỏ cây + lưới dùng chung mảng đã bỏ (viền chọn thân táo già — nature/forest.js); lô gộp đã dựng lại trước (core/draw-batch.js)
+          const P = o.isMesh && o.geometry.attributes.position; if (P && !P.array) o.visible = false;
+        }));

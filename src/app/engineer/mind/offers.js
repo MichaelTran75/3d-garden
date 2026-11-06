@@ -13,8 +13,8 @@
           fish: { plan: () => 'Ra ghế câu bên hồ, quăng cần câu 15 phút.',
             why: () => { const hh = liveWeather.localHour, p = engObj.phase; return offerBusy() || (p === 'fish' || p === 'toFish' ? 'Engineer đang câu cá.' : liveWeather.state.raining ? 'Đang mưa, đợi tạnh rồi câu.' : !engHourOk('fish', hh) ? 'Trời tối, để mai câu.' : ''); } },
           smoke: { plan: () => { const O = CHIMINEA.oven; return CAMP.grill.st === 'held' ? 'Về ghế ăn cá đang cầm.' : O.fish.ready() >= 0 ? 'Mở lò nướng lấy cá đã chín khói, ra ghế dưới bạt ăn.'
-              : O.fish.n() ? 'Cá trong lò đang hun: ngồi ghế uống trà chờ chín (lửa sắp tàn thì thêm củi), rồi lấy ra ăn.' : CAMP.grill.st === 'ready' || CAMP.grill.st === 'cooking' ? 'Rút que cá cạnh bếp lửa, cho cá vào vỉ lò nướng, chất củi, ngồi chờ cá chín khói (~25 phút) rồi lấy ra ăn.'
-              : 'Ra hồ câu 1 con cá, cho vào vỉ lò nướng, chất củi, ngồi chờ cá chín khói (~25 phút) rồi lấy ra ăn.'; },
+              : O.fish.n() ? 'Cá trong lò đang hun (10 phút): ngồi ghế uống trà chờ chín (lửa sắp tàn thì thêm củi), rồi lấy ra ăn.' : CAMP.grill.st === 'ready' || CAMP.grill.st === 'cooking' ? 'Rút que cá cạnh bếp lửa, cho cá vào vỉ lò nướng, chất củi, ngồi chờ cá chín khói (10 phút) rồi lấy ra ăn.'
+              : 'Ra hồ câu 1 con cá, cho vào vỉ lò nướng, chất củi, ngồi chờ cá chín khói (10 phút) rồi lấy ra ăn.'; },
             why: () => { const O = CHIMINEA.oven, hh = liveWeather.localHour, need = smokeNeedFish(); return offerBusy() || (need && liveWeather.state.raining ? 'Đang mưa, đợi tạnh rồi ra câu cá.'
               : need && !engHourOk('fish', hh) ? 'Trời tối, hết giờ câu cá — để mai nướng.' : O.fish.free() < 0 && O.fish.ready() < 0 ? 'Vỉ lò đầy cá đang hun, chờ chín đã.' : ''); } },
           apples: { plan: () => 'Gọi Engineer ra gốc cây hái ' + applePick.avail() + ' quả táo bằng sào' + (applePick.state && applePick.state.basketAt === 'table' ? ' (lấy giỏ ở bàn trà mang ra trước).' : '.'),
@@ -29,10 +29,24 @@
           cook: { plan: () => liveWeather.localHour < 14 ? 'Vào bếp trong xe luộc udon, thái hành, rồi ăn ở bàn vuông và rửa bát.' : 'Vào bếp trong xe chiên cơm trứng, bưng chảo ra ghế dưới bạt ăn (5 phút).',
             why: () => offerBusy() || (['cook', 'lunch', 'dinner'].includes(engObj.act) && !engForceAct ? 'Engineer đang ' + ENG_ACTS[engObj.act].label.toLowerCase() + '.' : '') },
           chair: { plan: () => 'Ra ghế cắm trại dưới bạt đọc sách, xen nhấp trà (10 phút).', why: () => offerBusy() || (engObj.phase === 'read' || engObj.phase === 'tea' ? 'Engineer đang ngồi ghế.' : '') },
+          deskread: { plan: () => 'Vào xe ngồi bàn học, gập laptop, đọc sách (10 phút) rồi về lịch.',   // G 02/11: bấm kệ sách / sách trên bàn học
+            why: () => offerBusy() || (engObj.act === 'deskread' ? 'Engineer đang đọc sách ở bàn học.' : '') },
           research: { plan: () => 'Vào xe ngồi bàn học, mở laptop nghiên cứu (20 phút) rồi về lịch.',
             why: () => offerBusy() || ((engObj.act === 'research' || engObj.act === 'music') && !engForceAct ? 'Engineer đang ngồi bàn học.' : '') },
           drone: { plan: () => 'Lấy drone ở bàn trà, bay 1 vòng quanh đảo rồi cất về.', call: () => 'Gọi Engineer ra bàn trà lấy drone bay 1 vòng quanh đảo.',
             why: () => { const w = liveWeather.state; return offerBusy() || (w.raining ? 'Đang mưa, drone không bay được.' : (w.windSpeed || 0) / 3.6 > 9 ? 'Gió mạnh quá (> 9 m/s).' : !droneToy.ready() ? 'Mẫu drone đang tải…' : ''); } },
+          // G 02/11 "toilet, sink, kitchen (meals selectable), camp fire: all selectable": bấm bồn cầu · lavabo · bếp trong xe (chọn món) · bếp lửa trại
+          toilet: { plan: () => 'Vào phòng tắm trong xe đi vệ sinh, cọ bồn cầu, rửa tay ở lavabo.',
+            why: () => offerBusy() || (engObj.act === 'toilet' ? 'Engineer đang trong phòng vệ sinh.' : engObj.act === 'shower' ? 'Engineer đang tắm.' : '') },
+          wash: { plan: () => 'Vào phòng tắm mở vòi lavabo, rửa tay, rửa mặt, soi gương.',
+            why: () => offerBusy() || (engObj.act === 'wash' || engObj.act === 'toilet' ? 'Engineer đang ở lavabo.' : engObj.act === 'shower' ? 'Engineer đang tắm.' : '') },
+          breakfast: { plan: () => 'Vào xe bày bát ngũ cốc, sữa, cà phê ra bàn vuông, ăn rồi rửa bát.',
+            why: () => offerBusy() || (['breakfast', 'lunch', 'snack', 'dinner'].includes(engObj.act) ? 'Engineer đang ăn.' : engObj.act === 'cook' ? 'Engineer đang nấu ăn.' : '') },
+          udon: { plan: () => 'Vào bếp luộc udon, thái hành, bưng ra bàn vuông ăn, rồi rửa bát.', why: () => ENG_OFFERS.cook.why() },
+          rice: { plan: () => 'Vào bếp chiên cơm trứng, bưng chảo ra ghế dưới bạt ăn (5 phút), rồi rửa chảo.', why: () => ENG_OFFERS.cook.why() },
+          fire: { btn: () => CAMP.fireState.out ? 'Nhóm lửa' : 'Dập lửa',   // nút đổi theo bếp đang cháy / đã tắt
+            plan: () => CAMP.fireState.out ? 'Lấy 3 que mồi ở đống củi, xếp giữa vòng đá, quẹt diêm nhóm lửa trại.' : 'Xách xô nước + que cời ra bếp: dội nửa xô, đảo tro, dội nốt, chọc thử cho tắt hẳn.',
+            why: () => offerBusy() || (fireJob.busy() ? 'Engineer đang lo lửa trại.' : liveWeather.state.raining ? 'Đang mưa, đợi tạnh rồi lo lửa trại.' : CAMP.fireState.out && sceneWet >= 0.6 ? 'Củi, đất còn ướt — đợi ráo rồi nhóm.' : '') },
           wood: { plan: () => 'Ra đống củi ôm 2 khúc, bỏ vào lò: lửa bùng, cháy ~10 phút.', why: () => offerBusy() || (CHIMINEA.fuel() > 300 ? 'Lò vừa thêm củi, còn cháy to.' : '') },
           engine: { plan: () => 'Gọi Engineer ra ' + (VAN.hood && VAN.hood.open ? '' : 'mở ca-pô, ') + 'kiểm tra máy rồi nổ máy 30 giây.',   // ca-pô đọc qua mặt xe (van/face.js)
             why: () => offerBusy() || (liveWeather.state.raining ? 'Đang mưa, không mở ca-pô.' : VAN.engineOn ? 'Máy đang chạy.' : '') },

@@ -136,7 +136,7 @@
           });
           const light = new THREE.PointLight(0xff7a2a, 0, 6, 2); light.position.set(0, YB + 0.2, D / 2 + 0.1); g.add(light);
           // ---- CÁ HUN KHÓI trên vỉ lò nướng (G 24/10 khuya "có thể để smoke fish inside khi câu cá xong"): 3 chỗ, cá nằm nghiêng dọc chiều sâu lò; xông theo nhiệt lò
-          //  (OV > 0,2): ~15–25 phút thì chín khói — bạc → vàng rơm → nâu khói. Kỹ sư bỏ cá vào sau buổi câu, bữa tối lấy ra ăn (engineer/tasks/smoker.js) ----
+          //  (OV > 0,1): lò nóng (OV ≥ 0,25) thì ~10 phút chín khói (G 02/11 "put inside chiminea for 10 minutes"; trước 15–25 phút) — bạc → vàng rơm → nâu khói. Kỹ sư bỏ cá vào sau buổi câu, bữa tối lấy ra ăn (engineer/tasks/smoker.js) ----
           const SMOKE_RAW = new THREE.Color(0x8b979c), SMOKE_MID = new THREE.Color(0xc8893f), SMOKE_DONE = new THREE.Color(0x8a5226);
           const smokeFish = [], sfGeo = new THREE.LatheGeometry([[0, -0.215], [0.025, -0.2], [0.075, -0.12], [0.11, 0], [0.09, 0.12], [0.06, 0.195], [0.02, 0.24], [0, 0.25]].map(([r, y]) => new THREE.Vector2(r, y)), 10);
           sfGeo.scale(0.31, 0.62, 0.62); sfGeo.rotateZ(Math.PI / 2); sfGeo.rotateY(Math.PI / 2);   // dẹt nằm nghiêng, đầu về cửa lò
@@ -180,11 +180,18 @@
             light.intensity = 2.4 * L * fl;
             emberMat.color.setRGB(0.12 + 0.85 * e, 0.08 + 0.3 * e, 0.05 + 0.04 * e); logMat.emissiveIntensity = 1.4 * e; soot.emissiveIntensity = 0.7 * L * fl;
             const ovT = on ? 0.3 + 0.7 * L : 0; OV += (ovT - OV) * (1 - Math.exp(-dt / (ovT > OV ? 120 : 420)));   // lò nướng: nóng dần ~2 phút, nguội ~7 phút
-            for (const f of smokeFish) if (f.m.visible) { if (OV > 0.2) f.s = Math.min(1, f.s + dt * OV / (15 * 60)); const c = f.m.material.color; if (f.s < 0.5) c.copy(SMOKE_RAW).lerp(SMOKE_MID, f.s / 0.5); else c.copy(SMOKE_MID).lerp(SMOKE_DONE, (f.s - 0.5) / 0.5); }   // cá xông: bạc → vàng → nâu khói
+            for (const f of smokeFish) if (f.m.visible) { if (OV > 0.1) f.s = Math.min(1, f.s + dt * 0.7 / 600 * Math.min(1, OV / 0.25)); const c = f.m.material.color; if (f.s < 0.5) c.copy(SMOKE_RAW).lerp(SMOKE_MID, f.s / 0.5); else c.copy(SMOKE_MID).lerp(SMOKE_DONE, (f.s - 0.5) / 0.5); }   // cá xông: bạc → vàng → nâu khói
             ovenSoot.emissiveIntensity = 0.55 * OV; ovGlass.emissiveIntensity = 0.9 * OV; needle.rotation.z = 2.2 - 4.2 * OV;   // lòng lò ửng đỏ · ô kính ánh lửa · kim nhiệt kế 20 → 260 °C
             smoke.on = L > 0.02;   // khói ống khói theo cỡ lửa: nhiệt, lượng khói, sức hút ống (khí phụt lên khỏi miệng ống)
             if (smoke.on) { g.localToWorld(smoke.base.set(0, smokeTop, 0)); smoke.heat = 0.5 + 0.7 * L; smoke.smoke = 0.5 + 1.5 * L; smoke.rate = 0.15 + 0.7 * L; smoke.draft = 0.6 + 0.9 * L; plumeLight(smoke, PLUME_COL.smoke, PLUME_COL.steam, _plumeGlow.setRGB(0, 0, 0)); }
           } };
         })();
-        worldFace('chiminea', chiminea);   // MẶT CÔNG KHAI (core/world.js): CHIMINEA — g, oven, lit, fuel, door, smoke, addWood(), see(), update()
-        worldTick('things', 30, (dt, t) => chiminea.update(dt, t));   // MỖI KHUNG (sổ tick core/world.js): mưa ⇒ lửa chuyển sang lò, lò nướng nóng / nguội, cá hun, khói ống
+        // KHAI BÁO VẬT (worldPlace, core/world.js — G 03/11): mọi thứ engine cần biết về lò nằm ở đây, giao diện / vòng lặp không gọi lò theo tên
+        worldPlace('chiminea', {
+          face: chiminea,   // MẶT CÔNG KHAI: CHIMINEA — g, oven, lit, fuel, door, smoke, addWood(), see(), update()
+          tick: [['things', 30, (dt, t) => chiminea.update(dt, t)]],   // MỖI KHUNG (sổ tick): mưa ⇒ lửa chuyển sang lò, lò nướng nóng / nguội, cá hun, khói ống
+          hover: { root: chiminea.g },   // rê chuột: viền trắng
+          // bấm lò ⇒ vỏ trong / trả lại + bảng 2 việc (G 02/11 "thêm option vào chiminea: smoke fish … 10 minutes to eat"): bỏ củi · hun khói cá (lấy cá: đang cầm /
+          //  trong xô / que bếp lửa, không có thì ra hồ câu 1 con ⇒ vỉ lò nướng 10 phút ⇒ lấy ra, về ghế ăn — engineer/tasks/smoker.js)
+          job: { objs: [chiminea.g], title: 'Lò sưởi CHIMINEA', msg: 'Chọn việc:', act: 'wood', choices: [['wood', 'Bỏ củi'], ['smoke', 'Hun khói cá 10 phút rồi ăn']], pick: () => chiminea.see() },
+        });

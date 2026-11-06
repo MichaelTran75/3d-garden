@@ -196,7 +196,7 @@
               .replace('#include <normal_fragment_begin>', '#include <normal_fragment_begin>\n                normal = normalize( vNormal );   // không lật theo mặt sau: cả 2 mặt lá sáng như mặt đất')
               .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n                totalEmissiveRadiance += uGlow * vT * vT * vT * (0.7 + 0.3 * vLush);   // nắng thấp xuyên qua phần ngọn lá: ửng vàng (không phụ thuộc độ rọi)');
           };
-          mat.customProgramCacheKey = () => 'meadow1';
+          mat.customProgramCacheKey = () => 'meadow1'; skyShadeMat(mat, 'meadow', { vtx: true });   // bóng trời dưới tán cổ thụ + kẽ rễ (core/sky-shade.js)
           const mk = g => { const m = new THREE.Mesh(g, mat); m.frustumCulled = false; m.receiveShadow = true; m.castShadow = false; m.name = 'Thảm cỏ'; m.userData.noBatch = m.userData.noRainOcc = true; m.visible = false; scene.add(m); return m; };
           const meshes = LODS.map(([g]) => mk(g));
           // ---- mỗi khung: LOD theo cỡ điểm ảnh của 1 đv · cắt khung nhìn theo mảng khi camera đổi · gió, giẫm, ráng chiều ----
@@ -258,6 +258,9 @@
           const _cr = new THREE.Vector3(), _cd = new THREE.Vector3(), _sd = new THREE.Vector3();
           return {
             cells: nC, land, frac: nC / land, cellAt: k => [R[k * 3], R[k * 3 + 1], R[k * 3 + 2]], cutAt, grassNear, flowerNear, cutFrac, grassFeed, grassSpots,   // (đo kiểm) · cắt cỏ
+            shade(x, z, r, f) {   // nhân màu gốc lá (cả lá theo) các ô cách (x, z) < r bởi f(x, z) ≤ 1 — bóng góc mặt đất khu trại (camp/realism.js) · khung sau cắt lại
+              let n = 0; cellsIn(x, z, r, q => { const k = f(R[q * 3], R[q * 3 + 2]); if (k < 1) { BC[q * 3] *= k; BC[q * 3 + 1] *= k; BC[q * 3 + 2] *= k; n++; } }); last[16] = NaN; return n;
+            },
             update(dt, t) {
               const ppu = renderer.domElement.height / ((camera.top - camera.bottom) / camera.zoom);   // điểm ảnh / đv
               const fade = Math.max(0, Math.min(1, (ppu - 9) / 8));

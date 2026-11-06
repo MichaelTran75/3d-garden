@@ -173,6 +173,19 @@
           const pushB = (x, y, z, nx, ny, nz, m, h0, h1) => { if (rw() >= THREE.MathUtils.smoothstep(m, 0.1, 0.4)) return; KR.push(x, y, z); KN.push(nx, ny, nz); KM.push(rw() * 6.2832, h0 + (h1 - h0) * rw(), 0.12 + 0.4 * rw(), rw()); KQ.push(m, rw()); };
           for (const f of mossBladeSrc) f(pushB, DENS);
           const nB = KR.length / 3, NS = 4, Pp = [], Sd = [], Ix = [];   // 1 lá: 4 đoạn (dải thuôn + đỉnh ngọn) như thảm cỏ cận cảnh
+          // BÓNG HỐC KHUẤT ở gốc từng lá (G 06/11 — core/sky-shade.js): mật độ vật rắn SF_CV (lọc 3 chiều như GPU) ở gốc + 6 cm theo pháp tuyến, tính 1 lần lúc dựng
+          //  ⇒ hệ số 1 − 0,6·smoothstep(0,45, 0,85, mật độ) vào aSk.x (đọc ảnh 3D ở cả 9 đỉnh / lá tốn ~0,8 ms ở zoom ×30)
+          const KC = new Uint8Array(nB).fill(255), CVI = SF_CV.value && SF_CV.value.image;
+          if (CVI) { const c0 = SF_CV0.value, c1 = SF_CV1.value, TX = CVI.width, TY = CVI.height, TZ = CVI.depth, TD = CVI.data, L = (p, q, t) => p + (q - p) * t;
+            const at = (i, j, k) => TD[Math.min(TX - 1, Math.max(0, i)) + TX * (Math.min(TY - 1, Math.max(0, j)) + TY * Math.min(TZ - 1, Math.max(0, k)))];
+            for (let b = 0; b < nB; b++) {
+              const u = (KR[b * 3] + KN[b * 3] * 0.06 - c0.x) * c1.x, v = (KR[b * 3 + 1] + KN[b * 3 + 1] * 0.06 - c0.y) * c1.y, w = (KR[b * 3 + 2] + KN[b * 3 + 2] * 0.06 - c0.z) * c1.z;
+              if (!(u > 0.02 && v > 0.02 && w > 0.02 && u < 0.98 && v < 0.98 && w < 0.98)) continue;
+              const x = u * TX - 0.5, y = v * TY - 0.5, z = w * TZ - 0.5, i = Math.floor(x), j = Math.floor(y), k = Math.floor(z), fx = x - i, fy = y - j, fz = z - k;
+              const d = L(L(L(at(i, j, k), at(i + 1, j, k), fx), L(at(i, j + 1, k), at(i + 1, j + 1, k), fx), fy), L(L(at(i, j, k + 1), at(i + 1, j, k + 1), fx), L(at(i, j + 1, k + 1), at(i + 1, j + 1, k + 1), fx), fy), fz) / 255;
+              const q = Math.min(1, Math.max(0, (d - 0.45) / 0.4)); KC[b] = Math.round(255 * (1 - 0.6 * q * q * (3 - 2 * q)));
+            }
+          }
           for (let r = 0; r < NS; r++) for (const sd of [-1, 1]) { Pp.push(0, r / NS, 0); Sd.push(sd); }
           Pp.push(0, 1, 0); Sd.push(0);
           for (let r = 0; r < NS - 1; r++) { const v = r * 2; Ix.push(v, v + 1, v + 2, v + 1, v + 3, v + 2); }
@@ -184,9 +197,26 @@
           const geos = [...bins.values()].map(L => {
             const geo = new THREE.InstancedBufferGeometry(), pick = (A, k) => { const o = new Float32Array(L.length * k); L.forEach((i, j) => { for (let q = 0; q < k; q++) o[j * k + q] = A[i * k + q]; }); return new THREE.InstancedBufferAttribute(o, k); };
             geo.setAttribute('position', base.position); geo.setAttribute('aSd', base.aSd); geo.setIndex(Ix);
-            geo.setAttribute('aRoot', pick(KR, 3)); geo.setAttribute('aNrm', pick(KN, 3)); geo.setAttribute('aMr', pick(KM, 4)); geo.setAttribute('aMo', pick(KQ, 2)); geo.instanceCount = L.length;
+            geo.setAttribute('aRoot', pick(KR, 3)); geo.setAttribute('aNrm', pick(KN, 3)); geo.setAttribute('aMr', pick(KM, 4)); geo.setAttribute('aMo', pick(KQ, 2));
+            const sk = new Uint8Array(L.length * 2).fill(255); L.forEach((i, j) => { sk[j * 2] = KC[i]; });
+            geo.setAttribute('aSk', new THREE.InstancedBufferAttribute(sk, 2, true)); geo.instanceCount = L.length;   // x = hốc × lớp TÁN, y = lớp SÁT ĐẤT (1 = sáng)
             geo.boundingBox = new THREE.Box3().setFromBufferAttribute(geo.attributes.aRoot).expandByScalar(0.3); geo.boundingSphere = geo.boundingBox.getBoundingSphere(new THREE.Sphere()); return geo;
           });
+          // BÓNG TRỜI tính sẵn từng lá (core/sky-shade.js skyOnLayer + skyAt): lớp lên ⇒ lấy mẫu ở gốc lá + 6 cm theo pháp tuyến (mặt đứng 0,75 như shader), xong
+          //  mới hiện dần; shader lá không đọc ảnh — đọc 2 ảnh ở cả 9 đỉnh / lá tốn ~1 ms ở góc nhìn cả cây
+          skyOnLayer(id => (function* () {
+            const c = id === 'A' ? 0 : 1; let n = 0;
+            for (const geo of geos) {
+              if (geo.userData['sk' + id]) continue; geo.userData['sk' + id] = 1;   // lớp TÁN nhân vào hệ số hốc ⇒ chỉ 1 lần
+              const S = geo.attributes.aSk, D = S.array, R = geo.attributes.aRoot.array, N = geo.attributes.aNrm.array;
+              for (let j = 0; j < S.count; j++) {
+                const nx = N[j * 3], ny = N[j * 3 + 1], nz = N[j * 3 + 2], l = Math.hypot(nx, ny, nz) || 1, f = skyAt(id, R[j * 3] + nx / l * 0.06, R[j * 3 + 1] + ny / l * 0.06, R[j * 3 + 2] + nz / l * 0.06, 0.75 + 0.25 * Math.abs(ny / l));
+                D[j * 2 + c] = Math.round((c ? 255 : D[j * 2]) * f);
+                if (++n % 8192 === 0) yield;
+              }
+              S.needsUpdate = true;
+            }
+          })());
           const U = { uFade: { value: 0 }, uDensity: { value: 1 }, uCamRight: { value: new THREE.Vector3(1, 0, 0) } };
           const mat = new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide });
           mat.onBeforeCompile = sh => {
@@ -215,7 +245,7 @@
                 diffuseColor.rgb *= mix(gBase, gTip, smoothstep(0.0, 1.0, vT)) * vShade;`)
               .replace('#include <normal_fragment_begin>', '#include <normal_fragment_begin>\n                normal = normalize( vNormal );   // 2 mặt lá sáng như mặt vỏ bên dưới');
           };
-          mat.customProgramCacheKey = () => 'mossLawn2';
+          mat.customProgramCacheKey = () => 'mossLawn2'; skyShadeMat(mat, 'moss', { skA: 'aSk' });   // bóng trời dưới tán + kẽ rễ + hốc khuất, tính sẵn từng lá (core/sky-shade.js)
           const meshes = geos.map(geo => { const mesh = new THREE.Mesh(geo, mat); mesh.name = 'Thảm rêu (lá cỏ)'; mesh.receiveShadow = true; mesh.raycast = () => {}; mesh.visible = false;
             Object.assign(mesh.userData, { noBatch: true, noBake: true, noCollide: true, noFlight: true, noRainOcc: true }); scene.add(mesh); return mesh; }), mesh = meshes[0] || null;
           const _cr = new THREE.Vector3();

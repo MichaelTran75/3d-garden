@@ -10,10 +10,18 @@
         const cbCtx = checkBubbleCanvas.getContext('2d');
         const checkBubbleTex = new THREE.CanvasTexture(checkBubbleCanvas); checkBubbleTex.colorSpace = THREE.SRGBColorSpace; checkBubbleTex.generateMipmaps = false; checkBubbleTex.minFilter = THREE.LinearFilter;
         const checkBubbleSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: checkBubbleTex, transparent: true, opacity: 0.97, depthWrite: false, depthTest: false }));
-        checkBubbleSprite.name = 'Nhãn Engineer · câu cá và đám mây suy nghĩ';
+        checkBubbleSprite.name = 'Nhãn Engineer · câu cá và đám mây suy nghĩ'; checkBubbleSprite.layers.set(LAYER_SHARP);   // lớp nét: không mờ theo hậu cảnh (core/lens.js)
         const BUBBLE_K = 0.65;   // cả nhãn (chữ + đám mây) nhỏ lại 35%
         checkBubbleSprite.scale.set(8.5 * BUBBLE_K / ENGINEER_SIZE, 4.675 * BUBBLE_K / ENGINEER_SIZE, 1.0); checkBubbleSprite.center.set(0.5, 0);   // chia ENGINEER_SIZE: không nhỏ thêm theo người
         checkBubbleSprite.position.set(0, 2.9, 0); checkBubbleSprite.visible = false; engObj.g.add(checkBubbleSprite);
+        // G 05/11: ĐẾM NGƯỢC VIỆC ĐANG LÀM (engineer/mind/countdown.js) — sprite nhỏ riêng phía trên đám mây (không có mây: ngay trên đầu), cùng cỡ chữ / màu với
+        //  đếm ngược câu cá; vẽ lại mỗi giây chỉ ô nhỏ này, không vẽ lại cả đám mây
+        const CD_W = 320, CD_H = 48;
+        const cdCanvas = document.createElement('canvas'), cdCtx = cdCanvas.getContext('2d');
+        const cdTex = new THREE.CanvasTexture(cdCanvas); cdTex.colorSpace = THREE.SRGBColorSpace; cdTex.generateMipmaps = false; cdTex.minFilter = THREE.LinearFilter;
+        const cdSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: cdTex, transparent: true, opacity: 0.97, depthWrite: false, depthTest: false }));
+        cdSprite.name = 'Nhãn Engineer · đếm ngược việc đang làm'; cdSprite.layers.set(LAYER_SHARP); cdSprite.visible = false; engObj.g.add(cdSprite);
+        cdSprite.scale.set(checkBubbleSprite.scale.x * CD_W / BUBBLE_W, checkBubbleSprite.scale.y * CD_H / BUBBLE_H, 1);
         function wrapText(ctx, text, maxW) {   // ngắt dòng theo từ cho tiếng Việt (khoảng trắng)
           const words = text.split(' '), lines = []; let line = '';
           for (const w of words) { const test = line ? line + ' ' + w : w; if (ctx.measureText(test).width > maxW && line) { lines.push(line); line = w; } else line = test; }
@@ -68,32 +76,48 @@
         }
         const fmtCountdown = s => s >= 3600 ? Math.floor(s / 3600) + ':' + String(Math.floor(s / 60) % 60).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0')
           : s >= 60 ? Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0') : s + 's';
+        let cdKey = ''; const _cdP = new THREE.Vector3();
+        function drawEngineerCountdown(t, top) {   // top: mép trên phần đang hiện của nhãn (toạ độ canvas nhãn) · null: nhãn ẩn ⇒ ngay trên đầu
+          const e = engObj, cd = engCountdown(e);   // gọi mỗi khung: số hiện chạy đều
+          cdSprite.visible = !!cd && !droneToy.bub.visible;   // bay drone: số nằm trong OSD khung camera (engineer/tasks/drone.js)
+          if (!cdSprite.visible) return;
+          bubbleFitRes();
+          const yc = top === null ? 306 : Math.max(CD_H / 2, top - CD_H / 2 - 4);
+          e.head.getWorldPosition(_cdP); _cdP.y += 0.78 + Math.sin(t * 3.5) * 0.05 + (BUBBLE_H - yc) / BUBBLE_H * checkBubbleSprite.getWorldScale(_tbS).y;
+          cdSprite.position.copy(e.g.worldToLocal(_cdP));
+          const key = cd.icon + cd.sec + '|' + BUBBLE_RES; if (key === cdKey) return; cdKey = key;
+          if (cdCanvas.width !== Math.round(CD_W * BUBBLE_RES)) { cdCanvas.width = Math.round(CD_W * BUBBLE_RES); cdCanvas.height = Math.round(CD_H * BUBBLE_RES); cdTex.dispose(); }
+          cdCtx.setTransform(cdCanvas.width / CD_W, 0, 0, cdCanvas.height / CD_H, 0, 0); cdCtx.clearRect(0, 0, CD_W, CD_H);
+          const text = cd.icon + ' ' + fmtCountdown(cd.sec);
+          cdCtx.textAlign = 'center'; cdCtx.textBaseline = 'middle'; cdCtx.font = '34px Arial, sans-serif';
+          cdCtx.lineWidth = 5; cdCtx.strokeStyle = 'rgba(20, 28, 36, 0.55)'; cdCtx.strokeText(text, CD_W / 2, CD_H / 2);
+          cdCtx.fillStyle = '#ffd34a'; cdCtx.fillText(text, CD_W / 2, CD_H / 2);
+          cdTex.needsUpdate = true;
+        }
         function drawEngineerLabel(t = 0, now = Date.now()) {
           const fishing = engObj.phase === 'fish', thought = engObj.phase === 'check' ? (checkBubbleSprite.userData.weatherThought || checkBubbleSprite.userData.thought) : checkBubbleSprite.userData.thought;
           const showThought = !!thought && (now < thoughtUntil || engObj.phase === 'check');
           const lab = (SIM_DO[simDoing(engObj)] || {}).lab || 'Đi lại', tagOn = labelGroup.visible && shownInScene(engObj.g);   // việc đang làm (bảng Kỹ sư) · nút Nhãn
           checkBubbleSprite.visible = (fishing || showThought || tagOn) && engObj.phase !== 'drone';   // bay drone: bong bóng màn hình camera thay chỗ (engineer/tasks/drone.js)
           engObj.head.getWorldPosition(_tbP); _tbP.y += 0.78 + Math.sin(t * 3.5) * 0.05; checkBubbleSprite.position.copy(engObj.g.worldToLocal(_tbP));   // trên đỉnh đầu dù đứng, ngồi bệt hay nằm
-          if (!checkBubbleSprite.visible) return;
+          if (!checkBubbleSprite.visible) { drawEngineerCountdown(t, null); return; }
           bubbleFitRes();
           const seconds = fishing ? Math.max(0, Math.ceil(engObj.timer)) : -1;
           const key = seconds + '|' + (showThought ? thought.revision : -1) + '|' + (fishing ? fishingStatusText() : '') + '|' + lab;
-          if (key === engineerLabelKey) return; engineerLabelKey = key;
+          if (key === engineerLabelKey) { drawEngineerCountdown(t, checkBubbleSprite.userData.top ?? null); return; } engineerLabelKey = key;
           cbCtx.setTransform(checkBubbleCanvas.width / BUBBLE_W, 0, 0, checkBubbleCanvas.height / BUBBLE_H, 0, 0); cbCtx.clearRect(0, 0, BUBBLE_W, BUBBLE_H);
           cbCtx.textAlign = 'center'; cbCtx.textBaseline = 'middle';
-          const rows = [];
-          let cloud = null;
+          const rows = [], ys = (y) => BUBBLE_H - (BUBBLE_H - y) * THOUGHT_K;   // vẽ đám mây ở tỉ lệ THOUGHT_K quanh đáy giữa canvas; ys đổi toạ độ y lúc vẽ → toạ độ canvas thật
+          let cloud = null, top = null;
           if (showThought) {
-            // vẽ đám mây ở tỉ lệ THOUGHT_K quanh đáy giữa canvas; ys đổi toạ độ y lúc vẽ → toạ độ canvas thật
-            const ys = (y) => BUBBLE_H - (BUBBLE_H - y) * THOUGHT_K;
             cbCtx.save(); cbCtx.translate(BUBBLE_W / 2, BUBBLE_H); cbCtx.scale(THOUGHT_K, THOUGHT_K); cbCtx.translate(-BUBBLE_W / 2, -BUBBLE_H);
             const rest = (thought.header || '').split(' · ').filter(x => x && x !== lab).join(' · '), head = '👷🏻‍♂️ ' + lab + (rest ? ' · ' + rest : '');   // dòng đầu: việc đang làm + giờ / buổi của suy nghĩ (bỏ chữ việc lặp lại)
             const c = drawThoughtCloud(cbCtx, head, thought.message, 294, thought.kind === 'react' || thought.kind === 'event'); cbCtx.restore();
-            cloud = { ...c, y0: ys(c.y0), y1: ys(c.y1) };
+            cloud = { ...c, y0: ys(c.y0), y1: ys(c.y1) }; top = ys(c.y0 - 29);   // múi trên nhô ~29 trên mép chữ nhật
             rows.push({ type: 'weather', text: head, y: ys(c.y0 + 17) }, ...cloud.lines.map((l, i) => ({ type: 'thought', text: l, y: 0 })));
           } else if (tagOn && !fishing) {   // không có suy nghĩ: đám mây gọn chỉ dòng việc đang làm
             cbCtx.save(); cbCtx.translate(BUBBLE_W / 2, BUBBLE_H); cbCtx.scale(THOUGHT_K, THOUGHT_K); cbCtx.translate(-BUBBLE_W / 2, -BUBBLE_H);
-            drawThoughtCloud(cbCtx, '👷🏻‍♂️ ' + lab, '', 294, false); cbCtx.restore();
+            const c = drawThoughtCloud(cbCtx, '👷🏻‍♂️ ' + lab, '', 294, false); cbCtx.restore(); top = ys(c.y0 - 29);
           }
           if (fishing) {   // đếm ngược + trạng thái cá: phía trên đám mây (hoặc sát đầu nếu không có suy nghĩ)
             const top = cloud ? Math.max(30, cloud.y0 - 82) : 260;
@@ -104,7 +128,8 @@
               cbCtx.fillStyle = color; cbCtx.fillText(text, 320, y); rows.unshift({ type, text, y });
             }
           }
-          checkBubbleSprite.userData.rows = rows;
+          checkBubbleSprite.userData.rows = rows; checkBubbleSprite.userData.top = top;
           checkBubbleTex.needsUpdate = true;
+          drawEngineerCountdown(t, top);
         }
 

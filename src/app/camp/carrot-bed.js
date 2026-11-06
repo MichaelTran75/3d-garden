@@ -33,6 +33,7 @@
           for (const sl of slots) for (const o of [sl.tuft, sl.root, sl.hole]) o.traverse(m => { m.userData.noCollide = true; });
           // vật cản (2 vòng dọc luống): người, gà, chim đáp đất né · chỗ đứng chăm luống đã cách mép luống
           for (const sx of [-0.25, 0.25]) { obstacleCoords.push({ x: C.x + sx * L, y: C.y, z: C.z, r: 0.56, h: 0.3 }); PROPS.push({ x: C.x + sx * L, z: C.z, r: 0.32 }); }   // 2 vòng ở ¼ và ¾ chiều dài phủ kín luống (vòng đẩy người 0,64 < chỗ đứng chăm 0,67)
+          for (const u of [-0.7, 0, 0.7]) NAV_MARKS.push({ x: C.x + u, z: C.z, r: 0.3, nav: true });   // lưới dẫn đường kỹ sư: ô phủ luống bị chặn — đường dài vòng qua đầu luống, không băng ngang (G 02/11)
           for (let u = -0.8; u <= 0.81; u += 0.4) meadow.cutAt(C.x + u, C.z, 0.45);   // cỏ dưới luống cắt sát (không lòi lên mặt đất luống)
           const B = { lastWater: -1e9 };   // lần tưới / mưa cuối (nhịp thỏ ăn giờ ở bầy thỏ: animals/bunny/carrots.js BUN_BED)
           const world = (sl, out) => out.set(C.x + sl.x, C.y + SOIL, C.z + sl.z);

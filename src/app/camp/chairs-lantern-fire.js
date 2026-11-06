@@ -220,7 +220,7 @@
           // G 24/10 bếp nhỏ 30% rồi 50%: mọi thứ trừ que cá vào nhóm lòng bếp thu ×CAMP_PIT quanh tâm; que cá thu ×CAMP_K (CAMP_FISH), cắm lùi vào theo vòng đá (vẫn ngả trên mép than)
           const pit = new THREE.Group(); pit.name = 'Lòng bếp'; pit.scale.setScalar(CAMP_PIT); for (const o of g.children.slice()) if (o !== fsg) pit.add(o); g.add(pit);
           fsg.position.x *= 0.78 * CAMP_K; fsg.position.z *= 0.78 * CAMP_K;
-          return { g, flames, smoke, sparks, light, logMat, cutMat, emberMat, glowMat, hotMat, dimMat, fish: { stick: fsg, rod: sk, fg, body: fBody, fMat, finMat, marks: marksM } };
+          return { g, pit, flames, smoke, sparks, light, logMat, cutMat, emberMat, glowMat, hotMat, dimMat, fish: { stick: fsg, rod: sk, fg, body: fBody, fMat, finMat, marks: marksM } };
         }
         const campObj = campfire(); campObj.g.scale.multiplyScalar(CAMP_SCALE); // Grilled fish, stones, logs and flame children inherit this once.
         { const p = worldCell(FIRE_CELL[0], FIRE_CELL[1]); campObj.g.position.copy(p); campObj.g.name = 'Bếp lửa trại (Campfire)'; scene.add(campObj.g); }
@@ -426,9 +426,12 @@
         //  chiều: đống củi sát buồng đốt phía bắc (WOOD_SIDE −1: −x cục bộ lò), lò nướng phía bếp lửa (+x) — giữ đống củi + máy cắt cỏ xa lửa trại (2,7 /
         //  3 m; lò nướng 1,7 m); chỗ đứng bỏ củi trước cửa cách cột góc bạt 0,76 m. Chọn bằng dò lưới (cách bạt, cột, luống cà rốt, lửa trại, lối cửa xe → bếp lửa).
         //  chimLocal: toạ độ cục bộ lò (trước CAMP_SCALE) → thế giới
+        const CHIM_NEAR = 0.35;   // m tiến về giữa ghế + bàn (G 02/11)
         const campTablePos = campLocal(2.55, 2.0);   // bàn trà (dựng bên dưới)
-        const CHIM_P = new THREE.Vector3(X0 + 66.5, 0, Z0 + 100.9); CHIM_P.y = cowY(CHIM_P.x, CHIM_P.z);
-        const CHIM_AIM = campChairPos.clone().lerp(campTablePos, 0.5), CHIM_YAW = Math.atan2(CHIM_AIM.x - CHIM_P.x, CHIM_AIM.z - CHIM_P.z);   // mặt cửa (+z cục bộ) nhìn giữa ghế và bàn
+        const CHIM_P = new THREE.Vector3(X0 + 66.5, 0, Z0 + 100.9);
+        const CHIM_AIM = campChairPos.clone().lerp(campTablePos, 0.5);
+        { const d = CHIM_AIM.clone().sub(CHIM_P).setY(0); CHIM_P.addScaledVector(d.normalize(), CHIM_NEAR); } CHIM_P.y = cowY(CHIM_P.x, CHIM_P.z);   // G 02/11: lò + củi gần ghế thêm 1 chút
+        const CHIM_YAW = Math.atan2(CHIM_AIM.x - CHIM_P.x, CHIM_AIM.z - CHIM_P.z);   // mặt cửa (+z cục bộ) nhìn giữa ghế và bàn
         const WOOD_SIDE = -1;   // đống củi bên −x cục bộ lò, lò nướng bên kia (camp/chiminea.js) · khung đống củi lật theo (camp/trimmer.js)
         const chimLocal = (x, z) => { const p = new THREE.Vector3(x, 0, z).applyAxisAngle(new THREE.Vector3(0, 1, 0), CHIM_YAW).multiplyScalar(CAMP_SCALE).add(CHIM_P); p.y = cowY(p.x, p.z); return p; };
         const WOOD_P = chimLocal(0.76 * WOOD_SIDE, 0), woodCampY = WOOD_P.y;
@@ -562,4 +565,6 @@
         });
         // MỖI KHUNG (sổ tick core/world.js, lượt 'things'): khói ca trà · lửa trại + hơi ấm reo · 2 đèn lồng bật lúc chạng vạng, tắt khi sáng
         worldTick('things', 10, (dt, t) => campCupSteamTick(t)); worldTick('things', 20, campfireTick); worldTick('things', 40, lanternsTick);
-        worldJoin('collide', 100, C => C.moving(() => [campTeaCup, campObj.fish.stick]));   // va chạm: tách trà, que cá nướng là đồ cầm tay (thân động)
+        worldJoin('collide', 100, C => C.moving(() => [campTeaCup, campObj.fish.stick]));
+        // KHAI BÁO VẬT (worldPlace, core/world.js — G 03/11): lửa trại bấm được (G 02/11 "camp fire: all selectable") — rê ⇒ viền trắng lòng bếp, bấm ⇒ bảng việc nhóm / dập lửa
+        worldPlace('campfire', { hover: { root: campObj.pit }, job: { box: campObj.pit, title: 'Lửa trại', go: '▶ Nhóm / dập lửa', act: 'fire' } });   // va chạm: tách trà, que cá nướng là đồ cầm tay (thân động)

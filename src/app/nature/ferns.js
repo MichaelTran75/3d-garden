@@ -2,7 +2,7 @@
         //  Mẫu "Realistic HD Common polypody fern (2555)" — PlantCatalog (Sketchfab), CC BY 4.0: dương xỉ đa túc Polypodium vulgare — loài mọc trên tường đá,
         //  vách đất, gốc cây ẩm (thân rễ bò sát mặt vách, lá lẻ cánh dài 10–40 cm mọc rải dọc thân rễ, cuống ngắn, lá rủ chĩa ra ngoài). Mẫu gốc 6,5 MB: 1 thân rễ
         //  (8 889 tam giác) + 3 lưới lá (10 224 tam giác), 8 ảnh PNG ⇒ src/tools/fern/ (Blender: bỏ thân rễ — nằm khuất sát vách, giảm lưới lá còn 45%; fernpack.py: 1 ảnh WebP 512 dùng chung vì 3 ảnh lá có
-        //  cùng mặt nạ alpha, màu từng lá thành màu đỉnh, lượng tử hoá ⇒ models/fern.glb 164 KB, 4 262 đỉnh / 4 600 tam giác).
+        //  cùng mặt nạ alpha, màu từng lá thành màu đỉnh, lượng tử hoá ⇒ models/fern.glb 164 KB → nén meshopt 107 KB (src/tools/glb-compress, 04/11), 4 262 đỉnh / 4 600 tam giác).
         //  Hệ mẫu: mặt phẳng lưng (gốc cuống) z ≈ −0,05…0, lá chĩa ra +z tới 0,34 m và rủ xuống ⇒ xoay +z ra phía nước (mặt bờ quay đông).
         //  G 31/10 tối "giảm số lượng cây dương sỉ 70%, thay vì tạo nhóm cây dương sỉ, em hãy lấy lá cây dương sỉ tạo giống như cỏ": bỏ 24 cụm nguyên mẫu. Mẫu tách
         //  thành 213 LÁ RỜI (mỗi lá 1 mảnh lưới liền: cuống + lá chét, dài 7–38 cm, gốc cuống = đỉnh sát mặt phẳng lưng nhất) rồi rải TỪNG LÁ lên vách như cỏ mọc:
@@ -13,7 +13,7 @@
         //  Gió: mỗi lá lệch ∝ (khoảng cách tới gốc / chiều dài lá)² theo trường gió chung (nature/wind-physics.js) tại gốc lá + rung lan từ gốc ra ngọn;
         //  viền lá mịn = alpha-to-coverage có làm nét theo fwidth (MSAA), không ghi alpha của canvas (canvas trong suốt); ướt thẫm màu khi mưa như đất cỏ ----
         const ferns = (() => {
-          const FERN_GLB = window.__fernGlb || (location.protocol === 'file:' ? '3d-garden/src/models/fern.glb' : /^(localhost|127\.0\.0\.1)$/.test(location.hostname) ? 'models/fern.glb' : 'https://michaeltran75.github.io/3d-garden/models/fern.glb');   // máy G: mẫu mới chưa lên Pages vẫn nạp được
+          const FERN_GLB = window.__fernGlb || (/^(localhost|127\.0\.0\.1)$/.test(location.hostname) ? 'models/fern.glb' : 'https://michaeltran75.github.io/3d-garden/models/fern.glb');   // G 03/11: mở tệp (file://) thì trình duyệt chặn fetch tệp cục bộ ⇒ lấy bản Pages như các mẫu khác   // máy G: mẫu mới chưa lên Pages vẫn nạp được
           const { zE, OUT } = stormDrain.net, rnd = mulberry32(25550), N_FROND = 7 * 213;
           // ---- mặt vách: mỗi hàng ô z, cột đất cuối trước nước ⇒ mặt vách x, gốc lá từ trên mép nước 0,32 tới dưới mép bờ 0,05 ----
           const rows = [];
@@ -34,6 +34,28 @@
             if (Math.abs(z - zE) < 1.12 && y < OUT.inv + 1.38) continue;   // tường đầu cửa xả (rộng 1,84) + tầm lá rủ
             P.push({ x: r.x + 0.01, y, z, u: rnd(), sc: 0.8 + 0.35 * rnd(), mir: rnd() < 0.5 ? -1 : 1, out: 0.22 + 0.45 * rnd(), al: rnd() < 0.22 ? (rnd() < 0.5 ? -1 : 1) * (1.9 + 1.1 * rnd()) : (rnd() - 0.5) * 2.4, tw: (rnd() - 0.5) * 0.8, tint: rnd() });
           }
+          // ---- VÁCH KHÁC (G 02/11 "add lá dương sỉ vào những vị trí vách khác nhưng ít hơn 70%"): mọi mặt vách đất còn lại giáp nước (2 bờ sông hạ lưu, vũng dưới
+          //  đập, bờ hồ chứa sát đập) — mật độ 30% vách chính trên cùng diện tích, cùng cách rải loang + dáng lá; mỗi ô mặt vách xoay theo hướng ra nước (ry quanh trục
+          //  đứng: hệ lá cục bộ x = ra khỏi vách, z = dọc vách). Bỏ dải quanh đập (thân đập, dốc nối bờ, bể tiêu năng — nhà máy mờ 25% sẽ lộ lá phía sau). Để riêng P2: rêu vách (nature/bank-moss.js) chỉ đọc P ----
+          const P2 = [], rows2 = [], mainKey = new Set(rows.map(q => Math.round(x2gi(q.x + BLOCK / 2)) - 1 + ',' + Math.round(z2gj(q.z))));
+          for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) for (let j = 1; j < GZ - 1; j++) for (let i = 1; i < GX - 1; i++) {
+            if (isWater(i, j) || !isWater(i + di, j + dj) || (di === 1 && mainKey.has(i + ',' + j)) || (j + dj >= DAM_J - 6 && j + dj < DAM_J + 2 * S + 15)) continue;   // thân đập + dốc nối bờ + bể tiêu năng / nhà máy (world/hydro-dam.js: hộp bao đập j 91…117)
+            const wl = j + dj < DAM_J ? resTopY : lakeY, top = surfaceY(i, j), y0 = wl + 0.32, h = top - 0.05 - y0; if (h <= 0.1) continue;
+            rows2.push({ x: wx(i) + di * BLOCK / 2, z: wz(j) + dj * BLOCK / 2, y0, h, nx: di, nz: dj, ry: Math.atan2(-dj, di) });   // ry: hệ cục bộ +x → hướng ra nước
+          }
+          const Ht2 = rows2.reduce((a, r) => a + r.h, 0), N2 = Math.round(0.3 * P.length / Math.max(1, Ht) * Ht2);
+          for (let tries = 0; tries < 40 * N2 && P2.length < N2 && Ht2 > 0; tries++) {
+            let u = rnd() * Ht2, r = rows2[0]; for (const q of rows2) { r = q; if ((u -= q.h) <= 0) break; }
+            const s = (rnd() - 0.5) * BLOCK, x = r.x - r.nz * s, z = r.z + r.nx * s, y = r.y0 + r.h * Math.pow(rnd(), 0.9), w = x * 0.6 + z * 0.8;   // w: toạ độ dọc vách cho nhiễu loang
+            const n = 0.7 * vn(w * 1.1 + 3.1, y * 1.4) + 0.3 * vn(w * 2.9 + 7.7, y * 3.1 + 1.3), keep = 0.12 + 0.88 * THREE.MathUtils.smoothstep(n, 0.36, 0.66);
+            if (rnd() > keep) continue;
+            P2.push({ x: x + 0.01 * r.nx, y, z: z + 0.01 * r.nz, ry: r.ry, u: rnd(), sc: 0.8 + 0.35 * rnd(), mir: rnd() < 0.5 ? -1 : 1, out: 0.22 + 0.45 * rnd(), al: rnd() < 0.22 ? (rnd() < 0.5 ? -1 : 1) * (1.9 + 1.1 * rnd()) : (rnd() - 0.5) * 2.4, tw: (rnd() - 0.5) * 0.8, tint: rnd() });
+          }
+          // ---- 3 LÁ TRÊN THÂN KHÚC GỖ ĐỨNG (G 03/11 "add 3 lá dương sỉ vào thân cây"): khúc gỗ x 106 z 109 (nature/forest.js woodPost: gốc y 7,0, R 0,6 → 0,5, cao 1,9,
+          //  mấu cành hướng −0,6 / 2,54 rad) — lá dài nhất ×1,8 (35–60 cm, cân với thân Ø 1,1 m), gốc lá cắm sát vỏ, hệ cục bộ +x = ra khỏi thân (như vách), lá dài, vươn chếch lên ----
+          const P3 = [[0.6, 8.2, 0.35, 0.03], [1.7, 7.9, -0.55, 0.06], [4.1, 8.4, 0.25, 0.045]].map(([a, y, al, u], k) => { const R = 0.6 - 0.1 * (y - 7.0) / 1.9 - 0.03;
+            return { x: X0 + 106 + Math.cos(a) * R, y, z: Z0 + 109 + Math.sin(a) * R, ry: -a, u, sc: 1.8, mir: k === 1 ? -1 : 1, out: 0.5, al, tw: 0.15, tint: 0.3 * k }; });
+          const PA = P.concat(P2, P3);
           // ---- nạp mẫu · tách lá rời · dựng 1 lưới ----
           const FERN_GLSL = `
             attribute vec4 aFw;   // gốc lá (thế giới) · khoảng cách tới gốc / chiều dài lá
@@ -43,10 +65,10 @@
               float f = sin(uTime * 6.3 + dot(aFw.xyz, vec3(9.1, 13.7, 7.3)) - 3.0 * aFw.w) * (0.004 + 0.01 * length(w));   // lá rung, sóng lan từ gốc ra ngọn
               return k * (vec3(w.x, 0.12 * w.y, w.z) * 0.045 + vec3(0.3 * f, f, 0.3 * f));
             }`;
-          ldTrack(Promise.all([import('https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js'),
-            fetch(FERN_GLB).then(r => r.ok ? r.arrayBuffer() : Promise.reject(new Error('HTTP ' + r.status))), ldGate]).then(([{ GLTFLoader }, buf]) => {
-            new GLTFLoader().parse(buf, '', gl => {
-              let src = null; gl.scene.traverse(o => { if (o.isMesh && !src) src = o; }); if (!src || !P.length) return;
+          ldTrack(Promise.all([import('https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js'), import('https://esm.sh/three@0.160.0/examples/jsm/libs/meshopt_decoder.module.js'),   // mẫu nén EXT_meshopt_compression (src/tools/glb-compress, G 04/11)
+            fetch(FERN_GLB).then(r => r.ok ? r.arrayBuffer() : Promise.reject(new Error('HTTP ' + r.status))), ldGate]).then(([{ GLTFLoader }, { MeshoptDecoder }, buf]) => {
+            new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parse(buf, '', gl => {
+              let src = null; gl.scene.traverse(o => { if (o.isMesh && !src) src = o; }); if (!src || !PA.length) return;
               src.updateMatrix();
               const G0 = src.geometry, Pa = G0.attributes.position, Na = G0.attributes.normal, Ua = G0.attributes.uv, Ca = G0.attributes.color, I0 = G0.index.array, nV = Pa.count;
               // lá rời = mảnh lưới liền (hợp nhất đỉnh theo tam giác); gốc = đỉnh sát mặt phẳng lưng nhất (z nhỏ nhất, hệ mẫu đã giải lượng tử)
@@ -65,16 +87,17 @@
                 const dir = new THREE.Vector3(MP[tp * 3], MP[tp * 3 + 1], MP[tp * 3 + 2]).sub(f.b).normalize(); nA.set(0, 0, 0); for (const i of f.v) nA.add(n.fromBufferAttribute(Na, i));
                 nA.addScaledVector(dir, -nA.dot(dir)); if (nA.lengthSq() < 1e-8) nA.set(0, 1, 0).addScaledVector(dir, -dir.y); nA.normalize();
                 f.F = new THREE.Matrix4().makeBasis(dir, nA, new THREE.Vector3().crossVectors(dir, nA)); }
-              FR.sort((a, b) => b.L - a.L); let nVt = 0, nIt = 0; for (const p of P) { p.f = FR[Math.min(FR.length - 1, Math.floor(p.u ** 1.5 * FR.length))]; nVt += p.f.v.length; nIt += p.f.t.length; }   // nghiêng về lá dài (lá 7–12 cm nhìn như vụn)
+              FR.sort((a, b) => b.L - a.L); let nVt = 0, nIt = 0; for (const p of PA) { p.f = FR[Math.min(FR.length - 1, Math.floor(p.u ** 1.5 * FR.length))]; nVt += p.f.v.length; nIt += p.f.t.length; }   // nghiêng về lá dài (lá 7–12 cm nhìn như vụn)
               const pos = new Float32Array(nVt * 3), nor = new Float32Array(nVt * 3), uv = new Float32Array(nVt * 2), col = new Float32Array(nVt * 3), fw = new Float32Array(nVt * 4), idx = nVt > 65535 ? new Uint32Array(nIt) : new Uint16Array(nIt);
               const M = new THREE.Matrix4(), S = new THREE.Matrix4(), W = new THREE.Matrix4(), RF = new THREE.Matrix4(), T0 = new THREE.Matrix4(), NM = new THREE.Matrix3(), dt = new THREE.Vector3(), nt = new THREE.Vector3(), c = new THREE.Color();
               let ov = 0, oi = 0;
-              for (const p of P) {
+              for (const p of PA) {
                 const f = p.f, flip = p.mir < 0;
                 // như lá cỏ mọc trên vách: gốc → ngọn vươn dọc mặt vách (78% hướng lên ±69°, 22% rủ xuống) và chĩa ra khỏi vách 13–38°; mặt lá quay ra ngoài + ngửa lên đón sáng, xoắn ±23°
                 const co = Math.cos(p.out); dt.set(Math.sin(p.out), co * Math.cos(p.al), co * Math.sin(p.al)); nt.set(1, 0.7, 0).addScaledVector(dt, -(dt.x + 0.7 * dt.y)).normalize().applyAxisAngle(dt, p.tw);   // mặt lá quay ra ngoài, ngửa lên đón sáng
                 W.makeBasis(dt, nt, v.crossVectors(dt, nt)).multiply(S.copy(f.F).transpose());   // hệ lá → hệ đích
                 if (flip) W.multiply(RF.copy(f.F).multiply(S.makeScale(1, 1, -1)).multiply(T0.copy(f.F).transpose()));   // lật gương qua mặt (trục, pháp tuyến) của lá
+                if (p.ry) W.premultiply(RF.makeRotationY(p.ry));   // vách khác: xoay hệ vách (+x ra nước) về hướng mặt vách đó
                 M.makeTranslation(p.x, p.y, p.z).multiply(W).multiply(S.makeScale(p.sc, p.sc, p.sc)).multiply(T0.makeTranslation(-f.b.x, -f.b.y, -f.b.z)); NM.getNormalMatrix(M);
                 c.setHSL(0.25 + 0.05 * p.tint, 0.3, 0.93 + 0.07 * p.tint);   // lá này xanh vàng, lá kia xanh thẫm hơn
                 for (let k = 0; k < f.v.length; k++) {
@@ -105,6 +128,6 @@
               G0.dispose();
             }, err => console.warn('Fern:', err));
           }).catch(err => console.warn('Fern:', err)));
-          const F = { P, rows, mesh: null, fronds: 0 };
+          const F = { P, P2, P3, rows, rows2, mesh: null, fronds: 0 };
           return F;
         })();

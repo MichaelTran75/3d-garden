@@ -80,7 +80,8 @@ G 01/11: "tách tới mức mọi tương tác là độc lập, khi tương tá
   tĩnh" dựng sau cùng) · `flowField` (core/flow-field.js — `F.blockRect(khung)`: chuồng bò) · `flight` (animals/_lib/insect-flight.js — `F.roots` vật cản bay:
   chuồng bò) · `hover` (ui/hover-select.js, đợt 11 — `H.add(gốc, tuỳ chọn)` như `hovAdd`, `H.claim(fn)` nhận cú bấm trước mọi vật, `H.current` vật đang rê,
   `H.moved()` bộ phận đang chạy ⇒ dò lại, `H.busy()` con trỏ đang bận: chòm sao 10, radio 20, cửa + ca-pô 30, động cơ 40, máy cắt cỏ 50) · `smallShadow`
-  (loop/close-up.js, đợt 11 — `S.add(lưới)` vào bóng nắng gần: dương xỉ 10, nấm 20). Thư viện bay côn trùng gọi móc của từng loài gắn lúc tạo con: `reroute()` khi kẹt ≥ 2 s, `navReset()` khi lưới bay dựng lại (ong: chọn hoa khác,
+  (loop/close-up.js, đợt 11 — `S.add(lưới)` vào bóng nắng gần: dương xỉ 10, nấm 20) · `groundContact` (world/ground-contact.js, 03/11 — `S.add(gốc | [gốc…], { w, line, ao, body, y })`; 05/11 thêm `S.drape({ px, NX, NZ, ps, x0, x1, z0, z1, g0, name })` rải ảnh độ mờ có sẵn — bóng góc mặt đất khu trại:
+  cắt lát chân vật sát đất → đường bóng + bóng mờ phủ theo mặt đất, chạy sau khi mẫu tải xong: nhà, bồn, chuồng bò, nhà kho, cột điện, cây táo, anh đào, xe van có bóng gầm; cổ thụ + rễ thôi dùng từ 06/11) · `skyShade` (core/sky-shade.js, 06/11 — `S.canopy({ pts, k, floor })` lớp TÁN từ điểm lá, `S.layer('A' | 'B', { px RG8, NX, NZ, x0, z0, x1, z1, y, m })`: cổ thụ 10). Thư viện bay côn trùng gọi móc của từng loài gắn lúc tạo con: `reroute()` khi kẹt ≥ 2 s, `navReset()` khi lưới bay dựng lại (ong: chọn hoa khác,
   bỏ hoa đang hút · bướm: điểm bay khác). Tin có số liệu `worldTell(tin, …)`: lá chạm / nổi trên mặt nước báo `leafOnWater` (lá, bán kính, xác suất) — cá
   nghe (`worldHear`, animals/fish/fish.js) tự quyết ngoi lên đớp. Que cá của trại đặt lại lúc mở trang / tua giờ báo `grillReset` — kỹ sư (meal-read.js)
   tự cất khung cá rô cắn câu.
@@ -95,7 +96,9 @@ G 01/11: "tách tới mức mọi tương tác là độc lập, khi tương tá
   (`worldSee('raccoon' | 'deer').object`, `worldSee('cows').hut`).
 - **Người xem ↔ cảnh** (đợt 11): tầm nhìn là hạ tầng `core/view.js` — góc xoay `theta / phi / radius / target`, phím `keys`, `viewTick(dt)` đặt camera
   mỗi khung (đầu main-loop.js, chỗ cũ), bám vật `camFollow(gốc, zoom, opt)` + `CAMF` (bám ở sổ tick lượt `viewer` 30) ⇒ vòng lặp, bảng nào cũng đọc / gọi
-  mà không dính giao diện. Xem xuyên là trạng thái của XE (`van/body/xray.js`: mặt vỏ `caravanShell`, mặt vỏ còn 25% `xrayOf`, `setCaravanXray`, độ mờ
+  mà không dính giao diện. Ống kính điện ảnh `core/lens.js` (05/11, mục cuối): `lensRender(dt)` thay lệnh vẽ cuối khung — zoom ≥ ×3 ⇒ sa bàn (tilt-shift theo độ sâu,
+  dải trên + dưới, 06/11 rộng dần ×3 → ×30), bám vật + ×16 → ×30 ⇒ mờ quanh vật, chuyển nét → mờ liền 3 mức (06/11), mờ theo khoảng cách ngang
+  + lấy nét tự động giữa khung (06/11 trưa: vật đứng mờ đều gốc → ngọn như đất dưới chân), lớp nét `LAYER_SHARP` 29 (core/boot.js) vẽ sau. Xem xuyên là trạng thái của XE (`van/body/xray.js`: mặt vỏ `caravanShell`, mặt vỏ còn 25% `xrayOf`, `setCaravanXray`, độ mờ
   theo thanh nét viền `VAN_LINES.onShell`); giao diện bấm xe chỉ gọi `VAN.setXray(on)`, đọc `VAN.xray`, hỏi `VAN.engineClick(hits)`, `VAN.engineSeen()`,
   `VAN.engineModel`. Rê chuột là dịch vụ `hover` (trên): xe, máy cắt cỏ, radio, chòm sao tự xin. Vòng đời trang: `pauseScene` / `destroyGarden` ở
   core/boot.js cạnh `releaseScene`, `resumeScene` + nghe ẩn / hiện / rời trang (visibilitychange, IntersectionObserver, pagehide / pageshow) ở
@@ -112,6 +115,7 @@ G 01/11: "tách tới mức mọi tương tác là độc lập, khi tương tá
   | Bướm đậu tay | kỹ sư `handOffer` { bf, dur }, `handOut`, `palmReady`, `palm()` | con được mời tự bay tới (`bf.hand`, insects/butterflies.js `bflyHand`), đậu, hết `dur` / tay rút / mưa thì bay đi; kỹ sư thấy đậu mới nói "Bướm" (env-react.js `envBflySync`) |
   | Bướm sà quanh người | kỹ sư `outside`, `pos` | ~1/4 lần chọn điểm bay mới, bướm tự chọn quanh người (`bflyLure`) |
   | Gấu mèo vồ | gấu mèo `swipe` { prey, t } | ong / bướm bị vồ tự thấy mà bay đi (bees.js đầu `beeTick`, butterflies.js đầu `butterfliesTick`); 8 s mới vồ lại con đó |
+  | Bấm cây táo già ⇒ chọn "Gấu mèo ăn táo" | cây: tin `appleTreeTap` (ft3) | gấu mèo tự quyết trong 90 s (animals/raccoon/brain.js `B.call`): ra khỏi hang / bỏ việc đang làm, tới gốc, trèo hái ăn; chó / người tới gần thì thôi, chạy về hang. Mặt gấu mèo `climbing` ⇒ cây tự mở ô nhìn xuyên tán quanh con vật + chuyển camera sang bám nó (nature/forest.js) |
   | Thỏ ăn cà rốt | luống `ripe()`, `field()`, `slotPos()` + chỗ chạm | thỏ tự ra luống (animals/bunny/carrots.js `bunnyBed`), mặt thỏ `atBed`, `bedEating()`; kỹ sư thấy thì ngồi xem (`gardenEating`) |
   | Chó lùa bò | chó `herdUsed / herdOn / herdDone / herdPh / herdGrp / herdAvail()`, `pos` | bò tự xét mỗi khung (animals/cows/herd-hut.js `cowHerdSense`, trước vòng bò): vùng bỏ chạy 4 m, nhóm chó vừa bước vào, nhập đoàn < 9 m, bước nhanh khi chó ép ≤ 8 m; chó tự nhớ vết chân bò (`herdTr`), đọc chuồng + lưới bò qua mặt bò |
   | Gà về chuồng | gà `allIn` (cả đàn đã lên sào) | chuồng tự đóng / mở cửa (`COOP.update`: muốn đóng khi `allIn`) — gà không gạt cửa chuồng |
@@ -128,7 +132,7 @@ G 01/11: "tách tới mức mọi tương tác là độc lập, khi tương tá
   offer(k), asked, ask(k), askNeed(k), actLabel(k), rod, applePole, appleBasket · `fish` list, returning ·
   `dog` pos, yaw, head, object, shown, shelter, st, k, shake, patReady, herdUsed, herdOn, herdDone, herdPh,
   herdGrp, herdAvail(), pettable(), zoomSpot() · `cows` list, hut, hutRect, blocked, hutField, wantHome() · `bunnies` list, atBed, bedEating() ·
-  `raccoon` pos, shown, object, swipe · `chickens` list · `sparrows` all · `storks` birds, group, awake · `deer` object · `fireflies` list ·
+  `raccoon` pos, shown, object, swipe, climbing · `chickens` list · `sparrows` all · `storks` birds, group, awake · `deer` object · `fireflies` list ·
   `drone` spin, object, rc, flying · `carrotBed` pos, soilY, rimH, width, length, side, slots, lastWater, ripe(), empty(), dry(), slotPos(), field(), sample(), claim / release /
   rustle / tug / bite, plant / harvest / water ·
   `van` (van/face.js) object, yaw, toWorld(), out, doorFar, doorStep, doorIn, dogBed, doorField, dims, awningLamp, awning, awPoles, inside, bath, stool, bed,
@@ -157,6 +161,32 @@ G 01/11: "tách tới mức mọi tương tác là độc lập, khi tương tá
 - **Sửa song song**: mỗi phiên / mỗi người một đơn vị (thư mục) — bên trong sửa thoải mái. MẶT là hợp đồng: thêm trường mới thì an toàn; đổi nghĩa / bỏ
   trường thì tìm `worldSee('tên')` để sửa bên đọc. Thử hành vi không đổi: trang thử (móc `__dbg`, `__ev`) + `src/tools/engineer-audit/harness.js`, cùng hạt
   Math.random, đồng hồ ảo bước 1/20 s, so vân tay vị trí / dáng mọi vật với bản trước — dời mã thuần ⇒ giống hệt; đổi sang giao thức ⇒ chỉ lệch nhịp 1 khung.
+
+## 1c. Engine và nội dung — ranh giới, một chỗ khai báo mỗi vật (worldPlace — G 03/11)
+
+G 03/11: "engine game là bộ nguyên tắc mà mỗi lần sửa code base chúng ta ko đụng vào … khi đặt object / character chúng ta phải gán bộ nguyên tắc vào".
+
+- **Engine (nền — thêm / sửa nội dung thì KHÔNG sửa ở đây)**: `core/` (mặt + sổ tick + dịch vụ `world.js`, khởi động `boot.js`, tầm nhìn `view.js`, va chạm
+  `collide.js`, dẫn đường `flow-field.js`, gộp lượt vẽ `draw-batch.js`, bóng góc nướng sẵn `ao-bake.js`, ngày / đêm `day-night.js`, nhãn `labels.js`, bước vật lý
+  `fixed-step.js`, bớt RAM `mem-trim.js`, địa hình `terrain.js`, mặt đứng `ground.js`, tiện ích `helpers.js`), `loop/` (vòng lặp, cận cảnh, vòng đời trang), `ui/` (bảng Tools / Kỹ sư,
+  rê chuột chọn, bảng việc khi bấm vật), thư viện `animals/_lib/`, công cụ `src/tools/` (dựng, bộ kiểm). Tệp dữ liệu nằm trong `core/` vì ai cũng đọc
+  (`site.js`, `palette.js`, `star-catalog.js`, `constellation-lines.js`) là nội dung: sửa số thoải mái.
+- **Nội dung (sửa thoải mái trong đơn vị của mình)**: tác tử `engineer/`, `animals/<loài>/` · vật `van/`, `camp/`, `props/` · môi trường `nature/`, `world/`.
+- **Một chỗ khai báo mỗi vật** — `worldPlace(tên, { face, tick, join, hover, job })` (core/world.js), viết ở cuối tệp của vật:
+  | Khối | Engine làm gì | Ví dụ |
+  |---|---|---|
+  | `face` | đăng ký mặt công khai (`worldFace`) | lò: `chiminea` (g, oven, lit, addWood, see…) |
+  | `tick: [[lượt, thứ tự, fn]]` | ghi vào sổ tick (`worldTick`) | lò: `['things', 30, …]` |
+  | `join: [[dịch vụ, thứ tự, fn]]` | xin dịch vụ hạ tầng (`worldJoin`: collide, dayNight, drawBatch…) | |
+  | `hover: { root, …tuỳ chọn bộ chọn }` | viền trắng khi rê chuột (dịch vụ `hover`, ui/hover-select.js) | lửa trại: `{ root: lòng bếp }` |
+  | `job: { objs \| box, title, act \| choices, msg, go, vis, van, pick }` | bấm vật ⇒ bảng việc mời kỹ sư (dịch vụ `jobs`, ui/xray-lifecycle.js); `box` = engine tự dựng hộp bấm vô hình cho lưới đã gộp lượt vẽ; `pick()` vật tự đổi dáng lúc được bấm | lò: 2 lựa chọn bỏ củi · hun khói cá, `pick` = vỏ trong |
+  Kiểu The Sims: vật nêu việc (`act` = tên việc trong `engineer/mind/offers.js`), kỹ sư tự quyết làm được không (`ENGINEER.offer(act).why()`), giao diện chỉ vẽ.
+  Thêm khả năng MỚI cho mọi vật (một loại khối mới) = sửa engine MỘT lần trong `worldPlace` + dịch vụ, rồi vật nào cũng dùng.
+- **Đã chuyển** (03/11): lò chiminea (`camp/chiminea.js`), lửa trại (`camp/chairs-lantern-fire.js`); 04/11: cây táo già (`nature/forest.js` — `hover` chỉ thân, `job` lựa chọn tự lo,
+  `tick` lượt 'viewer'). **Còn khai rải rác trong giao diện** — chuyển khi sửa tới
+  vật đó: ghế cắm trại, laptop, luống cà rốt, kệ sách, bồn cầu, lavabo, bếp trong xe, cần câu (`ui/tools-panel.js`); drone, sào + giỏ táo, máy cắt cỏ, động cơ
+  (`TOOLS` trong `ui/xray-lifecycle.js`); drone, giỏ, sào, cần câu, laptop, bếp, mái chuồng bò, nhà máy đập, cửa xả cống (`hovAdd` trong `ui/hover-select.js`).
+  Danh sách vật đã khai lúc chạy: `__ev('[...WORLD_PLACES.keys()]')`.
 
 ## 2. Một khung hình (loop/main-loop.js → main-loop-rest.js)
 
@@ -245,6 +275,9 @@ G 01/11: "tách tới mức mọi tương tác là độc lập, khi tương tá
   - Vật dựng sẵn mà bị **mang đi xa** (que cá) → `userData.noBatch = true` (lô bị loại theo khung nhìn ở chỗ cũ).
   - Vật liệu có `onBeforeCompile` riêng thì không được gộp (tốn thêm lượt vẽ).
   - Mảnh có `userData.lodHi` (cận cảnh) được đổi hình tạm: tự vẽ khi dùng bản nhiều cạnh, lùi xa thì về lại lô.
+  - Bóng góc nướng sẵn (`core/ao-bake.js`, 05/11): mảnh có `userData.aoGeo` (hình chẻ + thuộc tính `ao`) ⇒ `batchAoRefresh` dựng lại lô theo hình đó rồi bỏ nó
+    (màu đỉnh lô = màu vật liệu × hệ số sáng). Xem mục "Bóng góc nướng sẵn" cuối tệp. Khu trại (`camp/realism.js`) dùng thêm `key`, `roots`, `ground`, `floor`
+    — mục "Khu trại render thật" cuối tệp.
 - Lớp: 0 = cảnh; 2 = nền trời đêm (camera chính bật, camera phụ như bản đồ mặt chắn mưa không thấy); 31 = mảnh gốc đã gộp.
 - Ngân sách tham khảo: ~250–450 lượt vẽ, ~1,8–2,4 triệu tam giác ở toàn cảnh; mật độ điểm ảnh tối đa 1,6.
   **Đo thật 16/10** (toàn cảnh mặc định, 10:00): lượt chính 1,76 triệu + lượt bóng 1,29 triệu tam giác (trước khi sửa: 2,12 + 1,88), 779 + 306 lượt vẽ.
@@ -352,7 +385,8 @@ G 01/11: "tách tới mức mọi tương tác là độc lập, khi tương tá
   (4) Độ lộ e = (tâm − đất) / r giảm ĐƠN ĐIỆU: 0,3 → −0,35 rồi cắm dốc ~35° (quãng 2,2 r) xuống −2 ⇒ phần nổi là 1 dải liền, ngọn tù chui vào đất;
   bán kính thuôn còn 50% (rễ mảnh nằm dưới đất); gợn ±0,1 r chỉ khi e > −0,2. (5) Rễ con tách ở đoạn mẹ còn lộ (e > −0,45, mẹ ≥ 0,12), mọc từ TIM rễ
   mẹ đúng độ cao đó (e đầu của con = tâm mẹ / r con). (6) Rễ sau gặp rễ trước (khác mẹ) ở đoạn còn lộ thì vắt qua bên trên (2 ống chạm nhau, nhô dần
-  ±0,5) — đoạn đã chìm thì luồn dưới. Bản trước (rễ bắt đầu cách tâm 0,95, lặn ngẫu nhiên rồi trồi, chui dưới đá) ⇒ nhiều khúc rời lơ lửng.
+  ±0,5) — đoạn đã chìm thì luồn dưới. Bản trước (rễ bắt đầu cách tâm 0,95, lặn ngẫu nhiên rồi trồi, chui dưới đá) ⇒ nhiều khúc rời lơ lửng. G 06/11: vùng thuôn nhanh to thêm ≤ 45 %, vỏ rễ
+  nhẵn hơn thân — mục "Cây cổ thụ: rễ, bóng, vỏ theo nghiên cứu".
 - **Thảm cỏ** (`nature/meadow.js`): cỏ mềm = 45% ô đất theo ngưỡng điểm nhiễu, KHÔNG mọc trên nền san phẳng (`padH`). **Thảm cỏ ngắn**
   (`LAWNS`, G 15/10: bãi khúc gỗ chết + 2 gốc cây, nằm trên nền san phẳng): ô trong elip mép loang luôn có cỏ, kể cả trên nền san
   phẳng; lá 9–15 cm, mảnh hơn 40%, 3 bản/ô; đánh dấu bằng độ tươi +2 trong `aCell.z` (shader: `lawn = step(1.5, aCell.z)`, gốc lá tối
@@ -701,11 +735,11 @@ lò xo) ⇒ lên bậc voxel 0,6 đv thì chân trước lên trước, thân ng
   chiminea"): `hovAdd(root, { on, n, click, skip, pad })` — tay nắm 2 cửa, logo, động cơ, drone, tay cầm, giỏ, sào, cần câu (đất + tay), chiminea; laptop + bếp chỉ
   khi xem xuyên (`VAN.xray`); động cơ khi xem xuyên hoặc ca-pô mở > 17° (`engineSeen`, mặt `VAN.engineSeen()`). Dò = tia × hộp bao trong hệ của vật (đo lại ≤ 1 lần/giây — vật cử động, GLB nạp sau),
   nhiều hộp trúng thì vật NHỎ nhất (laptop nằm trong hộp to của bếp), `n` bỏ nút quay lưng camera. Viền: mỗi lưới thêm 3 con dùng chung hình (tạo lần rê đầu):
-  mặt nạ stencil (MeshBasic colorWrite false, Replace, polygonOffset) + quầng tối 4,5 px α 0,42 + viền trắng 3 px (ShaderMaterial: dời đỉnh uPx điểm ảnh ra xa
+  mặt nạ stencil (MeshBasic colorWrite false, Replace, polygonOffset, nhích 10 cm về phía camera — 05/11: rêu / cỏ thảm sát vỏ che mặt nạ từng chấm ⇒ viền lấm tấm; 3 con ở lớp nét LAYER_SHARP) + quầng tối 4,5 px α 0,42 + viền trắng 3 px (ShaderMaterial: dời đỉnh uPx điểm ảnh ra xa
   đoạn trục dọc vật uA–uB — toạ độ thế giới, đổi mỗi khung; stencil NotEqual; renderOrder 1e6+). **Bẫy**: viền bỏ kiểm độ sâu thì vật che phía trước (cỏ trước
   giỏ, ấm trước tay cầm, NÉT VIỀN vỏ xe trước động cơ — LineSegments ghi độ sâu) thành vệt trắng hình vật che ⇒ kiểm độ sâu nhưng nhích đỉnh 6 cm về phía
   camera (`m.z += 0.06` hệ nhìn) — vẫn đè được mặt sát nút (nan ga-lăng quanh logo). Mảnh gộp lượt vẽ (lớp ẩn 31) có con ở lớp 0 nên viền vẫn hiện; con
-  `hovFx/pickSkip/noBatch/xray 'ui'`, raycast rỗng. Bỏ lưới cộng sáng (lửa), vô hình, InstancedMesh; động cơ chỉ viền vỏ máy (`skip` khác engineMat).
+  `hovFx/pickSkip/noBatch/xray 'ui'`, raycast rỗng. Bỏ lưới cộng sáng (lửa), vô hình, chỉ ghi độ sâu (colorWrite false), InstancedMesh; động cơ chỉ viền vỏ máy (`skip` khác engineMat).
   **Vùng rê lớn hơn nút** (G 18/10 "hover lên cánh cửa thì tay cầm show white border line, hover tới nắp capo thì show logo white border line và đèn led
   sáng"): `hovAdd(root, { picks: [{o, n, on}] })` — mỗi vùng có hộp bao riêng trong hệ của nó, hướng mặt ngoài n theo hệ của chính vùng (cửa mở thì quay theo);
   viền vẫn vẽ ở root. Tay nắm: vùng = tay nắm + cả cánh cửa; logo: vùng = logo + nắp ca-pô khi đang đóng (n chếch lên–ra trước, bỏ khi nhìn từ đuôi xe). Bấm vào
@@ -1282,7 +1316,8 @@ skinWeight float 9,5 — động vật gộp vẽ) + instanced 16 · 130 texture
 `memTrim()` chạy 1 lần khi lớp va chạm dựng xong (`COL.ready`, loop/main-loop.js — va chạm đọc tam giác thật nên phải đợi), xe van bỏ qua:
 - LƯỚI VỎ CÂY (thuộc tính `aBk`, vẽ thẳng, `layers.mask === 1`, không có `userData.lodHi`): đặt `needsUpdate` + `onUpload(freeAfterUpload)` ⇒ three tải lại
   rồi bỏ mảng ngay (vật chưa vào khung nhìn thì bỏ ở lần tải đầu). Công cụ Chọn: `mtRaycast` bắt tia theo hộp từng đoạn cành (`bakedFlightBounds` /
-  `geo.userData.flightBounds` — chính hộp vật cản bay). Đo: bản CPU lưới 39,2 → 29,2 MB. Mất ngữ cảnh WebGL ⇒ ẩn các lưới này (không tải lại được).
+  `geo.userData.flightBounds` — chính hộp vật cản bay). Đo: bản CPU lưới 39,2 → 29,2 MB. Mất ngữ cảnh WebGL ⇒ ẩn các lưới này (không tải lại được) và mọi
+  lưới dùng chung mảng đã bỏ (05/11: viền chọn thân táo già — nature/forest.js — dùng chung `position` của vỏ ⇒ có lại ngữ cảnh là lỗi `byteLength`, cả trang dừng).
   Còn giữ bản RAM: bản gốc của lô gộp (Chọn chính xác, tách khỏi lô, dựng lại khi mất ngữ cảnh), cỏ (cắt cỏ), nước / khói (động), xe van.
 - ẢNH CANVAS TĨNH (≥ 64 × 64, `version` ≤ 1): `t.onUpdate = mtCanvasFree` + `needsUpdate` ⇒ ngay sau khi lên GPU canvas thu về 1 × 1 (80 ảnh ~13 MB).
   Bẫy an toàn: `width / height` vẫn báo cỡ cũ; mọi hàm của context 2D bị thay bằng hàm "trả cỡ cũ + trạng thái vẽ hiện tại (màu, phông, ma trận) rồi
@@ -2114,3 +2149,250 @@ Lý do: drone + tay cầm nằm trên bàn trà gần cả ngày, chỉ vài đi
   Ảnh cỡ thật trước / sau: tổ 48 điểm lệch ≤ 23 / 700 k, ong đậu hoa ≤ 34 ở mép cánh 1 điểm ảnh (sai số dấu phẩy động khi nội suy da),
   thân ong bay nhiễu bóng ≤ 8 trên thân (129 điểm > 16 ở mép) — nhìn không khác.
 - Kiểm (01/11): build gzip 663/750 · 686/775; trang thử không lỗi; test 19/0; chọn vật trúng mảnh cánh gốc, hộp chọn như cũ; đêm: lô cánh ẩn hết.
+
+### Bấm cây táo già ⇒ gấu mèo ra trèo hái táo ăn (G 04/11)
+
+- G 04/11 "em add animation gấu mèo leo cây táo và hái táo, cây táo selectable: khi click vào cây táo thì gấu mèo leo lên hái táo và ăn táo" (ảnh cây táo già
+  trên khúc gỗ chết). Cảnh trèo – hái – gặm – chúc đầu xuống có từ 24/10 (mục "Gấu mèo trèo cây táo hái ăn khi người xem nhìn cận"), trước chỉ chạy khi nhìn cận con vật ≥ 1,5 s.
+- **Cây** (nature/forest.js, `worldPlace('oldAppleTree')`) — bản sửa G 04/11 20:55 "outline cây táo có vẻ over complication; em chỉ cần outline gốc cây, ko cần
+  outline tán lá, và khi click vào cây táo thì hiện option: gấu mèo ăn táo" (ảnh 46: viền lá lấm tấm trắng khắp tán):
+  - **Viền chỉ thân**: `ft3Trunk` — lưới thay thế gồm các tam giác vỏ cây nằm trọn dưới chỗ chạc đầu tiên (đi theo chuỗi thân trong `ft3.userData.limbs`
+    tới đoạn có ≥ 2 con), vật liệu không vẽ màu / không ghi độ sâu, raycast rỗng, noBatch/noBake/noCollide/pickSkip. `hover { root: ft3, skip: m ≠ ft3Trunk }`
+    ⇒ hộp chọn và viền chỉ quanh thân; tán, cành, quả không viền.
+  - **Bấm ⇒ bảng chọn** (dịch vụ 'jobs'): `job { objs: [ft3], title 'Cây táo già', choices: [{ lab 'Gấu mèo ăn táo', plan, why, run }] }` — bấm chỗ nào trên
+    cây cũng mở bảng (tia bấm trúng cả cây). why() ≠ '' khi gấu mèo đang ở trên cây (nút mờ). run() = `camFollow(ft3, 16, off y 2,6)` + `worldTell('appleTreeTap',
+    ft3)` — cây không biết ai nghe.
+  - Lượt 'viewer' 45 mỗi khung: (1) **ô nhìn xuyên tán** — vá shader lá của riêng cây này (`uHole`: xy tâm = con vật chiếu lên khung vẽ, z bán kính = 0,9 m
+    trên màn hình, w độ sâu con vật): lá Ở TRƯỚC con vật trong vòng mờ dần, giữa bỏ hẳn; mở / khép 0,6 s theo mặt gấu mèo `climbing`; bóng lá giữ nguyên.
+    (2) camera còn bám cây mà con vật đã bám thân ⇒ `camFollow(con vật, 30, off y 0,3, rate 2)` (×16 thì gấu mèo ngồi gặm chỉ ~15 điểm ảnh), theo nó tới lúc
+    về hang; kéo phải / W A S D / nút về mặc định là thôi bám.
+- **ui/xray-lifecycle.js — lựa chọn tự lo**: phần tử `choices` có thể là `{ lab, plan(), why(), run() }` thay cho `[act, nhãn]` — không mời kỹ sư, vật tự chạy
+  run(). Bản viền lá InstancedMesh (`inst` trong ui/hover-select.js, 04/11 chiều) đã gỡ hẳn.
+- **Gấu mèo** (animals/raccoon/brain.js): nghe tin ⇒ `B.call = t + 90`. Trong 90 s: đang ngủ trong hang thì ra ngay (bò 0,6 m/s, ló đầu 0,9 s thay 1,6–2,6 s),
+  đang về hang / chui vào thì quay lại, ban ngày không bị lùa về hang, vào 'toTree' từ forage / dig / stand / eat / chase / home / out (out: đã ra khỏi miệng
+  > 1,1 m, ngoài vòng khúc gỗ), cây < 25 m. Chó < 4 m / người < 2,8 m ⇒ huỷ gọi, chạy về hang; bắt đầu trèo ⇒ xoá gọi. Sửa lỗi cũ: mở trang lúc gấu mèo đang
+  ngủ ⇒ nó nằm ở (0, 0, 0) rồi bò 22 m giữa trống về hang — nay đặt ở `racInside`, quay mặt ra miệng.
+- **animals/raccoon/climb.js**: chọn quả thêm − 2 × cos(góc giữa hướng quả và hướng camera quanh trục thân) ⇒ quả phía người xem (bấm từ xa, quả bên kia bị cả
+  tán che). Mặt trèo thân: hướng camera nếu được — ngoài vùng cấm khúc gỗ (≥ 72° khỏi phía khúc gỗ), chỗ bám dưới gốc (0,9 m) là đất khô ngang gốc — không thì mép
+  vùng cấm gần camera nhất. Sửa dấu phép xoay về mép vùng cấm (cả mặt theo cành cũ): `angOf` đo cùng chiều `applyAxisAngle(UP, +θ)`, viết `-θ` thì sang phía đối
+  xứng. **Lưới dẫn đường riêng `navBlocked()`**: cả bờ đông sông (hang, cây táo già) nằm trong nền san solar (`pads` ở core/sky-sun-moon.js, `padH` ≠ null) mà
+  `ffBlocked` cấm hết ⇒ bảng chung ở đây rỗng: `ffDir` null, gấu mèo đi thẳng, đứng bên kia khúc gỗ thì racAvoidLog đẩy ra ⇒ kẹt 30 s, thử lại mãi. Lưới riêng
+  30 m quanh cây: nước + vòng vật cản obstacleCoords (r + 0,3) + khúc gỗ (< 1,1 m quanh trục — vòng đẩy racAvoidLog 1,0) + ô cấm chung không phải nền san; ngoài
+  cửa sổ cấm. Dựng 1 lần, lúc gấu mèo đi tới gốc lần đầu.
+- Mặt gấu mèo thêm `climbing` (animals/raccoon/face.js): cây đang trèo (appleTrees[2]) hoặc null.
+- Kiểm (04/11): build gzip 692/750 · 714/775, ranh giới 0; trang thử không lỗi; test 19/0. Dò (bản viền tán, bấm thật bằng PointerEvent): 13h đang ngủ ⇒
+  ra 5 s, ló, tới gốc 18,9 s, lên 19,9, hái 44,6, gặm 46,5–58,4, chúc đầu xuống 59,9–85,4, về hang 106,5 s; mặt trèo · camera 0,78 (trước âm — trèo phía khuất),
+  quả · camera 1. 19h trọn chuỗi; đứng bên kia khúc gỗ 3 chỗ: tới gốc sau 20,5 / 15,7 / 12,2 s (trước kẹt mãi). Ảnh cỡ thật: viền ngày / đêm gọn theo tán,
+  gấu mèo ngồi cành ôm táo gặm thấy rõ qua ô xuyên tán ở ×30. Bản viền thân (20:55): build 692/750 · 715/775, ranh giới 0,
+  test 19/0; dò rê thân ⇒ viền trắng chỉ quanh thân; bấm tán ⇒ bảng 'Cây táo già' · nút "▶ Gấu mèo ăn táo" ⇒ 13h ra 5,1 s, tới cây, trèo 19,2 s; 19h trèo
+  1,2 s; bảng drone / giỏ táo vẫn như cũ.
+
+### Ống kính điện ảnh — mờ tiền / hậu cảnh khi bám vật (G 05/11)
+
+- G 05/11 "research n study về game cinematic view khi zoom in, close up, hiệu ứng blur mờ background" ⇒ nghiên cứu + ảnh thử ở `docs/cinematic-closeup-dof.md`;
+  "làm theo cách em đề xuất đi" ⇒ phương án A (DOF theo độ sâu khi bám vật, mức vừa). Vignette / viền đen (C) chưa làm.
+- G 05/11 "nếu em cho blur 25% diện tích (viền), 75% trung tâm nét thì sao" ⇒ thử trên ảnh 3 kiểu (`docs/blur-vien-25-*.jpg`): viền đều / elip
+  mờ hai bên trái phải cùng độ sâu với giữa ⇒ như kính bẩn; dải trên + dưới khớp độ sâu ⇒ G "làm theo cách em đề xuất, miễn là tự nhiên nhất có thể" ⇒ sa bàn (B).
+- **core/lens.js** (hạ tầng, sau core/view.js): `lensRender(dt)` thay `renderer.render(scene, camera)` ở loop/main-loop-rest.js. Độ mạnh `LENS.s` → smoothstep(zoom,
+  16, 30) khi `CAMF.o` có, 0 khi không (vào / ra ~0,3 s); < 0,02 ⇒ vẽ thẳng như cũ, khung tạm trả lại sau 3 s. Tiêu cự = độ sâu điểm nhìn `target` (camFollowTick
+  trượt nó theo vật ⇒ đổi vật bám — cây → gấu mèo — nét tự trượt). CoC = (|z − zf| − 0,6 m) × 1% chiều cao khung / m, tối đa 1,6% (camera trực giao: độ sâu
+  tuyến tính `near + d·(far − near)`).
+- Lượt: (1) cảnh trừ lớp nét vào khung tạm MSAA 4 mẫu (cảm ứng 2) + DepthTexture · (2) nửa độ phân giải: màu lọc 2×2 + CoC có dấu từ độ sâu gần nhất 4 điểm (alpha)
+  · (3) nửa độ phân giải: gom 48 mẫu xoắn ốc tỉ lệ vàng, scatter-as-gather (mẫu sau tâm kẹp CoC ≤ CoC tâm; độ phủ tiền cảnh vào alpha) · (4) ra khung vẽ: trộn
+  nét / mờ theo CoC từng điểm ảnh (smoothstep 0,75–2,5 px) hoặc độ phủ tiền cảnh, ghi lại độ sâu (gl_FragDepth, lùi 4 cm — ảnh độ sâu MSAA gộp lấy 1 mẫu lệch
+  tâm) · (5) lớp nét: không xoá, tắt cập nhật bóng + ma trận, nền null, camera chỉ thấy lớp 29.
+- **Sa bàn (tilt-shift, 05/11)** — cùng các lượt, chỉ đổi thông số vòng nhoè: `ts` = smoothstep(zoom, 2, 3) × smoothstep(tan góc nghiêng, 0,3, 0,6) (nhìn
+  gần thẳng xuống ⇒ mặt đất cùng độ sâu ⇒ tắt), không cần bám vật. Theo ĐỘ SÂU, không theo vị trí điểm ảnh: 1 m dọc khung trên mặt đất = tan(góc nghiêng) m
+  độ sâu ⇒ vùng nét = ± 30% chiều cao khung quanh tâm (`LENS_TS_A`) đổi ra mét, mờ tăng dần tới mép (nửa mờ ở 12,5% sát mép ⇒ 25% diện tích), tối đa 1% chiều
+  cao (`LENS_TS_MAX`) ⇒ dải mờ uốn theo đồi, cây / tua-bin cao ở mép trên nét đúng khoảng cách. Kẹp thêm theo dải màn hình (`uSa`, `uSw` trong lnCoc): chỉ mờ
+  được ngoài ± 30% quanh tâm — nhìn dốc thì tán cây giữa khung gần camera hơn mặt đất, không kẹp sẽ mờ (thử 05/11). Bám vật: `LENS.m` → 1 (trượt ~0,5 s,
+  thôi bám ở ×30 không nhảy) ⇒ thông số sang vùng nét ± 0,6 m, `uSa = −1` (không kẹp). Kiểm: lệnh vẽ 34,4 / 33,0 ms ở 1264 × 786 (trang thử, máy này, ~+1,4 ms);
+  bám ×30 ⇒ m = 1, rg 0,6; thôi bám ⇒ m trượt 1 → 0,2 trong 0,8 s; về ×0,5 ⇒ trả khung tạm; test 19/0. Từ ×3 trở lên khung tạm giữ suốt (~90 MB đồ hoạ ở trần 2K).
+- **Chuyển nét → mờ không biên + sa bàn rộng dần theo zoom (G 06/11** "anh nghĩ là cái hiệu ứng blur effect nó sẽ tăng diện tích khi mà zoom closer … khoảng
+  20% … blend cái phần blur và cái phần visible lại cho nó không có biên giới … cường độ blur giảm dần khi tới cái phần visible"; nghiên cứu ở
+  `docs/cinematic-closeup-dof.md` mục 06/11):
+  - Đo trước (`docs/dof-probe/lb1.js` + `lb-prof.py`: ảnh bật / tắt CÙNG khung, σ Gauss khớp năng lượng cạnh từng dải 16 hàng): sa bàn ×3 → ×12 σ ~0,6 px
+    ở 15 % chiều cao rồi về 0 ngay ở 17 % — một bậc; bản đồ CoC (`lb2.js`) vẫn tăng đều ⇒ biên do cách trộn: (4) trộn ảnh nét với ảnh gom nửa phân giải
+    trong dải CoC 0,75 → 2,5 px (~4 % chiều cao) ⇒ ảnh lồng bản mờ của chính nó; 48 mẫu rải trên bán kính lớn nhất của khung ⇒ CoC 1–2 px chỉ trúng 1–3
+    mẫu. Ví dụ ×12: vách đất bờ xa mờ hẳn, mặt nước ngay dưới còn nét lưới ⇒ thấy thành đường.
+  - Sửa (core/lens.js): (a) 3 mức theo CoC từng điểm ảnh: nét → mờ nhỏ (4 mẫu song tuyến lệch ±0,75 px, σ 0,87) ở CoC 0 → 1,73 px → ảnh gom ở
+    1,73 → 2,33 px (GPU Gems 3 ch. 28); ảnh nửa phân giải tự có σ ≈ 1 px ⇒ bán kính gom √(CoC² − 4) ⇒ σ tổng = CoC / 2 như đĩa. (b) Bán kính gom riêng
+    từng điểm ảnh: CoC lớn nhất ô 16 px → lớn nhất 3 × 3 ô (2 ảnh ~79 × 50, ~16 KB mỗi ảnh) ⇒ 48 mẫu rải đúng đĩa của điểm ảnh, tiền cảnh mờ ở ô bên
+    vẫn loang sang; bán kính < 0,5 px bỏ qua. (c) CoC qua chân bậc 2 (¼ đầu dải) rồi tuyến tính — đạo hàm liền, mờ bắt đầu dưới ngưỡng thấy. (d) Sa bàn:
+    A (nửa dải nét) 0,29 ở ×3 → 0,15 ở ×30 theo thang log zoom, mờ ở mép giữ 1 % ⇒ dải chuyển rộng ra, thoải hơn. Bám vật: `LENS_RG` 0,6 → 0,45 m
+    (chân bậc 2 lùi chỗ thấy mờ ⇒ giữ chỗ bắt đầu thấy mờ ~0,73 m như 05/11).
+  - Số đo: Số đo (1264 × 800, ảnh bật / tắt cùng khung; "thấy mờ" = σ hiệu dụng ≥ 0,3 px liền từ mép vào): vùng thấy mờ ×3 / ×6 / ×12 / ×24 / ×30
+    = 32 / 28 / 25 / 17 / 23 % (05/11 — zoom gần lại co) → 33 / 35 / 39 / 52 / 55 % (06/11, +22 điểm từ ×3 tới ×30); bám kỹ sư ×30 70 → 74 %. Dốc σ
+    lớn nhất ở dải chuyển mép trên (px / 1 % chiều cao) ×3 0,30 → 0,26 · ×12 0,34 → 0,17 · ×24 0,39 → 0,21 · ×30 0,43 → 0,19; bám vật cả khung 1,42 → 1,08.
+    Lệnh vẽ thêm khi bật (lb3.js + lb4.js, 4 lần, trung vị, headless; máy bận ⇒ dao động 0,5–9 ms): cũ ×6 4,0 / ×24 3,6 / ×30 3,3 / bám 1,7 ms —
+    mới 2,2 / 3,0 / 4,2 / 2,0 ms ⇒ cùng mức. RAM đồ hoạ +2 ảnh ô ~16 KB. gzip 737 / 775 KB (+1 KB). Test 19 / 0. Backup trang:
+    `3D garden.before-blur-chuyen-mem-2026-11-06.html`.
+- **Mờ theo độ xa gần của vật (G 06/11 trưa** "cái độ mờ đó có thể điều chỉnh theo độ xa gần của vật thể … cột điện nằm phía trước thì vẫn rõ hơn
+  so với cái cây nằm phía sau, nó bị blur và cái không gian phía sau … độ mờ đi theo độ sâu của hình ảnh"; nghiên cứu ở `docs/cinematic-closeup-dof.md` mục 6):
+  - Vì sao bản sáng chưa được: sa bàn kẹp theo dải màn hình (`uSa`, `uSw`) ⇒ vật ở nửa trên khung mờ dù đứng trước, cột cao mờ dần từ gốc lên ngọn như mặt
+    đất; tiêu cự đặt ở điểm nhìn y = 5 (dưới cao nguyên 7,1) ⇒ lệch ~3–4 m sau vật giữa khung. Thử độ sâu nhìn thẳng (độ sâu camera trực giao, bỏ kẹp):
+    tán cây sau cột lại NÉT — tán cao 10 m gần camera hơn gốc ~6 m (pt2.js) ⇒ bỏ.
+  - Sửa (core/lens.js): (a) MẶT PHẲNG NÉT ĐỨNG (kiểu ống tilt-shift / Scheimpflug): CoC theo khoảng cách NGANG tới camera
+    h = độ sâu·cos α + (v − 0,5)·cao khung·sin α (α = góc cúi) ⇒ vật đứng có cùng h từ gốc tới ngọn ⇒ mờ đều như đất dưới chân nó; trên mặt đất h đổi
+    đúng như dải cũ (hd = cao khung / sin α) ⇒ sa bàn rộng dần theo zoom giữ nguyên; bỏ kẹp màn hình. Bám vật đổi sang h (rg / cos, K·cos) ⇒ trên mặt
+    đất như cũ. (b) Lấy nét tự động giữa khung (kiểu Cinemachine Auto Focus "Screen Center"): lượt 1×1 đọc 5 × 5 điểm trong ô ± 3% (`LENS_AF_R`) giữa
+    khung, bỏ trời, lấy trung vị h, trượt ~0,3 s (`LENS_AF_T`), lưu tương đối điểm nhìn (± 200 m) trong 2 ảnh 1 × 1 RGBA8 xoay vòng (`fa` / `fb`); bám vật
+    vẫn lấy tiêu cự ở vật (`uFm`). (c) Đuôi xa: sau mức tối đa tăng tiếp tới ×2 (`LENS_FAR`, hàm hữu tỉ, đạo hàm liền) ⇒ càng xa sau tiêu cự càng mờ
+    như thấu kính mỏng; mã CoC nửa phân giải đổi thang theo `uCm`.
+  - Số đo (pt2.js + `coc-area.py`, % điểm ảnh có CoC ≥ 0,3 px nửa phân giải, điểm nhìn y = 5 như kéo thật): cây táo ×3 / ×12 / ×30 31 / 43 / 47 → 37 /
+    45 / 53 %; cột #1 ×6 / ×12 / ×24 37 / 41 / 42 → 47 / 48 / 59 %; bám kỹ sư ×30 85 → 87 %. Bản cũ góc ×30 "phía sau" 0 % (tiêu cự sau mọi thứ) →
+    26 %. Lấy nét: lệch −3,2 … −4,1 m so với điểm nhìn (đúng vật giữa khung), ô 5 × 5 giữa khung CoC 0,1 px. lb-prof.py (σ theo hàng) báo ×24 / ×30
+    tụt 52 / 55 → 20 / 23 % ở góc lb1 — do cách đo: tán cây đứng ở tiêu cự nét cả hàng; đo từng điểm ảnh cùng góc 46 / 46 → 49 / 56 % (lb1c.js).
+    Lệnh vẽ thêm khi bật (lb4.js, 2 lần, trung vị cặp): bản sáng ×6 1,8 / ×24 2,1 / ×30 1,9 / bám 2,1 ms — bản trưa 2,0 / 2,1 / 2,4 / 2,2 ms (lượt lấy
+    nét 625 phép so sánh trên 1 điểm ảnh). RAM đồ hoạ +2 ảnh 1 × 1 (8 byte). gzip 738 / 775 KB (+1 KB). Test 19 / 0. Backup trang:
+    `3D garden.before-mo-theo-do-sau-2026-11-06.html`.
+- **Lớp nét `LAYER_SHARP` = 29** (core/boot.js, camera luôn bật): nhãn (labelGroup — trong `sharpRoots`, duyệt mỗi khung, chỉ đổi vật đang ở lớp 0 ⇒ declutter
+  của hình động cơ nổi — lớp 31 — để yên), viền rê chuột (3 con của mỗi lưới), bong bóng kỹ sư (thought-bubble.js), khung tay cầm drone (`sharpRoots`).
+  Tia chọn mặc định lớp 0 ⇒ không còn trúng nhãn.
+- **Bẫy three r160** (đo màu từng cách, `docs/dof-probe/dof0b.js`): khung tạm tuyến tính (HalfFloat) ⇒ bạc màu (cỏ 129 thay 69: shader tự viết + nền không qua tone
+  map như vẽ ra màn hình) ⇒ `isXRRenderTarget = true` (tone map + mã hoá theo `texture.colorSpace`); colorSpace sRGB đặt SAU lần `setRenderTarget` đầu — đặt từ đầu
+  thì renderbuffer MSAA là SRGB8, texture RGBA8 ⇒ `blitFramebuffer` lỗi 1282, khung đen (đổi cỡ ⇒ dựng khung mới, không setSize); `scene.background` là lệnh xoá
+  ⇒ lúc vẽ vào khung tạm thay bằng màu đã `convertLinearToSRGB`. Sau sửa nền khớp tuyệt đối, cỏ lệch ~5%.
+- **Mất ngữ cảnh WebGL rồi có lại** (thấy 05/11 tối khi thử bước 2 nội thất xe): three dựng lại khung tạm theo colorSpace sRGB đã đặt ⇒ đúng bẫy trên, cả khung
+  đen ⇒ trình nghe `webglcontextrestored` bỏ 3 khung tạm (không dispose — đồ của ngữ cảnh cũ), `lnMake` dựng lại đúng thứ tự. Thử: nồi inox trước mất / sau có lại
+  sáng 110 / 113 (trước sửa: 0 — đen cả khung).
+- Kiểm (05/11): build 694/750 · 717/775, ranh giới 0, test 19/0, không lỗi console (trừ css 404 sẵn có của trang debug), gl.getError 0; bám gấu mèo ×30: s = 1,
+  khung tạm 884 × 604, thôi bám ⇒ s → 0, trả khung tạm sau 3,5 s; đổi độ phân giải ⇒ khung mới; thời gian khung 17,5 / 17,3 ms (trang thử 884 × 604, GPU máy này).
+  Ảnh: `docs/cinematic-dof-trong-game.jpg`. Bám kỹ sư ×30 khi kỹ sư trong xe ⇒ mái xe mờ (tiêu cự là kỹ sư, không phải vật che).
+- Trang debug dựng lại: `src/tools/debug/` (mkdbg.py + dbg-hook.js + ev2/ev3.cjs + walkprobe.js — bản ở scratchpad bị hệ thống dọn 05/11).
+
+### Bóng góc nướng sẵn — nội thất xe (G 05/11 "nội thất xe render more realistic … đỡ tốn ram nhất", bước 1 / 5)
+
+- Đề xuất 5 bước (05/11): (1) bóng góc nướng vào màu đỉnh · (2) 1 ảnh môi trường nhỏ dùng chung cho kính / inox / gỗ bóng (làm 05/11 trừ gỗ bóng — mục "Ảnh môi trường nội thất xe") · (3) vân mặt bằng shader · (4) đèn
+  giả (phát sáng + nướng) thay đèn đổ bóng · (5) chỉ dựng chi tiết khi xem xuyên / nhìn cận. G "làm theo cách em đề xuất đi" ⇒ làm bước 1 trước, gửi ảnh trước / sau.
+- **core/ao-bake.js** (hạ tầng): `aoBake(gốc, { box, skip })` xếp hàng, chạy dần sau khi vẽ (`worldTick('afterRender', 95)`, ≤ 6 ms / khung). Xe gọi 1 lần ở
+  `vanFrameTick` (van/interior/caravan.js) khi lần đầu xem xuyên hoặc zoom ≥ ×8 cách xe < 12 đv; hộp `VAN_AO_BOX` = lòng xe + cabin; vỏ xe không nhận bóng
+  (`caravanRole === 'shell'`) nhưng vẫn chắn. Cách tính + luật chẻ: chú thích đầu tệp.
+- Thông số: ô 3 cm, 48 tia, tầm 0,25 đv (~23 cm), độ đậm 0,7 (sáng ≥ 0,15), sai số chẻ 0,075 / √ độ chói vật liệu, cạnh 0,08 → 0,4 đv. Lần 1 (tầm 0,35, đậm 0,8,
+  sai số 0,05 mọi vật liệu, cạnh 0,05 → 0,3) cả sàn xám đều, +44,5k đỉnh — 7,4k chỉ riêng tấm sàn 24 đỉnh, 2,7k trong đó ở mặt đáy không ai thấy.
+- Số đo (xem xuyên, 10h, trang thử 1264 × 789): 117 mảnh nhận (83 trong lô, 34 lưới tự vẽ / 22 vật liệu); đỉnh 30,4k → 42,3k; nướng 0,54–0,57 s (60 khung,
+  lưới ô 0,14 s); lượt vẽ xe 281 → 281; lô gộp xe +10.077 đỉnh, +51,9k chỉ số ⇒ GPU ~0,47 MB (36 B / đỉnh: vị trí, màu 16 bit, pháp tuyến 16 bit, xương ×4
+  16 bit — xe 380 xương); bản RAM: 0 (lô bỏ mảng sau khi tải, hình chẻ bỏ sau khi dựng lô); lưới tự vẽ thay hình cũ (pháp tuyến 8 bit ⇒ ngang cỡ cũ). Tạm
+  lúc nướng: lưới ô 1,3 MB + mảng từng mảnh, bỏ ngay.
+- Mất ngữ cảnh WebGL rồi có lại (thử bằng WEBGL_lose_context): lô dựng lại từ hình gốc (không bóng) ⇒ `AOB.q` nướng lại phần trong lô (48 khung), lưới tự vẽ
+  giữ hình đã nướng (`userData.aoOwn`, không chẻ lần 2). Dò lúc này lòi lỗi cũ của viền chọn thân táo già (mục mem-trim ở trên) — đã sửa.
+- Ảnh trước / sau: `docs/van-ao-truoc-sau.jpg`. Dò (`docs/ao-probe/`, chạy bằng ev3.cjs của trang debug): `van5.js` (ảnh + lượt vẽ), `van6.js` (đỉnh theo
+  mảnh × hướng mặt), `van7.js` (cận cảnh 4 chỗ), `van8.js` (đỉnh lô), `van9.js` (mất ngữ cảnh), `ctx1.js` (lưới còn hiện mà mảng đã bỏ).
+
+### Ảnh môi trường nội thất xe — kim loại, gương, kính phản chiếu (G 05/11 "em tiếp tục làm bước 2", bước 2 / 5)
+
+- **van/interior/env-map.js** (nội dung xe, không phải engine): toàn cảnh 64 × 32 tính bằng JS theo hướng trong toạ độ xe (mũi −X, cửa lùa +Z): trần kem, vách be,
+  dải cửa sổ hai vách hông (ngày trời sáng, đêm xanh thẫm), tủ, sàn → `PMREMGenerator.fromEquirectangular` → MỘT render target 336 × 64 HalfFloat dùng chung;
+  bộ nướng giữ lại (đệm luân phiên cùng cỡ) để nướng lại vào CÙNG render target. Hệ số sáng = (hemi + amb) / π — bức xạ tương đương ánh trời trong mô hình đèn
+  vật lý three r160. `vanEnvTick()` cuối `vanFrameTick`: đèn trời đổi > 4 %, `nightFactor` đổi > 0,04 hoặc xe quay > 0,1 rad ⇒ vẽ lại + nướng lại; mọi vật liệu,
+  cả bản sao trong lô gộp, dùng chung texture nên tự đổi theo. Mất ngữ cảnh ⇒ nướng lại khung sau.
+- Vật liệu: `vanMetal(màu, nhám, tuỳ chọn)` = MeshStandard metalness 1 + envMap TỪ LÚC TẠO (đổi envMap sau ⇒ biên dịch lại + lô gộp đẩy mảnh ra). Đổi 1 : 1 tại chỗ
+  (đúng số lần tạo ⇒ dãy Math.random chung không lệch; vật liệu mới + PMREM tạo trong dãy riêng mulberry32): bếp `M.steel` 0xc2c7c9, `M.lid`, `M.blade` (bóng),
+  nồi `potM` (2 mặt); laptop nhôm `alu` 0x8c9097, kính đen màn laptop = điện môi nhám 0,1 (Fresnel ~4 %); gương lavabo 0xc4e2ec (bóng). Crôm dùng chung
+  `VAN_CHROME` thay `metalMat` ở nút xả, van + giá + tay sen, dây sen, vòi lavabo, móc kệ, giá khăn, tay + bát sen trần, bộ trộn, chân bàn ăn, ghế đẩu.
+  Giữ `metalMat` Lambert (75 chỗ dùng chung): thang, giá nóc, ống xả, bậc cửa, tay vịn, khung bàn học (sắt sơn mờ).
+- KHÔNG làm gỗ bóng: MeshStandard điện môi cộng ánh môi trường khuếch tán (π · env × màu) chồng lên hemi + amb sẵn có ⇒ sáng gấp đôi; muốn gỗ bóng phải tách lớp
+  phủ bóng riêng.
+- Bài học lần 1: nửa dưới ảnh tối + nâu (sàn 0,30, tủ gỗ 0,42 / 0,31 / 0,21) ⇒ camera nhìn từ trên xuống ~45° nên mặt kim loại ĐỨNG soi sàn ⇒ tấm chắn bếp, vách
+  chậu, nắp laptop thành đồng thau tối. Sửa: sàn 0,58 / 0,54 / 0,48, tủ 0,64 / 0,60 / 0,54 (trung tính, sáng).
+- Số đo (trang thử 1264 × 789, 10 h; trước = bước 1, cùng mã): GPU +3 ảnh (render target 172 KB + đệm luân phiên 172 KB + ảnh nguồn 8 KB ≈ 0,35 MB), RAM 8 KB;
+  +9 chương trình shader (191 → 200, biên dịch 1 lần lúc nạp); lượt vẽ riêng xe (không bóng, xem xuyên, ×14) 253 → 255 (+2 lô: crôm bóng, inox xước); 24 lưới
+  dùng ảnh môi trường; nướng lại 0,4–0,8 ms (cả chờ GPU); mã +1,1 KB gzip (build 707 / 750 · 729 / 775 — gồm phần phiên khác chép vào 21:55); ranh giới 0;
+  test 19 / 0. Mất ngữ cảnh rồi có lại: k −1 → 1,3 (nướng lại), nồi giống hệt trước — lòi lỗi khung đen của ống kính (mục trên), đã sửa.
+- Ảnh trước / sau (ngày 10 h + đêm 22 h): `docs/van-env-truoc-sau.jpg`. Dò (`docs/env-probe/`, chạy bằng ev3.cjs của trang debug): `van11.js` (cận cảnh ×200
+  chậu, nồi, phòng tắm, lavabo, bàn ăn, laptop; ẩn vật ngoài xe), `van11n.js` (bản đêm, ẩn thêm bảng chữ canvas), `van12.js` (lượt vẽ riêng xe + shader + ảnh),
+  `van13.js` (mất ngữ cảnh). Trang "trước" dựng từ bản chép src có 3 tệp manifest / kitchen / caravan của bước 1.
+
+### Khu trại render thật — bóng góc theo cụm + bóng góc mặt đất (G 05/11 "em tiếp tục làm toàn bộ khu vực trong screenshot này, bao gồm camp chair, fishing chair, chiminea, woods, camp fire, ... cho realistic render")
+
+- **camp/realism.js** (nội dung khu trại, sau `core/ao-bake.js` trong manifest): 3 cụm `CAMP_AO` — (1) lò chiminea · đống củi · ghế cắm trại · bàn trà · luống cà rốt,
+  (2) lửa trại · giá treo nồi, (3) ghế câu cá + đèn lồng (`lanternObj.g`). Mỗi cụm nướng 1 lần, lần đầu camera nhìn cận (zoom ≥ ×8, tâm nhìn cách tâm cụm < 14 đv),
+  sau khi trang nạp xong (`ldGate` + `ldNeed`, chậm nhất 8 s). Đồ di động không vào cụm: máy cắt cỏ (ống mềm dựng lại mỗi khung, `noBatch`), xô, cần câu.
+- **core/ao-bake.js** thêm tuỳ chọn: `key` (hàng đợi theo khoá ⇒ nhiều cụm cùng gốc `scene`), `roots` (vật chắn + mảnh nhận chỉ lấy trong các gốc này), `ground: true`
+  (ô dưới mặt đất thật `cowY` cũng chắn ⇒ chân đồ đạc tối dần sát đất; chỉ gốc đứng thẳng — lưới ô theo cột dọc), `floor: { r, k, max, ps, fade, done }` = BÓNG GÓC
+  MẶT ĐẤT: mỗi ô đất `ps` trong hộp, chỉ ô gần vật chắn (cột ô có vật, giãn theo `r`), tia nửa cầu trên dài `r` cùng lưới ô ⇒ độ che tuyến tính ⇒ alpha
+  = min(max, k · che) × mờ mép (`fade`, smoothstep) ⇒ `done({ px RGBA, NX, NZ, ps, x0, x1, z0, z1, g0 })`. Vật trong suốt mờ (opacity < 0,9 hoặc không ghi chiều sâu:
+  lửa, khói, quầng) không chắn.
+- **world/ground-contact.js**: tách `drape(F)` (ảnh → DataTexture có mip, lưới phủ bám mặt đất, MeshBasic 0x16120b trong suốt, renderOrder 1) khỏi `build` — thứ tự tạo
+  vật như cũ ⇒ bóng tiếp đất cũ giống hệt. **nature/meadow.js** `shade(x, z, r, f)`: nhân màu gốc lá `BC` (cả lá — gốc + ngọn cùng theo màu gốc) của các ô trong `r`
+  bởi f(x, z) ≤ 1, khung sau cắt lại. Khu trại: cỏ tối theo tấm phủ × 0,6.
+- Thông số `CAMP_FLOOR`: tia 1 m, k 1,0, trần 0,6, ô 5 cm, mờ mép 0,4 m, cỏ 0,6. Đêm: tấm phủ còn 1 − 0,6 × nightFactor (40 %); cụm lửa trại `night: 1` ⇒ tắt hẳn.
+  Lòng bếp (`'Lòng bếp'`) và đèn lồng không nhận bóng (vẫn chắn).
+- Bài học:
+  - Lần 1 dùng `groundContact.add` (thân 0,9): vệt rộng, tối đều, làm phẳng tương phản nắng, cỏ sáng nổi lên giữa vệt ⇒ bỏ, thay bằng bóng góc theo lưới ô (chỉ tối
+    chỗ bị che thật) + cỏ tối theo.
+  - k 1,6 ⇒ quầng đen quanh đá + chân giá treo ⇒ k 1,0, trần 0,6. Cỏ × 0,9 ⇒ "vết nứt" đen sau lưng ghế câu ⇒ 0,6.
+  - Bóng góc chỉ chắn ánh trời, không chắn ánh lửa: tấm phủ + màu đỉnh làm nhạt quầng lửa ban đêm ⇒ tấm phủ đêm 40 %, cụm lửa trại tách riêng và tắt hẳn, lòng bếp
+    + đèn lồng không nhận bóng.
+  - Cỏ quanh trại là thảm cỏ `meadow.js`, KHÔNG phải `vegPools.blade` (InstancedMesh 2958 bản gần đó là ô mặt đất phẳng `flatTopGeo`).
+- Số đo (trang thử 1264 × 814, 11 h, nướng đồng bộ): cụm (1) 0,54 s, lưới ô 2,0 triệu, 53 mảnh nhận (46 trong lô, 7 tự vẽ), đỉnh 11,5k → 20,1k · cụm (2) 0,07 s,
+  2 mảnh, 375 → 705 đỉnh · cụm (3) 0,09 s, 19 mảnh, 0,9k → 2,5k. Đường thật (chạy khung, zoom ×30): cả 3 cụm được hỏi ở khung 1, xong sau 58 khung (≤ 6 ms / khung,
+  ~1 s). Tấm phủ 86 × 68 + 51 × 39 + 71 × 45 RGBA ≈ 0,06 MB GPU (cả mip), RAM 44 KB (ảnh nguồn); lô gộp +~10,5k đỉnh ≈ 0,4 MB GPU; +3 lượt vẽ (3 tấm phủ);
+  +3 chương trình shader (màu đỉnh riêng); cỏ tối 13 + 0 + 13 ô; gzip +2 KB (709 / 750 · 731 / 775); ranh giới 0; test 19 / 0; lỗi GL 0. Xe xem xuyên (hồi quy):
+  117–118 mảnh, 30,4k → 42,5k đỉnh — như trước.
+- Ảnh trước / sau (11 h: lò + củi, ghế + bàn, lửa trại, ghế câu; 21 h: lửa trại): `docs/camp-truoc-sau.jpg`. Dò (`docs/camp-probe/`, chạy bằng ev3.cjs của trang
+  debug, `VW=1280 VH=800` = cỡ khung): `camp3.js` (trước / sau TRONG CÙNG 1 lần nạp: ảnh "trước" → nướng đồng bộ không chạy khung → ảnh "sau"; mây, nắng giống nhau), `camp8.js` (đêm: độ mờ
+  tấm phủ từng cụm, có / không tấm phủ), `camp9.js` (đường kích hoạt thật + nướng xe hồi quy). Khi dò: đặt `vanAoAsked = true` (không để xe tự nướng khi zoom cận),
+  ẩn cây (`/Cây|Tree/` trừ `Cần câu`); lửa đêm nhấp nháy ⇒ so quầng lửa có nhiễu. Chiều ngược lại: dò xe cũ (`docs/ao-probe/`, `docs/env-probe/`) thêm dòng
+  `CAMP_AO.forEach(C => C.asked = true)` ngay sau `simSetup()` ⇒ khu trại không nướng chen, `AOB.stat` vẫn là của xe.
+
+### Cây cổ thụ: rễ, bóng, vỏ theo nghiên cứu (G 06/11 "research n study realistic của rễ cây, shadow, texture then improve cho cây cổ thụ")
+
+- **Học** (nguồn đọc 06/11):
+  - Rễ: chân thân loe thành cổ rễ (root flare), rễ chính to nhất ngay chân thân rồi thuôn rất nhanh trong 1–2 m đầu (vùng thuôn nhanh), nằm nông trong lớp đất mặt
+    (ISA 2015 "Tree root to stem tissue transition and associated terminology"; UMN "Root systems: the forgotten 50%"; Purdue FNR-FAQ-18; Fairfax County
+    "Importance of Root Flare"; Wikipedia "Buttress root"). Mặt vỏ rễ già nhẵn hơn vỏ thân (ít rãnh sâu, ít xoắn).
+  - Bóng: trong bóng râm dưới tán, ánh sáng chủ yếu là ánh khuếch tán của bầu trời lọt qua kẽ lá; tán dày ⇒ râm sâu; đốm nắng lọt qua lá sáng như ngoài trống
+    (UW "Understory Light Availability and Spatial Variation"; USC "Rapid assessment of understory light availability"). Tính thời gian thực: độ che theo mật độ
+    lá + suy giảm Beer–Lambert (CIRAD "Fast tree ambient occlusion approximation"; "A fast ambient occlusion method for real-time plant rendering"; Kusternig,
+    CESCG 2008). Kẽ giữa các múi rễ, chân đá, chỗ rễ chui vào đất tối dần vì bị che (bóng góc), không phải quầng đều quanh vật.
+  - Vỏ + rêu: rêu dày ở mặt ngửa, chân thân, chỗ ẩm khuất; hốc giữa các múi tối hơn mặt lồi (ảnh vỏ phủ rêu Poliigon — chỉ để nhìn, không dùng ảnh). Giữ vân
+    vỏ `sfOld` (G 17/10), rêu rễ `sfMoss` 1,35 + `sfTop` 1,6 (G 19–20/10), lá rêu cỡ cỏ thảm (G 31/10), đường đi + số rễ (G 18/10).
+- **Trước**: bóng tiếp đất cắt lát (`groundContact`, w 0,45) cho thân + rễ ⇒ quầng mờ đều quanh mọi rễ (cả chỗ trống, cả ngọn rễ mảnh) nhìn như bóng dán; dưới tán
+  sáng gần như ngoài trống (chỉ có bóng nắng đổ); rễ mảnh ngay từ chân thân; vỏ rễ rãnh sâu + xoắn như thân.
+- **core/sky-shade.js** (hạ tầng mới, manifest sau `core/surface-style.js`): chỉ nhân hệ số vào `reflectedLight.indirectDiffuse` (ánh trời hemi + amb) ⇒ nắng trực
+  tiếp + bóng nắng giữ nguyên, đốm nắng không tối. 2 ảnh RG8 trên mặt bằng (x, z): R = hệ số ánh trời, G = độ cao đất ô (y + 255·m·G — bờ sông dốc 3 → 7,2 m).
+  - Lớp A TÁN (ô 0,5 m): điểm lá thật (vị trí + diện tích từng lá) → mật độ ô 1 m³ (hệ số tắt 0,5 × diện tích lá / m) → 64 tia nửa cầu phân bố cos, Beer–Lambert ⇒
+    hệ số max(floor, 1 − k·(1 − thấy trời)); tắt dần theo độ cao trên đất 3 → 9 m.
+  - Lớp B SÁT ĐẤT (ô 5 cm): bóng góc mặt đất `core/ao-bake.js` floor (R = 1 − độ mờ); tắt dần 5 → 35 cm trên đất.
+  - Hướng mặt (lớp A): w = 0,75 + 0,25·|n.y thế giới| — mặt ngửa / úp chịu đủ, mặt đứng 75 %: còn thấy dải trời sát chân trời ngoài mép tán (tán chắn từ ~15–30°
+    trở lên ⇒ mặt đứng mất 70–80 % phần ánh trời mặt ngửa mất). Lần đầu không có w: thân dưới tán lúc 17 h tối gần đen.
+  - `skyShadeMat(mat, tag, { cav, cavP, vtx, skA })`: nối vào Lambert / Standard (chuỗi `onBeforeCompile`, khoá chương trình + `|sky:tag`). `cav` = bóng HỐC KHUẤT từ
+    ảnh 3D mật độ vật rắn `SF_CV` (nature/moss-lawn.js `mossCrevice`: mặt trống ~0,5, kẽ ~0,7 ⇒ 1 − cav·smoothstep(0,45, 0,85, ·)): vỏ dùng mật độ shader vỏ đã đọc
+    ở + 6 cm theo pháp tuyến cho rêu hốc khuất (`sfCv`, core/surface-style.js — khỏi đọc ảnh 3D lần 2), `cavP` (đá) đọc tại điểm. `vtx` = 2 lớp tính ở đỉnh (lá cỏ;
+    vỏ thân, cây con, rễ — shader vỏ rất nặng, lưới vỏ thưa), hốc vỏ vẫn ở điểm ảnh.
+    `skA` = thuộc tính vec2 tính sẵn từng bản (lá rêu) ⇒ shader không đọc ảnh, chỉ hiện dần theo `uSkK`. Mặt đất (grass, dirt, shore) nối trong tệp này; cỏ
+    (meadow.js), lá rêu (moss-lawn.js), vỏ thân + cây con + rễ, đá hộc (old-tree.js) nối ở tệp của mình. Lớp mới hiện dần 1,5 s; tính lớp A ≤ 4 ms / khung.
+  - `skyOnLayer(f)`: f(id) khi 1 lớp lên (ảnh + hộp đã đặt, chưa hiện) trả generator tính sẵn (chạy ≤ 4 ms / khung, `SKY.pre`); lớp chỉ bắt đầu hiện dần khi
+    mọi việc tính sẵn xong (`SKY.pend`) ⇒ không có chỗ đã tính chỗ chưa. `skyAt(id, x, y, z, w)`: hệ số 1 lớp tại điểm trên CPU (lọc 2 chiều kẹp mép, tắt theo
+    độ cao như shader). Dò: đợi `SKY.pre.length + SKY.pend.length` = 0 trước khi chụp.
+- **nature/old-tree-shade.js** (nội dung, manifest sau `camp/realism.js`): (1) ô vật chắn 5 cm (rễ, thân, đá) chụp NGAY lúc dựng — `aoVoxNow` → bitset; (2) điểm lá
+  cổ thụ + cây con sau khi trang nạp (`ldGate` + `ldNeed`, chậm nhất 8 s) → `S.canopy` → lớp A; (3) lần đầu nhìn gần (zoom ≥ ×4, tâm nhìn cách gốc < 24 đv) →
+  `aoBake` floor (`recv: false` — vỏ, đá có bóng hốc riêng) → lớp B, rồi bỏ bitset. Mất ngữ cảnh WebGL: ảnh RAM tự tải lại, không nướng lại (`doneB`).
+- **core/ao-bake.js**: tách bước dựng ô vật chắn thành `aoVox` (bỏ qua lưới đã mất mảng CPU) + `aoVoxNow(opt)` chạy đồng bộ trả bitset; tuỳ chọn `vox` (cỡ ô),
+  `recv: false` (không nhận bóng theo đỉnh), `occ` (bitset chụp sẵn).
+- **Rễ** (nature/old-tree.js `oldTreeRoots`): mỗi điểm rễ to thêm f = 1 + 0,45·e^(−quãng ra ngoài chân thân / 0,7 m), tâm nâng r·(f − 1)·độ lộ (phần to nổi lên,
+  không lún) ⇒ vùng thuôn nhanh; vỏ rễ `rope` rãnh sợi 0,45 → 0,22, xoắn 0,35 → 0,15. Đường đi, số rễ, rễ con giữ nguyên.
+- **nature/moss-lawn.js**: thuộc tính `aSk` (vec2, 2 byte / lá): x = hệ số hốc (`SF_CV` lấy mẫu 3 chiều trên CPU tại gốc lá + 6 cm theo pháp tuyến, lúc dựng) ×
+  lớp A, y = lớp B — mỗi lớp lên thì `skyOnLayer` lấy mẫu `skyAt` tại cùng điểm (mặt đứng 0,75 theo pháp tuyến vỏ dưới lá), 8192 lá / lượt ⇒ shader lá rêu không
+  đọc ảnh nào.
+- Thông số: `OT_SHADE.CAN` { k 1,25, floor 0,3 } ⇒ dưới tán dày còn 0,40 · `OT_SHADE.FLOOR` { r 1 m, k 1, max 0,65, ps 0,05, fade 0,4 } · cav: vỏ 0,6, đá 0,5, lá rêu
+  0,6 · w mặt đứng 0,75.
+- Bài học:
+  - `core/mem-trim.js` bỏ mảng CPU của mọi lưới vỏ sau khi lên GPU ⇒ `aoJob` đọc `getX` → lỗi null. Nướng bóng trên vỏ cây về sau: chụp ô vật chắn lúc dựng
+    (`aoVoxNow`) hoặc chạy trước `COL.ready`.
+  - Tính ở đỉnh (`vtx`) cho lá rêu chưa đủ rẻ: 242 790 lá × 9 đỉnh = 2,2 triệu đỉnh / khung. Đọc ảnh 3D ở mỗi đỉnh tốn +0,8 ms ở zoom ×30; đọc 2 ảnh lớp
+    + đổi pháp tuyến ở mỗi đỉnh vẫn +1 ms ở góc cả cây (đo bật / tắt từng phần, `ot10.js`) ⇒ tính sẵn từng lá trên CPU, shader chỉ đọc thuộc tính.
+  - Vỏ cây: thêm 2 lần đọc ảnh lớp + đổi pháp tuyến ở MỖI ĐIỂM ẢNH vào shader vỏ (vốn rất nặng: vân, rêu, đệm rêu) ⇒ rễ cận cảnh (×30) chậm hơn rõ dù phép tính
+    ít — tính 2 lớp ở đỉnh (lưới vỏ thưa, bóng tán + kẽ đất đều mịn), hốc khuất dùng lại `sfCv` shader vỏ đã đọc cho rêu.
+  - Đĩa đất quanh gốc (y 7,0–7,12) nằm dưới mặt đất thật nên không thấy; `ground()` của rễ, `groundAt` của đá vẫn + 0,12 trong r < 2,2 (để nguyên).
+  - Không thêm tấm phủ bóng: 2 ảnh nhỏ + hệ số vào ánh trời ⇒ không thêm lượt vẽ, không lộ quầng.
+- Số đo (trang thử 1280 × 800, ANGLE Metal, render + readPixels đồng bộ): khung vẽ (3 cặp cũ / mới xen kẽ, trung bình) góc cả cây 26,26 → 26,30 ms (+0,05), góc rễ zoom gần 21,89 → 23,03 ms (+1,1: rễ to
+  hơn sát thân ~+0,8, 2 lớp bóng ~+0,4) · Lớp A 74 × 70 (10 KB), tính 194–208 ms chia ≤ 4 ms / khung, thấp nhất 103 / 255 = 0,40 ·
+  lớp B 223 × 197 (88 KB), nướng 170–185 ms (21–25 khung), 1,49 triệu ô · bitset 182 KB, chụp 35–52 ms lúc dựng, bỏ sau khi nướng · `aSk` 0,49 MB RAM + 0,49 MB GPU, tính sẵn lớp A 25 ms, lớp B 20 ms chia ≤ 4 ms / khung ·
+  lá rêu 235 440 → 242 790, đỉnh rễ 19 862 → 25 057 · chương trình 160 → 161 · gzip +5 KB (714 / 750 · 736 / 775); ranh giới 0; test bay 19 / 19; lỗi GL 0.
+- Ảnh trước / sau (11 h cả gốc + rễ, 17 h nghiêng + vỏ): `docs/co-thu-truoc-sau.jpg`. Dò (`docs/co-thu-probe/`, chạy bằng `tools/debug/ev3.cjs` trên trang debug
+  `mkdbg.py`, `VW=1280 VH=800`, đối số giờ): `ot4.js` (TRƯỚC / SAU cùng kịch bản — đợi lớp A + B, 6 góc, khung vẽ, chương trình, bộ nhớ, ảnh tắt lớp), `ot9.js`
+  (khung vẽ công bằng: 3 vòng xen kẽ, trung vị), `ot10.js` (tách chi phí: bật / tắt 2 lớp, lá rêu, rễ ở góc cả cây + góc rễ), `ot13.js` (thời gian tính sẵn lá
+  rêu), `ot5.js` (lá rêu, đỉnh rễ), `ot6.js` (tách chi phí ở góc rễ), `ot2.js` (độ cao đất, hộp rễ). Bản cũ để so: mkdbg cần mã nguồn ⇒ dựng từ mã trước 06/11
+  (trang sao lưu `3D garden.before-co-thu-bong-re-2026-11-06.html` là trang đã gộp, không làm trang debug được).

@@ -144,7 +144,7 @@
           //      ảnh tay cầm của mẫu · màn camera đúng ô màn tay cầm (rộng = 4 × màn laptop thế giới) · OSD. Khung vẽ RIÊNG ra 1 ảnh (cảnh nhỏ: bản sao tay cầm
           //      + đèn + camera trực giao úp mặt) rồi dán như tranh quay về camera ⇒ không bị cây che, không tranh độ sâu với cảnh; vẽ lại cùng nhịp ảnh
           //      camera (2 cần trong khung nghiêng theo lệnh). Khung to gấp đôi ⇒ ảnh khung 1024 × 678, ảnh camera 768 × 320, OSD ×2 điểm ảnh cho nét ----
-          const bub = new THREE.Group(); bub.name = 'Khung tay cầm drone (trên đầu Engineer)'; bub.visible = false; scene.add(bub);
+          const bub = new THREE.Group(); bub.name = 'Khung tay cầm drone (trên đầu Engineer)'; bub.visible = false; scene.add(bub); sharpRoots.push(bub);   // bong bóng: lớp nét (core/lens.js)
           const osdC = document.createElement('canvas'); osdC.width = 1024; osdC.height = 428; const ox = osdC.getContext('2d'), osdT = new THREE.CanvasTexture(osdC); osdT.colorSpace = THREE.SRGBColorSpace;
           const FRW = 1024, FRH = 678, frameRT = new THREE.WebGLRenderTarget(FRW, FRH, { samples: matchMedia('(pointer: coarse)').matches ? 2 : 4 }), fScene = new THREE.Scene(), fCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.01, 3);
           fScene.add(new THREE.HemisphereLight(0xffffff, 0x8a96a3, 1.2)); { const l = new THREE.DirectionalLight(0xffffff, 1.2); l.position.set(0.4, 1, 0.8); fScene.add(l); }   // + ảnh môi trường phòng studio (buildFrame) ⇒ nhựa trắng sạch, cần / nút ánh kim nhẹ như ảnh sản phẩm
@@ -310,6 +310,7 @@
             T('H ' + hgt.toFixed(1) + ' m', 16, H - 10); T('D ' + dist.toFixed(0) + ' m', 140, H - 10); T('H.S ' + hs.toFixed(1) + ' m/s', 250, H - 10); T('V.S ' + D.vel.y.toFixed(1) + ' m/s', 392, H - 10);
             x.strokeStyle = 'rgba(255,255,255,0.8)'; x.lineWidth = 2; x.beginPath(); x.moveTo(W / 2 - 14, H / 2); x.lineTo(W / 2 - 5, H / 2); x.moveTo(W / 2 + 5, H / 2); x.lineTo(W / 2 + 14, H / 2); x.moveTo(W / 2, H / 2 - 5); x.lineTo(W / 2, H / 2 + 5); x.stroke();
             T((D.wp[D.wi] || {}).name || 'Hạ cánh', W - 14, 48, 'right', 14, '#ffd34a');
+            const cd = engCountdown(engObj); if (cd) T('⏱ còn ' + fmtCountdown(cd.sec), W - 14, 68, 'right', 14, '#ffd34a');   // đếm ngược cả việc bay (engineer/mind/countdown.js)
             osdT.needsUpdate = true;
           }
           // ---- mỗi khung trong pha 'drone' của kỹ sư: trả true khi xong việc ----

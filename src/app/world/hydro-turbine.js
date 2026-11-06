@@ -2,7 +2,7 @@
         //  turbine: làm cho vùng đó 75% transparent"). Mẫu "Hydrogenerator | Old work" — TadenStar (Sketchfab), CC BY 4.0: tổ máy FRANCIS TRỤC ĐỨNG, máy phát kiểu
         //  Ô (ổ đỡ chặn dưới rotor): bánh xe công tác 15 cánh Ø 5,86 m, 18 cánh hướng nước (bước 20°, trục xoay r 3,64 m), rotor 54 cực ⇒ 50 Hz: n = 120·50/54 =
         //  111,1 vòng/phút; cao 19 m, stator Ø 15,4 m. Mẫu gốc 20,6 MB (2 bản: cắt nửa + lắp đủ, 29 ảnh PNG) ⇒ src/tools/turbine/ (Blender: chỉ bản lắp đủ, bỏ nắp mặt
-        //  cắt + cuộn dây trùng, 1 cánh hướng nước mẫu, giảm lưới, màu ảnh → màu đỉnh; turbinepack.py: lượng tử hoá, không pháp tuyến ⇒ models/turbine.glb 232 KB).
+        //  cắt + cuộn dây trùng, 1 cánh hướng nước mẫu, giảm lưới, màu ảnh → màu đỉnh; turbinepack.py: lượng tử hoá, không pháp tuyến ⇒ models/turbine.glb 232 KB → nén meshopt 84 KB (src/tools/glb-compress, 04/11)).
         //  Đặt: tâm trục giữa khoang nhà máy, tỉ lệ 0,2914 (Ø 4,5 vừa gian máy 4,9 × 5,0; sàn máy phát = sàn gian máy 4,14; bánh xe dưới mặt nước hạ lưu 3,0).
         //  Phần mẫu không có ⇒ dựng thêm: ỐNG ÁP LỰC (miệng loe ở lưới chắn rác → tròn), BUỒNG XOẮN nửa vòng xoắn ốc (vào tiếp tuyến phía +x, nước xoáy CÙNG
         //  chiều quay: nhìn từ trên xuống thuận chiều kim đồng hồ — đúng chiều cánh hướng nước + cánh bánh xe của mẫu), ỐNG HÚT côn → khuỷu → loe rộng dâng lên 2 cửa
@@ -20,7 +20,7 @@
         const hydroTurbine = (() => {
           if (!damPH) return null;
           const { g: damG, ph, xa, xb, xm, zAx, faceZ, subTop, outY, outZ, outX, z0: phZ0, z1: phZ1 } = damPH;
-          const HT_GLB = window.__turbineGlb || (location.protocol === 'file:' ? '3d-garden/src/models/turbine.glb' : /^(localhost|127\.0\.0\.1)$/.test(location.hostname) ? 'models/turbine.glb' : 'https://michaeltran75.github.io/3d-garden/models/turbine.glb');
+          const HT_GLB = window.__turbineGlb || (/^(localhost|127\.0\.0\.1)$/.test(location.hostname) ? 'models/turbine.glb' : 'https://michaeltran75.github.io/3d-garden/models/turbine.glb');   // G 03/11: mở tệp (file://) thì trình duyệt chặn fetch tệp cục bộ ⇒ lấy bản Pages như các mẫu khác
           const SC = 0.29136, Y0 = 1.6, YS = 2.745;   // mét thật → cảnh · đáy cụm (miệng côn ống hút) · tâm buồng xoắn = giữa chiều cao cánh hướng nước
           const RPM = 3000 / 27, QR = 5.5, HG = 3.48, PR = 157, SLOW = 0.15;
           const U = new THREE.Group(); U.name = 'Tổ máy thủy điện (Hydro Turbine)'; U.position.set(xm, 0, zAx); damG.add(U);
@@ -165,9 +165,9 @@
           }
           // ---- nạp mẫu ----
           const parts = { rotor: null, vanes: null, VX: null, vm: [] };
-          ldTrack(Promise.all([import('https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js'),
-            fetch(HT_GLB).then(r => r.ok ? r.arrayBuffer() : Promise.reject(new Error('HTTP ' + r.status))), ldGate]).then(([{ GLTFLoader }, buf]) => {
-            new GLTFLoader().parse(buf, '', gl => {
+          ldTrack(Promise.all([import('https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js'), import('https://esm.sh/three@0.160.0/examples/jsm/libs/meshopt_decoder.module.js'),   // mẫu nén EXT_meshopt_compression (src/tools/glb-compress, G 04/11)
+            fetch(HT_GLB).then(r => r.ok ? r.arrayBuffer() : Promise.reject(new Error('HTTP ' + r.status))), ldGate]).then(([{ GLTFLoader }, { MeshoptDecoder }, buf]) => {
+            new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parse(buf, '', gl => {
               const rotor = gl.scene.getObjectByName('rotor'), stat = gl.scene.getObjectByName('stat'), vane = gl.scene.getObjectByName('vane');
               rotor.traverse(o => { if (o.isMesh) o.material = rotorM; }); stat.traverse(o => { if (o.isMesh) o.material = bodyM; });
               for (const o of [rotor, stat]) { o.traverse(c => { c.castShadow = false; c.receiveShadow = false; c.raycast = () => {}; }); M.add(o); }

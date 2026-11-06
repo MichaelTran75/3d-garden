@@ -245,7 +245,7 @@
         // ---------- ĐỌC SÁCH: sách to gấp đôi trước ngực, 2 tay giữ 2 mép; ~40 s lật 1 trang bằng tay phải; ~20 s tay trái bốc khoai ----------
         const BOOK_Q = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 0.6, -0.8), new THREE.Vector3(0, -0.8, -0.6)));   // mặt sách ngửa về phía mắt
         const CHIP_AT = new THREE.Vector3(0, -0.01, 0.11);
-        function engRead(e, dt, t) {
+        function engRead(e, dt, t, chips = true) {   // chips = false: đọc ở bàn học — tay trái giữ mép sách, không bốc khoai
           const H = e.hold, P = e.props, B = P.book; H.book = true; e.armsBusy = true;
           if (B.parent !== e.spine) { e.spine.add(B); B.scale.setScalar(2); }
           const tt = t + (e.readPh || 0) * 3;
@@ -261,10 +261,10 @@
           const toLeaf = segK(pt, 0, 0.5) * (1 - segK(pt, 1.4, 2.0));
           engHandSet(e, 0, rEdge.lerp(corner, toLeaf), qR);
           // bốc khoai (tay trái): với gói trên bàn trà → lên miệng → về mép trái sách
-          const ct = tt % 20, reach = minJerk(segK(ct, 0, 0.9)) * (1 - minJerk(segK(ct, 1.1, 1.6))), toM = minJerk(segK(ct, 1.3, 2.2)) * (1 - minJerk(segK(ct, 2.7, 3.6)));
+          const ct = chips ? tt % 20 : 10, reach = minJerk(segK(ct, 0, 0.9)) * (1 - minJerk(segK(ct, 1.1, 1.6))), toM = minJerk(segK(ct, 1.3, 2.2)) * (1 - minJerk(segK(ct, 2.7, 3.6)));
           const lEdge = edge(-1, new THREE.Vector3());
           let lp = lEdge, lq = qLh;
-          if (reach > 0) { chipsBag.updateWorldMatrix(true, false); const bag = chipsBag.getWorldPosition(new THREE.Vector3()); bag.y += 0.12; lp = lEdge.clone().lerp(bag, reach); lq = qLh.clone().slerp(aimQ(_mrQ, _mrE.set(0, -1, 0), _mrB.copy(bx).negate()), reach); }
+          if (reach > 0) { chipsBag.updateWorldMatrix(true, false); const bag = chipsBag.getWorldPosition(new THREE.Vector3()); bag.y += 0.12 * CHIPS_K; lp = lEdge.clone().lerp(bag, reach); lq = qLh.clone().slerp(aimQ(_mrQ, _mrE.set(0, -1, 0), _mrB.copy(bx).negate()), reach); }
           if (toM > 0) { const fwd = engAxesW(e).f, m = engMouthW(e, new THREE.Vector3()), qm = aimQ(new THREE.Quaternion(), _mrB.copy(fwd).negate().addScaledVector(bx, 0.45).normalize(), _mrUp);   // từ trước–trái hướng vào miệng
             const hm = _mrC.copy(CHIP_AT).multiplyScalar(e.g.scale.y).applyQuaternion(qm).negate().add(m); lp = lp.clone().lerp(hm, toM); lq = lq.clone().slerp(qm, toM); }
           engHandSet(e, 1, lp, lq);

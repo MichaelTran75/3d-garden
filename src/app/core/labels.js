@@ -3,7 +3,7 @@
         //      nút "Nhãn" (ui/labels-controls.js) bật / tắt cả lớp, bong bóng kỹ sư đọc labelGroup.visible. Đứng ngay trước ui/labels-controls.js ⇒ thứ tự dựng
         //      cảnh không đổi ====
         // ---- labels ----
-        const labelGroup = new THREE.Group(); scene.add(labelGroup);
+        const labelGroup = new THREE.Group(); scene.add(labelGroup); sharpRoots.push(labelGroup);   // mọi nhãn: lớp nét (core/lens.js)
         function rr(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
         const annotationLabelScale = 0.65; // Same text size as the Gia Lai weather label.
         // emoji trong nhãn (👷🏻‍♂️ của kỹ sư): texture nhãn không gắn sRGB ⇒ bộ vẽ mã hoá sRGB thêm lần nữa, chữ đen không sao nhưng emoji bạc màu — vẽ emoji

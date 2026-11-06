@@ -45,9 +45,15 @@
             const ex = CB.pos.x + (ax + bx >= 0 ? 1 : -1) * (CB.length / 2 + 0.6), zs = v => CB.pos.z + (v >= 0 ? 1 : -1) * (CB.width / 2 + 0.5);
             return [new THREE.Vector3(ex, 0, zs(az)), new THREE.Vector3(ex, 0, zs(bz)), q.clone()];
           }
+          const bedCross = (p, q, m) => {   // đoạn p → q cắt luống nới m?
+            const hx = CB.length / 2 + m, hz = CB.width / 2 + m, ax = p.x - CB.pos.x, az = p.z - CB.pos.z, bx = q.x - CB.pos.x, bz = q.z - CB.pos.z;
+            for (let i = 1; i < 16; i++) { const u = i / 16; if (Math.abs(ax + (bx - ax) * u) < hx && Math.abs(az + (bz - az) * u) < hz) return true; } return false;
+          };
           function goTo(e, q, dt, t) {   // đi tới q (vòng qua đầu luống nếu cần); true = tới nơi
-            if (!J.route || J.rq.distanceToSquared(q) > 1e-6) { J.rq.copy(q); J.route = bedRoute(e.g.position, q); }
-            const w = J.route[0]; if (J.route.length > 1 && Math.hypot(w.x - e.g.position.x, w.z - e.g.position.z) < 0.45) { J.route.shift(); return false; }
+            const p = e.g.position;
+            if (!J.route || J.rq.distanceToSquared(q) > 1e-6 || bedCross(p, J.route[0], 0.12)) { J.rq.copy(q); J.route = bedRoute(p, q); }   // đường cũ lập từ chỗ khác (vd còn trong xe) cắt luống ⇒ lập lại
+            while (J.route.length > 1 && !bedCross(p, J.route[1], 0.2)) J.route.shift();   // thẳng tới mốc sau được rồi thì bỏ góc này
+            const w = J.route[0]; if (J.route.length > 1 && Math.hypot(w.x - p.x, w.z - p.z) < 0.45) { J.route.shift(); return false; }
             const far = J.route.length === 1 && Math.hypot(CB.pos.x - e.g.position.x, CB.pos.z - e.g.position.z) > 3.5 && !rxDry(e.g.position);   // xa luống, ngoài bạt: theo bảng dẫn đường (dưới bạt ô lưới bị vật cản xe chặn — bảng chỉ sai hướng)
             if (engStep(e, w, dt, t, pf, FIRE_AVOID_R, far ? CB.field() : null)) { if (J.route.length > 1) { J.route.shift(); return false; } J.route = null; return true; }
             return false;

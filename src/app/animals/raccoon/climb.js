@@ -1,7 +1,8 @@
         // ===== GẤU MÈO TRÈO CÂY TÁO HÁI ĂN (G 24/10 khuya "study and research gấu mèo behaviour, và add thêm trèo cây hái táo ăn khi close up view nhìn gấu mèo") =====
         //  Tập tính: trèo rất giỏi (vuốt không thu, chi trước khoẻ), ban đêm hay trèo cây ăn quả (táo); xuống cây thường CHÚC ĐẦU nhờ xoay bàn chân sau ~180°;
         //  tay trước rất nhạy nhưng không có ngón cái đối ⇒ ôm thức ăn bằng 2 tay, gặm từng miếng nhỏ; gặp nguy thì ở yên trên cây (không bỏ chạy xuống).
-        //  Kịch bản (chỉ khi người xem ZOOM CẬN nhìn gấu mèo ≥ 1,5 s — con vật dài ≥ 80 điểm ảnh, nằm trong khung): tới gốc cây táo già cạnh hang (appleTrees[2])
+        //  Kịch bản (khi người xem ZOOM CẬN nhìn gấu mèo ≥ 1,5 s — con vật dài ≥ 80 điểm ảnh, nằm trong khung; hoặc BẤM cây táo già — G 04/11, tin 'appleTreeTap',
+        //  animals/raccoon/brain.js): tới gốc cây táo già cạnh hang (appleTrees[2])
         //  → bám lên thân (thân dựng dần thẳng đứng, 2 tay lên trước) → trèo thân (4 chân bám vỏ, nhịp chân lần lượt) → qua mép ngọn thân vào chạc → men lên cành
         //  (lưng theo mặt trên cành, chân khép theo cỡ cành) → dừng sát quả, thò 1 tay vặt → ngồi trên cành 2 tay ôm táo gặm (quả nhỏ dần) → thả lõi rơi →
         //  quay đầu, xuống cành, xuống thân CHÚC ĐẦU (bàn chân sau quay ngược) → xuống đất đi tiếp. Quả mọc lại sau 25 phút.
@@ -36,16 +37,19 @@
             _a.set(D.ax + ux * k - P0.x, 0, D.az + uz * k - P0.z).normalize().applyAxisAngle(UP, -Tr.rotation.y); return _a.clone();
           }
           // ---- chọn quả: cành đủ to (bán kính ≥ 2 cm) có điểm cách quả ≤ 30 cm; ưu tiên quả RÌA TÁN (xa trục thân — người xem nhìn cận thấy rõ, quả sát thân bị lá
-          //  dày che): điểm = 0,5 × quãng cành từ chạc + 3 × khoảng với − 1,5 × khoảng cách ngang tới trục thân (tính tới 3,2 m) ----
+          //  dày che) và ở PHÍA NGƯỜI XEM (G 04/11 bấm cây từ xa — quả bên kia tán bị cả tán che): điểm = 0,5 × quãng cành từ chạc + 3 × khoảng với − 1,5 × khoảng
+          //  cách ngang tới trục thân (tính tới 3,2 m) − 2 × cos góc (hướng quả, hướng camera) quanh trục thân ----
+          const _cam = new THREE.Vector3();
           function plan() {
             const g = graph(), S = g.S, apples = Tr.userData.apples; let best = null;
+            _cam.copy(camera.position).sub(Tr.position).setY(0); if (_cam.lengthSq() > 1e-8) _cam.normalize().applyAxisAngle(UP, -Tr.rotation.y);   // hướng tới người xem (hệ cây)
             for (const ap of apples) {
-              if (!ap.on || ap.raccoon) continue; const p = ap.home;
+              if (!ap.on || ap.raccoon) continue; const p = ap.home, pr = Math.hypot(p.x, p.z), face = pr > 1e-4 ? (p.x * _cam.x + p.z * _cam.z) / pr : 0;
               for (let j = 0; j < g.segs.length; j++) {
                 const sg = g.segs[j]; if (g.trunk.includes(j) || Math.min(sg[6], sg[7]) * S < RMIN) continue;
                 const ax = sg[0], ay = sg[1], az = sg[2], dx = sg[3] - ax, dy = sg[4] - ay, dz = sg[5] - az, L2 = dx * dx + dy * dy + dz * dz;
                 const k = cl(((p.x - ax) * dx + (p.y - ay) * dy + (p.z - az) * dz) / L2, 0, 1), d = Math.hypot(ax + dx * k - p.x, ay + dy * k - p.y, az + dz * k - p.z) * S;
-                if (d > REACH) continue; const sc = 0.5 * (g.from(j) + Math.sqrt(L2) * k) * S + 3 * d - 1.5 * Math.min(3.2, Math.hypot(p.x, p.z) * S);
+                if (d > REACH) continue; const sc = 0.5 * (g.from(j) + Math.sqrt(L2) * k) * S + 3 * d - 1.5 * Math.min(3.2, pr * S) - 2 * face;
                 if (!best || sc < best.sc) best = { sc, ap, j, k };
               }
             }
@@ -61,8 +65,13 @@
             const g = graph(), segs = g.segs, S = g.S, chain = []; for (let i = j; i >= 0 && i !== g.top; i = g.pred[i]) chain.unshift(i);
             const fork = vec(segs[g.top], 3), hTop = fork.y, f0 = segs[chain[0]];
             const n = new THREE.Vector3(f0[3] - f0[0], 0, f0[5] - f0[2]); if (n.lengthSq() < 1e-6) n.set(1, 0, 0); n.normalize();
-            const lg = logSide(), ang = Math.atan2(n.x * lg.z - n.z * lg.x, n.dot(lg)), MIN = 1.25;   // ≥ 72° khỏi khúc gỗ
-            if (Math.abs(ang) < MIN) n.copy(lg).applyAxisAngle(UP, -(ang >= 0 ? MIN : -MIN)).normalize();
+            const lg = logSide(), MIN = 1.25, angOf = a => Math.atan2(a.x * lg.z - a.z * lg.x, a.dot(lg)), ang = angOf(n);   // ≥ 72° khỏi khúc gỗ
+            if (Math.abs(ang) < MIN) n.copy(lg).applyAxisAngle(UP, ang >= 0 ? MIN : -MIN).normalize();   // mép vùng cấm CÙNG phía (angOf đo đúng chiều applyAxisAngle)
+            // G 04/11: mặt trèo quay về PHÍA NGƯỜI XEM nếu được (mặt sau thì thân cây che con vật): hướng camera, hoặc mép vùng cấm khúc gỗ gần camera nhất — chỗ bám
+            //  dưới gốc (~0,9 m) phải là đất khô, ngang gốc (bờ sông ngay sau cây)
+            { const c = _cam.clone(), ac = angOf(c); if (Math.abs(ac) < MIN) c.copy(lg).applyAxisAngle(UP, ac >= 0 ? MIN : -MIN);
+              Tr.localToWorld(_a.copy(c).multiplyScalar(0.9 / S).setY(0));
+              if (c.lengthSq() > 0.5 && !isWater(Math.round(x2gi(_a.x)), Math.round(z2gj(_a.z))) && Math.abs(cowY(_a.x, _a.z) - Tr.position.y) < 0.4) n.copy(c).normalize(); }
             const Pp = [], Nn = [], Rr = [];
             for (let h = 0.04; h <= hTop - 0.32; h += 0.12) { Pp.push(trunkSurf(n, h)); Nn.push(n.clone()); Rr.push(9); }
             Pp.push(fork.clone().addScaledVector(n, 0.17).setY(hTop - 0.05)); Nn.push(n.clone().add(UP).normalize()); Rr.push(9);   // mép ngọn thân
@@ -214,10 +223,30 @@
             if (C.core) { const c = C.core, g = c.g; if (!c.rest) { c.v.y -= 9.8 * dt; g.position.addScaledVector(c.v, dt); g.rotation.x += dt * 6; const gy = cowY(g.position.x, g.position.z) + 0.03; if (g.position.y <= gy) { g.position.y = gy; c.rest = t; } } else if (t - c.rest > 45) { g.visible = false; C.core = null; } }
             for (let i = C.eaten.length - 1; i >= 0; i--) if (t >= C.eaten[i].at && !(C.core && C.core.g === C.eaten[i].ap.g)) { respawn(C.eaten[i].ap); C.eaten.splice(i, 1); }
           }
+          // ---- lưới cấm đường tới gốc (G 04/11: bấm cây lúc gấu mèo đứng bên kia khúc gỗ ⇒ đi thẳng, racAvoidLog đẩy ra, kẹt tới hết giờ). Cả bờ đông sông
+          //  (hang, cây táo già) nằm trên nền san solar (padH) mà lưới chung ffBlocked cấm hết ⇒ bảng chung ở đây rỗng. Lưới riêng trong 30 m quanh cây (gấu
+          //  mèo chỉ ra cây khi < 25 m): nước + vòng vật cản (obstacleCoords, r + 0,3 như lưới chung) + KHÚC GỖ CHẾT (< 1,1 m quanh trục — vòng đẩy racAvoidLog
+          //  1,0 m) + ô cấm chung không phải nền san; ngoài cửa sổ cấm hết. Dựng 1 lần ----
+          let navB = null;
+          function navBlocked() {
+            if (navB) return navB;
+            navB = new Uint8Array(FF_N).fill(1); const c = Tr.position, R0 = 30, D = deadLog, ux = D.bx - D.ax, uz = D.bz - D.az, L2 = ux * ux + uz * uz;
+            const i0 = Math.max(0, Math.floor(x2gi(c.x - R0))), i1 = Math.min(GX - 1, Math.ceil(x2gi(c.x + R0))), j0 = Math.max(0, Math.floor(z2gj(c.z - R0))), j1 = Math.min(GZ - 1, Math.ceil(z2gj(c.z + R0)));
+            for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+              const n = i + j * GX, x = wx(i), z = wz(j), k = cl(((x - D.ax) * ux + (z - D.az) * uz) / L2, 0, 1);
+              navB[n] = isWater(i, j) || (ffBlocked[n] && padH(i, j) === null) || Math.hypot(D.ax + ux * k - x, D.az + uz * k - z) < 1.1 ? 1 : 0;
+            }
+            for (const ob of obstacleCoords) {
+              const rr = ob.r + 0.3;
+              for (let j = Math.max(j0, Math.floor(z2gj(ob.z - rr))); j <= Math.min(j1, Math.ceil(z2gj(ob.z + rr))); j++)
+                for (let i = Math.max(i0, Math.floor(x2gi(ob.x - rr))); i <= Math.min(i1, Math.ceil(x2gi(ob.x + rr))); i++) if (Math.hypot(wx(i) - ob.x, wz(j) - ob.z) < rr) navB[i + j * GX] = 1;
+            }
+            return navB;
+          }
           // ---- đi tới gốc (trạng thái 'toTree' của raccoonBrain): true = tới nơi ----
           function goal() {
             const Q = C.path; Tr.localToWorld(C.goal.copy(Q.n).multiplyScalar(Q.r0 + 0.3 / graph().S).setY(0)); C.goal.y = cowY(C.goal.x, C.goal.z);
-            Q.nW = Q.n.clone().transformDirection(Tr.matrixWorld).setY(0).normalize(); if (!C.field) C.field = buildFlowField(C.goal.x, C.goal.z); return C.goal;
+            Q.nW = Q.n.clone().transformDirection(Tr.matrixWorld).setY(0).normalize(); if (!C.field) C.field = buildFlowField(C.goal.x, C.goal.z, navBlocked()); return C.goal;
           }
           return {
             C, tick, update, start, plan: () => { C.field = null; return plan(); }, goal, logAng: () => { const P0 = Tr.position, D = deadLog, ux = D.bx - D.ax, uz = D.bz - D.az, k = cl(((P0.x - D.ax) * ux + (P0.z - D.az) * uz) / (ux * ux + uz * uz), 0, 1); return Math.atan2(D.az + uz * k - P0.z, D.ax + ux * k - P0.x); }, closeUp: () => C.cuT, face: () => { const n = C.path.nW; return Math.atan2(n.z, -n.x); }   // face: hướng nhìn vào thân cây

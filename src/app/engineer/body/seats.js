@@ -44,6 +44,9 @@
           VAN.object.updateMatrixWorld(true);
           for (const [lx, lz] of VAN.awPoles || []) { push(CAMP_SEAT, VAN.object.localToWorld(new THREE.Vector3(lx, 0, lz)), 0.12); PROPS[PROPS.length - 1].nav = true; }
           if (VAN.awningLamp) { push(CAMP_SEAT, VAN.awningLamp.getWorldPosition(new THREE.Vector3()), 0.2); PROPS[PROPS.length - 1].nav = true; }
+          // vật cản nhỏ quanh ghế đã khai ở obstacleCoords (lò chiminea + lò nướng 0,42, đống củi 0,55…): G 02/11 dời lò gần ghế 0,35 ⇒ đoạn nhập làn ghế
+          //  cắm trại đi thẳng qua mép lò (đo: 61 khung thân chạm lò khi về ghế). Chỉ vào phép thử làn của ghế (C.props), không thêm vòng đẩy
+          for (const C of [FISH_SEAT, CAMP_SEAT]) for (const o of obstacleCoords) if (o.r <= 0.6 && Math.hypot(o.x - C.pos.x, o.z - C.pos.z) < 3.2) { const [lx, lz] = seatL(C, o.x, o.z); C.props.push([lx, lz, o.r]); }
           // ghế vào lưới cấm của bảng DP (mọi bảng dựng sau đây — cột khí tượng, gấu mèo, chó, thỏ, bò — đều đi vòng ghế)
           for (const C of [FISH_SEAT, CAMP_SEAT]) {
             const i0 = Math.max(0, Math.floor(x2gi(C.pos.x - 1.2))), i1 = Math.min(GX - 1, Math.ceil(x2gi(C.pos.x + 1.2)));
@@ -257,7 +260,8 @@
           const ar = e.armRoll || (e.armRoll = [0, 0]), rt = e.armRollT || (e.armRollT = [0, 0]), k = 1 - Math.exp(-dt * 10);
           for (let i = 0; i < 2; i++) { ar[i] += (rt[i] - ar[i]) * k; if (!rt[i] && Math.abs(ar[i]) < 1e-4) ar[i] = 0; e.arms[i].rotation.z = ar[i]; rt[i] = 0; }
           const lz = e.legZT || (e.legZT = [0, 0]);
-          for (let i = 0; i < 2; i++) { const z = e.legs[i].rotation.z + (lz[i] - e.legs[i].rotation.z) * k; e.legs[i].rotation.z = !lz[i] && Math.abs(z) < 1e-4 ? 0 : z; lz[i] = 0; }   // bước ngang: dạng / khép chân
+          const ls = e.legZs || (e.legZs = [0, 0]);   // bước ngang: dạng / khép chân — lượng riêng, CỘNG vào dạng chân của IK đi bộ (trước: kéo cả góc IK về 0 mỗi khung ⇒ bàn chân trụ lệch 5 – 10 cm)
+          for (let i = 0; i < 2; i++) { ls[i] += (lz[i] - ls[i]) * k; if (!lz[i] && Math.abs(ls[i]) < 1e-4) ls[i] = 0; e.legs[i].rotation.z = (e.abdOn ? e.legs[i].rotation.z : 0) + ls[i]; lz[i] = 0; }
           e.headRoll = (e.headRoll || 0) + ((e.headRollT || 0) - (e.headRoll || 0)) * (1 - Math.exp(-dt * 4)); if (Math.abs(e.headRoll) < 1e-4 && !e.headRollT) e.headRoll = 0;
           e.head.rotation.z = e.headRoll;   // nghiêng đầu: ngủ gật trên ghế, lắc theo nhạc, lau tóc
           e.headYaw = (e.headYaw || 0) + ((e.headYawT || 0) - (e.headYaw || 0)) * (1 - Math.exp(-dt * 6)); if (!e.headYawT && Math.abs(e.headYaw) < 1e-4) e.headYaw = 0;

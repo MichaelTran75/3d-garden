@@ -3,7 +3,7 @@
           const xA = X0 + 202, xB = X0 + 220, zA = Z0 + 76, zB = Z0 + 127;
           const W = Math.abs(xB - xA), L = Math.abs(zB - zA), cX = (xA + xB) / 2, cZ = (zA + zB) / 2;
           const gY = surfaceY(Math.round(x2gi(cX)), Math.round(z2gj(cZ)));
-          const g = new THREE.Group(); g.position.set(cX, gY, cZ); g.scale.setScalar(ARCHITECTURE_SCALE); g.name = 'Nhà kho mái pin mặt trời (Solar Warehouse)'; scene.add(g);
+          const g = new THREE.Group(); g.position.set(cX, gY, cZ); g.scale.setScalar(ARCHITECTURE_SCALE); g.name = 'Nhà kho mái pin mặt trời (Solar Warehouse)'; scene.add(g); worldJoin('groundContact', 10, S => S.add(g, { w: 0.5 }));
           const eaveH = 3.4, ridgeH = 3.0, halfW = W / 2, slope = halfW, slabLen = Math.hypot(slope, ridgeH), ang = Math.atan2(ridgeH, slope);
           const roofHAt = (x) => eaveH + ridgeH * (1 - Math.abs(x) / halfW);   // cao độ đáy mái tại vị trí x (giữa = nóc, mép = diềm)
           const base = bx(W + 0.4, 0.3, L + 0.4, concreteMat); base.position.y = 0.15; g.add(base);                    // nền bê-tông
@@ -42,7 +42,7 @@
 
         // ---- BỒN NƯỚC nông thôn (thân lượn sóng + bệ đá) tại góc (192, 7, 80) ----
         (function waterTank() {
-          const g = new THREE.Group(); g.position.set(X0 + 192, 7, Z0 + 80); g.scale.setScalar(ARCHITECTURE_SCALE); g.name = 'Bồn nước nông thôn (Rural Water Tank)'; scene.add(g);
+          const g = new THREE.Group(); g.position.set(X0 + 192, 7, Z0 + 80); g.scale.setScalar(ARCHITECTURE_SCALE); g.name = 'Bồn nước nông thôn (Rural Water Tank)'; scene.add(g); worldJoin('groundContact', 10, S => S.add(g, { w: 0.45 }));
           const R = 2.6, bodyH = 3.2, baseTop = 0.8;
           const tankMat = surfaceStyle(new THREE.MeshLambertMaterial({ color: 0xE2D6C0 }), 'stucco');   // kem
           const stoneMat = surfaceStyle(new THREE.MeshLambertMaterial({ color: 0x9a8f7e }), 'concrete');

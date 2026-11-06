@@ -17,6 +17,9 @@
           + ' float l = length(d); if (l > 1e-6) p.xy += d / l * uPx * 2.0 / uRes * p.w; gl_Position = p; }';
         const HOV_MASK = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false, transparent: true, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -4,
           stencilWrite: true, stencilRef: 1, stencilFunc: THREE.AlwaysStencilFunc, stencilZPass: THREE.ReplaceStencilOp });
+        // mặt nạ cũng nhích về phía camera 10 cm (G 05/11, ống kính core/lens.js): rêu / cỏ thảm mọc sát vỏ (gốc cây táo già ×30) che mặt nạ từng chấm, viền nhích
+        //  6 cm vẫn qua ⇒ vệt trắng lấm tấm trong thân. Chèn sau project_vertex (giữ da khung xương / morph của vật liệu thường)
+        HOV_MASK.onBeforeCompile = sh => { sh.vertexShader = sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n mvPosition.z += 0.1; gl_Position = projectionMatrix * mvPosition;'); };
         function hovAdd(root, o = {}) {   // o: on · n · click · skip(lưới) · pad (đv thế giới) · picks [{o, n, on}]: vùng rê chuột (mặc định chính vật) — vd cả cánh cửa ⇒ viền tay nắm
           const it = { root, pad: 0.02, ...o, fxs: [] }; it.rp = { o: root, n: it.n, box: new THREE.Box3(), bt: -1e9 };
           it.picks = o.picks ? o.picks.map(p => p.o && p.o !== root ? { ...p, box: new THREE.Box3(), bt: -1e9 } : Object.assign(it.rp, p, { o: root })) : [it.rp];
@@ -54,7 +57,7 @@
           it.fxs.length = 0; const noRay = () => {};
           it.root.traverse(m => { if (!hovUse(it, m)) return;
             if (!m.userData.hovC) m.userData.hovC = [[HOV_MASK, 1e6], [it.mats[0], 1e6 + 1], [it.mats[1], 1e6 + 2]].map(([M, ord]) => { const c = new THREE.Mesh(m.geometry, M); c.renderOrder = ord; c.visible = false; c.raycast = noRay;
-              Object.assign(c.userData, { hovFx: true, pickSkip: true, noBatch: true, xray: 'ui' }); m.add(c); return c; });
+              Object.assign(c.userData, { hovFx: true, pickSkip: true, noBatch: true, xray: 'ui' }); c.layers.set(LAYER_SHARP); m.add(c); return c; });   // lớp nét: viền vẽ sau lớp mờ hậu cảnh (core/lens.js)
             it.fxs.push(...m.userData.hovC); });
         }
         function hovSet(it) {
@@ -81,7 +84,7 @@
           it.uA.value.copy(c).setComponent(k, c.getComponent(k) - h).applyMatrix4(it.root.matrixWorld); it.uB.value.copy(c).setComponent(k, c.getComponent(k) + h).applyMatrix4(it.root.matrixWorld);
         }
         // vật chọn được ngoài trời + trong xe (tay nắm, logo, động cơ đăng ký khi mẫu Transit nạp xong)
-        for (const o of [DRONE.object, DRONE.rc, ENGINEER.appleBasket, ENGINEER.applePole, CAMP.groundRod, ENGINEER.rod, CHIMINEA.g]) if (o) hovAdd(o);
+        for (const o of [DRONE.object, DRONE.rc, ENGINEER.appleBasket, ENGINEER.applePole, CAMP.groundRod, ENGINEER.rod]) if (o) hovAdd(o);   // lò chiminea, lửa trại: tự xin trong tệp của vật (worldPlace)
         hovAdd(VAN.laptop.group, { on: () => VAN.xray });
         { const k = VAN.object.getObjectByName('Bếp dọc vách cửa hông'); if (k) hovAdd(k, { on: () => VAN.xray }); }
         { const H = worldSee('cows').hut; hovAdd(H.roof, { pad: 0.05, picks: [{ o: H.roofSheet }], click: () => H.roofToggle() }); }   // mái chuồng bò: bấm ⇒ mờ 50% / đặc lại (animals/cows/herd-hut.js); vùng rê = tấm tôn (hộp mỏng theo dốc mái)

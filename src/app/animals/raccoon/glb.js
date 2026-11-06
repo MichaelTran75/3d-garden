@@ -1,5 +1,5 @@
         // ===== GẤU MÈO = MẪU GLB THẬT (G 24/10 tối "mang chính xác glb racoon vào trong, thay thế cho racoon hiện tại") =====
-        //  "Low-poly Racoon Run Animation" (avatrass, Sketchfab, CC-BY-4.0) → src/models/raccoon.glb NGUYÊN BYTE: lưới skin 2 430 đỉnh, 63 khớp, ảnh màu bảng.
+        //  "Low-poly Racoon Run Animation" (avatrass, Sketchfab, CC-BY-4.0) → src/models/raccoon.glb (04/11: bỏ đoạn Run không dùng + nén meshopt, 333 → 66 KB — src/tools/glb-compress; vị trí đỉnh giữ float): lưới skin 2 430 đỉnh, 63 khớp, ảnh màu bảng.
         //  Hành vi (kiếm ăn, cào bới, đứng 2 chân, ôm táo, phi nhảy, chui hang) vẫn do khung xương gấu mèo cũ chạy (animals/raccoon/brain.js + bộ chân IK
         //  animals/_lib/quadruped.js) ⇒ GẮN DA mẫu vào khung đó thay cho khung của mẫu:
         //  · toạ độ BIND của mẫu (đứng 4 chân, cm, mặt +z, đất y 0) → toạ độ gấu mèo (mặt +x): quay −90° quanh trục đứng, tỉ lệ K = khoảng hông trước–sau cũ
@@ -13,7 +13,7 @@
         (() => {
           const RAC_GLB = window.__racGlb || 'https://michaeltran75.github.io/3d-garden/models/raccoon.glb';   // đường dẫn tuyệt đối: bản một tệp nhúng Wix cũng nạp được
           const O = raccoonObj, U = O.userData, s = U.s;
-          ldTrack(import('https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js').then(({ GLTFLoader }) => new GLTFLoader().loadAsync(RAC_GLB)).then(ldAfter).then(gl => {
+          ldTrack(Promise.all([import('https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js'), import('https://esm.sh/three@0.160.0/examples/jsm/libs/meshopt_decoder.module.js')]).then(([{ GLTFLoader }, { MeshoptDecoder }]) => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(RAC_GLB)).then(ldAfter).then(gl => {
             let src = null; gl.scene.traverse(o => { if (o.isSkinnedMesh) src = o; });
             const sk = src.skeleton, J = {}, M4 = new THREE.Matrix4();
             sk.bones.forEach((b, j) => { J[b.name.replace(/_\d+$/, '')] = new THREE.Vector3().setFromMatrixPosition(M4.copy(sk.boneInverses[j]).invert()); });   // khớp lúc bind (cùng hệ với đỉnh)

@@ -52,8 +52,8 @@
           geo.setAttribute('position', new THREE.Float32BufferAttribute(POS, 3)); geo.setAttribute('normal', new THREE.Float32BufferAttribute(NRM, 3));
           geo.setAttribute('aRk', new THREE.Float32BufferAttribute(RK, 1)); geo.setIndex(IDX); geo.computeBoundingSphere();
           // vật liệu đá hộc cửa xả (bản sao) + thảm rêu như mũ rêu đá hộc (nature/bank-moss.js)
-          const rockMat = mossCoat(stormDrain.mats.stone.clone(), 'otRk2', { vHead: 'attribute float aRk; varying float vMk;', vMain: ' vMk = aRk;', fHead: 'varying float vMk;',
-            sq: '(abs(vMcN.y) > 0.6 ? vMcP.xz : abs(vMcN.x) > abs(vMcN.z) ? vMcP.zy : vMcP.xy)', mo: 'smoothstep(0.3, 0.6, vMk + 0.25 * (sfMossCu(mcQ, mcF) - 0.45))' });
+          const rockMat = skyShadeMat(mossCoat(stormDrain.mats.stone.clone(), 'otRk2', { vHead: 'attribute float aRk; varying float vMk;', vMain: ' vMk = aRk;', fHead: 'varying float vMk;',
+            sq: '(abs(vMcN.y) > 0.6 ? vMcP.xz : abs(vMcN.x) > abs(vMcN.z) ? vMcP.zy : vMcP.xy)', mo: 'smoothstep(0.3, 0.6, vMk + 0.25 * (sfMossCu(mcQ, mcF) - 0.45))' }), 'otRock', { cav: 0.5, cavP: true });   // + bóng trời dưới tán, kẽ đá – thân (core/sky-shade.js)
           const rocks = new THREE.Mesh(geo, rockMat); rocks.name = 'Đá hộc phủ rêu quanh gốc cổ thụ'; rocks.castShadow = rocks.receiveShadow = true;
           Object.assign(rocks.userData, { noBake: true, noBatch: true, rockMoss: true }); g.add(rocks);   // giữ thuộc tính aRk (lá rêu đọc lượng rêu từng đỉnh)
           bakeStatic(g);
@@ -70,7 +70,7 @@
           // cây cổ thụ: thân to, tán nặng → dao động riêng chậm ~0,32 Hz, cản nhỏ (gỗ già ít tắt dần); cành xa thân rung ~1 Hz
           const tw = makeTreeWind({ freq: 0.32, zeta: 0.08, lean: 0.45, branchAmp: 0.07 });
           windShader(barkMat, tw, 0); windShader(deadMat, tw, 0); g.userData.treeWind = tw;
-          surfaceStyle(barkMat, 'bark'); surfaceStyle(deadMat, 'bark');   // vân vỏ (core/surface-style.js) — SAU shader gió (windShader ghi đè onBeforeCompile)
+          surfaceStyle(barkMat, 'bark'); surfaceStyle(deadMat, 'bark'); skyShadeMat(barkMat, 'bark', { cav: 0.6, vtx: true }); skyShadeMat(deadMat, 'bark', { cav: 0.6, vtx: true });   // vân vỏ (core/surface-style.js) — SAU shader gió (windShader ghi đè onBeforeCompile) · bóng trời dưới tán + hốc khuất (core/sky-shade.js) sau cùng
           const leafCols = [0x4e7a39, 0x5e8c44, 0x6fa052, 0x42692f, 0x567f3a, 0x4e7a39, 0x5e8c44, 0x6fa052, 0x42692f, 0x567f3a, 0xe5b82c];
           const rnd = mulberry32(7777), tips = [], deadTips = [];
           const up = new THREE.Vector3(0, 1, 0), V = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -289,7 +289,7 @@
           } else {
             scene.add(g);
           }
-          const barkMat = new THREE.MeshLambertMaterial({ color: 0x4a3420 }); barkMat.userData.sfOld = 1; surfaceStyle(barkMat, 'bark');   // vân vỏ như cây mẹ (bản cũ)
+          const barkMat = new THREE.MeshLambertMaterial({ color: 0x4a3420 }); barkMat.userData.sfOld = 1; surfaceStyle(barkMat, 'bark'); skyShadeMat(barkMat, 'bark', { cav: 0.6, vtx: true });   // vân vỏ như cây mẹ (bản cũ) + bóng trời, hốc khuất
           const leafCols = [0x4e7a39, 0x5e8c44, 0x6fa052, 0x42692f];
           const V = (x, y, z) => new THREE.Vector3(x, y, z);
 
@@ -400,7 +400,7 @@
         //      TIM rễ mẹ ở đúng độ cao đó. Nhóm riêng theo toạ độ thế giới (đất quanh gốc phẳng + nền đất 0,12 của stoneRing), KHÔNG gắn shader gió ----
         (function oldTreeRoots() {
           const cx = X0 + 89, cz = Z0 + 117, gy = cowY(cx, cz), g = new THREE.Group(); g.name = 'Rễ cây cổ thụ'; g.position.set(cx, gy, cz); scene.add(g); flightRoots.push(g);
-          const mat = new THREE.MeshLambertMaterial({ color: 0x4a3420 }); mat.userData.sfOld = 1; mat.userData.sfMoss = 1.35; mat.userData.sfTop = 1.6; surfaceStyle(mat, 'bark');   // sát đất cả rễ ⇒ rêu gốc phủ kín nếu để mặc định (G 19/10 "rễ cây trên mặt đất x3 moss": 0,15 → 0,45; G 20/10 "rễ nhiều rêu xanh hơn x3": 0,45 → 1,35 + phủ mặt trên 1,6)
+          const mat = new THREE.MeshLambertMaterial({ color: 0x4a3420 }); mat.userData.sfOld = 1; mat.userData.sfMoss = 1.35; mat.userData.sfTop = 1.6; surfaceStyle(mat, 'bark'); skyShadeMat(mat, 'bark', { cav: 0.6, vtx: true });   // sát đất cả rễ ⇒ rêu gốc phủ kín nếu để mặc định (G 19/10 "rễ cây trên mặt đất x3 moss": 0,15 → 0,45; G 20/10 "rễ nhiều rêu xanh hơn x3": 0,45 → 1,35 + phủ mặt trên 1,6)
           const rnd = mulberry32(4242), V = (x, y, z) => new THREE.Vector3(x, y, z), L = [], SAMP = [], STEP = 0.26, KE = 0.5, EM = -0.35, E1 = -2.0;   // rễ thuôn còn 50% ở đoạn nổi · nổi e 0,3 → −0,35 rồi cắm DỐC (~35°, quãng ~2,2 r) xuống −2 r · SAMP: mẫu các rễ đã dựng (rễ sau vắt qua)
           const water = (x, z) => isWater(Math.round(x2gi(cx + x)), Math.round(z2gj(cz + z)));
           const ground = (x, z) => cowY(cx + x, cz + z) - gy + 0.12 * Math.max(0, Math.min(1, (2.5 - Math.hypot(x, z)) / 0.3));   // + nền đất quanh gốc (stoneRing: trụ r 2,2 → 2,5, cao 0,12)
@@ -455,7 +455,7 @@
               for (let i = 0; i < n; i++) { if (E[i] < -0.8 || pts[i][2] < sO + 0.1) continue; const p = P[i], r = R[i];
                 for (const q of SAMP) { if (q.l === par) continue; const dh = Math.hypot(p.x - q.x, p.z - q.z), rr = r + q.r; if (dh >= rr * 0.95) continue; const yq = q.y + Math.sqrt(rr * rr - dh * dh) * 0.85; if (yq - p.y > need[i]) need[i] = yq - p.y; } }
               const W = Math.round(0.5 / STEP); for (let i = 0; i < n; i++) { let lf = 0; for (let j = Math.max(0, i - 2 * W); j <= Math.min(n - 1, i + 2 * W); j++) if (need[j] > 0) lf = Math.max(lf, need[j] * Math.max(0, 1 - Math.abs(pts[i][2] - pts[j][2]) / 0.5)); P[i].y += lf; } }
-            const T0 = P[1].clone().sub(P[0]).normalize(), l = { P, R, par, kids: [], atEnd: false, pr: par ? pr : sO * Math.max(0.35, T0.clone().cross(pT).length()), pT };
+            const T0 = P[1].clone().sub(P[0]).normalize(), l = { P, R, E, par, kids: [], atEnd: false, pr: par ? pr : sO * Math.max(0.35, T0.clone().cross(pT).length()), pT };
             L.push(l); if (par) par.kids.push(l);
             for (let i = 0; i < n; i++) if (E[i] > -1 && pts[i][2] > sO) SAMP.push({ x: P[i].x, z: P[i].z, y: P[i].y, r: R[i], l });
             // (3) rễ con: tách ở đoạn rễ mẹ còn lộ (e > −0,35), mọc từ tim rễ mẹ, lệch 0,5–0,85 rad
@@ -478,7 +478,14 @@
             if (OBST.some(([ox, oz, orr]) => Math.hypot(ca * rX - ox, sa * rX - oz) < orr + 0.05)) continue;   // tì sát đá: rễ không chui ra được
             root(ca * rX * 0.55, sa * rX * 0.55, 0.42, st.a + (rnd() - 0.5) * 0.2, (st.r0 > 0.15 ? 2.2 : 1.5) + 1.8 * rnd(), st.r0, rX * 0.45, 1.0, null, 0, axis, 0);
           }
-          g.add(...barkMesh(barkTubes(L, { wS: 1, flare: 0, nodes: false, rope: { minR: 0.12, nTrunk: 6, D: 0.45, twist: 0.35 } }), mat));
+          // ---- VÙNG THUÔN NHANH rõ hơn (G 06/11 "research … rễ cây … improve cho cây cổ thụ"): rễ lộ trên mặt đất chủ yếu là đoạn 1–2 m quanh gốc — ở đó tiết diện
+          //      lớn nhất rồi thuôn rất nhanh (ISA 2015 "Tree root to stem tissue transition"; UMN "Root systems: the forgotten 50%"; Dobson ở trên) ⇒ nhân bán kính ×1,45 ở mặt
+          //      thân → ×1 cách ~2 m; tâm dời theo r·e (đoạn nổi vẫn nổi, đoạn chìm vẫn chìm). Giữ nguyên đường đi + số rễ (dãy ngẫu nhiên không đổi) ----
+          for (const l of L) for (let i = 0; i < l.P.length; i++) {
+            const p = l.P[i], b = Math.floor((Math.atan2(p.z, p.x) / 6.2832 + 1) * NB) % NB, out = Math.max(0, Math.hypot(p.x, p.z) - at(b)), f = 1 + 0.45 * Math.exp(-out / 0.7);
+            p.y += l.R[i] * (f - 1) * l.E[i]; l.R[i] *= f;
+          }
+          g.add(...barkMesh(barkTubes(L, { wS: 1, flare: 0, nodes: false, rope: { minR: 0.12, nTrunk: 6, D: 0.22, twist: 0.15 } }), mat));   // vỏ rễ nhẵn hơn thân (G 06/11: rãnh sợi 0,45 → 0,22, xoắn 0,35 → 0,15 — rễ to ra thì rãnh cũ sâu như thân)
           g.userData.roots = { lobes: lobes.map(p => [+((p.b + 0.5) / NB * 360).toFixed(0), +p.rr.toFixed(2), +p.pr.toFixed(3)]), n: L.length };
           bakeStatic(g);
         })();

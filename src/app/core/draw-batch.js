@@ -56,7 +56,7 @@
         function buildBatchGeometry(recs, isLine, withUv, skeleton) {   // rec = 1 mảnh (hoặc 1 nhóm mặt của mảnh đa vật liệu) · xương dùng chung cả nhóm
           let nv = 0, ni = 0;
           for (const r of recs) {
-            const g = r.o.geometry, n = g.attributes.position.count;
+            const g = r.o.userData.aoGeo || r.o.geometry, n = g.attributes.position.count;   // aoGeo: hình chẻ + bóng góc nướng sẵn (core/ao-bake.js)
             r.v0 = nv; nv += n;
             ni += isLine && !r.o.isLineSegments ? (n - 1) * 2 : r.count;
           }
@@ -66,16 +66,17 @@
           let k = 0;
           _bBox.makeEmpty();
           for (const r of recs) {
-            const o = r.o, m = r.mat, g = o.geometry, P = g.attributes.position, n = P.count, v0 = r.v0, bone = r.bone, bi = bone.i, L = bone.L;
+            const o = r.o, m = r.mat, g = o.userData.aoGeo || o.geometry, P = g.attributes.position, n = P.count, v0 = r.v0, bone = r.bone, bi = bone.i, L = bone.L;
             if (L) _bN3.getNormalMatrix(L);
             let N = g.attributes.normal;
             if (!isLine && !N && !m.isMeshBasicMaterial) { const tmp = g.clone(); tmp.computeVertexNormals(); N = tmp.attributes.normal; }
-            const C = m.vertexColors && g.attributes.color, U = withUv ? g.attributes.uv : null, cr = m.color.r, cg = m.color.g, cb = m.color.b;
+            const C = m.vertexColors && g.attributes.color, U = withUv ? g.attributes.uv : null, A = g.attributes.ao, cr = m.color.r, cg = m.color.g, cb = m.color.b;
             for (let i = 0; i < n; i++) {   // cả bộ đỉnh của hình (nhóm mặt chỉ chọn tam giác) — đỉnh thừa không vẽ
               const v = v0 + i;
               _bPos.fromBufferAttribute(P, i); if (L) _bPos.applyMatrix4(L);
               pos[v * 3] = _bPos.x; pos[v * 3 + 1] = _bPos.y; pos[v * 3 + 2] = _bPos.z;
-              col[v * 3] = unorm16(cr * (C ? C.getX(i) : 1)); col[v * 3 + 1] = unorm16(cg * (C ? C.getY(i) : 1)); col[v * 3 + 2] = unorm16(cb * (C ? C.getZ(i) : 1));
+              const ka = A ? A.getX(i) : 1;   // hệ số sáng bóng góc (1 = trống)
+              col[v * 3] = unorm16(cr * ka * (C ? C.getX(i) : 1)); col[v * 3 + 1] = unorm16(cg * ka * (C ? C.getY(i) : 1)); col[v * 3 + 2] = unorm16(cb * ka * (C ? C.getZ(i) : 1));
               if (nrm && N) { _bNrm.fromBufferAttribute(N, i); if (L) _bNrm.applyMatrix3(_bN3); _bNrm.normalize(); nrm[v * 3] = Math.round(_bNrm.x * 32767); nrm[v * 3 + 1] = Math.round(_bNrm.y * 32767); nrm[v * 3 + 2] = Math.round(_bNrm.z * 32767); }
               if (uv) { uv[v * 2] = U.getX(i); uv[v * 2 + 1] = U.getY(i); }
               sIdx[v * 4] = sIdx[v * 4 + 1] = sIdx[v * 4 + 2] = sIdx[v * 4 + 3] = bi; sW[v * 4] = 255;
@@ -122,6 +123,16 @@
           mesh.castShadow = sample.castShadow; mesh.receiveShadow = sample.receiveShadow; mesh.renderOrder = sample.renderOrder;
           mesh.userData.batchSrc = { recs, isLine, withUv, skeleton };
           return mesh;
+        }
+        function batchAoRefresh(objs) {   // core/ao-bake.js: mảnh có hình chẻ + bóng góc (userData.aoGeo) ⇒ dựng lại lô chứa nó theo hình mới, rồi bỏ hình chẻ
+          const S = new Set(objs), cnt = g => g.index ? g.index.count : g.attributes.position.count;   // (lô lên GPU xong bỏ bản RAM; mất ngữ cảnh ⇒ dựng từ hình gốc, ao-bake nướng lại)
+          for (const b of drawBatches) for (const m of b.meshes) {
+            const src = m.userData.batchSrc; if (!src || !src.recs.some(r => S.has(r.o))) continue;
+            for (const r of src.recs) if (S.has(r.o)) { r.start = 0; r.count = cnt(r.o.userData.aoGeo); }
+            const old = m.geometry; m.geometry = buildBatchGeometry(src.recs, src.isLine, src.withUv, src.skeleton); old.dispose();
+            for (const r of src.recs) if (S.has(r.o)) r.count = cnt(r.o.geometry);
+          }
+          for (const o of objs) delete o.userData.aoGeo;
         }
         listen(renderer.domElement, 'webglcontextrestored', () => {   // GPU mất rồi có lại ngữ cảnh: dựng lại bộ đệm từ các mảnh gốc (bản RAM đã bỏ)
           for (const b of drawBatches) for (const m of b.meshes) { const S = m.userData.batchSrc, old = m.geometry; m.geometry = buildBatchGeometry(S.recs, S.isLine, S.withUv, S.skeleton); old.dispose(); }

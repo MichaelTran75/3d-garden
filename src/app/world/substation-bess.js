@@ -34,7 +34,7 @@
         let poleCounter = 0;
         function poleAt(oi, oj, h = 6.72, label = null, opts = {}) {
           poleCounter++; const numStr = label || ('' + poleCounter);
-          const p = worldCell(oi, oj), g = new THREE.Group(); g.position.copy(p); g.name = 'Cột điện #' + poleCounter + ' (Power Pole)'; scene.add(g);
+          const p = worldCell(oi, oj), g = new THREE.Group(); g.position.copy(p); g.name = 'Cột điện #' + poleCounter + ' (Power Pole)'; scene.add(g); worldJoin('groundContact', 10, S => S.add(g, { w: 0.3 }));   // bóng tiếp đất chân cột
           obstacleCoords.push({ x: p.x, y: p.y, z: p.z, r: 1.5, h: h + 1.5 });
           let rotY = 0;
           if (poleCounter === 1 || poleCounter === 2 || poleCounter === 3 || poleCounter === 5) rotY = Math.PI / 2;        // cột 1, 2, 3 & 5 xoay 90°

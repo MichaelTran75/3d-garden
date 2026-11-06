@@ -242,6 +242,7 @@
           const o = building(b[2], b[3], b[4], b[5], b[6], yaw);
           o.rotation.y = yaw; o.scale.setScalar(ARCHITECTURE_SCALE);
           o.position.set(wx(b[0] * S), surfaceY(b[0] * S, b[1] * S), wz(b[1] * S)); scene.add(o);
+          worldJoin('groundContact', 10, S => S.add(o, { w: 0.5 }));   // bóng tiếp đất chân tường (world/ground-contact.js)
         }
         for (const b of bdefs) obstacleCoords.push({ x: wx(b[0] * S), y: surfaceY(b[0] * S, b[1] * S), z: wz(b[1] * S), r: (Math.max(b[2], b[4]) / 2 + 1.2) * ARCHITECTURE_SCALE, h: (b[3] + 1.8) * ARCHITECTURE_SCALE });   // nhà → vật cản: ong/bướm vọt qua mái thay vì xuyên tường
         // Screenshot route: across the campus, then along the workshop's right side.
@@ -499,5 +500,5 @@
           rod(v3((R + 0.06) * Math.cos(ga), yTop - 0.2, (R + 0.06) * Math.sin(ga)), v3((R + 0.06) * Math.cos(ga), yTop + 0.06, (R + 0.06) * Math.sin(ga)), 0.008, legMat, 4);
           return bakeStatic(g);
         }
-        { const silo = waterSilo(); silo.position.set(X0 + 43, 7, Z0 + 57); silo.scale.setScalar(1.25 * ARCHITECTURE_SCALE); silo.name = 'Bồn chứa nước (Water Silo)'; scene.add(silo); }
+        { const silo = waterSilo(); silo.position.set(X0 + 43, 7, Z0 + 57); silo.scale.setScalar(1.25 * ARCHITECTURE_SCALE); silo.name = 'Bồn chứa nước (Water Silo)'; scene.add(silo); worldJoin('groundContact', 10, S => S.add(silo, { w: 0.45 })); }
 

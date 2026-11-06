@@ -55,7 +55,7 @@
           }
           VAN.object.updateMatrixWorld(true);
           const pose = (x, z, dx, dz) => { const p = V(x, 0, z, new THREE.Vector3()), q = V(x + dx, 0, z + dz, _a); p.y = cowY(p.x, p.z); return { p, yaw: Math.atan2(q.x - p.x, q.z - p.z) }; };   // trục +z ghế theo hướng xe (dx, dz)
-          const sc = VAN.object.scale.x, HOME = pose(-1.45, 1.08 + ST.D / 2 / sc, 0, 1), FRONT = pose(-3.28 - ST.D / 2 / sc, 0, -1, 0);   // cất: lưng sát vách bên cửa lùa, bậc quay ra ngoài · làm việc: lưng sát cản (nhô nhất x −3,27; dưới 0,35 trống), bậc quay ra đầu xe
+          const sc = VAN.object.scale.x, HOME = pose(-1.45, 1.08 + ST.D / 2 / sc, 0, 1), FRONT = pose(-3.38 - ST.D / 2 / sc, 0, -1, 0);   // cất: lưng sát vách bên cửa lùa, bậc quay ra ngoài · làm việc: lưng cách cản 10 cm (nhô nhất x −3,27; dưới 0,35 trống) — cúi xem máy bụng không lẹm vào ga-lăng (G 02/11), bậc quay ra đầu xe
           const SP = { p: new THREE.Vector3(), yaw: 0 }, CP = { p: new THREE.Vector3(), yaw: 0 }, A0 = { p: new THREE.Vector3(), yaw: 0 };
           const SL = (P, lx, ly, lz, out) => { const c = Math.cos(P.yaw), s = Math.sin(P.yaw); return out.set(P.p.x + lx * c + lz * s, P.p.y + ly, P.p.z - lx * s + lz * c); };   // điểm hệ ghế (đặt theo P) → thế giới
           function putStool(P) { stool.position.copy(P.p); stool.rotation.set(0, P.yaw, 0); stool.updateMatrixWorld(true); }
@@ -163,8 +163,8 @@
               climb(e, dt, Math.min(1, k / 2.1), J.st === 'up');
               if (k > 2.1) { e.footPlan = null; if (J.st === 'up') { J.on = true; J.top = FRONT.p.y + ST.h2; go('check'); } else go('grab'); }
             } else if (J.st === 'check') {   // cúi xem khoang máy: tay trái tì mép ga-lăng, tay phải dò quanh nắp máy
-              stand(e, dt); const w = ease(k / 0.9) * (1 - ease((k - 5.6) / 0.8)); e.lean = 0.55 * w; look(e, eng);
-              if (w > 0.3) { R[1] = V(-3.22, 1.25, -0.32, J.h1); R[0] = V(-2.86 + 0.07 * Math.sin(k * 1.3), 1.24, 0.08 + 0.13 * Math.sin(k * 0.7), J.h0); }
+              stand(e, dt); const w = ease(k / 0.9) * (1 - ease((k - 5.6) / 0.8)); e.lean = 0.42 * w; look(e, eng);   // ngực ngang mép ga-lăng, không đổ qua
+              if (w > 0.3) { R[1] = V(-3.22, 1.25, -0.32, J.h1); R[0] = V(-2.92 + 0.06 * Math.sin(k * 1.3), 1.3, 0.08 + 0.13 * Math.sin(k * 0.7), J.h0); }   // tay phải dò trên nắp máy (nắp cao 1,2), không thọc vào
               if (k > 6.4) go('holo');
             } else if (J.st === 'holo') {   // G 22/10: hình động cơ ×3 nổi trên đầu, tách rời thành từng bộ phận, soi lần lượt (van/engine/engine-holo.js) — nhìn theo, giơ tay chỉ, nhận xét
               stand(e, dt); e.lean = 0;
@@ -181,7 +181,7 @@
               if (k > 0.8 && VAN.engineOn !== (J.st === 'start')) VAN.runEngine(J.st === 'start', true);
               if (k > 1.7) go(J.st === 'start' ? 'watch' : 'cool');
             } else if (J.st === 'watch') {   // máy chạy: cúi xem, tay trái tì mép ga-lăng, gật gù theo tiếng máy — đủ 30 s tính từ lúc bấm nổ
-              stand(e, dt); e.lean = 0.35 * ease(k / 1.2); look(e, eng); e.head.rotation.x += 0.05 * Math.sin(t * 2.4); if (k > 1) R[1] = V(-3.22, 1.25, -0.32, J.h1);
+              stand(e, dt); e.lean = 0.3 * ease(k / 1.2); look(e, eng); e.head.rotation.x += 0.05 * Math.sin(t * 2.4); if (k > 1) R[1] = V(-3.22, 1.25, -0.32, J.h1);
               if (k > 28.3) go('stop');
             } else if (J.st === 'cool') {   // chờ máy dừng hẳn, cất chìa
               stand(e, dt); look(e, eng); if (k > 0.5) fobOn(e, false);

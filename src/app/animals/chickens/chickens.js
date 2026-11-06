@@ -1,6 +1,6 @@
         // ===== GÀ MÁI THẢ VƯỜN × 3 (G 18/10 "add 3 chickens" + mẫu GLB; "add chicken behaviour and back to chuồng gà khi mặt trời lặn, và ra ngoài kiếm ăn khi
         //  mặt trời mọc, biết kiếm chỗ tránh mưa near by under cover") =====
-        //  Mẫu "Chicken - rigged" (Maf'j Alvarez, CC-BY-4.0) dựng lại bằng src/tools/chicken/ → src/models/chicken.glb 152 KB: 1 lưới da màu đỉnh (736 tam giác,
+        //  Mẫu "Chicken - rigged" (Maf'j Alvarez, CC-BY-4.0) dựng lại bằng src/tools/chicken/ → src/models/chicken.glb 152 KB → nén meshopt 95 KB (src/tools/glb-compress, 04/11): 1 lưới da màu đỉnh (736 tam giác,
         //  17 xương), mét, đầu về +Z, 6 hoạt cảnh (walking · pecking · idle · sitting-down · sitting-idle · standing-up). Mỗi con 1 bản sao (SkeletonUtils) + 1 bộ trộn.
         //  ĐI KHÔNG TRƯỢT CHÂN: hoạt cảnh 'walking' của mẫu có sẵn chuyển động gốc (cả thân tiến 0,23 m mỗi chu kỳ 1,58 s) ⇒ trừ dời tuyến tính khỏi các rãnh vị
         //  trí cho vòng lặp tại chỗ, rồi đẩy con gà tiến đúng 0,145 m/s × tốc độ phát ⇒ bàn chân trụ đứng yên trên đất như hoạt cảnh gốc.
@@ -184,8 +184,8 @@
           }
           function nearestCover(h) { let best = null, bd = Infinity; for (const [, pts] of covers()) { const q = pts[h.i % pts.length], d = Math.hypot(q.x - h.g.position.x, q.z - h.g.position.z); if (d < bd) { bd = d; best = q; } } return best; }
           const roostTime = () => { const hh = liveWeather.localHour; return hh >= 12 ? sunElevSin < 0.06 : sunElevSin < 0.03; };   // chiều: mặt trời thấp ~3,4° là về · sáng: lên ~1,7° mới ra
-          ldTrack(Promise.all([import('https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js'), import('https://esm.sh/three@0.160.0/examples/jsm/utils/SkeletonUtils.js')])
-            .then(([{ GLTFLoader }, SU]) => new GLTFLoader().loadAsync(CHICK_GLB).then(gl => [gl, SU])).then(ldAfter).then(([gl, SU]) => {
+          ldTrack(Promise.all([import('https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js'), import('https://esm.sh/three@0.160.0/examples/jsm/utils/SkeletonUtils.js'), import('https://esm.sh/three@0.160.0/examples/jsm/libs/meshopt_decoder.module.js')])   // mẫu nén EXT_meshopt_compression (src/tools/glb-compress, G 04/11)
+            .then(([{ GLTFLoader }, SU, { MeshoptDecoder }]) => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(CHICK_GLB).then(gl => [gl, SU])).then(ldAfter).then(([gl, SU]) => {
               const walk = gl.animations.find(a => a.name === 'walking');
               for (const tr of walk.tracks) if (tr.name.endsWith('.position') && tr.times.length > 1) {   // bỏ chuyển động gốc: trừ dời tuyến tính đầu → cuối
                 const n = tr.times.length, T0 = tr.times[0], T1 = tr.times[n - 1], d = [0, 1, 2].map(q => tr.values[(n - 1) * 3 + q] - tr.values[q]);

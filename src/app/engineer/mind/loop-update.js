@@ -56,7 +56,7 @@
               if (e.clip) e.clip.visible = !e.inVan && e.phase !== 'van' && !fishing && !atSeat && !H.pole && (!ENG_JOBS[e.phase] || !!ENG_JOBS[e.phase].clip) && !H.spoon && !H.cup && !H.bottle && !H.book && !dishHand && e.phase !== 'pet' && !fishInHand;
               chipsBag.visible = e.phase === 'read' && !e.inVan && !leavingSeat;
               const atDesk = e.inVan && !!e.van && e.van.station === 'desk';
-              VAN.laptop.lid(atDesk && (e.van.st === 'sit' || e.van.st === 'scoot' || e.van.st === 'work') ? 1 : 0);
+              VAN.laptop.lid(atDesk && e.act !== 'deskread' && (e.van.st === 'sit' || e.van.st === 'scoot' || e.van.st === 'work') ? 1 : 0);
               laptopScreenTick(t, atDesk && e.act === 'music');
               musicFx.update(dt, t, atDesk && e.act === 'music' && e.van.st === 'work' && VAN.laptop.open > 0.85);
               napFx.update(dt, t, e.phase === 'nap' && !leavingSeat && !e.inVan ? e : null);

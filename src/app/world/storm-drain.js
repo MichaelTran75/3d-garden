@@ -189,19 +189,19 @@
             bakeStatic(rip); rip.traverse(o => { o.userData.noCollide = o.userData.noFlight = true; }); }
           // ---- DÒNG NƯỚC XẢ: ống dẹt rơi theo quỹ đạo ném ngang (dựng trong shader) + bọt nổi chỗ rơi ----
           const NOISE = 'float dh(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); } float dn(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(dh(i), dh(i + vec2(1.0, 0.0)), f.x), mix(dh(i + vec2(0.0, 1.0)), dh(i + 1.0), f.x), f.y); }';
-          const jetU = { uO: { value: V3(faceX + 0.16, yP - 0.1, zE) }, uD: { value: V3(1, 0, 0) }, uV: { value: 1 }, uT: { value: 0.45 }, uW: { value: 0.2 }, uTh: { value: 0.06 }, uK: { value: 0 }, uTime: { value: 0 }, uL: { value: 1 } };
+          const NSJ = 28, jetU = { uP: { value: Array.from({ length: NSJ + 1 }, () => V3(faceX + 0.16, yP - 0.1, zE)) }, uVl: { value: Array.from({ length: NSJ + 1 }, () => V3(1, 0, 0)) }, uW: { value: 0.2 }, uTh: { value: 0.06 }, uK: { value: 0 }, uTime: { value: 0 }, uL: { value: 1 } };
           const jet = (() => {
-            const NS = 28, NA = 12, P = [], A = [], I = [];
+            const NS = NSJ, NA = 12, P = [], A = [], I = [];
             for (let s = 0; s <= NS; s++) for (let a = 0; a <= NA; a++) { P.push(0, 0, 0); A.push(a / NA, s / NS); }
             for (let s = 0; s < NS; s++) for (let a = 0; a < NA; a++) { const p = s * (NA + 1) + a, q = p + NA + 1; I.push(p, q, p + 1, p + 1, q, q + 1); }
             const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); geo.setAttribute('aJ', new THREE.Float32BufferAttribute(A, 2)); geo.setIndex(I);
             const mat = new THREE.ShaderMaterial({ uniforms: jetU, transparent: true, depthWrite: false, side: THREE.DoubleSide,
-              vertexShader: `uniform vec3 uO, uD; uniform float uV, uT, uW, uTh; attribute vec2 aJ; varying vec2 vJ;
+              vertexShader: `uniform vec3 uP[${NSJ + 1}], uVl[${NSJ + 1}]; uniform float uW, uTh; attribute vec2 aJ; varying vec2 vJ;
                 void main() {
-                  float t = aJ.y * uT, a = aJ.x * 6.28318;
-                  vec3 vel = normalize(uD * uV + vec3(0.0, -9.8 * t, 0.0)), sd = normalize(cross(vec3(0.0, 1.0, 0.0), uD)), nr = normalize(cross(vel, sd));
+                  int i = int(aJ.y * ${NSJ}.0 + 0.5); float a = aJ.x * 6.28318;   // lát i = gói nước rời miệng ống τ giây trước (tâm uP, vận tốc uVl — tính trên CPU, tick)
+                  vec3 vel = normalize(uVl[i]), hd = normalize(vec3(vel.x, 0.0, vel.z) + vec3(1e-4, 0.0, 0.0)), sd = normalize(cross(vec3(0.0, 1.0, 0.0), hd)), nr = normalize(cross(vel, sd));
                   float w = uW * (1.0 + 0.9 * aJ.y), th = uTh * (1.0 + 0.7 * aJ.y);   // tia loe dần khi rơi
-                  vec3 p = uO + uD * (uV * t) + vec3(0.0, -4.9 * t * t, 0.0) + sd * (cos(a) * 0.5 * w) + nr * (sin(a) * 0.5 * th);
+                  vec3 p = uP[i] + sd * (cos(a) * 0.5 * w) + nr * (sin(a) * 0.5 * th);
                   vJ = aJ; gl_Position = projectionMatrix * viewMatrix * vec4(p, 1.0);
                 }`,
               fragmentShader: `uniform float uK, uTime, uL; varying vec2 vJ; ${NOISE}
@@ -225,7 +225,16 @@
                 #include <colorspace_fragment>
               }` }));
           foam.name = 'Bọt nước chỗ cửa xả đổ xuống'; foam.rotation.x = -Math.PI / 2; foam.renderOrder = 3; foam.visible = false; foam.raycast = () => {}; g.add(foam);
-          for (const o of [jet, foam]) o.userData.noCollide = o.userData.noRainOcc = o.userData.noBatch = o.userData.noFlight = true;
+          // giọt bắn chỗ tia cắm xuống sông (pool cố định, số ngẫu nhiên riêng — không đổi dãy Math.random của cảnh)
+          const ND = 40, drops = new THREE.InstancedMesh(new THREE.SphereGeometry(0.022, 5, 4), new THREE.MeshBasicMaterial({ color: 0xeaf6ff, transparent: true, opacity: 0.8, depthWrite: false }), ND);
+          drops.name = 'Giọt nước bắn chỗ cửa xả đổ xuống'; drops.frustumCulled = false; drops.renderOrder = 3; drops.raycast = () => {}; g.add(drops);
+          const DR = Array.from({ length: ND }, () => ({ p: V3(0, 0, 0), v: V3(0, 0, 0), s: 1, on: false })), _dM = new THREE.Matrix4(), _dZ = new THREE.Matrix4().makeScale(0, 0, 0);
+          for (let k = 0; k < ND; k++) drops.setMatrixAt(k, _dZ);
+          // vòng sóng trắng loang ra từ chỗ cắm (pool 6 vòng, sinh theo nhịp dòng động lượng)
+          const ringGeo = new THREE.RingGeometry(0.7, 1, 32); ringGeo.rotateX(-Math.PI / 2);
+          const RG = Array.from({ length: 6 }, () => { const m = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0xeef6fa, transparent: true, opacity: 0, depthWrite: false }));
+            m.name = 'Vòng sóng chỗ cửa xả đổ xuống'; m.visible = false; m.renderOrder = 3; m.raycast = () => {}; g.add(m); return { m, t: 1, dur: 1, size: 1 }; });
+          for (const o of [jet, foam, drops, ...RG.map(r => r.m)]) o.userData.noCollide = o.userData.noRainOcc = o.userData.noBatch = o.userData.noFlight = true;
           // ---- XEM ỐNG: dải ô đất mờ 25% + rãnh cắt (dựng 1 lần ở lần bấm đầu), mặt đường mờ trong dải, cỏ trong dải ẩn ----
           const R = { on: false, built: false, saved: [], ims: new Set(), see: null, wall: null, swap: [], cells: 0 };
           const Z16 = Float32Array.from(new THREE.Matrix4().makeScale(0, 0, 0).elements);
@@ -306,18 +315,74 @@
             for (const [o, m0, m1, cs] of R.swap) { o.material = on ? m1 : m0; o.castShadow = on ? false : cs; }   // mặt đường mờ thôi đổ bóng ⇒ ống dưới được nắng chiếu
             const i = terrainMeshes.indexOf(R.see); if (on && i < 0) terrainMeshes.push(R.see); else if (!on && i >= 0) terrainMeshes.splice(i, 1);   // tia rê chuột vẫn chạm mặt đất ở dải
           }
-          // ---- MỖI KHUNG: lưu lượng theo mưa → tia nước, van lật, bọt, sóng ----
-          const F = { q: 0, k: 0, sp: 0 };
+          // ---- MỖI KHUNG: lưu lượng theo mưa → van lật + tia nước + chỗ cắm xuống sông, có vật lý (G 03/11 "em add physic vào dòng nước này, em cho nắp cống đung
+          //  đưa 1 chút khi nước chảy, và thác nước tác động xuống mặt nước") ----
+          //  · Lưu lượng dao động: nước mưa trong cống không chảy đều — nhiễu đỏ (Ornstein–Uhlenbeck) τ 0,35 s ±5% + sóng dồn chậm τ 3 s ±4% lên vận tốc ra
+          //  · VAN LẬT = con lắc vật lý quanh bản lề: nắp gang m 20 kg, tâm cách bản lề d 0,225 m, R 0,228, I = m(d² + R²/4); mô-men dòng nước ρ·A·v²·cos²θ·d
+          //    (động lượng pháp tuyến đập vào mặt nắp, A = tiết diện nước trong ống theo độ đầy) ↔ trọng lực m·g·d·sinθ, cản nước + ma sát bản lề ζ 0,3; chạm
+          //    miệng ống (θ < 0) thì nảy lại 25%. Cân bằng: lưu lượng 50% ⇒ mở ~13°, đầy ống ⇒ ~41°; dao động riêng ~0,9 Hz ⇒ dòng dao động làm nắp đung đưa nhẹ (±2–4°)
+          //  · Nước chạm nắp bị bẻ xuống theo mặt nắp (nắp khép ⇒ tia cắm dốc hơn) và mất 12% vận tốc ⇒ nắp đung đưa thì tia lắc theo
+          //  · TIA = chuỗi gói nước: lát i của tia là nước rời miệng ống τᵢ giây trước với chỗ ra + vận tốc LÚC ĐÓ (sổ ghi 96 khung), rơi tự do ⇒ chỗ lắc truyền
+          //    dọc tia như vòi tưới, không lắc cứng cả khối
+          //  · CHẠM MẶT SÔNG: dòng động lượng ρ·Q·v_chạm (N) ⇒ mặt nước lõm liên tục rải trên bề ngang tia (fluids.splash, ~20 lần/s, mạnh theo dòng động
+          //    lượng tức thời ⇒ dòng dồn thì sóng to), giọt bắn tung lên theo hướng tia, vòng sóng trắng loang ~3 vòng/s, bọt trắng bám chỗ rơi (to theo động lượng)
+          const F = { q: 0, k: 0, sp: 0, M: 0, ix: 0 }, FL = { th: 0, w: 0, n: 0, s: 0, dr: 0 }, rnd = mulberry32(9127);
+          const RHO = 1000, FM = 20, FD = 0.225, FI = FM * (FD * FD + 0.228 * 0.228 / 4), FKG = FM * 9.8 * FD, FC = 2 * 0.3 * Math.sqrt(FI * FKG);
+          const JH = { n: 0, i: 0, t: new Float64Array(96), o: new Float32Array(288), v: new Float32Array(288) }, _jO = [0, 0, 0], _jV = [0, 0, 0];
+          function dropsTick(dt, L) {
+            let any = false;
+            for (let k = 0; k < ND; k++) { const d = DR[k]; if (!d.on) continue; d.v.y -= 9.8 * dt; d.p.addScaledVector(d.v, dt);
+              if (d.p.y < lakeY - 0.02) { d.on = false; drops.setMatrixAt(k, _dZ); any = true; continue; }
+              drops.setMatrixAt(k, _dM.makeScale(d.s, d.s, d.s).setPosition(d.p)); any = true; }
+            if (any) { drops.instanceMatrix.needsUpdate = true; drops.material.color.setRGB(0.92 * L, 0.96 * L, 0.98 * L); }
+            for (const r of RG) if (r.t < r.dur) { r.t += dt; const u = Math.min(1, r.t / r.dur); r.m.scale.setScalar(r.size * (0.12 + 0.88 * Math.pow(u, 0.6)));
+              r.m.material.opacity = 0.6 * L * (1 - u) * (1 - u); if (u >= 1) r.m.visible = false; }
+          }
           function tick(dt, t) {
             if (!(dt > 0)) return;
             F.q += (rainK - F.q) * Math.min(1, dt / (rainK > F.q ? 15 : 90));   // hồ chứa tuyến tính: lên ~15 s, rút ~90 s
             const k = F.k = Math.min(1, F.q * 1.15 + 0.08 * Math.max(0, sceneWet - 0.15));   // đất còn ướt ⇒ rỉ
-            flapP.rotation.z += (0.62 * Math.sqrt(k) - flapP.rotation.z) * Math.min(1, dt * 3);   // van lật mở 0–35° theo lưu lượng
-            const on = k > 0.015; jet.visible = foam.visible = on; if (!on) return;
-            const v = 0.35 + 1.45 * k, th = 0.03 + 0.09 * k, O = jetU.uO.value.set(faceX + 0.16, OUT.inv + th * 0.5 + 0.01, zE), T = Math.sqrt(2 * Math.max(0.05, O.y - lakeY) / 9.8), L = 0.25 + 0.75 * (1 - nightFactor);
-            jetU.uV.value = v; jetU.uT.value = T; jetU.uW.value = 0.1 + 0.16 * k; jetU.uTh.value = th; jetU.uK.value = THREE.MathUtils.smoothstep(k, 0.015, 0.15); jetU.uTime.value = t % 1000; jetU.uL.value = L;
-            const ix = O.x + v * T, r = 0.35 + 0.45 * k; foam.position.set(ix, lakeY + 0.015, zE); foam.scale.set(r * 2, r * 2, 1); foamU.uK.value = jetU.uK.value; foamU.uTime.value = t % 1000; foamU.uL.value = L;
-            if ((F.sp -= dt) <= 0) { F.sp = 0.12; fluids?.splash(ix, zE, 0.3 + 0.3 * k, 0.006 + 0.03 * k); }   // nước rơi ⇒ sóng tròn lan trên mặt sông
+            const L = 0.25 + 0.75 * (1 - nightFactor), on = k > 0.015;
+            const e1 = Math.exp(-dt / 0.35), e2 = Math.exp(-dt / 3);   // dòng dao động (phương sai 1)
+            FL.n = FL.n * e1 + Math.sqrt(1 - e1 * e1) * (rnd() * 2 - 1) * 1.732; FL.s = FL.s * e2 + Math.sqrt(1 - e2 * e2) * (rnd() * 2 - 1) * 1.732;
+            const v0 = on ? (0.35 + 1.45 * k) * Math.max(0.7, 1 + 0.05 * FL.n + 0.04 * FL.s) : 0, A = Math.PI * 0.0225 * Math.min(1, 0.15 + 0.85 * k);
+            for (let m = Math.ceil(Math.min(dt, 0.1) / 0.008), h = Math.min(dt, 0.1) / m, j = 0; j < m; j++) {   // con lắc van lật, bước ≤ 8 ms
+              const c = Math.cos(FL.th); FL.w += (RHO * A * v0 * v0 * c * c * FD - FKG * Math.sin(FL.th) - FC * FL.w) / FI * h; FL.th += FL.w * h;
+              if (FL.th < 0) { FL.th = 0; FL.w = FL.w < -0.05 ? -0.25 * FL.w : 0; }   // đập vào miệng ống: nảy 25%
+            }
+            flapP.rotation.z = FL.th;
+            if (!on) { jet.visible = foam.visible = false; JH.n = 0; F.M = 0; dropsTick(dt, L); return; }
+            jet.visible = foam.visible = true;
+            // nước rời miệng ống: dưới mép nắp, bẻ xuống theo mặt nắp — ghi sổ
+            const th = 0.03 + 0.09 * k, ve = v0 * (1 - 0.12 * Math.cos(FL.th)), al = 0.35 * (Math.PI / 2 - FL.th), ox = faceX + 0.16 + 0.3 * Math.sin(FL.th), oy = OUT.inv + th * 0.5 + 0.01;
+            const ni = JH.i = (JH.i + 1) % 96; JH.t[ni] = t; JH.o[ni * 3] = ox; JH.o[ni * 3 + 1] = oy; JH.o[ni * 3 + 2] = zE;
+            JH.v[ni * 3] = ve * Math.cos(al); JH.v[ni * 3 + 1] = -ve * Math.sin(al); JH.v[ni * 3 + 2] = 0; JH.n = Math.min(96, JH.n + 1);
+            // các lát của tia: gói nước rời ống τ giây trước, rơi tự do tới hết mặt nước
+            const vy0 = -ve * Math.sin(al), Tc = 1.04 * (vy0 + Math.sqrt(vy0 * vy0 + 19.6 * Math.max(0.05, oy - lakeY))) / 9.8;
+            let p = ni, q = 0, hit = -1;
+            for (let sI = 0; sI <= NSJ; sI++) {
+              const tau = sI / NSJ * Tc, tw = t - tau;
+              while (q < JH.n - 1 && JH.t[p] > tw) { p = (p + 95) % 96; q++; }
+              const nx = (p + 1) % 96, f = q > 0 && JH.t[p] <= tw ? (tw - JH.t[p]) / Math.max(1e-6, JH.t[nx] - JH.t[p]) : 0, b = f > 0 ? nx : p;
+              for (let c = 0; c < 3; c++) { _jO[c] = JH.o[p * 3 + c] + (JH.o[b * 3 + c] - JH.o[p * 3 + c]) * f; _jV[c] = JH.v[p * 3 + c] + (JH.v[b * 3 + c] - JH.v[p * 3 + c]) * f; }
+              const P = jetU.uP.value[sI].set(_jO[0] + _jV[0] * tau, _jO[1] + _jV[1] * tau - 4.9 * tau * tau, _jO[2] + _jV[2] * tau);
+              jetU.uVl.value[sI].set(_jV[0], _jV[1] - 9.8 * tau, _jV[2]);
+              if (hit < 0 && P.y <= lakeY) hit = sI;
+            }
+            jetU.uW.value = 0.1 + 0.16 * k; jetU.uTh.value = th; jetU.uK.value = THREE.MathUtils.smoothstep(k, 0.015, 0.15); jetU.uTime.value = t % 1000; jetU.uL.value = L;
+            // chỗ tia cắm xuống: nội suy giữa 2 lát quanh mặt nước, dòng động lượng ρ·Q·v
+            const h1 = hit > 0 ? hit : NSJ, A1 = jetU.uP.value[h1 - 1], B1 = jetU.uP.value[h1], u = Math.min(1, Math.max(0, (A1.y - lakeY) / Math.max(1e-6, A1.y - B1.y)));
+            const ix = F.ix = A1.x + (B1.x - A1.x) * u, iz = A1.z + (B1.z - A1.z) * u, vi = jetU.uVl.value[h1].length(), M = F.M = RHO * A * ve * vi, kk = Math.min(1, M / 350);
+            const wy = lakeY + (fluids && fluids.water.ready ? fluids.water.height(ix, iz) : 0);   // mặt sông thật chỗ cắm (mô phỏng nước nông: sóng + lõm)
+            const wl = (0.1 + 0.16 * k) * 1.9, r = 0.3 + 0.5 * kk; foam.position.set(ix + 0.08 * r, wy + 0.015, iz); foam.scale.set(r * 2, r * 2, 1); foamU.uK.value = jetU.uK.value; foamU.uTime.value = t % 1000; foamU.uL.value = L;
+            if ((F.sp -= dt) <= 0) { F.sp = 0.05; fluids?.splash(ix + (rnd() - 0.4) * 0.15, iz + (rnd() - 0.5) * wl, 0.25 + 0.25 * kk, 0.003 + 0.022 * kk); }   // mặt sông lõm liên tục trên bề ngang tia ⇒ sóng tròn lan, bọt
+            if ((F.rg = (F.rg || 0) - dt) <= 0) { F.rg = 0.32 + 0.25 * rnd() - 0.12 * kk; const R1 = RG.find(o => o.t >= o.dur) || RG[0];   // vòng sóng: mỗi ~0,3 s, to theo động lượng
+              Object.assign(R1, { t: 0, dur: 1 + 0.6 * kk, size: 0.35 + 0.75 * kk }); R1.m.position.set(ix, wy + 0.02, iz); R1.m.visible = true; }
+            for (FL.dr += dt * 70 * kk; FL.dr >= 1; FL.dr--) {   // giọt bắn: tung ngược lên, toả quanh, hơi xuôi theo hướng tia
+              const d = DR.find(o => !o.on); if (!d) break; const a = rnd() * TAU, sp = (0.25 + 0.7 * rnd()) * (0.5 + 0.8 * kk);
+              d.on = true; d.s = 0.6 + 0.9 * rnd(); d.p.set(ix + (rnd() - 0.5) * 0.1, wy + 0.02, iz + (rnd() - 0.5) * wl * 0.8); d.v.set(Math.cos(a) * sp + 0.25 * jetU.uVl.value[h1].x, (0.7 + 1.3 * rnd()) * (0.5 + 0.7 * kk), Math.sin(a) * sp);
+            }
+            dropsTick(dt, L);
           }
-          return { g, outfall: outG, rip, mats: M, toggle: () => reveal(!R.on), reveal, tick, state: R, flow: F, net: { MH, OUT, faceX, zE, gullies, covers: COVERS, seg: SEG.length, str: STR.length } };   // rip, mats: rêu cửa xả (nature/bank-moss.js)
+          return { g, outfall: outG, rip, mats: M, toggle: () => reveal(!R.on), reveal, tick, state: R, flow: F, flap: FL, net: { MH, OUT, faceX, zE, gullies, covers: COVERS, seg: SEG.length, str: STR.length } };   // rip, mats: rêu cửa xả (nature/bank-moss.js)
         })();

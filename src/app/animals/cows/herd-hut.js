@@ -238,7 +238,7 @@
             }
             lamp.rotation.set(-lsw.z, 0, lsw.x);
           };
-          bakeStatic(g); scene.add(g);
+          bakeStatic(g); scene.add(g); worldJoin('groundContact', 10, S => S.add(g, { w: 0.45 }));   // bóng tiếp đất (world/ground-contact.js)
           const stalls = [];
           for (let k = 0; k < n; k++) { const sx = hx - W / 2 + (k + 0.5) * SW; stalls.push({ x: sx, z: hz + 0.2, ex: sx, ez: hz + D / 2 + 1.3, hay: hayTop[k] }); }
           cowHutRect = { x0: hx - W / 2 - 1.7, x1: hx + W / 2 + 1.45, z0: hz - D / 2 - 0.35, z1: hz + D / 2 + 0.25 };

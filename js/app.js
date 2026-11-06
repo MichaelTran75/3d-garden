@@ -105,6 +105,7 @@
         scene.background = new THREE.Color(0xE2D6C0);
         scene.fog = new THREE.Fog(0xE2D6C0, 280, 700);
         const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 4000); camera.zoom = 0.5;
+        const LAYER_SHARP = 29, sharpRoots = []; camera.layers.enable(LAYER_SHARP);
 
         const hemi = new THREE.HemisphereLight(0xffffff, 0xb6ab8e, 0.82); scene.add(hemi);
         const amb = new THREE.AmbientLight(0xffffff, 0.28); scene.add(amb);
@@ -537,6 +538,15 @@
         function worldRun(slot, dt, t, x) { const L = WORLD_TICKS.get(slot); if (L) for (let i = 0; i < L.length; i++) L[i].fn(dt, t, x); }
         function worldJoin(service, at, fn) { if (WORLD_SERVED.has(service)) fn(WORLD_SERVED.get(service)); else worldHook(WORLD_JOINS, service, at, fn); }
         function worldServe(service, api) { WORLD_SERVED.set(service, api); for (const s of WORLD_JOINS.get(service) || []) s.fn(api); }
+        const WORLD_PLACES = new Map();
+        function worldPlace(name, P) {
+          if (P.face) worldFace(name, P.face);
+          for (const [slot, at, fn] of P.tick || []) worldTick(slot, at, fn);
+          for (const [service, at, fn] of P.join || []) worldJoin(service, at, fn);
+          if (P.hover) worldJoin('hover', P.hover.at ?? 100, H => H.add(P.hover.root, P.hover));
+          if (P.job) worldJoin('jobs', P.job.at ?? 100, J => J.add(P.job));
+          WORLD_PLACES.set(name, P); return P.face;
+        }
         const VAN = worldLazy('van');
         const ENGINEER = worldLazy('engineer'), DRONE = worldLazy('drone');
         const CAMP = worldLazy('camp'), CHIMINEA = worldLazy('chiminea'), TRIMMER = worldLazy('trimmer'), COOP = worldLazy('coop');
@@ -663,7 +673,7 @@
           ['Vol', 'Phi Ngư', 'Volans', 3, 111, -73],
           ['Vul', 'Hồ Ly', 'Vulpecula', 3, 295.5, 21],
         ];
-        if (ldStep(0.030)) await ldYield();
+        if (ldStep(0.029)) await ldYield();
         const nightSky = (() => {
           const LAYER = 2; camera.layers.enable(LAYER);
           const L0 = Math.log(2400), L1 = Math.log(42000);
@@ -890,7 +900,7 @@
           }
           return { update, U, meteors, spawn: spawnMeteor, mk, toNdc, fromNdc, stars, get lim() { return lim; } };
         })();
-        if (ldStep(0.039)) await ldYield();
+        if (ldStep(0.038)) await ldYield();
         const constellations = (() => {
           let hovSel = null; worldJoin('hover', 10, H => { hovSel = H; });
           const U = nightSky.U, M = U.uEq.value, raw = atob(CONST_LINES), V = [], VM = [];
@@ -1019,7 +1029,7 @@
           }
           return { tick, mesh, list: C, pickAt, overIsland, get hover() { return S.hov; } };
         })();
-        if (ldStep(0.043)) await ldYield();
+        if (ldStep(0.042)) await ldYield();
         const grass = [], shore = [], bodies = [], waters = [], riverbed = [];
         const bedOf = (i, j) => {
           const surf = Math.round((j < DAM_J ? RES : DOWN) * S);
@@ -1123,7 +1133,7 @@
         surfaceHeights = gridH;
         gridH = gridWater = null;
 
-        if (ldStep(0.047)) await ldYield();
+        if (ldStep(0.045)) await ldYield();
         const AXC = { x: 0xc0473a, y: 0x3a7d44, z: 0x2f6fb0 };
         const X0 = wx(-MX), Z0 = wz(-MZ);
         const axLenX = wx(GX + MX - 1) - X0, axLenZ = wz(GZ + MZ - 1) - Z0;
@@ -1307,7 +1317,7 @@
           return group;
         }
 
-        if (ldStep(0.054)) await ldYield();
+        if (ldStep(0.052)) await ldYield();
         let SF_H = null;
         const SF_BT = { value: null }, SF_BTK = { value: 0 }, SF_WET = { value: 0 }, SF_NO = { value: new THREE.Vector2(0, -1) };
         const SF_WALL_T = [0, 1.31, 0.64, 0.94, 0.98];
@@ -1396,7 +1406,7 @@
               #endif
               vSfP = (inverse(viewMatrix) * vec4(mvPosition.xyz, 1.0)).xyz; vSfN = normalize(mat3(modelMatrix) * sfN3);`);
             sh.fragmentShader = (U.sfApple ? '#define SF_APPLE\n' : '') + SF_GLSL + (K === 5 ? '\nvarying vec3 vSfB; varying float vSfD;' : '') + '\n' + sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
-              float sfHg = 0.0, sfMo = 0.0;   // sfMo: lượng rêu 0–1 (lá rêu mọc theo — nature/moss-lawn.js)
+              float sfHg = 0.0, sfMo = 0.0, sfCv = 0.0;   // sfMo: lượng rêu 0–1 (lá rêu mọc theo — nature/moss-lawn.js) · sfCv: mật độ hốc khuất của vỏ (bóng hốc — core/sky-shade.js cav)
               {
                 vec3 wn = normalize(vSfN); float wf = 1.0 - smoothstep(0.55, 0.85, abs(wn.y));   // mặt đứng
                 vec2 tg = abs(wn.y) < 0.9 ? normalize(vec2(-wn.z, wn.x) + 1e-5) : vec2(1.0, 0.0);
@@ -1500,7 +1510,7 @@
                   sfMo = max(sfMo * (1.0 + 0.35 * nf), 0.85 * sfl * uSfMs * step(0.01, uSfTm));
                   // G 31/10 "moss spread over these corners một cách không đồng đều": rêu lan từ HỐC KHUẤT (kẽ 2 rễ, chân rễ sát đất, rễ ôm đá, nách thân) ra ngoài
                   //  thành thuỳ loang không đều — mật độ vật rắn quanh điểm (uSfCv: mặt trống ~0,5, kẽ ~0,7) + nhiễu thuỳ ~0,7 m và ~20 cm làm mép lan lồi lõm
-                  vec3 cq = (vSfP + wn * 0.06 - uSfCv0) * uSfCv1; float cv = all(greaterThan(cq, vec3(0.02))) && all(lessThan(cq, vec3(0.98))) ? texture(uSfCv, cq).r : 0.0;
+                  vec3 cq = (vSfP + wn * 0.06 - uSfCv0) * uSfCv1; float cv = all(greaterThan(cq, vec3(0.02))) && all(lessThan(cq, vec3(0.98))) ? texture(uSfCv, cq).r : 0.0; sfCv = cv;
                   float cvM = smoothstep(0.0, 0.12, cv - 0.47 + 0.3 * (sfN(vSfP.xz * 1.4 + vSfP.y * 0.8 + 51.0) - 0.5) + 0.14 * (sfN(vSfP.xz * 5.0 + vSfP.y * 3.3 + 9.0) - 0.5)) * step(0.01, cv) * (1.0 - smoothstep(1.4, 3.2, hA)) * step(0.01, uSfTm);
                   vec3 an = abs(wn); vec2 sq = an.y > max(an.x, an.z) ? vSfP.xz : an.x > an.z ? vSfP.yz : vSfP.xy;
                   sfMo = max(sfMo, cvM * min(1.0, uSfMs));
@@ -1561,7 +1571,102 @@
           return mat;
         }
         surfaceStyle(concreteMat, 'concrete');
-        if (ldStep(0.066)) await ldYield();
+        if (ldStep(0.064)) await ldYield();
+        const SKY_U = { uSkA: { value: null }, uSkB: { value: null }, uSkAB: { value: new THREE.Vector4(1e9, 1e9, 0, 0) }, uSkBB: { value: new THREE.Vector4(1e9, 1e9, 0, 0) },
+          uSkY: { value: new THREE.Vector4() }, uSkK: { value: new THREE.Vector2() } };
+        const SKY_GLSL = `uniform sampler2D uSkA, uSkB; uniform vec4 uSkAB, uSkBB, uSkY; uniform vec2 uSkK;
+          float skyShade(vec3 p, float w) {
+            float s = 1.0; vec2 a = (p.xz - uSkAB.xy) * uSkAB.zw, b = (p.xz - uSkBB.xy) * uSkBB.zw;
+            if (a.x > 0.0 && a.y > 0.0 && a.x < 1.0 && a.y < 1.0) { vec2 t = texture2D(uSkA, a).rg; s *= 1.0 - w * uSkK.x * (1.0 - t.r) * (1.0 - smoothstep(3.0, 9.0, p.y - uSkY.x - 255.0 * uSkY.y * t.g)); }
+            if (b.x > 0.0 && b.y > 0.0 && b.x < 1.0 && b.y < 1.0) { vec2 t = texture2D(uSkB, b).rg; s *= 1.0 - uSkK.y * (1.0 - t.r) * (1.0 - smoothstep(0.05, 0.35, p.y - uSkY.z - 255.0 * uSkY.w * t.g)); }
+            return s;
+          }`;
+        function skyShadeMat(mat, tag, o = {}) {
+          const prev = mat.onBeforeCompile, cav = o.cav || 0, vtx = !!o.vtx;
+          mat.onBeforeCompile = (sh, r) => {
+            prev.call(mat, sh, r); Object.assign(sh.uniforms, SKY_U);
+            if (o.skA) {
+              sh.vertexShader = `attribute vec2 ${o.skA}; uniform vec2 uSkK; varying float vSkS;\n` + sh.vertexShader.replace('#include <fog_vertex>', `#include <fog_vertex>
+                vSkS = (1.0 - uSkK.x * (1.0 - ${o.skA}.x)) * (1.0 - uSkK.y * (1.0 - ${o.skA}.y));`);
+              sh.fragmentShader = 'varying float vSkS;\n' + sh.fragmentShader.replace('#include <aomap_fragment>', '#include <aomap_fragment>\n              reflectedLight.indirectDiffuse *= vSkS;');
+              return;
+            }
+            const sf = sh.vertexShader.includes('varying vec3 vSfP');
+            if (cav && !sf) Object.assign(sh.uniforms, { uSfCv: SF_CV, uSfCv0: SF_CV0, uSfCv1: SF_CV1 });
+            const cvU = cav && !sf ? 'uniform highp sampler3D uSfCv; uniform vec3 uSfCv0; uniform vec3 uSfCv1;\n' : '', skP = 'transpose(mat3(viewMatrix)) * (mvPosition.xyz - viewMatrix[3].xyz)';
+            const skW = n => `0.75 + 0.25 * abs(inverseTransformDirection(${n}, viewMatrix).y)`;
+            const cv = !cav ? '' : sf && !o.cavP ? `skS *= 1.0 - ${cav.toFixed(3)} * smoothstep(0.45, 0.85, sfCv);`
+              : `{ vec3 skQ = (vSkP - uSfCv0) * uSfCv1;
+                if (all(greaterThan(skQ, vec3(0.02))) && all(lessThan(skQ, vec3(0.98)))) skS *= 1.0 - ${cav.toFixed(3)} * smoothstep(0.45, 0.85, texture(uSfCv, skQ).r); }`;
+            if (vtx) {
+              sh.vertexShader = SKY_GLSL + '\nvarying float vSkS;\n' + sh.vertexShader.replace('#include <fog_vertex>', `#include <fog_vertex>
+                vSkS = skyShade(${skP}, ${skW('transformedNormal')});`);
+              sh.fragmentShader = 'varying float vSkS;\n' + sh.fragmentShader.replace('#include <aomap_fragment>', `#include <aomap_fragment>
+              reflectedLight.indirectDiffuse *= vSkS${cav && sf ? ` * (1.0 - ${cav.toFixed(3)} * smoothstep(0.45, 0.85, sfCv))` : ''};`);
+              return;
+            }
+            if (!sf) sh.vertexShader = 'varying vec3 vSkP;\n' + sh.vertexShader.replace('#include <fog_vertex>', `#include <fog_vertex>\n vSkP = ${skP};`);
+            sh.fragmentShader = (sf ? '#define vSkP vSfP\n' : 'varying vec3 vSkP;\n' + cvU) + SKY_GLSL + '\n'
+              + sh.fragmentShader.replace('#include <aomap_fragment>', `#include <aomap_fragment>
+              { float skS = skyShade(vSkP, ${skW('normal')}); ${cv} reflectedLight.indirectDiffuse *= skS; }`);
+          };
+          const pk = mat.customProgramCacheKey.bind(mat); mat.customProgramCacheKey = () => pk() + '|sky:' + tag + (cav ? 'c' : '') + (vtx ? 'v' : '') + (o.skA ? 'a' : ''); mat.needsUpdate = true; return mat;
+        }
+        for (const [m, t] of [[grassMat, 'grass'], [dirtMat, 'dirt'], [shoreMat, 'shore']]) skyShadeMat(m, t);
+        const SKY = { job: null, q: [], fade: [], pre: [], pend: [], cb: [], rnd: mulberry32(0x5EED5C1) };
+        function skyLayer(id, F) {
+          const U = SKY_U['uSk' + id], old = U.value, R0 = Math.random; let t; Math.random = SKY.rnd;
+          try { t = new THREE.DataTexture(F.px, F.NX, F.NZ, THREE.RGFormat, THREE.UnsignedByteType); } finally { Math.random = R0; }
+          t.magFilter = t.minFilter = THREE.LinearFilter; t.generateMipmaps = false; t.unpackAlignment = 1; t.needsUpdate = true; U.value = t; if (old) old.dispose();
+          SKY_U['uSk' + id + 'B'].value.set(F.x0, F.z0, 1 / (F.x1 - F.x0), 1 / (F.z1 - F.z0));
+          const c = id === 'A' ? 'x' : 'y'; if (id === 'A') SKY_U.uSkY.value.setX(F.y).setY(F.m); else SKY_U.uSkY.value.setZ(F.y).setW(F.m);
+          SKY_U.uSkK.value[c] = 0; SKY.pend.push(c); for (const f of SKY.cb) { const g = f(id); if (g) SKY.pre.push(g); }
+        }
+        function skyOnLayer(f) { SKY.cb.push(f); }
+        function skyAt(id, x, y, z, w = 1) {
+          const t = SKY_U['uSk' + id].value; if (!t) return 1;
+          const B = SKY_U['uSk' + id + 'B'].value, u = (x - B.x) * B.z, v = (z - B.y) * B.w; if (!(u > 0 && v > 0 && u < 1 && v < 1)) return 1;
+          const D = t.image.data, NX = t.image.width, NZ = t.image.height, fx = u * NX - 0.5, fz = v * NZ - 0.5, i = Math.floor(fx), k = Math.floor(fz), ax = fx - i, az = fz - k;
+          const i0 = Math.max(0, i), i1 = Math.min(NX - 1, i + 1), k0 = Math.max(0, k) * NX, k1 = Math.min(NZ - 1, k + 1) * NX;
+          const bil = c => ((D[(k0 + i0) * 2 + c] * (1 - ax) + D[(k0 + i1) * 2 + c] * ax) * (1 - az) + (D[(k1 + i0) * 2 + c] * (1 - ax) + D[(k1 + i1) * 2 + c] * ax) * az) / 255;
+          const Y = SKY_U.uSkY.value, A = id === 'A', h = y - (A ? Y.x : Y.z) - 255 * (A ? Y.y : Y.w) * bil(1), e0 = A ? 3 : 0.05, e1 = A ? 9 : 0.35, q = Math.min(1, Math.max(0, (h - e0) / (e1 - e0)));
+          return 1 - (A ? w : 1) * (1 - bil(0)) * (1 - q * q * (3 - 2 * q));
+        }
+        function* skyCanopyJob(o) {
+          const T0 = performance.now(), P = o.pts, k = o.k ?? 1, fl = o.floor ?? 0.3, ps = 0.5, mg = 4, NDIR = 64, mA = 0.04; let busy = 0;
+          let x0 = 1e9, y0 = 1e9, z0 = 1e9, x1 = -1e9, y1 = -1e9, z1 = -1e9;
+          for (let i = 0; i < P.length; i += 4) { x0 = Math.min(x0, P[i]); x1 = Math.max(x1, P[i]); y0 = Math.min(y0, P[i + 1]); y1 = Math.max(y1, P[i + 1]); z0 = Math.min(z0, P[i + 2]); z1 = Math.max(z1, P[i + 2]); }
+          const gx0 = Math.floor(x0) - 1, gy0 = Math.floor(y0) - 1, gz0 = Math.floor(z0) - 1, NX = Math.ceil(x1 - gx0) + 2, NY = Math.ceil(y1 - gy0) + 2, NZ = Math.ceil(z1 - gz0) + 2, D = new Float32Array(NX * NY * NZ);
+          for (let i = 0; i < P.length; i += 4) D[Math.floor(P[i] - gx0) + NX * (Math.floor(P[i + 1] - gy0) + NY * Math.floor(P[i + 2] - gz0))] += 0.5 * P[i + 3];
+          const DIR = new Float32Array(NDIR * 3); for (let i = 0; i < NDIR; i++) { const u = (i + 0.5) / NDIR, r = Math.sqrt(u), t = i * 2.39996; DIR.set([r * Math.cos(t), Math.sqrt(1 - u), r * Math.sin(t)], i * 3); }
+          const vx0 = gx0 - mg, vz0 = gz0 - mg, VNX = Math.ceil((NX + 2 * mg) / ps), VNZ = Math.ceil((NZ + 2 * mg) / ps), px = new Uint8Array(VNX * VNZ * 2), G = new Float32Array(VNX * VNZ);
+          let gMin = 1e9; for (let kk = 0; kk < VNZ; kk++) for (let i = 0; i < VNX; i++) { const y = cowY(vx0 + (i + 0.5) * ps, vz0 + (kk + 0.5) * ps); G[kk * VNX + i] = y; gMin = Math.min(gMin, y); }
+          for (let kk = 0; kk < VNZ; kk++) {
+            for (let i = 0; i < VNX; i++) {
+              const x = vx0 + (i + 0.5) * ps, z = vz0 + (kk + 0.5) * ps, y = G[kk * VNX + i] + 0.1; let vis = 0;
+              for (let d = 0; d < NDIR * 3; d += 3) { const dx = DIR[d], dy = DIR[d + 1], dz = DIR[d + 2]; let tau = 0;
+                for (let s = 0.25; ; s += 0.5) { const a = Math.floor(x + dx * s - gx0), b = Math.floor(y + dy * s - gy0), c = Math.floor(z + dz * s - gz0);
+                  if (b >= NY || (a < 0 && dx <= 0) || (a >= NX && dx >= 0) || (c < 0 && dz <= 0) || (c >= NZ && dz >= 0)) break;
+                  if (a >= 0 && b >= 0 && c >= 0 && a < NX && c < NZ) tau += 0.5 * D[a + NX * (b + NY * c)]; }
+                vis += Math.exp(-tau); }
+              const e = Math.min(1, Math.min(i, kk, VNX - 1 - i, VNZ - 1 - kk) / 2), q = (kk * VNX + i) * 2;
+              px[q] = Math.round(255 * (1 - (1 - Math.max(fl, 1 - k * (1 - vis / NDIR))) * e)); px[q + 1] = Math.min(255, Math.round((G[kk * VNX + i] - gMin) / mA));
+            }
+            if ((busy += VNX) > 60) { busy = 0; yield; }
+          }
+          skyLayer('A', { px, NX: VNX, NZ: VNZ, x0: vx0, z0: vz0, x1: vx0 + VNX * ps, z1: vz0 + VNZ * ps, y: gMin, m: mA });
+          let mn = 255; for (let i = 0; i < px.length; i += 2) mn = Math.min(mn, px[i]);
+          SKY.stat = { ms: Math.round(performance.now() - T0), leaves: P.length / 4, grid: [NX, NY, NZ], px: [VNX, VNZ], min: mn };
+        }
+        worldTick('afterRender', 96, () => {
+          for (let i = SKY.fade.length - 1; i >= 0; i--) { const [c, t0] = SKY.fade[i], f = Math.min(1, (performance.now() - t0) / 1500); SKY_U.uSkK.value[c] = f * f * (3 - 2 * f); if (f >= 1) SKY.fade.splice(i, 1); }
+          const t0 = performance.now(); while (SKY.pre.length && performance.now() - t0 < 4) if (SKY.pre[0].next().done) SKY.pre.shift();
+          if (!SKY.pre.length && SKY.pend.length) { for (const c of SKY.pend) SKY.fade.push([c, performance.now()]); SKY.pend.length = 0; }
+          if (!SKY.job) { if (!SKY.q.length) return; SKY.job = skyCanopyJob(SKY.q.shift()); }
+          while (performance.now() - t0 < 4) if (SKY.job.next().done) { SKY.job = null; break; }
+        });
+        worldServe('skyShade', { canopy: o => SKY.q.push(o), layer: skyLayer });
+        if (ldStep(0.069)) await ldYield();
         const fallBlocks = [], tailJets = [], sprayBits = [], rainbowMats = [], damIMs = [], damMist = [];
         let damRainbow = null;
         let damPH = null;
@@ -1768,7 +1873,7 @@
             damRainbow.position.y = damRainbow.userData.baseY - 5.6 * Math.max(0, e) / 42;
           }
         }
-        if (ldStep(0.077)) await ldYield();
+        if (ldStep(0.079)) await ldYield();
         const rotors = [];
         towerMat.color.setHex(0xe2d6c0); bladeMat.color.setHex(0xe2d6c0); hubMat.color.setHex(0xe2d6c0);
         const turbineBeaconMat = new THREE.MeshBasicMaterial({ color: 0xc9513f });
@@ -1921,7 +2026,7 @@
             r.w += (r.sp * g - r.w) * (1 - Math.exp(-dt / 5)); r.rotor.rotation.z += r.w * dt;
           }
         }
-        if (ldStep(0.081)) await ldYield();
+        if (ldStep(0.083)) await ldYield();
         function solarRow(len, glass) {
           const g = new THREE.Group();
           const pgeo = new THREE.BoxGeometry(len, 0.1, 2.4); const panel = new THREE.Mesh(pgeo, glass); panel.castShadow = true; panel.receiveShadow = true; edge(panel, pgeo, lineDark);
@@ -2151,6 +2256,7 @@
           const o = building(b[2], b[3], b[4], b[5], b[6], yaw);
           o.rotation.y = yaw; o.scale.setScalar(ARCHITECTURE_SCALE);
           o.position.set(wx(b[0] * S), surfaceY(b[0] * S, b[1] * S), wz(b[1] * S)); scene.add(o);
+          worldJoin('groundContact', 10, S => S.add(o, { w: 0.5 }));
         }
         for (const b of bdefs) obstacleCoords.push({ x: wx(b[0] * S), y: surfaceY(b[0] * S, b[1] * S), z: wz(b[1] * S), r: (Math.max(b[2], b[4]) / 2 + 1.2) * ARCHITECTURE_SCALE, h: (b[3] + 1.8) * ARCHITECTURE_SCALE });
         const campusRoad = new THREE.Group(); campusRoad.name = 'Đường nội bộ (Campus Access Road)';
@@ -2372,11 +2478,95 @@
           rod(v3((R + 0.06) * Math.cos(ga), yTop - 0.2, (R + 0.06) * Math.sin(ga)), v3((R + 0.06) * Math.cos(ga), yTop + 0.06, (R + 0.06) * Math.sin(ga)), 0.008, legMat, 4);
           return bakeStatic(g);
         }
-        { const silo = waterSilo(); silo.position.set(X0 + 43, 7, Z0 + 57); silo.scale.setScalar(1.25 * ARCHITECTURE_SCALE); silo.name = 'Bồn chứa nước (Water Silo)'; scene.add(silo); }
+        { const silo = waterSilo(); silo.position.set(X0 + 43, 7, Z0 + 57); silo.scale.setScalar(1.25 * ARCHITECTURE_SCALE); silo.name = 'Bồn chứa nước (Water Silo)'; scene.add(silo); worldJoin('groundContact', 10, S => S.add(silo, { w: 0.45 })); }
 
-        if (ldStep(0.099)) await ldYield();
-        const cowY = (x, z) => { const d = damDeckY(x, z); if (d !== null) return d; const s = surfaceY(Math.round(x2gi(x)), Math.round(z2gj(z))); if (!roadContains(x, z)) return s; const r = roadSurfaceAt(x, z).y; return r > s ? r : s; };
         if (ldStep(0.100)) await ldYield();
+        const cowY = (x, z) => { const d = damDeckY(x, z); if (d !== null) return d; const s = surfaceY(Math.round(x2gi(x)), Math.round(z2gj(z))); if (!roadContains(x, z)) return s; const r = roadSurfaceAt(x, z).y; return r > s ? r : s; };
+        if (ldStep(0.101)) await ldYield();
+        const groundContact = (() => {
+          const Q = [], made = []; let ready = false;
+          const _v = new THREE.Vector3(), _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3(), _bx = new THREE.Box3(), _im = new THREE.Matrix4(), _wm = new THREE.Matrix4();
+          function triangles(roots, yMax, inst, each) {
+            for (const R of roots) { R.updateMatrixWorld(true); R.traverseVisible(m => {
+              if (!m.isMesh || !m.geometry || !m.geometry.attributes.position || (m.isInstancedMesh && !inst)) return;
+              const G = m.geometry; if (!G.boundingBox) G.computeBoundingBox();
+              const P = G.attributes.position, I = G.index, nI = m.isInstancedMesh ? m.count : 1, nT = I ? I.count / 3 : P.count / 3;
+              for (let k = 0; k < nI; k++) {
+                _wm.copy(m.matrixWorld); if (m.isInstancedMesh) { m.getMatrixAt(k, _im); _wm.multiply(_im); }
+                if (_bx.copy(G.boundingBox).applyMatrix4(_wm).min.y > yMax) continue;
+                for (let t = 0; t < nT; t++) {
+                  const i0 = I ? I.getX(t * 3) : t * 3, i1 = I ? I.getX(t * 3 + 1) : t * 3 + 1, i2 = I ? I.getX(t * 3 + 2) : t * 3 + 2;
+                  _a.fromBufferAttribute(P, i0).applyMatrix4(_wm); _b.fromBufferAttribute(P, i1).applyMatrix4(_wm); _c.fromBufferAttribute(P, i2).applyMatrix4(_wm);
+                  if (Math.min(_a.y, _b.y, _c.y) <= yMax) each(_a, _b, _c);
+                }
+              }
+            }); }
+          }
+          function build(E) {
+            const t0 = performance.now(), R = E.roots, o = E.o, r0 = R[0].getWorldPosition(_v), g0 = o.y !== undefined ? o.y : cowY(r0.x, r0.z);
+            const W = o.w || 0.35, LINE = o.line !== undefined ? o.line : 0.6, AO = o.ao !== undefined ? o.ao : 0.35, BODY = o.body || 0, BA = o.bodyA || 0.4;
+            const PL = [g0 + 0.03, g0 + 0.10], seg = [], flat = [], body = [];
+            triangles(R, BODY ? g0 + BODY : g0 + 0.12, !!o.inst, (a, b, c) => {
+              const lo = Math.min(a.y, b.y, c.y), hi = Math.max(a.y, b.y, c.y);
+              if (lo > g0 - 0.05 && hi < g0 + 0.12) { flat.push(a.x, a.z, b.x, b.z, c.x, c.z); return; }
+              for (const y of PL) { if (lo > y || hi < y) continue; const q = [];
+                for (const [p, s] of [[a, b], [b, c], [c, a]]) if ((p.y - y) * (s.y - y) < 0) { const f = (y - p.y) / (s.y - p.y); q.push(p.x + (s.x - p.x) * f, p.z + (s.z - p.z) * f); }
+                if (q.length === 4) seg.push(q[0], q[1], q[2], q[3]); }
+              if (BODY && lo > g0 + 0.02 && hi < g0 + BODY) body.push(a.x, a.z, b.x, b.z, c.x, c.z);
+            });
+            if (!seg.length && !flat.length) return;
+            let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9;
+            for (const L of [seg, flat, body]) for (let i = 0; i < L.length; i += 2) { x0 = Math.min(x0, L[i]); x1 = Math.max(x1, L[i]); z0 = Math.min(z0, L[i + 1]); z1 = Math.max(z1, L[i + 1]); }
+            const pad = Math.max(0.5, W * 3, BODY ? 0.9 : 0); x0 -= pad; x1 += pad; z0 -= pad; z1 += pad;
+            const ext = Math.max(x1 - x0, z1 - z0), ps = Math.max(0.03, ext / 256), NX = Math.ceil((x1 - x0) / ps), NZ = Math.ceil((z1 - z0) / ps);
+            const mk = () => new Uint8Array(NX * NZ), M = mk(), MB = mk();
+            const dot = (A, x, z) => { const i = (x - x0) / ps | 0, j = (z - z0) / ps | 0; if (i >= 0 && j >= 0 && i < NX && j < NZ) A[j * NX + i] = 1; };
+            for (let k = 0; k < seg.length; k += 4) { const n = Math.max(1, Math.ceil(Math.hypot(seg[k + 2] - seg[k], seg[k + 3] - seg[k + 1]) / (ps * 0.5)));
+              for (let s = 0; s <= n; s++) dot(M, seg[k] + (seg[k + 2] - seg[k]) * s / n, seg[k + 1] + (seg[k + 3] - seg[k + 1]) * s / n); }
+            const fill = (A, T) => { for (let k = 0; k < T.length; k += 6) {
+              const ax = T[k], az = T[k + 1], bx = T[k + 2], bz = T[k + 3], cx = T[k + 4], cz = T[k + 5], d = (bx - ax) * (cz - az) - (bz - az) * (cx - ax);
+              if (Math.abs(d) < 1e-9) continue;
+              const i0 = Math.max(0, (Math.min(ax, bx, cx) - x0) / ps | 0), i1 = Math.min(NX - 1, (Math.max(ax, bx, cx) - x0) / ps | 0), j0 = Math.max(0, (Math.min(az, bz, cz) - z0) / ps | 0), j1 = Math.min(NZ - 1, (Math.max(az, bz, cz) - z0) / ps | 0);
+              for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { const px = x0 + (i + 0.5) * ps, pz = z0 + (j + 0.5) * ps;
+                const u = ((bx - px) * (cz - pz) - (bz - pz) * (cx - px)) / d, v = ((cx - px) * (az - pz) - (cz - pz) * (ax - px)) / d;
+                if (u >= 0 && v >= 0 && u + v <= 1) A[j * NX + i] = 1; }
+              dot(A, ax, az); dot(A, bx, bz); dot(A, cx, cz); } };
+            fill(M, flat); if (BODY) fill(MB, body);
+            const dist = A => { const D = new Float32Array(NX * NZ), K = 1.4142;
+              for (let p = 0; p < D.length; p++) D[p] = A[p] ? 0 : 1e6;
+              for (let j = 0; j < NZ; j++) for (let i = 0; i < NX; i++) { const p = j * NX + i; let d = D[p];
+                if (i > 0) d = Math.min(d, D[p - 1] + 1); if (j > 0) { d = Math.min(d, D[p - NX] + 1); if (i > 0) d = Math.min(d, D[p - NX - 1] + K); if (i < NX - 1) d = Math.min(d, D[p - NX + 1] + K); } D[p] = d; }
+              for (let j = NZ - 1; j >= 0; j--) for (let i = NX - 1; i >= 0; i--) { const p = j * NX + i; let d = D[p];
+                if (i < NX - 1) d = Math.min(d, D[p + 1] + 1); if (j < NZ - 1) { d = Math.min(d, D[p + NX] + 1); if (i < NX - 1) d = Math.min(d, D[p + NX + 1] + K); if (i > 0) d = Math.min(d, D[p + NX - 1] + K); } D[p] = d; }
+              for (let p = 0; p < D.length; p++) D[p] *= ps; return D; };
+            const DM = dist(M), DB = BODY ? dist(MB) : null, px = new Uint8Array(NX * NZ * 4);
+            for (let p = 0; p < NX * NZ; p++) { const d = DM[p];
+              let keep = (1 - LINE * Math.exp(-d / 0.06)) * (1 - AO * Math.exp(-d / W));
+              if (DB) keep *= 1 - BA * Math.exp(-DB[p] / 0.5);
+              px[p * 4] = px[p * 4 + 1] = px[p * 4 + 2] = 255; px[p * 4 + 3] = Math.round(255 * (1 - keep)); }
+            const sh = drape({ px, NX, NZ, ps, x0, x1, z0, z1, g0, name: 'Bóng tiếp đất · ' + (R[0].name || 'vật') });
+            made.push({ of: R[0].name, mesh: sh, seg: seg.length / 4, flat: flat.length / 6, body: body.length / 6, px: NX + '×' + NZ, ms: Math.round(performance.now() - t0) });
+          }
+          function drape(F) {
+            const { px, NX, NZ, ps, x0, x1, z0, z1, g0 } = F, ext = Math.max(x1 - x0, z1 - z0);
+            const tex = new THREE.DataTexture(px, NX, NZ, THREE.RGBAFormat); tex.magFilter = THREE.LinearFilter; tex.minFilter = THREE.LinearMipmapLinearFilter; tex.generateMipmaps = true; tex.needsUpdate = true;
+            const gs = Math.max(0.15, ext / 90), GXn = Math.ceil((x1 - x0) / gs), GZn = Math.ceil((z1 - z0) / gs), P = [], U = [], C = [], I = [];
+            for (let j = 0; j <= GZn; j++) for (let i = 0; i <= GXn; i++) { const x = Math.min(x1, x0 + i * gs), z = Math.min(z1, z0 + j * gs), y = cowY(x, z);
+              P.push(x, y + 0.015, z); U.push((x - x0) / (NX * ps), (z - z0) / (NZ * ps)); C.push(1, 1, 1, Math.abs(y - g0) < 0.3 ? 1 : 0); }
+            for (let j = 0; j < GZn; j++) for (let i = 0; i < GXn; i++) { const p = j * (GXn + 1) + i, q = p + GXn + 1;
+              if (C[p * 4 + 3] + C[(p + 1) * 4 + 3] + C[q * 4 + 3] + C[(q + 1) * 4 + 3] === 0) continue; I.push(p, q, p + 1, p + 1, q, q + 1); }
+            const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2));
+            geo.setAttribute('color', new THREE.Float32BufferAttribute(C, 4)); geo.setIndex(I); geo.computeBoundingSphere();
+            const mat = new THREE.MeshBasicMaterial({ color: 0x16120b, map: tex, vertexColors: true, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+            const sh = new THREE.Mesh(geo, mat); sh.name = F.name; sh.renderOrder = 1; sh.userData.noBake = sh.userData.noBatch = true; sh.raycast = () => {};
+            scene.add(sh); return sh;
+          }
+          const go = () => { if (ready) return; ready = true; const step = () => { const E = Q.shift(); if (!E) return; build(E); setTimeout(step, 0); }; step(); };
+          ldGate.then(() => Promise.race([Promise.all(ldNeed), new Promise(r => setTimeout(r, 8000))])).then(go);
+          worldServe('groundContact', { drape, add: (root, o = {}) => { const E = { roots: [].concat(root).filter(Boolean), o }; if (!E.roots.length) return; ready ? build(E) : Q.push(E); } });
+          return { made };
+        })();
+        if (ldStep(0.104)) await ldYield();
         let substationAnim = null;
         function poleBadgeTex(txt) {
           const c = document.createElement('canvas'); c.width = 128; c.height = 128; const x = c.getContext('2d');
@@ -2405,7 +2595,7 @@
         let poleCounter = 0;
         function poleAt(oi, oj, h = 6.72, label = null, opts = {}) {
           poleCounter++; const numStr = label || ('' + poleCounter);
-          const p = worldCell(oi, oj), g = new THREE.Group(); g.position.copy(p); g.name = 'Cột điện #' + poleCounter + ' (Power Pole)'; scene.add(g);
+          const p = worldCell(oi, oj), g = new THREE.Group(); g.position.copy(p); g.name = 'Cột điện #' + poleCounter + ' (Power Pole)'; scene.add(g); worldJoin('groundContact', 10, S => S.add(g, { w: 0.3 }));
           obstacleCoords.push({ x: p.x, y: p.y, z: p.z, r: 1.5, h: h + 1.5 });
           let rotY = 0;
           if (poleCounter === 1 || poleCounter === 2 || poleCounter === 3 || poleCounter === 5) rotY = Math.PI / 2;
@@ -2636,7 +2826,7 @@
         }
         poleGuys();
 
-        if (ldStep(0.111)) await ldYield();
+        if (ldStep(0.115)) await ldYield();
         const stationTan = new THREE.MeshLambertMaterial({ color: 0xa99d80 }), stationAlu = new THREE.MeshLambertMaterial({ color: 0xb4bbbf });
         const stationBox = new THREE.MeshLambertMaterial({ color: 0xc8cdc6 }), stationDark = new THREE.MeshLambertMaterial({ color: 0x30353a });
         const stationGround = (x, z) => surfaceY(Math.round(x / BLOCK + cx - 0.5), Math.round(z / BLOCK + cz - 0.5));
@@ -2812,7 +3002,7 @@
             wmast.light.visible = Math.sin(t * 4) > 0;
           }
         }
-        if (ldStep(0.119)) await ldYield();
+        if (ldStep(0.122)) await ldYield();
         function roadSurfaceAt(x, z) {
           const R = campusRoad.userData.road; let best = null;
           for (const st of [R.stations, R.branch]) for (let i = 1; i < st.length; i++) {
@@ -2977,7 +3167,7 @@
             if (lit) { lamp.beamMat.uniforms.uOpacity.value = 0.14 * nightFactor; lamp.pool.userData.mat.uniforms.uOpacity.value = 0.34 * nightFactor; }
           }
         }
-        if (ldStep(0.125)) await ldYield();
+        if (ldStep(0.129)) await ldYield();
         const _mcTulip = [0xd6683e, 0xe08baf, 0xE2D6C0, 0xc22f34].map(c => new THREE.Color(c));
         const _mcCol = {
           poppy: new THREE.Color(0xc22f2c), poppyEye: new THREE.Color(0x241d16),
@@ -3307,7 +3497,7 @@
           return { tips, rnd, flowerPts, segs };
         }
         function cloudPts(rnd, cx2, cy2, cz2, r, n, pts) { for (let i = 0; i < n; i++) { const rr = r * Math.cbrt(rnd()), th = rnd() * 6.283, ph = Math.acos(2 * rnd() - 1); pts.push([cx2 + rr * Math.sin(ph) * Math.cos(th), cy2 + rr * Math.cos(ph) * 0.8, cz2 + rr * Math.sin(ph) * Math.sin(th)]); } }
-        if (ldStep(0.140)) await ldYield();
+        if (ldStep(0.143)) await ldYield();
         const WIND_N = 6, WIND_Z0 = 0.1, WIND_M_PER_U = 1.15, WIND_LAMS = [34, 21, 13, 8, 5, 3.2];
         const WIND_SREF = 0.25 + 0.2 * (30 / 3.6);
         const TREE_SWAY_K = 0.25;
@@ -3600,7 +3790,7 @@
           im.castShadow = true; im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; g.add(im);
           return im;
         }
-        if (ldStep(0.151)) await ldYield();
+        if (ldStep(0.153)) await ldYield();
         const forestBark = new THREE.MeshLambertMaterial({ color: 0xcbb488, transparent: true, opacity: 0.5 });
         forestWindShader(forestBark); surfaceStyle(forestBark, 'bark');
         for (let v = 0; v < 12; v++) {
@@ -3709,10 +3899,53 @@
         const FT3_X = 99.81, FT3_Z = 102.95, FT3_YAW = 3.2, FT3_REACH = new THREE.Vector3(102.5 - FT3_X, 0, 100 - FT3_Z).normalize().applyAxisAngle(new THREE.Vector3(0, 1, 0), -FT3_YAW);
         const FT3_LOG = new THREE.Vector3(0.961, 0, 0.275).applyAxisAngle(new THREE.Vector3(0, 1, 0), -FT3_YAW);
         const ft3 = fruitTree(1.35, 7171, { trunkK: 3, rootK: 0.27, firstSplitN: 5, nMax: 4, leafK: 2, reach: [{ dir: FT3_REACH, n: 2, lenK: 1.35, tilt: 1.0 }, { dir: FT3_LOG, n: 2, lenK: 1.25, tilt: 1.0 }] }); ft3.scale.multiplyScalar(NATURE_SCALE); ft3.userData.noPick = true; ft3.userData.colR = 1.0;
+        ft3.traverse(o => { if (o.isMesh && o.material && o.material.userData && o.material.userData.sfApple) o.material.userData.sfTop = 0.5; });
         { const X = X0 + FT3_X, Z = Z0 + FT3_Z; ft3.position.set(X, surfaceY(Math.round(X / BLOCK + cx - 0.5), Math.round(Z / BLOCK + cz - 0.5)), Z); ft3.rotation.y = FT3_YAW; scene.add(ft3); }
         flightRoots.push(ft1, ft2, ft3);
+        for (const T of [ft1, ft2, ft3]) worldJoin('groundContact', 10, S => S.add(T));
         const appleTrees = [ft1, ft2, ft3];
         for (const T of appleTrees) obstacleCoords.push({ x: T.position.x, y: T.position.y, z: T.position.z, r: T === ft3 ? 0.75 : 0.35, h: 3 });
+        const ft3Trunk = (() => {
+          const bark = ft3.children.find(o => o.isMesh && !o.isInstancedMesh && o.name !== 'Vỏ cây (lượt độ sâu)'), L = ft3.userData.limbs; if (!bark || !L) return null;
+          const key = (g, o) => g[o].toFixed(4) + ',' + g[o + 1].toFixed(4) + ',' + g[o + 2].toFixed(4), from = new Map();
+          for (const g of L) { const k = key(g, 0); from.set(k, (from.get(k) || []).concat([g])); }
+          const ends = new Set(L.map(g => key(g, 3))); let g = L.find(h => !ends.has(key(h, 0))); if (!g) return null;
+          while ((from.get(key(g, 3)) || []).length === 1) g = from.get(key(g, 3))[0];
+          const top = g[4], src = bark.geometry, P = src.attributes.position, I = src.index, v = new THREE.Vector3(), keep = [];
+          bark.updateMatrix(); const yOf = i => v.fromBufferAttribute(P, i).applyMatrix4(bark.matrix).y, n = I ? I.count : P.count;
+          for (let t = 0; t < n; t += 3) { const a = I ? I.getX(t) : t, b = I ? I.getX(t + 1) : t + 1, c = I ? I.getX(t + 2) : t + 2; if (Math.max(yOf(a), yOf(b), yOf(c)) < top) keep.push(a, b, c); }
+          const geo = new THREE.BufferGeometry(); geo.setAttribute('position', P); geo.setIndex(keep);
+          const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false }));
+          m.name = 'Thân cây táo già (viền chọn)'; m.matrix.copy(bark.matrix); m.matrix.decompose(m.position, m.quaternion, m.scale); m.raycast = () => {};
+          Object.assign(m.userData, { noBatch: true, noBake: true, noCollide: true, pickSkip: true }); ft3.add(m); return m;
+        })();
+        const ft3Hole = (() => {
+          const leaf = ft3.children.find(o => o.isInstancedMesh), M = leaf && leaf.material; if (!M) return null;
+          const U = { value: new THREE.Vector4() }, base = M.onBeforeCompile, key = M.customProgramCacheKey(), P = new THREE.Vector3(), buf = new THREE.Vector2(); let k = 0;
+          M.onBeforeCompile = (sh, r) => { base.call(M, sh, r); sh.uniforms.uHole = U;
+            sh.fragmentShader = 'uniform vec4 uHole;\n' + sh.fragmentShader
+              .replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\n float holeK = 1.0; if (uHole.z > 0.0 && gl_FragCoord.z < uHole.w) { holeK = smoothstep(0.5, 1.0, length(gl_FragCoord.xy - uHole.xy) / uHole.z); if (holeK < 0.02) discard; }')
+              .replace('#include <dithering_fragment>', 'gl_FragColor.a *= holeK;\n#include <dithering_fragment>'); };
+          M.customProgramCacheKey = () => key + '+hole'; M.needsUpdate = true;
+          return dt => {
+            const R = worldSee('raccoon'), on = !!R && R.climbing === ft3; k = Math.max(0, Math.min(1, k + (on ? dt : -dt) / 0.6));
+            if (!k) { U.value.z = 0; return; }
+            if (on) { camera.updateMatrixWorld(); P.copy(R.pos); P.y += 0.15; P.project(camera); }
+            renderer.getDrawingBufferSize(buf);
+            U.value.set((P.x + 1) / 2 * buf.x, (P.y + 1) / 2 * buf.y, k * 0.9 * buf.y * camera.zoom / (camera.top - camera.bottom), (P.z + 1) / 2);
+          };
+        })();
+        const ft3CamOff = new THREE.Vector3(0, 0.3, 0);
+        worldPlace('oldAppleTree', {
+          hover: { root: ft3, skip: m => ft3Trunk ? m !== ft3Trunk : !!(m.parent && m.parent.parent && m.parent.parent.name === 'Quả táo') },
+          job: { objs: [ft3], title: 'Cây táo già', msg: 'Chọn:', choices: [{ lab: 'Gấu mèo ăn táo', plan: () => 'Gấu mèo ra khỏi hang, trèo cây hái một quả ngồi gặm',
+            why: () => { const R = worldSee('raccoon'); return R && R.climbing === ft3 ? 'Gấu mèo đang ở trên cây' : ''; },
+            run: () => { camFollow(ft3, 16, { off: new THREE.Vector3(0, 2.6, 0) }); worldTell('appleTreeTap', ft3); } }] },
+          tick: [['viewer', 45, dt => {
+            if (ft3Hole) ft3Hole(dt);
+            const R = CAMF.o === ft3 && worldSee('raccoon'); if (R && R.climbing === ft3) camFollow(R.object, 30, { off: ft3CamOff, rate: 2 });
+          }]],
+        });
 
         function deadLogOut(x, z, m) {
           const L = deadLog; if (!L) return null;
@@ -3722,12 +3955,35 @@
           if (d < 1e-4) { dx = -uz; dz = ux; d = Math.sqrt(ll); }
           return [cx + dx / d * r, cz + dz / d * r];
         }
+        let deadWood = null;
         let deadLog = null;
+        function woodMossDab(root, mat, key, seed, k = 1.35, band = 0.42) {
+          const ss = THREE.MathUtils.smoothstep, v = new THREE.Vector3(), n = new THREE.Vector3(), L = [];
+          root.updateMatrixWorld(true);
+          root.traverse(o => { const arr = Array.isArray(o.material), mi = arr ? o.material.indexOf(mat) : 0; if (!o.isMesh || (arr ? mi < 0 : o.material !== mat)) return;
+            const g = o.geometry, P = g.attributes.position, N = g.attributes.normal, A = new Float32Array(P.count), M = o.matrixWorld, NM = new THREE.Matrix3().getNormalMatrix(M), own = new Uint8Array(P.count).fill(arr ? 0 : 1);
+            if (arr) for (const G of g.groups) if (G.materialIndex === mi) for (let t = G.start; t < G.start + G.count; t++) own[g.index ? g.index.array[t] : t] = 1;
+            for (let i = 0; i < P.count; i++) { if (!own[i]) continue; v.fromBufferAttribute(P, i).applyMatrix4(M); n.fromBufferAttribute(N, i).applyMatrix3(NM).normalize();
+              const hA = v.y - cowY(v.x, v.z), nz = 0.5 + 0.22 * Math.sin(v.x * 7.1 + v.y * 3.3 + seed) + 0.18 * Math.sin(v.z * 6.3 - v.y * 4.7 + 1.3 * seed) + 0.1 * Math.sin((v.x + v.z) * 17.0 + v.y * 9.0);
+              A[i] = k * Math.min(1, 0.85 * (1 - ss(hA, 0.04, band)) * (n.y > -0.3 ? 1 : 0) + 0.55 * ss(n.y, 0.55, 0.95)) * ss(nz, 0.38, 0.72); }
+            g.setAttribute('aMk', new THREE.BufferAttribute(A, 1)); o.userData.noBatch = true; L.push(o); });
+          const mm = mossCoat(mat.clone(), key, { vHead: 'attribute float aMk; varying float vMk;', vMain: ' vMk = aMk;', fHead: 'varying float vMk;',
+            sq: '(abs(vMcN.y) > 0.6 ? vMcP.xz : abs(vMcN.x) > abs(vMcN.z) ? vMcP.zy : vMcP.xy)', mo: 'smoothstep(0.3, 0.6, vMk + 0.25 * (sfMossCu(mcQ, mcF) - 0.45))' });
+          for (const o of L) o.material = Array.isArray(o.material) ? o.material.map(x => x === mat ? mm : x) : mm;
+          mossBladeSrc.push((push, DENS) => {
+            const r = mulberry32(seed * 7919), a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), e1 = new THREE.Vector3(), e2 = new THREE.Vector3(), nn = new THREE.Vector3();
+            for (const o of L) { const g = o.geometry, P = g.attributes.position, N = g.attributes.normal, A = g.attributes.aMk, I = g.index ? g.index.array : null, M = o.matrixWorld, NM = new THREE.Matrix3().getNormalMatrix(M), nt = I ? I.length : P.count;
+              for (let t = 0; t + 2 < nt; t += 3) { const ia = I ? I[t] : t, ib = I ? I[t + 1] : t + 1, ic = I ? I[t + 2] : t + 2, ma = A.getX(ia), mb = A.getX(ib), mc = A.getX(ic); if (Math.max(ma, mb, mc) < 0.3) continue;
+                a.fromBufferAttribute(P, ia).applyMatrix4(M); b.fromBufferAttribute(P, ib).applyMatrix4(M); c.fromBufferAttribute(P, ic).applyMatrix4(M); e1.subVectors(b, a); e2.subVectors(c, a);
+                let q = Math.floor(e1.clone().cross(e2).length() / 2 * DENS + r());
+                while (q-- > 0) { let u = r(), w = r(); if (u + w > 1) { u = 1 - u; w = 1 - w; } const m = ss(ma * (1 - u - w) + mb * u + mc * w, 0.3, 0.6); if (m < 0.02) continue;
+                  nn.fromBufferAttribute(N, ia).multiplyScalar(1 - u - w).addScaledVector(v.fromBufferAttribute(N, ib), u).addScaledVector(n.fromBufferAttribute(N, ic), w).applyMatrix3(NM).normalize(); if (nn.y < -0.4) continue;
+                  push(a.x + e1.x * u + e2.x * w, a.y + e1.y * u + e2.y * w, a.z + e1.z * u + e2.z * w, nn.x, nn.y, nn.z, m, 0.3, 0.55); } } }
+          });
+        }
         (function environmentalDetails() {
           const logBarkMat = surfaceStyle(new THREE.MeshLambertMaterial({ color: 0x2d251d, flatShading: true, side: THREE.DoubleSide }), 'bark');
           logBarkMat.userData.sfTop = 1.8; logBarkMat.userData.sfTopW = 1;
-          const stumpBarkMat = new THREE.MeshLambertMaterial({ color: 0x6e5744 });
-          const innerWoodMat = new THREE.MeshLambertMaterial({ color: 0xd7b889, flatShading: true, side: THREE.DoubleSide });
 
           const logGroup = new THREE.Group();
           logGroup.position.set(X0 + 101.0, 7.0 + 0.50, Z0 + 104.5); logGroup.name = 'Khúc gỗ chết (Dead Log)';
@@ -3837,13 +4093,64 @@
 
           const stumpRingTex = new THREE.CanvasTexture(stumpCanvas);
           const stumpTopMat = new THREE.MeshLambertMaterial({ color: 0xc8a576, map: stumpRingTex });
+          const deadWoodTex = (() => {
+            const W = 512, c = document.createElement('canvas'); c.width = c.height = W; const x = c.getContext('2d'), r = mulberry32(31337);
+            x.fillStyle = '#857766'; x.fillRect(0, 0, W, W);
+            const vline = (x0, w, col, a, wob, y0 = 0, y1 = W) => { for (const dx of [0, -W, W]) { x.strokeStyle = col; x.globalAlpha = a; x.lineWidth = w; x.beginPath();
+              for (let y = y0; y <= y1; y += 8) { const px = x0 + dx + wob * Math.sin(y * 0.021 + x0) + wob * 0.5 * Math.sin(y * 0.067 + x0 * 3); y === y0 ? x.moveTo(px, y) : x.lineTo(px, y); } x.stroke(); } x.globalAlpha = 1; };
+            for (let k = 0; k < 26; k++) vline(r() * W, 10 + 40 * r(), r() < 0.55 ? '#b4aa9b' : '#6c5d4e', 0.35 + 0.3 * r(), 6 + 10 * r());
+            for (let k = 0; k < 14; k++) { const y0 = r() * W * 0.7; vline(r() * W, 6 + 22 * r(), r() < 0.6 ? '#a8622f' : '#8c4e2a', 0.45 + 0.35 * r(), 4 + 6 * r(), y0, y0 + 120 + 300 * r()); }
+            for (let k = 0; k < 160; k++) vline(r() * W, 0.8 + 1.4 * r(), r() < 0.5 ? '#4a3c30' : '#cfc6b8', 0.25 + 0.35 * r(), 2 + 4 * r());
+            for (let k = 0; k < 22; k++) { const y0 = r() * W * 0.8; vline(r() * W, 2 + 3 * r(), '#1f1610', 0.85, 3 + 4 * r(), y0, y0 + 60 + 260 * r()); }
+            for (let k = 0; k < 4; k++) { const cx = r() * W, cy = r() * W, rr = 8 + 10 * r(); for (let q = 3; q > 0; q--) { x.fillStyle = q === 1 ? '#2a1d14' : q === 2 ? '#6b4a30' : '#9a8670'; x.beginPath(); x.ellipse(cx, cy, rr * q / 3, rr * q / 2.2, 0, 0, 6.283); x.fill(); } }
+            const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
+          })();
+          const DEAD_TONE = 0x8a8580;
+          const deadWoodMat = new THREE.MeshLambertMaterial({ color: DEAD_TONE, map: deadWoodTex, vertexColors: true });
+          const sinkTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'), gr = x.createRadialGradient(64, 64, 0, 64, 64, 64);
+            gr.addColorStop(0, 'rgba(20,14,8,0.95)'); gr.addColorStop(0.55, 'rgba(20,14,8,0.85)'); gr.addColorStop(0.68, 'rgba(26,18,10,0.45)'); gr.addColorStop(1, 'rgba(26,18,10,0)');
+            x.fillStyle = gr; x.fillRect(0, 0, 128, 128); return new THREE.CanvasTexture(c); })();
+          const sinkMat = new THREE.MeshBasicMaterial({ map: sinkTex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+          function deadStump(R0, R1, h, seed, topM = stumpTopMat, NA = 96, flat = false) {
+            const SINK = Math.min(0.08, 0.12 * h + 0.02), r = mulberry32(seed), NY = 12, ph = r() * 6.283, hf = Math.min(h * 0.7, R1 * 1.2), rep = Math.max(1, Math.round(6.283 * R1 / 0.7));
+            const cracks = Array.from({ length: 9 + (r() * 5 | 0) }, () => ({ a: r() * 6.283, w: 0.07 + 0.07 * r(), d: (0.07 + 0.08 * r()) * R1, y0: r() * 0.3, y1: 0.55 + 0.45 * r() }));
+            for (let q = 2 + (r() * 2 | 0); q-- > 0;) cracks.push({ a: r() * 6.283, w: 0.1 + 0.05 * r(), d: (0.3 + 0.18 * r()) * R1, y0: 0.02 + 0.15 * r(), y1: 1.01, V: 1 });
+            const crackAt = (a, v) => { let d = 0; for (const C of cracks) { let da = Math.abs(((a - C.a) % 6.283 + 9.425) % 6.283 - 3.1416); const span = C.y1 - C.y0, u = (v - C.y0) / span; if (u <= 0 || u >= 1) continue;
+              if (C.V) { const w = C.w * Math.min(1, 0.4 + u * 3); if (da < w) d = Math.max(d, C.d * (1 - da / w) * Math.min(1, u * 5)); continue; }
+              const w = C.w * (0.5 + 0.5 * Math.sin(u * 3.1416)); if (da < w) d = Math.max(d, C.d * (1 - (da / w) ** 2) * Math.min(1, Math.sin(u * 3.1416) * 2)); } return d; };
+            const spl = Array.from({ length: 5 + (r() * 4 | 0) }, () => ({ a: r() < 0.6 ? cracks[(r() * cracks.length) | 0].a + (r() - 0.5) * 0.3 : r() * 6.283, w: 0.12 + 0.2 * r(), hh: (0.1 + 0.2 * r()) * Math.max(h, R0 * 0.6) }));
+            const rim = flat ? () => 0 : a => { let y = 0.012 * Math.sin(a * 7 + ph) * R0; for (const S of spl) { const da = Math.abs(((a - S.a) % 6.283 + 9.425) % 6.283 - 3.1416); if (da < S.w) y = Math.max(y, S.hh * (1 - da / S.w)); } return y; };
+            const P = [], U = [], Cl = [], I = [], gi = [], top = [];
+            for (let j = 0; j <= NY; j++) for (let i = 0; i <= NA; i++) {
+              const a = i / NA * 6.283, v = j / NY, cr = crackAt(a, v), y = -0.06 - SINK + (h + 0.06 + SINK) * v + rim(a) * v ** 3;
+              const lobe = Math.max(0, Math.cos(5 * a + ph)) ** 2, f = y < hf ? (1 - Math.max(0, y) / hf) ** 2 : 0, R = (R1 + (R0 - R1) * v) * (1 + 0.4 * f * (0.35 + 0.65 * lobe)) - cr;
+              P.push(Math.cos(a) * R, y, Math.sin(a) * R); U.push(i / NA * rep, y / 0.7);
+              const ao = 1 - 0.85 * THREE.MathUtils.smoothstep(cr, 0.02 * R1, 0.2 * R1), damp = (0.62 + 0.38 * Math.min(1, Math.max(0, y) / (0.3 * Math.max(h, 0.3)))) * (0.45 + 0.55 * THREE.MathUtils.smoothstep(y, 0, 0.07));
+              Cl.push(ao * damp, ao * damp, ao * damp);
+            }
+            for (let j = 0; j < NY; j++) for (let i = 0; i < NA; i++) { const p = j * (NA + 1) + i, q = p + NA + 1; I.push(p, q, p + 1, p + 1, q, q + 1); }
+            const b0 = P.length / 3;
+            const capR = a => Math.max(0.04 * R0, 0.86 * R0 - crackAt(a, 1));
+            for (let i = 0; i <= NA; i++) { const a = i / NA * 6.283, ri = capR(a), dk = crackAt(a, 1) > 0.05 * R0; P.push(Math.cos(a) * ri, h, Math.sin(a) * ri); U.push(i / NA * rep, (h + 0.04) / 0.7); dk ? Cl.push(0.25, 0.2, 0.17) : Cl.push(1.15, 0.82, 0.6); }
+            for (let i = 0; i <= NA; i++) Cl[(NY * (NA + 1) + i) * 3 + 1] *= 0.92, Cl[(NY * (NA + 1) + i) * 3 + 2] *= 0.85;
+            for (let i = 0; i < NA; i++) { const p = NY * (NA + 1) + i, q = b0 + i; I.push(p, q, p + 1, p + 1, q, q + 1); }
+            const nSide = I.length, c0 = P.length / 3;
+            P.push(0, h, 0); U.push(0.5, 0.5); Cl.push(1, 1, 1);
+            for (let i = 0; i <= NA; i++) { const a = i / NA * 6.283, ri = capR(a), k = ri / (0.86 * R0); P.push(Math.cos(a) * ri, h, Math.sin(a) * ri); U.push(0.5 + 0.5 * k * Math.cos(a), 0.5 - 0.5 * k * Math.sin(a)); Cl.push(1, 1, 1); }
+            for (let i = 0; i < NA; i++) I.push(c0, c0 + 2 + i, c0 + 1 + i);
+            const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2));
+            g.setAttribute('color', new THREE.Float32BufferAttribute(Cl, 3)); g.setIndex(I); g.addGroup(0, nSide, 0); g.addGroup(nSide, I.length - nSide, 1); g.computeVertexNormals();
+            const m = new THREE.Mesh(g, [deadWoodMat, topM]); m.castShadow = m.receiveShadow = true;
+            const sk = new THREE.Mesh(new THREE.CircleGeometry(R1 * 1.75, 40), sinkMat); sk.rotation.x = -Math.PI / 2; sk.position.y = 0.012; sk.renderOrder = 1; sk.name = 'Vệt lún chân gỗ'; m.add(sk);
+            return m;
+          }
+          const _sw = new THREE.Vector3(), _sl = new THREE.Vector3();
+          const seatSink = grp => { grp.updateMatrixWorld(true); grp.traverse(o => { if (o.name !== 'Vệt lún chân gỗ') return;
+            o.getWorldPosition(_sw); _sw.y = cowY(_sw.x, _sw.z) + 0.012; o.parent.worldToLocal(_sl.copy(_sw)); o.position.y = _sl.y; }); return grp; };
+          deadWood = { seat: seatSink, stump: deadStump, mat: deadWoodMat, tex: deadWoodTex, tone: DEAD_TONE };
 
-          const stumpBark = new THREE.Mesh(new THREE.CylinderGeometry(0.96, 1.12, 0.45, 12, 1, true), stumpBarkMat);
-          stumpBark.position.y = 0.225; stumpBark.castShadow = true; stumpBark.receiveShadow = true; stumpGroup.add(stumpBark);
-
-          const stumpInner = new THREE.Mesh(new THREE.CylinderGeometry(0.92, 0.92, 0.44, 12), [innerWoodMat, stumpTopMat, innerWoodMat]);
-          stumpInner.position.y = 0.22; stumpInner.castShadow = true; stumpInner.receiveShadow = true; stumpGroup.add(stumpInner);
-          scene.add(bakeStatic(stumpGroup));
+          stumpGroup.add(deadStump(0.96, 1.12, 0.44, 1150));
+          scene.add(bakeStatic(seatSink(stumpGroup))); woodMossDab(stumpGroup, deadWoodMat, 'stump1', 115, 1.0, 0.16);
 
           const smRnd = mulberry32(54321);
           let scCount = 0, scTries = 0;
@@ -3864,13 +4171,9 @@
             sg.rotation.y = smRnd() * 6.28;
             sg.name = 'Gốc cây nhỏ rải rác (Small Stump)';
 
-            const sBark = new THREE.Mesh(new THREE.CylinderGeometry(r * 1.04, r * 1.2, h, 8, 1, true), stumpBarkMat);
-            sBark.position.y = h / 2; sBark.castShadow = true; sBark.receiveShadow = true; sg.add(sBark);
+            sg.add(deadStump(r * 1.04, r * 1.2, h * 0.98, 2000 + scCount));
 
-            const sInner = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h * 0.98, 8), [innerWoodMat, stumpTopMat, innerWoodMat]);
-            sInner.position.y = h * 0.49; sInner.castShadow = true; sInner.receiveShadow = true; sg.add(sInner);
-
-            scene.add(bakeStatic(sg));
+            scene.add(bakeStatic(seatSink(sg)));
             scCount++;
           }
         })();
@@ -3878,7 +4181,6 @@
         (function woodPost() {
           const g = new THREE.Group();
           g.position.set(X0 + 106, 7.0, Z0 + 109); g.rotation.set(0.03, 0.6, 0.04); g.name = 'Khúc gỗ đứng (Wood Post)';
-          const barkMat = new THREE.MeshLambertMaterial({ color: 0x2d251d });
           const innerMat = new THREE.MeshLambertMaterial({ color: 0xd2af82, flatShading: true });
           const rc = document.createElement('canvas'); rc.width = rc.height = 128; const rx = rc.getContext('2d');
           rx.fillStyle = '#d2af82'; rx.fillRect(0, 0, 128, 128); rx.lineWidth = 2.2;
@@ -3891,20 +4193,20 @@
           }
           const topMat = new THREE.MeshLambertMaterial({ color: 0xd2af82, map: new THREE.CanvasTexture(rc) });
           const postEdgeMat = new THREE.LineBasicMaterial({ color: 0x14100d });
-          const H = 1.9, bodyGeo = new THREE.CylinderGeometry(0.5, 0.6, H, 12);
-          const body = new THREE.Mesh(bodyGeo, [barkMat, topMat, barkMat]); body.position.y = H / 2; body.castShadow = true; body.receiveShadow = true; edge(body, bodyGeo, postEdgeMat); g.add(body);
+          const H = 1.9, body = deadWood.stump(0.5, 0.6, H, 106109, topMat, 128, true); g.add(body);
+          const stubMat = new THREE.MeshLambertMaterial({ color: deadWood.tone, map: deadWood.tex });
           function stub(px, py, pz, rz, ry, len) {
             const s = new THREE.Group(); s.position.set(px, py, pz); s.rotation.set(0, ry, rz); g.add(s);
             const geo = new THREE.CylinderGeometry(0.1, 0.16, len, 8);
-            const m = new THREE.Mesh(geo, barkMat); m.position.y = len / 2; m.castShadow = true; edge(m, geo, postEdgeMat); s.add(m);
+            const m = new THREE.Mesh(geo, stubMat); m.position.y = len / 2; m.castShadow = true; edge(m, geo, postEdgeMat); s.add(m);
             const cap = new THREE.Mesh(new THREE.CircleGeometry(0.092, 8), innerMat); cap.rotation.x = -Math.PI / 2; cap.position.y = len + 0.002; s.add(cap);
           }
           stub(0.44, 1.16, 0.05, -1.15, 0.05, 0.55);
           stub(-0.44, 0.58, -0.06, 1.2, -0.35, 0.46);
-          scene.add(bakeStatic(g));
+          scene.add(bakeStatic(deadWood.seat(g))); woodMossDab(g, deadWood.mat, 'post1', 109); woodMossDab(g, stubMat, 'post2', 110);
         })();
 
-        const cherryBark = new THREE.MeshLambertMaterial({ color: 0x6b4f3a, transparent: true, opacity: 0.75 }); cherryBark.userData.sfL = 0.55; Object.assign(cherryBark.userData, { sfTex: 1, sfTint: new THREE.Vector3(1.12, 0.9, 0.8) });
+        const cherryBark = new THREE.MeshLambertMaterial({ color: 0x6b4f3a, transparent: true, opacity: 0.75 }); cherryBark.userData.sfL = 0.55; Object.assign(cherryBark.userData, { sfTex: 1, sfTint: new THREE.Vector3(1.12, 0.9, 0.8), sfTop: 0.15 });
         const cherryPinks = [0xffd1dc, 0xffb7c5, 0xffc0cb, 0xf6a5c0, 0xffe3ec, 0xff9fb6];
         function cherryTree(s) {
           const g = new THREE.Group();
@@ -3928,7 +4230,7 @@
           g.userData.treeWind = tw; g.userData.blossomPts = Float32Array.from(blossomPts.flat()); g.userData.fallen = fallen;
           return g;
         }
-        if (ldStep(0.162)) await ldYield();
+        if (ldStep(0.171)) await ldYield();
         const DAM_J1 = DAM_J + 2 * S, RIVER_U = 0.32, LAKE_U = 0.03;
         let fluids = null;
         const DAM_OUTLETS = [[dcx - 1.8, dz + dsZ + 3.8], [dcx + 5.0, dz + dsZ + 3.8], [dcx + 11.8, dz + dsZ + 3.8]];
@@ -4126,7 +4428,7 @@
           L.im.instanceMatrix.needsUpdate = true;
         }
         let cherryCtl = null, oldTreeLeafCtl = null, cherryWind = null, oldTreeWind = null;
-        { const ct = cherryTree(1.2); ct.position.copy(worldCell(29, 35.5)); ct.rotation.y = Math.random() * 6.28; ct.name = 'Cây anh đào (Cherry Blossom Tree)'; scene.add(ct);
+        { const ct = cherryTree(1.2); ct.position.copy(worldCell(29, 35.5)); ct.rotation.y = Math.random() * 6.28; ct.name = 'Cây anh đào (Cherry Blossom Tree)'; scene.add(ct); worldJoin('groundContact', 10, S => S.add(ct));
           cherryWind = ct.userData.treeWind; finalizeTreeWind(cherryWind, ct);
           {
             const F = ct.userData.fallen, m = new THREE.Matrix4(), p = new THREE.Vector3(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), inv = new THREE.Matrix4();
@@ -4144,7 +4446,7 @@
           cherryCtl = makeLeafFall({ name: 'Cánh hoa anh đào rơi theo gió', group: ct, pts: ct.userData.blossomPts, n: 36, geo: new THREE.BoxGeometry(0.19 * 1.2, 0.002 * 1.2, 0.19 * 1.2), opacity: 0.75,
             color: () => cherryPinks[(Math.random() * cherryPinks.length) | 0], scale: 1, tw: cherryWind, g: 3.5, vTerm: 0.45, flutA: 0.5, flutW: [3.5, 5], tumble: 0.15, tumbleW: [9, 14], slideU: 0.5, rate0: 0.15, rateK: 3.0, shake0: 0.02, restLife: [10, 20], floatLife: [25, 45], sinkP: 0.25, sinkV: [0.05, 0.08], leeway: 0.035 }); }
 
-        if (ldStep(0.170)) await ldYield();
+        if (ldStep(0.178)) await ldYield();
         function fluidKernel() {
           const f32 = new Float32Array(1), i32 = new Int32Array(f32.buffer);
           function toHalf(val) {
@@ -4672,7 +4974,7 @@
           const lit = Math.min(1.05, hemi.intensity * 0.5 + amb.intensity * 0.55 + sun.intensity * 0.42), U = P.mat.uniforms;
           U.uSmoke.value.copy(smoke).multiplyScalar(lit); U.uSteam.value.copy(steam).multiplyScalar(lit); U.uGlow.value.copy(glow);
         }
-        if (ldStep(0.188)) await ldYield();
+        if (ldStep(0.195)) await ldYield();
         const _mouthOff = new THREE.Vector3();
         function placeByMouth(f, mouthPoint, heading, vertical, t, struggle = 0) {
           f.swim(t, struggle);
@@ -4680,7 +4982,7 @@
           _mouthOff.copy(f.mouth).multiply(f.g.scale).applyQuaternion(f.g.quaternion);
           f.g.position.copy(mouthPoint).sub(_mouthOff);
         }
-        if (ldStep(0.188)) await ldYield();
+        if (ldStep(0.195)) await ldYield();
         const fishies = [];
         let returningFishingFish = null, fishReturnTime = 0, fishHookN = 0, fishRelN = 0;
         const _fishReturnStart = new THREE.Vector3(), _fishReturnDir = new THREE.Vector3();
@@ -5057,12 +5359,12 @@
         worldJoin('collide', 90, C => C.moving(() => fishies.map(f => f.g || f.m)));
         worldJoin('dayNight', 10, G => { for (const f of fishies) G.day.add(f.g); });
         worldHear('leafOnWater', fishAlertLeaf);
-        if (ldStep(0.202)) await ldYield();
+        if (ldStep(0.209)) await ldYield();
         worldFace('fish', {
           get list() { return fishies; },
           get returning() { return returningFishingFish; },
         });
-        if (ldStep(0.202)) await ldYield();
+        if (ldStep(0.209)) await ldYield();
         function cloudAtlasPixels() {
           const TS = 256, N = TS * 2, data = new Uint8Array(N * N * 4), Hf = new Float32Array(TS * TS);
           let seed = 20261007;
@@ -5453,10 +5755,10 @@
         const mistDefs = [[-46, 10, -39, 38, 15, 0.105], [43, 12, -35, 34, 13, 0.09], [-44, 8, 36, 32, 12, 0.08], [45, 11, 34, 30, 12, 0.075]];
         for (const m of mistDefs) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: mistMap, color: 0xE2D6C0, transparent: true, opacity: m[5], depthWrite: false })); sp.position.set(m[0], m[1], m[2]); sp.scale.set(m[3], m[4], 1); sp.renderOrder = 3; scene.add(sp); }
 
-        if (ldStep(0.215)) await ldYield();
+        if (ldStep(0.221)) await ldYield();
         const soilWet = { v: 0 };
         function soilTick(dt) { soilWet.v = Math.max(0, Math.min(1, soilWet.v + (liveWeather.state.raining ? dt * 0.008 * (0.4 + rainK) : -dt / (nightFactor > 0.5 ? 9000 : 3000)))); }
-        if (ldStep(0.215)) await ldYield();
+        if (ldStep(0.221)) await ldYield();
         function cloveHoofGeo(o) {
           const claw = (zc) => {
             const g = new THREE.BoxGeometry(1, 1, 1), p = g.attributes.position, sz = Math.sign(zc);
@@ -5471,7 +5773,7 @@
           const dew = (zc) => new THREE.BoxGeometry(o.dew[0], o.dew[1], o.dew[1]).translate(o.dew[2], o.dew[3], zc);
           return mergeGeometries([claw(o.zc), claw(-o.zc), dew(o.zc), dew(-o.zc)], false);
         }
-        if (ldStep(0.216)) await ldYield();
+        if (ldStep(0.222)) await ldYield();
         const cows = [];
         const COW_H0 = 0.975, COW_SPAN = 1.22, COW_PIV = 0.25;
         const cowHoof = new THREE.MeshLambertMaterial({ color: 0x35312c });
@@ -5664,7 +5966,7 @@
             }
             lamp.rotation.set(-lsw.z, 0, lsw.x);
           };
-          bakeStatic(g); scene.add(g);
+          bakeStatic(g); scene.add(g); worldJoin('groundContact', 10, S => S.add(g, { w: 0.45 }));
           const stalls = [];
           for (let k = 0; k < n; k++) { const sx = hx - W / 2 + (k + 0.5) * SW; stalls.push({ x: sx, z: hz + 0.2, ex: sx, ez: hz + D / 2 + 1.3, hay: hayTop[k] }); }
           cowHutRect = { x0: hx - W / 2 - 1.7, x1: hx + W / 2 + 1.45, z0: hz - D / 2 - 0.35, z1: hz + D / 2 + 0.25 };
@@ -6098,7 +6400,7 @@
         worldJoin('flowField', 10, F => F.blockRect(cowHutRect));
         worldJoin('flight', 10, F => F.roots.push(cowHut.g));
         worldJoin('drawBatch', 20, B => B.draws('Đàn bò', cows.map(c => c.g)));
-        if (ldStep(0.244)) await ldYield();
+        if (ldStep(0.249)) await ldYield();
         const STAG_PIV = 0.2, STAG_H0 = 1.17;
         function createStag() {
           const g = new THREE.Group();
@@ -6376,11 +6678,11 @@
           C.moving(() => [stag && stag.g]);
         });
         worldJoin('dayNight', 30, G => { for (const a of [stag?.g, crab?.g]) if (a) G.day.add(a); });
-        if (ldStep(0.253)) await ldYield();
+        if (ldStep(0.258)) await ldYield();
         worldFace('deer', {
           get object() { return stag ? stag.g : null; },
         });
-        if (ldStep(0.253)) await ldYield();
+        if (ldStep(0.258)) await ldYield();
         const bunnies = [], BUN_SLOW = 0.25, BUN_CAD = 0.6;
         const digMarks = [];
         let _digTick = -1;
@@ -6508,12 +6810,12 @@
           bunnies.forEach(b => { const D = C.dims(b.g); b.col = C.mover({ kind: 'bunny', a: D.a, b: D.b, lo: 0.12, hi: Math.max(0.5, D.top), w: 0.5, x: () => b.x, z: () => b.z, ang: () => b.ang, on: () => b.g.visible, mask: () => b.shelter ? 5 : 7 }); });
           C.moving(() => bunnies.map(b => b.g));
         });
-        if (ldStep(0.258)) await ldYield();
+        if (ldStep(0.263)) await ldYield();
         (function warehouse() {
           const xA = X0 + 202, xB = X0 + 220, zA = Z0 + 76, zB = Z0 + 127;
           const W = Math.abs(xB - xA), L = Math.abs(zB - zA), cX = (xA + xB) / 2, cZ = (zA + zB) / 2;
           const gY = surfaceY(Math.round(x2gi(cX)), Math.round(z2gj(cZ)));
-          const g = new THREE.Group(); g.position.set(cX, gY, cZ); g.scale.setScalar(ARCHITECTURE_SCALE); g.name = 'Nhà kho mái pin mặt trời (Solar Warehouse)'; scene.add(g);
+          const g = new THREE.Group(); g.position.set(cX, gY, cZ); g.scale.setScalar(ARCHITECTURE_SCALE); g.name = 'Nhà kho mái pin mặt trời (Solar Warehouse)'; scene.add(g); worldJoin('groundContact', 10, S => S.add(g, { w: 0.5 }));
           const eaveH = 3.4, ridgeH = 3.0, halfW = W / 2, slope = halfW, slabLen = Math.hypot(slope, ridgeH), ang = Math.atan2(ridgeH, slope);
           const roofHAt = (x) => eaveH + ridgeH * (1 - Math.abs(x) / halfW);
           const base = bx(W + 0.4, 0.3, L + 0.4, concreteMat); base.position.y = 0.15; g.add(base);
@@ -6546,7 +6848,7 @@
         })();
 
         (function waterTank() {
-          const g = new THREE.Group(); g.position.set(X0 + 192, 7, Z0 + 80); g.scale.setScalar(ARCHITECTURE_SCALE); g.name = 'Bồn nước nông thôn (Rural Water Tank)'; scene.add(g);
+          const g = new THREE.Group(); g.position.set(X0 + 192, 7, Z0 + 80); g.scale.setScalar(ARCHITECTURE_SCALE); g.name = 'Bồn nước nông thôn (Rural Water Tank)'; scene.add(g); worldJoin('groundContact', 10, S => S.add(g, { w: 0.45 }));
           const R = 2.6, bodyH = 3.2, baseTop = 0.8;
           const tankMat = surfaceStyle(new THREE.MeshLambertMaterial({ color: 0xE2D6C0 }), 'stucco');
           const stoneMat = surfaceStyle(new THREE.MeshLambertMaterial({ color: 0x9a8f7e }), 'concrete');
@@ -6559,7 +6861,7 @@
           bakeStatic(g);
         })();
 
-        if (ldStep(0.261)) await ldYield();
+        if (ldStep(0.265)) await ldYield();
         {
           const L = 3.6, X = X0 + 68, Z = Z0 + 50;
           const bU = u => 0.156 * Math.pow(Math.sin(Math.PI * u), 0.7), ysU = u => 0.128 + 0.037 * Math.pow(Math.abs(2 * u - 1), 6), ykU = u => -0.026 + 0.14 * Math.pow(Math.abs(2 * u - 1), 2.4);
@@ -6615,7 +6917,7 @@
           const mid = bow.clone().lerp(new THREE.Vector3(sx, sy + 0.42, sz), 0.5); mid.y -= 0.18;
           const rope = new THREE.Mesh(new THREE.TubeGeometry(new THREE.QuadraticBezierCurve3(bow, mid, new THREE.Vector3(sx, sy + 0.42, sz)), 14, 0.012, 4), new THREE.MeshLambertMaterial({ color: 0xb59a6a })); rope.name = 'Dây buộc xuồng'; scene.add(rope);
         }
-        if (ldStep(0.264)) await ldYield();
+        if (ldStep(0.268)) await ldYield();
         const waterPump = (() => {
           const P0 = new THREE.Vector3(X0 + 66, 0, Z0 + 58); P0.y = cowY(P0.x, P0.z);
           const silo = scene.getObjectByName('Bồn chứa nước (Water Silo)'), SS = silo.scale.x;
@@ -6731,7 +7033,7 @@
           tick(0, 9);
           return { g, tick, level, state: P, pipe: main, ditch };
         })();
-        if (ldStep(0.270)) await ldYield();
+        if (ldStep(0.274)) await ldYield();
         const DRAIN_BAND = { u: { uDrBand: { value: null }, uDrBox: { value: new THREE.Vector4(0, 0, 1, 1) }, uDrOn: { value: 0 } } };
         { const t = new THREE.DataTexture(new Uint8Array(4), 1, 1, THREE.RedFormat); t.unpackAlignment = 1; t.needsUpdate = true; DRAIN_BAND.u.uDrBand.value = t; }
         const stormDrain = (() => {
@@ -6887,19 +7189,19 @@
             }
             bakeStatic(rip); rip.traverse(o => { o.userData.noCollide = o.userData.noFlight = true; }); }
           const NOISE = 'float dh(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); } float dn(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(dh(i), dh(i + vec2(1.0, 0.0)), f.x), mix(dh(i + vec2(0.0, 1.0)), dh(i + 1.0), f.x), f.y); }';
-          const jetU = { uO: { value: V3(faceX + 0.16, yP - 0.1, zE) }, uD: { value: V3(1, 0, 0) }, uV: { value: 1 }, uT: { value: 0.45 }, uW: { value: 0.2 }, uTh: { value: 0.06 }, uK: { value: 0 }, uTime: { value: 0 }, uL: { value: 1 } };
+          const NSJ = 28, jetU = { uP: { value: Array.from({ length: NSJ + 1 }, () => V3(faceX + 0.16, yP - 0.1, zE)) }, uVl: { value: Array.from({ length: NSJ + 1 }, () => V3(1, 0, 0)) }, uW: { value: 0.2 }, uTh: { value: 0.06 }, uK: { value: 0 }, uTime: { value: 0 }, uL: { value: 1 } };
           const jet = (() => {
-            const NS = 28, NA = 12, P = [], A = [], I = [];
+            const NS = NSJ, NA = 12, P = [], A = [], I = [];
             for (let s = 0; s <= NS; s++) for (let a = 0; a <= NA; a++) { P.push(0, 0, 0); A.push(a / NA, s / NS); }
             for (let s = 0; s < NS; s++) for (let a = 0; a < NA; a++) { const p = s * (NA + 1) + a, q = p + NA + 1; I.push(p, q, p + 1, p + 1, q, q + 1); }
             const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); geo.setAttribute('aJ', new THREE.Float32BufferAttribute(A, 2)); geo.setIndex(I);
             const mat = new THREE.ShaderMaterial({ uniforms: jetU, transparent: true, depthWrite: false, side: THREE.DoubleSide,
-              vertexShader: `uniform vec3 uO, uD; uniform float uV, uT, uW, uTh; attribute vec2 aJ; varying vec2 vJ;
+              vertexShader: `uniform vec3 uP[${NSJ + 1}], uVl[${NSJ + 1}]; uniform float uW, uTh; attribute vec2 aJ; varying vec2 vJ;
                 void main() {
-                  float t = aJ.y * uT, a = aJ.x * 6.28318;
-                  vec3 vel = normalize(uD * uV + vec3(0.0, -9.8 * t, 0.0)), sd = normalize(cross(vec3(0.0, 1.0, 0.0), uD)), nr = normalize(cross(vel, sd));
+                  int i = int(aJ.y * ${NSJ}.0 + 0.5); float a = aJ.x * 6.28318;   // lát i = gói nước rời miệng ống τ giây trước (tâm uP, vận tốc uVl — tính trên CPU, tick)
+                  vec3 vel = normalize(uVl[i]), hd = normalize(vec3(vel.x, 0.0, vel.z) + vec3(1e-4, 0.0, 0.0)), sd = normalize(cross(vec3(0.0, 1.0, 0.0), hd)), nr = normalize(cross(vel, sd));
                   float w = uW * (1.0 + 0.9 * aJ.y), th = uTh * (1.0 + 0.7 * aJ.y);   // tia loe dần khi rơi
-                  vec3 p = uO + uD * (uV * t) + vec3(0.0, -4.9 * t * t, 0.0) + sd * (cos(a) * 0.5 * w) + nr * (sin(a) * 0.5 * th);
+                  vec3 p = uP[i] + sd * (cos(a) * 0.5 * w) + nr * (sin(a) * 0.5 * th);
                   vJ = aJ; gl_Position = projectionMatrix * viewMatrix * vec4(p, 1.0);
                 }`,
               fragmentShader: `uniform float uK, uTime, uL; varying vec2 vJ; ${NOISE}
@@ -6923,7 +7225,14 @@
                 #include <colorspace_fragment>
               }` }));
           foam.name = 'Bọt nước chỗ cửa xả đổ xuống'; foam.rotation.x = -Math.PI / 2; foam.renderOrder = 3; foam.visible = false; foam.raycast = () => {}; g.add(foam);
-          for (const o of [jet, foam]) o.userData.noCollide = o.userData.noRainOcc = o.userData.noBatch = o.userData.noFlight = true;
+          const ND = 40, drops = new THREE.InstancedMesh(new THREE.SphereGeometry(0.022, 5, 4), new THREE.MeshBasicMaterial({ color: 0xeaf6ff, transparent: true, opacity: 0.8, depthWrite: false }), ND);
+          drops.name = 'Giọt nước bắn chỗ cửa xả đổ xuống'; drops.frustumCulled = false; drops.renderOrder = 3; drops.raycast = () => {}; g.add(drops);
+          const DR = Array.from({ length: ND }, () => ({ p: V3(0, 0, 0), v: V3(0, 0, 0), s: 1, on: false })), _dM = new THREE.Matrix4(), _dZ = new THREE.Matrix4().makeScale(0, 0, 0);
+          for (let k = 0; k < ND; k++) drops.setMatrixAt(k, _dZ);
+          const ringGeo = new THREE.RingGeometry(0.7, 1, 32); ringGeo.rotateX(-Math.PI / 2);
+          const RG = Array.from({ length: 6 }, () => { const m = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0xeef6fa, transparent: true, opacity: 0, depthWrite: false }));
+            m.name = 'Vòng sóng chỗ cửa xả đổ xuống'; m.visible = false; m.renderOrder = 3; m.raycast = () => {}; g.add(m); return { m, t: 1, dur: 1, size: 1 }; });
+          for (const o of [jet, foam, drops, ...RG.map(r => r.m)]) o.userData.noCollide = o.userData.noRainOcc = o.userData.noBatch = o.userData.noFlight = true;
           const R = { on: false, built: false, saved: [], ims: new Set(), see: null, wall: null, swap: [], cells: 0 };
           const Z16 = Float32Array.from(new THREE.Matrix4().makeScale(0, 0, 0).elements);
           function bandPatch(sh) {
@@ -7001,23 +7310,66 @@
             for (const [o, m0, m1, cs] of R.swap) { o.material = on ? m1 : m0; o.castShadow = on ? false : cs; }
             const i = terrainMeshes.indexOf(R.see); if (on && i < 0) terrainMeshes.push(R.see); else if (!on && i >= 0) terrainMeshes.splice(i, 1);
           }
-          const F = { q: 0, k: 0, sp: 0 };
+          const F = { q: 0, k: 0, sp: 0, M: 0, ix: 0 }, FL = { th: 0, w: 0, n: 0, s: 0, dr: 0 }, rnd = mulberry32(9127);
+          const RHO = 1000, FM = 20, FD = 0.225, FI = FM * (FD * FD + 0.228 * 0.228 / 4), FKG = FM * 9.8 * FD, FC = 2 * 0.3 * Math.sqrt(FI * FKG);
+          const JH = { n: 0, i: 0, t: new Float64Array(96), o: new Float32Array(288), v: new Float32Array(288) }, _jO = [0, 0, 0], _jV = [0, 0, 0];
+          function dropsTick(dt, L) {
+            let any = false;
+            for (let k = 0; k < ND; k++) { const d = DR[k]; if (!d.on) continue; d.v.y -= 9.8 * dt; d.p.addScaledVector(d.v, dt);
+              if (d.p.y < lakeY - 0.02) { d.on = false; drops.setMatrixAt(k, _dZ); any = true; continue; }
+              drops.setMatrixAt(k, _dM.makeScale(d.s, d.s, d.s).setPosition(d.p)); any = true; }
+            if (any) { drops.instanceMatrix.needsUpdate = true; drops.material.color.setRGB(0.92 * L, 0.96 * L, 0.98 * L); }
+            for (const r of RG) if (r.t < r.dur) { r.t += dt; const u = Math.min(1, r.t / r.dur); r.m.scale.setScalar(r.size * (0.12 + 0.88 * Math.pow(u, 0.6)));
+              r.m.material.opacity = 0.6 * L * (1 - u) * (1 - u); if (u >= 1) r.m.visible = false; }
+          }
           function tick(dt, t) {
             if (!(dt > 0)) return;
             F.q += (rainK - F.q) * Math.min(1, dt / (rainK > F.q ? 15 : 90));
             const k = F.k = Math.min(1, F.q * 1.15 + 0.08 * Math.max(0, sceneWet - 0.15));
-            flapP.rotation.z += (0.62 * Math.sqrt(k) - flapP.rotation.z) * Math.min(1, dt * 3);
-            const on = k > 0.015; jet.visible = foam.visible = on; if (!on) return;
-            const v = 0.35 + 1.45 * k, th = 0.03 + 0.09 * k, O = jetU.uO.value.set(faceX + 0.16, OUT.inv + th * 0.5 + 0.01, zE), T = Math.sqrt(2 * Math.max(0.05, O.y - lakeY) / 9.8), L = 0.25 + 0.75 * (1 - nightFactor);
-            jetU.uV.value = v; jetU.uT.value = T; jetU.uW.value = 0.1 + 0.16 * k; jetU.uTh.value = th; jetU.uK.value = THREE.MathUtils.smoothstep(k, 0.015, 0.15); jetU.uTime.value = t % 1000; jetU.uL.value = L;
-            const ix = O.x + v * T, r = 0.35 + 0.45 * k; foam.position.set(ix, lakeY + 0.015, zE); foam.scale.set(r * 2, r * 2, 1); foamU.uK.value = jetU.uK.value; foamU.uTime.value = t % 1000; foamU.uL.value = L;
-            if ((F.sp -= dt) <= 0) { F.sp = 0.12; fluids?.splash(ix, zE, 0.3 + 0.3 * k, 0.006 + 0.03 * k); }
+            const L = 0.25 + 0.75 * (1 - nightFactor), on = k > 0.015;
+            const e1 = Math.exp(-dt / 0.35), e2 = Math.exp(-dt / 3);
+            FL.n = FL.n * e1 + Math.sqrt(1 - e1 * e1) * (rnd() * 2 - 1) * 1.732; FL.s = FL.s * e2 + Math.sqrt(1 - e2 * e2) * (rnd() * 2 - 1) * 1.732;
+            const v0 = on ? (0.35 + 1.45 * k) * Math.max(0.7, 1 + 0.05 * FL.n + 0.04 * FL.s) : 0, A = Math.PI * 0.0225 * Math.min(1, 0.15 + 0.85 * k);
+            for (let m = Math.ceil(Math.min(dt, 0.1) / 0.008), h = Math.min(dt, 0.1) / m, j = 0; j < m; j++) {
+              const c = Math.cos(FL.th); FL.w += (RHO * A * v0 * v0 * c * c * FD - FKG * Math.sin(FL.th) - FC * FL.w) / FI * h; FL.th += FL.w * h;
+              if (FL.th < 0) { FL.th = 0; FL.w = FL.w < -0.05 ? -0.25 * FL.w : 0; }
+            }
+            flapP.rotation.z = FL.th;
+            if (!on) { jet.visible = foam.visible = false; JH.n = 0; F.M = 0; dropsTick(dt, L); return; }
+            jet.visible = foam.visible = true;
+            const th = 0.03 + 0.09 * k, ve = v0 * (1 - 0.12 * Math.cos(FL.th)), al = 0.35 * (Math.PI / 2 - FL.th), ox = faceX + 0.16 + 0.3 * Math.sin(FL.th), oy = OUT.inv + th * 0.5 + 0.01;
+            const ni = JH.i = (JH.i + 1) % 96; JH.t[ni] = t; JH.o[ni * 3] = ox; JH.o[ni * 3 + 1] = oy; JH.o[ni * 3 + 2] = zE;
+            JH.v[ni * 3] = ve * Math.cos(al); JH.v[ni * 3 + 1] = -ve * Math.sin(al); JH.v[ni * 3 + 2] = 0; JH.n = Math.min(96, JH.n + 1);
+            const vy0 = -ve * Math.sin(al), Tc = 1.04 * (vy0 + Math.sqrt(vy0 * vy0 + 19.6 * Math.max(0.05, oy - lakeY))) / 9.8;
+            let p = ni, q = 0, hit = -1;
+            for (let sI = 0; sI <= NSJ; sI++) {
+              const tau = sI / NSJ * Tc, tw = t - tau;
+              while (q < JH.n - 1 && JH.t[p] > tw) { p = (p + 95) % 96; q++; }
+              const nx = (p + 1) % 96, f = q > 0 && JH.t[p] <= tw ? (tw - JH.t[p]) / Math.max(1e-6, JH.t[nx] - JH.t[p]) : 0, b = f > 0 ? nx : p;
+              for (let c = 0; c < 3; c++) { _jO[c] = JH.o[p * 3 + c] + (JH.o[b * 3 + c] - JH.o[p * 3 + c]) * f; _jV[c] = JH.v[p * 3 + c] + (JH.v[b * 3 + c] - JH.v[p * 3 + c]) * f; }
+              const P = jetU.uP.value[sI].set(_jO[0] + _jV[0] * tau, _jO[1] + _jV[1] * tau - 4.9 * tau * tau, _jO[2] + _jV[2] * tau);
+              jetU.uVl.value[sI].set(_jV[0], _jV[1] - 9.8 * tau, _jV[2]);
+              if (hit < 0 && P.y <= lakeY) hit = sI;
+            }
+            jetU.uW.value = 0.1 + 0.16 * k; jetU.uTh.value = th; jetU.uK.value = THREE.MathUtils.smoothstep(k, 0.015, 0.15); jetU.uTime.value = t % 1000; jetU.uL.value = L;
+            const h1 = hit > 0 ? hit : NSJ, A1 = jetU.uP.value[h1 - 1], B1 = jetU.uP.value[h1], u = Math.min(1, Math.max(0, (A1.y - lakeY) / Math.max(1e-6, A1.y - B1.y)));
+            const ix = F.ix = A1.x + (B1.x - A1.x) * u, iz = A1.z + (B1.z - A1.z) * u, vi = jetU.uVl.value[h1].length(), M = F.M = RHO * A * ve * vi, kk = Math.min(1, M / 350);
+            const wy = lakeY + (fluids && fluids.water.ready ? fluids.water.height(ix, iz) : 0);
+            const wl = (0.1 + 0.16 * k) * 1.9, r = 0.3 + 0.5 * kk; foam.position.set(ix + 0.08 * r, wy + 0.015, iz); foam.scale.set(r * 2, r * 2, 1); foamU.uK.value = jetU.uK.value; foamU.uTime.value = t % 1000; foamU.uL.value = L;
+            if ((F.sp -= dt) <= 0) { F.sp = 0.05; fluids?.splash(ix + (rnd() - 0.4) * 0.15, iz + (rnd() - 0.5) * wl, 0.25 + 0.25 * kk, 0.003 + 0.022 * kk); }
+            if ((F.rg = (F.rg || 0) - dt) <= 0) { F.rg = 0.32 + 0.25 * rnd() - 0.12 * kk; const R1 = RG.find(o => o.t >= o.dur) || RG[0];
+              Object.assign(R1, { t: 0, dur: 1 + 0.6 * kk, size: 0.35 + 0.75 * kk }); R1.m.position.set(ix, wy + 0.02, iz); R1.m.visible = true; }
+            for (FL.dr += dt * 70 * kk; FL.dr >= 1; FL.dr--) {
+              const d = DR.find(o => !o.on); if (!d) break; const a = rnd() * TAU, sp = (0.25 + 0.7 * rnd()) * (0.5 + 0.8 * kk);
+              d.on = true; d.s = 0.6 + 0.9 * rnd(); d.p.set(ix + (rnd() - 0.5) * 0.1, wy + 0.02, iz + (rnd() - 0.5) * wl * 0.8); d.v.set(Math.cos(a) * sp + 0.25 * jetU.uVl.value[h1].x, (0.7 + 1.3 * rnd()) * (0.5 + 0.7 * kk), Math.sin(a) * sp);
+            }
+            dropsTick(dt, L);
           }
-          return { g, outfall: outG, rip, mats: M, toggle: () => reveal(!R.on), reveal, tick, state: R, flow: F, net: { MH, OUT, faceX, zE, gullies, covers: COVERS, seg: SEG.length, str: STR.length } };
+          return { g, outfall: outG, rip, mats: M, toggle: () => reveal(!R.on), reveal, tick, state: R, flow: F, flap: FL, net: { MH, OUT, faceX, zE, gullies, covers: COVERS, seg: SEG.length, str: STR.length } };
         })();
-        if (ldStep(0.284)) await ldYield();
+        if (ldStep(0.290)) await ldYield();
         const ferns = (() => {
-          const FERN_GLB = window.__fernGlb || (location.protocol === 'file:' ? '3d-garden/src/models/fern.glb' : /^(localhost|127\.0\.0\.1)$/.test(location.hostname) ? 'models/fern.glb' : 'https://michaeltran75.github.io/3d-garden/models/fern.glb');
+          const FERN_GLB = window.__fernGlb || (/^(localhost|127\.0\.0\.1)$/.test(location.hostname) ? 'models/fern.glb' : 'https://michaeltran75.github.io/3d-garden/models/fern.glb');
           const { zE, OUT } = stormDrain.net, rnd = mulberry32(25550), N_FROND = 7 * 213;
           const rows = [];
           for (let j = Math.round(z2gj(Z0 + 74.6)); j <= Math.round(z2gj(Z0 + 87.4)); j++) {
@@ -7036,6 +7388,23 @@
             if (Math.abs(z - zE) < 1.12 && y < OUT.inv + 1.38) continue;
             P.push({ x: r.x + 0.01, y, z, u: rnd(), sc: 0.8 + 0.35 * rnd(), mir: rnd() < 0.5 ? -1 : 1, out: 0.22 + 0.45 * rnd(), al: rnd() < 0.22 ? (rnd() < 0.5 ? -1 : 1) * (1.9 + 1.1 * rnd()) : (rnd() - 0.5) * 2.4, tw: (rnd() - 0.5) * 0.8, tint: rnd() });
           }
+          const P2 = [], rows2 = [], mainKey = new Set(rows.map(q => Math.round(x2gi(q.x + BLOCK / 2)) - 1 + ',' + Math.round(z2gj(q.z))));
+          for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) for (let j = 1; j < GZ - 1; j++) for (let i = 1; i < GX - 1; i++) {
+            if (isWater(i, j) || !isWater(i + di, j + dj) || (di === 1 && mainKey.has(i + ',' + j)) || (j + dj >= DAM_J - 6 && j + dj < DAM_J + 2 * S + 15)) continue;
+            const wl = j + dj < DAM_J ? resTopY : lakeY, top = surfaceY(i, j), y0 = wl + 0.32, h = top - 0.05 - y0; if (h <= 0.1) continue;
+            rows2.push({ x: wx(i) + di * BLOCK / 2, z: wz(j) + dj * BLOCK / 2, y0, h, nx: di, nz: dj, ry: Math.atan2(-dj, di) });
+          }
+          const Ht2 = rows2.reduce((a, r) => a + r.h, 0), N2 = Math.round(0.3 * P.length / Math.max(1, Ht) * Ht2);
+          for (let tries = 0; tries < 40 * N2 && P2.length < N2 && Ht2 > 0; tries++) {
+            let u = rnd() * Ht2, r = rows2[0]; for (const q of rows2) { r = q; if ((u -= q.h) <= 0) break; }
+            const s = (rnd() - 0.5) * BLOCK, x = r.x - r.nz * s, z = r.z + r.nx * s, y = r.y0 + r.h * Math.pow(rnd(), 0.9), w = x * 0.6 + z * 0.8;
+            const n = 0.7 * vn(w * 1.1 + 3.1, y * 1.4) + 0.3 * vn(w * 2.9 + 7.7, y * 3.1 + 1.3), keep = 0.12 + 0.88 * THREE.MathUtils.smoothstep(n, 0.36, 0.66);
+            if (rnd() > keep) continue;
+            P2.push({ x: x + 0.01 * r.nx, y, z: z + 0.01 * r.nz, ry: r.ry, u: rnd(), sc: 0.8 + 0.35 * rnd(), mir: rnd() < 0.5 ? -1 : 1, out: 0.22 + 0.45 * rnd(), al: rnd() < 0.22 ? (rnd() < 0.5 ? -1 : 1) * (1.9 + 1.1 * rnd()) : (rnd() - 0.5) * 2.4, tw: (rnd() - 0.5) * 0.8, tint: rnd() });
+          }
+          const P3 = [[0.6, 8.2, 0.35, 0.03], [1.7, 7.9, -0.55, 0.06], [4.1, 8.4, 0.25, 0.045]].map(([a, y, al, u], k) => { const R = 0.6 - 0.1 * (y - 7.0) / 1.9 - 0.03;
+            return { x: X0 + 106 + Math.cos(a) * R, y, z: Z0 + 109 + Math.sin(a) * R, ry: -a, u, sc: 1.8, mir: k === 1 ? -1 : 1, out: 0.5, al, tw: 0.15, tint: 0.3 * k }; });
+          const PA = P.concat(P2, P3);
           const FERN_GLSL = `
             attribute vec4 aFw;   // gốc lá (thế giới) · khoảng cách tới gốc / chiều dài lá
             vec3 fernWind() {
@@ -7044,10 +7413,10 @@
               float f = sin(uTime * 6.3 + dot(aFw.xyz, vec3(9.1, 13.7, 7.3)) - 3.0 * aFw.w) * (0.004 + 0.01 * length(w));   // lá rung, sóng lan từ gốc ra ngọn
               return k * (vec3(w.x, 0.12 * w.y, w.z) * 0.045 + vec3(0.3 * f, f, 0.3 * f));
             }`;
-          ldTrack(Promise.all([import('https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js'),
-            fetch(FERN_GLB).then(r => r.ok ? r.arrayBuffer() : Promise.reject(new Error('HTTP ' + r.status))), ldGate]).then(([{ GLTFLoader }, buf]) => {
-            new GLTFLoader().parse(buf, '', gl => {
-              let src = null; gl.scene.traverse(o => { if (o.isMesh && !src) src = o; }); if (!src || !P.length) return;
+          ldTrack(Promise.all([import('https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js'), import('https://esm.sh/three@0.160.0/examples/jsm/libs/meshopt_decoder.module.js'),
+            fetch(FERN_GLB).then(r => r.ok ? r.arrayBuffer() : Promise.reject(new Error('HTTP ' + r.status))), ldGate]).then(([{ GLTFLoader }, { MeshoptDecoder }, buf]) => {
+            new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parse(buf, '', gl => {
+              let src = null; gl.scene.traverse(o => { if (o.isMesh && !src) src = o; }); if (!src || !PA.length) return;
               src.updateMatrix();
               const G0 = src.geometry, Pa = G0.attributes.position, Na = G0.attributes.normal, Ua = G0.attributes.uv, Ca = G0.attributes.color, I0 = G0.index.array, nV = Pa.count;
               const MP = new Float32Array(nV * 3), v = new THREE.Vector3(), n = new THREE.Vector3(), par = new Int32Array(nV);
@@ -7064,15 +7433,16 @@
                 const dir = new THREE.Vector3(MP[tp * 3], MP[tp * 3 + 1], MP[tp * 3 + 2]).sub(f.b).normalize(); nA.set(0, 0, 0); for (const i of f.v) nA.add(n.fromBufferAttribute(Na, i));
                 nA.addScaledVector(dir, -nA.dot(dir)); if (nA.lengthSq() < 1e-8) nA.set(0, 1, 0).addScaledVector(dir, -dir.y); nA.normalize();
                 f.F = new THREE.Matrix4().makeBasis(dir, nA, new THREE.Vector3().crossVectors(dir, nA)); }
-              FR.sort((a, b) => b.L - a.L); let nVt = 0, nIt = 0; for (const p of P) { p.f = FR[Math.min(FR.length - 1, Math.floor(p.u ** 1.5 * FR.length))]; nVt += p.f.v.length; nIt += p.f.t.length; }
+              FR.sort((a, b) => b.L - a.L); let nVt = 0, nIt = 0; for (const p of PA) { p.f = FR[Math.min(FR.length - 1, Math.floor(p.u ** 1.5 * FR.length))]; nVt += p.f.v.length; nIt += p.f.t.length; }
               const pos = new Float32Array(nVt * 3), nor = new Float32Array(nVt * 3), uv = new Float32Array(nVt * 2), col = new Float32Array(nVt * 3), fw = new Float32Array(nVt * 4), idx = nVt > 65535 ? new Uint32Array(nIt) : new Uint16Array(nIt);
               const M = new THREE.Matrix4(), S = new THREE.Matrix4(), W = new THREE.Matrix4(), RF = new THREE.Matrix4(), T0 = new THREE.Matrix4(), NM = new THREE.Matrix3(), dt = new THREE.Vector3(), nt = new THREE.Vector3(), c = new THREE.Color();
               let ov = 0, oi = 0;
-              for (const p of P) {
+              for (const p of PA) {
                 const f = p.f, flip = p.mir < 0;
                 const co = Math.cos(p.out); dt.set(Math.sin(p.out), co * Math.cos(p.al), co * Math.sin(p.al)); nt.set(1, 0.7, 0).addScaledVector(dt, -(dt.x + 0.7 * dt.y)).normalize().applyAxisAngle(dt, p.tw);
                 W.makeBasis(dt, nt, v.crossVectors(dt, nt)).multiply(S.copy(f.F).transpose());
                 if (flip) W.multiply(RF.copy(f.F).multiply(S.makeScale(1, 1, -1)).multiply(T0.copy(f.F).transpose()));
+                if (p.ry) W.premultiply(RF.makeRotationY(p.ry));
                 M.makeTranslation(p.x, p.y, p.z).multiply(W).multiply(S.makeScale(p.sc, p.sc, p.sc)).multiply(T0.makeTranslation(-f.b.x, -f.b.y, -f.b.z)); NM.getNormalMatrix(M);
                 c.setHSL(0.25 + 0.05 * p.tint, 0.3, 0.93 + 0.07 * p.tint);
                 for (let k = 0; k < f.v.length; k++) {
@@ -7103,10 +7473,10 @@
               G0.dispose();
             }, err => console.warn('Fern:', err));
           }).catch(err => console.warn('Fern:', err)));
-          const F = { P, rows, mesh: null, fronds: 0 };
+          const F = { P, P2, P3, rows, rows2, mesh: null, fronds: 0 };
           return F;
         })();
-        if (ldStep(0.289)) await ldYield();
+        if (ldStep(0.295)) await ldYield();
         const bankMoss = (() => {
           const { zE, OUT, faceX } = stormDrain.net, yP = OUT.inv + 0.15, yHB = OUT.inv - 0.45, yCF = OUT.inv + 1.05, yCT = OUT.inv + 1.14, ss = THREE.MathUtils.smoothstep;
           const j0 = Math.round(z2gj(Z0 + 74.6)), j1 = Math.round(z2gj(Z0 + 87.4)), NR = j1 - j0 + 1, FX = new Float32Array(NR), DT = new Float32Array(NR);
@@ -7204,7 +7574,7 @@
           });
           return { tex, at, rows: NR, thr };
         })();
-        if (ldStep(0.293)) await ldYield();
+        if (ldStep(0.300)) await ldYield();
         const damMoss = (() => {
           const g = scene.getObjectByName('Trạm thủy điện (Hydro Dam)'); if (!g) return null;
           const m = surfaceStyle(concreteMat.clone(), 'concrete'); m.userData.sfOldMo = true;
@@ -7212,7 +7582,7 @@
           let n = 0; g.traverse(o => { if (o.isMesh && o.material === concreteMat) { o.material = m; n++; } });
           return { mat: m, meshes: n };
         })();
-        if (ldStep(0.294)) await ldYield();
+        if (ldStep(0.300)) await ldYield();
         const oldTreeStones = [];
         (function stoneRing() {
           const g = new THREE.Group(); g.position.set(X0 + 89, 7.0, Z0 + 117); scene.add(g); flightRoots.push(g);
@@ -7256,8 +7626,8 @@
           const geo = new THREE.BufferGeometry();
           geo.setAttribute('position', new THREE.Float32BufferAttribute(POS, 3)); geo.setAttribute('normal', new THREE.Float32BufferAttribute(NRM, 3));
           geo.setAttribute('aRk', new THREE.Float32BufferAttribute(RK, 1)); geo.setIndex(IDX); geo.computeBoundingSphere();
-          const rockMat = mossCoat(stormDrain.mats.stone.clone(), 'otRk2', { vHead: 'attribute float aRk; varying float vMk;', vMain: ' vMk = aRk;', fHead: 'varying float vMk;',
-            sq: '(abs(vMcN.y) > 0.6 ? vMcP.xz : abs(vMcN.x) > abs(vMcN.z) ? vMcP.zy : vMcP.xy)', mo: 'smoothstep(0.3, 0.6, vMk + 0.25 * (sfMossCu(mcQ, mcF) - 0.45))' });
+          const rockMat = skyShadeMat(mossCoat(stormDrain.mats.stone.clone(), 'otRk2', { vHead: 'attribute float aRk; varying float vMk;', vMain: ' vMk = aRk;', fHead: 'varying float vMk;',
+            sq: '(abs(vMcN.y) > 0.6 ? vMcP.xz : abs(vMcN.x) > abs(vMcN.z) ? vMcP.zy : vMcP.xy)', mo: 'smoothstep(0.3, 0.6, vMk + 0.25 * (sfMossCu(mcQ, mcF) - 0.45))' }), 'otRock', { cav: 0.5, cavP: true });
           const rocks = new THREE.Mesh(geo, rockMat); rocks.name = 'Đá hộc phủ rêu quanh gốc cổ thụ'; rocks.castShadow = rocks.receiveShadow = true;
           Object.assign(rocks.userData, { noBake: true, noBatch: true, rockMoss: true }); g.add(rocks);
           bakeStatic(g);
@@ -7271,7 +7641,7 @@
           barkMat.userData.sfOld = deadMat.userData.sfOld = 1; deadMat.userData.sfMoss = 0.35;
           const tw = makeTreeWind({ freq: 0.32, zeta: 0.08, lean: 0.45, branchAmp: 0.07 });
           windShader(barkMat, tw, 0); windShader(deadMat, tw, 0); g.userData.treeWind = tw;
-          surfaceStyle(barkMat, 'bark'); surfaceStyle(deadMat, 'bark');
+          surfaceStyle(barkMat, 'bark'); surfaceStyle(deadMat, 'bark'); skyShadeMat(barkMat, 'bark', { cav: 0.6, vtx: true }); skyShadeMat(deadMat, 'bark', { cav: 0.6, vtx: true });
           const leafCols = [0x4e7a39, 0x5e8c44, 0x6fa052, 0x42692f, 0x567f3a, 0x4e7a39, 0x5e8c44, 0x6fa052, 0x42692f, 0x567f3a, 0xe5b82c];
           const rnd = mulberry32(7777), tips = [], deadTips = [];
           const up = new THREE.Vector3(0, 1, 0), V = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -7465,7 +7835,7 @@
           } else {
             scene.add(g);
           }
-          const barkMat = new THREE.MeshLambertMaterial({ color: 0x4a3420 }); barkMat.userData.sfOld = 1; surfaceStyle(barkMat, 'bark');
+          const barkMat = new THREE.MeshLambertMaterial({ color: 0x4a3420 }); barkMat.userData.sfOld = 1; surfaceStyle(barkMat, 'bark'); skyShadeMat(barkMat, 'bark', { cav: 0.6, vtx: true });
           const leafCols = [0x4e7a39, 0x5e8c44, 0x6fa052, 0x42692f];
           const V = (x, y, z) => new THREE.Vector3(x, y, z);
 
@@ -7558,7 +7928,7 @@
 
         (function oldTreeRoots() {
           const cx = X0 + 89, cz = Z0 + 117, gy = cowY(cx, cz), g = new THREE.Group(); g.name = 'Rễ cây cổ thụ'; g.position.set(cx, gy, cz); scene.add(g); flightRoots.push(g);
-          const mat = new THREE.MeshLambertMaterial({ color: 0x4a3420 }); mat.userData.sfOld = 1; mat.userData.sfMoss = 1.35; mat.userData.sfTop = 1.6; surfaceStyle(mat, 'bark');
+          const mat = new THREE.MeshLambertMaterial({ color: 0x4a3420 }); mat.userData.sfOld = 1; mat.userData.sfMoss = 1.35; mat.userData.sfTop = 1.6; surfaceStyle(mat, 'bark'); skyShadeMat(mat, 'bark', { cav: 0.6, vtx: true });
           const rnd = mulberry32(4242), V = (x, y, z) => new THREE.Vector3(x, y, z), L = [], SAMP = [], STEP = 0.26, KE = 0.5, EM = -0.35, E1 = -2.0;
           const water = (x, z) => isWater(Math.round(x2gi(cx + x)), Math.round(z2gj(cz + z)));
           const ground = (x, z) => cowY(cx + x, cz + z) - gy + 0.12 * Math.max(0, Math.min(1, (2.5 - Math.hypot(x, z)) / 0.3));
@@ -7606,7 +7976,7 @@
               for (let i = 0; i < n; i++) { if (E[i] < -0.8 || pts[i][2] < sO + 0.1) continue; const p = P[i], r = R[i];
                 for (const q of SAMP) { if (q.l === par) continue; const dh = Math.hypot(p.x - q.x, p.z - q.z), rr = r + q.r; if (dh >= rr * 0.95) continue; const yq = q.y + Math.sqrt(rr * rr - dh * dh) * 0.85; if (yq - p.y > need[i]) need[i] = yq - p.y; } }
               const W = Math.round(0.5 / STEP); for (let i = 0; i < n; i++) { let lf = 0; for (let j = Math.max(0, i - 2 * W); j <= Math.min(n - 1, i + 2 * W); j++) if (need[j] > 0) lf = Math.max(lf, need[j] * Math.max(0, 1 - Math.abs(pts[i][2] - pts[j][2]) / 0.5)); P[i].y += lf; } }
-            const T0 = P[1].clone().sub(P[0]).normalize(), l = { P, R, par, kids: [], atEnd: false, pr: par ? pr : sO * Math.max(0.35, T0.clone().cross(pT).length()), pT };
+            const T0 = P[1].clone().sub(P[0]).normalize(), l = { P, R, E, par, kids: [], atEnd: false, pr: par ? pr : sO * Math.max(0.35, T0.clone().cross(pT).length()), pT };
             L.push(l); if (par) par.kids.push(l);
             for (let i = 0; i < n; i++) if (E[i] > -1 && pts[i][2] > sO) SAMP.push({ x: P[i].x, z: P[i].z, y: P[i].y, r: R[i], l });
             let k1 = 0; for (let i = 0; i < n; i++) if (pts[i][2] > sO && E[i] > -0.45) k1 = i;
@@ -7627,11 +7997,15 @@
             if (OBST.some(([ox, oz, orr]) => Math.hypot(ca * rX - ox, sa * rX - oz) < orr + 0.05)) continue;
             root(ca * rX * 0.55, sa * rX * 0.55, 0.42, st.a + (rnd() - 0.5) * 0.2, (st.r0 > 0.15 ? 2.2 : 1.5) + 1.8 * rnd(), st.r0, rX * 0.45, 1.0, null, 0, axis, 0);
           }
-          g.add(...barkMesh(barkTubes(L, { wS: 1, flare: 0, nodes: false, rope: { minR: 0.12, nTrunk: 6, D: 0.45, twist: 0.35 } }), mat));
+          for (const l of L) for (let i = 0; i < l.P.length; i++) {
+            const p = l.P[i], b = Math.floor((Math.atan2(p.z, p.x) / 6.2832 + 1) * NB) % NB, out = Math.max(0, Math.hypot(p.x, p.z) - at(b)), f = 1 + 0.45 * Math.exp(-out / 0.7);
+            p.y += l.R[i] * (f - 1) * l.E[i]; l.R[i] *= f;
+          }
+          g.add(...barkMesh(barkTubes(L, { wS: 1, flare: 0, nodes: false, rope: { minR: 0.12, nTrunk: 6, D: 0.22, twist: 0.15 } }), mat));
           g.userData.roots = { lobes: lobes.map(p => [+((p.b + 0.5) / NB * 360).toFixed(0), +p.rr.toFixed(2), +p.pr.toFixed(3)]), n: L.length };
           bakeStatic(g);
         })();
-        if (ldStep(0.310)) await ldYield();
+        if (ldStep(0.316)) await ldYield();
         const mossCrevice = (() => {
           const V = 0.08, cx = X0 + 89, cz = Z0 + 117, gy = cowY(cx, cz), nx = 180, ny = 50, nz = 180, x0 = cx - 7.2, y0 = gy - 0.6, z0 = cz - 7.2, NN = nx * ny * nz, S = new Uint8Array(NN);
           for (let k = 0; k < nz; k++) for (let i = 0; i < nx; i++) { const h = cowY(x0 + (i + 0.5) * V, z0 + (k + 0.5) * V); for (let j = 0; j < ny && y0 + (j + 0.5) * V < h; j++) S[i + nx * (j + ny * k)] = 1; }
@@ -7785,6 +8159,17 @@
           const pushB = (x, y, z, nx, ny, nz, m, h0, h1) => { if (rw() >= THREE.MathUtils.smoothstep(m, 0.1, 0.4)) return; KR.push(x, y, z); KN.push(nx, ny, nz); KM.push(rw() * 6.2832, h0 + (h1 - h0) * rw(), 0.12 + 0.4 * rw(), rw()); KQ.push(m, rw()); };
           for (const f of mossBladeSrc) f(pushB, DENS);
           const nB = KR.length / 3, NS = 4, Pp = [], Sd = [], Ix = [];
+          const KC = new Uint8Array(nB).fill(255), CVI = SF_CV.value && SF_CV.value.image;
+          if (CVI) { const c0 = SF_CV0.value, c1 = SF_CV1.value, TX = CVI.width, TY = CVI.height, TZ = CVI.depth, TD = CVI.data, L = (p, q, t) => p + (q - p) * t;
+            const at = (i, j, k) => TD[Math.min(TX - 1, Math.max(0, i)) + TX * (Math.min(TY - 1, Math.max(0, j)) + TY * Math.min(TZ - 1, Math.max(0, k)))];
+            for (let b = 0; b < nB; b++) {
+              const u = (KR[b * 3] + KN[b * 3] * 0.06 - c0.x) * c1.x, v = (KR[b * 3 + 1] + KN[b * 3 + 1] * 0.06 - c0.y) * c1.y, w = (KR[b * 3 + 2] + KN[b * 3 + 2] * 0.06 - c0.z) * c1.z;
+              if (!(u > 0.02 && v > 0.02 && w > 0.02 && u < 0.98 && v < 0.98 && w < 0.98)) continue;
+              const x = u * TX - 0.5, y = v * TY - 0.5, z = w * TZ - 0.5, i = Math.floor(x), j = Math.floor(y), k = Math.floor(z), fx = x - i, fy = y - j, fz = z - k;
+              const d = L(L(L(at(i, j, k), at(i + 1, j, k), fx), L(at(i, j + 1, k), at(i + 1, j + 1, k), fx), fy), L(L(at(i, j, k + 1), at(i + 1, j, k + 1), fx), L(at(i, j + 1, k + 1), at(i + 1, j + 1, k + 1), fx), fy), fz) / 255;
+              const q = Math.min(1, Math.max(0, (d - 0.45) / 0.4)); KC[b] = Math.round(255 * (1 - 0.6 * q * q * (3 - 2 * q)));
+            }
+          }
           for (let r = 0; r < NS; r++) for (const sd of [-1, 1]) { Pp.push(0, r / NS, 0); Sd.push(sd); }
           Pp.push(0, 1, 0); Sd.push(0);
           for (let r = 0; r < NS - 1; r++) { const v = r * 2; Ix.push(v, v + 1, v + 2, v + 1, v + 3, v + 2); }
@@ -7794,9 +8179,24 @@
           const geos = [...bins.values()].map(L => {
             const geo = new THREE.InstancedBufferGeometry(), pick = (A, k) => { const o = new Float32Array(L.length * k); L.forEach((i, j) => { for (let q = 0; q < k; q++) o[j * k + q] = A[i * k + q]; }); return new THREE.InstancedBufferAttribute(o, k); };
             geo.setAttribute('position', base.position); geo.setAttribute('aSd', base.aSd); geo.setIndex(Ix);
-            geo.setAttribute('aRoot', pick(KR, 3)); geo.setAttribute('aNrm', pick(KN, 3)); geo.setAttribute('aMr', pick(KM, 4)); geo.setAttribute('aMo', pick(KQ, 2)); geo.instanceCount = L.length;
+            geo.setAttribute('aRoot', pick(KR, 3)); geo.setAttribute('aNrm', pick(KN, 3)); geo.setAttribute('aMr', pick(KM, 4)); geo.setAttribute('aMo', pick(KQ, 2));
+            const sk = new Uint8Array(L.length * 2).fill(255); L.forEach((i, j) => { sk[j * 2] = KC[i]; });
+            geo.setAttribute('aSk', new THREE.InstancedBufferAttribute(sk, 2, true)); geo.instanceCount = L.length;
             geo.boundingBox = new THREE.Box3().setFromBufferAttribute(geo.attributes.aRoot).expandByScalar(0.3); geo.boundingSphere = geo.boundingBox.getBoundingSphere(new THREE.Sphere()); return geo;
           });
+          skyOnLayer(id => (function* () {
+            const c = id === 'A' ? 0 : 1; let n = 0;
+            for (const geo of geos) {
+              if (geo.userData['sk' + id]) continue; geo.userData['sk' + id] = 1;
+              const S = geo.attributes.aSk, D = S.array, R = geo.attributes.aRoot.array, N = geo.attributes.aNrm.array;
+              for (let j = 0; j < S.count; j++) {
+                const nx = N[j * 3], ny = N[j * 3 + 1], nz = N[j * 3 + 2], l = Math.hypot(nx, ny, nz) || 1, f = skyAt(id, R[j * 3] + nx / l * 0.06, R[j * 3 + 1] + ny / l * 0.06, R[j * 3 + 2] + nz / l * 0.06, 0.75 + 0.25 * Math.abs(ny / l));
+                D[j * 2 + c] = Math.round((c ? 255 : D[j * 2]) * f);
+                if (++n % 8192 === 0) yield;
+              }
+              S.needsUpdate = true;
+            }
+          })());
           const U = { uFade: { value: 0 }, uDensity: { value: 1 }, uCamRight: { value: new THREE.Vector3(1, 0, 0) } };
           const mat = new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide });
           mat.onBeforeCompile = sh => {
@@ -7825,7 +8225,7 @@
                 diffuseColor.rgb *= mix(gBase, gTip, smoothstep(0.0, 1.0, vT)) * vShade;`)
               .replace('#include <normal_fragment_begin>', '#include <normal_fragment_begin>\n                normal = normalize( vNormal );   // 2 mặt lá sáng như mặt vỏ bên dưới');
           };
-          mat.customProgramCacheKey = () => 'mossLawn2';
+          mat.customProgramCacheKey = () => 'mossLawn2'; skyShadeMat(mat, 'moss', { skA: 'aSk' });
           const meshes = geos.map(geo => { const mesh = new THREE.Mesh(geo, mat); mesh.name = 'Thảm rêu (lá cỏ)'; mesh.receiveShadow = true; mesh.raycast = () => {}; mesh.visible = false;
             Object.assign(mesh.userData, { noBatch: true, noBake: true, noCollide: true, noFlight: true, noRainOcc: true }); scene.add(mesh); return mesh; }), mesh = meshes[0] || null;
           const _cr = new THREE.Vector3();
@@ -7837,11 +8237,11 @@
           } };
         })();
         const mossTick = () => mossLawn.tick();
-        if (ldStep(0.320)) await ldYield();
+        if (ldStep(0.327)) await ldYield();
         const hydroTurbine = (() => {
           if (!damPH) return null;
           const { g: damG, ph, xa, xb, xm, zAx, faceZ, subTop, outY, outZ, outX, z0: phZ0, z1: phZ1 } = damPH;
-          const HT_GLB = window.__turbineGlb || (location.protocol === 'file:' ? '3d-garden/src/models/turbine.glb' : /^(localhost|127\.0\.0\.1)$/.test(location.hostname) ? 'models/turbine.glb' : 'https://michaeltran75.github.io/3d-garden/models/turbine.glb');
+          const HT_GLB = window.__turbineGlb || (/^(localhost|127\.0\.0\.1)$/.test(location.hostname) ? 'models/turbine.glb' : 'https://michaeltran75.github.io/3d-garden/models/turbine.glb');
           const SC = 0.29136, Y0 = 1.6, YS = 2.745;
           const RPM = 3000 / 27, QR = 5.5, HG = 3.48, PR = 157, SLOW = 0.15;
           const U = new THREE.Group(); U.name = 'Tổ máy thủy điện (Hydro Turbine)'; U.position.set(xm, 0, zAx); damG.add(U);
@@ -7979,9 +8379,9 @@
             S.h = h;
           }
           const parts = { rotor: null, vanes: null, VX: null, vm: [] };
-          ldTrack(Promise.all([import('https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js'),
-            fetch(HT_GLB).then(r => r.ok ? r.arrayBuffer() : Promise.reject(new Error('HTTP ' + r.status))), ldGate]).then(([{ GLTFLoader }, buf]) => {
-            new GLTFLoader().parse(buf, '', gl => {
+          ldTrack(Promise.all([import('https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js'), import('https://esm.sh/three@0.160.0/examples/jsm/libs/meshopt_decoder.module.js'),
+            fetch(HT_GLB).then(r => r.ok ? r.arrayBuffer() : Promise.reject(new Error('HTTP ' + r.status))), ldGate]).then(([{ GLTFLoader }, { MeshoptDecoder }, buf]) => {
+            new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parse(buf, '', gl => {
               const rotor = gl.scene.getObjectByName('rotor'), stat = gl.scene.getObjectByName('stat'), vane = gl.scene.getObjectByName('vane');
               rotor.traverse(o => { if (o.isMesh) o.material = rotorM; }); stat.traverse(o => { if (o.isMesh) o.material = bodyM; });
               for (const o of [rotor, stat]) { o.traverse(c => { c.castShadow = false; c.receiveShadow = false; c.raycast = () => {}; }); M.add(o); }
@@ -8015,7 +8415,7 @@
           function click() { if (CAMF.o === U && camera.zoom > 8) { S.want = !S.want; S.hold = 1; } else focus(); }
           return { g: U, ph, inPH, tick, click, focus, state: S, cut, parts, setRun: on => { S.want = on; S.hold = 0.5; } };
         })();
-        if (ldStep(0.328)) await ldYield();
+        if (ldStep(0.335)) await ldYield();
         const fungi = (() => {
           const rnd = mulberry32(8181), M = { bracket: [], fly: [], cluster: [] }, R_B = 0.15;
           const _m = new THREE.Matrix4(), _m2 = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _s = new THREE.Vector3(), _a = new THREE.Vector3();
@@ -8089,7 +8489,7 @@
           }).catch(err => console.warn('Fungi:', err)));
           return { M, glow };
         })();
-        if (ldStep(0.333)) await ldYield();
+        if (ldStep(0.339)) await ldYield();
         const CAMP_SCALE = 0.90;
         const _ofI = x2gi(X0 + 74) / S - 27.3, _ofJ = z2gj(Z0 + 103) / S - 30.5;
         const _rot = 35 * Math.PI / 180;
@@ -8101,7 +8501,7 @@
         const pf = worldCell(FIRE_CELL[0], FIRE_CELL[1]);
         const CAMP_K = 0.5;
         const FIRE_AVOID_R = (1.17 * CAMP_K + 0.22) * CAMP_SCALE;
-        if (ldStep(0.333)) await ldYield();
+        if (ldStep(0.340)) await ldYield();
         const hiVis = new THREE.MeshLambertMaterial({ color: 0xf0a500 }), engPants = new THREE.MeshLambertMaterial({ color: 0x3a4a63 }),
           engSkin = new THREE.MeshLambertMaterial({ color: 0xe0ac80 }), engHelm = new THREE.MeshLambertMaterial({ color: 0xf4f2ec }),
           engBoot = new THREE.MeshLambertMaterial({ color: 0x2a2622 }), engPad = new THREE.MeshLambertMaterial({ color: 0xE2D6C0 }),
@@ -8111,7 +8511,7 @@
         const ENG_SLIM = 0.95 * 0.95;
         const ENG_FEET = 0.30 * ENGINEER_BASE_SCALE * CAMP_SCALE, ENG_SIT_LIFT = 1.06 * 1.026 * (1 - ENGINEER_SIZE) * CAMP_SCALE;
         const engSitDrop = (k, seatDrop = 0.53 * CAMP_SCALE) => ENG_FEET * (1 - k) + (seatDrop - ENG_SIT_LIFT) * k;
-        if (ldStep(0.334)) await ldYield();
+        if (ldStep(0.340)) await ldYield();
         const ENG_WAKE_H = 6, ENG_SLEEP_H = 21.75;
         const ENG_HOURS = {
           stars: [19, ENG_SLEEP_H - 0.03],
@@ -8126,7 +8526,7 @@
         const engHourOk = (k, hh) => { const [a, b] = ENG_HOURS[k]; return a <= b ? hh >= a && hh < b : hh >= a || hh < b; };
         const engAwake = hh => hh >= ENG_WAKE_H && hh < ENG_SLEEP_H;
         const engHM = h => Math.floor(h) + ':' + String(Math.round(h % 1 * 60)).padStart(2, '0');
-        if (ldStep(0.335)) await ldYield();
+        if (ldStep(0.341)) await ldYield();
         const ROD_K = 3.1 / 114, ROD_R = ROD_K * 1.4;
         let rodMats = null;
         const ROD_CUTS = [25.2, 41.4, 60.5, 77.4, 91.9, 101.9, 114], ROD_RADS = [0.54, 0.47, 0.33, 0.26, 0.18, 0.1, 0.06];
@@ -8201,7 +8601,7 @@
           const bail = new THREE.Mesh(new THREE.TubeGeometry(bailPath, 32, 0.035, 5, false), wire); bail.castShadow = true; g.add(bail);
           return g;
         }
-        if (ldStep(0.338)) await ldYield();
+        if (ldStep(0.344)) await ldYield();
         let narutoTex = null, steamGeo = null;
         function udonBowl() {
           const g = new THREE.Group(); g.name = 'Bát udon';
@@ -8286,7 +8686,7 @@
             p.m.position.copy(bowl.worldToLocal(_usA)); p.m.scale.setScalar(0.55 + k * 1.7); p.m.material.opacity = 0.2 * heat * Math.sin(Math.PI * k);
           }
         }
-        if (ldStep(0.342)) await ldYield();
+        if (ldStep(0.348)) await ldYield();
         function legoHelmet(shellM, padM) {
           const h = new THREE.Group();
           const dome = new THREE.Mesh(new THREE.SphereGeometry(0.235, 20, 10, 0, Math.PI * 2, 0, 1.5), shellM); dome.position.y = 0.1; dome.castShadow = true; h.add(dome);
@@ -8296,7 +8696,7 @@
           for (const sx of [-1, 1]) { const pad = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.05, 14), padM); pad.rotation.z = Math.PI / 2; pad.position.set(sx * 0.215, 0.0, 0); h.add(pad); }
           return h;
         }
-        if (ldStep(0.342)) await ldYield();
+        if (ldStep(0.348)) await ldYield();
         const ENG_ARM_L1 = 0.28, ENG_ARM_L2 = 0.40, ENG_WRIST_PEG = 0.09;
         function engineer() {
           const g = new THREE.Group();
@@ -8430,7 +8830,7 @@
             (function slim(par) { for (const c of par.children) { if (props.has(c) || c.isLine) continue; c.position.x *= ENG_SLIM; c.position.z *= ENG_SLIM; if (joints.has(c)) slim(c); else { c.scale.x *= ENG_SLIM; c.scale.z *= ENG_SLIM; } } })(g); }
           g.userData = { elbows, wrists, spine, legs, knees, ankles, arms, head: headG, torso, face: { mat: head.material, awake: face, sleep: faceSleep }, helmet, hair, towel, rodGrp, rodTilt, rodTip, rod, clip, props: { spoon, bottle, cup, book, bookLeaf, chip, chopsticks, knife, spatula, handBowl, handPan } }; g.scale.setScalar(ENGINEER_BASE_SCALE * CAMP_SCALE); return g;
         }
-        if (ldStep(0.349)) await ldYield();
+        if (ldStep(0.355)) await ldYield();
         const engObj = (() => {
           const g = engineer();
           const wp = [_rc(20, 32), _rc(24, 30.5), _rc(26.4, 29.7), CHAIR_CELL, _rc(22, 29)].map(c => worldCell(c[0], c[1]));
@@ -8454,7 +8854,7 @@
           e.arms[0].rotation.x = -sw * 0.65 * (e.moodSwing || 1); e.arms[1].rotation.x = sw * 0.65 * (e.moodSwing || 1); e.head.rotation.x = 0.03 * k;
           return 0;
         }
-        if (ldStep(0.350)) await ldYield();
+        if (ldStep(0.356)) await ldYield();
         let engPetting = false;
         worldFace('engineer', {
           get pos() { return engObj.g.position; },
@@ -8491,19 +8891,20 @@
           get needs() { return ENG_NEEDS; },
           offer: k => ENG_OFFERS[k],
           get asked() { return engForceAct; },
-          ask: k => { engForceAct = k; },
+          ask: k => { if (k === 'udon' || k === 'rice') { engMealPick = k; k = 'cook'; } else engMealPick = null; engForceAct = k; },
           askNeed: k => autoCommand(k),
           actLabel: k => ENG_ACTS[k].label,
           get rod() { return engObj.rod; },
           get applePole() { return applePick.pole; }, get appleBasket() { return applePick.basket; },
         });
-        if (ldStep(0.352)) await ldYield();
+        if (ldStep(0.358)) await ldYield();
         const ENG_JOINT_W = 12, ENG_YAW_W = 7, ENG_POS_W = 10, ENG_LEAN_W = 8;
         function engSpring(x, v, target, w, dt) {
           const k = w * dt, ex = 1 / (1 + k + 0.48 * k * k + 0.235 * k * k * k), c = x - target, tmp = (v + w * c) * dt;
           engSpring.v = (v - w * tmp) * ex; return target + (c + tmp) * ex;
         }
         function engPoseBegin(e) {
+          if (e.ledge) { if (e.ledge.live) e.ledge.live = false; else engLedgeAbort(e); }
           e.walking = false; e.lean = 0; e.bank = 0; e.seatCtl = false; e.noFootIK = false;
           const P = e.pose; if (!P) return;
           for (let i = 0; i < P.joints.length; i++) P.joints[i].rotation.x = P.raw[i];
@@ -8534,7 +8935,7 @@
           else {
             let dy = P.rawYaw - P.yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
             P.yaw = engSpring(P.yaw, P.yv, P.yaw + dy, ENG_YAW_W, dt); P.yv = engSpring.v;
-            for (const [i, ax] of [[0, 'x'], [1, 'y'], [2, 'z']]) { P.pos[ax] = engSpring(P.pos[ax], P.pv[i], P.rawPos[ax], ENG_POS_W, dt); P.pv[i] = engSpring.v; }
+            for (const [i, ax] of [[0, 'x'], [1, 'y'], [2, 'z']]) { P.pos[ax] = engSpring(P.pos[ax], P.pv[i], P.rawPos[ax], e.ledge ? 30 : ENG_POS_W, dt); P.pv[i] = engSpring.v; }
           }
           if (direct) { P.lv = (e.lean - P.lean) * idt; P.lean = e.lean; P.bv = (e.bank - P.bank) * idt; P.bank = e.bank; }
           else { P.lean = engSpring(P.lean, P.lv, e.lean, ENG_LEAN_W, dt); P.lv = engSpring.v; P.bank = engSpring(P.bank, P.bv, e.bank, ENG_LEAN_W, dt); P.bv = engSpring.v; }
@@ -8613,11 +9014,19 @@
           K.yaw = 0.07 * m * Math.cos(2 * Math.PI * phi); K.list = -0.045 * m * Math.cos(2 * Math.PI * (phi - mid));
           return K;
         }
+        function engLegSolve(Ax, Ay, Az, tw) {
+          const d = Math.min(ENG_L1 + ENG_L2 - 1e-4, Math.max(0.08, Math.hypot(Ax, Ay, Az)));
+          const b = Math.PI - Math.acos(Math.max(-1, Math.min(1, (ENG_L1 * ENG_L1 + ENG_L2 * ENG_L2 - d * d) / (2 * ENG_L1 * ENG_L2))));
+          const py = -ENG_L1 - ENG_L2 * Math.cos(b), pz = -ENG_L2 * Math.sin(b), x1 = pz * Math.sin(tw), z1 = pz * Math.cos(tw), ph = Math.atan2(py, x1);
+          const c = Math.acos(Math.max(-1, Math.min(1, Ax / Math.hypot(x1, py)))), w = x => Math.atan2(Math.sin(x), Math.cos(x)), ab1 = w(c - ph), ab2 = w(-c - ph), ab = Math.abs(ab1) < Math.abs(ab2) ? ab1 : ab2;
+          return { a: w(Math.atan2(Az, Ay) - Math.atan2(z1, x1 * Math.sin(ab) + py * Math.cos(ab))), b, ab };
+        }
         function engFootIK(e, dt) {
           const g = e.g, P = e.pose;
           if (e.seatCtl) { e.ikW = 0; e.ikPelvis = 0; engWalkReset(e); if (e.abdOn) { e.legs[0].rotation.y = e.legs[1].rotation.y = e.ankles[0].rotation.z = e.ankles[1].rotation.z = 0; e.abdOn = false; } return; }
-          const onFoot = !!P && !e.noFootIK && g.parent === scene && !e.inVan && e.phase !== 'van' && e.phase !== 'pet' && Math.abs(e.legs[0].rotation.x) < 0.95 && Math.abs(e.legs[1].rotation.x) < 0.95 && e.knees[0].rotation.x < 1.15 && e.knees[1].rotation.x < 1.15;
-          e.ikW = (e.ikW || 0) + ((onFoot ? 1 : 0) - (e.ikW || 0)) * (1 - Math.exp(-dt * 6));
+          const stairs = !!(e.ledge && e.ledge.stairs);
+          const onFoot = !!P && !e.noFootIK && g.parent === scene && (stairs || (!e.inVan && e.phase !== 'van')) && e.phase !== 'pet' && Math.abs(e.legs[0].rotation.x) < 0.95 && Math.abs(e.legs[1].rotation.x) < 0.95 && e.knees[0].rotation.x < 1.15 && e.knees[1].rotation.x < 1.15;
+          e.ikW = stairs ? 1 : !onFoot && e.inVan ? 0 : (e.ikW || 0) + ((onFoot ? 1 : 0) - (e.ikW || 0)) * (1 - Math.exp(-dt * 6));
           if (e.ikW < 0.01) { e.ankles[0].rotation.x = e.ankles[1].rotation.x = 0; e.ikPelvis = 0; engWalkReset(e); if (e.abdOn) { for (let i = 0; i < 2; i++) e.legs[i].rotation.z = e.legs[i].rotation.y = e.ankles[i].rotation.z = 0; e.abdOn = false; } return; }
           const S = g.scale.y, K = engWalkFeet(e, dt, onFoot), ww = K ? (e.walkW || 0) : 0, w = Math.max(e.ikW, ww);
           if (ww > 0) {
@@ -8631,13 +9040,12 @@
           for (let i = 0; i < 2; i++) {
             const a = e.legs[i].rotation.x, b = e.knees[i].rotation.x;
             const ky = ENG_HIP_Y - ENG_L1 * Math.cos(a), kz = -ENG_L1 * Math.sin(a), ay = ky - ENG_L2 * Math.cos(a + b), az = kz - ENG_L2 * Math.sin(a + b);
-            g.localToWorld(_ikW.set(i ? 0.15 : -0.15, ay, az));
+            g.localToWorld(_ikW.set(e.legs[i].position.x, ay, az));
             const lift = Math.max(0, (_ikW.y - ENG_SOLE * S) - plane);
-            const f = { a, b, ay, az, lift, delta: engGroundY(_ikW.x, _ikW.z) - plane, py: 0, pz: 0, ab: 0 };
+            const f = { a, b, ay, az, lift, delta: engGroundY(_ikW.x, _ikW.z) - plane, tx: 0, ty: 0, tz: 0 };
             if (ww > 0) {
-              g.worldToLocal(_ikP.copy(K.feet[i].a)); const dx = _ikP.x - (i ? 0.15 : -0.15), dy = _ikP.y - ENG_HIP_Y;
-              f.ab = Math.max(-0.3, Math.min(0.3, Math.atan2(dx, -dy))); f.py = ENG_HIP_Y - Math.hypot(dy, dx) * Math.cos(Math.atan2(dx, -dy) - f.ab); f.pz = _ikP.z;
-              reach = Math.max(reach, Math.hypot(f.py - ENG_HIP_Y, f.pz) - (ENG_L1 + ENG_L2 - 0.012));
+              g.worldToLocal(_ikP.copy(K.feet[i].a)); f.tx = _ikP.x - e.legs[i].position.x; f.ty = _ikP.y; f.tz = _ikP.z;
+              reach = Math.max(reach, Math.hypot(f.tx, f.ty - ENG_HIP_Y, f.tz) - (ENG_L1 + ENG_L2 - 0.012));
             }
             fk.push(f);
           }
@@ -8647,18 +9055,14 @@
           g.position.y += e.ikPelvis * w;
           for (let i = 0; i < 2; i++) {
             const f = fk[i];
-            let ty = f.ay + (f.delta - e.ikPelvis) / S, tz = f.az;
-            if (ww > 0) { ty += (f.py - e.ikPelvis * w / S - ty) * ww; tz += (f.pz - tz) * ww; }
-            const vy = ty - ENG_HIP_Y, vz = tz, d = Math.min(ENG_L1 + ENG_L2 - 1e-4, Math.max(0.08, Math.hypot(vy, vz)));
-            const kneeIK = Math.PI - Math.acos(Math.max(-1, Math.min(1, (ENG_L1 * ENG_L1 + ENG_L2 * ENG_L2 - d * d) / (2 * ENG_L1 * ENG_L2))));
-            const hipIK = -(Math.atan2(vz, -vy) + Math.acos(Math.max(-1, Math.min(1, (ENG_L1 * ENG_L1 + d * d - ENG_L2 * ENG_L2) / (2 * ENG_L1 * d)))));
-            const a = f.a + (hipIK - f.a) * w, b = f.b + (kneeIK - f.b) * w;
+            const F = ww > 0 && K ? K.feet[i] : null; let tw = 0;
+            if (F) { tw = F.sw ? 0 : Math.max(-0.45, Math.min(0.45, Math.atan2(Math.sin(Math.atan2(F.fx, F.fz) - g.rotation.y), Math.cos(Math.atan2(F.fx, F.fz) - g.rotation.y)))); F.tw = (F.tw || 0) + (tw - (F.tw || 0)) * Math.min(1, dt * (F.sw ? 8 : 30)); tw = F.tw * ww; }
+            let tx = 0, ty = f.ay + (f.delta - e.ikPelvis) / S, tz = f.az;
+            if (ww > 0) { tx += f.tx * ww; ty += (f.ty - e.ikPelvis * w / S - ty) * ww; tz += (f.tz - tz) * ww; }
+            const L = engLegSolve(tx, ty - ENG_HIP_Y, tz, tw);
+            const a = f.a + (L.a - f.a) * w, b = f.b + (L.b - f.b) * w, ab = Math.max(-0.35, Math.min(0.35, L.ab)) * w;
             e.legs[i].rotation.x = a; e.knees[i].rotation.x = b;
-            if (ww > 0 || e.abdOn) {
-              const F = K && K.feet[i]; let tw = 0;
-              if (F) { tw = F.sw ? 0 : Math.max(-0.45, Math.min(0.45, Math.atan2(Math.sin(Math.atan2(F.fx, F.fz) - g.rotation.y), Math.cos(Math.atan2(F.fx, F.fz) - g.rotation.y)))); F.tw = (F.tw || 0) + (tw - (F.tw || 0)) * Math.min(1, dt * (F.sw ? 8 : 30)); tw = F.tw; }
-              e.legs[i].rotation.z = f.ab * ww; e.legs[i].rotation.y = tw * ww; e.ankles[i].rotation.z = -f.ab * ww;
-            }
+            if (ww > 0 || e.abdOn) { e.legs[i].rotation.z = ab; e.legs[i].rotation.y = tw; e.ankles[i].rotation.z = -ab; }
             const plant = 1 - ikSmooth(0.03, 0.15, f.lift);
             const fpk = ww > 0 ? K.feet[i].fp : 0;
             e.ankles[i].rotation.x = -(g.rotation.x + a + b) * (plant * (w - ww) + ww) + fpk * ww;
@@ -8795,6 +9199,7 @@
           if (!bi && !bj) return null; const vx = wx(gi + bi) - x, vz = wz(gj + bj) - z, L = Math.hypot(vx, vz) || 1; return _engDirV.set(vx / L, 0, vz / L);
         }
         function engStep(e, tgt, dt, t, avoidPt, avoidR, field) {
+          if (e.ledge) { if (e.ledge.stairs) engStairsStep(e, dt); else engLedgeStep(e, dt); return false; }
           const dx = tgt.x - e.g.position.x, dz = tgt.z - e.g.position.z, dist = Math.hypot(dx, dz);
           const arrive = () => { e.vel = 0; e.legs[0].rotation.x = e.legs[1].rotation.x = 0; e.knees[0].rotation.x = e.knees[1].rotation.x = 0; e.arms[0].rotation.x = e.arms[1].rotation.x = 0; return true; };
           if (dist < 0.25) return arrive();
@@ -8841,6 +9246,7 @@
             if (N.look <= 0) { const free = s => { let c = 0; for (let r = 0.6; r <= 2.4; r += 0.6) { const a2 = Math.atan2(ux, uz) + s * 1.3, x = e.g.position.x + Math.sin(a2) * r, z = e.g.position.z + Math.cos(a2) * r, g = engGroundY(x, z); if (!(COL.ready && colHit(7, x, z, g + 0.25, g + 1.85))) c++; } return c; };
               N.side = free(1) >= free(-1) ? 1 : -1; N.det = 2; } e.vel = Math.max(0, (e.vel || 0) - dt * 4); e.walking = true; return false; }
           if (N.det > 0) { N.det -= dt; const a = Math.atan2(ux, uz) + N.side * 1.3; ux = Math.sin(a); uz = Math.cos(a); if (N.det <= 0) { N.d = pd; N.t = 0; } }
+          if (!e.inVan && e.g.parent === scene && !e.footPlan && engLedgeCheck(e, ux, uz, t)) { engLedgeStep(e, dt); return false; }
           const h0 = engGroundY(e.g.position.x, e.g.position.z), lx = e.g.position.x + ux * 0.55, lz = e.g.position.z + uz * 0.55, hA = engGroundY(lx, lz), dh = hA - h0;
           let stepK = 1; if (dh > 0.25) { stepK = 0.85; e.stepLean = 0.06; rxLook('step', 2.4, 0.3, _ikW.set(e.g.position.x + ux * 0.4, hA, e.g.position.z + uz * 0.4)); }
           else if (dh < -0.25) { stepK = 0.75; e.stepLean = -0.01; rxLook('step', 2.4, 0.3, _ikW.set(e.g.position.x + ux * 0.75, hA, e.g.position.z + uz * 0.75)); } else e.stepLean = 0;
@@ -8882,16 +9288,165 @@
           C.moving(() => [engObj.g, fishKeep.g]);
         });
         worldJoin('drawBatch', 5, B => B.skip(engObj.g));
-        if (ldStep(0.370)) await ldYield();
+        if (ldStep(0.375)) await ldYield();
+        const LEDGE_MIN = 0.3, LEDGE_SO_UP = 0.30, LEDGE_SO_DN = 0.16;
+        const _lgA = new THREE.Vector3(), _lgB = new THREE.Vector3(), _lgC = new THREE.Vector3(), _lgD = new THREE.Vector3();
+        const lgEase = x => minJerk(x), lgSeg = (u, a, b) => Math.max(0, Math.min(1, (u - a) / (b - a))), lgBump = (u, a, b) => { const s = lgSeg(u, a, b); return Math.sin(Math.PI * s); };
+        function engLedgeCheck(e, ux, uz, t) {
+          const p = e.g.position, h0 = cowY(p.x, p.z); let d = 0.1, g = h0;
+          for (; d <= 0.75; d += 0.05) { g = cowY(p.x + ux * d, p.z + uz * d); if (Math.abs(g - h0) > LEDGE_MIN) break; }
+          const dh = g - h0; if (d > 0.75 || Math.abs(dh) > ENG_STEP_MAX + 0.05) return false;
+          const i0 = Math.round(x2gi(p.x + ux * (d - 0.05))), j0 = Math.round(z2gj(p.z + uz * (d - 0.05))), i1 = Math.round(x2gi(p.x + ux * d)), j1 = Math.round(z2gj(p.z + uz * d));
+          let nx = 0, nz = 0, ex = 0, ez = 0;
+          const yAt = (i, j) => cowY(wx(i), wz(j));
+          if (i1 !== i0 && (j1 === j0 || Math.abs(yAt(i1, j0) - g) < 0.05)) { nx = Math.sign(i1 - i0); ex = (wx(i0) + wx(i1)) / 2; }
+          else if (j1 !== j0 && (i1 === i0 || Math.abs(yAt(i0, j1) - g) < 0.05)) { nz = Math.sign(j1 - j0); ez = (wz(j0) + wz(j1)) / 2; }
+          else return false;
+          if (ux * nx + uz * nz < 0.5) return false;
+          const s = nx ? (ex - p.x) * nx : (ez - p.z) * nz, up = dh > 0, so = up ? LEDGE_SO_UP : LEDGE_SO_DN;
+          if (s > so + 0.3 || s < so - 0.12) return false;
+          const lx = nx ? 0 : 1, lz = nx ? 1 : 0, cx = nx ? ex : p.x, cz = nx ? p.z : ez, S = e.g.scale.y;
+          for (const k of [-0.2, 0, 0.2]) {
+            if (Math.abs(cowY(cx - nx * so + lx * k, cz - nz * so + lz * k) - h0) > 0.05) return false;
+            for (const f of [0.2, 0.45]) if (Math.abs(cowY(cx + nx * f + lx * k, cz + nz * f + lz * k) - g) > 0.05) return false;
+          }
+          const land = up ? 0.2 : 0.38;
+          if (COL.ready && (colHit(7, cx + nx * land, cz + nz * land, g + 0.25, g + 1.85) || colHit(7, cx - nx * so, cz - nz * so, h0 + 0.25, h0 + 1.85))) return false;
+          const yaw = Math.atan2(nx, nz), rx = Math.cos(yaw), rz = -Math.sin(yaw), T = (up ? 1.75 : 1.45) * Math.sqrt(Math.abs(dh) / 0.6);
+          const L = { up, nx, nz, rx, rz, cx, cz, hLo: up ? h0 : g, hHi: up ? g : h0, t: 0, T, yaw0: e.g.rotation.y, yaw, so, land, live: true,
+            p0: new THREE.Vector3(p.x, 0, p.z), v0: Math.min(e.vel || 0, 1.5 * Math.max(0, s - so) / (0.26 * T)), f0: [new THREE.Vector3(), new THREE.Vector3()] };
+          for (let i = 0; i < 2; i++) { const F = e.wk && e.wk.on ? e.wk.feet[i] : null, o = (i ? 0.15 : -0.15) * S;
+            if (F) L.f0[i].set(F.a.x, 0, F.a.z); else L.f0[i].set(p.x + Math.cos(e.g.rotation.y) * o, 0, p.z - Math.sin(e.g.rotation.y) * o); L.f0[i].y = cowY(L.f0[i].x, L.f0[i].z); }
+          const back = i => (L.f0[i].x - p.x) * nx + (L.f0[i].z - p.z) * nz;
+          L.lead = back(0) < back(1) ? 0 : 1;
+          e.ledge = L; e.footPlan = { p: [new THREE.Vector3(), new THREE.Vector3()], fp: [0, 0], ledge: true };
+          rxLook('ledge', 2.6, T * 0.6, _lgA.set(cx + nx * land, g + 0.1, cz + nz * land));
+          return true;
+        }
+        function engLedgeAbort(e) {
+          if (e.footPlan && e.footPlan.ledge) e.footPlan = null;
+          e.ledge = null; if (e.wk) e.wk.on = false;
+          if (e.g.parent === scene) e.g.position.y = cowY(e.g.position.x, e.g.position.z) - ENG_FEET;
+        }
+        const lgHome = (L, i, x, z, y, S, out) => out.set(x + L.rx * (i ? 0.15 : -0.15) * S, y, z + L.rz * (i ? 0.15 : -0.15) * S);
+        function engLedgeStep(e, dt) {
+          const L = e.ledge, g = e.g, S = g.scale.y, FP = e.footPlan; L.live = true; L.t += dt;
+          const u = Math.min(1, L.t / L.T), n = [L.nx, L.nz], so = L.so;
+          const lat = (L.p0.x - L.cx) * L.nz * L.nz + (L.p0.z - L.cz) * L.nx * L.nx;
+          const ptN = (along, out) => out.set(L.cx + n[0] * along + (L.nx ? 0 : lat), 0, L.cz + n[1] * along + (L.nx ? lat : 0));
+          engStandStill(e); e.vel = 0; e.walking = true;
+          const tA = 0.26, sA = lgSeg(u, 0, tA), Ps = ptN(-so, _lgB), TA = tA * L.T;
+          const h00 = 2 * sA ** 3 - 3 * sA ** 2 + 1, h10 = sA ** 3 - 2 * sA ** 2 + sA, h01 = -2 * sA ** 3 + 3 * sA ** 2;
+          let px = h00 * L.p0.x + h10 * TA * L.v0 * L.nx + h01 * Ps.x, pz = h00 * L.p0.z + h10 * TA * L.v0 * L.nz + h01 * Ps.z;
+          let dyaw = Math.atan2(Math.sin(L.yaw - L.yaw0), Math.cos(L.yaw - L.yaw0)); g.rotation.y = L.yaw0 + dyaw * lgEase(lgSeg(u, 0, 0.3));
+          const P = FP.p, fp = FP.fp, D = L.hHi - L.hLo, arms = e.arms, R = e.reachT || (e.reachT = [null, null]);
+          let base, lean = 0;
+          if (L.up) {
+            const ld = L.lead, tr = 1 - ld;
+            const hs = lgHome(L, tr, Ps.x, Ps.z, L.hLo, S, _lgC), sT = lgSeg(u, 0.04, 0.26);
+            const top = ptN(0.2, _lgA), lt = lgHome(L, ld, top.x, top.z, L.hHi, S, new THREE.Vector3()), sL = lgSeg(u, 0.1, 0.5);
+            { const a = L.f0[ld], hz = lgEase(lgSeg(sL, 0.15, 1)), hy = lgEase(lgSeg(sL, 0, 0.55));
+              P[ld].set(a.x + (lt.x - a.x) * hz, a.y + (L.hHi - a.y) * hy + 0.07 * lgBump(sL, 0, 0.95), a.z + (lt.z - a.z) * hz);
+              fp[ld] = sL <= 0 ? 0 : sL < 0.3 ? 0.35 * lgSeg(sL, 0, 0.12) : -0.12 * lgBump(sL, 0.3, 1); }
+            const rise = lgEase(lgSeg(u, 0.46, 0.86)), tt = lgHome(L, tr, top.x, top.z, L.hHi, S, new THREE.Vector3());
+            if (u < 0.5) { P[tr].set(L.f0[tr].x + (hs.x - L.f0[tr].x) * lgEase(sT), L.hLo + 0.06 * lgBump(sT, 0, 1) * (sT > 0 && sT < 1 ? 1 : 0), L.f0[tr].z + (hs.z - L.f0[tr].z) * lgEase(sT)); fp[tr] = 0.5 * lgEase(lgSeg(u, 0.38, 0.5)); }
+            else {
+              const s2 = lgSeg(u, 0.68, 0.93), hang = Math.min(D, D * rise * 1.05) + 0.03 * lgSeg(u, 0.5, 0.58);
+              const kq = lgEase(lgSeg(u, 0.5, 0.7)), qa = ptN(-0.18, _lgD), qx = hs.x + (qa.x + (hs.x - Ps.x) - hs.x) * kq, qz = hs.z + (qa.z + (hs.z - Ps.z) - hs.z) * kq, qy = L.hLo + hang;
+              const hz = lgEase(lgSeg(s2, 0.3, 1)), hy = lgEase(lgSeg(s2, 0, 0.5));
+              P[tr].set(qx + (tt.x - qx) * hz, qy + (L.hHi + 0.08 - qy) * hy - 0.08 * lgEase(lgSeg(s2, 0.7, 1)), qz + (tt.z - qz) * hz);
+              fp[tr] = 0.5 * (1 - lgSeg(u, 0.5, 0.62)) - 0.15 * lgBump(s2, 0.2, 1);
+            }
+            const sC = lgEase(lgSeg(u, 0.46, 0.9)); px += (top.x - Ps.x) * sC; pz += (top.z - Ps.z) * sC;
+            base = L.hLo + 0.04 * lgSeg(u, 0.3, 0.46) * (1 - rise) + D * rise;
+            lean = 0.34 * lgEase(lgSeg(u, 0.14, 0.42)) * (1 - lgEase(lgSeg(u, 0.72, 1)));
+            const hk = lgBump(u, 0.4, 0.84);
+            if (hk > 0.15) { e.knees[ld].getWorldPosition(_lgC); R[ld] = _lgC.addScaledVector(_lgA.set(n[0], 0, n[1]), -0.07 * S).add(_lgA.set(0, 0.06, 0)).clone(); }
+            arms[tr].rotation.x = -0.45 * lgBump(u, 0.3, 0.95);
+            e.head.rotation.x = 0.28 * lgBump(u, 0.05, 0.8);
+          } else {
+            const sF = lgSeg(u, 0.44, 0.64), TF = 0.2 * L.T, tau = sF * TF, vy0 = (-D + 9.81 * TF * TF / 2) / TF;
+            const landC = ptN(L.land, _lgA);
+            for (let i = 0; i < 2; i++) {
+              const hs = lgHome(L, i, Ps.x, Ps.z, L.hHi, S, _lgC), w = lgSeg(u, i === L.lead ? 0.02 : 0.12, i === L.lead ? 0.16 : 0.26), a = L.f0[i];
+              const hl = lgHome(L, i, landC.x, landC.z, L.hLo, S, new THREE.Vector3());
+              if (u < 0.44) { P[i].set(a.x + (hs.x - a.x) * lgEase(w), L.hHi + 0.05 * lgBump(w, 0, 1) * (w > 0 && w < 1 ? 1 : 0), a.z + (hs.z - a.z) * lgEase(w)); fp[i] = 0.35 * lgEase(lgSeg(u, 0.36, 0.44)); }
+              else if (u < 0.64) { const yb = L.hHi - 0.12 + vy0 * tau - 4.905 * tau * tau; P[i].set(hs.x + (hl.x - hs.x) * sF, yb + 0.12 + 0.1 * Math.sin(Math.PI * sF), hs.z + (hl.z - hs.z) * sF); fp[i] = 0.35 * (1 - sF) + 0.3 * sF; }
+              else { P[i].copy(hl); fp[i] = 0.3 * (1 - lgSeg(u, 0.64, 0.72)); }
+            }
+            const crouch = 0.12 * lgEase(lgSeg(u, 0.26, 0.44)), absorb = 0.15 * (u < 0.7 ? 0.8 + 0.2 * lgSeg(u, 0.64, 0.7) : 1 - lgEase(lgSeg(u, 0.7, 0.98)));
+            if (u < 0.44) base = L.hHi - crouch;
+            else if (u < 0.64) { base = L.hHi - 0.12 + vy0 * tau - 4.905 * tau * tau; px = Ps.x + (landC.x - Ps.x) * sF; pz = Ps.z + (landC.z - Ps.z) * sF; }
+            else { base = L.hLo - absorb; px = landC.x; pz = landC.z; }
+            lean = 0.25 * lgBump(u, 0.2, 0.5) + 0.2 * lgBump(u, 0.6, 1);
+            const sw = -0.7 * lgBump(u, 0.2, 0.5) + 0.6 * lgBump(u, 0.45, 0.95);
+            arms[0].rotation.x = arms[1].rotation.x = -sw;
+            e.head.rotation.x = 0.35 * lgBump(u, 0.05, 0.7);
+          }
+          g.position.set(px, base - ENG_FEET, pz); e.lean = lean;
+          if (u >= 1) { e.footPlan = null; e.ledge = null; if (e.wk) e.wk.on = false; g.rotation.y = L.yaw; return true; }
+          return false;
+        }
+        function engStairsStart(e, pts, yaw, stepT, hand) {
+          const S = e.g.scale.y, p = e.g.position, f = [new THREE.Vector3(), new THREE.Vector3()];
+          for (let i = 0; i < 2; i++) { const F = e.wk && e.wk.on ? e.wk.feet[i] : null, o = (i ? 0.15 : -0.15) * S;
+            if (F) f[i].set(F.a.x, 0, F.a.z); else f[i].set(p.x + Math.cos(e.g.rotation.y) * o, 0, p.z - Math.sin(e.g.rotation.y) * o);
+            f[i].y = p.y + ENG_FEET; }
+          e.ledge = { stairs: true, pts, k: 0, t: 0, stepT, yaw, yaw0: e.g.rotation.y, feet: f, from: f[pts[0].i].clone(), b0: new THREE.Vector3(p.x, p.y + ENG_FEET, p.z), hand, live: true };
+          e.footPlan = { p: [f[0].clone(), f[1].clone()], fp: [0, 0], ledge: true };
+        }
+        function engStairsStep(e, dt) {
+          const Q = e.ledge, g = e.g, FP = e.footPlan; Q.live = true; Q.t += dt;
+          const st = Q.pts[Q.k], i = st.i, o = 1 - i, s = Math.min(1, Q.t / Q.stepT), A = Q.from, B = st.to, sup = Q.feet[o];
+          engStandStill(e); e.vel = 0; e.walking = true;
+          const up = B.y > A.y + 0.04, dn = B.y < A.y - 0.04, sw = lgSeg(s, 0.08, 0.92);
+          const hz = lgEase(up ? lgSeg(sw, 0.25, 1) : dn ? lgSeg(sw, 0, 0.7) : sw), hy = lgEase(up ? lgSeg(sw, 0, 0.6) : dn ? lgSeg(sw, 0.35, 1) : sw);
+          FP.p[i].set(A.x + (B.x - A.x) * hz, A.y + (B.y - A.y) * hy + (up ? 0.06 : 0.04) * Math.sin(Math.PI * sw), A.z + (B.z - A.z) * hz);
+          FP.fp[i] = 0.35 * lgBump(s, 0, 0.3) + (dn ? 0.25 * lgSeg(sw, 0.75, 0.95) * (1 - lgSeg(s, 0.95, 1)) : -0.12 * lgBump(sw, 0.3, 1));
+          FP.p[o].copy(sup); FP.fp[o] = 0;
+          const bT = _lgA.set((B.x + sup.x) / 2, Math.min(sup.y, B.y), (B.z + sup.z) / 2), k = lgEase(lgSeg(s, 0.1, 0.9));
+          g.position.set(Q.b0.x + (bT.x - Q.b0.x) * k, Q.b0.y + (bT.y - Q.b0.y) * lgEase(lgSeg(s, up ? 0.3 : 0.15, 0.95)) - ENG_FEET, Q.b0.z + (bT.z - Q.b0.z) * k);
+          const dy = Math.atan2(Math.sin(Q.yaw - Q.yaw0), Math.cos(Q.yaw - Q.yaw0)); g.rotation.y = Q.yaw0 + dy * lgEase(Math.min(1, (Q.k + s) / 1.2));
+          const n = Q.pts.length, u = (Q.k + s) / n;
+          e.lean = (up ? 0.16 : 0.08) * lgBump(u, 0.1, 1); e.head.rotation.x = 0.32 * lgBump(u, 0.15, 1);
+          if (Q.hand && u < Q.hand.till && Math.hypot(Q.hand.p.x - g.position.x, Q.hand.p.z - g.position.z) < 0.62) { const R = e.reachT || (e.reachT = [null, null]); R[Q.hand.i] = Q.hand.p; }
+          else e.arms[0].rotation.x = e.arms[1].rotation.x = -0.12;
+          if (s >= 1) {
+            Q.feet[i].copy(B); Q.from = null; Q.k++; Q.t = 0; Q.b0.set(g.position.x, g.position.y + ENG_FEET, g.position.z);
+            if (Q.k >= n) { const a = Q.feet[0], b = Q.feet[1]; g.position.set((a.x + b.x) / 2, Math.min(a.y, b.y) - ENG_FEET, (a.z + b.z) / 2); g.rotation.y = Q.yaw; e.footPlan = null; e.ledge = null; if (e.wk) e.wk.on = false; return true; }
+            Q.from = Q.feet[Q.pts[Q.k].i].clone();
+          }
+          return false;
+        }
+        function engVanStairs(e, out) {
+          const St = VAN.steps, T = St.treads, D = St.door, yIn = VAN.dims.yIn, S = e.g.scale.y;
+          const c = (z, y) => VAN.toWorld(D.cx, y, z), top = t => t.y + t.height / 2 + 0.009;
+          const A = VAN.doorStep, B = VAN.doorIn, yaw = out ? Math.atan2(A.x - B.x, A.z - B.z) : Math.atan2(B.x - A.x, B.z - A.z), rx = Math.cos(yaw), rz = -Math.sin(yaw);
+          const home = (i, P) => new THREE.Vector3(P.x + rx * (i ? 0.15 : -0.15) * S, P.y, P.z + rz * (i ? 0.15 : -0.15) * S);
+          const t1 = c(T[1].z, top(T[1])), t2 = c(T[0].z, top(T[0])), fl = c(D.wall - 0.21, yIn), gr = c(T[1].z + 0.42, 0);
+          gr.y = cowY(gr.x, gr.z); const gIn = B.clone(), gOut = A.clone(); gOut.y = cowY(A.x, A.z);
+          const hp = VAN.toWorld(St.grab[0], St.grab[1], St.grab[2]), side = (hp.x - e.g.position.x) * rx + (hp.z - e.g.position.z) * rz > 0 ? 1 : 0;
+          const L = side, R = 1 - L;
+          const pts = out ? [{ i: L, to: home(L, t2) }, { i: R, to: home(R, t1) }, { i: L, to: home(L, gr) }, { i: R, to: home(R, gOut) }, { i: L, to: home(L, gOut) }]
+            : [{ i: L, to: home(L, t1) }, { i: R, to: home(R, t2) }, { i: L, to: home(L, fl) }, { i: R, to: home(R, gIn) }, { i: L, to: home(L, gIn) }];
+          engStairsStart(e, pts, yaw, out ? 0.6 : 0.55, { i: side, p: hp, till: 0.62 });
+        }
+        if (ldStep(0.381)) await ldYield();
         const BUBBLE_W = 640, BUBBLE_H = 352, THOUGHT_K = 0.5; let BUBBLE_RES = 2;
         const checkBubbleCanvas = document.createElement('canvas'); checkBubbleCanvas.width = BUBBLE_W * BUBBLE_RES; checkBubbleCanvas.height = BUBBLE_H * BUBBLE_RES;
         const cbCtx = checkBubbleCanvas.getContext('2d');
         const checkBubbleTex = new THREE.CanvasTexture(checkBubbleCanvas); checkBubbleTex.colorSpace = THREE.SRGBColorSpace; checkBubbleTex.generateMipmaps = false; checkBubbleTex.minFilter = THREE.LinearFilter;
         const checkBubbleSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: checkBubbleTex, transparent: true, opacity: 0.97, depthWrite: false, depthTest: false }));
-        checkBubbleSprite.name = 'Nhãn Engineer · câu cá và đám mây suy nghĩ';
+        checkBubbleSprite.name = 'Nhãn Engineer · câu cá và đám mây suy nghĩ'; checkBubbleSprite.layers.set(LAYER_SHARP);
         const BUBBLE_K = 0.65;
         checkBubbleSprite.scale.set(8.5 * BUBBLE_K / ENGINEER_SIZE, 4.675 * BUBBLE_K / ENGINEER_SIZE, 1.0); checkBubbleSprite.center.set(0.5, 0);
         checkBubbleSprite.position.set(0, 2.9, 0); checkBubbleSprite.visible = false; engObj.g.add(checkBubbleSprite);
+        const CD_W = 320, CD_H = 48;
+        const cdCanvas = document.createElement('canvas'), cdCtx = cdCanvas.getContext('2d');
+        const cdTex = new THREE.CanvasTexture(cdCanvas); cdTex.colorSpace = THREE.SRGBColorSpace; cdTex.generateMipmaps = false; cdTex.minFilter = THREE.LinearFilter;
+        const cdSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: cdTex, transparent: true, opacity: 0.97, depthWrite: false, depthTest: false }));
+        cdSprite.name = 'Nhãn Engineer · đếm ngược việc đang làm'; cdSprite.layers.set(LAYER_SHARP); cdSprite.visible = false; engObj.g.add(cdSprite);
+        cdSprite.scale.set(checkBubbleSprite.scale.x * CD_W / BUBBLE_W, checkBubbleSprite.scale.y * CD_H / BUBBLE_H, 1);
         function wrapText(ctx, text, maxW) {
           const words = text.split(' '), lines = []; let line = '';
           for (const w of words) { const test = line ? line + ' ' + w : w; if (ctx.measureText(test).width > maxW && line) { lines.push(line); line = w; } else line = test; }
@@ -8943,31 +9498,48 @@
         }
         const fmtCountdown = s => s >= 3600 ? Math.floor(s / 3600) + ':' + String(Math.floor(s / 60) % 60).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0')
           : s >= 60 ? Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0') : s + 's';
+        let cdKey = ''; const _cdP = new THREE.Vector3();
+        function drawEngineerCountdown(t, top) {
+          const e = engObj, cd = engCountdown(e);
+          cdSprite.visible = !!cd && !droneToy.bub.visible;
+          if (!cdSprite.visible) return;
+          bubbleFitRes();
+          const yc = top === null ? 306 : Math.max(CD_H / 2, top - CD_H / 2 - 4);
+          e.head.getWorldPosition(_cdP); _cdP.y += 0.78 + Math.sin(t * 3.5) * 0.05 + (BUBBLE_H - yc) / BUBBLE_H * checkBubbleSprite.getWorldScale(_tbS).y;
+          cdSprite.position.copy(e.g.worldToLocal(_cdP));
+          const key = cd.icon + cd.sec + '|' + BUBBLE_RES; if (key === cdKey) return; cdKey = key;
+          if (cdCanvas.width !== Math.round(CD_W * BUBBLE_RES)) { cdCanvas.width = Math.round(CD_W * BUBBLE_RES); cdCanvas.height = Math.round(CD_H * BUBBLE_RES); cdTex.dispose(); }
+          cdCtx.setTransform(cdCanvas.width / CD_W, 0, 0, cdCanvas.height / CD_H, 0, 0); cdCtx.clearRect(0, 0, CD_W, CD_H);
+          const text = cd.icon + ' ' + fmtCountdown(cd.sec);
+          cdCtx.textAlign = 'center'; cdCtx.textBaseline = 'middle'; cdCtx.font = '34px Arial, sans-serif';
+          cdCtx.lineWidth = 5; cdCtx.strokeStyle = 'rgba(20, 28, 36, 0.55)'; cdCtx.strokeText(text, CD_W / 2, CD_H / 2);
+          cdCtx.fillStyle = '#ffd34a'; cdCtx.fillText(text, CD_W / 2, CD_H / 2);
+          cdTex.needsUpdate = true;
+        }
         function drawEngineerLabel(t = 0, now = Date.now()) {
           const fishing = engObj.phase === 'fish', thought = engObj.phase === 'check' ? (checkBubbleSprite.userData.weatherThought || checkBubbleSprite.userData.thought) : checkBubbleSprite.userData.thought;
           const showThought = !!thought && (now < thoughtUntil || engObj.phase === 'check');
           const lab = (SIM_DO[simDoing(engObj)] || {}).lab || 'Đi lại', tagOn = labelGroup.visible && shownInScene(engObj.g);
           checkBubbleSprite.visible = (fishing || showThought || tagOn) && engObj.phase !== 'drone';
           engObj.head.getWorldPosition(_tbP); _tbP.y += 0.78 + Math.sin(t * 3.5) * 0.05; checkBubbleSprite.position.copy(engObj.g.worldToLocal(_tbP));
-          if (!checkBubbleSprite.visible) return;
+          if (!checkBubbleSprite.visible) { drawEngineerCountdown(t, null); return; }
           bubbleFitRes();
           const seconds = fishing ? Math.max(0, Math.ceil(engObj.timer)) : -1;
           const key = seconds + '|' + (showThought ? thought.revision : -1) + '|' + (fishing ? fishingStatusText() : '') + '|' + lab;
-          if (key === engineerLabelKey) return; engineerLabelKey = key;
+          if (key === engineerLabelKey) { drawEngineerCountdown(t, checkBubbleSprite.userData.top ?? null); return; } engineerLabelKey = key;
           cbCtx.setTransform(checkBubbleCanvas.width / BUBBLE_W, 0, 0, checkBubbleCanvas.height / BUBBLE_H, 0, 0); cbCtx.clearRect(0, 0, BUBBLE_W, BUBBLE_H);
           cbCtx.textAlign = 'center'; cbCtx.textBaseline = 'middle';
-          const rows = [];
-          let cloud = null;
+          const rows = [], ys = (y) => BUBBLE_H - (BUBBLE_H - y) * THOUGHT_K;
+          let cloud = null, top = null;
           if (showThought) {
-            const ys = (y) => BUBBLE_H - (BUBBLE_H - y) * THOUGHT_K;
             cbCtx.save(); cbCtx.translate(BUBBLE_W / 2, BUBBLE_H); cbCtx.scale(THOUGHT_K, THOUGHT_K); cbCtx.translate(-BUBBLE_W / 2, -BUBBLE_H);
             const rest = (thought.header || '').split(' · ').filter(x => x && x !== lab).join(' · '), head = '👷🏻‍♂️ ' + lab + (rest ? ' · ' + rest : '');
             const c = drawThoughtCloud(cbCtx, head, thought.message, 294, thought.kind === 'react' || thought.kind === 'event'); cbCtx.restore();
-            cloud = { ...c, y0: ys(c.y0), y1: ys(c.y1) };
+            cloud = { ...c, y0: ys(c.y0), y1: ys(c.y1) }; top = ys(c.y0 - 29);
             rows.push({ type: 'weather', text: head, y: ys(c.y0 + 17) }, ...cloud.lines.map((l, i) => ({ type: 'thought', text: l, y: 0 })));
           } else if (tagOn && !fishing) {
             cbCtx.save(); cbCtx.translate(BUBBLE_W / 2, BUBBLE_H); cbCtx.scale(THOUGHT_K, THOUGHT_K); cbCtx.translate(-BUBBLE_W / 2, -BUBBLE_H);
-            drawThoughtCloud(cbCtx, '👷🏻‍♂️ ' + lab, '', 294, false); cbCtx.restore();
+            const c = drawThoughtCloud(cbCtx, '👷🏻‍♂️ ' + lab, '', 294, false); cbCtx.restore(); top = ys(c.y0 - 29);
           }
           if (fishing) {
             const top = cloud ? Math.max(30, cloud.y0 - 82) : 260;
@@ -8978,16 +9550,45 @@
               cbCtx.fillStyle = color; cbCtx.fillText(text, 320, y); rows.unshift({ type, text, y });
             }
           }
-          checkBubbleSprite.userData.rows = rows;
+          checkBubbleSprite.userData.rows = rows; checkBubbleSprite.userData.top = top;
           checkBubbleTex.needsUpdate = true;
+          drawEngineerCountdown(t, top);
         }
 
-        if (ldStep(0.374)) await ldYield();
+        if (ldStep(0.386)) await ldYield();
         const ENG_SLOTS = [
           [0, 'night', 'Đêm khuya', '🌙'], [5, 'dawn', 'Rạng sáng', '🌄'], [7, 'morning', 'Buổi sáng', '🌤'], [11, 'noon', 'Ban trưa', '☀️'],
           [14, 'afternoon', 'Buổi chiều', '🌥'], [17, 'dusk', 'Chiều tà', '🌇'], [19, 'evening', 'Buổi tối', '🌙'], [22, 'night', 'Đêm khuya', '🌙']
         ];
+        const ENG_DOW = ['Chủ nhật', 'thứ Hai', 'thứ Ba', 'thứ Tư', 'thứ Năm', 'thứ Sáu', 'thứ Bảy'];
+        const THOUGHT_DAY_NEED = new Set(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun', 'weekend', 'weekendRain', 'weekendClear']);
+        const DAY_LINE_MAX = 2, DAY_LINE_GAP = 3 * 3600000, dayLine = { date: '', n: 0, at: -Infinity };
         const ENG_THOUGHT_LINES = [
+          'breakfast|5-11||mon|Thứ Hai, ngoài phố chắc đang kẹt xe, ở đây chỉ nghe tiếng nước xả đập.',
+          'research|||mon|Đầu tuần, gom số liệu tuần trước của ba nguồn điện vào một bảng.',
+          'pet|||mon|Thứ Hai rồi, tuần mới lại cùng nhau canh trại nhé.',
+          'tea|6-10.5||tue|Sáng thứ Ba, ghi việc trong tuần: tưới luống, kiểm tra máy xe, lau pin.',
+          'garden|||tue|Cây con trồng đầu tuần, tới thứ Bảy là lên lá thật.',
+          'research|||wed|Giữa tuần, chạy lại mô hình lưu lượng với số liệu mới.',
+          'drink|||wed|Thứ Tư, can nước vơi quá nửa, cuối tuần phải đi lấy thêm.',
+          'cook|||thu|Thứ Năm rồi, xem gạo với trứng trong xe còn đủ tới Chủ nhật không.',
+          'fish|14-19.5||thu|Chiều thứ Năm, hồ vắng, chỉ có mình với mấy con cò.',
+          'research|||fri|Thứ Sáu, chép số liệu cả tuần ra báo cáo cho gọn.',
+          'eatfish|16-22||fri|Cá nướng tối thứ Sáu, coi như bữa cuối tuần.',
+          'engine|||fri|Kiểm tra máy hôm thứ Sáu, cuối tuần cần đi chợ thì xe sẵn sàng.',
+          'tea|||sat|Thứ Bảy, ngoài kia người ta nghỉ, ở trại thì việc vẫn đều đều.',
+          'read|18-22||sat|Tối thứ Bảy, đọc thêm một chương nữa cũng không sao.',
+          'fish|||sun|Chủ nhật, câu thong thả, dính hay không cũng được.',
+          'study|18-22||sun|Tối Chủ nhật, soạn trước việc cho cả tuần tới.',
+          'shelter||rain|weekend|Mưa đúng {dow}, ngồi hiên nghe mưa coi như nghỉ cuối tuần.',
+          'wander|||weekend|{Dow}, chắc chợ phiên dưới thị trấn đông lắm.',
+          'bedtime||||Mai {tmrDow}, sáu giờ sáng lại dậy như mọi ngày.',
+          'trim|||tomorrowRain|Mai {tmrDow} có mưa, cắt cho xong hôm nay.',
+          'tea|17-21||tomorrowRain|Dự báo {tmrDow} mưa {tPop}%, tối nay buộc lại dây bạt hiên cho chắc.',
+          'garden|||tomorrowRain|Mai {tmrDow} mưa, khỏi tưới luống một hôm.',
+          'fish|||tomorrowClear|Mai {tmrDow} trời quang, sáng ra hồ sớm hơn mọi ngày.',
+          'study|||weekendRain|Thứ Bảy dự báo mưa, cuối tuần ngồi trong xe viết báo cáo vậy.',
+          'fish|||weekendClear|Dự báo thứ Bảy nắng, cuối tuần ra hồ câu cả buổi chiều.',
           'stars|||Trời quang, thấy rõ cả dải Ngân Hà.', 'stars|||Tìm chòm Bắc Đẩu… à, đây rồi.', 'stars|||Nằm thế này nghe rõ tiếng dế quanh trại.', 'stars|||Chờ thêm một vệt sao băng nữa rồi đi ngủ.',
           'rainwatch|||Mưa rơi lộp độp trên bạt.', 'rainwatch|||Mép bạt nhỏ giọt thành hàng, đếm không xuể.', 'rainwatch|||Mặt hồ sủi bọt trắng dưới mưa.', 'rainwatch|||Mưa thế này mai cỏ lại lên nhanh.',
           'garden|||Cà rốt lên lá xanh rồi, ít bữa là có củ.', 'garden|||Trồng thêm vài khóm, thỏ ăn mấy cũng đủ.', 'garden|||Tưới gốc thôi, ướt lá dễ sinh nấm.', 'garden|||Đất tơi xốp thì cà rốt mới thẳng củ.',
@@ -9175,6 +9776,11 @@
           'read||cold||Lạnh rồi, đọc xong chương này vào xe.',
           'read||rain||Mưa rơi trên bạt hiên, đọc sách thế này dễ chịu.',
           'read|||dogFire|Con chó cứ nhìn gói khoai, không chia được đâu nhé.',
+          'deskread|||Lấy cuốn trên kệ ra đọc, gập laptop nghỉ mắt.',
+          'deskread|||Chương này hay, đọc thêm vài trang nữa.',
+          'deskread||rain||Mưa gõ trên mui xe, ngồi bàn đọc sách thật yên.',
+          'deskread||cold||Lạnh, ngồi trong xe đọc sách là nhất.',
+          'deskread|20-21.5|||Đọc thêm chút nữa rồi đi ngủ.',
           'read||clear||Ngẩng lên là thấy sao, đọc xong chương này ngắm một lúc.',
           'music|||Bật nhạc nhẹ cho dễ tập trung.',
           'music|||Bài này nghe hoài không chán.',
@@ -9258,7 +9864,8 @@
             if (m) wc.push([m[1], m[2], +m[3]]); else if (tk[0] === '!') wc.push(['!', tk.slice(1)]); else wo.push(tk);
           }
           for (const tk of need ? need.split(',') : []) nd.push(tk[0] === '!' ? [true, tk.slice(1)] : [false, tk]);
-          return { act, text, tw, tc, wo, wc, nd, ev: nd.some(([, n]) => n.startsWith('ev')), w: 1 + (tw.length || tc.length ? 3 : 0) + (wo.length || wc.length ? 5 : 0) + (nd.length ? 4 : 0) };
+          return { act, text, tw, tc, wo, wc, nd, ev: nd.some(([, n]) => n.startsWith('ev')), w: 1 + (tw.length || tc.length ? 3 : 0) + (wo.length || wc.length ? 5 : 0) + (nd.length ? 4 : 0),
+            day: nd.some(([, n]) => THOUGHT_DAY_NEED.has(n)) || /\{(dow|Dow|tmrDow|TmrDow)\}/.test(text) };
         }
         const _thoughtCmp = (v, op, x) => op === '<' ? v < x : op === '<=' ? v <= x : op === '>' ? v > x : v >= x;
         const THOUGHT_NEED = {
@@ -9273,7 +9880,11 @@
           tomorrowCloudy: ctx => !!ctx.tmr && ctx.tmr.code < 51 && ctx.tmr.pop < 60 && (ctx.tmr.code === 3 || ctx.tmr.code === 45 || ctx.tmr.code === 48),
           tomorrowClear: ctx => !!ctx.tmr && ctx.tmr.code <= 1 && ctx.tmr.pop < 30,
           evCast: ctx => ctx.event === 'cast', evBite: ctx => ctx.event === 'bite', evHook: ctx => ctx.event === 'hook', evRelease: ctx => ctx.event === 'release', evKeep: ctx => ctx.event === 'keep',
-          evMiss: ctx => ctx.event === 'miss', evDrift: ctx => ctx.event === 'drift', evRebait: ctx => ctx.event === 'rebait'
+          evMiss: ctx => ctx.event === 'miss', evDrift: ctx => ctx.event === 'drift', evRebait: ctx => ctx.event === 'rebait',
+          sun: ctx => ctx.dow === 0, mon: ctx => ctx.dow === 1, tue: ctx => ctx.dow === 2, wed: ctx => ctx.dow === 3, thu: ctx => ctx.dow === 4, fri: ctx => ctx.dow === 5, sat: ctx => ctx.dow === 6,
+          weekend: ctx => ctx.dow === 0 || ctx.dow === 6,
+          weekendRain: ctx => !!ctx.wk && (ctx.wk.code >= 51 || ctx.wk.pop >= 60),
+          weekendClear: ctx => !!ctx.wk && ctx.wk.code <= 1 && ctx.wk.pop < 30
         };
         for (const l of ENG_THOUGHT_LINES) for (const [, n] of l.nd) if (!THOUGHT_NEED[n]) console.warn('Suy nghĩ Engineer: thiếu điều kiện', n, l.text);
         function thoughtFits(l, act, ctx) {
@@ -9314,14 +9925,23 @@
           if (cur && Array.isArray(hourly?.time)) { const i = hourly.time.findIndex(x => x.slice(0, 13) === cur.time.slice(0, 13)); const v = i >= 0 ? hourly.shortwave_radiation?.[i] : null; if (Number.isFinite(v)) rad = v; }
           if (rad === null) rad = Math.max(0, 910 * Math.max(0, sunElevSin) - 30) * (1 - 0.75 * Math.pow((cloud ?? 50) / 100, 3.4));
           let tmr = null; const daily = st.data?.daily, today = st.data?.current?.time?.slice(0, 10);
-          if (today && Array.isArray(daily?.time)) { const i = daily.time.findIndex(d => d > today); if (i >= 0 && Number.isFinite(daily.weather_code?.[i])) tmr = { code: daily.weather_code[i], pop: Number.isFinite(daily.precipitation_probability_max?.[i]) ? daily.precipitation_probability_max[i] : 0 }; }
+          const dayOf = i => ({ code: daily.weather_code[i], pop: Number.isFinite(daily.precipitation_probability_max?.[i]) ? daily.precipitation_probability_max[i] : 0, dow: new Date(daily.time[i] + 'T12:00:00Z').getUTCDay() });
+          let wk = null;
+          if (today && Array.isArray(daily?.time)) {
+            const i = daily.time.findIndex(d => d > today); if (i >= 0 && Number.isFinite(daily.weather_code?.[i])) tmr = dayOf(i);
+            const j = daily.time.findIndex(d => d > today && new Date(d + 'T12:00:00Z').getUTCDay() === 6); if (j >= 0 && Number.isFinite(daily.weather_code?.[j])) wk = dayOf(j);
+          }
+          const pk = new Date(now + SUN_TZ * 3600000);
           const wxIcon = tags.has('thunder') ? '⛈' : tags.has('rain') ? '🌧' : tags.has('fog') ? '🌫' : tags.has('wind') ? '💨' : tags.has('cloudy') ? '☁️' : sun < 0 ? '✨' : '☀️';
-          return { h, slot: slot[1], slotName: slot[2], slotIcon: slot[3], tags, temp, wind, cloud, rh, sun, rad, tmr, rainLong: rainSinceAt !== null && now - rainSinceAt >= 3600000, wxIcon, event: null };
+          return { h, slot: slot[1], slotName: slot[2], slotIcon: slot[3], tags, temp, wind, cloud, rh, sun, rad, tmr, wk, dow: pk.getUTCDay(), date: pk.toISOString().slice(0, 10), now,
+            rainLong: rainSinceAt !== null && now - rainSinceAt >= 3600000, wxIcon, event: null };
         }
         const thoughtRecent = {};
         function pickThought(act, ctx) {
           const recent = thoughtRecent[act] || (thoughtRecent[act] = []);
-          const fits = l => thoughtFits(l, act, ctx);
+          if (dayLine.date !== ctx.date) { dayLine.date = ctx.date; dayLine.n = 0; }
+          const dayOk = dayLine.n < DAY_LINE_MAX && ctx.now - dayLine.at >= DAY_LINE_GAP;
+          const fits = l => (!l.day || dayOk) && thoughtFits(l, act, ctx);
           let pool = ENG_THOUGHT_LINES.filter(l => fits(l) && !recent.includes(l.text));
           if (!pool.length) { recent.length = 0; pool = ENG_THOUGHT_LINES.filter(fits); }
           if (ctx.event) { const evPool = pool.filter(l => l.ev); if (evPool.length) pool = evPool; }
@@ -9329,12 +9949,15 @@
           let r = Math.random() * pool.reduce((s, l) => s + l.w, 0), pick = pool[0];
           for (const l of pool) { r -= l.w; if (r <= 0) { pick = l; break; } }
           recent.push(pick.text); if (recent.length > 6) recent.shift();
+          if (pick.day) { dayLine.n++; dayLine.at = ctx.now; }
           return pick.text;
         }
         const fillThought = (text, ctx) => {
           const num = v => Number.isFinite(v) ? v.toLocaleString('vi-VN', { maximumFractionDigits: 1 }) : '—', int = v => Number.isFinite(v) ? Math.round(v) : '—';
+          const up = s => s[0].toUpperCase() + s.slice(1), dn = ENG_DOW[ctx.dow], tn = ENG_DOW[ctx.tmr ? ctx.tmr.dow : (ctx.dow + 1) % 7];
           return text.replace('{temp}', num(ctx.temp)).replace('{wind}', num(ctx.wind)).replace('{cloud}', ctx.cloud === null ? '—' : Math.round(ctx.cloud))
-            .replace('{rad}', int(ctx.rad)).replace('{rh}', int(ctx.rh)).replace('{tPop}', ctx.tmr ? int(ctx.tmr.pop) : '—').replace('{catch}', angling.catches);
+            .replace('{rad}', int(ctx.rad)).replace('{rh}', int(ctx.rh)).replace('{tPop}', ctx.tmr ? int(ctx.tmr.pop) : '—').replace('{catch}', angling.catches)
+            .replace('{dow}', dn).replace('{Dow}', up(dn)).replace('{tmrDow}', tn).replace('{TmrDow}', up(tn));
         };
         const clockText = h => { const hh = Math.floor(h), mm = Math.floor((h - hh) * 60); return String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0'); };
 
@@ -9370,6 +9993,7 @@
           const atStation = !!e.inVan && !!e.van && !!e.van.station;
           if (e.inVan || e.phase === 'van') {
             if (e.act === 'research') { act = atStation ? 'research' : 'walk'; label = atStation ? 'Nghiên cứu' : 'Vào bàn làm việc'; }
+            else if (e.act === 'deskread') { act = atStation ? 'deskread' : 'walk'; label = atStation ? 'Đọc sách' : 'Vào bàn đọc sách'; }
             else if (e.act === 'music') { act = atStation ? (Math.random() < 0.5 ? 'music' : 'study') : 'evening'; label = atStation ? 'Học bài, nghe nhạc' : 'Vào xe học bài'; }
             else if (e.act === 'breakfast') { act = 'breakfast'; label = 'Ăn sáng'; }
             else if (e.act === 'shower') { act = 'shower'; label = 'Giờ tắm'; }
@@ -9407,18 +10031,190 @@
         }
 
 
-        if (ldStep(0.388)) await ldYield();
+        if (ldStep(0.401)) await ldYield();
+        const ENG_CD_ICON = { cook: '🍳', breakfast: '🥣', lunch: '🍜', dinner: '🍽️', snack: '🥪', toilet: '🚻', shower: '🚿', wash: '🧼', research: '💻', music: '🎧',
+          deskread: '📖', read: '📖', chair: '📖', bedtime: '🛏️', outdoor: '🚶', rest: '☕', drone: '🚁', apples: '🍎', eatApple: '🍏', trim: '✂️', garden: '🥕',
+          engine: '🔧', stars: '🔭', rainwatch: '🌧️', fire: '🔥', wood: '🪵', smoke: '🐟', explore: '🧭', pet: '🐕' };
+        const ENG_CD_SLOT = new Set(['research', 'music', 'deskread', 'read', 'rest', 'outdoor', 'bedtime', 'pet', 'explore', 'rainwatch']);
+        const ENG_CD_TYP = { toilet: 86.5, wash: 32, fire: 37, wood: 28, engine: 183.5, drone: 238.5, apples: 96.5, garden: 62, trim: 290.5, cook: e => 15 + cdCookLeft(e, null, 0),
+          breakfast: 750, lunch: 800, snack: 520, shower: 124, eatApple: 60, smoke: 745, explore: 120, pet: 60, chair: 610, rainwatch: 110, dinner: 400, stars: 3600 };
+        const ENG_CD_TL = {
+          engine: { idle: 170.5, walk: 165.5, near: 160.5, key: 159.5, lift: 158, fetch: 155.5, fetchN: 153, pick: 152, carry: 150.5, carryN: 146.5, set: 146, up: 144.5,
+            check: 142, holo: 136, start: 46.5, watch: 45, stop: 16.5, cool: 15, close: 13, down: 10.5, grab: 8, back: 6.5, backN: 2.5, stow: 2 },
+          drone: { idle: 225.5, toTable: 220.5, grab: 218, carry: 216, place: 201, back: 196.5, ready: 194.5, arm: 189, land: 22, fetch: 15, pick: 13, home: 9.5, park: 2 },
+          apples: { idle: 89.5, walk: 80, grab: 56.5, stow: 13.5, 'lift-b': 12, carry: 10.5, put: 1.5 },
+          trim: { back: 15.5, stop: 9, lay: 7.5, doff: 5, wipe: 2.5 },
+          garden: { toCan: 20, pickCan: 16.5, toCanBack: 3, putCan: 1.5 },
+          toilet: { 'wc.go': 74, 'wc.face': 73.5, 'wc.sit': 72, 'wc.rise': 39.5, 'wc.turn': 37.5, 'wc.flush': 35.5, 'wc.back': 33, 'cleanWc.go': 32.5, 'cleanWc.face': 32,
+            'cleanWc.take': 30.5, 'cleanWc.scrub': 28.5, 'cleanWc.put': 22.5, 'cleanWc.flush': 21, 'cleanWc.back': 18.5, 'sink.face': 16.5, 'sink.wash': 15.5 },
+          wash: { 'sink.face': 16, 'sink.wash': 15 },
+          fire: { 'fire.idle': 18, 'fire.toKit': 17.5, 'fire.grab': 14, 'fire.toFire': 12.5, 'fire.pour': 11, 'fire.stir': 9.5, 'fire.pour2': 6, 'fire.check': 4.5, 'fire.toKitBack': 2.5, 'fire.put': 1 },
+          wood: { 'wood.idle': 8, 'wood.toPile': 7.5, 'wood.pick': 5.5, 'wood.carry': 4, 'wood.feed': 3.5 },
+          eatApple: { 'eat.go': 50, 'eat.take': 47, 'eat.sit': 45.5, 'eat.bite': 37, 'eat.toss': 4.5 }
+        };
+        const CD_MEAL_PRE = { '': 7.5, face: 7, in: 6, sit: 4, scoot: 2 }, CD_MEAL_POST = { 'table.unscoot': 35.5, 'table.rise': 33.5, 'table.out': 31.5, 'dishes.face': 25.5, 'dishes.wash': 24, 'dishes.stow': 2 };
+        const CD_UDON_BOIL = new Set(['boil', 'toBoard', 'boardFace', 'knifeTake', 'chop', 'knifeBack', 'backStove', 'backFace']), CD_UDON_END = { off: 10, bowl: 8.5, pour: 6.5, garnish: 3, take: 1.5 };
+        const CD_RICE_PRE = { toPeg: 25, pegFace: 23.5, takePan: 22, toStove: 20.5, stoveFace: 19, place: 17.5, panOn: 16, heat: 14.5, add: 2.5 };
+        const CD_APPLE = { look: 14, aim: 13, cup: 11.5, twist: 10.5, retract: 9.5, plant: 8, take: 7, inspect: 6, drop: 3.5, lift: 1 }, CD_APPLE_N = 3;
+        const CD_SHOWER_AFTER = 9, CD_TOWEL_AFTER = 27;
+        const CD_STARS_POST = { lie: 50, up: 48, off: 43, roll: 38, back: 25, put: 1.5 }, CD_STARS_PRE = { };
+        const CD_TRIM_PRE = { toStart: 15, start: 12, toDon: 6.5, don: 6, toGrab: 2.5, grab: 2 }, CD_TRIM_PT = 2, CD_TRIM_SEG = 2;
+        const _cdA = new THREE.Vector3();
+        function cdDroneFly(D) {
+          let s = 0, x = D.pos.x, y = D.pos.y, z = D.pos.z;
+          for (let i = D.wi; i < D.wp.length; i++) {
+            const W = D.wp[i], v = W.v || 4.5;
+            if (W.loop) {
+              const R = W.loop, started = W.s !== undefined, lead = started ? W.s : (W.cdS ??= R.near(_cdA.set(x, y, z))), n = started ? W.n : 0;
+              R.at(lead, _cdA); s += Math.max(0, Math.hypot(_cdA.x - x, _cdA.z - z) - 14) / v + (R.tot - n) / v;
+              R.at(lead - n, _cdA); x = _cdA.x; z = _cdA.z;
+            } else {
+              s += Math.hypot(W.p.x - x, W.p.y - y, W.p.z - z) / v + 2 + v / 6 + Math.max(0, (W.hover || 0) - (i === D.wi ? W.hold || 0 : 0));
+              x = W.p.x; y = W.p.y; z = W.p.z;
+            }
+          }
+          return s;
+        }
+        function cdTrimLeft(J, sub) {
+          let n = 0; for (let i = J.si; i < J.segs.length; i++) n += J.segs[i].length - (i === J.si && sub !== 'go' && sub !== 'toStart' ? Math.min(J.wi, J.segs[i].length) : 0);
+          return n * CD_TRIM_PT + (J.segs.length - J.si) * CD_TRIM_SEG + ENG_CD_TL.trim.back;
+        }
+        const ENG_CD_FN = {
+          cook: (e, sub, k, now) => e.van && e.van.station === 'stove' && e.van.T ? cdCookLeft(e, e.van, k, now) : null,
+          breakfast: cdMeal, lunch: cdMeal, snack: cdMeal,
+          toilet: (e, sub, k, now) => sub === 'wc.seated' && e.van.until ? e.van.until - now + 39.5 : null,
+          shower: (e, sub, k, now) => sub === 'shower.wash' && e.van.until ? e.van.until - now + CD_SHOWER_AFTER + ENG_TOWEL_DRY + CD_TOWEL_AFTER : sub === 'towel.dry' ? ENG_TOWEL_DRY - k + CD_TOWEL_AFTER : null,
+          drone: (e, sub) => sub === 'flying' ? cdDroneFly(droneToy.state) + ENG_CD_TL.drone.land : null,
+          apples: (e, sub, k) => {
+            const St = applePick.state, c = CD_APPLE[sub]; if (c === undefined) return null;
+            const done = sub === 'lift' || (sub === 'drop' && St.k > 1.35);
+            return c - k + Math.max(0, CD_APPLE_N - St.picked - (done ? 0 : 1)) * CD_APPLE.look + ENG_CD_TL.apples.stow;
+          },
+          trim: (e, sub, k) => {
+            const J = trimJob.state; if (!J.segs) return null;
+            if (CD_TRIM_PRE[sub] !== undefined) return CD_TRIM_PRE[sub] - k + cdTrimLeft(J, 'go');
+            return sub === 'go' || sub === 'go2' || sub === 'cut' || sub === 'wait' ? cdTrimLeft(J, sub) : null;
+          },
+          garden: (e, sub, k) => {
+            const J = gardenJob.state, water = ENG_CD_TL.garden.toCan;
+            if (sub === 'toSlot' || sub === 'plant') return Math.max(1, (sub === 'toSlot' ? 11 : 5) - k) + Math.max(0, J.list.length - J.n - 1) * 9 + water;
+            if (sub === 'toPour' || sub === 'pour') return Math.max(1, (sub === 'toPour' ? 6 : 4) - k) + Math.max(0, 1 - J.n) * 5 + 3;
+            return null;
+          },
+          stars: (e, sub, k) => {
+            const S = skyWatch.state, post = CD_STARS_POST[sub]; if (sub === 'lie' && S.stop) return post; if (post !== undefined && sub !== 'lie') return post - k;
+            const lie = engForceAct === 'stars' ? 3900 - (sub === 'lie' ? S.k : 0) : e.actLeft - 60;
+            return Math.max(0, lie) + CD_STARS_POST.up + (sub === 'lie' ? 0 : CD_STARS_PRE[sub] ?? 0);
+          },
+          chair: (e, sub) => e.phase === 'read' && e.timer > 0 ? e.timer : null,
+          smoke: (e, sub) => e.phase === 'eatFish' && e.timer > 0 ? e.timer + 1.5 : null,
+          dinner: (e, sub) => e.phase === 'eatFish' && e.timer > 0 ? e.timer + 1.5 + 300 : e.phase === 'eat' && e.timer > 0 ? e.timer : null
+        };
+        function cdCookLeft(e, V, k, now) {
+          const udon = (V ? V.recipe : engMealPick || (liveWeather.localHour < 14 ? 'udon' : 'rice')) === 'udon';
+          const T = V ? V.T : udon ? Math.max(420, Math.min(1320, e.actLeft - 100)) : Math.max(300, Math.min(840, e.actLeft - 100)), st = V ? V.st || '' : '';
+          if (udon) {
+            if (CD_UDON_BOIL.has(st) && V.boilDur) return V.t0 + V.boilDur - now + 2.5 + T * 0.5 + 10;
+            if (st === 'noodles') return 2.5 - k + T * 0.5 + 10;
+            if (st === 'stir' && V.stirDur) return V.t0 + V.stirDur - now + 10;
+            if (CD_UDON_END[st] !== undefined) return CD_UDON_END[st] - k;
+            return (st === 'on' ? 1.5 : 3) - k + T * 0.9 + 12.5;
+          }
+          if (st === 'fry' && V.fryDur) return V.t0 + V.fryDur - now + 3;
+          if (st === 'off' || st === 'take') return (st === 'off' ? 3 : 1.5) - k;
+          return (CD_RICE_PRE[st] ?? 27) - k + Math.max(120, T - 60) + 3;
+        }
+        function cdMeal(e, sub, k, now) {
+          const V = e.van; if (!V) return null;
+          if (sub === 'table.eat' && V.dur) return V.t0 + V.dur - now + CD_MEAL_POST['table.unscoot'];
+          if (CD_MEAL_POST[sub] !== undefined) return CD_MEAL_POST[sub] - k;
+          if (V.station === 'table' && CD_MEAL_PRE[V.st || ''] !== undefined)
+            return CD_MEAL_PRE[V.st || ''] - k + Math.max(90, Math.min(e.act === 'lunch' ? 900 : 720, e.actLeft - 150)) + CD_MEAL_POST['table.unscoot'];
+          return null;
+        }
+        const cdSub = e => {
+          const p = e.phase, V = e.inVan && e.van;
+          if (V) return (V.station || '') + '.' + (V.st || '');
+          return p === 'drone' ? droneToy.state.st : p === 'apple' ? applePick.state.st : p === 'trim' ? trimJob.state.st : p === 'garden' ? gardenJob.state.st
+            : p === 'engine' ? engineJob.state.st : p === 'stars' ? skyWatch.state.st : p === 'fire' ? 'fire.' + fireJob.state.st : p === 'wood' ? 'wood.' + woodJob.state.st
+            : p === 'appleEat' ? 'eat.' + (applePick.state.eat ? applePick.state.eat.st : '') : p;
+        };
+        function cdCap(e, act, now) {
+          if (engForceAct === act) return act === 'research' ? 1200 - (now - engForceT0) : act === 'deskread' ? 600 - (now - engForceT0) : Infinity;
+          if (AUTO.act === act && now < AUTO.until) return AUTO.until - now;
+          return ENG_CD_SLOT.has(act) || act === 'dinner' ? e.actLeft : Infinity;
+        }
+        const CD = { act: null, sub: null, subT0: 0, est: NaN, estT: 0, show: NaN, t: 0 };
+        function engCountdown(e) {
+          const act = e.act, now = clock.elapsedTime;
+          if (!act || !ENG_CD_ICON[act] || e.phase === 'fish' || e.phase === 'shelter' || e.phase === 'toShelter') { CD.act = null; return null; }
+          if (act !== CD.act) { const y = ENG_CD_TYP[act]; CD.act = act; CD.sub = null; CD.est = typeof y === 'function' ? y(e) : y ?? NaN; CD.estT = e.actT0 ?? now; CD.show = NaN; }
+          const sub = cdSub(e); if (sub !== CD.sub) { CD.sub = sub; CD.subT0 = now; }
+          let est;
+          if (ENG_CD_SLOT.has(act) || (act === 'dinner' && engForceAct !== act)) est = cdCap(e, act, now);
+          else {
+            const f = ENG_CD_FN[act], tl = ENG_CD_TL[act], k = now - CD.subT0;
+            let n = f ? f(e, sub, k, now) : null;
+            if (n == null && tl && tl[sub] !== undefined) n = tl[sub] - k;
+            if (n != null && Number.isFinite(n)) { CD.est = n; CD.estT = now; }
+            est = Math.min(cdCap(e, act, now), CD.est - (now - CD.estT));
+          }
+          if (!Number.isFinite(est) || est < -4) { CD.show = NaN; return null; }
+          if (!Number.isFinite(CD.show)) CD.show = est;
+          else { const dt = Math.max(0, now - CD.t); CD.show -= dt; const d = est - CD.show; if (Math.abs(d) > 30) CD.show = est; else if (Math.abs(d) > 0.5) CD.show += d * Math.min(1, dt * 0.6); }
+          CD.t = now;
+          return { icon: ENG_CD_ICON[act], sec: Math.max(1, Math.ceil(CD.show)), est };
+        }
+        if (ldStep(0.406)) await ldYield();
         const caravanDark = new THREE.MeshLambertMaterial({ color: 0x6f7a85 }), chairFrame = new THREE.MeshLambertMaterial({ color: 0x8b9197 });
-        if (ldStep(0.388)) await ldYield();
+        if (ldStep(0.406)) await ldYield();
         const chairFabric = new THREE.MeshLambertMaterial({ color: 0xE2D6C0 }),
           campFabricYellow = new THREE.MeshLambertMaterial({ color: 0xf5e2a3 }),
           campFrameWood = new THREE.MeshLambertMaterial({ color: 0x8b6f47 });
-        if (ldStep(0.388)) await ldYield();
+        if (ldStep(0.406)) await ldYield();
         const caravanBody = new THREE.MeshLambertMaterial({ color: 0xE2D6C0, transparent: true, opacity: 0.5, depthWrite: false }), caravanRoofM = new THREE.MeshLambertMaterial({ color: 0xd8d3c6 }),
           caravanStripe = new THREE.MeshLambertMaterial({ color: 0xc0744a }),
           tyreMat = new THREE.MeshLambertMaterial({ color: 0x2b2925 }), rimMat = new THREE.MeshLambertMaterial({ color: 0xb9b3a6 }),
           awningMat = new THREE.MeshLambertMaterial({ color: 0xE2D6C0 });
-        if (ldStep(0.388)) await ldYield();
+        if (ldStep(0.407)) await ldYield();
+        const VENV = { tex: null, gen: null, rt: null, k: 0, n: 0, yaw: 0, rnd: mulberry32(0x5EED0E2) };
+        function venvRnd(f) { const R0 = Math.random; Math.random = VENV.rnd; try { return f(); } finally { Math.random = R0; } }
+        function venvPaint() {
+          const W = 64, H = 32, d = VENV.tex.image.data, s = VENV.k / Math.PI, nf = VENV.n, cy = Math.cos(VENV.yaw), sy = Math.sin(VENV.yaw);
+          const sm = (a, b, v) => { const t = Math.min(1, Math.max(0, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
+          const enc = v => { v = Math.min(1, Math.max(0, v * s)); return Math.round(255 * (v <= 0.0031308 ? 12.92 * v : 1.055 * v ** (1 / 2.4) - 0.055)); };
+          const FLOOR = [0.58, 0.54, 0.48], WOOD = [0.64, 0.60, 0.54], WALL = [0.72, 0.70, 0.64], CEIL = [0.86, 0.84 - 0.03 * nf, 0.78 - 0.08 * nf],
+            WIN = [1.50 - 1.42 * nf, 1.62 - 1.52 * nf, 1.80 - 1.60 * nf], c = [0, 0, 0];
+          const mix = (a, t) => { for (let i = 0; i < 3; i++) c[i] += (a[i] - c[i]) * t; };
+          for (let r = 0; r < H; r++) {
+            const y = Math.sin(((r + 0.5) / H - 0.5) * Math.PI), kW = sm(-0.45, -0.25, y), kU = sm(-0.05, 0.05, y), kC = sm(0.45, 0.65, y);
+            for (let q = 0; q < W; q++) {
+              const ph = ((q + 0.5) / W - 0.5) * 2 * Math.PI, lz = Math.cos(ph) * sy + Math.sin(ph) * cy;
+              c[0] = FLOOR[0]; c[1] = FLOOR[1]; c[2] = FLOOR[2]; mix(WOOD, kW); mix(WALL, kU); mix(CEIL, kC);
+              mix(WIN, sm(0.62, 0.8, Math.abs(lz)) * sm(0.02, 0.1, y) * (1 - sm(0.42, 0.5, y)));
+              const i = (r * W + q) * 4; d[i] = enc(c[0]); d[i + 1] = enc(c[1]); d[i + 2] = enc(c[2]); d[i + 3] = 255;
+            }
+          }
+          VENV.tex.needsUpdate = true;
+        }
+        function vanEnvMap() {
+          if (!VENV.rt) venvRnd(() => {
+            const t = VENV.tex = new THREE.DataTexture(new Uint8Array(64 * 32 * 4), 64, 32);
+            t.colorSpace = THREE.SRGBColorSpace; t.mapping = THREE.EquirectangularReflectionMapping; t.magFilter = t.minFilter = THREE.LinearFilter;
+            VENV.gen = new THREE.PMREMGenerator(renderer); VENV.k = hemi.intensity + amb.intensity; VENV.n = nightFactor; venvPaint();
+            VENV.rt = VENV.gen.fromEquirectangular(t);
+          });
+          return VENV.rt.texture;
+        }
+        function vanEnvTick() {
+          const k = hemi.intensity + amb.intensity, e = caravanObj.matrixWorld.elements, yaw = Math.atan2(e[8], e[10]), dy = yaw - VENV.yaw;
+          if (Math.abs(k - VENV.k) < 0.04 * k && Math.abs(nightFactor - VENV.n) < 0.04 && Math.abs(Math.atan2(Math.sin(dy), Math.cos(dy))) < 0.1) return;
+          VENV.k = k; VENV.n = nightFactor; VENV.yaw = yaw; venvPaint(); venvRnd(() => VENV.gen.fromEquirectangular(VENV.tex, VENV.rt));
+        }
+        listen(renderer.domElement, 'webglcontextrestored', () => { VENV.k = -1; });
+        function vanMetal(c, rough = 0.35, o = {}) { return new THREE.MeshStandardMaterial({ color: c, metalness: 1, roughness: rough, envMap: vanEnvMap(), ...o }); }
+        const VAN_CHROME = venvRnd(() => vanMetal(0xc9ced2, 0.12));
+        if (ldStep(0.409)) await ldYield();
         const WORK_LAMP_HEAD = { x: -0.002, z: 0.219, radius: 0.039, ledY: 0.43 };
         function workLamp(parent) {
           const lamp = new THREE.Group(); lamp.name = 'Đèn bàn học';
@@ -9501,11 +10297,11 @@
           const m = new THREE.Mesh(geo, mats); m.name = key; m.castShadow = m.receiveShadow = true; return m;
         }
 
-        if (ldStep(0.392)) await ldYield();
+        if (ldStep(0.412)) await ldYield();
         function motorhomeKitchen(galley, ceilY = 3.56, ext = 0) {
           const lam = (c, o = {}) => new THREE.MeshLambertMaterial({ color: c, ...o });
-          const M = { counter: lam(0xd8d0bc), steel: lam(0x98a7a4), dark: lam(0x2e3436), iron: lam(0x1f2224), peg: lam(0xd9c49a), hole: lam(0x5a4a33), boardG: lam(0x9fd6a4),
-            boardT: lam(0x6fb0a0), wood: lam(0x7a4a2a), blade: lam(0xc8ced2), cap: lam(0x3b3f42), sponge: lam(0xe36f9a), soap: lam(0xe9e6dc), lid: lam(0x9aa5a8),
+          const M = { counter: lam(0xd8d0bc), steel: vanMetal(0xc2c7c9), dark: lam(0x2e3436), iron: lam(0x1f2224), peg: lam(0xd9c49a), hole: lam(0x5a4a33), boardG: lam(0x9fd6a4),
+            boardT: lam(0x6fb0a0), wood: lam(0x7a4a2a), blade: vanMetal(0xd2d7da, 0.12), cap: lam(0x3b3f42), sponge: lam(0xe36f9a), soap: lam(0xe9e6dc), lid: vanMetal(0xaeb4b6),
             cab: lam(0xa58e69), front: lam(0xd0ccc0), pull: lam(0x43494b),
             hood: lam(0x98a7a4, { transparent: true, opacity: 0.5, depthWrite: false }), hoodDk: lam(0x2e3436, { transparent: true, opacity: 0.5, depthWrite: false }) };
           const S = new THREE.Group(); S.name = 'Bếp: phần cố định';
@@ -9584,7 +10380,7 @@
           });
           const hoodLamp = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.006, 0.04), new THREE.MeshBasicMaterial({ color: 0x8a8578, transparent: true, opacity: 0.5, depthWrite: false })); hoodLamp.position.set(2.57, 2.292 + 0.58, 0.59); P.add(hoodLamp);
           const pot = new THREE.Group(); pot.name = 'Nồi luộc udon'; pot.position.set(BURN[1][0], 1.894, BURN[1][1]); P.add(pot);
-          const potM = new THREE.MeshLambertMaterial({ color: 0xa9b4b6, side: THREE.DoubleSide });
+          const potM = vanMetal(0xbcc3c5, 0.3, { side: THREE.DoubleSide });
           const potLathe = pts => { const m = new THREE.Mesh(new THREE.LatheGeometry(pts.map(([r, y]) => new THREE.Vector2(r, y)), 20), potM); m.castShadow = true; pot.add(m); };
           potLathe([[0, 0], [0.085, 0], [0.09, 0.006], [0.09, 0.11], [0.094, 0.114], [0.085, 0.11], [0.085, 0.012], [0, 0.012]]);
           for (const s of [-1, 1]) { const hdl = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.014, 0.05), M.dark); hdl.position.set(0, 0.098, s * 0.11); pot.add(hdl); }
@@ -9604,7 +10400,7 @@
           return { flames, knobs, hoodLamp, pot, potWater, potNoodles, potSteam, pegPan, stovePan, pegKnife, scallions, counterBowl, tapWater, burners: BURN, steam: 0, TOP };
         }
 
-        if (ldStep(0.397)) await ldYield();
+        if (ldStep(0.417)) await ldYield();
         const TR = { yIn: 0.83, xP: -0.58, xF: -2.12, xR: 2.03, wr: 0.44, wz: 0.955, front: -3.264, rear: 3.05 + 0.792, ext: 0.792, cut: 2.65, rc: 0.12, sill: 0.608, T: 0.035,
           door: [-0.55, 0.83, 0.83, 2.72], archR: 0.535, archY: 0.52, inW: 0.98, ceil: 2.90 };
         const TR_SEC = [[0.608, 1.018], [0.718, 1.06], [1.015, 1.063], [1.30, 1.065], [1.543, 1.065], [1.631, 1.044], [1.72, 1.034], [1.763, 1.030], [2.093, 1.022],
@@ -9925,7 +10721,7 @@
           parent.add(cab);
           return galley;
         }
-        if (ldStep(0.417)) await ldYield();
+        if (ldStep(0.436)) await ldYield();
         const VAN_GLB = window.__vanBin || 'https://michaeltran75.github.io/3d-garden/models/transit.bin';
         const ENG_GLB = window.__engineGlb || 'https://michaeltran75.github.io/3d-garden/models/engine.glb', ENG_AT = { x: -2.64, y: 0.55, s: 0.902 };
         const vanGlb = { ready: false }, _ledV = new THREE.Vector3();
@@ -9997,7 +10793,7 @@
             worldJoin('hover', 40, H => H.add(g2, { on: engineSeen, skip: m => m.material !== mat }));
           }
         }
-        if (ldStep(0.422)) await ldYield();
+        if (ldStep(0.441)) await ldYield();
         const studyDeskLighting = { light: null, bulb: null, on: null };
         const studyLaptop = { hinge: null, screen: null, light: null, open: 0, target: 0 };
         const studyChairRig = { obj: null, home: 0, off: 0, sx: 0, sw: 0 };
@@ -10016,7 +10812,7 @@
           const { W, D, HB, HL, SW, SH } = MBP, g = new THREE.Group();
           const rr = (w, h, r) => { const s = new THREE.Shape(), x = -w / 2, y = -h / 2; s.moveTo(x + r, y); s.lineTo(x + w - r, y); s.quadraticCurveTo(x + w, y, x + w, y + r); s.lineTo(x + w, y + h - r); s.quadraticCurveTo(x + w, y + h, x + w - r, y + h); s.lineTo(x + r, y + h); s.quadraticCurveTo(x, y + h, x, y + h - r); s.lineTo(x, y + r); s.quadraticCurveTo(x, y, x + r, y); return s; };
           const slab = (th) => { const geo = new THREE.ExtrudeGeometry(rr(W, D, 0.01), { depth: th - 0.0016, bevelEnabled: true, bevelThickness: 0.0008, bevelSize: 0.0008, bevelSegments: 2, curveSegments: 4 }); geo.rotateX(-Math.PI / 2); geo.translate(0, 0.0008, 0); return geo; };
-          const alu = new THREE.MeshPhongMaterial({ color: 0x6a6d73, specular: 0x5a5a5a, shininess: 45 }), dark = new THREE.MeshPhongMaterial({ color: 0x1a1a1c, specular: 0x333333, shininess: 60 });
+          const alu = vanMetal(0x8c9097), dark = new THREE.MeshPhongMaterial({ color: 0x1a1a1c, specular: 0x333333, shininess: 60 });
           const base = new THREE.Mesh(slab(HB), alu); base.castShadow = true; g.add(base);
           const cv = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
           const top = cv(1024, 714), x = top.getContext('2d'), glow = cv(512, 357), gx = glow.getContext('2d'), k = 1024 / (W * 1000);
@@ -10045,7 +10841,7 @@
           const hingeBar = new THREE.Mesh(new THREE.CylinderGeometry(0.0045, 0.0045, W - 0.06, 10), dark); hingeBar.rotation.z = Math.PI / 2; hingeBar.position.set(0, HB - 0.001, -D / 2 + 0.006); g.add(hingeBar);
           const hinge = new THREE.Group(); hinge.position.set(0, HB, -D / 2 + 0.006); g.add(hinge);
           const lid = new THREE.Mesh(slab(HL), alu); lid.position.z = D / 2 - 0.006; lid.castShadow = true; hinge.add(lid);
-          const glass = new THREE.Mesh(new THREE.ShapeGeometry(rr(W - 0.0016, D - 0.0016, 0.0092), 4), new THREE.MeshPhongMaterial({ color: 0x08080a, specular: 0x555555, shininess: 140, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }));
+          const glass = new THREE.Mesh(new THREE.ShapeGeometry(rr(W - 0.0016, D - 0.0016, 0.0092), 4), new THREE.MeshStandardMaterial({ color: 0x08080a, roughness: 0.1, metalness: 0, envMap: vanEnvMap(), polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }));
           glass.rotation.x = Math.PI / 2; glass.position.set(0, -0.0003, D / 2 - 0.006); hinge.add(glass);
           const sc = cv(MBP.CW, MBP.CH), sx2 = sc.getContext('2d'); sx2.fillStyle = '#000'; sx2.fillRect(0, 0, MBP.CW, MBP.CH);
           const scrTex = new THREE.CanvasTexture(sc); scrTex.colorSpace = THREE.SRGBColorSpace; scrTex.anisotropy = 4;
@@ -10121,6 +10917,7 @@
           entrySteps.userData.treads = stepTreads; entrySteps.userData.door = { cx: stepCx, w: stepWidth, wall: wallZ, x0: TR.door[0], x1: TR.door[1] };
           g.add(entrySteps);
           const grab = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.62, 6), metalMat); grab.position.set(TR.door[0] + 0.05, yIn + 0.95, dz - 0.02); grab.castShadow = true; g.add(grab);
+          entrySteps.userData.grab = grab.position.toArray();
           const sillPlate = bx(TR.door[1] - TR.door[0], 0.012, wallZ - dz + 0.03, metalMat, true, false); sillPlate.position.set((TR.door[0] + TR.door[1]) / 2, yIn + 0.006, (dz + wallZ) / 2); g.add(sillPlate);
 
           const bedLen = 2.0, bedW = 0.76, BED_FWD = 0.12, bedX0 = x0 - BED_FWD, bedX1 = bedX0 + bedLen, bedCx = bedX0 + bedLen / 2, bedZ = -dz + bedW / 2;
@@ -10310,8 +11107,8 @@
           g.add(study);
           const TX = x0 + 0.305, TZ = dz - 0.19, TW = 0.55, TD = 0.38;
           const tTop = bx(TW, 0.03, TD, woodMat, true, true, lineDark); tTop.name = 'Bàn vuông'; tTop.userData.noBake = true; tTop.position.set(TX, yIn + 0.805, TZ); tTop.castShadow = true; g.add(tTop);
-          const tLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.78, 8), metalMat); tLeg.position.set(TX, yIn + 0.39, TZ); g.add(tLeg);
-          const tFoot = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.18, 0.02, 14), metalMat); tFoot.position.set(TX, yIn + 0.01, TZ); g.add(tFoot);
+          const tLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.78, 8), VAN_CHROME); tLeg.position.set(TX, yIn + 0.39, TZ); g.add(tLeg);
+          const tFoot = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.18, 0.02, 14), VAN_CHROME); tFoot.position.set(TX, yIn + 0.01, TZ); g.add(tFoot);
           const breakfast = new THREE.Group(); breakfast.name = 'Đồ ăn sáng trên bàn vuông'; breakfast.userData.noBake = true; breakfast.position.set(TX, yIn + 0.821, TZ); g.add(breakfast);
           const BOOK_K = 1.1;
           const layFlat = (item, cx, cz, yaw) => {
@@ -10320,8 +11117,9 @@
             item.position.set(cx + Math.sin(yaw) * h / 2, t / 2, cz + Math.cos(yaw) * h / 2);
           };
           let cerealBowl = null;
-          const cereal = breakfastItem('cereal'); layFlat(cereal, -0.14, -0.02, 0.14); cereal.name = 'Hộp ngũ cốc'; breakfast.add(cereal);
-          const coffee = breakfastItem('coffee'); layFlat(coffee, 0.075, -0.03, -0.1); coffee.name = 'Hộp cà phê'; breakfast.add(coffee);
+          { const pile = new THREE.Group(); pile.name = 'Hai hộp như sách trên bàn học'; pile.position.set(1.50, yIn + dH + 0.001, -0.71); study.add(pile);
+            const cereal = breakfastItem('cereal'); layFlat(cereal, 0, 0, Math.PI + 0.06); cereal.name = 'Hộp ngũ cốc'; pile.add(cereal);
+            const coffee = breakfastItem('coffee'); layFlat(coffee, 0.01, 0.012, Math.PI - 0.12); coffee.position.y += BREAKFAST_SIZE.cereal[2] * BOOK_K; coffee.name = 'Hộp cà phê'; pile.add(coffee); }
           const milk = breakfastItem('milk'); milk.name = 'Chai sữa'; milk.position.set(0.218, 0, -0.08); breakfast.add(milk);
           {
             const bowl = cerealBowl = new THREE.Group(); bowl.name = 'Bát ngũ cốc'; bowl.position.set(-0.05, 0, -0.1); bowl.visible = false; breakfast.add(bowl);
@@ -10338,16 +11136,16 @@
           const stool = new THREE.Group(); stool.name = 'Ghế đẩu bàn ăn'; stool.userData.noBake = true; stool.position.set(0, 0, 0); g.add(stool);
           { const sx0 = TX, sz0 = STOOL_REST;
             const top = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.162, 0.05, 18), woodMat); top.position.set(sx0, yIn + 0.455, sz0); top.castShadow = true; stool.add(top);
-            for (let k = 0; k < 4; k++) { const a = Math.PI / 4 + k * Math.PI / 2, leg = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.018, 0.45, 6), metalMat);
+            for (let k = 0; k < 4; k++) { const a = Math.PI / 4 + k * Math.PI / 2, leg = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.018, 0.45, 6), VAN_CHROME);
               leg.position.set(sx0 + Math.cos(a) * 0.12, yIn + 0.215, sz0 + Math.sin(a) * 0.12); leg.rotation.set(Math.sin(a) * 0.12, 0, -Math.cos(a) * 0.12); leg.castShadow = true; stool.add(leg); }
-            const ring = new THREE.Mesh(new THREE.TorusGeometry(0.135, 0.009, 4, 18), metalMat); ring.rotation.x = Math.PI / 2; ring.position.set(sx0, yIn + 0.15, sz0); stool.add(ring); }
+            const ring = new THREE.Mesh(new THREE.TorusGeometry(0.135, 0.009, 4, 18), VAN_CHROME); ring.rotation.x = Math.PI / 2; ring.position.set(sx0, yIn + 0.15, sz0); stool.add(ring); }
           const bedHelmet = engHelmetProp(); bedHelmet.position.set(bedX0 + 0.28, yIn + mattTop - 0.02, bedZ + 0.16); bedHelmet.rotation.y = 0.6; bedHelmet.visible = false; g.add(bedHelmet);
           const kitchen = motorhomeKitchen(galley, (trInCeil(0.75) - galley.position.y) / KIT_K, (x1 - 0.025 - galley.position.x) / KIT_K - 0.91);
 
           const bthW = 2 * dz, bthLen = xB - x1, bthCX = (x1 + xB) / 2, flY = yIn, ceilY = ceil - 0.02;
           const bthWallM = new THREE.MeshLambertMaterial({ color: 0xE2D6C0, transparent: true, opacity: 0.42, depthWrite: false });
           const twcM = new THREE.MeshLambertMaterial({ color: 0xE2D6C0 }), tileM = new THREE.MeshLambertMaterial({ color: 0xE2D6C0 }),
-            mirrorM = new THREE.MeshLambertMaterial({ color: 0xbfe0e8 }), towelM = new THREE.MeshLambertMaterial({ color: 0xd98c6a });
+            mirrorM = vanMetal(0xc4e2ec, 0.12), towelM = new THREE.MeshLambertMaterial({ color: 0xd98c6a });
           const bath = new THREE.Group(); bath.name = 'Phòng tắm gọn';
           bath.userData.layout = { length: bthLen, width: bthW, floorArea: bthLen * bthW, entryWidth: 0.6, wetBath: [bthLen, 0.73], rearX: xB };
           const bthFlr = bx(bthLen, 0.012, bthW, tileM); bthFlr.position.set(bthCX, flY + 0.006, 0); bthFlr.receiveShadow = true; bath.add(bthFlr);
@@ -10378,26 +11176,28 @@
           const twcLidHinge = new THREE.Group(); twcLidHinge.name = 'Bản lề nắp bồn cầu'; twcLidHinge.userData.noBake = true; twcLidHinge.position.set(0.13, flY + 0.4625, 0); toilet.add(twcLidHinge);
           const twcLid = bx(0.34, 0.045, 0.36, twcM, true, true, lineDark); twcLid.position.set(-0.17, -0.0225, 0); twcLidHinge.add(twcLid);
           const twcSeat = new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.038, 6, 16), twcM); twcSeat.rotation.x = Math.PI / 2; twcSeat.scale.x = 1.25; twcSeat.position.set(-0.02, flY + 0.42, 0); twcSeat.castShadow = true; toilet.add(twcSeat);
-          const twcBtn = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.03, 12), metalMat); twcBtn.position.set(0.215, flY + 0.775, 0); toilet.add(twcBtn);
+          const twcBtn = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.03, 12), VAN_CHROME); twcBtn.position.set(0.215, flY + 0.775, 0); toilet.add(twcBtn);
           toilet.rotation.y = Math.PI / 2; toilet.position.set(twcX, 0, twcZ);
           { const K = 0.95; toilet.scale.setScalar(K); toilet.position.add(new THREE.Vector3(0.28, flY, 0).multiplyScalar(1 - K).applyEuler(toilet.rotation)); }
           toilet.userData.noBake = true; bakeStatic(toilet); bath.add(toilet);
           const spX = twcX - 0.25, spZ = -dz + 0.03;
-          const spValve = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.05, 10), metalMat); spValve.rotation.x = Math.PI / 2; spValve.position.set(spX, flY + 0.38, spZ); bath.add(spValve);
-          const spHolder = bx(0.06, 0.06, 0.05, metalMat, false, false); spHolder.position.set(spX, flY + 0.72, spZ); bath.add(spHolder);
-          const spHead = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.018, 0.15, 10), metalMat); spHead.position.set(spX, flY + 0.72, spZ + 0.04); spHead.castShadow = true; bath.add(spHead);
-          const spNozzle = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.045, 10), metalMat); spNozzle.rotation.x = Math.PI / 2; spNozzle.position.set(spX, flY + 0.8, spZ + 0.065); bath.add(spNozzle);
+          const spValve = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.05, 10), VAN_CHROME); spValve.rotation.x = Math.PI / 2; spValve.position.set(spX, flY + 0.38, spZ); bath.add(spValve);
+          const spHolder = bx(0.06, 0.06, 0.05, VAN_CHROME, false, false); spHolder.position.set(spX, flY + 0.72, spZ); bath.add(spHolder);
+          const spHead = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.018, 0.15, 10), VAN_CHROME); spHead.position.set(spX, flY + 0.72, spZ + 0.04); spHead.castShadow = true; bath.add(spHead);
+          const spNozzle = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.045, 10), VAN_CHROME); spNozzle.rotation.x = Math.PI / 2; spNozzle.position.set(spX, flY + 0.8, spZ + 0.065); bath.add(spNozzle);
           const spHose = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([
             new THREE.Vector3(spX, flY + 0.38, spZ + 0.03), new THREE.Vector3(spX + 0.03, flY + 0.27, spZ + 0.09),
             new THREE.Vector3(spX + 0.05, flY + 0.33, spZ + 0.1), new THREE.Vector3(spX + 0.02, flY + 0.55, spZ + 0.06), new THREE.Vector3(spX, flY + 0.65, spZ + 0.04)
-          ]), 24, 0.008, 6, false), metalMat); bath.add(spHose);
+          ]), 24, 0.008, 6, false), VAN_CHROME); bath.add(spHose);
           const snkX = (x1 + xB) / 2, sWallZ = dz - 0.02;
-          const snkCab = bx(0.56, 0.42, 0.3, woodMat, true, true, lineDark); snkCab.position.set(snkX, flY + 0.5, sWallZ - 0.15); bath.add(snkCab);
-          const snkTop = bx(0.60, 0.05, 0.34, tileM, true, true, lineDark); snkTop.position.set(snkX, flY + 0.735, sWallZ - 0.17); bath.add(snkTop);
-          const snkBasin = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.09, 0.1, 14), twcM); snkBasin.position.set(snkX, flY + 0.78, sWallZ - 0.19); snkBasin.castShadow = true; bath.add(snkBasin);
-          const snkTap = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.14, 8), metalMat); snkTap.position.set(snkX, flY + 0.83, sWallZ - 0.05); bath.add(snkTap);
-          const snkSpout = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.11, 8), metalMat); snkSpout.rotation.x = -Math.PI / 2.3; snkSpout.position.set(snkX, flY + 0.9, sWallZ - 0.1); bath.add(snkSpout);
-          const mirror = bx(0.46, 0.4, 0.03, mirrorM, false, true, lineDark); mirror.position.set(snkX, flY + 1.16, sWallZ - 0.015); bath.add(mirror);
+          const lavabo = new THREE.Group(); lavabo.name = 'Lavabo';
+          const snkCab = bx(0.56, 0.42, 0.3, woodMat, true, true, lineDark); snkCab.position.set(snkX, flY + 0.5, sWallZ - 0.15); lavabo.add(snkCab);
+          const snkTop = bx(0.60, 0.05, 0.34, tileM, true, true, lineDark); snkTop.position.set(snkX, flY + 0.735, sWallZ - 0.17); lavabo.add(snkTop);
+          const snkBasin = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.09, 0.1, 14), twcM); snkBasin.position.set(snkX, flY + 0.78, sWallZ - 0.19); snkBasin.castShadow = true; lavabo.add(snkBasin);
+          const snkTap = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.14, 8), VAN_CHROME); snkTap.position.set(snkX, flY + 0.83, sWallZ - 0.05); lavabo.add(snkTap);
+          const snkSpout = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.11, 8), VAN_CHROME); snkSpout.rotation.x = -Math.PI / 2.3; snkSpout.position.set(snkX, flY + 0.9, sWallZ - 0.1); lavabo.add(snkSpout);
+          const mirror = bx(0.46, 0.4, 0.03, mirrorM, false, true, lineDark); mirror.position.set(snkX, flY + 1.16, sWallZ - 0.015); lavabo.add(mirror);
+          lavabo.userData.noBake = true; lavabo.userData.xray = 'keep'; bakeStatic(lavabo); bath.add(lavabo);
           const tapWater = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.011, 0.09, 6), new THREE.MeshLambertMaterial({ color: 0xbfe2ff, transparent: true, opacity: 0.7, depthWrite: false }));
           const snkCup = new THREE.Group(); snkCup.name = 'Cốc bàn chải'; snkCup.position.set(snkX + 0.21, flY + 0.76, sWallZ - 0.1); bath.add(snkCup);
           { const cm = new THREE.MeshLambertMaterial({ color: 0x8ec5c2 }), c = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.028, 0.09, 12), cm); c.position.y = 0.045; c.castShadow = true; snkCup.add(c);
@@ -10405,11 +11205,11 @@
           tapWater.name = 'Nước chảy từ vòi'; tapWater.userData.noBake = true; tapWater.visible = false; tapWater.position.set(snkX, flY + 0.84, sWallZ - 0.15); bath.add(tapWater);
           const shelfX = x1 + 0.145, shelfZ = 0.5, shelfY = flY + 1.42;
           const shelfBoard = bx(0.24, 0.025, 0.24, woodMat, true, true, lineDark); shelfBoard.position.set(shelfX, shelfY, shelfZ); bath.add(shelfBoard);
-          for (const sz of [-0.08, 0.08]) { const br = bx(0.02, 0.1, 0.02, metalMat, false, false); br.position.set(x1 + 0.035, shelfY - 0.06, shelfZ + sz); bath.add(br); }
+          for (const sz of [-0.08, 0.08]) { const br = bx(0.02, 0.1, 0.02, VAN_CHROME, false, false); br.position.set(x1 + 0.035, shelfY - 0.06, shelfZ + sz); bath.add(br); }
           const shelfHelmet = engHelmetProp(); shelfHelmet.position.set(shelfX + 0.095, shelfY + 0.0125, shelfZ); shelfHelmet.rotation.y = Math.PI / 2; shelfHelmet.visible = false; bath.add(shelfHelmet);
           const towelX = xB - 0.05, towelZ = 0.06, towelY = flY + 1.0;
-          const towelBar = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.36, 8), metalMat); towelBar.rotation.x = Math.PI / 2; towelBar.position.set(towelX + 0.005, towelY, towelZ); bath.add(towelBar);
-          const towelFeet = [-1, 1].map(s => { const f = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.045, 8), metalMat); f.rotation.z = Math.PI / 2; f.position.set(xB - 0.0225, towelY, towelZ + s * 0.16); bath.add(f); return f; });
+          const towelBar = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.36, 8), VAN_CHROME); towelBar.rotation.x = Math.PI / 2; towelBar.position.set(towelX + 0.005, towelY, towelZ); bath.add(towelBar);
+          const towelFeet = [-1, 1].map(s => { const f = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.045, 8), VAN_CHROME); f.rotation.z = Math.PI / 2; f.position.set(xB - 0.0225, towelY, towelZ + s * 0.16); bath.add(f); return f; });
           const towel = bx(0.035, 0.4, 0.26, towelM, true, true, lineDark); towel.position.set(towelX, towelY - 0.2, towelZ); towel.name = 'Khăn tắm'; towel.userData.noBake = true; bath.add(towel);
           const brushM = new THREE.MeshLambertMaterial({ color: 0x5b8fb0 }), bristleM = new THREE.MeshLambertMaterial({ color: 0xe8e2d2 });
           const brCup = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.05, 0.16, 12), brushM); brCup.position.set(xB - 0.09, flY + 0.08, -dz + 0.1); brCup.castShadow = true; bath.add(brCup);
@@ -10422,12 +11222,12 @@
           for (const o of [brush, squee, wetFloor]) { o.userData.noBake = true; o.traverse(c => { c.userData.noBatch = true; }); o.userData.home = { p: o.position.clone(), q: o.quaternion.clone() }; }
           const shX = twcX, sideZ = -dz + 0.03;
           const shTop = trInCeil(sideZ + 0.19) - 0.012;
-          const shArm = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.12, 8), metalMat); shArm.position.set(shX, shTop - 0.06, sideZ + 0.19); bath.add(shArm);
-          const shHead = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.06, 0.05, 14), metalMat); shHead.rotation.x = -0.2; shHead.position.set(shX, shTop - 0.145, sideZ + 0.19); bath.add(shHead);
-          const shMixer = bx(0.12, 0.16, 0.045, metalMat, false, true, lineDark); shMixer.position.set(twcX - 0.15, flY + 1.06, sideZ + 0.02); bath.add(shMixer);
+          const shArm = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.12, 8), VAN_CHROME); shArm.position.set(shX, shTop - 0.06, sideZ + 0.19); bath.add(shArm);
+          const shHead = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.06, 0.05, 14), VAN_CHROME); shHead.rotation.x = -0.2; shHead.position.set(shX, shTop - 0.145, sideZ + 0.19); bath.add(shHead);
+          const shMixer = bx(0.12, 0.16, 0.045, VAN_CHROME, false, true, lineDark); shMixer.position.set(twcX - 0.15, flY + 1.06, sideZ + 0.02); bath.add(shMixer);
           const drain = bx(0.14, 0.01, 0.14, caravanDark, false, true); drain.position.set(twcX - 0.05, flY + 0.014, wcZ - 0.13); bath.add(drain);
           bath.userData.xray = 'shell'; bath.userData.vanWall = true;
-          for (const item of [brCup, brush, squee, wetFloor, bthFlr, toilet, snkCup, spValve, spHolder, spHead, spNozzle, spHose, snkCab, snkTop, snkBasin, snkTap, snkSpout, mirror, towelBar, ...towelFeet, towel, shArm, shHead, shMixer, drain, bthLight, tapWater, shelfBoard, shelfHelmet]) item.userData.xray = 'keep';
+          for (const item of [brCup, brush, squee, wetFloor, bthFlr, toilet, snkCup, spValve, spHolder, spHead, spNozzle, spHose, lavabo, towelBar, ...towelFeet, towel, shArm, shHead, shMixer, drain, bthLight, tapWater, shelfBoard, shelfHelmet]) item.userData.xray = 'keep';
           const bathRig = { entryDoor: entryDoorG, lid: twcLidHinge, towel, tapWater, shelfHelmet, doorMat: doorM, wallMat: bthWallM, group: bath, brush, squee, wetM, wetFloor, wet: 0,
             showerHead: [shX, shTop - 0.145, sideZ + 0.19], mixer: [twcX - 0.15, flY + 1.06, sideZ + 0.04], flush: [twcX, flY + 0.73, -dz + 0.08], shelf: [shelfX, shelfY, shelfZ],
             x1, xB, twcX, snkX, towelX, towelZ };
@@ -10568,6 +11368,7 @@
         let awLight, awLan;
         const caravanObj = caravan(); caravanObj.scale.multiplyScalar(CAMP_SCALE); caravanObj.name = 'Xe Caravan (Motorhome)'; {
           const p = worldCell(CARAVAN_CELL[0], CARAVAN_CELL[1]); caravanObj.position.copy(p); caravanObj.rotation.y = Math.atan2(bobberBase.x - p.x, bobberBase.z - p.z); scene.add(caravanObj);
+          worldJoin('groundContact', 10, S => S.add(caravanObj, { body: 1.3, w: 0.25 }));
           const vc = Math.cos(caravanObj.rotation.y), vs = -Math.sin(caravanObj.rotation.y);
           for (const [lx, rr] of [[-2.2, 1.9], [0.4, 2.0], [2.3, 1.85], [2.3 + TR.ext, 1.85]])
             obstacleCoords.push({ x: p.x + lx * vc * CAMP_SCALE, y: p.y, z: p.z + lx * vs * CAMP_SCALE, r: rr * CAMP_SCALE, h: 3.0 * CAMP_SCALE });
@@ -10579,12 +11380,15 @@
         updateStudyLamp();
 
         worldTick('things', 50, vanFrameTick);
-        let awLampLit = false, awLampK = 0;
+        let awLampLit = false, awLampK = 0, vanAoAsked = false;
+        const VAN_AO_BOX = new THREE.Box3(new THREE.Vector3(-3.05, 0.6, -1.06), new THREE.Vector3(TR.rear + 0.02, 2.96, 1.06));
         function vanFrameTick(dt, t) {
+          if (!vanAoAsked && (caravanXray || (camera.zoom >= 8 && target.distanceTo(caravanObj.position) < 12))) { vanAoAsked = true; aoBake(caravanObj, { box: VAN_AO_BOX, skip: o => caravanRole(o) === 'shell' }); }
           awLampLit = awLampLit ? sunElevSin < 0.1 : sunElevSin < 0.05; awLampK += ((awLampLit ? 1 : 0) - awLampK) * Math.min(1, dt * 1.5);
           if (awLan && awLan.userData.glow) { const m = awLampK > 0.5 ? lanternKit.bulbMat : lanternKit.bulbOffMat; if (awLan.userData.glow.material !== m) awLan.userData.glow.material = m; }
           if (awLight && awLan) { awLight.intensity = awLampK * (0.5 + nightFactor * 2.6 + (0.2 + nightFactor * 0.4) * Math.sin(t * 8.5 + 1.2) + 0.12 * Math.sin(t * 18.3)); awLight.distance = 8 + nightFactor * 7; awLan.rotation.z = Math.sin(t * 1.1 + 1.2) * 0.04; }
           updateStudyLamp();
+          vanEnvTick();
           studyLaptopTick(dt);
           vanBathTick(dt);
         }
@@ -10597,7 +11401,7 @@
           }
         }
         worldJoin('drawBatch', 60, B => B.draws('Xe caravan', [caravanObj]));
-        if (ldStep(0.452)) await ldYield();
+        if (ldStep(0.470)) await ldYield();
         const CHASSIS_GLB = window.__chassisGlb || 'https://michaeltran75.github.io/3d-garden/models/chassis.glb';
         const chassis = { g: null, gear: null };
         {
@@ -10621,7 +11425,7 @@
             const X = root.userData; if (Math.abs((X.axleF ?? -2.12) - TR.xF) > 0.01 || Math.abs((X.axleR ?? 2.03) - TR.xR) > 0.01) console.warn('chassis.glb: cầu lệch bánh xe — dựng lại bằng src/tools/chassis/');
             const old = caravanObj.getObjectByName('Cầu bánh xe'); if (old) old.visible = false;
           }).catch(err => console.warn('Chassis GLB:', err)));
-        if (ldStep(0.454)) await ldYield();
+        if (ldStep(0.472)) await ldYield();
         caravanObj.updateMatrixWorld(true);
         const vanPt = (x, y, z) => caravanObj.localToWorld(new THREE.Vector3(x, y, z)), vanOut = new THREE.Vector3(Math.sin(caravanObj.rotation.y), 0, Math.cos(caravanObj.rotation.y));
         const dogDoorFar = vanPt(0.345, 0, 2.8), dogDoorStep = vanPt(0.345, 0, 1.85), dogInside = vanPt(0.345, TR.yIn, 0.66), dogBed = vanPt(-1.18, TR.yIn, 0.0);
@@ -10772,7 +11576,7 @@
           runEngine: (on, noX) => engineToggle(on, noX),
           get holo() { return engHolo; },
         });
-        if (ldStep(0.461)) await ldYield();
+        if (ldStep(0.478)) await ldYield();
         const zzzs = [];
         const zzzGroup = new THREE.Group(); zzzGroup.visible = false; VAN.mount(zzzGroup);
         {
@@ -10790,7 +11594,7 @@
         VAN.mount(sleepSprite);
         let lastSleepStr = '';
 
-        if (ldStep(0.461)) await ldYield();
+        if (ldStep(0.479)) await ldYield();
         const CHAIR_K = 0.9 * 0.9;
         function campChair(fabricMat = chairFabric, frameMat = chairFrame) {
           const g = new THREE.Group(), W = 0.92, FZ = 0.33, BZ = -0.43, SY = 0.62;
@@ -10994,7 +11798,7 @@
           const light = new THREE.PointLight(0xff7a2a, 0.6, 11, 2); light.position.y = 0.7; g.add(light);
           const pit = new THREE.Group(); pit.name = 'Lòng bếp'; pit.scale.setScalar(CAMP_PIT); for (const o of g.children.slice()) if (o !== fsg) pit.add(o); g.add(pit);
           fsg.position.x *= 0.78 * CAMP_K; fsg.position.z *= 0.78 * CAMP_K;
-          return { g, flames, smoke, sparks, light, logMat, cutMat, emberMat, glowMat, hotMat, dimMat, fish: { stick: fsg, rod: sk, fg, body: fBody, fMat, finMat, marks: marksM } };
+          return { g, pit, flames, smoke, sparks, light, logMat, cutMat, emberMat, glowMat, hotMat, dimMat, fish: { stick: fsg, rod: sk, fg, body: fBody, fMat, finMat, marks: marksM } };
         }
         const campObj = campfire(); campObj.g.scale.multiplyScalar(CAMP_SCALE);
         { const p = worldCell(FIRE_CELL[0], FIRE_CELL[1]); campObj.g.position.copy(p); campObj.g.name = 'Bếp lửa trại (Campfire)'; scene.add(campObj.g); }
@@ -11166,9 +11970,12 @@
         const campChairPos = campLocal(1.45, 1.82);
         const campChairFaceY = VAN.object.rotation.y;
         obstacleCoords.push({ x: pf.x, y: pf.y, z: pf.z, r: FIRE_AVOID_R, h: 2.2 * CAMP_SCALE * CAMP_K });
+        const CHIM_NEAR = 0.35;
         const campTablePos = campLocal(2.55, 2.0);
-        const CHIM_P = new THREE.Vector3(X0 + 66.5, 0, Z0 + 100.9); CHIM_P.y = cowY(CHIM_P.x, CHIM_P.z);
-        const CHIM_AIM = campChairPos.clone().lerp(campTablePos, 0.5), CHIM_YAW = Math.atan2(CHIM_AIM.x - CHIM_P.x, CHIM_AIM.z - CHIM_P.z);
+        const CHIM_P = new THREE.Vector3(X0 + 66.5, 0, Z0 + 100.9);
+        const CHIM_AIM = campChairPos.clone().lerp(campTablePos, 0.5);
+        { const d = CHIM_AIM.clone().sub(CHIM_P).setY(0); CHIM_P.addScaledVector(d.normalize(), CHIM_NEAR); } CHIM_P.y = cowY(CHIM_P.x, CHIM_P.z);
+        const CHIM_YAW = Math.atan2(CHIM_AIM.x - CHIM_P.x, CHIM_AIM.z - CHIM_P.z);
         const WOOD_SIDE = -1;
         const chimLocal = (x, z) => { const p = new THREE.Vector3(x, 0, z).applyAxisAngle(new THREE.Vector3(0, 1, 0), CHIM_YAW).multiplyScalar(CAMP_SCALE).add(CHIM_P); p.y = cowY(p.x, p.z); return p; };
         const WOOD_P = chimLocal(0.76 * WOOD_SIDE, 0), woodCampY = WOOD_P.y;
@@ -11283,7 +12090,8 @@
         });
         worldTick('things', 10, (dt, t) => campCupSteamTick(t)); worldTick('things', 20, campfireTick); worldTick('things', 40, lanternsTick);
         worldJoin('collide', 100, C => C.moving(() => [campTeaCup, campObj.fish.stick]));
-        if (ldStep(0.484)) await ldYield();
+        worldPlace('campfire', { hover: { root: campObj.pit }, job: { box: campObj.pit, title: 'Lửa trại', go: '▶ Nhóm / dập lửa', act: 'fire' } });
+        if (ldStep(0.501)) await ldYield();
         const chiminea = (() => {
           const W = 0.52, D = 0.5, H = 0.42, YB = 0.3, TK = 0.014, OW = 0.36, OH = 0.28, RB = 0.063;
           const g = new THREE.Group(); g.name = 'Lò sưởi chiminea (Chiminea)';
@@ -11432,15 +12240,19 @@
             light.intensity = 2.4 * L * fl;
             emberMat.color.setRGB(0.12 + 0.85 * e, 0.08 + 0.3 * e, 0.05 + 0.04 * e); logMat.emissiveIntensity = 1.4 * e; soot.emissiveIntensity = 0.7 * L * fl;
             const ovT = on ? 0.3 + 0.7 * L : 0; OV += (ovT - OV) * (1 - Math.exp(-dt / (ovT > OV ? 120 : 420)));
-            for (const f of smokeFish) if (f.m.visible) { if (OV > 0.2) f.s = Math.min(1, f.s + dt * OV / (15 * 60)); const c = f.m.material.color; if (f.s < 0.5) c.copy(SMOKE_RAW).lerp(SMOKE_MID, f.s / 0.5); else c.copy(SMOKE_MID).lerp(SMOKE_DONE, (f.s - 0.5) / 0.5); }
+            for (const f of smokeFish) if (f.m.visible) { if (OV > 0.1) f.s = Math.min(1, f.s + dt * 0.7 / 600 * Math.min(1, OV / 0.25)); const c = f.m.material.color; if (f.s < 0.5) c.copy(SMOKE_RAW).lerp(SMOKE_MID, f.s / 0.5); else c.copy(SMOKE_MID).lerp(SMOKE_DONE, (f.s - 0.5) / 0.5); }
             ovenSoot.emissiveIntensity = 0.55 * OV; ovGlass.emissiveIntensity = 0.9 * OV; needle.rotation.z = 2.2 - 4.2 * OV;
             smoke.on = L > 0.02;
             if (smoke.on) { g.localToWorld(smoke.base.set(0, smokeTop, 0)); smoke.heat = 0.5 + 0.7 * L; smoke.smoke = 0.5 + 1.5 * L; smoke.rate = 0.15 + 0.7 * L; smoke.draft = 0.6 + 0.9 * L; plumeLight(smoke, PLUME_COL.smoke, PLUME_COL.steam, _plumeGlow.setRGB(0, 0, 0)); }
           } };
         })();
-        worldFace('chiminea', chiminea);
-        worldTick('things', 30, (dt, t) => chiminea.update(dt, t));
-        if (ldStep(0.493)) await ldYield();
+        worldPlace('chiminea', {
+          face: chiminea,
+          tick: [['things', 30, (dt, t) => chiminea.update(dt, t)]],
+          hover: { root: chiminea.g },
+          job: { objs: [chiminea.g], title: 'Lò sưởi CHIMINEA', msg: 'Chọn việc:', act: 'wood', choices: [['wood', 'Bỏ củi'], ['smoke', 'Hun khói cá 10 phút rồi ăn']], pick: () => chiminea.see() },
+        });
+        if (ldStep(0.510)) await ldYield();
         const trimKit = (() => {
           const TRIM_GLB = window.__trimGlb || 'https://michaeltran75.github.io/3d-garden/models/trimmer.glb';
           const g = new THREE.Group(); g.name = 'Máy cắt cỏ đeo lưng (Backpack Brush Cutter)'; g.userData.noBatch = true; scene.add(g);
@@ -11588,7 +12400,7 @@
         })();
         worldFace('trimmer', trimKit);
         worldTick('tools', 40, (dt, t) => trimKit.tick(dt, t));
-        if (ldStep(0.500)) await ldYield();
+        if (ldStep(0.517)) await ldYield();
         const chickenCoop = (() => {
           const PX = X0 + 61.4, PZ = Z0 + 91.0, YAW = 0.42, gY = cowY(PX, PZ);
           const g = new THREE.Group(); g.name = 'Chuồng gà (Chicken coop)'; g.position.set(PX, gY, PZ); g.rotation.y = YAW; scene.add(g);
@@ -11654,7 +12466,7 @@
         })();
         worldFace('coop', chickenCoop);
         worldTick('ground', 30, dt => chickenCoop.update(dt));
-        if (ldStep(0.503)) await ldYield();
+        if (ldStep(0.520)) await ldYield();
         /* ===== FLOW FIELD (Dijkstra map / DP): bảng khoảng-cách-BFS tới từng ĐÍCH CỐ ĐỊNH trên lưới voxel.
            Địa hình tĩnh → tabulate 1 LẦN lúc build (memoization); mỗi frame agent chỉ đọc gradient 8 ô quanh mình
            rồi bước xuống dốc → tự luồn lách qua vật cản theo đường ngắn nhất, không còn kẹt loop.
@@ -11709,7 +12521,7 @@
           const L = Math.hypot(vx, vz); if (L < 1e-4) return null;
           return _ffV.set(vx / L, 0, vz / L);
         }
-        if (ldStep(0.505)) await ldYield();
+        if (ldStep(0.522)) await ldYield();
         const _stA = new THREE.Vector3(), _stB = new THREE.Vector3(), _stD = new THREE.Vector3(), _stX = new THREE.Vector3(1, 0, 0), _stW = new THREE.Vector3(), _stE = new THREE.Euler();
         function makeSoftTail(host, o) {
           const segs = [], P = [], Q = [], R = [];
@@ -11750,7 +12562,7 @@
             m.position.copy(_stA).add(_stB).multiplyScalar(0.5); _stD.copy(_stB).sub(_stA).normalize(); m.quaternion.setFromUnitVectors(_stX, _stD);
           }
         }
-        if (ldStep(0.507)) await ldYield();
+        if (ldStep(0.523)) await ldYield();
         function dogModel(s) {
           const g = new THREE.Group();
           const fur = new THREE.MeshLambertMaterial({ color: 0xc19a6b }), furL = new THREE.MeshLambertMaterial({ color: 0xe0c49a }), dark = new THREE.MeshLambertMaterial({ color: 0x4a3621 }), black = new THREE.MeshLambertMaterial({ color: 0x111111 });
@@ -11795,7 +12607,7 @@
           C.moving(() => [dogObj]);
         });
         worldJoin('drawBatch', 10, B => B.draws('Chó', [dogObj]));
-        if (ldStep(0.509)) await ldYield();
+        if (ldStep(0.525)) await ldYield();
         function createRaccoon(s) {
           const rc = new THREE.Group();
           const grey = new THREE.MeshLambertMaterial({ color: 0x8f939a, flatShading: true }), greyD = new THREE.MeshLambertMaterial({ color: 0x5c6068, flatShading: true });
@@ -11863,7 +12675,7 @@
           { const D = C.dims(raccoonObj.userData.torso); racCol = C.mover({ kind: 'rac', a: D.a + 0.1, b: D.b, ox: D.ox + 0.05, lo: 0.1, hi: Math.max(0.35, D.top), w: 1, x: () => raccoonObj.position.x, z: () => raccoonObj.position.z, ang: () => -raccoonObj.rotation.y, on: () => raccoonObj.visible, mask: () => /^(den|exit|peek|enter|out|toMouth)$/.test(raccoonBrain.state.st) || Math.hypot(raccoonObj.position.x - racHome.x, raccoonObj.position.z - racHome.z) < 2.5 ? 0 : 7 }); }
           C.moving(() => [raccoonObj]);
         });
-        if (ldStep(0.512)) await ldYield();
+        if (ldStep(0.528)) await ldYield();
         const SEAT_S = ENGINEER_BASE_SCALE * CAMP_SCALE, SEAT_HIP = ENG_HIP_Y * SEAT_S - ENG_FEET, SEAT_ANK = ENG_SOLE * SEAT_S, SEAT_LEGX = 0.15 * ENG_SLIM * SEAT_S;
         const SEAT_T_SIT = 2.3, SEAT_T_RISE = 2.2;
         const segK = (u, a, b) => Math.max(0, Math.min(1, (u - a) / (b - a)));
@@ -11895,6 +12707,7 @@
           VAN.object.updateMatrixWorld(true);
           for (const [lx, lz] of VAN.awPoles || []) { push(CAMP_SEAT, VAN.object.localToWorld(new THREE.Vector3(lx, 0, lz)), 0.12); PROPS[PROPS.length - 1].nav = true; }
           if (VAN.awningLamp) { push(CAMP_SEAT, VAN.awningLamp.getWorldPosition(new THREE.Vector3()), 0.2); PROPS[PROPS.length - 1].nav = true; }
+          for (const C of [FISH_SEAT, CAMP_SEAT]) for (const o of obstacleCoords) if (o.r <= 0.6 && Math.hypot(o.x - C.pos.x, o.z - C.pos.z) < 3.2) { const [lx, lz] = seatL(C, o.x, o.z); C.props.push([lx, lz, o.r]); }
           for (const C of [FISH_SEAT, CAMP_SEAT]) {
             const i0 = Math.max(0, Math.floor(x2gi(C.pos.x - 1.2))), i1 = Math.min(GX - 1, Math.ceil(x2gi(C.pos.x + 1.2)));
             const j0 = Math.max(0, Math.floor(z2gj(C.pos.z - 1.2))), j1 = Math.min(GZ - 1, Math.ceil(z2gj(C.pos.z + 1.2)));
@@ -12106,16 +12919,17 @@
           const ar = e.armRoll || (e.armRoll = [0, 0]), rt = e.armRollT || (e.armRollT = [0, 0]), k = 1 - Math.exp(-dt * 10);
           for (let i = 0; i < 2; i++) { ar[i] += (rt[i] - ar[i]) * k; if (!rt[i] && Math.abs(ar[i]) < 1e-4) ar[i] = 0; e.arms[i].rotation.z = ar[i]; rt[i] = 0; }
           const lz = e.legZT || (e.legZT = [0, 0]);
-          for (let i = 0; i < 2; i++) { const z = e.legs[i].rotation.z + (lz[i] - e.legs[i].rotation.z) * k; e.legs[i].rotation.z = !lz[i] && Math.abs(z) < 1e-4 ? 0 : z; lz[i] = 0; }
+          const ls = e.legZs || (e.legZs = [0, 0]);
+          for (let i = 0; i < 2; i++) { ls[i] += (lz[i] - ls[i]) * k; if (!lz[i] && Math.abs(ls[i]) < 1e-4) ls[i] = 0; e.legs[i].rotation.z = (e.abdOn ? e.legs[i].rotation.z : 0) + ls[i]; lz[i] = 0; }
           e.headRoll = (e.headRoll || 0) + ((e.headRollT || 0) - (e.headRoll || 0)) * (1 - Math.exp(-dt * 4)); if (Math.abs(e.headRoll) < 1e-4 && !e.headRollT) e.headRoll = 0;
           e.head.rotation.z = e.headRoll;
           e.headYaw = (e.headYaw || 0) + ((e.headYawT || 0) - (e.headYaw || 0)) * (1 - Math.exp(-dt * 6)); if (!e.headYawT && Math.abs(e.headYaw) < 1e-4) e.headYaw = 0;
           e.head.rotation.y = e.headYaw; e.headYawT = 0;
         }
         const mastField = buildFlowField(engObj.wp[2].x, engObj.wp[2].z);
-        if (ldStep(0.521)) await ldYield();
+        if (ldStep(0.537)) await ldYield();
         const vanDoorField = buildFlowField(dogDoorFar.x, dogDoorFar.z);
-        if (ldStep(0.521)) await ldYield();
+        if (ldStep(0.537)) await ldYield();
         const bunnyShelter = VAN.toWorld(2.3, 0, 1.45), bunnyField = buildFlowField(bunnyShelter.x, bunnyShelter.z), bunnyShelterAng = Math.atan2(VAN.out.z, VAN.out.x);
         function bunnyEars(b, dt, t) {
           if (!b.ears) return;
@@ -12162,7 +12976,7 @@
           bunnyEars(b, dt, t);
           return true;
         }
-        if (ldStep(0.523)) await ldYield();
+        if (ldStep(0.539)) await ldYield();
         const dogLie = CAMP.fire.g.position.clone().add(new THREE.Vector3(Math.cos(-0.8) * 1.8, 0, Math.sin(-0.8) * 1.8));
         const dogFireField = buildFlowField(dogLie.x, dogLie.z);
         const dogRain = { st: null, t: 0, yaw: 0 };
@@ -12177,7 +12991,7 @@
         if (!liveWeather.wildlifeAwake) {
           dogRain.st = 'in'; dogObj.position.set(VAN.dogBed.x, VAN.doorIn.y + 0.02 * CAMP_SCALE, VAN.dogBed.z); dogObj.rotation.y = Math.atan2(-VAN.out.z, VAN.out.x);
         }
-        if (ldStep(0.524)) await ldYield();
+        if (ldStep(0.539)) await ldYield();
         let BUN_REF = null;
         function bunRefuge(x, z, from, avoid) {
           if (!BUN_REF) { BUN_REF = treeCoords.map(T => ({ x: T.x, z: T.z, r: 0.9 })); BUN_REF.push({ x: bunnyShelter.x, z: bunnyShelter.z, r: 0 }); for (const q of COOP.under) BUN_REF.push({ x: q.x, z: q.z, r: 0 }); BUN_REF.push({ x: bunnyBurrow.door.x, z: bunnyBurrow.door.z, r: 0 }); }
@@ -12276,7 +13090,7 @@
           if (!L.st) { b.g.rotation.set(0, -b.ang, 0); b.state = 'sniff'; b.tmr = 1 + R() * 2; b.earB = b.earY = 0; b.noseF = 3; }
           return true;
         }
-        if (ldStep(0.529)) await ldYield();
+        if (ldStep(0.544)) await ldYield();
         function quadRig(obj, o) {
           const feet = o.legs.map(L => ({ L, w: new THREE.Vector3(), s0: new THREE.Vector3(), tg: new THREE.Vector3(), sw: false, mode: '', u: 0 }));
           const _hw = new THREE.Vector3(), outReach = (F, home) => { const L = F.L, S = obj.scale.y, R0 = (L.L1 + L.L2) * S * 0.97; L.hip.getWorldPosition(_hw); _hw.y -= (L.ankleH || 0) * S; return _hw.distanceTo(F.w) > R0 && _hw.distanceTo(home) < R0; };
@@ -12342,7 +13156,7 @@
           };
           return R;
         }
-        if (ldStep(0.532)) await ldYield();
+        if (ldStep(0.547)) await ldYield();
         const dogBrain = (() => {
           const U = dogObj.userData, s = U.s, L1 = U.L1, L2 = U.L2, H0 = U.H0;
           const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3(), _hp = new THREE.Vector3();
@@ -12873,7 +13687,7 @@
           };
         })();
         worldTick('wild', 40, (dt, t) => { if (dogObj) dogBrain.update(dt, t); });
-        if (ldStep(0.556)) await ldYield();
+        if (ldStep(0.570)) await ldYield();
         worldFace('dog', {
           get pos() { return dogObj.position; },
           get yaw() { return dogObj.rotation.y; },
@@ -12894,12 +13708,64 @@
           pettable: () => dogBrain.pettable(),
           zoomSpot: () => dogBrain.zoomSpot(),
         });
-        if (ldStep(0.557)) await ldYield();
+        if (ldStep(0.571)) await ldYield();
+        const DOG_THINK = {
+          lie: ['🔥', '🦴', '😌'], doze: ['💤'], getup: ['🥱'], follow: ['❤️', '🐾'], sniff: ['👃', '🌼', '🐾'], drink: ['💧'], zoom: ['⚡', '🎾'], perch: ['👀'],
+          stars: ['✨', '🌙'], herdHome: ['🐄'], herd: ['🐄'], return: ['🏕️'], rain: ['🌧️', '☔'], shakeOff: ['💦'], toFire: ['🔥'], pet: ['🥰', '❤️'], called: ['❤️'], fish: ['🍖', '🐟']
+        };
+        const DOG_THINK_NOW = new Set(['pet', 'called', 'shakeOff']), DOG_THINK_SHOW = 4.5, DOG_THINK_PX = 128;
+        const DTH = { key: null, show: 0, gap: 0, next: 20, emo: '', rnd: mulberry32(5821) };
+        function dogThinkKey() {
+          const B = dogBrain.state, D = dogRain.st, EF = worldSee('engineer'), rain = liveWeather.state.raining;
+          if (D === 'in' || D === 'porch') return B.dozing ? null : rain ? 'rain' : null;
+          if (D === 'shakeOff' || D === 'herd' || D === 'toFire') return D;
+          if (D) return rain ? 'rain' : null;
+          if (EF && EF.petting) return 'pet';
+          if (EF && EF.phase === 'toDog') return 'called';
+          if (B.st === 'lie') return B.dozing ? 'doze' : EF && EF.phase === 'eatFish' ? 'fish' : 'lie';
+          return DOG_THINK[B.st] ? B.st : null;
+        }
+        const dtCanvas = document.createElement('canvas'), dtCtx = dtCanvas.getContext('2d'); let dtRes = 0, dtEmo = '';
+        const dtTex = new THREE.CanvasTexture(dtCanvas); dtTex.colorSpace = THREE.SRGBColorSpace; dtTex.generateMipmaps = false; dtTex.minFilter = THREE.LinearFilter;
+        const dogThinkSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: dtTex, transparent: true, depthWrite: false, depthTest: false }));
+        dogThinkSprite.name = 'Chó nghĩ (emoji)'; dogThinkSprite.center.set(0.5, 0); dogThinkSprite.scale.set(0.9, 0.9, 1); dogThinkSprite.renderOrder = 20;
+        dogThinkSprite.visible = false; dogThinkSprite.layers.set(LAYER_SHARP); scene.add(dogThinkSprite);
+        function dogThinkDraw(emo, res) {
+          dtCanvas.width = dtCanvas.height = Math.round(DOG_THINK_PX * res); dtTex.dispose();
+          const x = dtCtx, L = [[64, 50, 30], [40, 57, 21], [88, 57, 21], [51, 35, 19], [78, 36, 19], [64, 70, 19], [54, 100, 8], [60, 118, 5]];
+          x.setTransform(dtCanvas.width / DOG_THINK_PX, 0, 0, dtCanvas.height / DOG_THINK_PX, 0, 0); x.clearRect(0, 0, DOG_THINK_PX, DOG_THINK_PX);
+          const path = g => { x.beginPath(); for (const [cx, cy, r] of L) { x.moveTo(cx + r + g, cy); x.arc(cx, cy, r + g, 0, TAU); } };
+          x.fillStyle = 'rgba(40, 52, 64, 0.38)'; path(2); x.fill();
+          x.globalCompositeOperation = 'destination-out'; x.fillStyle = '#000'; path(0); x.fill(); x.globalCompositeOperation = 'source-over';
+          x.fillStyle = 'rgba(255, 255, 255, 0.42)'; path(0); x.fill();
+          x.font = '40px Arial, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillStyle = '#17222c'; x.fillText(emo, 64, 53);
+          dtTex.needsUpdate = true;
+        }
+        function dogThinkRes() {
+          if (!camera.isOrthographicCamera) return 2;
+          const ppu = renderer.getPixelRatio() * Math.max(1, W()) * camera.zoom / (camera.right - camera.left);
+          return Math.min(4, Math.max(1, ppu * dogThinkSprite.scale.x / DOG_THINK_PX));
+        }
+        function dogThinkPop(key) { const L = DOG_THINK[key]; DTH.emo = L[Math.floor(DTH.rnd() * L.length)]; DTH.show = DOG_THINK_SHOW; DTH.gap = 0; DTH.next = 25 + 25 * DTH.rnd(); }
+        const _dtP = new THREE.Vector3();
+        worldTick('wild', 41, (dt, t) => {
+          if (!dogObj) return;
+          const key = dogObj.visible !== false ? dogThinkKey() : null;
+          DTH.gap += dt; DTH.next -= dt; DTH.show -= dt;
+          const topic = key === 'doze' || key === 'fish' ? 'lie' : key;
+          if (topic !== DTH.key) { DTH.key = topic; if (key && (DOG_THINK_NOW.has(key) || DTH.gap > 12)) dogThinkPop(key); else if (!key) DTH.show = Math.min(DTH.show, 0.5); }
+          else if (key && DTH.show <= 0 && DTH.next <= 0) dogThinkPop(key);
+          const S = dogThinkSprite; S.visible = DTH.show > 0; if (!S.visible) return;
+          const res = dogThinkRes(); if (DTH.emo !== dtEmo || Math.abs(res / dtRes - 1) > 0.15) { dtEmo = DTH.emo; dtRes = res; dogThinkDraw(DTH.emo, res); }
+          dogObj.userData.head.getWorldPosition(_dtP); S.position.set(_dtP.x, _dtP.y + 0.1 + Math.sin(t * 3) * 0.02, _dtP.z);
+          S.material.opacity = Math.max(0, Math.min(1, (DOG_THINK_SHOW - DTH.show) / 0.25, DTH.show / 0.5));
+        });
+        if (ldStep(0.573)) await ldYield();
         const engStudyPts = (() => {
           const ch = VAN.inside.study.chair.center, cx = ch[0], cz = ch[1];
           return { cx, cz, aisle: VAN.toWorld(1.30, VAN.dims.yIn, 0.12), yaw: VAN.object.rotation.y + Math.PI };
         })();
-        const STUDY_PULL = 0.1, STUDY_FZ = 0.37;
+        const STUDY_PULL = 0.1, STUDY_FZ = 0.37, STUDY_TUCK = -0.34;
         const STUDY_SEAT = makeSeat({ name: 'study', indoor: true, pos: new THREE.Vector3(), yaw: engStudyPts.yaw, seatZ: 0, standZ: STUDY_FZ * CAMP_SCALE, contactZ: 0.09,
           seatDrop: 0.56, legs: [-1.48, -1.44], knees: [0.98, 0.94], arm: null, ground: () => VAN.doorIn.y });
         function studyChairAt(off, sx = VAN.studyChair.sx, sw = VAN.studyChair.sw) {
@@ -12907,13 +13773,13 @@
           STUDY_SEAT.pos.copy(VAN.toWorld(engStudyPts.cx + sx, VAN.dims.yIn, engStudyPts.cz + off));
           const y = engStudyPts.yaw + sw, C = STUDY_SEAT; C.yaw = y; C.fx = Math.sin(y); C.fz = Math.cos(y); C.xx = Math.cos(y); C.xz = -Math.sin(y);
         }
-        studyChairAt(0);
+        studyChairAt(STUDY_TUCK);
         const ENG_DAY = [[0, 'sleep'], [ENG_WAKE_H, 'toilet'], [6.2, 'breakfast'], [6 + 40 / 60, 'outdoor'], [7.25, 'research'], [10.75, 'toilet'], [10 + 55 / 60, 'cook'], [11 + 25 / 60, 'lunch'],
           [12.25, 'rest'], [13, 'research'], [15 + 20 / 60, 'drone'], [15 + 50 / 60, 'rest'], [16, 'toilet'], [16 + 10 / 60, 'apples'], [16 + 35 / 60, 'outdoor'], [16.75, 'cook'], [17.25, 'dinner'], [18, 'shower'], [18 + 3 / 60, 'fish'],
           [19.5, 'read'], [20, 'music'], [ENG_SLEEP_H - 1.05, 'stars'], [ENG_SLEEP_H - 0.05, 'bedtime'], [ENG_SLEEP_H, 'sleep']];
         const ENG_ACTS = {
           sleep: { van: 1, label: 'Ngủ' }, toilet: { van: 1, once: 1, label: 'Vệ sinh', plan: ['wc', 'cleanWc', 'sink'] },
-          breakfast: { van: 1, once: 1, label: 'Ăn sáng', plan: ['table', 'dishes'] }, research: { van: 1, label: 'Nghiên cứu', plan: ['desk'] },
+          breakfast: { van: 1, once: 1, label: 'Ăn sáng', plan: ['table', 'dishes'] }, research: { van: 1, label: 'Nghiên cứu', plan: ['desk'] }, deskread: { van: 1, label: 'Đọc sách ở bàn học', plan: ['desk'] },
           cook: { van: 1, once: 1, label: 'Nấu ăn', plan: ['stove'] }, lunch: { van: 1, once: 1, label: 'Ăn trưa', plan: ['table', 'dishes'] },
           shower: { van: 1, once: 1, label: 'Tắm', plan: ['shelfOff', 'shower', 'towel', 'cleanBath', 'shelfOn'] },
           music: { van: 1, label: 'Học bài, nghe nhạc', plan: ['desk'] }, bedtime: { van: 1, label: 'Chuẩn bị ngủ', plan: ['bed'] },
@@ -12922,6 +13788,7 @@
           snack: { van: 1, label: 'Ăn nhẹ', plan: ['table', 'dishes'] }, pet: { label: 'Chơi với chó' }, explore: { label: 'Đi dạo khám phá' },
           trim: { label: 'Cắt cỏ quanh trại' },
           eatApple: { label: 'Ăn táo' },
+          wash: { van: 1, label: 'Rửa tay, rửa mặt', plan: ['sink'] },
           stars: { label: 'Ngắm sao' }, rainwatch: { label: 'Ngắm mưa' }, garden: { label: 'Chăm luống cà rốt' },
           chair: { label: 'Ngồi đọc sách, uống trà' }, wood: { label: 'Bỏ củi vào lò' },
           fire: { label: 'Dập / nhóm lửa trại' },
@@ -12933,6 +13800,7 @@
           return { k, act: ENG_DAY[k][1], end, left: (end - h) * 3600, next: ENG_DAY[n][1], nextEnd: n + 1 < ENG_DAY.length ? ENG_DAY[n + 1][0] : 24 };
         }
         let engForceAct = null;
+        let engMealPick = null;
         let engForceLast = null, engForceT0 = 0;
         const engDone = (e, key) => e.doneAct === key || (!!e.doneSet && e.doneSet.has(key));
         function engMarkDone(e) { if (!e.onceKey) return; e.doneAct = e.onceKey; (e.doneSet || (e.doneSet = new Set())).add(e.onceKey); }
@@ -12950,7 +13818,8 @@
             if (!started) engForceAct = null; }
           if (engForceAct !== engForceLast) { engForceLast = engForceAct; engForceT0 = clock.elapsedTime; }
           if (engForceAct === 'research' && clock.elapsedTime - engForceT0 > 1200) engForceAct = null;
-          if (engForceAct) { const w = liveWeather.state, dry = ['chair', 'wood', 'cook', 'lunch', 'dinner', 'research'].includes(engForceAct) || (engForceAct === 'smoke' && (CAMP.grill.st === 'held' || CHIMINEA.oven.fish.ready() >= 0));
+          if (engForceAct === 'deskread' && clock.elapsedTime - engForceT0 > 600) engForceAct = null;
+          if (engForceAct) { const w = liveWeather.state, dry = ['chair', 'wood', 'cook', 'lunch', 'dinner', 'research', 'deskread', 'breakfast', 'toilet', 'wash'].includes(engForceAct) || (engForceAct === 'smoke' && (CAMP.grill.st === 'held' || CHIMINEA.oven.fish.ready() >= 0));
             if ((w.raining && !dry) || (engForceAct === 'drone' && (w.windSpeed || 0) / 3.6 > 9)) engForceAct = null; else { e.actLeft = engForceAct === 'dinner' ? 1200 : 900; return engForceAct; } }
           const s = engScheduleAt(hh); let act = s.act, left = s.left;
           const napping = e.phase === 'nap';
@@ -12997,7 +13866,7 @@
           if (A.van) {
             const V = e.van = engVanNew('hall'); e.inVan = true; V.act = act; V.plan = A.plan || []; V.idx = 0;
             const at = (node, station, st) => { V.node = node; V.station = station; V.st = st; };
-            if (act === 'research' || act === 'music') { studyChairAt(0, 0, 0); e.seat = engNewSeat(STUDY_SEAT, 'seated'); at('mid', 'desk', 'work'); VAN.laptop.lidNow(1); }
+            if (act === 'research' || act === 'music' || act === 'deskread') { studyChairAt(0, 0, 0); e.seat = engNewSeat(STUDY_SEAT, 'seated'); at('mid', 'desk', 'work'); VAN.laptop.lidNow(act === 'deskread' ? 0 : 1); }
             else if (act === 'breakfast' || act === 'lunch') {
               stoolAt(STOOL_IN); e.seat = engNewSeat(STOOL_SEAT, 'seated'); at('tbl', 'table', 'eat');
               e.dish = { kind: act === 'lunch' ? 'udon' : 'cereal', at: 'table', food: 1 }; V.t0 = clock.elapsedTime; V.f0 = 1; V.dur = Math.max(90, Math.min(act === 'lunch' ? 900 : 720, e.actLeft - 150));
@@ -13014,7 +13883,7 @@
             if (act === 'dinner') { e.dish = { kind: 'pan', at: 'camp', food: 1 }; e.eatT0 = e.timer; }
           } else if (act === 'fish') { e.seat = engNewSeat(FISH_SEAT, 'seated'); e.phase = 'fish'; e.timer = e.actLeft; }
         }
-        if (ldStep(0.563)) await ldYield();
+        if (ldStep(0.579)) await ldYield();
         const VAN_FLOOR = VAN.doorIn.y, vanFloor = () => VAN_FLOOR, VYAW = VAN.object.rotation.y;
         const VY = { pz: VYAW, nz: VYAW + Math.PI, px: VYAW + Math.PI / 2, nx: VYAW - Math.PI / 2 };
         const VN = {};
@@ -13123,7 +13992,7 @@
         }
         const engNewSeat = (C, st) => ({ C, st, k: st === 'seated' ? 1 : 0, li: 0, lam: 0, sw: 0 });
 
-        if (ldStep(0.567)) await ldYield();
+        if (ldStep(0.582)) await ldYield();
         const _lwP = [new THREE.Vector3(), new THREE.Vector3()], _lwM = new THREE.Vector3(), _lwV = new THREE.Vector3(), _lwIn = new THREE.Vector3();
         const LW_NOTE_SX = (S => S.desk.center[0] + S.desk.size[0] / 2 - 0.455 - S.chair.center[0])(VAN.inside.study);
         const _lwQ = [new THREE.Quaternion(), new THREE.Quaternion()], _lwQ2 = new THREE.Quaternion(), _lwR = new THREE.Vector3(), _lwS = new THREE.Vector3(), _lwA = new THREE.Vector3(), _lwB = new THREE.Vector3(), _lwC = new THREE.Vector3(), _lwX = new THREE.Matrix4();
@@ -13270,7 +14139,7 @@
           const on = !!(L && L.st === 'note' && L.hold && e.act === 'research' && V.st === 'work'); if (!on) { Bd.carry(false); return; }
           e.wrists[0].updateWorldMatrix(true, false); Bd.carry(true, e.wrists[0].localToWorld(_lwV.set(0, -0.06, 0.05)));
         }
-        if (ldStep(0.573)) await ldYield();
+        if (ldStep(0.589)) await ldYield();
         const stDesk = { node: 'mid', tick(e, V, dt, t, keep) {
           const g = e.g, P = engStudyPts, C = STUDY_SEAT, R = VAN.studyChair, SW = Math.PI / 2, OUT = STUDY_PULL;
           const face = (dx, dz, k = 8) => { let d = Math.atan2(dx, dz) - g.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); g.rotation.y += d * Math.min(1, dt * k); };
@@ -13292,11 +14161,12 @@
           if (!V.st) V.st = 'toSide';
           if (!keep) {
             if (V.st === 'toSide') return 'released';
-            if (V.st === 'faceChair' || V.st === 'swing' || V.st === 'toStand' || V.st === 'turn') V.st = 'outS';
+            if (V.st === 'faceChair' || V.st === 'pullOut' || V.st === 'swing' || V.st === 'toStand' || V.st === 'turn') V.st = 'outS';
             else if (V.st === 'work' && lapDone(e, V)) { V.st = 'unscoot'; V.k = 0; }
           }
           if (V.st === 'toSide') { if (walkIn(sidePt(), 0.6)) V.st = 'faceChair'; }
-          else if (V.st === 'faceChair') { if (engSeatTurn(e, VY.px, dt, vanFloor)) { V.st = 'swing'; V.k = 0; } }
+          else if (V.st === 'faceChair') { if (engSeatTurn(e, VY.px, dt, vanFloor)) { V.st = 'pullOut'; V.k = 0; V.from = [R.off]; } }
+          else if (V.st === 'pullOut') { if (turnChair(V.from[0], 0, 0, 0, 1.1, true)) { V.st = 'swing'; V.k = 0; } }
           else if (V.st === 'swing') { if (turnChair(0, OUT, 0, SW, 1.5, true)) V.st = 'toStand'; }
           else if (V.st === 'toStand') { if (walkIn(standPt(), 0.4)) V.st = 'turn'; }
           else if (V.st === 'turn') { if (engSeatTurn(e, C.yaw, dt, vanFloor)) { e.seat = engNewSeat(C, 'sit'); engSeatStartSit(e, C, e.seat); V.st = 'sit'; } }
@@ -13313,7 +14183,8 @@
           else if (V.st === 'work') {
             e.seatCtl = true; engSeatHold(e, C, e.seat, dt, t);
             const rt = e.armRollT || (e.armRollT = [0, 0]), sipT = (t + V.ph * 3.1) % 190;
-            if (e.act !== 'music') lapWork(e, V, dt, t, rt);
+            if (e.act === 'deskread') { e.arms[0].rotation.x = e.arms[1].rotation.x = -1.2; engRead(e, dt, t, false); }
+            else if (e.act !== 'music') lapWork(e, V, dt, t, rt);
             else if (sipT < 7.4) engCokeSip(e, sipT, t, rt);
             else {
               const beat = t * Math.PI * 2 * 1.45, cyc = (t + V.ph) % 30, rel = cyc > 21;
@@ -13326,7 +14197,8 @@
           else if (V.st === 'rise') { e.seatCtl = true; if (engRiseStep(e, C, e.seat, dt, t)) { e.seat = null; V.st = 'outS'; } }
           else if (V.st === 'outS') { if (walkIn(sidePt(), 0.5)) V.st = 'faceBack'; }
           else if (V.st === 'faceBack') { if (engSeatTurn(e, VY.px, dt, vanFloor)) { V.st = 'swingBack'; V.k = 0; V.from = [R.off, R.sw]; } }
-          else if (V.st === 'swingBack') { if (turnChair(V.from[0], 0, V.from[1], 0, 1.4, true)) V.st = 'toAisle'; }
+          else if (V.st === 'swingBack') { if (turnChair(V.from[0], 0, V.from[1], 0, 1.4, true)) { V.st = 'tuck'; V.k = 0; } }
+          else if (V.st === 'tuck') { if (turnChair(0, STUDY_TUCK, 0, 0, 1.1, true)) V.st = 'toAisle'; }
           else if (V.st === 'toAisle') { if (walkIn(P.aisle)) return 'released'; }
           return 'busy';
         } };
@@ -13540,7 +14412,7 @@
           }
           return 'busy';
         } };
-        if (ldStep(0.581)) await ldYield();
+        if (ldStep(0.597)) await ldYield();
         const ventTop = new THREE.Vector3(), ventSmoke = (() => {
           const vs = caravanObj.getWorldScale(new THREE.Vector3()).y;
           const S = fluids.addSmoke({ NR: 40, NZ: 150, H: 0.02 * vs, NP: 400, NS: 0, NT: 14, buoy: 4, kNu: 0.03, nu0: 0.002, tauT: 5, iters: 30, dens: 0.8,
@@ -13566,7 +14438,7 @@
             VS.heat = 0.8 + 0.5 * heat; VS.smoke = 1 + 0.5 * heat; VS.rate = 0.3 * (0.25 + 0.6 * heat); VS.draft = 0;
             plumeLight(VS, _plumeSmokeC.copy(PLUME_COL.smoke).lerp(PLUME_COL.steam, fry ? 0.05 : 0.3), PLUME_COL.steam, _plumeGlow.setRGB(0, 0, 0)); }
         }
-        if (ldStep(0.583)) await ldYield();
+        if (ldStep(0.598)) await ldYield();
         const VKIT = VAN.kitchen;
         const _ckT = [new THREE.Vector3(), new THREE.Vector3()], _ckA = new THREE.Vector3(), _ckB = new THREE.Vector3(), _ckE = new THREE.Vector3(), _ckL = new THREE.Vector3();
         const ckW = VKIT.toWorld;
@@ -13625,7 +14497,7 @@
         const stStove = { node: 'stove', tick(e, V, dt, t, keep) {
           const K = VKIT, H = e.hold, rt = e.armRollT || (e.armRollT = [0, 0]), now = clock.elapsedTime, POT = 1, PAN = 0, TOP = K.TOP;
           if (!V.st) {
-            V.recipe = liveWeather.localHour < 14 ? 'udon' : 'rice';
+            V.recipe = engMealPick || (liveWeather.localHour < 14 ? 'udon' : 'rice'); engMealPick = null;
             V.T = V.recipe === 'udon' ? Math.max(420, Math.min(1320, e.actLeft - 100)) : Math.max(300, Math.min(840, e.actLeft - 100));
             V.st = V.recipe === 'udon' ? 'face' : 'toPeg'; V.chopped = false;
           }
@@ -13796,11 +14668,8 @@
         function engVan(e, dt, t, act) {
           const V = e.van, A = ENG_ACTS[act], g = e.g;
           if (V.st === 'stepOut') {
-            V.k = Math.min(1, V.k + dt / 0.8); const k = V.k, Pa = VAN.doorIn, Pb = VAN.doorStep, ya = VAN_FLOOR - ENG_FEET, yb = cowY(Pb.x, Pb.z) - ENG_FEET;
-            g.position.set(Pa.x + (Pb.x - Pa.x) * k, ya + (yb - ya) * k + Math.sin(Math.PI * k) * 0.06, Pa.z + (Pb.z - Pa.z) * k);
-            let d = Math.atan2(Pb.x - Pa.x, Pb.z - Pa.z) - g.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); g.rotation.y += d * Math.min(1, dt * 8);
-            e.vel = 0.7; engGait(e, Pa.distanceTo(Pb) * dt / 0.8); e.lean = 0.1 * Math.sin(Math.PI * k); e.head.rotation.x = 0.3 * Math.sin(Math.PI * k); e.walking = true;
-            if (k >= 1) { e.inVan = false; e.van = engVanNew('door'); e.vel = 0.5; }
+            if (!(e.ledge && e.ledge.stairs)) engVanStairs(e, true);
+            if (engStairsStep(e, dt)) { e.inVan = false; e.van = engVanNew('door'); e.vel = 0; }
             return;
           }
           if (V.act !== act) {
@@ -13834,11 +14703,8 @@
           if (e.enter === 'toDoor') { if (engStep(e, VAN.doorFar, dt, t, pf, FIRE_AVOID_R, VAN.doorField)) e.enter = 'toStep'; }
           else if (e.enter === 'toStep') { if (engStep(e, VAN.doorStep, dt, t, null, 0, null)) { e.enter = 'stepIn'; e.timer = 0; } }
           else {
-            e.timer = Math.min(1, e.timer + dt / 0.8); const k = e.timer, A = VAN.doorStep, B = VAN.doorIn, ya = cowY(A.x, A.z) - ENG_FEET, yb = VAN_FLOOR - ENG_FEET, g = e.g;
-            g.position.set(A.x + (B.x - A.x) * k, ya + (yb - ya) * k + Math.sin(Math.PI * k) * 0.12, A.z + (B.z - A.z) * k);
-            let d = Math.atan2(B.x - A.x, B.z - A.z) - g.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); g.rotation.y += d * Math.min(1, dt * 8);
-            e.vel = 0.8; engGait(e, A.distanceTo(B) * dt / 0.8); e.lean = 0.12 * Math.sin(Math.PI * k); e.head.rotation.x = 0.3 * Math.sin(Math.PI * k); e.walking = true;
-            if (k >= 1) { e.enter = null; e.inVan = true; e.van = engVanNew('door'); }
+            if (!(e.ledge && e.ledge.stairs)) engVanStairs(e, false);
+            if (engStairsStep(e, dt)) { e.enter = null; e.inVan = true; e.van = engVanNew('door'); }
           }
         }
         function engWake(e) {
@@ -13848,7 +14714,7 @@
           e.seat = engNewSeat(BED_SEAT, 'seated'); e.phase = 'van'; e.enter = null; engHelmet(e, 'head');
         }
 
-        if (ldStep(0.592)) await ldYield();
+        if (ldStep(0.606)) await ldYield();
         const bathShower = (() => {
           const rnd = mulberry32(1800);
           const N = 96, pos = new Float32Array(N * 6), geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
@@ -13895,7 +14761,7 @@
         })();
         function vanLateTick(dt, t) { galleyTick(dt, t); bathShower.update(dt); }
         worldTick('late', 10, vanLateTick);
-        if (ldStep(0.593)) await ldYield();
+        if (ldStep(0.608)) await ldYield();
         const musicFx = (() => {
           const cols = ['#ffd34a', '#7fd1ff', '#ff8fb1', '#a6f08c'];
           const texs = [0, 1, 2, 3].map(i => {
@@ -13953,6 +14819,7 @@
             }
           } };
         })();
+        const CHIPS_K = 1.25;
         const chipsBag = (() => {
           const g = new THREE.Group(); g.name = 'Gói khoai tây chiên'; g.visible = false;
           const table = scene.getObjectByName('Bàn trà (Camp Table)'); if (!table) return g;
@@ -13977,6 +14844,7 @@
           table.add(g); table.updateMatrixWorld(true);
           const chair = table.worldToLocal(CAMP.chairPos.clone()), best = [chair.x > 0 ? 0.25 : -0.25, 0.2];
           g.position.set(best[0], table.userData.top ?? 0.45, best[1]); g.rotation.y = Math.atan2(chair.x - best[0], chair.z - best[1]);
+          g.scale.setScalar(CHIPS_K);
           return g;
         })();
         const LAP_NOTE = ['Đối chiếu sản lượng thủy điện với mực hồ…', 'Tấm pin: −0,4%/°C khi nóng; kiểm nhiệt độ tấm', 'Tuabin: cắt vào 3 m/s, định mức 12 m/s', 'Pin lưu trữ san tải giờ cao điểm 17–20 h', 'Mai kiểm tra cánh tuabin #2'];
@@ -14098,7 +14966,7 @@
           x.fillStyle = '#fff'; x.strokeStyle = '#000'; x.lineWidth = 0.8; x.beginPath(); x.moveTo(C.x, C.y); x.lineTo(C.x, C.y + 11); x.lineTo(C.x + 3, C.y + 8); x.lineTo(C.x + 5.5, C.y + 13); x.lineTo(C.x + 7, C.y + 12.3); x.lineTo(C.x + 4.6, C.y + 7.4); x.lineTo(C.x + 8, C.y + 7.4); x.closePath(); x.fill(); x.stroke();
           LP.shown();
         }
-        if (ldStep(0.602)) await ldYield();
+        if (ldStep(0.616)) await ldYield();
         const SLEEP_POSE = {
           L: { phi: 0, hip: [-0.95, -0.5], knee: [1.3, 0.8], curl: 0.2, tilt: -0.12, side: 1, dz: -0.13, hand: [[0.26, 1.42, 0.44], [0.12, 2.02, 0.3]] },
           B: { phi: -Math.PI / 2, hip: [-0.2, -0.12], knee: [0.38, 0.26], curl: 0.03, tilt: 0, side: 0, dz: 0, hand: [[-0.08, 1.4, 0.24], [0.1, 1.5, 0.23]] },
@@ -14193,14 +15061,14 @@
         }
         function engNightTick(e, dt, t, hh) {
           resetFishingBite(); engForceAct = null; VAN.laptop.lid(0); e.seat = null; e.act = 'sleep'; e.phase = 'van'; e.inVan = true; e.van = null; e.enter = null;
-          if (VAN.studyChair.off || VAN.studyChair.sw) studyChairAt(0, 0, 0);
+          if (VAN.studyChair.off !== STUDY_TUCK || VAN.studyChair.sw) studyChairAt(STUDY_TUCK, 0, 0);
           if (e.g.parent !== VAN.object) {
             VAN.mount(e.g);
             e.g.scale.setScalar(ENGINEER_BASE_SCALE);
             e.g.position.fromArray(VAN.inside.sleepPosition);
             e.arms[0].rotation.set(0, 0, 0); e.arms[1].rotation.set(0, 0, 0);
             e.rodGrp.visible = false; CAMP.restRod(true);
-            checkBubbleSprite.visible = false;
+            checkBubbleSprite.visible = false; cdSprite.visible = false;
             engHelmet(e, 'bed'); e.towel.visible = false; VBATH.towel(true);
             e.dish = null; VKIT.reset(); engDishShow(e);
             for (const k in e.props) e.props[k].visible = false; if (e.clip) e.clip.visible = false;
@@ -14227,7 +15095,7 @@
           }
           napFx.update(dt, t, null); musicFx.update(dt, t, false); laptopScreenTick(t, false);
         }
-        if (ldStep(0.607)) await ldYield();
+        if (ldStep(0.621)) await ldYield();
         const SIM_NEEDS = [
           ['hunger', 'Đói', 'ti-tools-kitchen-2', 15, 3], ['bladder', 'Vệ sinh', 'ti-droplet', 10, 3], ['energy', 'Năng lượng', 'ti-bolt', 5.2, -12.5],
           ['hygiene', 'Tắm rửa', 'ti-bath', 3.3, 1], ['fun', 'Giải trí', 'ti-mood-happy', 9, 1], ['social', 'Giao tiếp', 'ti-messages', 5, 1],
@@ -14340,7 +15208,7 @@
           friend: () => Math.min(100, 45 + 2.4 * simDays(SIM_DOG0) + 0.5 * 60 * (sim.today.pet || 0)),
           perf: emo => Math.min(1, (sim.today.work || 0) / SIM_WORK_DAY * (emo === 'focused' ? 1.15 : 1)),
         };
-        if (ldStep(0.613)) await ldYield();
+        if (ldStep(0.626)) await ldYield();
         const AUTO = { act: null, until: 0, cmd: false, next: 0, seen: [] };
         const AUTO_ACTS = {
           snack: { n: { hunger: 1 }, dur: 480 }, toilet: { n: { bladder: 1.1 }, dur: 300 }, shower: { n: { hygiene: 1, fun: 0.1 }, dur: 700 },
@@ -14389,7 +15257,7 @@
           if (trimJob.busy()) return 'Engineer đang cắt cỏ, xong việc này đã.';
           const a = autoFix(k, hh); if (!a) return ''; autoStart(a, true); return '';
         }
-        if (ldStep(0.615)) await ldYield();
+        if (ldStep(0.629)) await ldYield();
         const exploreJob = (() => {
           const POI_NAMES = ['Cây anh đào', 'Trạm khí tượng mini', 'Đèn đường (Street Lamp)', 'Trạm biến áp', 'Cột điện #1', 'Cột điện #2', 'Xưởng bảo trì', 'Móc treo hộp tổ', 'Cột khí tượng'];
           let POI = null; const X = { st: 'idle', k: 0, n: 0, p: null }, _a = new THREE.Vector3(), _b = new THREE.Box3();
@@ -14425,7 +15293,7 @@
           }
           return { update, reset() { X.st = 'idle'; }, state: X };
         })();
-        if (ldStep(0.616)) await ldYield();
+        if (ldStep(0.630)) await ldYield();
         const engineJob = (() => {
           const J = { st: 'idle', k: 0, opened: false, fob: null, h0: new THREE.Vector3(), h1: new THREE.Vector3(), at: 'home', on: false, top: 0, turn: 1, w: new THREE.Vector3(), said: -1 };
           const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3(), _d = new THREE.Vector3(), _q = new THREE.Quaternion(), UP = new THREE.Vector3(0, 1, 0);
@@ -14467,7 +15335,7 @@
           }
           VAN.object.updateMatrixWorld(true);
           const pose = (x, z, dx, dz) => { const p = V(x, 0, z, new THREE.Vector3()), q = V(x + dx, 0, z + dz, _a); p.y = cowY(p.x, p.z); return { p, yaw: Math.atan2(q.x - p.x, q.z - p.z) }; };
-          const sc = VAN.object.scale.x, HOME = pose(-1.45, 1.08 + ST.D / 2 / sc, 0, 1), FRONT = pose(-3.28 - ST.D / 2 / sc, 0, -1, 0);
+          const sc = VAN.object.scale.x, HOME = pose(-1.45, 1.08 + ST.D / 2 / sc, 0, 1), FRONT = pose(-3.38 - ST.D / 2 / sc, 0, -1, 0);
           const SP = { p: new THREE.Vector3(), yaw: 0 }, CP = { p: new THREE.Vector3(), yaw: 0 }, A0 = { p: new THREE.Vector3(), yaw: 0 };
           const SL = (P, lx, ly, lz, out) => { const c = Math.cos(P.yaw), s = Math.sin(P.yaw); return out.set(P.p.x + lx * c + lz * s, P.p.y + ly, P.p.z - lx * s + lz * c); };
           function putStool(P) { stool.position.copy(P.p); stool.rotation.set(0, P.yaw, 0); stool.updateMatrixWorld(true); }
@@ -14573,8 +15441,8 @@
               climb(e, dt, Math.min(1, k / 2.1), J.st === 'up');
               if (k > 2.1) { e.footPlan = null; if (J.st === 'up') { J.on = true; J.top = FRONT.p.y + ST.h2; go('check'); } else go('grab'); }
             } else if (J.st === 'check') {
-              stand(e, dt); const w = ease(k / 0.9) * (1 - ease((k - 5.6) / 0.8)); e.lean = 0.55 * w; look(e, eng);
-              if (w > 0.3) { R[1] = V(-3.22, 1.25, -0.32, J.h1); R[0] = V(-2.86 + 0.07 * Math.sin(k * 1.3), 1.24, 0.08 + 0.13 * Math.sin(k * 0.7), J.h0); }
+              stand(e, dt); const w = ease(k / 0.9) * (1 - ease((k - 5.6) / 0.8)); e.lean = 0.42 * w; look(e, eng);
+              if (w > 0.3) { R[1] = V(-3.22, 1.25, -0.32, J.h1); R[0] = V(-2.92 + 0.06 * Math.sin(k * 1.3), 1.3, 0.08 + 0.13 * Math.sin(k * 0.7), J.h0); }
               if (k > 6.4) go('holo');
             } else if (J.st === 'holo') {
               stand(e, dt); e.lean = 0;
@@ -14591,7 +15459,7 @@
               if (k > 0.8 && VAN.engineOn !== (J.st === 'start')) VAN.runEngine(J.st === 'start', true);
               if (k > 1.7) go(J.st === 'start' ? 'watch' : 'cool');
             } else if (J.st === 'watch') {
-              stand(e, dt); e.lean = 0.35 * ease(k / 1.2); look(e, eng); e.head.rotation.x += 0.05 * Math.sin(t * 2.4); if (k > 1) R[1] = V(-3.22, 1.25, -0.32, J.h1);
+              stand(e, dt); e.lean = 0.3 * ease(k / 1.2); look(e, eng); e.head.rotation.x += 0.05 * Math.sin(t * 2.4); if (k > 1) R[1] = V(-3.22, 1.25, -0.32, J.h1);
               if (k > 28.3) go('stop');
             } else if (J.st === 'cool') {
               stand(e, dt); look(e, eng); if (k > 0.5) fobOn(e, false);
@@ -14619,7 +15487,7 @@
           }
           return { update, idle, busy: () => J.st !== 'idle', state: J, stool };
         })();
-        if (ldStep(0.625)) await ldYield();
+        if (ldStep(0.639)) await ldYield();
         const TRIM = { pend: false, rainS: 0 };
         const TRIM_SLOT = new Set(['outdoor', 'rest', 'read', 'music', 'fish', 'research', 'drone', 'apples']);
         worldTick('tools', 30, trimWatch);
@@ -14789,7 +15657,7 @@
           function cutFrac() { return meadow.cutFrac(pf.x, pf.z, 3.2, 7.4); }
           return { update, idle, busy: () => J.st !== 'idle', cutFrac, state: J };
         })();
-        if (ldStep(0.632)) await ldYield();
+        if (ldStep(0.645)) await ldYield();
         const footprints = (() => {
           const N = 6, FW = 0.19 * ENG_SLIM, FL = 0.27 * ENG_SLIM, F = { n: 0, prev: [false, false] };
           const tex = (() => {
@@ -14830,7 +15698,7 @@
           return Object.assign(F, { tick });
         })();
         worldTick('ground', 10, dt => footprints.tick(dt));
-        if (ldStep(0.634)) await ldYield();
+        if (ldStep(0.647)) await ldYield();
         const droneToy = (() => {
           const S = 1.3;
           const DRONE_GLB = window.__droneGlb || 'https://michaeltran75.github.io/3d-garden/models/dji-mini3.glb';
@@ -14945,7 +15813,7 @@
             if (!lo) { LOD.t = now; LOD.freed = false; }
             else if (!LOD.freed && now - LOD.t > LOD_FREE) { LOD.freed = true; for (const t of LOD.tex) t.dispose(); for (const x of LOD.geo) x.dispose(); }
           }
-          const bub = new THREE.Group(); bub.name = 'Khung tay cầm drone (trên đầu Engineer)'; bub.visible = false; scene.add(bub);
+          const bub = new THREE.Group(); bub.name = 'Khung tay cầm drone (trên đầu Engineer)'; bub.visible = false; scene.add(bub); sharpRoots.push(bub);
           const osdC = document.createElement('canvas'); osdC.width = 1024; osdC.height = 428; const ox = osdC.getContext('2d'), osdT = new THREE.CanvasTexture(osdC); osdT.colorSpace = THREE.SRGBColorSpace;
           const FRW = 1024, FRH = 678, frameRT = new THREE.WebGLRenderTarget(FRW, FRH, { samples: matchMedia('(pointer: coarse)').matches ? 2 : 4 }), fScene = new THREE.Scene(), fCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.01, 3);
           fScene.add(new THREE.HemisphereLight(0xffffff, 0x8a96a3, 1.2)); { const l = new THREE.DirectionalLight(0xffffff, 1.2); l.position.set(0.4, 1, 0.8); fScene.add(l); }
@@ -15095,6 +15963,7 @@
             T('H ' + hgt.toFixed(1) + ' m', 16, H - 10); T('D ' + dist.toFixed(0) + ' m', 140, H - 10); T('H.S ' + hs.toFixed(1) + ' m/s', 250, H - 10); T('V.S ' + D.vel.y.toFixed(1) + ' m/s', 392, H - 10);
             x.strokeStyle = 'rgba(255,255,255,0.8)'; x.lineWidth = 2; x.beginPath(); x.moveTo(W / 2 - 14, H / 2); x.lineTo(W / 2 - 5, H / 2); x.moveTo(W / 2 + 5, H / 2); x.lineTo(W / 2 + 14, H / 2); x.moveTo(W / 2, H / 2 - 5); x.lineTo(W / 2, H / 2 + 5); x.stroke();
             T((D.wp[D.wi] || {}).name || 'Hạ cánh', W - 14, 48, 'right', 14, '#ffd34a');
+            const cd = engCountdown(engObj); if (cd) T('⏱ còn ' + fmtCountdown(cd.sec), W - 14, 68, 'right', 14, '#ffd34a');
             osdT.needsUpdate = true;
           }
           function update(e, dt, t) {
@@ -15205,7 +16074,7 @@
         worldFace('drone', { get spin() { return droneToy.state.spin; }, get object() { return droneToy.g; }, get rc() { return droneToy.rc; },
           get flying() { return /^(arm|flying|land)$/.test(droneToy.state.st); } });
         worldTick('tools', 10, () => droneToy.render());
-        if (ldStep(0.653)) await ldYield();
+        if (ldStep(0.665)) await ldYield();
         const _gfA = new THREE.Vector3(), _gfQ = new THREE.Quaternion(), _gfQ2 = new THREE.Quaternion();
         const grill = (() => {
           const F = CAMP.fire.fish, S = F.stick, home = { p: S.position.clone(), q: S.quaternion.clone() }, fgP = F.fg.position.clone(), fgQ = F.fg.quaternion.clone();
@@ -15251,7 +16120,7 @@
           return G;
         })();
         worldTick('awake', 10, (dt, t, h) => grill.update(dt, h));
-        if (ldStep(0.655)) await ldYield();
+        if (ldStep(0.667)) await ldYield();
         const _mrA = new THREE.Vector3(), _mrB = new THREE.Vector3(), _mrC = new THREE.Vector3(), _mrD = new THREE.Vector3(), _mrE = new THREE.Vector3(), _mrF = new THREE.Vector3();
         const _mrM = new THREE.Matrix4(), _mrQ = new THREE.Quaternion(), _mrQ2 = new THREE.Quaternion(), _mrUp = new THREE.Vector3(0, 1, 0);
         const mrHand = [[new THREE.Vector3(), new THREE.Quaternion()], [new THREE.Vector3(), new THREE.Quaternion()]];
@@ -15438,7 +16307,7 @@
 
         const BOOK_Q = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 0.6, -0.8), new THREE.Vector3(0, -0.8, -0.6)));
         const CHIP_AT = new THREE.Vector3(0, -0.01, 0.11);
-        function engRead(e, dt, t) {
+        function engRead(e, dt, t, chips = true) {
           const H = e.hold, P = e.props, B = P.book; H.book = true; e.armsBusy = true;
           if (B.parent !== e.spine) { e.spine.add(B); B.scale.setScalar(2); }
           const tt = t + (e.readPh || 0) * 3;
@@ -15452,10 +16321,10 @@
           const corner = P.bookLeaf.localToWorld(new THREE.Vector3(0.15, 0.03, 0)), rEdge = edge(1, new THREE.Vector3());
           const toLeaf = segK(pt, 0, 0.5) * (1 - segK(pt, 1.4, 2.0));
           engHandSet(e, 0, rEdge.lerp(corner, toLeaf), qR);
-          const ct = tt % 20, reach = minJerk(segK(ct, 0, 0.9)) * (1 - minJerk(segK(ct, 1.1, 1.6))), toM = minJerk(segK(ct, 1.3, 2.2)) * (1 - minJerk(segK(ct, 2.7, 3.6)));
+          const ct = chips ? tt % 20 : 10, reach = minJerk(segK(ct, 0, 0.9)) * (1 - minJerk(segK(ct, 1.1, 1.6))), toM = minJerk(segK(ct, 1.3, 2.2)) * (1 - minJerk(segK(ct, 2.7, 3.6)));
           const lEdge = edge(-1, new THREE.Vector3());
           let lp = lEdge, lq = qLh;
-          if (reach > 0) { chipsBag.updateWorldMatrix(true, false); const bag = chipsBag.getWorldPosition(new THREE.Vector3()); bag.y += 0.12; lp = lEdge.clone().lerp(bag, reach); lq = qLh.clone().slerp(aimQ(_mrQ, _mrE.set(0, -1, 0), _mrB.copy(bx).negate()), reach); }
+          if (reach > 0) { chipsBag.updateWorldMatrix(true, false); const bag = chipsBag.getWorldPosition(new THREE.Vector3()); bag.y += 0.12 * CHIPS_K; lp = lEdge.clone().lerp(bag, reach); lq = qLh.clone().slerp(aimQ(_mrQ, _mrE.set(0, -1, 0), _mrB.copy(bx).negate()), reach); }
           if (toM > 0) { const fwd = engAxesW(e).f, m = engMouthW(e, new THREE.Vector3()), qm = aimQ(new THREE.Quaternion(), _mrB.copy(fwd).negate().addScaledVector(bx, 0.45).normalize(), _mrUp);
             const hm = _mrC.copy(CHIP_AT).multiplyScalar(e.g.scale.y).applyQuaternion(qm).negate().add(m); lp = lp.clone().lerp(hm, toM); lq = lq.clone().slerp(qm, toM); }
           engHandSet(e, 1, lp, lq);
@@ -15535,7 +16404,7 @@
           e.seatLean = 0.04; e.head.rotation.x = 0.1; e.headYawT = 0.25;
           if (k >= 1.6) { if (e.act === 'smoke') { e.phase = 'tea'; e.timer = 30; if (engForceAct === 'smoke') engForceAct = null; return; } e.phase = 'eat'; e.timer = Math.max(60, Math.min(900, e.actLeft - 900)); e.eatT0 = e.timer; }
         }
-        if (ldStep(0.669)) await ldYield();
+        if (ldStep(0.680)) await ldYield();
         const applePick = (() => {
           const POLE_SEG = 1.8, EXT_MIN = 0.1, EXT_MAX = 1.7, GRIP_LO = 0.35, GRIP_HI = 0.85, GRIP_PLANT = 1.5, CUP_OFF = 0.05, N_PICK = 3;
           const UP = new THREE.Vector3(0, 1, 0), _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3(), _d = new THREE.Vector3(), _q = new THREE.Quaternion();
@@ -15898,7 +16767,7 @@
           const canPick = () => St.st !== 'idle' || (!St.inBasket.length && !St.eat && avail() > 0);
           return { update, tick, eat, eatWant, canPick, eatStand, eatSeated: () => !!St.eat && (St.eat.st === 'sit' || St.eat.st === 'bite' || St.eat.st === 'toss'), get busy() { return St.st !== 'idle'; }, get eating() { return !!St.eat; }, state: St, plan, pole, basket, avail, room: () => SLOTS.length - St.inBasket.length, left: () => St.inBasket.length + (St.eat && St.eat.a && !St.eat.bites ? 1 : 0) };
         })();
-        if (ldStep(0.683)) await ldYield();
+        if (ldStep(0.694)) await ldYield();
         function makeRaccoonClimb(ctx) {
           const Tr = appleTrees[2], O = raccoonObj, U = O.userData, s = U.s, { B, rig, P, damp } = ctx;
           const UP = new THREE.Vector3(0, 1, 0), RMIN = 0.02, REACH = 0.3, STRIDE = 0.17, DUTY = 0.62, OFF = [0, 0.5, 0.72, 0.22], V_UP = 0.3, V_BR = 0.26, V_DN = 0.26, RESPAWN = 25 * 60;
@@ -15926,15 +16795,17 @@
             const D = deadLog, P0 = Tr.position, ux = D.bx - D.ax, uz = D.bz - D.az; let k = ((P0.x - D.ax) * ux + (P0.z - D.az) * uz) / (ux * ux + uz * uz); k = cl(k, 0, 1);
             _a.set(D.ax + ux * k - P0.x, 0, D.az + uz * k - P0.z).normalize().applyAxisAngle(UP, -Tr.rotation.y); return _a.clone();
           }
+          const _cam = new THREE.Vector3();
           function plan() {
             const g = graph(), S = g.S, apples = Tr.userData.apples; let best = null;
+            _cam.copy(camera.position).sub(Tr.position).setY(0); if (_cam.lengthSq() > 1e-8) _cam.normalize().applyAxisAngle(UP, -Tr.rotation.y);
             for (const ap of apples) {
-              if (!ap.on || ap.raccoon) continue; const p = ap.home;
+              if (!ap.on || ap.raccoon) continue; const p = ap.home, pr = Math.hypot(p.x, p.z), face = pr > 1e-4 ? (p.x * _cam.x + p.z * _cam.z) / pr : 0;
               for (let j = 0; j < g.segs.length; j++) {
                 const sg = g.segs[j]; if (g.trunk.includes(j) || Math.min(sg[6], sg[7]) * S < RMIN) continue;
                 const ax = sg[0], ay = sg[1], az = sg[2], dx = sg[3] - ax, dy = sg[4] - ay, dz = sg[5] - az, L2 = dx * dx + dy * dy + dz * dz;
                 const k = cl(((p.x - ax) * dx + (p.y - ay) * dy + (p.z - az) * dz) / L2, 0, 1), d = Math.hypot(ax + dx * k - p.x, ay + dy * k - p.y, az + dz * k - p.z) * S;
-                if (d > REACH) continue; const sc = 0.5 * (g.from(j) + Math.sqrt(L2) * k) * S + 3 * d - 1.5 * Math.min(3.2, Math.hypot(p.x, p.z) * S);
+                if (d > REACH) continue; const sc = 0.5 * (g.from(j) + Math.sqrt(L2) * k) * S + 3 * d - 1.5 * Math.min(3.2, pr * S) - 2 * face;
                 if (!best || sc < best.sc) best = { sc, ap, j, k };
               }
             }
@@ -15950,8 +16821,11 @@
             const g = graph(), segs = g.segs, S = g.S, chain = []; for (let i = j; i >= 0 && i !== g.top; i = g.pred[i]) chain.unshift(i);
             const fork = vec(segs[g.top], 3), hTop = fork.y, f0 = segs[chain[0]];
             const n = new THREE.Vector3(f0[3] - f0[0], 0, f0[5] - f0[2]); if (n.lengthSq() < 1e-6) n.set(1, 0, 0); n.normalize();
-            const lg = logSide(), ang = Math.atan2(n.x * lg.z - n.z * lg.x, n.dot(lg)), MIN = 1.25;
-            if (Math.abs(ang) < MIN) n.copy(lg).applyAxisAngle(UP, -(ang >= 0 ? MIN : -MIN)).normalize();
+            const lg = logSide(), MIN = 1.25, angOf = a => Math.atan2(a.x * lg.z - a.z * lg.x, a.dot(lg)), ang = angOf(n);
+            if (Math.abs(ang) < MIN) n.copy(lg).applyAxisAngle(UP, ang >= 0 ? MIN : -MIN).normalize();
+            { const c = _cam.clone(), ac = angOf(c); if (Math.abs(ac) < MIN) c.copy(lg).applyAxisAngle(UP, ac >= 0 ? MIN : -MIN);
+              Tr.localToWorld(_a.copy(c).multiplyScalar(0.9 / S).setY(0));
+              if (c.lengthSq() > 0.5 && !isWater(Math.round(x2gi(_a.x)), Math.round(z2gj(_a.z))) && Math.abs(cowY(_a.x, _a.z) - Tr.position.y) < 0.4) n.copy(c).normalize(); }
             const Pp = [], Nn = [], Rr = [];
             for (let h = 0.04; h <= hTop - 0.32; h += 0.12) { Pp.push(trunkSurf(n, h)); Nn.push(n.clone()); Rr.push(9); }
             Pp.push(fork.clone().addScaledVector(n, 0.17).setY(hTop - 0.05)); Nn.push(n.clone().add(UP).normalize()); Rr.push(9);
@@ -16099,15 +16973,31 @@
             if (C.core) { const c = C.core, g = c.g; if (!c.rest) { c.v.y -= 9.8 * dt; g.position.addScaledVector(c.v, dt); g.rotation.x += dt * 6; const gy = cowY(g.position.x, g.position.z) + 0.03; if (g.position.y <= gy) { g.position.y = gy; c.rest = t; } } else if (t - c.rest > 45) { g.visible = false; C.core = null; } }
             for (let i = C.eaten.length - 1; i >= 0; i--) if (t >= C.eaten[i].at && !(C.core && C.core.g === C.eaten[i].ap.g)) { respawn(C.eaten[i].ap); C.eaten.splice(i, 1); }
           }
+          let navB = null;
+          function navBlocked() {
+            if (navB) return navB;
+            navB = new Uint8Array(FF_N).fill(1); const c = Tr.position, R0 = 30, D = deadLog, ux = D.bx - D.ax, uz = D.bz - D.az, L2 = ux * ux + uz * uz;
+            const i0 = Math.max(0, Math.floor(x2gi(c.x - R0))), i1 = Math.min(GX - 1, Math.ceil(x2gi(c.x + R0))), j0 = Math.max(0, Math.floor(z2gj(c.z - R0))), j1 = Math.min(GZ - 1, Math.ceil(z2gj(c.z + R0)));
+            for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+              const n = i + j * GX, x = wx(i), z = wz(j), k = cl(((x - D.ax) * ux + (z - D.az) * uz) / L2, 0, 1);
+              navB[n] = isWater(i, j) || (ffBlocked[n] && padH(i, j) === null) || Math.hypot(D.ax + ux * k - x, D.az + uz * k - z) < 1.1 ? 1 : 0;
+            }
+            for (const ob of obstacleCoords) {
+              const rr = ob.r + 0.3;
+              for (let j = Math.max(j0, Math.floor(z2gj(ob.z - rr))); j <= Math.min(j1, Math.ceil(z2gj(ob.z + rr))); j++)
+                for (let i = Math.max(i0, Math.floor(x2gi(ob.x - rr))); i <= Math.min(i1, Math.ceil(x2gi(ob.x + rr))); i++) if (Math.hypot(wx(i) - ob.x, wz(j) - ob.z) < rr) navB[i + j * GX] = 1;
+            }
+            return navB;
+          }
           function goal() {
             const Q = C.path; Tr.localToWorld(C.goal.copy(Q.n).multiplyScalar(Q.r0 + 0.3 / graph().S).setY(0)); C.goal.y = cowY(C.goal.x, C.goal.z);
-            Q.nW = Q.n.clone().transformDirection(Tr.matrixWorld).setY(0).normalize(); if (!C.field) C.field = buildFlowField(C.goal.x, C.goal.z); return C.goal;
+            Q.nW = Q.n.clone().transformDirection(Tr.matrixWorld).setY(0).normalize(); if (!C.field) C.field = buildFlowField(C.goal.x, C.goal.z, navBlocked()); return C.goal;
           }
           return {
             C, tick, update, start, plan: () => { C.field = null; return plan(); }, goal, logAng: () => { const P0 = Tr.position, D = deadLog, ux = D.bx - D.ax, uz = D.bz - D.az, k = cl(((P0.x - D.ax) * ux + (P0.z - D.az) * uz) / (ux * ux + uz * uz), 0, 1); return Math.atan2(D.az + uz * k - P0.z, D.ax + ux * k - P0.x); }, closeUp: () => C.cuT, face: () => { const n = C.path.nW; return Math.atan2(n.z, -n.x); }
           };
         }
-        if (ldStep(0.691)) await ldYield();
+        if (ldStep(0.703)) await ldYield();
         const racField = buildFlowField(racApproach.x, racApproach.z);
         const raccoonBrain = (() => {
           const O = raccoonObj, U = O.userData, s = U.s, H0 = U.H0;
@@ -16129,10 +17019,11 @@
           const rig = quadRig(O, { legs: U.legs, gaits: GAITS, home: homeLocal, ground: (x, z) => cowY(x, z), size: 0.2, settleT: 0.18, settleLift: 0.03 });
           const tail = makeSoftTail(U.tailHost, { base: new THREE.Vector3(0, 0, 0), dir: new THREE.Vector3(-1, -0.2, 0).normalize(), n: 7, len: 0.046 * s, w: 0.12 * s, mat: U.ringB, stiff: [0.3, 0.1] });
           tail.segs.forEach((m, i) => { m.material = i % 2 || i === tail.segs.length - 1 ? U.ringA : U.ringB; });
-          const B = { st: 'den', t: 0, k: 0, v: 0, want: 0, gait: 'walk', tgt: new THREE.Vector3(), has: false, mode: 'walk', look: null, headP: null, dig: 0, apple: null, n: 0, ate: '', fled: false };
+          const B = { st: 'den', t: 0, k: 0, v: 0, want: 0, gait: 'walk', tgt: new THREE.Vector3(), has: false, mode: 'walk', look: null, headP: null, dig: 0, apple: null, n: 0, ate: '', fled: false, call: 0 };
           const active = () => { const hh = liveWeather.localHour; return !liveWeather.state.raining && ((hh >= 16.5 && hh < 22.5) || (hh >= 4.5 && hh < 7)); };
           const set = (st, t) => { B.st = st; B.k = 0; B.t = t || 0; B.has = false; };
           const climb = makeRaccoonClimb({ B, rig, P, damp, tail, set: (st, tt) => set(st, tt), H0 });
+          worldHear('appleTreeTap', T => { if (T === appleTrees[2] && B.st !== 'toTree' && B.st !== 'climb') B.call = true; });
           const randPt = () => { for (let k = 0; k < 12; k++) { const a = Math.random() * 6.2832, r = 2 + Math.random() * 6, x = racHome.x + Math.cos(a) * r, z = racHome.z + Math.sin(a) * r; if (isWater(Math.round(x2gi(x)), Math.round(z2gj(z))) || racAvoidLog(x, z) || obstacleCoords.some(o => Math.hypot(x - o.x, z - o.z) < o.r + 0.3)) continue; return _a.set(x, 0, z).clone(); } return new THREE.Vector3(racApproach.x, 0, racApproach.z); };
           function steer(tx, tz, speed, dt, field, stopR = 0.1) {
             const p = O.position, dx = tx - p.x, dz = tz - p.z, dd = Math.hypot(dx, dz);
@@ -16174,16 +17065,21 @@
           function behave(dt, t) {
             const p = O.position, hh = liveWeather.localHour, th = ['den', 'exit', 'enter', 'climb'].includes(B.st) ? null : threat();
             B.look = null; B.headP = null; B.dig = 0; B.mode = 'walk'; B.k += dt; B.t -= dt;
-            if (B.st === 'peek' && (th || !active())) { B.fled = !!th; set('enter'); }
-            else if (B.st === 'out' && th && Math.hypot(p.x - racMouth.x, p.z - racMouth.z) < 1.2) { B.fled = true; set('toMouth'); }
-            else if (th && !['flee', 'toMouth', 'enter', 'den', 'exit'].includes(B.st)) set('flee');
-            if (!active() && ['forage', 'dig', 'stand', 'chase', 'toTree'].includes(B.st)) set('home');
-            if (climb.closeUp() > 1.5 && ['forage', 'dig', 'stand', 'eat'].includes(B.st) && active() && t > (B.climbCD || 0) && t > (B.climbTry || 0) && p.distanceTo(appleTrees[2].position) < 25) {
+            if (B.call === true) B.call = t + 90;
+            const call = B.call > t;
+            if (B.st === 'peek' && (th || (!active() && !call))) { B.fled = !!th; if (th) B.call = 0; set('enter'); }
+            else if (B.st === 'out' && th && Math.hypot(p.x - racMouth.x, p.z - racMouth.z) < 1.2) { B.fled = true; B.call = 0; set('toMouth'); }
+            else if (th && !['flee', 'toMouth', 'enter', 'den', 'exit'].includes(B.st)) { B.call = 0; set('flee'); }
+            else if (call && !B.fled && (B.st === 'toMouth' || B.st === 'enter')) set(B.st === 'toMouth' && Math.hypot(p.x - racMouth.x, p.z - racMouth.z) > 1.2 ? 'stand' : 'exit', 1);
+            if (!active() && !call && ['forage', 'dig', 'stand', 'chase', 'toTree'].includes(B.st)) set('home');
+            const from = call ? ['forage', 'dig', 'stand', 'eat', 'chase', 'home', 'out'] : ['forage', 'dig', 'stand', 'eat'];
+            if ((call || (climb.closeUp() > 1.5 && active() && t > (B.climbCD || 0))) && from.includes(B.st) && (B.st !== 'out' || (Math.hypot(p.x - racMouth.x, p.z - racMouth.z) > 1.1 && !racAvoidLog(p.x, p.z)))
+              && t > (B.climbTry || 0) && p.distanceTo(appleTrees[2].position) < 25) {
               B.climbTry = t + 5; if (climb.plan()) { climb.goal(); set('toTree', 30); }
             }
             switch (B.st) {
-              case 'den': O.visible = false; B.want = B.v = 0; if (active() && B.t <= 0) { set('exit'); O.visible = true; } return 0;
-              case 'exit': if (crawl(racMouth, 0.45, dt)) set('peek', 1.6 + Math.random()); return B.v * dt;
+              case 'den': O.visible = false; B.want = B.v = 0; if ((active() && B.t <= 0) || call) { set('exit'); O.visible = true; } return 0;
+              case 'exit': if (crawl(racMouth, call ? 0.6 : 0.45, dt)) set('peek', call ? 0.9 : 1.6 + Math.random()); return B.v * dt;
               case 'peek': {
                 B.want = 0; B.headP = 0.15; const a = -O.rotation.y + 0.7 * Math.sin(B.k * 2.1); B.look = _hp.set(p.x + 2 * Math.cos(a), p.y + 0.25, p.z + 2 * Math.sin(a));
                 if (B.t <= 0) set('out');
@@ -16232,7 +17128,7 @@
                   steer(tx, tz, 0.7, dt, climb.C.field, 0.12); if (B.t <= 0) { B.climbCD = t + 60; set('forage'); } break;
                 }
                 B.want = 0; let dy = climb.face() - O.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); O.rotation.y += Math.max(-2 * dt, Math.min(2 * dt, dy));
-                if (Math.abs(dy) < 0.12) { B.v = 0; set('climb'); climb.start(t); }
+                if (Math.abs(dy) < 0.12) { B.v = 0; B.call = 0; set('climb'); climb.start(t); }
                 break;
               }
               case 'climb': B.want = B.v = 0; return 0;
@@ -16247,7 +17143,8 @@
             }
             return move(dt);
           }
-          if (active()) { O.visible = true; O.position.set(racApproach.x, cowY(racApproach.x, racApproach.z), racApproach.z); set('forage'); } else set('den');
+          if (active()) { O.visible = true; O.position.set(racApproach.x, cowY(racApproach.x, racApproach.z), racApproach.z); set('forage'); }
+          else { O.position.set(racInside.x, cowY(racInside.x, racInside.z), racInside.z); O.rotation.y = yawOf(racMouth.x - racInside.x, racMouth.z - racInside.z); set('den'); }
           return {
             update(dt, t) {
               dt = Math.min(dt, 0.05);
@@ -16299,11 +17196,11 @@
           };
         })();
         worldTick('wild', 50, (dt, t) => { if (raccoonObj) raccoonBrain.update(dt, t); });
-        if (ldStep(0.699)) await ldYield();
+        if (ldStep(0.710)) await ldYield();
         (() => {
           const RAC_GLB = window.__racGlb || 'https://michaeltran75.github.io/3d-garden/models/raccoon.glb';
           const O = raccoonObj, U = O.userData, s = U.s;
-          ldTrack(import('https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js').then(({ GLTFLoader }) => new GLTFLoader().loadAsync(RAC_GLB)).then(ldAfter).then(gl => {
+          ldTrack(Promise.all([import('https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js'), import('https://esm.sh/three@0.160.0/examples/jsm/libs/meshopt_decoder.module.js')]).then(([{ GLTFLoader }, { MeshoptDecoder }]) => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(RAC_GLB)).then(ldAfter).then(gl => {
             let src = null; gl.scene.traverse(o => { if (o.isSkinnedMesh) src = o; });
             const sk = src.skeleton, J = {}, M4 = new THREE.Matrix4();
             sk.bones.forEach((b, j) => { J[b.name.replace(/_\d+$/, '')] = new THREE.Vector3().setFromMatrixPosition(M4.copy(sk.boneInverses[j]).invert()); });
@@ -16374,14 +17271,15 @@
             U.glb = mesh;
           }).catch(err => console.warn('Raccoon GLB:', err)));
         })();
-        if (ldStep(0.702)) await ldYield();
+        if (ldStep(0.714)) await ldYield();
         worldFace('raccoon', {
           get pos() { return raccoonObj.position; },
           get shown() { return raccoonObj.visible; },
           get object() { return raccoonObj; },
           get swipe() { return raccoonBrain.state.swipe || null; },
+          get climbing() { return raccoonBrain.state.st === 'climb' ? appleTrees[2] : null; },
         });
-        if (ldStep(0.702)) await ldYield();
+        if (ldStep(0.714)) await ldYield();
         const cowBlocked = ffBlocked.slice();
         { const r = cowHutRect, ax0 = r.x0 - 0.6, ax1 = r.x1 + 2.2, az0 = r.z1, az1 = cowHut.door.z + 3.2;
           for (let j = 0; j < GZ; j++) for (let i = 0; i < GX; i++) {
@@ -16403,7 +17301,7 @@
             c.x = st.x; c.z = st.z; c.ang = -Math.PI / 2; c.g.position.set(c.x, cowY(c.x, c.z) - 0.8 * NATURE_SCALE, c.z); c.g.rotation.y = Math.PI / 2;
           } }
 
-        if (ldStep(0.703)) await ldYield();
+        if (ldStep(0.715)) await ldYield();
         worldFace('cows', {
           get list() { return cows; },
           get hut() { return cowHut; },
@@ -16412,7 +17310,7 @@
           get hutField() { return hutField; },
           wantHome: () => cowHutWanted(),
         });
-        if (ldStep(0.703)) await ldYield();
+        if (ldStep(0.715)) await ldYield();
         const FISH_DROP = 0.42, FISH_HOOK = 0.32, FISH_SWING = 2.3, FLOAT_M = 0.012, BAIT_M = 0.006, LINE_PER_TURN = 0.62, FISH_DRAG = 14;
         const FL_N = 26;
         const fishLinePos = new Float32Array(FL_N * 3);
@@ -16935,7 +17833,7 @@
         }
 
 
-        if (ldStep(0.721)) await ldYield();
+        if (ldStep(0.732)) await ldYield();
         for (let n = 0, ft = 0; n < 140 && ft < 12000; ft++) {
           const i = 3 + (Math.random() * (GX - 6) | 0), j = 3 + (Math.random() * (GZ - 6) | 0);
           if (!freeTree(i, j)) continue;
@@ -16987,7 +17885,7 @@
         _forestVariants.length = 0;
 
 
-        if (ldStep(0.723)) await ldYield();
+        if (ldStep(0.734)) await ldYield();
         const lotusPond = (() => {
           const rnd = mulberry32(5150), C0x = X0 + 73, C0z = Z0 + 113, pond = new THREE.Group(); pond.name = 'Đầm sen';
           const sm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
@@ -17316,7 +18214,7 @@
           }
           return { group: pond, flowers, pads, update };
         })();
-        if (ldStep(0.734)) await ldYield();
+        if (ldStep(0.745)) await ldYield();
         let forestLeafCtl = null;
         {
           const DX = 2.4, SLICE = 4, x0 = wx(-MX) - BLOCK / 2, z0 = wz(-MZ) - BLOCK / 2;
@@ -17389,7 +18287,7 @@
               return [best.x + Math.cos(a) * r, best.y - Math.random() * r * 0.5, best.z + Math.sin(a) * r];
             } });
         }
-        if (ldStep(0.737)) await ldYield();
+        if (ldStep(0.748)) await ldYield();
         const meadow = (() => {
           const rnd = mulberry32(4545), CH = 24;
           const hsh = (a, b) => { const s = Math.sin(a * 127.1 + b * 311.7) * 43758.545; return s - Math.floor(s); };
@@ -17554,7 +18452,7 @@
               .replace('#include <normal_fragment_begin>', '#include <normal_fragment_begin>\n                normal = normalize( vNormal );   // không lật theo mặt sau: cả 2 mặt lá sáng như mặt đất')
               .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n                totalEmissiveRadiance += uGlow * vT * vT * vT * (0.7 + 0.3 * vLush);   // nắng thấp xuyên qua phần ngọn lá: ửng vàng (không phụ thuộc độ rọi)');
           };
-          mat.customProgramCacheKey = () => 'meadow1';
+          mat.customProgramCacheKey = () => 'meadow1'; skyShadeMat(mat, 'meadow', { vtx: true });
           const mk = g => { const m = new THREE.Mesh(g, mat); m.frustumCulled = false; m.receiveShadow = true; m.castShadow = false; m.name = 'Thảm cỏ'; m.userData.noBatch = m.userData.noRainOcc = true; m.visible = false; scene.add(m); return m; };
           const meshes = LODS.map(([g]) => mk(g));
           const frus = new THREE.Frustum(), _pm = new THREE.Matrix4(), last = new Float32Array(17);
@@ -17611,6 +18509,9 @@
           const _cr = new THREE.Vector3(), _cd = new THREE.Vector3(), _sd = new THREE.Vector3();
           return {
             cells: nC, land, frac: nC / land, cellAt: k => [R[k * 3], R[k * 3 + 1], R[k * 3 + 2]], cutAt, grassNear, flowerNear, cutFrac, grassFeed, grassSpots,
+            shade(x, z, r, f) {
+              let n = 0; cellsIn(x, z, r, q => { const k = f(R[q * 3], R[q * 3 + 2]); if (k < 1) { BC[q * 3] *= k; BC[q * 3 + 1] *= k; BC[q * 3 + 2] *= k; n++; } }); last[16] = NaN; return n;
+            },
             update(dt, t) {
               const ppu = renderer.domElement.height / ((camera.top - camera.bottom) / camera.zoom);
               const fade = Math.max(0, Math.min(1, (ppu - 9) / 8));
@@ -17636,7 +18537,7 @@
             }
           };
         })();
-        if (ldStep(0.749)) await ldYield();
+        if (ldStep(0.759)) await ldYield();
         const beeWeatherOK = () => { const h = liveWeather.localHour, w = liveWeather.state; return !w.raining && h >= 6.33 && h < 18 && (w.windSpeed ?? 0) < 24 && (w.temperature ?? 25) >= 12; };
         const beehive = (() => {
           const H = 1.0, NC = 13, ROPE = 0.22;
@@ -17774,7 +18675,7 @@
           };
         })();
         worldJoin('drawBatch', 25, B => B.with('Động vật ban ngày', beehive.fly.map(f => f.g)));
-        if (ldStep(0.756)) await ldYield();
+        if (ldStep(0.766)) await ldYield();
         const fireflies = [];
         function fireflyTex() { const c = document.createElement('canvas'); c.width = c.height = 32; const x = c.getContext('2d'); const g = x.createRadialGradient(16, 16, 0, 16, 16, 16); g.addColorStop(0, 'rgba(228,255,150,1)'); g.addColorStop(0.4, 'rgba(186,240,96,0.55)'); g.addColorStop(1, 'rgba(186,240,96,0)'); x.fillStyle = g; x.fillRect(0, 0, 32, 32); return new THREE.CanvasTexture(c); }
         const ffMap = fireflyTex();
@@ -17876,7 +18777,7 @@
           }
         }
         worldJoin('dayNight', 40, G => { for (const f of fireflies) G.night.add(f.g); });
-        if (ldStep(0.761)) await ldYield();
+        if (ldStep(0.770)) await ldYield();
         let safeFlowerCoords;
         flowerNectar = new Map();
         for (const flower of flowerCoords) flowerNectar.set(flower, { remaining: 2, reserved: 0, readyAt: 0 });
@@ -17891,7 +18792,7 @@
           const supply = flowerNectarState(flower, now);
           return !!supply && supply.remaining > supply.reserved;
         }
-        if (ldStep(0.761)) await ldYield();
+        if (ldStep(0.770)) await ldYield();
         const flightRootNames = new Set([
           'Trạm thủy điện (Hydro Dam)', 'Cánh đồng pin mặt trời (Solar Farm)',
           'Nhà điều hành hai tầng', 'Xưởng bảo trì', 'Nhà thiết bị & dịch vụ',
@@ -17983,7 +18884,7 @@
           const p = flightNav.visualPosition(agent.pos, insectOffset.set(x, y, 0), insectVisual);
           agent.g.position.set(p.x, p.y, p.z);
         }
-        if (ldStep(0.763)) await ldYield();
+        if (ldStep(0.772)) await ldYield();
         const BF_SP = [
           ['lacewing', '#d9452c', '#e0562e', 0x3a2418, 3.5, [0.4, 1.0]], ['tiger', '#ee8a1d', '#f29a2e', 0x2b2018, 3, [0.5, 1.3]], ['bluebottle', '#1d2226', '#1d2226', 0x1a1d20, 4, [0.3, 0.8]],
           ['yellow', '#f2d82a', '#f4de3a', 0x5a4a1a, 5.5, null], ['bluetiger', '#2a2622', '#2a2622', 0x221e1a, 2.75, [0.6, 1.6]], ['bluebottle', '#1d2226', '#1d2226', 0x1a1d20, 4, [0.3, 0.8]]];
@@ -18163,11 +19064,11 @@
           }
         }
         worldJoin('dayNight', 20, G => { for (const b of butterflies) G.day.add(b.g); });
-        if (ldStep(0.770)) await ldYield();
+        if (ldStep(0.779)) await ldYield();
         worldFace('fireflies', {
           get list() { return fireflies; },
         });
-        if (ldStep(0.770)) await ldYield();
+        if (ldStep(0.779)) await ldYield();
         const daytimeAnimals = new THREE.Group(), nighttimeFireflies = new THREE.Group();
         daytimeAnimals.name = 'Động vật ban ngày'; nighttimeFireflies.name = 'Đom đóm ban đêm';
         scene.add(daytimeAnimals, nighttimeFireflies);
@@ -18178,7 +19079,7 @@
         }
         updateAnimalVisibility();
         worldJoin('drawBatch', 30, B => B.draws('Động vật ban ngày', [daytimeAnimals]));
-        if (ldStep(0.771)) await ldYield();
+        if (ldStep(0.780)) await ldYield();
         const bunnyRoot = new THREE.Group(); bunnyRoot.name = 'Thỏ'; scene.add(bunnyRoot);
         for (const b of bunnies) bunnyRoot.attach(b.g);
         const bunnyBurrow = (() => {
@@ -18283,7 +19184,7 @@
           return true;
         }
         worldJoin('drawBatch', 50, B => B.draws('Thỏ', [bunnyRoot]));
-        if (ldStep(0.775)) await ldYield();
+        if (ldStep(0.783)) await ldYield();
         const BUN_BED = { eatAt: -1e9, gap: 60, who: null };
         const _bbA = new THREE.Vector3();
         const bunnyEngNear = (p, r, v = -1) => { const E = worldSee('engineer'); return !!E && E.out && (E.vel || 0) > v && Math.hypot(E.pos.x - p.x, E.pos.z - p.z) < r; };
@@ -18334,13 +19235,13 @@
           if (b.bed.st === 'eat') { bunnyDropCarrot(b); BUN_BED.eatAt = clock.elapsedTime; }
           if (CB) { CB.release(sl); if (sl.pull) CB.tug(sl, 0); } b.bed = null; BUN_BED.who = null;
         }
-        if (ldStep(0.777)) await ldYield();
+        if (ldStep(0.785)) await ldYield();
         worldFace('bunnies', {
           get list() { return bunnies; },
           get atBed() { return BUN_BED.who; },
           bedEating: () => { const b = BUN_BED.who; return !!b && !!b.bed && b.bed.st !== 'go'; },
         });
-        if (ldStep(0.777)) await ldYield();
+        if (ldStep(0.786)) await ldYield();
         function reserveBeeNectar(bee, now = Date.now()) {
           const flower = bee.target.nectarFlower, supply = flowerNectarState(flower, now);
           if (!supply || supply.remaining <= supply.reserved || bee.nectarFlower) return false;
@@ -18568,7 +19469,7 @@
           else for (const b of bees) cancelBeeNectar(b);
           beehive.update(dt, t);
         });
-        if (ldStep(0.785)) await ldYield();
+        if (ldStep(0.793)) await ldYield();
         const birds = [];
         let storkDefinition = {
           points: new Int16Array([
@@ -19745,14 +20646,14 @@
           birds.forEach(b => { if (b.m && b.foot) b.col = C.mover({ kind: 'stork', a: 0.48, b: 0.22, lo: 0.5, hi: 1.4, w: 1, x: () => b.foot.x, z: () => b.foot.z, ang: () => Math.PI / 2 - b.m.rotation.y, on: () => b.m.visible && b.state === 'wade' }); });
           C.moving(() => birds.map(b => b.m));
         });
-        if (ldStep(0.835)) await ldYield();
+        if (ldStep(0.841)) await ldYield();
         worldFace('storks', {
           get birds() { return birds; },
           get group() { return storksGroup; },
           get awake() { return storksAwake(); },
         });
         worldHear('gardenGone', () => { birds.length = 0; storkDefinition = null; });
-        if (ldStep(0.836)) await ldYield();
+        if (ldStep(0.842)) await ldYield();
         const _spT = new THREE.Vector3(), _spW = new THREE.Vector3(), SPA = { dogV: 0, engV: 0, dp: new THREE.Vector3(), ep: new THREE.Vector3(), init: false };
         function sparrowAnimTick(dt) {
           const k = 1 / Math.max(dt, 1e-3), E = worldSee('engineer'), D = worldSee('dog'), e = E ? E.pos : SPA.ep, dp = D ? D.pos : SPA.dp;
@@ -20211,7 +21112,7 @@
             });
           });
         }
-        if (ldStep(0.857)) await ldYield();
+        if (ldStep(0.862)) await ldYield();
         const SPARROW_CAST = [
           { name: 'Trống đầu đàn', sex: 'm', bib: 1, bold: 0.75, social: 0.6, rank: 0.8, like: 'sing' },
           { name: 'Mái đầu đàn', sex: 'f', bold: 0.6, social: 0.7, rank: 1, like: 'dust' },
@@ -20577,11 +21478,11 @@
         const sparrowRoots = () => [songbird.root, ...flock.birds.map(b => b.root), ...nestPairs.flat().map(b => b.root), ...sparrowGang.birds.map(b => b.root)];
         worldJoin('collide', 80, C => C.moving(sparrowRoots));
         worldJoin('drawBatch', 90, B => B.draws('Chim sẻ', sparrowRoots()));
-        if (ldStep(0.871)) await ldYield();
+        if (ldStep(0.876)) await ldYield();
         worldFace('sparrows', {
           all: () => [songbird, ...flock.birds, ...nestPairs.flat(), ...sparrowGang.birds],
         });
-        if (ldStep(0.871)) await ldYield();
+        if (ldStep(0.876)) await ldYield();
         const chickens = (() => {
           const CHICK_GLB = window.__chickGlb || 'https://michaeltran75.github.io/3d-garden/models/chicken.glb';
           const C = { list: [], ready: false, allIn: false }, CO = COOP;
@@ -20723,8 +21624,8 @@
           }
           function nearestCover(h) { let best = null, bd = Infinity; for (const [, pts] of covers()) { const q = pts[h.i % pts.length], d = Math.hypot(q.x - h.g.position.x, q.z - h.g.position.z); if (d < bd) { bd = d; best = q; } } return best; }
           const roostTime = () => { const hh = liveWeather.localHour; return hh >= 12 ? sunElevSin < 0.06 : sunElevSin < 0.03; };
-          ldTrack(Promise.all([import('https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js'), import('https://esm.sh/three@0.160.0/examples/jsm/utils/SkeletonUtils.js')])
-            .then(([{ GLTFLoader }, SU]) => new GLTFLoader().loadAsync(CHICK_GLB).then(gl => [gl, SU])).then(ldAfter).then(([gl, SU]) => {
+          ldTrack(Promise.all([import('https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js'), import('https://esm.sh/three@0.160.0/examples/jsm/utils/SkeletonUtils.js'), import('https://esm.sh/three@0.160.0/examples/jsm/libs/meshopt_decoder.module.js')])
+            .then(([{ GLTFLoader }, SU, { MeshoptDecoder }]) => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(CHICK_GLB).then(gl => [gl, SU])).then(ldAfter).then(([gl, SU]) => {
               const walk = gl.animations.find(a => a.name === 'walking');
               for (const tr of walk.tracks) if (tr.name.endsWith('.position') && tr.times.length > 1) {
                 const n = tr.times.length, T0 = tr.times[0], T1 = tr.times[n - 1], d = [0, 1, 2].map(q => tr.values[(n - 1) * 3 + q] - tr.values[q]);
@@ -20929,12 +21830,12 @@
           return Object.assign(C, { update(dt, t) { update(dt, t); if (C.ready) dirtTick(Math.min(dt, 0.05)); }, roostTime });
         })();
         worldTick('ground', 20, (dt, t) => chickens.update(dt, t));
-        if (ldStep(0.889)) await ldYield();
+        if (ldStep(0.892)) await ldYield();
         worldFace('chickens', {
           get list() { return chickens.list; },
           get allIn() { return chickens.allIn; },
         });
-        if (ldStep(0.889)) await ldYield();
+        if (ldStep(0.893)) await ldYield();
         const RX_NO = [false, false], RX_YES = [true, true], RX_R = [true, false];
         const RX_BUSY = new Set(['pet', 'apple', 'appleEat', 'trim', 'drone', 'drink', 'grab', 'plant', 'toPlant', 'toSmoker', 'smokeIn', 'toSmokerOut', 'smokeOut', 'toStoke', 'stoke', 'toGrill', 'eatFish', 'tossFish', 'fish', 'eat', 'read', 'nap', 'stars', 'garden']);
         const RX_STOP = new Set(['wander', 'check', 'toMast', 'toChair', 'toShelter', 'toFish', 'toDog']);
@@ -21447,7 +22348,7 @@
           }
           RX.po += (pT - RX.po) * (1 - Math.exp(-dt * 7)); e.head.rotation.x += RX.po;
         }
-        if (ldStep(0.907)) await ldYield();
+        if (ldStep(0.910)) await ldYield();
         const ENV_R = 6 * BLOCK, ENV_STOP = new Set([...RX_STOP, 'explore']);
         const ENV = { t: 0, tgt: null, seen: new Map(), bf: null, nx: {}, sunset: '', moon: '' };
         const _evA = new THREE.Vector3(), _evB = new THREE.Vector3(), _evC = new THREE.Vector3(), _evD = new THREE.Vector3(), _evQ = new THREE.Quaternion();
@@ -21582,7 +22483,7 @@
           const G = RX.gest; if (G && G.k === 'finger') rxGestEnd(G);
         }
         function envBflyEnd() { ENV.bf = null; ENV.nx.bfly = RX.t + 40; const G = RX.gest; if (G && G.k === 'finger') rxGestEnd(G); }
-        if (ldStep(0.912)) await ldYield();
+        if (ldStep(0.914)) await ldYield();
         const engFace = (() => {
           const FC = engObj.g.userData.face, x = FC.awake.image.getContext('2d'), YEL = '#' + new THREE.Color(LEGO_YELLOW).getHexString();
           const DEF = { eo: 1, eh: 0, sq: 0, lid: 0, wk: 0, gx: 0, gy: 0, by: 0, bt: 0, ba: 0, ms: 0.75, mo: 0, mr: 0, mw: 0, mt: 0, mx: 0, wob: 0, tg: 0, bl: 0, sw: 0, cn: 0, tr: 0 };
@@ -21795,7 +22696,7 @@
           return { tick, plan, state: { F, T, S, M, B, Y }, draw: () => draw(F) };
         })();
         function engMoodPost(e, dt, t) { RX.pAdd += engFace.state.M.head + engFace.state.M.nod; RX.sp.x += engFace.state.M.slump; }
-        if (ldStep(0.921)) await ldYield();
+        if (ldStep(0.924)) await ldYield();
         const WX = { ta: 25, eV: 20, rad: 0, cloud: 50, at: 25, body: null, wet: 0, hotK: 0, coldK: 0, sun: 0, act: 0, outT: 0, envT: 0, ev: {}, drinkT: 0, wetLook: -1, mats: null };
         const _wxA = new THREE.Vector3(), _wxSp = new THREE.Color(0x8a8a8a);
         function wxEnv() {
@@ -21881,7 +22782,7 @@
           if (WX.wet > 0.3) L.push({ name: 'Ướt mưa', emo: 'uncomfortable', w: 1 });
           if (WX.outT >= 1800 && WX.body >= 20 && WX.body <= 27 && WX.wet < 0.1) L.push({ name: 'Trời đẹp', emo: 'happy', w: 1 });
         }
-        if (ldStep(0.925)) await ldYield();
+        if (ldStep(0.928)) await ldYield();
         const skyWatch = (() => {
           const ML = 1.75, MW = 0.85, R0 = 0.07, RMIN = 0.012, HY = ENG_HIP_Y * engObj.g.scale.y;
           const S = { st: 'idle', k: 0, u: 0, roll: 'home', spot: null, stop: false, done: -1e9, seen: new WeakSet(), pt: null, gz: { y: 0, p: 0.15, t: 0 }, leg: 1, legT: 0, spin: 0 };
@@ -22576,6 +23477,7 @@
           g.traverse(o => { if (o.isMesh) o.userData.noBatch = o.userData.noBake = true; });
           for (const sl of slots) for (const o of [sl.tuft, sl.root, sl.hole]) o.traverse(m => { m.userData.noCollide = true; });
           for (const sx of [-0.25, 0.25]) { obstacleCoords.push({ x: C.x + sx * L, y: C.y, z: C.z, r: 0.56, h: 0.3 }); PROPS.push({ x: C.x + sx * L, z: C.z, r: 0.32 }); }
+          for (const u of [-0.7, 0, 0.7]) NAV_MARKS.push({ x: C.x + u, z: C.z, r: 0.3, nav: true });
           for (let u = -0.8; u <= 0.81; u += 0.4) meadow.cutAt(C.x + u, C.z, 0.45);
           const B = { lastWater: -1e9 };
           const world = (sl, out) => out.set(C.x + sl.x, C.y + SOIL, C.z + sl.z);
@@ -22656,9 +23558,15 @@
             const ex = CB.pos.x + (ax + bx >= 0 ? 1 : -1) * (CB.length / 2 + 0.6), zs = v => CB.pos.z + (v >= 0 ? 1 : -1) * (CB.width / 2 + 0.5);
             return [new THREE.Vector3(ex, 0, zs(az)), new THREE.Vector3(ex, 0, zs(bz)), q.clone()];
           }
+          const bedCross = (p, q, m) => {
+            const hx = CB.length / 2 + m, hz = CB.width / 2 + m, ax = p.x - CB.pos.x, az = p.z - CB.pos.z, bx = q.x - CB.pos.x, bz = q.z - CB.pos.z;
+            for (let i = 1; i < 16; i++) { const u = i / 16; if (Math.abs(ax + (bx - ax) * u) < hx && Math.abs(az + (bz - az) * u) < hz) return true; } return false;
+          };
           function goTo(e, q, dt, t) {
-            if (!J.route || J.rq.distanceToSquared(q) > 1e-6) { J.rq.copy(q); J.route = bedRoute(e.g.position, q); }
-            const w = J.route[0]; if (J.route.length > 1 && Math.hypot(w.x - e.g.position.x, w.z - e.g.position.z) < 0.45) { J.route.shift(); return false; }
+            const p = e.g.position;
+            if (!J.route || J.rq.distanceToSquared(q) > 1e-6 || bedCross(p, J.route[0], 0.12)) { J.rq.copy(q); J.route = bedRoute(p, q); }
+            while (J.route.length > 1 && !bedCross(p, J.route[1], 0.2)) J.route.shift();
+            const w = J.route[0]; if (J.route.length > 1 && Math.hypot(w.x - p.x, w.z - p.z) < 0.45) { J.route.shift(); return false; }
             const far = J.route.length === 1 && Math.hypot(CB.pos.x - e.g.position.x, CB.pos.z - e.g.position.z) > 3.5 && !rxDry(e.g.position);
             if (engStep(e, w, dt, t, pf, FIRE_AVOID_R, far ? CB.field() : null)) { if (J.route.length > 1) { J.route.shift(); return false; } J.route = null; return true; }
             return false;
@@ -22872,8 +23780,10 @@
           if (CAMP.fireState.small && T < 28) CAMP.grow();
           return null;
         }
+        let fireHold = -1e9;
         function fireWant(e, hh, sched) {
           if (fireJob.busy()) return 'fire';
+          if (clock.elapsedTime < fireHold && !(CAMP.fireState.out && CAMP.grill.st === 'cooking')) return null;
           if (engForceAct || liveWeather.state.raining || !engAwake(hh) || FIRE_WAIT.has(sched) || FIRE_WAIT.has(e.act)) return null;
           return fireNeed() ? 'fire' : null;
         }
@@ -22934,8 +23844,9 @@
           }
           function update(e, dt, t) {
             J.k += dt; const k = J.k;
-            if (J.st === 'idle') { J.mode = fireNeed(); if (!J.mode) return finish();
-              rxSay(J.mode === 'douse' ? 'fireOut' : 'fireOn', J.mode === 'douse' ? ['Hơn 30 độ rồi, dập lửa trại cho mát.', 'Nóng quá, tắt bếp thôi.'] : J.mode === 'small' ? ['Nhóm lửa nhỏ cho cá chín.', 'Cần ít than nướng cá.'] : ['Mát rồi, nhóm lại lửa trại.', 'Dưới 28 độ, đốt lại bếp.'], 'Lửa trại', false);
+            if (J.st === 'idle') { const cmd = engForceAct === 'fire'; J.mode = cmd ? (CAMP.fireState.out ? 'light' : 'douse') : fireNeed(); if (!J.mode) return finish();
+              if (cmd) fireHold = clock.elapsedTime + 1800;
+              rxSay(J.mode === 'douse' ? 'fireOut' : 'fireOn', cmd ? (J.mode === 'douse' ? ['Dập lửa trại thôi.', 'Tắt bếp lửa nào.'] : ['Nhóm lửa trại nào.', 'Đốt bếp lửa lên cho ấm.']) : J.mode === 'douse' ? ['Hơn 30 độ rồi, dập lửa trại cho mát.', 'Nóng quá, tắt bếp thôi.'] : J.mode === 'small' ? ['Nhóm lửa nhỏ cho cá chín.', 'Cần ít than nướng cá.'] : ['Mát rồi, nhóm lại lửa trại.', 'Dưới 28 độ, đốt lại bếp.'], 'Lửa trại', false);
               go(J.mode === 'douse' ? 'toKit' : 'toPile'); }
             e.armsBusy = J.held.b || J.held.p || J.held.s || J.held.m || /grab|put|pick|lay|strike|light|blow|pour|stir|check/.test(J.st);
             switch (J.st) {
@@ -23082,6 +23993,7 @@
           else if (e.phase === 'tea') {
             if (engUseSeat(e, CAMP_SEAT, dt, t)) {
               e.timer -= dt; e.arms[0].rotation.x = e.arms[1].rotation.x = -0.6;
+              if (e.act === 'smoke' && CHIMINEA.oven.fish.ready() >= 0) e.timer = Math.min(e.timer, 0);
               const teaIdle = e.teaIdle = engTea(e, dt, t);
               if (e.timer <= 0 && teaIdle) {
                 if (e.act === 'rest') e.phase = 'nap';
@@ -23170,7 +24082,7 @@
           garden: { run: (e, dt, t) => { if (gardenJob.update(e, dt, t)) { autoDone('garden'); if (engForceAct === 'garden') engForceAct = null; } },
             tick: (e, dt, t) => gardenJob.tick(e, dt, t), idle: () => gardenJob.idle() },
           wood: { run: (e, dt, t) => { if (woodJob.update(e, dt, t)) engForceAct = null; }, tick: e => woodJob.tick(e), idle: () => woodJob.idle() },
-          fire: { run: (e, dt, t) => fireJob.update(e, dt, t), tick: (e, dt, t) => fireJob.tick(e, dt, t), idle: () => fireJob.idle() },
+          fire: { run: (e, dt, t) => { if (fireJob.update(e, dt, t) && engForceAct === 'fire') engForceAct = null; }, tick: (e, dt, t) => fireJob.tick(e, dt, t), idle: () => fireJob.idle() },
           drone: { run: (e, dt, t) => { if (droneToy.update(e, dt, t)) { if (!engForceAct || (e.onceKey || '').startsWith('drone@')) engMarkDone(e); engForceAct = null; } },
             idle: () => { if (droneToy.state.st !== 'idle') droneToy.abort(); } },
           explore: { run: (e, dt, t) => { if (exploreJob.update(e, dt, t)) autoDone('explore'); }, idle: () => exploreJob.reset(), clip: true },
@@ -23190,8 +24102,8 @@
           fish: { plan: () => 'Ra ghế câu bên hồ, quăng cần câu 15 phút.',
             why: () => { const hh = liveWeather.localHour, p = engObj.phase; return offerBusy() || (p === 'fish' || p === 'toFish' ? 'Engineer đang câu cá.' : liveWeather.state.raining ? 'Đang mưa, đợi tạnh rồi câu.' : !engHourOk('fish', hh) ? 'Trời tối, để mai câu.' : ''); } },
           smoke: { plan: () => { const O = CHIMINEA.oven; return CAMP.grill.st === 'held' ? 'Về ghế ăn cá đang cầm.' : O.fish.ready() >= 0 ? 'Mở lò nướng lấy cá đã chín khói, ra ghế dưới bạt ăn.'
-              : O.fish.n() ? 'Cá trong lò đang hun: ngồi ghế uống trà chờ chín (lửa sắp tàn thì thêm củi), rồi lấy ra ăn.' : CAMP.grill.st === 'ready' || CAMP.grill.st === 'cooking' ? 'Rút que cá cạnh bếp lửa, cho cá vào vỉ lò nướng, chất củi, ngồi chờ cá chín khói (~25 phút) rồi lấy ra ăn.'
-              : 'Ra hồ câu 1 con cá, cho vào vỉ lò nướng, chất củi, ngồi chờ cá chín khói (~25 phút) rồi lấy ra ăn.'; },
+              : O.fish.n() ? 'Cá trong lò đang hun (10 phút): ngồi ghế uống trà chờ chín (lửa sắp tàn thì thêm củi), rồi lấy ra ăn.' : CAMP.grill.st === 'ready' || CAMP.grill.st === 'cooking' ? 'Rút que cá cạnh bếp lửa, cho cá vào vỉ lò nướng, chất củi, ngồi chờ cá chín khói (10 phút) rồi lấy ra ăn.'
+              : 'Ra hồ câu 1 con cá, cho vào vỉ lò nướng, chất củi, ngồi chờ cá chín khói (10 phút) rồi lấy ra ăn.'; },
             why: () => { const O = CHIMINEA.oven, hh = liveWeather.localHour, need = smokeNeedFish(); return offerBusy() || (need && liveWeather.state.raining ? 'Đang mưa, đợi tạnh rồi ra câu cá.'
               : need && !engHourOk('fish', hh) ? 'Trời tối, hết giờ câu cá — để mai nướng.' : O.fish.free() < 0 && O.fish.ready() < 0 ? 'Vỉ lò đầy cá đang hun, chờ chín đã.' : ''); } },
           apples: { plan: () => 'Gọi Engineer ra gốc cây hái ' + applePick.avail() + ' quả táo bằng sào' + (applePick.state && applePick.state.basketAt === 'table' ? ' (lấy giỏ ở bàn trà mang ra trước).' : '.'),
@@ -23206,15 +24118,28 @@
           cook: { plan: () => liveWeather.localHour < 14 ? 'Vào bếp trong xe luộc udon, thái hành, rồi ăn ở bàn vuông và rửa bát.' : 'Vào bếp trong xe chiên cơm trứng, bưng chảo ra ghế dưới bạt ăn (5 phút).',
             why: () => offerBusy() || (['cook', 'lunch', 'dinner'].includes(engObj.act) && !engForceAct ? 'Engineer đang ' + ENG_ACTS[engObj.act].label.toLowerCase() + '.' : '') },
           chair: { plan: () => 'Ra ghế cắm trại dưới bạt đọc sách, xen nhấp trà (10 phút).', why: () => offerBusy() || (engObj.phase === 'read' || engObj.phase === 'tea' ? 'Engineer đang ngồi ghế.' : '') },
+          deskread: { plan: () => 'Vào xe ngồi bàn học, gập laptop, đọc sách (10 phút) rồi về lịch.',
+            why: () => offerBusy() || (engObj.act === 'deskread' ? 'Engineer đang đọc sách ở bàn học.' : '') },
           research: { plan: () => 'Vào xe ngồi bàn học, mở laptop nghiên cứu (20 phút) rồi về lịch.',
             why: () => offerBusy() || ((engObj.act === 'research' || engObj.act === 'music') && !engForceAct ? 'Engineer đang ngồi bàn học.' : '') },
           drone: { plan: () => 'Lấy drone ở bàn trà, bay 1 vòng quanh đảo rồi cất về.', call: () => 'Gọi Engineer ra bàn trà lấy drone bay 1 vòng quanh đảo.',
             why: () => { const w = liveWeather.state; return offerBusy() || (w.raining ? 'Đang mưa, drone không bay được.' : (w.windSpeed || 0) / 3.6 > 9 ? 'Gió mạnh quá (> 9 m/s).' : !droneToy.ready() ? 'Mẫu drone đang tải…' : ''); } },
+          toilet: { plan: () => 'Vào phòng tắm trong xe đi vệ sinh, cọ bồn cầu, rửa tay ở lavabo.',
+            why: () => offerBusy() || (engObj.act === 'toilet' ? 'Engineer đang trong phòng vệ sinh.' : engObj.act === 'shower' ? 'Engineer đang tắm.' : '') },
+          wash: { plan: () => 'Vào phòng tắm mở vòi lavabo, rửa tay, rửa mặt, soi gương.',
+            why: () => offerBusy() || (engObj.act === 'wash' || engObj.act === 'toilet' ? 'Engineer đang ở lavabo.' : engObj.act === 'shower' ? 'Engineer đang tắm.' : '') },
+          breakfast: { plan: () => 'Vào xe bày bát ngũ cốc, sữa, cà phê ra bàn vuông, ăn rồi rửa bát.',
+            why: () => offerBusy() || (['breakfast', 'lunch', 'snack', 'dinner'].includes(engObj.act) ? 'Engineer đang ăn.' : engObj.act === 'cook' ? 'Engineer đang nấu ăn.' : '') },
+          udon: { plan: () => 'Vào bếp luộc udon, thái hành, bưng ra bàn vuông ăn, rồi rửa bát.', why: () => ENG_OFFERS.cook.why() },
+          rice: { plan: () => 'Vào bếp chiên cơm trứng, bưng chảo ra ghế dưới bạt ăn (5 phút), rồi rửa chảo.', why: () => ENG_OFFERS.cook.why() },
+          fire: { btn: () => CAMP.fireState.out ? 'Nhóm lửa' : 'Dập lửa',
+            plan: () => CAMP.fireState.out ? 'Lấy 3 que mồi ở đống củi, xếp giữa vòng đá, quẹt diêm nhóm lửa trại.' : 'Xách xô nước + que cời ra bếp: dội nửa xô, đảo tro, dội nốt, chọc thử cho tắt hẳn.',
+            why: () => offerBusy() || (fireJob.busy() ? 'Engineer đang lo lửa trại.' : liveWeather.state.raining ? 'Đang mưa, đợi tạnh rồi lo lửa trại.' : CAMP.fireState.out && sceneWet >= 0.6 ? 'Củi, đất còn ướt — đợi ráo rồi nhóm.' : '') },
           wood: { plan: () => 'Ra đống củi ôm 2 khúc, bỏ vào lò: lửa bùng, cháy ~10 phút.', why: () => offerBusy() || (CHIMINEA.fuel() > 300 ? 'Lò vừa thêm củi, còn cháy to.' : '') },
           engine: { plan: () => 'Gọi Engineer ra ' + (VAN.hood && VAN.hood.open ? '' : 'mở ca-pô, ') + 'kiểm tra máy rồi nổ máy 30 giây.',
             why: () => offerBusy() || (liveWeather.state.raining ? 'Đang mưa, không mở ca-pô.' : VAN.engineOn ? 'Máy đang chạy.' : '') },
         };
-        if (ldStep(0.991)) await ldYield();
+        if (ldStep(0.992)) await ldYield();
         const COL = { C: 0.125, T: 32, L: [new Map(), new Map(), new Map(), new Map()], ready: false, queue: null, qi: 0, tris: 0, cells: 0, movers: [] };
         const COL_GEN = 0, COL_VAN = 1, COL_SHED = 2, COL_BR = 3, COL_TOP = 2.6,
         COL_SKIP = /^(Cánh đồng pin|Nhà kho mái pin)/;
@@ -23444,7 +24369,7 @@
           return top;
         }
         if (ldStep(1.000)) await ldYield();
-        const labelGroup = new THREE.Group(); scene.add(labelGroup);
+        const labelGroup = new THREE.Group(); scene.add(labelGroup); sharpRoots.push(labelGroup);
         function rr(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
         const annotationLabelScale = 0.65;
         const LBL_EMO = /(\p{Extended_Pictographic}(?:\p{Emoji_Modifier}|️|‍\p{Extended_Pictographic})*️?)/u;
@@ -23505,6 +24430,96 @@
           else target.lerp(p, Math.min(1, dt * CAMF.rate));
         }
         worldTick('viewer', 30, camFollowTick);
+        const LENS = { s: 0, m: 0, idle: 0, af: 1, rt: null, ha: null, hb: null, ta: null, tb: null, fa: null, fb: null, w: 0, h: 0 };
+        const LENS_RG = 0.45, LENS_K = 0.005, LENS_MAX = 0.008, LENS_TOE = 0.25, LENS_FAR = 2;
+        const LENS_TS_A0 = 0.29, LENS_TS_A1 = 0.15, LENS_TS_MAX = 0.008, LENS_AF_R = 0.03, LENS_AF_T = 0.3;
+        const _lnS = new THREE.Vector2(), _lnD = new THREE.Vector3(), _lnT = new THREE.Vector3(), _lnBg = new THREE.Color();
+        const LENS_AF_SPAN = 200;
+        const lnU = { uNr: { value: 0.1 }, uFr: { value: 4000 }, uHt: { value: 0 }, uHs: { value: LENS_AF_SPAN }, uCa: { value: 1 }, uSn: { value: 0 }, uFh: { value: 1 }, uRg: { value: LENS_RG }, uK: { value: 0 }, uMax: { value: 1 }, uCm: { value: LENS_FAR }, uFm: { value: 0 }, tF: { value: null } };
+        const LENS_VS = 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }';
+        const LENS_COC = '#include <packing>\nuniform float uNr, uFr, uHt, uHs, uCa, uSn, uFh, uRg, uK, uMax, uCm, uFm; uniform sampler2D tF; varying vec2 vUv; float lnZ(float d) { return uNr + d * (uFr - uNr); }'
+          + ' float lnH(float d, float y) { return lnZ(d) * uCa + (y - 0.5) * uFh * uSn; }'
+          + ' float lnCoc(float h) { float hf = uHt + (1.0 - uFm) * (unpackRGBAToDepth(texture2D(tF, vec2(0.5))) - 0.5) * 2.0 * uHs, x = max((abs(h - hf) - uRg) * uK / uMax, 0.0);'
+          + ` float t = (x < ${LENS_TOE.toFixed(3)} ? x * x / ${(2 * LENS_TOE).toFixed(3)} : x - ${(LENS_TOE / 2).toFixed(3)}) / ${(1 - LENS_TOE / 2).toFixed(3)};`
+          + ` if (t > 1.0) { float u = (t - 1.0) / ${(LENS_FAR - 1).toFixed(3)}; t = 1.0 + ${(LENS_FAR - 1).toFixed(3)} * u / (1.0 + u); } return sign(h - hf) * uMax * t; }`;
+        const lnMat = (u, fs, o = {}) => new THREE.ShaderMaterial({ uniforms: { ...lnU, ...u }, vertexShader: LENS_VS, fragmentShader: LENS_COC + fs, depthTest: false, depthWrite: false, toneMapped: false, ...o });
+        const lnPre = lnMat({ tC: { value: null }, tD: { value: null }, uTx: { value: new THREE.Vector2() } },
+          ' uniform sampler2D tC, tD; uniform vec2 uTx; void main() { vec2 e = uTx * 0.5;'
+          + ' float d = min(min(texture2D(tD, vUv - e).x, texture2D(tD, vUv + e).x), min(texture2D(tD, vUv + vec2(e.x, -e.y)).x, texture2D(tD, vUv + vec2(-e.x, e.y)).x));'
+          + ' gl_FragColor = vec4(texture2D(tC, vUv).rgb, lnCoc(lnH(d, vUv.y)) / (2.0 * uCm) + 0.5); }');
+        const lnTile = lnMat({ tA: { value: null }, uTh: { value: new THREE.Vector2() } },
+          ' uniform sampler2D tA; uniform vec2 uTh; void main() { vec2 b = floor(gl_FragCoord.xy) * 8.0 + 0.5; float m = 0.0;'
+          + ' for (int j = 0; j < 8; j++) for (int i = 0; i < 8; i++) m = max(m, abs(texture2D(tA, (b + vec2(float(i), float(j))) * uTh).a - 0.5));'
+          + ' gl_FragColor = vec4(2.0 * m, 0.0, 0.0, 1.0); }');
+        const lnNbr = lnMat({ tT: { value: null }, uTt: { value: new THREE.Vector2() } },
+          ' uniform sampler2D tT; uniform vec2 uTt; void main() { float m = 0.0;'
+          + ' for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) m = max(m, texture2D(tT, vUv + vec2(float(i), float(j)) * uTt).r); gl_FragColor = vec4(m, 0.0, 0.0, 1.0); }');
+        const lnGat = lnMat({ tA: { value: null }, tN: { value: null }, uTf: { value: new THREE.Vector2() } },
+          ' uniform sampler2D tA, tN; uniform vec2 uTf; float dec(float a) { return (a - 0.5) * 2.0 * uCm; } float rho(float c) { return sqrt(max(c * c - 4.0, 0.0)); }'
+          + ' void main() { vec4 a0 = texture2D(tA, vUv); float s0 = dec(a0.a), c0 = abs(s0), R = rho(max(c0, texture2D(tN, vUv).r * uCm)), nw = 0.0;'
+          + ' if (R < 0.5) { gl_FragColor = vec4(a0.rgb, 0.0); return; } vec4 acc = vec4(a0.rgb, 1.0);'
+          + ' for (int i = 0; i < 48; i++) { float r = sqrt((float(i) + 0.5) / 48.0) * R, t = float(i) * 2.39996; vec4 s = texture2D(tA, vUv + vec2(cos(t), sin(t)) * r * uTf);'
+          + ' float ss = dec(s.a), cs = abs(ss); if (ss > s0) cs = min(cs, c0); float w = smoothstep(r - 1.0, r + 0.5, rho(cs)); acc += vec4(s.rgb * w, w); if (ss < -2.0) nw += w; }'
+          + ' gl_FragColor = vec4(acc.rgb / acc.a, clamp(nw / 48.0, 0.0, 1.0)); }');
+        const lnOut = lnMat({ tC: { value: null }, tD: { value: null }, tB: { value: null }, uBias: { value: 0 }, uTf: { value: new THREE.Vector2() } },
+          ' uniform sampler2D tC, tD, tB; uniform float uBias; uniform vec2 uTf; void main() { float d = texture2D(tD, vUv).x, c = abs(lnCoc(lnH(d, vUv.y))); vec4 b = texture2D(tB, vUv);'
+          + ' vec3 col = texture2D(tC, vUv).rgb; float w1 = clamp(c / 1.73, 0.0, 1.0), w2 = max(clamp((c - 1.73) / 0.6, 0.0, 1.0), b.a); vec2 e = uTf * 0.75;'
+          + ' if (w1 > 0.0 && w2 < 1.0) col = mix(col, 0.25 * (texture2D(tC, vUv + e).rgb + texture2D(tC, vUv - e).rgb + texture2D(tC, vUv + vec2(e.x, -e.y)).rgb + texture2D(tC, vUv + vec2(-e.x, e.y)).rgb), w1);'
+          + ' gl_FragColor = vec4(mix(col, b.rgb, w2), 1.0); gl_FragDepthEXT = min(1.0, d + uBias); }',
+          { depthTest: true, depthWrite: true, depthFunc: THREE.AlwaysDepth });
+        const lnAf = lnMat({ tD: { value: null }, uAfK: { value: 1 }, uAfR: { value: new THREE.Vector2() } },
+          ' uniform sampler2D tD; uniform float uAfK; uniform vec2 uAfR; float lnA(int i) { float k = float(i); vec2 q = 0.5 + (vec2(mod(k, 5.0), floor(k / 5.0)) * 0.5 - 1.0) * uAfR;'
+          + ' float d = texture2D(tD, q).x; return d > 0.9999 ? 1e9 : lnH(d, q.y) - uHt; }'
+          + ' void main() { float n = 0.0, b = 0.0, e = 1e9; for (int i = 0; i < 25; i++) n += step(lnA(i), 1e8);'
+          + ' for (int i = 0; i < 25; i++) { float hi = lnA(i), c = 0.0; if (hi > 1e8) continue; for (int j = 0; j < 25; j++) { float hj = lnA(j); if (hj < 1e8) c += hj < hi ? 1.0 : (hj == hi ? 0.5 : 0.0); }'
+          + ' if (abs(c - 0.5 * n) < e) { e = abs(c - 0.5 * n); b = hi; } } float p = unpackRGBAToDepth(texture2D(tF, vec2(0.5)));'
+          + ' gl_FragColor = packDepthToRGBA(clamp(mix(p, 0.5 + b / (2.0 * uHs), uAfK), 0.0, 0.9999)); }');
+        const lnQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), lnPre), lnCam = new THREE.Camera(); lnQuad.frustumCulled = false;
+        function lnFree() { for (const k of ['rt', 'ha', 'hb', 'ta', 'tb', 'fa', 'fb']) if (LENS[k]) { if (LENS[k].depthTexture) LENS[k].depthTexture.dispose(); LENS[k].dispose(); LENS[k] = null; } }
+        listen(renderer.domElement, 'webglcontextrestored', () => { LENS.rt = LENS.ha = LENS.hb = LENS.ta = LENS.tb = LENS.fa = LENS.fb = null; });
+        function lnMake(w, h) {
+          lnFree(); LENS.w = w; LENS.h = h;
+          const rt = LENS.rt = new THREE.WebGLRenderTarget(w, h, { samples: matchMedia('(pointer: coarse)').matches ? 2 : 4 });
+          rt.depthTexture = new THREE.DepthTexture(w, h); rt.depthTexture.type = THREE.UnsignedIntType; rt.isXRRenderTarget = true;
+          renderer.setRenderTarget(rt); renderer.setRenderTarget(null); rt.texture.colorSpace = THREE.SRGBColorSpace;
+          const hw = Math.max(1, w >> 1), hh = Math.max(1, h >> 1), tw = Math.ceil(hw / 8), th = Math.ceil(hh / 8), nf = { depthBuffer: false, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter };
+          LENS.ha = new THREE.WebGLRenderTarget(hw, hh, { depthBuffer: false }); LENS.hb = new THREE.WebGLRenderTarget(hw, hh, { depthBuffer: false });
+          LENS.ta = new THREE.WebGLRenderTarget(tw, th, nf); LENS.tb = new THREE.WebGLRenderTarget(tw, th, nf);
+          LENS.fa = new THREE.WebGLRenderTarget(1, 1, nf); LENS.fb = new THREE.WebGLRenderTarget(1, 1, nf); LENS.af = 1;
+          lnPre.uniforms.tC.value = lnOut.uniforms.tC.value = rt.texture; lnPre.uniforms.tD.value = lnOut.uniforms.tD.value = lnAf.uniforms.tD.value = rt.depthTexture;
+          lnTile.uniforms.tA.value = lnGat.uniforms.tA.value = LENS.ha.texture; lnNbr.uniforms.tT.value = LENS.ta.texture; lnGat.uniforms.tN.value = LENS.tb.texture; lnOut.uniforms.tB.value = LENS.hb.texture;
+          lnPre.uniforms.uTx.value.set(1 / w, 1 / h); lnTile.uniforms.uTh.value.set(1 / hw, 1 / hh); lnNbr.uniforms.uTt.value.set(1 / tw, 1 / th); lnGat.uniforms.uTf.value.set(1 / w, 1 / h); lnOut.uniforms.uTf.value.set(1 / w, 1 / h);
+        }
+        const lnPass = (M, rt) => { lnQuad.material = M; renderer.setRenderTarget(rt); renderer.render(lnQuad, lnCam); };
+        const lnSharp = o => { if (o.layers.mask === 1) o.layers.set(LAYER_SHARP); };
+        function lensRender(dt) {
+          for (const r of sharpRoots) r.traverse(lnSharp);
+          camera.getWorldDirection(_lnD);
+          const tn = Math.sqrt(Math.max(0, 1 - _lnD.y * _lnD.y)) / Math.max(1e-3, -_lnD.y);
+          const fo = CAMF.o ? THREE.MathUtils.smoothstep(camera.zoom, 16, 30) : 0;
+          const ts = THREE.MathUtils.smoothstep(camera.zoom, 2, 3) * THREE.MathUtils.smoothstep(tn, 0.3, 0.6);
+          LENS.s += (Math.max(fo, ts) - LENS.s) * Math.min(1, dt / 0.3);
+          LENS.m += (fo / Math.max(1e-3, fo, ts) - LENS.m) * Math.min(1, dt / 0.5);
+          if (LENS.s < 0.02) { LENS.af = 1; if (LENS.rt && (LENS.idle += dt) > 3) lnFree(); renderer.render(scene, camera); return; }
+          LENS.idle = 0; renderer.getDrawingBufferSize(_lnS); if (!LENS.rt || _lnS.x !== LENS.w || _lnS.y !== LENS.h) lnMake(_lnS.x, _lnS.y);
+          const m = LENS.m, ca = Math.sqrt(Math.max(0, 1 - _lnD.y * _lnD.y)), sn = Math.max(0.05, -_lnD.y), fh = (camera.top - camera.bottom) / camera.zoom, hd = fh / sn;
+          lnU.uNr.value = camera.near; lnU.uFr.value = camera.far; lnU.uCa.value = ca; lnU.uSn.value = sn; lnU.uFh.value = fh; lnU.uFm.value = m;
+          lnU.uHt.value = _lnT.copy(target).sub(camera.position).dot(_lnD) * ca;
+          const L = THREE.MathUtils.lerp, mx = L(LENS_TS_MAX, LENS_MAX, m), A = L(LENS_TS_A0, LENS_TS_A1, THREE.MathUtils.smoothstep(Math.log(camera.zoom / 3) / Math.LN10, 0, 1)), cg = Math.max(0.2, ca);
+          lnU.uRg.value = L(A * hd, LENS_RG / cg, m); lnU.uK.value = LENS.s * L(LENS_TS_MAX / ((0.5 - A) * hd), LENS_K * cg, m) * LENS.h; lnU.uMax.value = Math.max(1, LENS.s * mx * LENS.h); lnU.uCm.value = LENS_FAR * lnU.uMax.value;
+          lnAf.uniforms.uAfK.value = LENS.af ? 1 : 1 - Math.exp(-dt / LENS_AF_T); LENS.af = 0; lnAf.uniforms.uAfR.value.set(LENS_AF_R * LENS.h / LENS.w, LENS_AF_R);
+          lnOut.uniforms.uBias.value = 0.04 / (camera.far - camera.near);
+          const bg = scene.background, mask = camera.layers.mask;
+          if (bg && bg.isColor) scene.background = _lnBg.copy(bg).convertLinearToSRGB();
+          camera.layers.disable(LAYER_SHARP); renderer.setRenderTarget(LENS.rt); renderer.render(scene, camera);
+          scene.background = bg; camera.layers.mask = mask;
+          lnU.tF.value = LENS.fa.texture; lnPass(lnAf, LENS.fb); [LENS.fa, LENS.fb] = [LENS.fb, LENS.fa]; lnU.tF.value = LENS.fa.texture;
+          lnPass(lnPre, LENS.ha); lnPass(lnTile, LENS.ta); lnPass(lnNbr, LENS.tb); lnPass(lnGat, LENS.hb); lnPass(lnOut, null);
+          const sa = renderer.shadowMap.autoUpdate, ac = renderer.autoClear, mw = scene.matrixWorldAutoUpdate;
+          renderer.shadowMap.autoUpdate = false; renderer.autoClear = false; scene.matrixWorldAutoUpdate = false; scene.background = null; camera.layers.set(LAYER_SHARP);
+          renderer.render(scene, camera);
+          renderer.shadowMap.autoUpdate = sa; renderer.autoClear = ac; scene.matrixWorldAutoUpdate = mw; scene.background = bg; camera.layers.mask = mask;
+        }
         function addMastWeatherCard(pos, to, labelScale = annotationLabelScale) {
           const cardWidth = 1536, cardHeight = 118, resolution = 2;
           const c = document.createElement('canvas'); c.width = cardWidth * resolution; c.height = cardHeight * resolution;
@@ -23650,7 +24665,7 @@
 
         const vlR = document.getElementById('vanLineRange'), vlV = document.getElementById('vanLineVal');
         function setVanLines(v) {
-          v = Math.max(0, Math.min(100, Math.round(+v || 0))); VAN_LINES.k = v / 100;
+          v = Math.max(1, Math.min(100, Math.round(+v || 1))); VAN_LINES.k = v / 100;
           for (const m of vanLineMats.values()) { m.opacity = VAN_LINES.k; m.visible = v > 0; } if (VAN_LINES.onShell) VAN_LINES.onShell();
           if (vlR && +vlR.value !== v) vlR.value = v; if (vlV) vlV.textContent = v; return v;
         }
@@ -23851,17 +24866,21 @@
         }
         function setCaravanXray(on) { if (on === caravanXray) return; caravanXray = on; for (const m of caravanShell) shellLook(m); }
         VAN_LINES.onShell = () => { for (const m of caravanShell) shellLook(m); }; VAN_LINES.onShell();
+        let xrFlip = false;
         listen(dom, 'pointerup', e => {
+          xrFlip = false;
           if (e.button !== 0 || pickMode || Math.hypot(e.clientX - pickDownX, e.clientY - pickDownY) > 6) return;
           if (hovClick(e)) return;
           const r = dom.getBoundingClientRect();
           pickRay.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), camera);
           const hits = pickRay.intersectObjects([VAN.object, ...TOOLS.flatMap(T => T.objs)], true), h = hits[0];
           if (VAN.engineClick(hits)) return;
+          if (h && toolOf(h.object)) return;
+          if (VAN.xray && hits.some(x => toolOf(x.object)?.van)) return;
           let onVan = false; for (let p = h && h.object; p; p = p.parent) if (p === VAN.object) { onVan = true; break; }
-          VAN.setXray(onVan ? !VAN.xray : false);
+          xrFlip = onVan && !VAN.xray; VAN.setXray(onVan ? !VAN.xray : false);
         });
-        const tPop = document.getElementById('toolPop'), tTitle = document.getElementById('toolPopTitle'), tMsg = document.getElementById('toolPopMsg'), tGo = document.getElementById('toolPopGo'), tClose = document.getElementById('toolPopClose');
+        const tPop = document.getElementById('toolPop'), tTitle = document.getElementById('toolPopTitle'), tMsg = document.getElementById('toolPopMsg'), tGo = document.getElementById('toolPopGo'), tClose = document.getElementById('toolPopClose'), tList = document.getElementById('toolPopList');
         const engineTool = { get objs() { const g = VAN.engineModel; return g ? [g] : []; }, vis: () => VAN.engineSeen(), title: 'Động cơ V6 · Ford Transit', go: '▶ Khởi động máy', act: 'engine' };
         const TOOLS = [
           { objs: [DRONE.object, DRONE.rc], title: 'Drone DJI Mini 3', go: '▶ Chơi', act: 'drone' },
@@ -23869,12 +24888,22 @@
           { objs: [TRIMMER.g], vis: () => TRIMMER.ready && !ENGINEER.trimming, title: 'Máy cắt cỏ đeo lưng', go: '▶ Cắt cỏ', act: 'trim' },
           { objs: [ENGINEER.applePole, ENGINEER.appleBasket], title: 'Sào hái trái · giỏ táo', go: '🍎 Hái táo', act: 'apples' },
         ];
+        const jobBox = o => { const b = new THREE.Box3().setFromObject(o), m = new THREE.Mesh(new THREE.BoxGeometry(...b.getSize(new THREE.Vector3()).addScalar(0.06).toArray()), new THREE.MeshBasicMaterial({ visible: false }));
+          b.getCenter(m.position); m.userData.noBatch = m.userData.noBake = m.userData.noCollide = true; scene.add(m); return m; };
+        worldServe('jobs', { add: T => { if (T.box) T.objs = [].concat(T.box).map(jobBox); TOOLS.push(T); }, box: jobBox });
         const toolOf = o => { for (let p = o; p; p = p.parent) for (const T of TOOLS) if (T.objs.includes(p)) return T; return null; }, _dcP = new THREE.Vector3(), _dcO = new THREE.Vector3();
         let tCur = null;
         function showToolPop(T, x, y) {
-          const r = dom.getBoundingClientRect(), O = ENGINEER.offer(T.act), why = O.why(); tCur = T;
-          tTitle.textContent = T.title; tGo.textContent = T.go; tMsg.textContent = why || (O.call || O.plan)(); tGo.disabled = !!why; tGo.style.opacity = why ? '0.45' : '1';
-          tPop.style.left = Math.max(8, Math.min(r.width - 222, x - r.left + 14)) + 'px'; tPop.style.top = Math.max(8, Math.min(r.height - 130, y - r.top - 24)) + 'px'; tPop.style.display = 'block';
+          const r = dom.getBoundingClientRect(), O = T.act ? ENGINEER.offer(T.act) : null, why = O ? O.why() : ''; tCur = T;
+          tTitle.textContent = T.title; tGo.textContent = O && O.btn ? '▶ ' + O.btn() : T.go; tMsg.textContent = why || (O ? (O.call || O.plan)() : ''); tGo.disabled = !!why; tGo.style.opacity = why ? '0.45' : '1';
+          tList.replaceChildren(); tGo.style.display = T.choices ? 'none' : '';
+          if (T.choices) { tMsg.textContent = T.msg || ''; for (const c of T.choices) {
+            const own = !Array.isArray(c), act = own ? null : c[0], lab = own ? c.lab : c[1], Oc = own ? c : ENGINEER.offer(act), w = Oc.why ? Oc.why() : '';
+            const d = document.createElement('div'), b = document.createElement('button'), m = document.createElement('div');
+            d.className = 'tp-opt'; b.type = 'button'; b.textContent = '▶ ' + lab; b.disabled = !!w; m.className = 'tp-msg'; m.textContent = w || (Oc.plan ? Oc.plan() : '');
+            b.onclick = () => { if (own ? c.why && c.why() : ENGINEER.offer(act).why()) return; if (own) c.run(); else ENGINEER.ask(act); tPop.style.display = 'none'; tCur = null; };
+            d.append(b, m); tList.append(d); } }
+          tPop.style.left = Math.max(8, Math.min(r.width - 222, x - r.left + 14)) + 'px'; tPop.style.top = Math.max(8, Math.min(r.height - (T.choices ? 250 : 130), y - r.top - 24)) + 'px'; tPop.style.display = 'block';
         }
         if (tPop) {
           listen(dom, 'pointerup', e => {
@@ -23885,8 +24914,8 @@
               const q = DRONE.object.getWorldPosition(_dcP).project(camera), sx = r.left + (q.x + 1) / 2 * r.width, sy = r.top + (1 - q.y) / 2 * r.height;
               if (q.z < 1 && Math.hypot(e.clientX - sx, e.clientY - sy) < 48) { tPop.style.display = 'none'; tCur = null; camFollow(DRONE.object, 55, { exact: true, off: _dcO.set(0, 0.12, 0), rate: 7 }); return; }
             }
-            const h = pickRay.intersectObjects(TOOLS.filter(T => !T.vis || T.vis()).flatMap(T => T.objs), true)[0], T = h && toolOf(h.object);
-            if (T && T.act === 'wood') CHIMINEA.see();
+            const h = pickRay.intersectObjects(TOOLS.filter(T => (!T.vis || T.vis()) && !(xrFlip && T.van)).flatMap(T => T.objs), true)[0], T = h && toolOf(h.object);
+            if (T && T.pick) T.pick();
             if (T) showToolPop(T, e.clientX, e.clientY); else { tPop.style.display = 'none'; tCur = null; }
           });
           listen(tGo, 'click', () => { if (!tCur || ENGINEER.offer(tCur.act).why()) return; ENGINEER.ask(tCur.act); tPop.style.display = 'none'; tCur = null; });
@@ -23933,6 +24962,7 @@
           + ' float l = length(d); if (l > 1e-6) p.xy += d / l * uPx * 2.0 / uRes * p.w; gl_Position = p; }';
         const HOV_MASK = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false, transparent: true, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -4,
           stencilWrite: true, stencilRef: 1, stencilFunc: THREE.AlwaysStencilFunc, stencilZPass: THREE.ReplaceStencilOp });
+        HOV_MASK.onBeforeCompile = sh => { sh.vertexShader = sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n mvPosition.z += 0.1; gl_Position = projectionMatrix * mvPosition;'); };
         function hovAdd(root, o = {}) {
           const it = { root, pad: 0.02, ...o, fxs: [] }; it.rp = { o: root, n: it.n, box: new THREE.Box3(), bt: -1e9 };
           it.picks = o.picks ? o.picks.map(p => p.o && p.o !== root ? { ...p, box: new THREE.Box3(), bt: -1e9 } : Object.assign(it.rp, p, { o: root })) : [it.rp];
@@ -23970,7 +25000,7 @@
           it.fxs.length = 0; const noRay = () => {};
           it.root.traverse(m => { if (!hovUse(it, m)) return;
             if (!m.userData.hovC) m.userData.hovC = [[HOV_MASK, 1e6], [it.mats[0], 1e6 + 1], [it.mats[1], 1e6 + 2]].map(([M, ord]) => { const c = new THREE.Mesh(m.geometry, M); c.renderOrder = ord; c.visible = false; c.raycast = noRay;
-              Object.assign(c.userData, { hovFx: true, pickSkip: true, noBatch: true, xray: 'ui' }); m.add(c); return c; });
+              Object.assign(c.userData, { hovFx: true, pickSkip: true, noBatch: true, xray: 'ui' }); c.layers.set(LAYER_SHARP); m.add(c); return c; });
             it.fxs.push(...m.userData.hovC); });
         }
         function hovSet(it) {
@@ -23996,7 +25026,7 @@
           const b = hovBox(it, it.rp), c = b.getCenter(_hvP), s = b.getSize(_hvV).toArray(), k = s.indexOf(Math.max(...s)), h = Math.max(0, s[k] - [...s].sort((x, y) => y - x)[1]) / 2;
           it.uA.value.copy(c).setComponent(k, c.getComponent(k) - h).applyMatrix4(it.root.matrixWorld); it.uB.value.copy(c).setComponent(k, c.getComponent(k) + h).applyMatrix4(it.root.matrixWorld);
         }
-        for (const o of [DRONE.object, DRONE.rc, ENGINEER.appleBasket, ENGINEER.applePole, CAMP.groundRod, ENGINEER.rod, CHIMINEA.g]) if (o) hovAdd(o);
+        for (const o of [DRONE.object, DRONE.rc, ENGINEER.appleBasket, ENGINEER.applePole, CAMP.groundRod, ENGINEER.rod]) if (o) hovAdd(o);
         hovAdd(VAN.laptop.group, { on: () => VAN.xray });
         { const k = VAN.object.getObjectByName('Bếp dọc vách cửa hông'); if (k) hovAdd(k, { on: () => VAN.xray }); }
         { const H = worldSee('cows').hut; hovAdd(H.roof, { pad: 0.05, picks: [{ o: H.roofSheet }], click: () => H.roofToggle() }); }
@@ -24114,7 +25144,13 @@
             audioOn(); if (!R.ac) return; load(); if (!R.on) { R.on = true; setBand(R.band); }
             const r = dom.getBoundingClientRect(), x = e ? e.clientX : r.left + r.width / 2, y = e ? e.clientY : r.top + r.height / 2;
             pop.style.display = ''; const L = Math.min(r.width - 230, Math.max(8, x - r.left - 105)), T = Math.min(r.height - 220, Math.max(8, y - r.top - 16)); pop.style.left = L + 'px'; pop.style.top = T + 'px'; draw();
-            if (lw) { pop.style.transformOrigin = (x - r.left - L) + 'px ' + (y - r.top - T) + 'px'; pop.animate([{ transform: 'scale(' + Math.min(1, lw / pop.offsetWidth) + ',' + Math.min(1, lh / pop.offsetHeight) + ')', opacity: 0.5 }, { transform: 'none', opacity: 1 }], { duration: 240, easing: 'cubic-bezier(.2,.8,.2,1)' }); }
+            pop.style.transformOrigin = (x - r.left - L) + 'px ' + (y - r.top - T) + 'px'; pop.style.transform = 'scale(' + POP_K + ')';
+            const a = anchorPx(); pin.x = L - a.x; pin.y = T - a.y;
+            if (lw) pop.animate([{ transform: 'scale(' + Math.min(1, lw / pop.offsetWidth) + ',' + Math.min(1, lh / pop.offsetHeight) + ')', opacity: 0.5 }, { transform: 'scale(' + POP_K + ')', opacity: 1 }], { duration: 240, easing: 'cubic-bezier(.2,.8,.2,1)' });
+          }
+          const POP_K = 0.8, pin = { x: 0, y: 0 };
+          function anchorPx() {
+            const r = dom.getBoundingClientRect(), v = scr.getWorldPosition(_p).project(camera); return { x: (v.x + 1) / 2 * r.width, y: (1 - v.y) / 2 * r.height };
           }
           function tagClick(e) {
             if (!tag || !tag.sprite.visible || !labelGroup.visible) return false;
@@ -24142,7 +25178,7 @@
             }
             const pl = R.on && !!R.cur && R.s > 0.4 && !audio.paused; if (pl !== R.play) { R.play = pl; draw(); }
             if (pl && (R.et -= dt) <= 0) { R.et = 0.08; for (let i = 0; i < 7; i++) R.eq[i] += (Math.random() * (1 - Math.abs(i - 3) * 0.1) - R.eq[i]) * 0.6; draw(); }
-            if (pop.style.display !== 'none') wave(clock.elapsedTime);
+            if (pop.style.display !== 'none') { wave(clock.elapsedTime); const a = anchorPx(); pop.style.left = (a.x + pin.x) + 'px'; pop.style.top = (a.y + pin.y) + 'px'; }
             const show = shownInScene(caravanObj) && (upp < 0.05 || R.on && upp < 0.12);
             if (!tag && show) { tag = addLabel('📻 Radio', '#e0662b', new THREE.Vector3(), new THREE.Vector3(), true, undefined, true); }
             if (tag) {
@@ -24160,6 +25196,34 @@
         })();
         worldJoin('hover', 20, H => H.claim(e => radio.tagClick(e)));
         worldTick('sound', 10, dt => radio.tick(dt));
+        const bookShelf = (() => {
+          const study = caravanObj.getObjectByName('Góc học tập trong xe'), g = new THREE.Group(); g.name = 'Kệ sách cạnh màn hình phụ';
+          g.userData.noBake = g.userData.noBatch = true;
+          const X0 = 1.35, W = 0.40, ZB = -0.85, D = 0.17, Y0 = 2.20, H = 0.44, T = 0.018, BACK = 0.008, TIER = (H - 3 * T) / 2, BOOK_K = 1.5;
+          const wood = new THREE.MeshLambertMaterial({ color: 0xa47e52 }), ply = new THREE.MeshLambertMaterial({ color: 0x8a6a45 }), alu = new THREE.MeshLambertMaterial({ color: 0x8d9196 });
+          const part = (w, h, d, x, y, z, mat, name, outlined = true) => { const m = bx(w, h, d, mat, true, outlined, lineDark); m.name = name; m.position.set(x, y, z); g.add(m); return m; };
+          const cx = X0 + W / 2, cz = ZB + D / 2;
+          for (const k of [0, 1, 2]) part(W - 2 * T, T, D, cx, Y0 + T / 2 + k * (TIER + T), cz, wood, 'Ván kệ sách');
+          for (const s of [-1, 1]) part(T, H, D, cx + s * (W - T) / 2, Y0 + H / 2, cz, wood, 'Hông kệ sách');
+          part(W - 2 * T, H - 2 * T, BACK, cx, Y0 + H / 2, ZB + BACK / 2, ply, 'Lưng kệ sách', false);
+          for (const s of [-1, 1]) part(.06, .05, .012, cx + s * .13, 2.675, -.862 + .006, alu, 'Ke bắt khung xe (kệ sách)');
+          for (const s of [-1, 1]) part(.02, 2.675 - (Y0 + H) + .02, .012, cx + s * .13, (2.675 + Y0 + H) / 2 - .01, ZB - .006 + .012, alu, 'Thanh treo kệ sách', false);
+          study.add(g);
+          const BOOK_GLB = window.__booksGlb || (location.protocol === 'file:' ? '3d-garden/src/models/books.glb' : /^(localhost|127\.0\.0\.1)$/.test(location.hostname) ? 'models/books.glb' : 'https://michaeltran75.github.io/3d-garden/models/books.glb');
+          ldTrack(Promise.all([import('https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js'), import('https://esm.sh/three@0.160.0/examples/jsm/libs/meshopt_decoder.module.js')]).then(([{ GLTFLoader }, { MeshoptDecoder }]) => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(BOOK_GLB)).then(ldAfter).then(gl => {
+            const src = {}; gl.scene.traverse(o => { if (o.isMesh) { const M = o.material; o.material = new THREE.MeshLambertMaterial({ map: M.map, side: THREE.DoubleSide }); M.dispose(); src[o.name || o.parent.name] = o; } });
+            for (const k of Object.keys(src)) { const o = src[k]; if (!o.geometry.boundingBox) o.geometry.computeBoundingBox(); }
+            const zIn = ZB + BACK + (D - BACK) / 2;
+            const row = (names, y, x, gap = 0.002) => { for (const n of names) { const o = src[n].clone(), b = o.geometry.boundingBox, w = (b.max.x - b.min.x) * BOOK_K;
+              o.scale.setScalar(BOOK_K); o.position.set(x - b.min.x * BOOK_K, y, zIn); o.rotation.set(0, 0, 0); o.name = 'Sách ' + n; o.castShadow = o.receiveShadow = true;
+              o.userData.noBake = o.userData.noBatch = true; o.userData.xray = 'keep'; g.add(o); x += w + gap; } return x; };
+            const yLo = Y0 + T, yHi = Y0 + 2 * T + TIER, xL = X0 + T + 0.006;
+            row(['book01', 'book003', 'book005', 'magaz1', 'book002', 'book006', 'book01', 'book005', 'book003', 'book002', 'book004'], yLo, xL);
+            const st = src.magazstack1.clone(); st.scale.setScalar(BOOK_K * 0.98); st.position.set(xL + 0.141 * BOOK_K * 0.98 / 2, yHi, zIn); st.name = 'Chồng tạp chí'; st.userData.noBake = st.userData.noBatch = true; st.userData.xray = 'keep'; g.add(st);
+            row(['book006', 'book003', 'book01'], yHi, xL + 0.141 * BOOK_K + 0.03);
+          }).catch(err => console.warn('kệ sách:', err)));
+          return g;
+        })();
         {
           const TL_GLB = window.__tlGlb || 'https://michaeltran75.github.io/3d-garden/models/tinyliving.glb';
           ldTrack(Promise.all([import('https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js'), import('https://esm.sh/three@0.160.0/examples/jsm/libs/meshopt_decoder.module.js')])
@@ -24221,17 +25285,23 @@
         worldHear('engNeeds', () => { if (simUI.open) simRender(); });
         const TLS = { open: false, built: false, last: 0 };
         const TL_ITEMS = [
-          ['stars', 'telescope', 'Kính thiên văn', 'Ngắm sao'], ['fish', 'fish-hook', 'Cần câu cá', 'Câu cá'], ['smoke', 'fish', 'Lò nướng CHIMINEA', 'Nướng cá'],
+          ['stars', 'telescope', 'Kính thiên văn', 'Ngắm sao'], ['fish', 'fish-hook', 'Cần câu cá', 'Câu cá'], ['smoke', 'fish', 'Lò nướng CHIMINEA', 'Hun khói cá'],
           ['apples', 'apple', 'Hái táo', 'Hái táo'], ['garden', 'carrot', 'Farming', 'Trồng cà rốt'], ['trim', 'lawn-mower', 'Máy cắt cỏ', 'Cắt cỏ'],
-          ['cook', 'tools-kitchen-2', 'Nấu ăn', 'Nấu ăn'], ['chair', 'book', 'Đọc sách', 'Đọc sách'], ['research', 'device-laptop', 'Laptop', 'Nghiên cứu'],
-          ['drone', 'drone', 'Drone', 'Bay'], ['wood', 'flame', 'Lò CHIMINEA', 'Bỏ củi'], ['engine', 'engine', 'Động cơ xe', 'Kiểm tra máy']
+          ['cook', 'tools-kitchen-2', 'Nấu ăn', 'Nấu ăn'], ['chair', 'book', 'Đọc sách', 'Đọc sách'], ['research', 'device-laptop', 'Laptop', 'Nghiên cứu'], ['deskread', 'books', 'Kệ sách', 'Đọc sách'],
+          ['drone', 'drone', 'Drone', 'Bay'], ['wood', 'flame', 'Lò CHIMINEA', 'Bỏ củi'], ['engine', 'engine', 'Động cơ xe', 'Kiểm tra máy'],
+          ['breakfast', 'coffee', 'Ăn sáng', 'Ăn sáng'], ['fire', 'campfire', 'Lửa trại', 'Nhóm / dập lửa'], ['toilet', 'toilet-paper', 'Bồn cầu', 'Đi vệ sinh'], ['wash', 'droplet', 'Lavabo', 'Rửa tay']
         ].map(([k, ic, n, go]) => ({ k, ic, n, go, ok: () => ENGINEER.offer(k).plan(), why: () => ENGINEER.offer(k).why() }));
-        const TL_GROUPS = [['Ngoài trời', ['stars', 'fish', 'apples', 'garden']], ['Bếp núc', ['cook', 'smoke', 'wood']], ['Đọc · làm việc', ['chair', 'research']], ['Máy móc', ['trim', 'drone', 'engine']]];
+        const TL_GROUPS = [['Ngoài trời', ['stars', 'fish', 'apples', 'garden']], ['Bếp núc', ['breakfast', 'cook', 'smoke', 'fire', 'wood']], ['Đọc · làm việc', ['chair', 'deskread', 'research']], ['Vệ sinh', ['toilet', 'wash']], ['Máy móc', ['trim', 'drone', 'engine']]];
         { const ch = scene.getObjectByName('Ghế cắm trại (Camp Chair)'); hovAdd(ch);
-          const box = o => { const b = new THREE.Box3().setFromObject(o), m = new THREE.Mesh(new THREE.BoxGeometry(...b.getSize(new THREE.Vector3()).addScalar(0.06).toArray()), new THREE.MeshBasicMaterial({ visible: false }));
-            b.getCenter(m.position); m.userData.noBatch = m.userData.noBake = m.userData.noCollide = true; scene.add(m); return m; };
-          for (const [k, objs, title, vis] of [['chair', [box(ch)], 'Ghế cắm trại'], ['wood', [CHIMINEA.g], 'Lò sưởi CHIMINEA'], ['fish', [box(CAMP.groundRod)], 'Cần câu cá', () => CAMP.groundRod.visible]]) {
-            const it = TL_ITEMS.find(i => i.k === k); TOOLS.push({ objs, vis, title, go: '▶ ' + it.go, act: k }); } }
+          const box = jobBox;
+          const lap = scene.getObjectByName('Laptop'), bed = scene.getObjectByName('Luống cà rốt'); hovAdd(lap); hovAdd(bed);
+          const shelf = scene.getObjectByName('Kệ sách cạnh màn hình phụ'), pile = scene.getObjectByName('Hai hộp như sách trên bàn học'); hovAdd(shelf); hovAdd(pile);
+          const wc = scene.getObjectByName('Bồn cầu hướng cửa phòng tắm'), lav = scene.getObjectByName('Lavabo'), kit = scene.getObjectByName('Bếp: phần cố định');
+          const inVan = () => VAN.xray;
+          for (const o of [wc, lav, kit]) hovAdd(o, { on: inVan });
+          TOOLS.push({ objs: [box(kit)], vis: inVan, van: true, title: 'Bếp trong xe', msg: 'Chọn món:', act: 'cook', choices: [['breakfast', 'Ăn sáng: ngũ cốc, cà phê'], ['udon', 'Nấu udon'], ['rice', 'Chiên cơm trứng']] });
+          for (const [k, objs, title, vis, go] of [['research', [box(lap)], 'Laptop', null, 'Use laptop'], ['garden', [box(bed)], 'Luống cà rốt', null, 'Trồng cà rốt'], ['deskread', [box(shelf), box(pile)], 'Sách', null, 'Đọc sách'], ['chair', [box(ch)], 'Ghế cắm trại'], ['toilet', [box(wc)], 'Bồn cầu', inVan, 'Đi vệ sinh'], ['wash', [box(lav)], 'Lavabo', inVan, 'Rửa tay'], ['fish', [box(CAMP.groundRod)], 'Cần câu cá', () => CAMP.groundRod.visible]]) {
+            const it = TL_ITEMS.find(i => i.k === k); TOOLS.push({ objs, vis, title, go: '▶ ' + (go || it.go), act: k, van: ['research', 'deskread', 'toilet', 'wash'].includes(k) }); } }
         function toolsBuild() {
           const L = document.getElementById('toolsList'); if (!L) return false;
           for (const [title, keys] of TL_GROUPS) {
@@ -24250,7 +25320,7 @@
           document.getElementById('toolsDoing').textContent = ENGINEER.needs.doing() + (ENGINEER.asked ? ' · theo lệnh' : '');
           for (const it of TL_ITEMS) {
             const on = ENGINEER.asked === it.k, why = on ? '' : it.why();
-            it.r.textContent = on ? 'Đang làm…' : why ? '' : '▶ ' + it.go; it.m.textContent = why || it.ok();
+            it.r.textContent = on ? 'Đang làm…' : why ? '' : '▶ ' + (ENGINEER.offer(it.k).btn?.() || it.go); it.m.textContent = why || it.ok();
             it.row.classList.toggle('sim-go', on); it.row.classList.toggle('tl-off', !!why);
           }
         }
@@ -24866,7 +25936,7 @@
         function buildBatchGeometry(recs, isLine, withUv, skeleton) {
           let nv = 0, ni = 0;
           for (const r of recs) {
-            const g = r.o.geometry, n = g.attributes.position.count;
+            const g = r.o.userData.aoGeo || r.o.geometry, n = g.attributes.position.count;
             r.v0 = nv; nv += n;
             ni += isLine && !r.o.isLineSegments ? (n - 1) * 2 : r.count;
           }
@@ -24876,16 +25946,17 @@
           let k = 0;
           _bBox.makeEmpty();
           for (const r of recs) {
-            const o = r.o, m = r.mat, g = o.geometry, P = g.attributes.position, n = P.count, v0 = r.v0, bone = r.bone, bi = bone.i, L = bone.L;
+            const o = r.o, m = r.mat, g = o.userData.aoGeo || o.geometry, P = g.attributes.position, n = P.count, v0 = r.v0, bone = r.bone, bi = bone.i, L = bone.L;
             if (L) _bN3.getNormalMatrix(L);
             let N = g.attributes.normal;
             if (!isLine && !N && !m.isMeshBasicMaterial) { const tmp = g.clone(); tmp.computeVertexNormals(); N = tmp.attributes.normal; }
-            const C = m.vertexColors && g.attributes.color, U = withUv ? g.attributes.uv : null, cr = m.color.r, cg = m.color.g, cb = m.color.b;
+            const C = m.vertexColors && g.attributes.color, U = withUv ? g.attributes.uv : null, A = g.attributes.ao, cr = m.color.r, cg = m.color.g, cb = m.color.b;
             for (let i = 0; i < n; i++) {
               const v = v0 + i;
               _bPos.fromBufferAttribute(P, i); if (L) _bPos.applyMatrix4(L);
               pos[v * 3] = _bPos.x; pos[v * 3 + 1] = _bPos.y; pos[v * 3 + 2] = _bPos.z;
-              col[v * 3] = unorm16(cr * (C ? C.getX(i) : 1)); col[v * 3 + 1] = unorm16(cg * (C ? C.getY(i) : 1)); col[v * 3 + 2] = unorm16(cb * (C ? C.getZ(i) : 1));
+              const ka = A ? A.getX(i) : 1;
+              col[v * 3] = unorm16(cr * ka * (C ? C.getX(i) : 1)); col[v * 3 + 1] = unorm16(cg * ka * (C ? C.getY(i) : 1)); col[v * 3 + 2] = unorm16(cb * ka * (C ? C.getZ(i) : 1));
               if (nrm && N) { _bNrm.fromBufferAttribute(N, i); if (L) _bNrm.applyMatrix3(_bN3); _bNrm.normalize(); nrm[v * 3] = Math.round(_bNrm.x * 32767); nrm[v * 3 + 1] = Math.round(_bNrm.y * 32767); nrm[v * 3 + 2] = Math.round(_bNrm.z * 32767); }
               if (uv) { uv[v * 2] = U.getX(i); uv[v * 2 + 1] = U.getY(i); }
               sIdx[v * 4] = sIdx[v * 4 + 1] = sIdx[v * 4 + 2] = sIdx[v * 4 + 3] = bi; sW[v * 4] = 255;
@@ -24931,6 +26002,16 @@
           mesh.castShadow = sample.castShadow; mesh.receiveShadow = sample.receiveShadow; mesh.renderOrder = sample.renderOrder;
           mesh.userData.batchSrc = { recs, isLine, withUv, skeleton };
           return mesh;
+        }
+        function batchAoRefresh(objs) {
+          const S = new Set(objs), cnt = g => g.index ? g.index.count : g.attributes.position.count;
+          for (const b of drawBatches) for (const m of b.meshes) {
+            const src = m.userData.batchSrc; if (!src || !src.recs.some(r => S.has(r.o))) continue;
+            for (const r of src.recs) if (S.has(r.o)) { r.start = 0; r.count = cnt(r.o.userData.aoGeo); }
+            const old = m.geometry; m.geometry = buildBatchGeometry(src.recs, src.isLine, src.withUv, src.skeleton); old.dispose();
+            for (const r of src.recs) if (S.has(r.o)) r.count = cnt(r.o.geometry);
+          }
+          for (const o of objs) delete o.userData.aoGeo;
         }
         listen(renderer.domElement, 'webglcontextrestored', () => {
           for (const b of drawBatches) for (const m of b.meshes) { const S = m.userData.batchSrc, old = m.geometry; m.geometry = buildBatchGeometry(S.recs, S.isLine, S.withUv, S.skeleton); old.dispose(); }
@@ -25084,6 +26165,284 @@
             with: (name, roots) => batchWith.set(name, [...(batchWith.get(name) || []), ...roots]) });
           batchDraws('Cảnh tĩnh', scene.children.filter(o => !o.userData.batchRoot && !o.userData.noBatch && !o.isSkinnedMesh));
         }
+        const AO_VOX = 0.03, AO_R = 0.25, AO_N = 48, AO_K = 0.7, AO_TOL = 0.075, AO_MIN = 0.08, AO_MAX = 0.4, AO_HID = 0.75, AO_MS = 6;
+        const AO_DIRS = new Float32Array(AO_N * 3);
+        for (let i = 0; i < AO_N; i++) { const u = (i + 0.5) / AO_N, r = Math.sqrt(u), t = i * 2.39996; AO_DIRS.set([r * Math.cos(t), r * Math.sin(t), Math.sqrt(1 - u)], i * 3); }
+        const AOB = { job: null, q: [], done: new Map(), stat: null, rs: 0x5EED0A0 };
+        function aoBake(root, opt) { const k = opt.key || root; if (AOB.done.has(k)) return; AOB.done.set(k, [root, opt]); AOB.q.push(k); }
+        worldTick('afterRender', 95, () => {
+          if (!AOB.job) { if (!AOB.q.length) return; const [r, o] = AOB.done.get(AOB.q.shift()); AOB.job = aoJob(r, o); }
+          const t0 = performance.now();
+          while (performance.now() - t0 < AO_MS) if (AOB.job.next().done) { AOB.job = null; break; }
+        });
+        listen(renderer.domElement, 'webglcontextrestored', () => { AOB.job = null; AOB.q = [...AOB.done.keys()]; });
+        function aoRnd(f) {
+          const R0 = Math.random;
+          Math.random = () => { const s = AOB.rs = AOB.rs + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+          try { return f(); } finally { Math.random = R0; }
+        }
+        function aoGeoOf(own, lp, ln, uv, cl, ao, tris) {
+          const n = ao.length, geo = new THREE.BufferGeometry(), nr = new Int8Array(n * 3), lt = new Float32Array(n);
+          for (let i = 0; i < n * 3; i++) nr[i] = Math.round(Math.max(-1, Math.min(1, ln[i])) * 127);
+          for (let i = 0; i < n; i++) lt[i] = Math.max(0.15, 1 - AO_K * ao[i]);
+          geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(lp), 3));
+          geo.setAttribute('normal', new THREE.BufferAttribute(nr, 3, true));
+          if (uv) geo.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(uv), 2));
+          geo.setIndex(new THREE.BufferAttribute(n > 65535 ? new Uint32Array(tris) : new Uint16Array(tris), 1));
+          if (own || cl) { const col = new Uint8Array(n * 3); for (let i = 0; i < n * 3; i++) col[i] = Math.round((own ? lt[(i / 3) | 0] : 1) * (cl ? cl[i] : 1) * 255); geo.setAttribute('color', new THREE.BufferAttribute(col, 3, true)); }
+          if (!own) geo.setAttribute('ao', new THREE.BufferAttribute(Uint8Array.from(lt, v => Math.round(v * 255)), 1, true));
+          geo.computeBoundingBox(); if (own) geo.computeBoundingSphere(); return geo;
+        }
+        function* aoVox(root, meshes, B, V, occ, nx, ny, nz) {
+          const inv = new THREE.Matrix4().copy(root.matrixWorld).invert(), x0 = B.min.x, y0 = B.min.y, z0 = B.min.z; let busy = 0;
+          const cell = (x, y, z) => { const i = Math.floor((x - x0) / V), j = Math.floor((y - y0) / V), k = Math.floor((z - z0) / V); return i < 0 || j < 0 || k < 0 || i >= nx || j >= ny || k >= nz ? -1 : (k * ny + j) * nx + i; };
+          const M = new THREE.Matrix4(), Mi = new THREE.Matrix4(), a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), bb = new THREE.Box3();
+          const shown = o => { for (let p = o; p && p !== root.parent; p = p.parent) if (!p.visible) return false; return true; };
+          const baseMat = o => { const m = o.userData.xrayMaterial || o.material; return Array.isArray(m) ? m[0] : m; };
+          for (const o of meshes) {
+            const m = baseMat(o), g = o.geometry, P = g.attributes.position, I = g.index;
+            if (!P || !P.array || (I && !I.array) || !m || !m.visible || (m.transparent && (m.opacity < 0.9 || !m.depthWrite)) || !shown(o)) continue;
+            if (!g.boundingBox) g.computeBoundingBox();
+            for (let r = 0, reps = o.isInstancedMesh ? o.count : 1; r < reps; r++) {
+              M.multiplyMatrices(inv, o.matrixWorld); if (o.isInstancedMesh) { o.getMatrixAt(r, Mi); M.multiply(Mi); }
+              if (!bb.copy(g.boundingBox).applyMatrix4(M).intersectsBox(B)) continue;
+              for (let t = 0, n = I ? I.count : P.count; t < n; t += 3) {
+                a.fromBufferAttribute(P, I ? I.getX(t) : t).applyMatrix4(M); b.fromBufferAttribute(P, I ? I.getX(t + 1) : t + 1).applyMatrix4(M); c.fromBufferAttribute(P, I ? I.getX(t + 2) : t + 2).applyMatrix4(M);
+                if (Math.max(a.x, b.x, c.x) < x0 || Math.min(a.x, b.x, c.x) > B.max.x || Math.max(a.y, b.y, c.y) < y0 || Math.min(a.y, b.y, c.y) > B.max.y || Math.max(a.z, b.z, c.z) < z0 || Math.min(a.z, b.z, c.z) > B.max.z) continue;
+                const s = Math.max(1, Math.ceil(Math.max(a.distanceTo(b), b.distanceTo(c), c.distanceTo(a)) / (V * 0.6)));
+                for (let i = 0; i <= s; i++) for (let j = 0; j <= s - i; j++) {
+                  const u = i / s, w = j / s, q = cell(a.x + (b.x - a.x) * u + (c.x - a.x) * w, a.y + (b.y - a.y) * u + (c.y - a.y) * w, a.z + (b.z - a.z) * u + (c.z - a.z) * w);
+                  if (q >= 0) occ[q] = 1;
+                }
+                if ((busy += s * s / 2 + 8) > 6e4) { busy = 0; yield; }
+              }
+            }
+          }
+        }
+        function aoVoxNow(opt) {
+          const B = opt.box, V = opt.vox || AO_VOX, nx = Math.ceil((B.max.x - B.min.x) / V), ny = Math.ceil((B.max.y - B.min.y) / V), nz = Math.ceil((B.max.z - B.min.z) / V), occ = new Uint8Array(nx * ny * nz), meshes = [];
+          scene.updateWorldMatrix(true, false); for (const r of opt.roots) { r.updateMatrixWorld(true); r.traverse(o => { if (o.isMesh) meshes.push(o); }); }
+          const it = aoVox(scene, meshes, B, V, occ, nx, ny, nz); while (!it.next().done);
+          const bits = new Uint8Array((occ.length + 7) >> 3); for (let q = 0; q < occ.length; q++) if (occ[q]) bits[q >> 3] |= 1 << (q & 7); return bits;
+        }
+        function* aoJob(root, opt) {
+          const T0 = performance.now(), roots = opt.roots || [root]; let busy = 0; root.updateWorldMatrix(true, false); for (const r of roots) r.updateMatrixWorld(true);
+          const inv = new THREE.Matrix4().copy(root.matrixWorld).invert(), up = new THREE.Vector3(0, 1, 0).transformDirection(inv), B = opt.box, V = opt.vox || AO_VOX, x0 = B.min.x, y0 = B.min.y, z0 = B.min.z;
+          const nx = Math.ceil((B.max.x - x0) / V), ny = Math.ceil((B.max.y - y0) / V), nz = Math.ceil((B.max.z - z0) / V), occ = new Uint8Array(nx * ny * nz);
+          const cell = (x, y, z) => { const i = Math.floor((x - x0) / V), j = Math.floor((y - y0) / V), k = Math.floor((z - z0) / V); return i < 0 || j < 0 || k < 0 || i >= nx || j >= ny || k >= nz ? -1 : (k * ny + j) * nx + i; };
+          const M = new THREE.Matrix4(), Mi = new THREE.Matrix4(), a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), bb = new THREE.Box3(), N3 = new THREE.Matrix3();
+          const meshes = []; for (const r of roots) r.traverse(o => { if (o.isMesh) meshes.push(o); });
+          const shown = o => { for (let p = o; p && p !== root.parent; p = p.parent) if (!p.visible) return false; return true; };
+          const baseMat = o => { const m = o.userData.xrayMaterial || o.material; return Array.isArray(m) ? m[0] : m; };
+          if (opt.occ) { const O = opt.occ; for (let q = 0; q < occ.length; q++) occ[q] = (O[q >> 3] >> (q & 7)) & 1; }
+          else yield* aoVox(root, meshes, B, V, occ, nx, ny, nz);
+          let near = null;
+          if (opt.floor) {
+            const c0 = new Uint8Array(nx * nz), r = Math.ceil(opt.floor.r / V), dil = (A, s1, n1, s2, n2) => { const O = new Uint8Array(A.length);
+              for (let b = 0; b < n2; b++) { let c = 0; for (let a = -r; a < n1 + r; a++) { if (a + r < n1 && A[(a + r) * s1 + b * s2]) c++; if (a - r - 1 >= 0 && A[(a - r - 1) * s1 + b * s2]) c--; if (a >= 0 && a < n1 && c > 0) O[a * s1 + b * s2] = 1; } } return O; };
+            for (let k = 0; k < nz; k++) for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) if (occ[(k * ny + j) * nx + i]) c0[k * nx + i] = 1;
+            near = dil(dil(c0, 1, nx, nx, nz), nx, nz, 1, nx);
+          }
+          if (opt.ground) for (let k = 0; k < nz; k++) for (let i = 0; i < nx; i++) {
+            a.set(x0 + (i + 0.5) * V, y0, z0 + (k + 0.5) * V).applyMatrix4(root.matrixWorld); const g = cowY(a.x, a.z), dy = root.matrixWorld.elements[5] * V;
+            for (let j = 0; j < ny && a.y + (j + 0.5) * dy < g; j++) occ[(k * ny + j) * nx + i] = 1;
+          }
+          const tVox = performance.now() - T0;
+          function aoAt(px, py, pz, ex, ey, ez, RR = AO_R, lin = false) {
+            let tx, ty, tz, sx, sy, sz;
+            if (ez < -0.9999) { tx = 0; ty = -1; tz = 0; sx = -1; sy = 0; sz = 0; }
+            else { const k = 1 / (1 + ez), q = -ex * ey * k; tx = 1 - ex * ex * k; ty = q; tz = -ex; sx = q; sy = 1 - ey * ey * k; sz = -ey; }
+            const ox = px + ex * 1.5 * V, oy = py + ey * 1.5 * V, oz = pz + ez * 1.5 * V; let sum = 0;
+            for (let d = 0; d < AO_N * 3; d += 3) {
+              const D0 = AO_DIRS[d], D1 = AO_DIRS[d + 1], D2 = AO_DIRS[d + 2], wx = tx * D0 + sx * D1 + ex * D2, wy = ty * D0 + sy * D1 + ey * D2, wz = tz * D0 + sz * D1 + ez * D2;
+              for (let s = 0.5 * V; s < RR; s += 0.75 * V) {
+                const q = cell(ox + wx * s, oy + wy * s, oz + wz * s); if (q < 0) break;
+                if (occ[q]) { const f = 1 - s / RR; sum += lin ? f : f * f; break; }
+              }
+            }
+            busy += AO_N * 6; return sum / AO_N;
+          }
+          let floor = null;
+          if (opt.floor) {
+            const F = opt.floor, ps = F.ps || 0.05, NX = Math.ceil((B.max.x - x0) / ps), NZ = Math.ceil((B.max.z - z0) / ps), px = new Uint8Array(NX * NZ * 4), fade = F.fade || 0.4;
+            for (let k = 0; k < NZ; k++) {
+              for (let i = 0; i < NX; i++) {
+                const x = x0 + (i + 0.5) * ps, z = z0 + (k + 0.5) * ps, ci = Math.min(nx - 1, Math.floor((x - x0) / V)), ck = Math.min(nz - 1, Math.floor((z - z0) / V)), p = (k * NX + i) * 4;
+                px[p] = px[p + 1] = px[p + 2] = 255; if (!near[ck * nx + ci]) continue;
+                const w = Math.min(1, Math.min(x - x0, B.max.x - x, z - z0, B.max.z - z) / fade), oc = aoAt(x, cowY(x, z) + 0.01, z, 0, 1, 0, F.r, true);
+                px[p + 3] = Math.round(255 * Math.min(F.max || 1, F.k * oc) * w * w * (3 - 2 * w));
+              }
+              if (busy > 4e4) { busy = 0; yield; }
+            }
+            floor = { px, NX, NZ, ps, x0, x1: x0 + NX * ps, z0, z1: z0 + NZ * ps, g0: cowY((x0 + B.max.x) / 2, (z0 + B.max.z) / 2) };
+          }
+          const users = new Map(); scene.traverse(o => { if (o.isMesh) for (const m of [].concat(o.material)) { const L = users.get(m); if (L) L.push(o); else users.set(m, [o]); } });
+          const lit = m => m && (m.isMeshLambertMaterial || m.isMeshPhongMaterial || m.isMeshStandardMaterial) && !m.transparent && !(m.emissive && m.emissive.r + m.emissive.g + m.emissive.b > 0);
+          const cand = opt.recv === false ? [] : meshes.filter(o => {
+            if (o.isInstancedMesh || o.isSkinnedMesh || Array.isArray(o.material) || !lit(o.material) || o.userData.noBatch || o.userData.aoOwn || o.userData.lodHi !== undefined || (opt.skip && opt.skip(o))) return false;
+            const g = o.geometry, P = g.attributes.position; if (!P || P.isInterleavedBufferAttribute || g.morphAttributes.position || !shown(o)) return false;
+            if (!g.boundingBox) g.computeBoundingBox(); M.multiplyMatrices(inv, o.matrixWorld); return B.containsPoint(bb.copy(g.boundingBox).applyMatrix4(M).getCenter(a));
+          });
+          const candSet = new Set(cand);
+          const recs = cand.filter(o => o.userData.batched || users.get(o.material).every(u => candSet.has(u) && !u.userData.batched));
+          const made = [], top = []; let vIn = 0, vOut = 0, tOut = 0;
+          for (const o of recs) {
+            const g = o.geometry, P = g.attributes.position, I = g.index, U = g.attributes.uv, C = o.material.vertexColors ? g.attributes.color : null;
+            let Nn = g.attributes.normal; if (!Nn) { const t = g.clone(); t.computeVertexNormals(); Nn = t.attributes.normal; }
+            M.multiplyMatrices(inv, o.matrixWorld); N3.getNormalMatrix(M);
+            const lp = [], ln = [], uv = U ? [] : null, cl = C ? [] : null, gp = [], gn = [], key = [], ao = [];
+            const addV = (p, n, u0, u1, c0, c1, c2, oc) => {
+              const i = ln.length / 3; lp.push(p.x, p.y, p.z); ln.push(n.x, n.y, n.z); if (uv) uv.push(u0, u1); if (cl) cl.push(c0, c1, c2);
+              b.copy(p).applyMatrix4(M); gp.push(b.x, b.y, b.z); c.copy(n).applyMatrix3(N3).normalize(); gn.push(c.x, c.y, c.z);
+              key.push(Math.round(b.x * 1e4) + ',' + Math.round(b.y * 1e4) + ',' + Math.round(b.z * 1e4)); ao.push(oc); return i;
+            };
+            for (let i = 0; i < P.count; i++) addV(a.fromBufferAttribute(P, i), b.fromBufferAttribute(Nn, i).clone(), U ? U.getX(i) : 0, U ? U.getY(i) : 0, C ? C.getX(i) : 1, C ? C.getY(i) : 1, C ? C.getZ(i) : 1, -1);
+            vIn += P.count;
+            let tris = []; for (let t = 0, n = I ? I.count : P.count; t < n; t++) tris.push(I ? I.getX(t) : t);
+            const aoV = i => ao[i] >= 0 ? ao[i] : (ao[i] = aoAt(gp[i * 3], gp[i * 3 + 1], gp[i * 3 + 2], gn[i * 3], gn[i * 3 + 1], gn[i * 3 + 2]));
+            const ek = (i, j) => key[i] < key[j] ? key[i] + '/' + key[j] : key[j] + '/' + key[i];
+            const len = (i, j) => Math.hypot(gp[i * 3] - gp[j * 3], gp[i * 3 + 1] - gp[j * 3 + 1], gp[i * 3 + 2] - gp[j * 3 + 2]);
+            const inBox = (i, j) => B.containsPoint(a.set((gp[i * 3] + gp[j * 3]) / 2, (gp[i * 3 + 1] + gp[j * 3 + 1]) / 2, (gp[i * 3 + 2] + gp[j * 3 + 2]) / 2));
+            const midAo = new Map(), mid = new Map();
+            const mAo = (i, j) => {
+              const k = i < j ? i + '_' + j : j + '_' + i; let v = midAo.get(k); if (v !== undefined) return v;
+              let ex = gn[i * 3] + gn[j * 3], ey = gn[i * 3 + 1] + gn[j * 3 + 1], ez = gn[i * 3 + 2] + gn[j * 3 + 2], l = Math.hypot(ex, ey, ez);
+              if (l < 1e-3) { ex = gn[i * 3]; ey = gn[i * 3 + 1]; ez = gn[i * 3 + 2]; l = 1; }
+              v = aoAt((gp[i * 3] + gp[j * 3]) / 2, (gp[i * 3 + 1] + gp[j * 3 + 1]) / 2, (gp[i * 3 + 2] + gp[j * 3 + 2]) / 2, ex / l, ey / l, ez / l); midAo.set(k, v); return v;
+            };
+            const midOf = (i, j) => {
+              const k = i < j ? i + '_' + j : j + '_' + i; let v = mid.get(k); if (v !== undefined) return v;
+              a.set((lp[i * 3] + lp[j * 3]) / 2, (lp[i * 3 + 1] + lp[j * 3 + 1]) / 2, (lp[i * 3 + 2] + lp[j * 3 + 2]) / 2);
+              const n = new THREE.Vector3(ln[i * 3] + ln[j * 3], ln[i * 3 + 1] + ln[j * 3 + 1], ln[i * 3 + 2] + ln[j * 3 + 2]); if (n.lengthSq() < 1e-6) n.set(ln[i * 3], ln[i * 3 + 1], ln[i * 3 + 2]); n.normalize();
+              v = addV(a.clone(), n, uv ? (uv[i * 2] + uv[j * 2]) / 2 : 0, uv ? (uv[i * 2 + 1] + uv[j * 2 + 1]) / 2 : 0,
+                cl ? (cl[i * 3] + cl[j * 3]) / 2 : 1, cl ? (cl[i * 3 + 1] + cl[j * 3 + 1]) / 2 : 1, cl ? (cl[i * 3 + 2] + cl[j * 3 + 2]) / 2 : 1, mAo(i, j));
+              mid.set(k, v); return v;
+            };
+            const cr = o.material.color, alb = Math.sqrt(0.2126 * cr.r + 0.7152 * cr.g + 0.0722 * cr.b), tol = AO_TOL / Math.max(0.2, alb), mx = alb < 0.3 ? Infinity : AO_MAX;
+            const unseen = (v0, v1, v2) => {
+              if (o.material.side === THREE.DoubleSide) return false;
+              const x = gn[v0 * 3] + gn[v1 * 3] + gn[v2 * 3], y = gn[v0 * 3 + 1] + gn[v1 * 3 + 1] + gn[v2 * 3 + 1], z = gn[v0 * 3 + 2] + gn[v1 * 3 + 2] + gn[v2 * 3 + 2];
+              return x * up.x + y * up.y + z * up.z < -0.99 * Math.hypot(x, y, z);
+            };
+            for (let pass = 0; pass < 7; pass++) {
+              const split = new Set();
+              for (let t = 0; t < tris.length; t += 3) {
+                const v0 = tris[t], v1 = tris[t + 1], v2 = tris[t + 2], E = [[v0, v1], [v1, v2], [v2, v0]];
+                if (unseen(v0, v1, v2)) continue;
+                const L = E.map(([i, j]) => len(i, j)), ok = E.map(([i, j], e) => L[e] > AO_MIN && inBox(i, j));
+                let far = Math.max(L[0], L[1], L[2]), mark = false, dark = aoV(v0) > AO_HID && aoV(v1) > AO_HID && aoV(v2) > AO_HID;
+                for (let e = 0; e < 3 && dark; e++) if (ok[e] && mAo(E[e][0], E[e][1]) <= AO_HID) dark = false;
+                for (let e = 0; e < 3; e++) {
+                  if (!ok[e]) continue;
+                  const [i, j] = E[e], k = ek(i, j); if (split.has(k)) { mark = true; continue; }
+                  if ((L[e] > mx && !dark) || Math.abs(mAo(i, j) - (aoV(i) + aoV(j)) / 2) > tol) { split.add(k); mark = true; }
+                }
+                if (!mark && far > 2 * AO_MIN) {
+                  let ex = gn[v0 * 3] + gn[v1 * 3] + gn[v2 * 3], ey = gn[v0 * 3 + 1] + gn[v1 * 3 + 1] + gn[v2 * 3 + 1], ez = gn[v0 * 3 + 2] + gn[v1 * 3 + 2] + gn[v2 * 3 + 2]; const l = Math.hypot(ex, ey, ez) || 1;
+                  const oc = aoAt((gp[v0 * 3] + gp[v1 * 3] + gp[v2 * 3]) / 3, (gp[v0 * 3 + 1] + gp[v1 * 3 + 1] + gp[v2 * 3 + 1]) / 3, (gp[v0 * 3 + 2] + gp[v1 * 3 + 2] + gp[v2 * 3 + 2]) / 3, ex / l, ey / l, ez / l);
+                  if (Math.abs(oc - (aoV(v0) + aoV(v1) + aoV(v2)) / 3) > tol) for (const [i, j] of E) if (len(i, j) > AO_MIN && inBox(i, j)) split.add(ek(i, j));
+                }
+                if (busy > 4e4) { busy = 0; yield; }
+              }
+              if (!split.size) break;
+              const nt = [];
+              for (let t = 0; t < tris.length; t += 3) {
+                const p0 = tris[t], p1 = tris[t + 1], p2 = tris[t + 2], s01 = split.has(ek(p0, p1)), s12 = split.has(ek(p1, p2)), s20 = split.has(ek(p2, p0)), k = s01 + s12 + s20;
+                if (!k) { nt.push(p0, p1, p2); continue; }
+                if (k === 3) { const m1 = midOf(p0, p1), m2 = midOf(p1, p2), m3 = midOf(p2, p0); nt.push(p0, m1, m3, m1, p1, m2, m3, m2, p2, m1, m2, m3); continue; }
+                if (k === 1) {
+                  if (s01) { const m = midOf(p0, p1); nt.push(p0, m, p2, m, p1, p2); }
+                  else if (s12) { const m = midOf(p1, p2); nt.push(p0, p1, m, p0, m, p2); }
+                  else { const m = midOf(p2, p0); nt.push(p0, p1, m, m, p1, p2); }
+                  continue;
+                }
+                const [p, q, r] = s01 && s12 ? [p0, p1, p2] : s12 && s20 ? [p1, p2, p0] : [p2, p0, p1];
+                const m1 = midOf(p, q), m2 = midOf(q, r); nt.push(m1, q, m2, p, m1, m2, p, m2, r);
+                if (busy > 4e4) { busy = 0; yield; }
+              }
+              tris = nt;
+            }
+            for (let i = 0; i < ao.length; i++) { aoV(i); if (busy > 4e4) { busy = 0; yield; } }
+            made.push({ o, geo: aoRnd(() => aoGeoOf(!o.userData.batched, lp, ln, uv, cl, ao, tris)) }); vOut += ao.length; tOut += tris.length / 3;
+            top.push([o.name || (o.parent && o.parent.name) || '?', P.count, ao.length]);
+          }
+          const inBatch = [], vc = new Set();
+          for (const { o, geo } of made) {
+            if (o.userData.batched) { o.userData.aoGeo = geo; inBatch.push(o); continue; }
+            const old = o.geometry; o.geometry = geo; o.userData.aoOwn = true; if (!(users.get(o.material) || []).some(u => u !== o && u.geometry === old)) old.dispose();
+            vc.add(o.material);
+          }
+          for (const m of vc) { m.vertexColors = true; m.needsUpdate = true; }
+          aoRnd(() => batchAoRefresh(inBatch));
+          if (floor && opt.floor.done) aoRnd(() => opt.floor.done(floor));
+          AOB.stat = { ms: Math.round(performance.now() - T0), vox: Math.round(tVox), cells: occ.length, receivers: recs.length, batched: inBatch.length, own: vc.size, vIn, vOut, tris: tOut,
+            top: top.sort((p, q) => q[2] - q[1] - p[2] + p[1]).slice(0, 12) };
+        }
+        const CAMP_AO = [
+          { key: 'trại: lò · củi · ghế · bàn · luống', at: ['Lò sưởi chiminea (Chiminea)', 'Đống củi (Woodpile)', 'Ghế cắm trại (Camp Chair)', 'Bàn trà (Camp Table)', 'Luống cà rốt'] },
+          { key: 'trại: lửa trại', at: ['Bếp lửa trại (Campfire)', 'Giá treo nồi (Pot Hanger)'], night: 1 },
+          { key: 'trại: ghế câu', at: ['Ghế câu cá (Fishing Chair)'], more: () => [lanternObj.g] }];
+        const CAMP_FLOOR = { r: 1.0, k: 1.0, max: 0.6, ps: 0.05, fade: 0.4, grass: 0.6, night: 0.6 };
+        const campNoAo = o => { for (let p = o; p; p = p.parent) if (p.name === 'Lòng bếp' || p === lanternObj.g) return true; return false; };
+        const campLook = { ready: false };
+        ldGate.then(() => Promise.race([Promise.all(ldNeed), new Promise(r => setTimeout(r, 8000))])).then(() => { campLook.ready = true; });
+        function campAoAsk(C) {
+          if (!C.roots) {
+            C.roots = C.at.map(n => scene.getObjectByName(n)).filter(Boolean).concat(C.more ? C.more() : []);
+            const B = new THREE.Box3(), b = new THREE.Box3(); for (const r of C.roots) r.traverseVisible(o => { if (o.isMesh && !o.userData.noBatch) B.union(b.setFromObject(o)); });
+            C.mid = B.getCenter(new THREE.Vector3()); C.box = B.expandByScalar(0.6);
+          }
+          if (C.go) { C.asked = true; aoBake(scene, { key: C.key, roots: C.roots, box: C.box, ground: true, skip: campNoAo, floor: { ...CAMP_FLOOR, done: f => campFloor(C, f) } }); }
+        }
+        function campFloor(C, f) {
+          if (C.floorMesh) return;
+          worldJoin('groundContact', 30, S => { C.floorMesh = S.drape({ ...f, name: 'Bóng góc mặt đất · ' + C.key }); });
+          C.grass = meadow.shade((f.x0 + f.x1) / 2, (f.z0 + f.z1) / 2, Math.hypot(f.x1 - f.x0, f.z1 - f.z0) / 2, (x, z) => {
+            const u = Math.floor((x - f.x0) / f.ps), v = Math.floor((z - f.z0) / f.ps);
+            return u < 0 || v < 0 || u >= f.NX || v >= f.NZ ? 1 : 1 - CAMP_FLOOR.grass * f.px[(v * f.NX + u) * 4 + 3] / 255;
+          });
+        }
+        worldTick('afterRender', 90, () => {
+          if (!campLook.ready || camera.zoom < 8) return;
+          for (const C of CAMP_AO) if (!C.asked) { campAoAsk(C); if (target.distanceTo(C.mid) < 14) { C.go = true; campAoAsk(C); } }
+        });
+        worldTick('lamps', 60, () => {
+          for (const C of CAMP_AO) if (C.floorMesh) C.floorMesh.material.opacity = 1 - (C.night ?? CAMP_FLOOR.night) * nightFactor;
+        });
+        const OT_SHADE = { ready: false, opt: null, doneB: false, CAN: { k: 1.25, floor: 0.3 }, FLOOR: { r: 1.0, k: 1.0, max: 0.65, ps: 0.05, fade: 0.4 } };
+        (function otVox() {
+          const Rt = scene.getObjectByName('Rễ cây cổ thụ'), T = scene.getObjectByName('Cây cổ thụ (Old Tree)'), St = scene.getObjectByName('Đá hộc phủ rêu quanh gốc cổ thụ'); if (!Rt || !T) return;
+          const gy = Rt.position.y, box = new THREE.Box3().setFromObject(Rt).expandByScalar(1), t0 = performance.now(); box.min.y = gy - 0.3; box.max.y = gy + 1.4;
+          const roots = [Rt, T, St].filter(Boolean), occ = aoVoxNow({ roots, box, vox: 0.05 });
+          OT_SHADE.opt = { key: 'cổ thụ: chân', roots, box, ground: true, vox: 0.05, recv: false, occ, floor: { ...OT_SHADE.FLOOR, done: otFloor } }; OT_SHADE.voxMs = Math.round(performance.now() - t0);
+        })();
+        ldGate.then(() => Promise.race([Promise.all(ldNeed), new Promise(r => setTimeout(r, 8000))])).then(() => {
+          OT_SHADE.ready = true; const T = scene.getObjectByName('Cây cổ thụ (Old Tree)'); if (!T) return; T.updateMatrixWorld(true);
+          const pts = [], M = new THREE.Matrix4(), a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
+          T.traverse(o => {
+            if (!o.isInstancedMesh) return; const P = o.geometry.attributes.position, I = o.geometry.index; if (!P.array || (I && !I.array)) return;
+            for (let i = 0; i < o.count; i++) {
+              o.getMatrixAt(i, M); M.premultiply(o.matrixWorld); let ar = 0;
+              for (let t = 0, n = I ? I.count : P.count; t < n; t += 3) { a.fromBufferAttribute(P, I ? I.getX(t) : t).applyMatrix4(M); b.fromBufferAttribute(P, I ? I.getX(t + 1) : t + 1).applyMatrix4(M);
+                c.fromBufferAttribute(P, I ? I.getX(t + 2) : t + 2).applyMatrix4(M); ar += b.sub(a).cross(c.sub(a)).length() / 2; }
+              a.setFromMatrixPosition(M); pts.push(a.x, a.y, a.z, ar);
+            }
+          });
+          if (pts.length) worldJoin('skyShade', 10, S => S.canopy({ pts: new Float32Array(pts), ...OT_SHADE.CAN }));
+        });
+        worldTick('afterRender', 92, () => {
+          const o = OT_SHADE.opt; if (!o || o.asked || !OT_SHADE.ready || camera.zoom < 4) return;
+          const c = o.box.getCenter(_otC); if (Math.hypot(target.x - c.x, target.z - c.z) > 24) return;
+          o.asked = true; aoBake(scene, o);
+        });
+        const _otC = new THREE.Vector3();
+        function otFloor(f) {
+          if (OT_SHADE.doneB) return; OT_SHADE.doneB = true; delete OT_SHADE.opt.occ;
+          const n = f.NX * f.NZ, px = new Uint8Array(n * 2), G = new Float32Array(n); let g0 = 1e9;
+          for (let k = 0; k < f.NZ; k++) for (let i = 0; i < f.NX; i++) { const y = cowY(f.x0 + (i + 0.5) * f.ps, f.z0 + (k + 0.5) * f.ps); G[k * f.NX + i] = y; g0 = Math.min(g0, y); }
+          for (let i = 0; i < n; i++) { px[i * 2] = 255 - f.px[i * 4 + 3]; px[i * 2 + 1] = Math.min(255, Math.round((G[i] - g0) / 0.01)); }
+          worldJoin('skyShade', 10, S => S.layer('B', { px, NX: f.NX, NZ: f.NZ, x0: f.x0, z0: f.z0, x1: f.x1, z1: f.z1, y: g0, m: 0.01 }));
+        }
         const MT_MESH = [], _mtM = new THREE.Matrix4(), _mtR = new THREE.Ray(), _mtB = new THREE.Box3(), _mtP = new THREE.Vector3();
         function mtRaycast(rc, hits) {
           const g = this.geometry, F = bakedFlightBounds.get(g) || g.userData.flightBounds;
@@ -25130,7 +26489,9 @@
           for (const t of texs) { t.onUpdate = mtCanvasFree; t.needsUpdate = true; }
           memTrim.n = [geos.size, texs.size];
         }
-        listen(renderer.domElement, 'webglcontextrestored', () => { for (const o of MT_MESH) if (!o.geometry.attributes.position.array) o.visible = false; });
+        listen(renderer.domElement, 'webglcontextrestored', () => scene.traverse(o => {
+          const P = o.isMesh && o.geometry.attributes.position; if (P && !P.array) o.visible = false;
+        }));
         function loop(ts) {
           if (disposed || suspended) { frameId = 0; return; }
           if (ts !== undefined) adaptResolution(ts);
@@ -25214,7 +26575,7 @@
               if (e.clip) e.clip.visible = !e.inVan && e.phase !== 'van' && !fishing && !atSeat && !H.pole && (!ENG_JOBS[e.phase] || !!ENG_JOBS[e.phase].clip) && !H.spoon && !H.cup && !H.bottle && !H.book && !dishHand && e.phase !== 'pet' && !fishInHand;
               chipsBag.visible = e.phase === 'read' && !e.inVan && !leavingSeat;
               const atDesk = e.inVan && !!e.van && e.van.station === 'desk';
-              VAN.laptop.lid(atDesk && (e.van.st === 'sit' || e.van.st === 'scoot' || e.van.st === 'work') ? 1 : 0);
+              VAN.laptop.lid(atDesk && e.act !== 'deskread' && (e.van.st === 'sit' || e.van.st === 'scoot' || e.van.st === 'work') ? 1 : 0);
               laptopScreenTick(t, atDesk && e.act === 'music');
               musicFx.update(dt, t, atDesk && e.act === 'music' && e.van.st === 'work' && VAN.laptop.open > 0.85);
               napFx.update(dt, t, e.phase === 'nap' && !leavingSeat && !e.inVan ? e : null);
@@ -25249,7 +26610,7 @@
           worldRun('pointer', dt, t);
           updateAnimalVisibility(); updateDrawBatches();
           fluids.update(dt, t, rainK);
-          if (skyOn) updateSky(); nightSky.update(dt, t, skyOn); constellations.tick(dt); fitSunShadow(); updateCloseLod(); worldRun('tools', dt, t); waterPump.tick(dt, t); soilTick(dt); worldRun('ground', dt, t); worldRun('viewer', dt, t); worldRun('sound', dt, t); mossTick(); renderer.render(scene, camera); mastLabel?.updateScreen(); worldRun('afterRender', dt, t);
+          if (skyOn) updateSky(); nightSky.update(dt, t, skyOn); constellations.tick(dt); fitSunShadow(); updateCloseLod(); worldRun('tools', dt, t); waterPump.tick(dt, t); soilTick(dt); worldRun('ground', dt, t); worldRun('viewer', dt, t); worldRun('sound', dt, t); mossTick(); lensRender(dt); mastLabel?.updateScreen(); worldRun('afterRender', dt, t);
           if (!started) { started = true; const l = document.getElementById('loading'); if (window.__ld) window.__ld(100); else if (l) l.style.display = 'none'; }
         }
         const startLoop = () => { if (!disposed && !suspended && !frameId) loop(); };

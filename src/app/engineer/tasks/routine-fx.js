@@ -56,6 +56,7 @@
             }
           } };
         })();
+        const CHIPS_K = 1.25;
         const chipsBag = (() => {   // gói khoai tây chiên mở miệng trên bàn trà, góc gần ghế cắm trại (chỉ hiện lúc đọc sách)
           const g = new THREE.Group(); g.name = 'Gói khoai tây chiên'; g.visible = false;
           const table = scene.getObjectByName('Bàn trà (Camp Table)'); if (!table) return g;
@@ -80,6 +81,7 @@
           table.add(g); table.updateMatrixWorld(true);
           const chair = table.worldToLocal(CAMP.chairPos.clone()), best = [chair.x > 0 ? 0.25 : -0.25, 0.2];   // góc gần ghế (17/10: nửa xa ghế là chỗ drone DJI — drone.js tableLay lật theo cùng phía)
           g.position.set(best[0], table.userData.top ?? 0.45, best[1]); g.rotation.y = Math.atan2(chair.x - best[0], chair.z - best[1]);   // mặt nhãn quay về phía ghế
+          g.scale.setScalar(CHIPS_K);   // gói to hơn 25% (G 01/11)
           return g;
         })();
         // ---- MÀN HÌNH MacBook (G 15/10 "add animation vào laptop screen" · G 17/10 "keep and improve the screen animation"): màn 3456×2234 ⇒ canvas 512×331,

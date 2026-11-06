@@ -34,3 +34,5 @@ python3 -I fernpack.py /tmp/fronds.npz <ảnh lá 01a.png> ../../models/fern.glb
 - `fern_blender.py`: nạp GLB, bỏ thân rễ, giảm lưới, xuất mảng từng lưới lá (vị trí, pháp tuyến, UV, chỉ số) ra `.npz`.
 - `fernpack.py`: tô màu đỉnh, lượng tử hoá, ảnh WebP, ghi GLB (cần numpy + Pillow ở site-packages của người dùng).
 - Ảnh lá lấy từ tệp gốc (ảnh màu của vật liệu `Polypodium_01a`).
+
+**Nén (04/11):** tệp dựng ra chưa nén. Chạy `src/tools/glb-compress` (`node compress.mjs <tệp dựng> <tệp nén>`) rồi mới chép vào `src/models/`.

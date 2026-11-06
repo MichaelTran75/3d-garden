@@ -17,8 +17,10 @@
           if (CAMP.fireState.small && T < 28) CAMP.grow();   // mát lại: lửa nhỏ nướng cá thành lửa thường
           return null;
         }
+        let fireHold = -1e9;   // vừa nhóm / dập theo lệnh người xem (bấm bếp lửa — G 02/11): 30 phút không tự làm ngược lại theo nhiệt độ
         function fireWant(e, hh, sched) {   // engWantAct (engineer/mind/schedule.js): 'fire' hoặc null
           if (fireJob.busy()) return 'fire';
+          if (clock.elapsedTime < fireHold && !(CAMP.fireState.out && CAMP.grill.st === 'cooking')) return null;
           if (engForceAct || liveWeather.state.raining || !engAwake(hh) || FIRE_WAIT.has(sched) || FIRE_WAIT.has(e.act)) return null;
           return fireNeed() ? 'fire' : null;
         }
@@ -84,8 +86,9 @@
           }
           function update(e, dt, t) {   // pha 'fire' · true = xong
             J.k += dt; const k = J.k;
-            if (J.st === 'idle') { J.mode = fireNeed(); if (!J.mode) return finish();
-              rxSay(J.mode === 'douse' ? 'fireOut' : 'fireOn', J.mode === 'douse' ? ['Hơn 30 độ rồi, dập lửa trại cho mát.', 'Nóng quá, tắt bếp thôi.'] : J.mode === 'small' ? ['Nhóm lửa nhỏ cho cá chín.', 'Cần ít than nướng cá.'] : ['Mát rồi, nhóm lại lửa trại.', 'Dưới 28 độ, đốt lại bếp.'], 'Lửa trại', false);
+            if (J.st === 'idle') { const cmd = engForceAct === 'fire'; J.mode = cmd ? (CAMP.fireState.out ? 'light' : 'douse') : fireNeed(); if (!J.mode) return finish();
+              if (cmd) fireHold = clock.elapsedTime + 1800;
+              rxSay(J.mode === 'douse' ? 'fireOut' : 'fireOn', cmd ? (J.mode === 'douse' ? ['Dập lửa trại thôi.', 'Tắt bếp lửa nào.'] : ['Nhóm lửa trại nào.', 'Đốt bếp lửa lên cho ấm.']) : J.mode === 'douse' ? ['Hơn 30 độ rồi, dập lửa trại cho mát.', 'Nóng quá, tắt bếp thôi.'] : J.mode === 'small' ? ['Nhóm lửa nhỏ cho cá chín.', 'Cần ít than nướng cá.'] : ['Mát rồi, nhóm lại lửa trại.', 'Dưới 28 độ, đốt lại bếp.'], 'Lửa trại', false);
               go(J.mode === 'douse' ? 'toKit' : 'toPile'); }
             e.armsBusy = J.held.b || J.held.p || J.held.s || J.held.m || /grab|put|pick|lay|strike|light|blow|pour|stir|check/.test(J.st);
             switch (J.st) {

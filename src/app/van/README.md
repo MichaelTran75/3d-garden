@@ -16,6 +16,7 @@ Từ 01/11 xe là bản L4 dài 6,70 m: đuôi xe dài thêm `TR.ext` 0,792 đv 
 | | `chassis.js` | Khung gầm GAZ-69 (`models/chassis.glb`) và hộp số dựng bằng code |
 | `interior/` | `caravan.js` | Nội thất: giường, bàn học, bàn ăn, phòng tắm, bạt hiên, đèn lồng treo. Mỗi khung `vanFrameTick` (sổ tick lượt `things`, cuối `loop/main-loop.js`): đèn bạt hiên tự sáng theo trời như đèn trại, đèn bàn, laptop, cửa lùa + nắp bồn cầu (`vanBathTick` ở `face.js`) |
 | | `bath-fx.js` | Vòi sen của xe: tia nước, hơi nước mờ kính + vách, sàn ướt tự khô; số ngẫu nhiên riêng (`mulberry32`) nên tắm không làm lệch đơn vị khác. Có `vanLateTick` (sổ tick lượt `late`, đầu `loop/main-loop-rest.js`, ngay sau lượt người): bếp rồi vòi sen |
+| | `env-map.js` | Ảnh môi trường nhỏ cho kim loại, gương, kính trong xe (toàn cảnh 64 × 32 → PMREM, ~0,34 MB GPU), nướng lại theo đèn trời / ngày đêm. Vật liệu `vanMetal`, crôm dùng chung `VAN_CHROME` |
 | | `kitchen.js` | Bếp: chậu, thớt, bếp ga, lò. Đồ bếp (bát udon, chảo, lon nước) dựng bằng hàm ở `src/app/props/kitchen-props.js` |
 | | `galley-fx.js` | Bếp tự chạy theo lửa đang cháy: lửa ga nhảy, hơi nồi + tô udon (mặt đá, bàn ăn), đèn + quạt máy hút mùi, khói ống bếp (sợi khói Navier–Stokes, chạy thêm 25 s sau khi tắt lửa). Người chỉ vặn núm, nhấc nồi, hất chảo, báo món (`VAN.kitchen`, `VAN.dish`) |
 | | `desk-lamp-soda-breakfast.js` | Đèn bàn, lon nước ngọt, đồ ăn sáng |

@@ -6,8 +6,8 @@
         //  xe tự diễn lửa / hơi / khói: van/interior/galley-fx.js) ----
         function motorhomeKitchen(galley, ceilY = 3.56, ext = 0) {   // ceilY: trần xe trong toạ độ tủ bếp (ống gió máy hút mùi chạy tới đó) · ext: đuôi mặt bếp nối dài về phía phòng tắm (cục bộ z −0,91 − ext)
           const lam = (c, o = {}) => new THREE.MeshLambertMaterial({ color: c, ...o });
-          const M = { counter: lam(0xd8d0bc), steel: lam(0x98a7a4), dark: lam(0x2e3436), iron: lam(0x1f2224), peg: lam(0xd9c49a), hole: lam(0x5a4a33), boardG: lam(0x9fd6a4),
-            boardT: lam(0x6fb0a0), wood: lam(0x7a4a2a), blade: lam(0xc8ced2), cap: lam(0x3b3f42), sponge: lam(0xe36f9a), soap: lam(0xe9e6dc), lid: lam(0x9aa5a8),
+          const M = { counter: lam(0xd8d0bc), steel: vanMetal(0xc2c7c9), dark: lam(0x2e3436), iron: lam(0x1f2224), peg: lam(0xd9c49a), hole: lam(0x5a4a33), boardG: lam(0x9fd6a4),
+            boardT: lam(0x6fb0a0), wood: lam(0x7a4a2a), blade: vanMetal(0xd2d7da, 0.12), cap: lam(0x3b3f42), sponge: lam(0xe36f9a), soap: lam(0xe9e6dc), lid: vanMetal(0xaeb4b6),
             cab: lam(0xa58e69), front: lam(0xd0ccc0), pull: lam(0x43494b),
             hood: lam(0x98a7a4, { transparent: true, opacity: 0.5, depthWrite: false }), hoodDk: lam(0x2e3436, { transparent: true, opacity: 0.5, depthWrite: false }) };   // máy hút mùi trong suốt 50% (G 19/10), nét viền giữ nguyên
           const S = new THREE.Group(); S.name = 'Bếp: phần cố định';
@@ -103,7 +103,7 @@
           const hoodLamp = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.006, 0.04), new THREE.MeshBasicMaterial({ color: 0x8a8578, transparent: true, opacity: 0.5, depthWrite: false })); hoodLamp.position.set(2.57, 2.292 + 0.58, 0.59); P.add(hoodLamp);
           // nồi inox để sẵn trên họng sau–trái: nước, sợi udon, hơi nước
           const pot = new THREE.Group(); pot.name = 'Nồi luộc udon'; pot.position.set(BURN[1][0], 1.894, BURN[1][1]); P.add(pot);
-          const potM = new THREE.MeshLambertMaterial({ color: 0xa9b4b6, side: THREE.DoubleSide });
+          const potM = vanMetal(0xbcc3c5, 0.3, { side: THREE.DoubleSide });   // kim loại phản chiếu (van/interior/env-map.js)
           const potLathe = pts => { const m = new THREE.Mesh(new THREE.LatheGeometry(pts.map(([r, y]) => new THREE.Vector2(r, y)), 20), potM); m.castShadow = true; pot.add(m); };
           potLathe([[0, 0], [0.085, 0], [0.09, 0.006], [0.09, 0.11], [0.094, 0.114], [0.085, 0.11], [0.085, 0.012], [0, 0.012]]);
           for (const s of [-1, 1]) { const hdl = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.014, 0.05), M.dark); hdl.position.set(0, 0.098, s * 0.11); pot.add(hdl); }

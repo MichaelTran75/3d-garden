@@ -23,11 +23,12 @@
           if (!V.st) V.st = 'toSide';
           if (!keep) {   // việc khác: chưa ngồi thì trả ghế rồi đi; đang ngồi thì làm xong động tác, lùi ghế, xoay ra, đứng dậy
             if (V.st === 'toSide') return 'released';
-            if (V.st === 'faceChair' || V.st === 'swing' || V.st === 'toStand' || V.st === 'turn') V.st = 'outS';
+            if (V.st === 'faceChair' || V.st === 'pullOut' || V.st === 'swing' || V.st === 'toStand' || V.st === 'turn') V.st = 'outS';
             else if (V.st === 'work' && lapDone(e, V)) { V.st = 'unscoot'; V.k = 0; }   // nghiên cứu: hạ tay về máy trước (engineer/tasks/laptop-work.js)
           }
           if (V.st === 'toSide') { if (walkIn(sidePt(), 0.6)) V.st = 'faceChair'; }
-          else if (V.st === 'faceChair') { if (engSeatTurn(e, VY.px, dt, vanFloor)) { V.st = 'swing'; V.k = 0; } }
+          else if (V.st === 'faceChair') { if (engSeatTurn(e, VY.px, dt, vanFloor)) { V.st = 'pullOut'; V.k = 0; V.from = [R.off]; } }
+          else if (V.st === 'pullOut') { if (turnChair(V.from[0], 0, 0, 0, 1.1, true)) { V.st = 'swing'; V.k = 0; } }   // kéo ghế ra khỏi gầm bàn
           else if (V.st === 'swing') { if (turnChair(0, OUT, 0, SW, 1.5, true)) V.st = 'toStand'; }
           else if (V.st === 'toStand') { if (walkIn(standPt(), 0.4)) V.st = 'turn'; }
           else if (V.st === 'turn') { if (engSeatTurn(e, C.yaw, dt, vanFloor)) { e.seat = engNewSeat(C, 'sit'); engSeatStartSit(e, C, e.seat); V.st = 'sit'; } }
@@ -44,7 +45,8 @@
           else if (V.st === 'work') {
             e.seatCtl = true; engSeatHold(e, C, e.seat, dt, t);
             const rt = e.armRollT || (e.armRollT = [0, 0]), sipT = (t + V.ph * 3.1) % 190;
-            if (e.act !== 'music') lapWork(e, V, dt, t, rt);   // nghiên cứu: gõ phím · đọc · rê – bấm trackpad · chống cằm nghĩ · đan tay sau gáy · vươn vai · uống coke (engineer/tasks/laptop-work.js)
+            if (e.act === 'deskread') { e.arms[0].rotation.x = e.arms[1].rotation.x = -1.2; engRead(e, dt, t, false); }   // đọc sách ở bàn học (G 02/11): laptop gập, sách 2 tay, lật trang — không bốc khoai
+            else if (e.act !== 'music') lapWork(e, V, dt, t, rt);   // nghiên cứu: gõ phím · đọc · rê – bấm trackpad · chống cằm nghĩ · đan tay sau gáy · vươn vai · uống coke (engineer/tasks/laptop-work.js)
             else if (sipT < 7.4) engCokeSip(e, sipT, t, rt);   // ~3 phút một lần: uống coke
             else {   // học bài với nhạc: gật gù theo nhịp ~87 bpm, lắc nhẹ đầu; mỗi 30 s ngả lưng gõ nhịp lên mép bàn
               const beat = t * Math.PI * 2 * 1.45, cyc = (t + V.ph) % 30, rel = cyc > 21;
@@ -57,7 +59,8 @@
           else if (V.st === 'rise') { e.seatCtl = true; if (engRiseStep(e, C, e.seat, dt, t)) { e.seat = null; V.st = 'outS'; } }
           else if (V.st === 'outS') { if (walkIn(sidePt(), 0.5)) V.st = 'faceBack'; }
           else if (V.st === 'faceBack') { if (engSeatTurn(e, VY.px, dt, vanFloor)) { V.st = 'swingBack'; V.k = 0; V.from = [R.off, R.sw]; } }
-          else if (V.st === 'swingBack') { if (turnChair(V.from[0], 0, V.from[1], 0, 1.4, true)) V.st = 'toAisle'; }   // trả ghế về sát bàn, quay vào bàn
+          else if (V.st === 'swingBack') { if (turnChair(V.from[0], 0, V.from[1], 0, 1.4, true)) { V.st = 'tuck'; V.k = 0; } }   // trả ghế về sát bàn, quay vào bàn
+          else if (V.st === 'tuck') { if (turnChair(0, STUDY_TUCK, 0, 0, 1.1, true)) V.st = 'toAisle'; }   // đẩy ghế vào gầm bàn: lối đi thông (G 02/11)
           else if (V.st === 'toAisle') { if (walkIn(P.aisle)) return 'released'; }
           return 'busy';
         } };

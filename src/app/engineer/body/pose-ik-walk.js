@@ -7,6 +7,7 @@
           engSpring.v = (v - w * tmp) * ex; return target + (c + tmp) * ex;
         }
         function engPoseBegin(e) {   // đầu frame: trả mọi thứ về giá trị ĐÍCH của frame trước (pha nào không ghi lại thì giữ đích cũ)
+          if (e.ledge) { if (e.ledge.live) e.ledge.live = false; else engLedgeAbort(e); }   // khung trước không ai chạy tiếp kế hoạch lên / xuống gờ: huỷ
           e.walking = false; e.lean = 0; e.bank = 0; e.seatCtl = false; e.noFootIK = false;   // noFootIK: pha tự hạ người (ngồi xổm hái táo)   // seatCtl: bộ điều khiển ghế (ngồi xuống / đang ngồi / đứng dậy) tự tính chính xác thân + chân
           const P = e.pose; if (!P) return;
           for (let i = 0; i < P.joints.length; i++) P.joints[i].rotation.x = P.raw[i];
@@ -37,7 +38,7 @@
           else {
             let dy = P.rawYaw - P.yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy));   // đi đường vòng ngắn nhất
             P.yaw = engSpring(P.yaw, P.yv, P.yaw + dy, ENG_YAW_W, dt); P.yv = engSpring.v;
-            for (const [i, ax] of [[0, 'x'], [1, 'y'], [2, 'z']]) { P.pos[ax] = engSpring(P.pos[ax], P.pv[i], P.rawPos[ax], ENG_POS_W, dt); P.pv[i] = engSpring.v; }
+            for (const [i, ax] of [[0, 'x'], [1, 'y'], [2, 'z']]) { P.pos[ax] = engSpring(P.pos[ax], P.pv[i], P.rawPos[ax], e.ledge ? 30 : ENG_POS_W, dt); P.pv[i] = engSpring.v; }
           }
           if (direct) { P.lv = (e.lean - P.lean) * idt; P.lean = e.lean; P.bv = (e.bank - P.bank) * idt; P.bank = e.bank; }
           else { P.lean = engSpring(P.lean, P.lv, e.lean, ENG_LEAN_W, dt); P.lv = engSpring.v; P.bank = engSpring(P.bank, P.bv, e.bank, ENG_LEAN_W, dt); P.bv = engSpring.v; }
@@ -132,11 +133,23 @@
           K.yaw = 0.07 * m * Math.cos(2 * Math.PI * phi); K.list = -0.045 * m * Math.cos(2 * Math.PI * (phi - mid));
           return K;
         }
+        // IK CHÂN ĐỦ 3 TRỤC (G 02/11 "cải thiện engineer moving"): khớp hông thứ tự XZY = xoay trong/ngoài tw quanh trục đùi → dạng/khép ab → vung a.
+        //  Bản cũ giải gối + vung trên mặt phẳng y–z rồi mới xoay tw ⇒ gối gập trong mặt phẳng đã xoay, cổ chân lệch khỏi đích (đo đi bộ: lệch giữa 3 cm,
+        //  95% 12 cm, 99% 22 cm, hầu hết lúc chân xoay > 0,3 rad). Nay giải đúng: gối b theo khoảng hông–cổ chân (định lý cos), ab cho đúng toạ độ ngang
+        //  sau khi xoay, a cho y–z còn lại. (Ax, Ay, Az) = đích cổ chân trừ khớp hông, đv cục bộ
+        function engLegSolve(Ax, Ay, Az, tw) {
+          const d = Math.min(ENG_L1 + ENG_L2 - 1e-4, Math.max(0.08, Math.hypot(Ax, Ay, Az)));
+          const b = Math.PI - Math.acos(Math.max(-1, Math.min(1, (ENG_L1 * ENG_L1 + ENG_L2 * ENG_L2 - d * d) / (2 * ENG_L1 * ENG_L2))));   // gối luôn chĩa ra trước
+          const py = -ENG_L1 - ENG_L2 * Math.cos(b), pz = -ENG_L2 * Math.sin(b), x1 = pz * Math.sin(tw), z1 = pz * Math.cos(tw), ph = Math.atan2(py, x1);
+          const c = Math.acos(Math.max(-1, Math.min(1, Ax / Math.hypot(x1, py)))), w = x => Math.atan2(Math.sin(x), Math.cos(x)), ab1 = w(c - ph), ab2 = w(-c - ph), ab = Math.abs(ab1) < Math.abs(ab2) ? ab1 : ab2;
+          return { a: w(Math.atan2(Az, Ay) - Math.atan2(z1, x1 * Math.sin(ab) + py * Math.cos(ab))), b, ab };
+        }
         function engFootIK(e, dt) {
           const g = e.g, P = e.pose;
           if (e.seatCtl) { e.ikW = 0; e.ikPelvis = 0; engWalkReset(e); if (e.abdOn) { e.legs[0].rotation.y = e.legs[1].rotation.y = e.ankles[0].rotation.z = e.ankles[1].rotation.z = 0; e.abdOn = false; } return; }   // ngồi / đứng dậy: bộ điều khiển ghế tự giải IK bàn chân bám đất
-          const onFoot = !!P && !e.noFootIK && g.parent === scene && !e.inVan && e.phase !== 'van' && e.phase !== 'pet' && Math.abs(e.legs[0].rotation.x) < 0.95 && Math.abs(e.legs[1].rotation.x) < 0.95 && e.knees[0].rotation.x < 1.15 && e.knees[1].rotation.x < 1.15;
-          e.ikW = (e.ikW || 0) + ((onFoot ? 1 : 0) - (e.ikW || 0)) * (1 - Math.exp(-dt * 6));
+          const stairs = !!(e.ledge && e.ledge.stairs);   // bậc cửa xe (engineer/body/ledge.js): IK chân bám bậc cả lúc đang vào / ra xe
+          const onFoot = !!P && !e.noFootIK && g.parent === scene && (stairs || (!e.inVan && e.phase !== 'van')) && e.phase !== 'pet' && Math.abs(e.legs[0].rotation.x) < 0.95 && Math.abs(e.legs[1].rotation.x) < 0.95 && e.knees[0].rotation.x < 1.15 && e.knees[1].rotation.x < 1.15;
+          e.ikW = stairs ? 1 : !onFoot && e.inVan ? 0 : (e.ikW || 0) + ((onFoot ? 1 : 0) - (e.ikW || 0)) * (1 - Math.exp(-dt * 6));   // bậc cửa xe: IK đủ ngay (đất dưới sàn xe không phải mặt đứng — hoà dần thì hông tụt 0,14) · vào hẳn trong xe: tắt ngay
           if (e.ikW < 0.01) { e.ankles[0].rotation.x = e.ankles[1].rotation.x = 0; e.ikPelvis = 0; engWalkReset(e); if (e.abdOn) { for (let i = 0; i < 2; i++) e.legs[i].rotation.z = e.legs[i].rotation.y = e.ankles[i].rotation.z = 0; e.abdOn = false; } return; }
           const S = g.scale.y, K = engWalkFeet(e, dt, onFoot), ww = K ? (e.walkW || 0) : 0, w = Math.max(e.ikW, ww);   // đang đi: IK bàn chân trụ đủ trọng số ngay (không chờ IK địa hình hoà vào)
           if (ww > 0) {   // chậu hông theo nhịp bước (chỉ phần hiển thị)
@@ -150,13 +163,12 @@
           for (let i = 0; i < 2; i++) {   // vị trí cổ chân FK (mặt phẳng y–z cục bộ) → thế giới → độ chênh mặt đất dưới bàn chân
             const a = e.legs[i].rotation.x, b = e.knees[i].rotation.x;
             const ky = ENG_HIP_Y - ENG_L1 * Math.cos(a), kz = -ENG_L1 * Math.sin(a), ay = ky - ENG_L2 * Math.cos(a + b), az = kz - ENG_L2 * Math.sin(a + b);
-            g.localToWorld(_ikW.set(i ? 0.15 : -0.15, ay, az));
+            g.localToWorld(_ikW.set(e.legs[i].position.x, ay, az));   // khớp hông ±0,15 × ENG_SLIM (gầy đi, engineer/body/model.js)
             const lift = Math.max(0, (_ikW.y - ENG_SOLE * S) - plane);   // độ nhấc chân của nhịp bước (đv thế giới)
-            const f = { a, b, ay, az, lift, delta: engGroundY(_ikW.x, _ikW.z) - plane, py: 0, pz: 0, ab: 0 };
-            if (ww > 0) {   // bàn chân trụ cố định (cục bộ) · dạng/khép chân cho độ lệch ngang (chậu lắc, xoay, nghiêng) · hụt tầm với
-              g.worldToLocal(_ikP.copy(K.feet[i].a)); const dx = _ikP.x - (i ? 0.15 : -0.15), dy = _ikP.y - ENG_HIP_Y;
-              f.ab = Math.max(-0.3, Math.min(0.3, Math.atan2(dx, -dy))); f.py = ENG_HIP_Y - Math.hypot(dy, dx) * Math.cos(Math.atan2(dx, -dy) - f.ab); f.pz = _ikP.z;
-              reach = Math.max(reach, Math.hypot(f.py - ENG_HIP_Y, f.pz) - (ENG_L1 + ENG_L2 - 0.012));
+            const f = { a, b, ay, az, lift, delta: engGroundY(_ikW.x, _ikW.z) - plane, tx: 0, ty: 0, tz: 0 };
+            if (ww > 0) {   // bàn chân trụ cố định → đích cổ chân cục bộ (so với khớp hông) · hụt tầm với
+              g.worldToLocal(_ikP.copy(K.feet[i].a)); f.tx = _ikP.x - e.legs[i].position.x; f.ty = _ikP.y; f.tz = _ikP.z;
+              reach = Math.max(reach, Math.hypot(f.tx, f.ty - ENG_HIP_Y, f.tz) - (ENG_L1 + ENG_L2 - 0.012));
             }
             fk.push(f);
           }
@@ -166,18 +178,16 @@
           g.position.y += e.ikPelvis * w;
           for (let i = 0; i < 2; i++) {
             const f = fk[i];
-            let ty = f.ay + (f.delta - e.ikPelvis) / S, tz = f.az;
-            if (ww > 0) { ty += (f.py - e.ikPelvis * w / S - ty) * ww; tz += (f.pz - tz) * ww; }
-            const vy = ty - ENG_HIP_Y, vz = tz, d = Math.min(ENG_L1 + ENG_L2 - 1e-4, Math.max(0.08, Math.hypot(vy, vz)));
-            const kneeIK = Math.PI - Math.acos(Math.max(-1, Math.min(1, (ENG_L1 * ENG_L1 + ENG_L2 * ENG_L2 - d * d) / (2 * ENG_L1 * ENG_L2))));
-            const hipIK = -(Math.atan2(vz, -vy) + Math.acos(Math.max(-1, Math.min(1, (ENG_L1 * ENG_L1 + d * d - ENG_L2 * ENG_L2) / (2 * ENG_L1 * d)))));   // gối luôn chĩa ra trước
-            const a = f.a + (hipIK - f.a) * w, b = f.b + (kneeIK - f.b) * w;
+            // xoay trong/ngoài để bàn chân trụ giữ đúng hướng lúc đặt (chậu xoay, người ngoặt) — rời IK đi bộ thì về 0
+            const F = ww > 0 && K ? K.feet[i] : null; let tw = 0;
+            if (F) { tw = F.sw ? 0 : Math.max(-0.45, Math.min(0.45, Math.atan2(Math.sin(Math.atan2(F.fx, F.fz) - g.rotation.y), Math.cos(Math.atan2(F.fx, F.fz) - g.rotation.y)))); F.tw = (F.tw || 0) + (tw - (F.tw || 0)) * Math.min(1, dt * (F.sw ? 8 : 30)); tw = F.tw * ww; }
+            // đích cổ chân (cục bộ, so với khớp hông): dáng FK dời theo đất ↔ bàn chân đi bộ (trọng số ww)
+            let tx = 0, ty = f.ay + (f.delta - e.ikPelvis) / S, tz = f.az;
+            if (ww > 0) { tx += f.tx * ww; ty += (f.ty - e.ikPelvis * w / S - ty) * ww; tz += (f.tz - tz) * ww; }
+            const L = engLegSolve(tx, ty - ENG_HIP_Y, tz, tw);
+            const a = f.a + (L.a - f.a) * w, b = f.b + (L.b - f.b) * w, ab = Math.max(-0.35, Math.min(0.35, L.ab)) * w;
             e.legs[i].rotation.x = a; e.knees[i].rotation.x = b;
-            if (ww > 0 || e.abdOn) {   // dạng chân · xoay trong/ngoài để bàn chân trụ giữ đúng hướng lúc đặt (chậu xoay, người ngoặt) — rời IK đi bộ thì về 0
-              const F = K && K.feet[i]; let tw = 0;
-              if (F) { tw = F.sw ? 0 : Math.max(-0.45, Math.min(0.45, Math.atan2(Math.sin(Math.atan2(F.fx, F.fz) - g.rotation.y), Math.cos(Math.atan2(F.fx, F.fz) - g.rotation.y)))); F.tw = (F.tw || 0) + (tw - (F.tw || 0)) * Math.min(1, dt * (F.sw ? 8 : 30)); tw = F.tw; }
-              e.legs[i].rotation.z = f.ab * ww; e.legs[i].rotation.y = tw * ww; e.ankles[i].rotation.z = -f.ab * ww;
-            }
+            if (ww > 0 || e.abdOn) { e.legs[i].rotation.z = ab; e.legs[i].rotation.y = tw; e.ankles[i].rotation.z = -ab; }
             const plant = 1 - ikSmooth(0.03, 0.15, f.lift);   // chân trụ: đế phẳng theo mặt đất · chân đang vung: để mũi giày buông tự nhiên
             const fpk = ww > 0 ? K.feet[i].fp : 0;
             e.ankles[i].rotation.x = -(g.rotation.x + a + b) * (plant * (w - ww) + ww) + fpk * ww;   // khi đi: góc bàn chân theo gót–bàn–mũi
@@ -346,6 +356,7 @@
         //      ⇒ bậc lên ≥ 0,25: nhìn mép bậc, chậm 15%, chồm 0,06 · bậc xuống ≥ 0,25: nhìn chỗ đáp, chậm 25%. Không tiến được 2,5 s (kẹt) ⇒ đứng lại nhìn
         //      quanh 0,6 s rồi đi vòng 2 s lệch 75° về phía thoáng hơn (lần sau đổi phía) ----
         function engStep(e, tgt, dt, t, avoidPt, avoidR, field) {
+          if (e.ledge) { if (e.ledge.stairs) engStairsStep(e, dt); else engLedgeStep(e, dt); return false; }   // đang lên / xuống gờ voxel (engineer/body/ledge.js): làm nốt
           const dx = tgt.x - e.g.position.x, dz = tgt.z - e.g.position.z, dist = Math.hypot(dx, dz);
           const arrive = () => { e.vel = 0; e.legs[0].rotation.x = e.legs[1].rotation.x = 0; e.knees[0].rotation.x = e.knees[1].rotation.x = 0; e.arms[0].rotation.x = e.arms[1].rotation.x = 0; return true; };   // tới nơi: đứng thẳng (lớp tư thế khép chân dần, không đơ giữa bước)
           if (dist < 0.25) return arrive();
@@ -394,6 +405,7 @@
             if (N.look <= 0) { const free = s => { let c = 0; for (let r = 0.6; r <= 2.4; r += 0.6) { const a2 = Math.atan2(ux, uz) + s * 1.3, x = e.g.position.x + Math.sin(a2) * r, z = e.g.position.z + Math.cos(a2) * r, g = engGroundY(x, z); if (!(COL.ready && colHit(7, x, z, g + 0.25, g + 1.85))) c++; } return c; };
               N.side = free(1) >= free(-1) ? 1 : -1; N.det = 2; } e.vel = Math.max(0, (e.vel || 0) - dt * 4); e.walking = true; return false; }
           if (N.det > 0) { N.det -= dt; const a = Math.atan2(ux, uz) + N.side * 1.3; ux = Math.sin(a); uz = Math.cos(a); if (N.det <= 0) { N.d = pd; N.t = 0; } }
+          if (!e.inVan && e.g.parent === scene && !e.footPlan && engLedgeCheck(e, ux, uz, t)) { engLedgeStep(e, dt); return false; }   // sát gờ 1 khối: bước kê chân lên / nhảy xuống
           // nhìn trước mặt đất 0,55 đv theo hướng đi: bậc lên / xuống
           const h0 = engGroundY(e.g.position.x, e.g.position.z), lx = e.g.position.x + ux * 0.55, lz = e.g.position.z + uz * 0.55, hA = engGroundY(lx, lz), dh = hA - h0;
           let stepK = 1; if (dh > 0.25) { stepK = 0.85; e.stepLean = 0.06; rxLook('step', 2.4, 0.3, _ikW.set(e.g.position.x + ux * 0.4, hA, e.g.position.z + uz * 0.4)); }

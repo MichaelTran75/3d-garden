@@ -37,6 +37,21 @@
         function worldRun(slot, dt, t, x) { const L = WORLD_TICKS.get(slot); if (L) for (let i = 0; i < L.length; i++) L[i].fn(dt, t, x); }
         function worldJoin(service, at, fn) { if (WORLD_SERVED.has(service)) fn(WORLD_SERVED.get(service)); else worldHook(WORLD_JOINS, service, at, fn); }
         function worldServe(service, api) { WORLD_SERVED.set(service, api); for (const s of WORLD_JOINS.get(service) || []) s.fn(api); }
+        //   · worldPlace('chiminea', { face, tick, join, hover, job }) — MỘT CHỖ KHAI BÁO cho mỗi vật (G 03/11 "engine game … khi đặt object / character phải gán
+        //     bộ nguyên tắc"): vật tự nói trong tệp của nó mình có mặt gì (face → worldFace), chạy mỗi khung ở lượt nào (tick: [[lượt, thứ tự, fn]] → worldTick),
+        //     xin dịch vụ nào (join: [[dịch vụ, thứ tự, fn]] → worldJoin), rê chuột ra sao (hover: { root, …tuỳ chọn của bộ chọn } → dịch vụ 'hover',
+        //     ui/hover-select.js), bấm vào thì mời kỹ sư làm việc gì (job: { objs | box, title, act | choices, msg, go, vis, van, pick } → dịch vụ 'jobs',
+        //     ui/xray-lifecycle.js). Kiểu The Sims: vật nêu việc, kỹ sư tự quyết có làm được không (ENGINEER.offer). Thêm vật mới = viết trong tệp của vật,
+        //     không sửa giao diện, vòng lặp. Danh sách vật đã khai: WORLD_PLACES (gỡ lỗi: __ev('[...WORLD_PLACES.keys()]'))
+        const WORLD_PLACES = new Map();
+        function worldPlace(name, P) {
+          if (P.face) worldFace(name, P.face);
+          for (const [slot, at, fn] of P.tick || []) worldTick(slot, at, fn);
+          for (const [service, at, fn] of P.join || []) worldJoin(service, at, fn);
+          if (P.hover) worldJoin('hover', P.hover.at ?? 100, H => H.add(P.hover.root, P.hover));
+          if (P.job) worldJoin('jobs', P.job.at ?? 100, J => J.add(P.job));
+          WORLD_PLACES.set(name, P); return P.face;
+        }
         const VAN = worldLazy('van');   // xe: van/face.js
         const ENGINEER = worldLazy('engineer'), DRONE = worldLazy('drone');   // kỹ sư + drone của kỹ sư (engineer/face.js, engineer/tasks/drone.js) — bảng của người xem (ui/) đọc + giao việc qua đây; tác tử khác vẫn worldSee('engineer')?.… (tự lo lúc vắng)
         const CAMP = worldLazy('camp'), CHIMINEA = worldLazy('chiminea'), TRIMMER = worldLazy('trimmer'), COOP = worldLazy('coop');   // trại: camp/chairs-lantern-fire.js, chiminea.js, trimmer.js, chicken-coop.js

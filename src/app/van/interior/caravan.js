@@ -22,7 +22,7 @@
           const { W, D, HB, HL, SW, SH } = MBP, g = new THREE.Group();
           const rr = (w, h, r) => { const s = new THREE.Shape(), x = -w / 2, y = -h / 2; s.moveTo(x + r, y); s.lineTo(x + w - r, y); s.quadraticCurveTo(x + w, y, x + w, y + r); s.lineTo(x + w, y + h - r); s.quadraticCurveTo(x + w, y + h, x + w - r, y + h); s.lineTo(x + r, y + h); s.quadraticCurveTo(x, y + h, x, y + h - r); s.lineTo(x, y + r); s.quadraticCurveTo(x, y, x + r, y); return s; };
           const slab = (th) => { const geo = new THREE.ExtrudeGeometry(rr(W, D, 0.01), { depth: th - 0.0016, bevelEnabled: true, bevelThickness: 0.0008, bevelSize: 0.0008, bevelSegments: 2, curveSegments: 4 }); geo.rotateX(-Math.PI / 2); geo.translate(0, 0.0008, 0); return geo; };   // hình bo nằm ngang, đáy y = 0
-          const alu = new THREE.MeshPhongMaterial({ color: 0x6a6d73, specular: 0x5a5a5a, shininess: 45 }), dark = new THREE.MeshPhongMaterial({ color: 0x1a1a1c, specular: 0x333333, shininess: 60 });
+          const alu = vanMetal(0x8c9097), dark = new THREE.MeshPhongMaterial({ color: 0x1a1a1c, specular: 0x333333, shininess: 60 });
           const base = new THREE.Mesh(slab(HB), alu); base.castShadow = true; g.add(base);
           // mặt trên đế (canvas 1024 × 714 ≈ 2,9 px/mm): lòng phím đen, phím + chữ, loa 2 bên, trackpad · ảnh phát sáng riêng (chỉ chữ phím) cho đèn nền bàn phím
           const cv = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
@@ -55,7 +55,7 @@
           const hingeBar = new THREE.Mesh(new THREE.CylinderGeometry(0.0045, 0.0045, W - 0.06, 10), dark); hingeBar.rotation.z = Math.PI / 2; hingeBar.position.set(0, HB - 0.001, -D / 2 + 0.006); g.add(hingeBar);
           const hinge = new THREE.Group(); hinge.position.set(0, HB, -D / 2 + 0.006); g.add(hinge);
           const lid = new THREE.Mesh(slab(HL), alu); lid.position.z = D / 2 - 0.006; lid.castShadow = true; hinge.add(lid);
-          const glass = new THREE.Mesh(new THREE.ShapeGeometry(rr(W - 0.0016, D - 0.0016, 0.0092), 4), new THREE.MeshPhongMaterial({ color: 0x08080a, specular: 0x555555, shininess: 140, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }));
+          const glass = new THREE.Mesh(new THREE.ShapeGeometry(rr(W - 0.0016, D - 0.0016, 0.0092), 4), new THREE.MeshStandardMaterial({ color: 0x08080a, roughness: 0.1, metalness: 0, envMap: vanEnvMap(), polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }));
           glass.rotation.x = Math.PI / 2; glass.position.set(0, -0.0003, D / 2 - 0.006); hinge.add(glass);   // lớp: mặt nhôm < kính (−2) < màn (−4)   // kính đen mặt trong (úp xuống khi gập)
           const sc = cv(MBP.CW, MBP.CH), sx2 = sc.getContext('2d'); sx2.fillStyle = '#000'; sx2.fillRect(0, 0, MBP.CW, MBP.CH);
           const scrTex = new THREE.CanvasTexture(sc); scrTex.colorSpace = THREE.SRGBColorSpace; scrTex.anisotropy = 4;
@@ -147,6 +147,7 @@
           g.add(entrySteps);
           // tay vịn đứng ở trụ B (lên xuống cửa lùa) + nẹp ngưỡng cửa
           const grab = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.62, 6), metalMat); grab.position.set(TR.door[0] + 0.05, yIn + 0.95, dz - 0.02); grab.castShadow = true; g.add(grab);
+          entrySteps.userData.grab = grab.position.toArray();   // tay vịn trụ B (toạ độ xe): người lên / xuống bậc nắm (engineer/body/ledge.js engStairs)
           const sillPlate = bx(TR.door[1] - TR.door[0], 0.012, wallZ - dz + 0.03, metalMat, true, false); sillPlate.position.set((TR.door[0] + TR.door[1]) / 2, yIn + 0.006, (dz + wallZ) / 2); g.add(sillPlate);
 
           // ---- giường đơn dọc vách −z (2,0 × 0,76 đv = 1,82 × 0,69 m, mép trước giữ z −0,14 cho lối đi): khung hộp trắng, 2 ngăn kéo đen, đệm xám, chăn đỏ gấp cuối giường, gối ----
@@ -367,8 +368,8 @@
           // ---- bàn ăn nhỏ ở nửa trước ô cửa lùa (0,55 × 0,38, mặt gỗ 3 cm — G 19/10 "làm mỏng bàn"; trước dày 8 cm, thò ra ngoài vỏ; chân giữa) + ghế đẩu ----
           const TX = x0 + 0.305, TZ = dz - 0.19, TW = 0.55, TD = 0.38;
           const tTop = bx(TW, 0.03, TD, woodMat, true, true, lineDark); tTop.name = 'Bàn vuông'; tTop.userData.noBake = true; tTop.position.set(TX, yIn + 0.805, TZ); tTop.castShadow = true; g.add(tTop);
-          const tLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.78, 8), metalMat); tLeg.position.set(TX, yIn + 0.39, TZ); g.add(tLeg);
-          const tFoot = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.18, 0.02, 14), metalMat); tFoot.position.set(TX, yIn + 0.01, TZ); g.add(tFoot);
+          const tLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.78, 8), VAN_CHROME); tLeg.position.set(TX, yIn + 0.39, TZ); g.add(tLeg);
+          const tFoot = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.18, 0.02, 14), VAN_CHROME); tFoot.position.set(TX, yIn + 0.01, TZ); g.add(tFoot);
           // bữa sáng trên bàn (mặt bàn y = yIn + 0,82): hộp ngũ cốc & hộp cà phê nằm ngửa như 2 cuốn sách (nhãn hướng lên), chai sữa phía ngoài
           const breakfast = new THREE.Group(); breakfast.name = 'Đồ ăn sáng trên bàn vuông'; breakfast.userData.noBake = true; breakfast.position.set(TX, yIn + 0.821, TZ); g.add(breakfast);
           const BOOK_K = 1.1;
@@ -379,9 +380,11 @@
           };
           // kỹ sư ngồi ghế đẩu phía −z (lưng về giường) ⇒ 3 món xếp vào nửa phía vách, nhường mép gần cho bát ngũ cốc
           let cerealBowl = null;
-          const cereal = breakfastItem('cereal'); layFlat(cereal, -0.14, -0.02, 0.14); cereal.name = 'Hộp ngũ cốc'; breakfast.add(cereal);
-          // G 31/10 "sắp xếp lại chai nước và cuốn sách": hộp cà phê trước đè chân chai sữa ~3,5 cm ⇒ hộp dịch trái, xoay ít hơn; chai sữa nhích ra góc
-          const coffee = breakfastItem('coffee'); layFlat(coffee, 0.075, -0.03, -0.1); coffee.name = 'Hộp cà phê'; breakfast.add(coffee);
+          // G 01/11 tối (ảnh 36) "move 2 quyển sách này lên bàn học": hộp ngũ cốc + hộp cà phê (nằm ngửa như 2 cuốn sách) chồng lên nhau ở đầu trái bàn học
+          //  (x 1,33 … 1,69 trống, giữa mép giường và lon coke), nhãn quay về người ngồi ghế (+z); trước đó nằm cạnh chai sữa trên bàn vuông (31/10 xếp lại)
+          { const pile = new THREE.Group(); pile.name = 'Hai hộp như sách trên bàn học'; pile.position.set(1.50, yIn + dH + 0.001, -0.71); study.add(pile);
+            const cereal = breakfastItem('cereal'); layFlat(cereal, 0, 0, Math.PI + 0.06); cereal.name = 'Hộp ngũ cốc'; pile.add(cereal);
+            const coffee = breakfastItem('coffee'); layFlat(coffee, 0.01, 0.012, Math.PI - 0.12); coffee.position.y += BREAKFAST_SIZE.cereal[2] * BOOK_K; coffee.name = 'Hộp cà phê'; pile.add(coffee); }
           const milk = breakfastItem('milk'); milk.name = 'Chai sữa'; milk.position.set(0.218, 0, -0.08); breakfast.add(milk);
           {   // bát sứ trắng: ngũ cốc vàng nổi trên sữa
             const bowl = cerealBowl = new THREE.Group(); bowl.name = 'Bát ngũ cốc'; bowl.position.set(-0.05, 0, -0.1); bowl.visible = false; breakfast.add(bowl);
@@ -399,9 +402,9 @@
           const stool = new THREE.Group(); stool.name = 'Ghế đẩu bàn ăn'; stool.userData.noBake = true; stool.position.set(0, 0, 0); g.add(stool);
           { const sx0 = TX, sz0 = STOOL_REST;
             const top = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.162, 0.05, 18), woodMat); top.position.set(sx0, yIn + 0.455, sz0); top.castShadow = true; stool.add(top);
-            for (let k = 0; k < 4; k++) { const a = Math.PI / 4 + k * Math.PI / 2, leg = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.018, 0.45, 6), metalMat);
+            for (let k = 0; k < 4; k++) { const a = Math.PI / 4 + k * Math.PI / 2, leg = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.018, 0.45, 6), VAN_CHROME);
               leg.position.set(sx0 + Math.cos(a) * 0.12, yIn + 0.215, sz0 + Math.sin(a) * 0.12); leg.rotation.set(Math.sin(a) * 0.12, 0, -Math.cos(a) * 0.12); leg.castShadow = true; stool.add(leg); }
-            const ring = new THREE.Mesh(new THREE.TorusGeometry(0.135, 0.009, 4, 18), metalMat); ring.rotation.x = Math.PI / 2; ring.position.set(sx0, yIn + 0.15, sz0); stool.add(ring); }
+            const ring = new THREE.Mesh(new THREE.TorusGeometry(0.135, 0.009, 4, 18), VAN_CHROME); ring.rotation.x = Math.PI / 2; ring.position.set(sx0, yIn + 0.15, sz0); stool.add(ring); }
           // mũ bảo hộ đặt cuối giường lúc ngủ
           const bedHelmet = engHelmetProp(); bedHelmet.position.set(bedX0 + 0.28, yIn + mattTop - 0.02, bedZ + 0.16); bedHelmet.rotation.y = 0.6; bedHelmet.visible = false; g.add(bedHelmet);
           const kitchen = motorhomeKitchen(galley, (trInCeil(0.75) - galley.position.y) / KIT_K, (x1 - 0.025 - galley.position.x) / KIT_K - 0.91);   // đuôi mặt bếp (cục bộ z −0,91) nối tới mặt vách phòng tắm   // ống gió máy hút mùi (z 0,60 … 0,74 kể cả mặt bích) chạy tới trần vỏ GLB chỗ đó   // bếp theo mẫu: chậu, bàn sơ chế, bảng treo đồ, bếp 4 họng lửa + lò nướng; ống hút mùi lên tới trần
@@ -412,7 +415,7 @@
           const bthW = 2 * dz, bthLen = xB - x1, bthCX = (x1 + xB) / 2, flY = yIn, ceilY = ceil - 0.02;
           const bthWallM = new THREE.MeshLambertMaterial({ color: 0xE2D6C0, transparent: true, opacity: 0.42, depthWrite: false });
           const twcM = new THREE.MeshLambertMaterial({ color: 0xE2D6C0 }), tileM = new THREE.MeshLambertMaterial({ color: 0xE2D6C0 }),
-            mirrorM = new THREE.MeshLambertMaterial({ color: 0xbfe0e8 }), towelM = new THREE.MeshLambertMaterial({ color: 0xd98c6a });
+            mirrorM = vanMetal(0xc4e2ec, 0.12), towelM = new THREE.MeshLambertMaterial({ color: 0xd98c6a });
           const bath = new THREE.Group(); bath.name = 'Phòng tắm gọn';
           bath.userData.layout = { length: bthLen, width: bthW, floorArea: bthLen * bthW, entryWidth: 0.6, wetBath: [bthLen, 0.73], rearX: xB };
           const bthFlr = bx(bthLen, 0.012, bthW, tileM); bthFlr.position.set(bthCX, flY + 0.006, 0); bthFlr.receiveShadow = true; bath.add(bthFlr);
@@ -449,28 +452,30 @@
           const twcLidHinge = new THREE.Group(); twcLidHinge.name = 'Bản lề nắp bồn cầu'; twcLidHinge.userData.noBake = true; twcLidHinge.position.set(0.13, flY + 0.4625, 0); toilet.add(twcLidHinge);
           const twcLid = bx(0.34, 0.045, 0.36, twcM, true, true, lineDark); twcLid.position.set(-0.17, -0.0225, 0); twcLidHinge.add(twcLid);
           const twcSeat = new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.038, 6, 16), twcM); twcSeat.rotation.x = Math.PI / 2; twcSeat.scale.x = 1.25; twcSeat.position.set(-0.02, flY + 0.42, 0); twcSeat.castShadow = true; toilet.add(twcSeat);
-          const twcBtn = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.03, 12), metalMat); twcBtn.position.set(0.215, flY + 0.775, 0); toilet.add(twcBtn);
+          const twcBtn = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.03, 12), VAN_CHROME); twcBtn.position.set(0.215, flY + 0.775, 0); toilet.add(twcBtn);
           toilet.rotation.y = Math.PI / 2; toilet.position.set(twcX, 0, twcZ);   // dựng quay −x, xoay ¼ vòng ⇒ két về −z
           { const K = 0.95; toilet.scale.setScalar(K); toilet.position.add(new THREE.Vector3(0.28, flY, 0).multiplyScalar(1 - K).applyEuler(toilet.rotation)); }   // G 31/10 "toilet nhỏ đi 5%": quanh lưng két × sàn ⇒ két vẫn sát vách, chân trên sàn (bồn GLB gắn vào nhóm này cũng co)
           toilet.userData.noBake = true; bakeStatic(toilet); bath.add(toilet);
           // vòi xịt vệ sinh trên vách −z cạnh bồn cầu (phía cửa): van góc · giá treo · đầu xịt · dây mềm buông võng
           const spX = twcX - 0.25, spZ = -dz + 0.03;
-          const spValve = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.05, 10), metalMat); spValve.rotation.x = Math.PI / 2; spValve.position.set(spX, flY + 0.38, spZ); bath.add(spValve);
-          const spHolder = bx(0.06, 0.06, 0.05, metalMat, false, false); spHolder.position.set(spX, flY + 0.72, spZ); bath.add(spHolder);
-          const spHead = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.018, 0.15, 10), metalMat); spHead.position.set(spX, flY + 0.72, spZ + 0.04); spHead.castShadow = true; bath.add(spHead);
-          const spNozzle = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.045, 10), metalMat); spNozzle.rotation.x = Math.PI / 2; spNozzle.position.set(spX, flY + 0.8, spZ + 0.065); bath.add(spNozzle);
+          const spValve = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.05, 10), VAN_CHROME); spValve.rotation.x = Math.PI / 2; spValve.position.set(spX, flY + 0.38, spZ); bath.add(spValve);
+          const spHolder = bx(0.06, 0.06, 0.05, VAN_CHROME, false, false); spHolder.position.set(spX, flY + 0.72, spZ); bath.add(spHolder);
+          const spHead = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.018, 0.15, 10), VAN_CHROME); spHead.position.set(spX, flY + 0.72, spZ + 0.04); spHead.castShadow = true; bath.add(spHead);
+          const spNozzle = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.045, 10), VAN_CHROME); spNozzle.rotation.x = Math.PI / 2; spNozzle.position.set(spX, flY + 0.8, spZ + 0.065); bath.add(spNozzle);
           const spHose = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([
             new THREE.Vector3(spX, flY + 0.38, spZ + 0.03), new THREE.Vector3(spX + 0.03, flY + 0.27, spZ + 0.09),
             new THREE.Vector3(spX + 0.05, flY + 0.33, spZ + 0.1), new THREE.Vector3(spX + 0.02, flY + 0.55, spZ + 0.06), new THREE.Vector3(spX, flY + 0.65, spZ + 0.04)
-          ]), 24, 0.008, 6, false), metalMat); bath.add(spHose);
+          ]), 24, 0.008, 6, false), VAN_CHROME); bath.add(spHose);
           // lavabo treo vách +z (giữa vách trước và cửa sau): tủ + mặt đá + chậu + vòi + gương, quay mặt vào phòng (−z)
           const snkX = (x1 + xB) / 2, sWallZ = dz - 0.02;
-          const snkCab = bx(0.56, 0.42, 0.3, woodMat, true, true, lineDark); snkCab.position.set(snkX, flY + 0.5, sWallZ - 0.15); bath.add(snkCab);   // L4: tủ 0,38 → 0,56, mặt đá 0,42 → 0,60, gương 0,32 → 0,46 (hốc lavabo dài 0,46 → 0,92 đv)
-          const snkTop = bx(0.60, 0.05, 0.34, tileM, true, true, lineDark); snkTop.position.set(snkX, flY + 0.735, sWallZ - 0.17); bath.add(snkTop);
-          const snkBasin = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.09, 0.1, 14), twcM); snkBasin.position.set(snkX, flY + 0.78, sWallZ - 0.19); snkBasin.castShadow = true; bath.add(snkBasin);
-          const snkTap = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.14, 8), metalMat); snkTap.position.set(snkX, flY + 0.83, sWallZ - 0.05); bath.add(snkTap);
-          const snkSpout = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.11, 8), metalMat); snkSpout.rotation.x = -Math.PI / 2.3; snkSpout.position.set(snkX, flY + 0.9, sWallZ - 0.1); bath.add(snkSpout);
-          const mirror = bx(0.46, 0.4, 0.03, mirrorM, false, true, lineDark); mirror.position.set(snkX, flY + 1.16, sWallZ - 0.015); bath.add(mirror);
+          const lavabo = new THREE.Group(); lavabo.name = 'Lavabo';   // 1 nhóm riêng: bấm lavabo ⇒ bảng việc "Rửa tay" (ui/tools-panel.js, G 02/11)
+          const snkCab = bx(0.56, 0.42, 0.3, woodMat, true, true, lineDark); snkCab.position.set(snkX, flY + 0.5, sWallZ - 0.15); lavabo.add(snkCab);   // L4: tủ 0,38 → 0,56, mặt đá 0,42 → 0,60, gương 0,32 → 0,46 (hốc lavabo dài 0,46 → 0,92 đv)
+          const snkTop = bx(0.60, 0.05, 0.34, tileM, true, true, lineDark); snkTop.position.set(snkX, flY + 0.735, sWallZ - 0.17); lavabo.add(snkTop);
+          const snkBasin = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.09, 0.1, 14), twcM); snkBasin.position.set(snkX, flY + 0.78, sWallZ - 0.19); snkBasin.castShadow = true; lavabo.add(snkBasin);
+          const snkTap = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.14, 8), VAN_CHROME); snkTap.position.set(snkX, flY + 0.83, sWallZ - 0.05); lavabo.add(snkTap);
+          const snkSpout = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.11, 8), VAN_CHROME); snkSpout.rotation.x = -Math.PI / 2.3; snkSpout.position.set(snkX, flY + 0.9, sWallZ - 0.1); lavabo.add(snkSpout);
+          const mirror = bx(0.46, 0.4, 0.03, mirrorM, false, true, lineDark); mirror.position.set(snkX, flY + 1.16, sWallZ - 0.015); lavabo.add(mirror);
+          lavabo.userData.noBake = true; lavabo.userData.xray = 'keep'; bakeStatic(lavabo); bath.add(lavabo);
           const tapWater = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.011, 0.09, 6), new THREE.MeshLambertMaterial({ color: 0xbfe2ff, transparent: true, opacity: 0.7, depthWrite: false }));
           // cốc bàn chải trên mặt đá (chỗ trống mới bên phải chậu)
           const snkCup = new THREE.Group(); snkCup.name = 'Cốc bàn chải'; snkCup.position.set(snkX + 0.21, flY + 0.76, sWallZ - 0.1); bath.add(snkCup);
@@ -480,13 +485,13 @@
           // kệ gỗ nhỏ trên vách trước, đoạn phía bếp (mặt trong phòng tắm): chỗ đặt mũ bảo hộ lúc tắm
           const shelfX = x1 + 0.145, shelfZ = 0.5, shelfY = flY + 1.42;   // mặt kệ x1 + 0,025 … + 0,265; mũ (vành Ø 0,42) tâm x1 + 0,24 ⇒ không lấn qua vách sang phía bếp
           const shelfBoard = bx(0.24, 0.025, 0.24, woodMat, true, true, lineDark); shelfBoard.position.set(shelfX, shelfY, shelfZ); bath.add(shelfBoard);
-          for (const sz of [-0.08, 0.08]) { const br = bx(0.02, 0.1, 0.02, metalMat, false, false); br.position.set(x1 + 0.035, shelfY - 0.06, shelfZ + sz); bath.add(br); }
+          for (const sz of [-0.08, 0.08]) { const br = bx(0.02, 0.1, 0.02, VAN_CHROME, false, false); br.position.set(x1 + 0.035, shelfY - 0.06, shelfZ + sz); bath.add(br); }
           const shelfHelmet = engHelmetProp(); shelfHelmet.position.set(shelfX + 0.095, shelfY + 0.0125, shelfZ); shelfHelmet.rotation.y = Math.PI / 2; shelfHelmet.visible = false; bath.add(shelfHelmet);
           // khăn tắm (G 01/11 phòng tắm gọn: tay vắt cũ chìa 0,35 từ cửa sau ra giữa phòng ở z −0,2 — bồn cầu ra giữa phòng gọn thì sát gối người ngồi)
           //  ⇒ thanh vắt dọc mặt trong cửa sau, giữa lối (ngoài tầm kệ mũ ở đầu người), 2 chân đỡ; khăn vắt qua thanh buông phẳng theo cửa. Kỹ sư đứng trước khăn, quay về +x
           const towelX = xB - 0.05, towelZ = 0.06, towelY = flY + 1.0;
-          const towelBar = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.36, 8), metalMat); towelBar.rotation.x = Math.PI / 2; towelBar.position.set(towelX + 0.005, towelY, towelZ); bath.add(towelBar);
-          const towelFeet = [-1, 1].map(s => { const f = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.045, 8), metalMat); f.rotation.z = Math.PI / 2; f.position.set(xB - 0.0225, towelY, towelZ + s * 0.16); bath.add(f); return f; });
+          const towelBar = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.36, 8), VAN_CHROME); towelBar.rotation.x = Math.PI / 2; towelBar.position.set(towelX + 0.005, towelY, towelZ); bath.add(towelBar);
+          const towelFeet = [-1, 1].map(s => { const f = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.045, 8), VAN_CHROME); f.rotation.z = Math.PI / 2; f.position.set(xB - 0.0225, towelY, towelZ + s * 0.16); bath.add(f); return f; });
           const towel = bx(0.035, 0.4, 0.26, towelM, true, true, lineDark); towel.position.set(towelX, towelY - 0.2, towelZ); towel.name = 'Khăn tắm'; towel.userData.noBake = true; bath.add(towel);
           // ĐỒ DỌN SAU KHI DÙNG (G 21/10 "sau khi đi vệ sinh hoặc tắm là dọn nhà vệ sinh nhà tắm"): chổi cọ bồn cầu trong cốc ở góc sau −z cạnh bồn · cây gạt
           //  nước treo vách trước (cạnh kệ mũ) · vệt nước trên sàn buồng tắm (ướt khi tắm, gạt về phễu thì khô, tự khô ~25 phút) — engineer/tasks/van-stations.js stCleanWc / stCleanBath
@@ -503,12 +508,12 @@
           const shX = twcX, sideZ = -dz + 0.03;
           //  19/10: sen treo TRẦN (ống thả 12 cm) thay cần gắn vách — vách vỏ GLB khum vào ở độ cao này (|z| 0,81 ở y 2,74), cần cũ thò ra ngoài vỏ
           const shTop = trInCeil(sideZ + 0.19) - 0.012;
-          const shArm = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.12, 8), metalMat); shArm.position.set(shX, shTop - 0.06, sideZ + 0.19); bath.add(shArm);
-          const shHead = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.06, 0.05, 14), metalMat); shHead.rotation.x = -0.2; shHead.position.set(shX, shTop - 0.145, sideZ + 0.19); bath.add(shHead);
-          const shMixer = bx(0.12, 0.16, 0.045, metalMat, false, true, lineDark); shMixer.position.set(twcX - 0.15, flY + 1.06, sideZ + 0.02); bath.add(shMixer);
+          const shArm = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.12, 8), VAN_CHROME); shArm.position.set(shX, shTop - 0.06, sideZ + 0.19); bath.add(shArm);
+          const shHead = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.06, 0.05, 14), VAN_CHROME); shHead.rotation.x = -0.2; shHead.position.set(shX, shTop - 0.145, sideZ + 0.19); bath.add(shHead);
+          const shMixer = bx(0.12, 0.16, 0.045, VAN_CHROME, false, true, lineDark); shMixer.position.set(twcX - 0.15, flY + 1.06, sideZ + 0.02); bath.add(shMixer);
           const drain = bx(0.14, 0.01, 0.14, caravanDark, false, true); drain.position.set(twcX - 0.05, flY + 0.014, wcZ - 0.13); bath.add(drain);
           bath.userData.xray = 'shell'; bath.userData.vanWall = true;   // vách trong: thanh trượt nét viền không làm mờ (van/body/xray.js)
-          for (const item of [brCup, brush, squee, wetFloor, bthFlr, toilet, snkCup, spValve, spHolder, spHead, spNozzle, spHose, snkCab, snkTop, snkBasin, snkTap, snkSpout, mirror, towelBar, ...towelFeet, towel, shArm, shHead, shMixer, drain, bthLight, tapWater, shelfBoard, shelfHelmet]) item.userData.xray = 'keep';
+          for (const item of [brCup, brush, squee, wetFloor, bthFlr, toilet, snkCup, spValve, spHolder, spHead, spNozzle, spHose, lavabo, towelBar, ...towelFeet, towel, shArm, shHead, shMixer, drain, bthLight, tapWater, shelfBoard, shelfHelmet]) item.userData.xray = 'keep';
           const bathRig = { entryDoor: entryDoorG, lid: twcLidHinge, towel, tapWater, shelfHelmet, doorMat: doorM, wallMat: bthWallM, group: bath, brush, squee, wetM, wetFloor, wet: 0,
             showerHead: [shX, shTop - 0.145, sideZ + 0.19], mixer: [twcX - 0.15, flY + 1.06, sideZ + 0.04], flush: [twcX, flY + 0.73, -dz + 0.08], shelf: [shelfX, shelfY, shelfZ],
             x1, xB, twcX, snkX, towelX, towelZ };   // số đo phòng tắm (L4) cho nút lối đi của kỹ sư (engineer/tasks/van-nav.js)
@@ -664,6 +669,7 @@
         let awLight, awLan;
         const caravanObj = caravan(); caravanObj.scale.multiplyScalar(CAMP_SCALE); caravanObj.name = 'Xe Caravan (Motorhome)'; {
           const p = worldCell(CARAVAN_CELL[0], CARAVAN_CELL[1]); caravanObj.position.copy(p); caravanObj.rotation.y = Math.atan2(bobberBase.x - p.x, bobberBase.z - p.z); scene.add(caravanObj);
+          worldJoin('groundContact', 10, S => S.add(caravanObj, { body: 1.3, w: 0.25 }));   // vệt lốp chạm đất + bóng gầm (world/ground-contact.js)
           // Transit L4H2 dài 7,4 · rộng 2,1 đv: 4 vòng xếp DỌC TRỤC XE (mũi · thân · đuôi · đuôi kéo dài L4) như 1 capsule
           const vc = Math.cos(caravanObj.rotation.y), vs = -Math.sin(caravanObj.rotation.y);   // local +x → world (cos ry, −sin ry)
           for (const [lx, rr] of [[-2.2, 1.9], [0.4, 2.0], [2.3, 1.85], [2.3 + TR.ext, 1.85]])
@@ -678,14 +684,19 @@
         // MỖI KHUNG (sổ tick core/world.js, lượt 'things' sau đồ của trại — ngay trước lượt kỹ sư): xe tự chạy phần của mình — đèn lồng bạt hiên, đèn bàn học,
         //  nắp laptop, cửa lùa + nắp bồn
         worldTick('things', 50, vanFrameTick);
-        let awLampLit = false, awLampK = 0;
+        let awLampLit = false, awLampK = 0, vanAoAsked = false;
+        const VAN_AO_BOX = new THREE.Box3(new THREE.Vector3(-3.05, 0.6, -1.06), new THREE.Vector3(TR.rear + 0.02, 2.96, 1.06));   // lòng xe + cabin (đv xe): lưới ô bóng góc
         function vanFrameTick(dt, t) {
+          // bóng góc nội thất nướng sẵn (core/ao-bake.js — G 05/11 "nội thất xe render more realistic … đỡ tốn ram nhất"): 1 lần, lần đầu xem xuyên hoặc nhìn cận xe
+          //  (người không ngó vào xe thì không tốn gì); vỏ không nhận bóng (xem xuyên còn 25% / ẩn) nhưng vẫn chắn
+          if (!vanAoAsked && (caravanXray || (camera.zoom >= 8 && target.distanceTo(caravanObj.position) < 12))) { vanAoAsked = true; aoBake(caravanObj, { box: VAN_AO_BOX, skip: o => caravanRole(o) === 'shell' }); }
           // đèn lồng bạt hiên TỰ bật lúc chạng vạng (mặt trời < ~3°), tắt khi sáng (> ~6°), mờ dần ~1 s — cùng luật với đèn lồng cọc của trại
           //  (camp/chairs-lantern-fire.js lanternsTick) nhưng trạng thái riêng: hai đèn sáng cùng lúc vì cùng nhìn một mặt trời (trước 01/11 trại bật hộ qua mặt xe)
           awLampLit = awLampLit ? sunElevSin < 0.1 : sunElevSin < 0.05; awLampK += ((awLampLit ? 1 : 0) - awLampK) * Math.min(1, dt * 1.5);
           if (awLan && awLan.userData.glow) { const m = awLampK > 0.5 ? lanternKit.bulbMat : lanternKit.bulbOffMat; if (awLan.userData.glow.material !== m) awLan.userData.glow.material = m; }
           if (awLight && awLan) { awLight.intensity = awLampK * (0.5 + nightFactor * 2.6 + (0.2 + nightFactor * 0.4) * Math.sin(t * 8.5 + 1.2) + 0.12 * Math.sin(t * 18.3)); awLight.distance = 8 + nightFactor * 7; awLan.rotation.z = Math.sin(t * 1.1 + 1.2) * 0.04; }
           updateStudyLamp();
+          vanEnvTick();   // ảnh môi trường kim loại nội thất theo đèn trời / ngày đêm (van/interior/env-map.js)
           studyLaptopTick(dt);
           vanBathTick(dt);   // cửa lùa phòng tắm + nắp bồn cầu tự đi tới đích người muốn (van/face.js)
         }

@@ -38,7 +38,7 @@
           get needs() { return ENG_NEEDS; },                           // nhu cầu kiểu Sims 4: mức, cảm xúc, kỹ năng… (engineer/mind/needs.js)
           offer: k => ENG_OFFERS[k],                                   // việc nhận làm: plan() · why() ('' = làm được) · call() (engineer/mind/offers.js)
           get asked() { return engForceAct; },                         // việc người xem đang giao | null (theo lịch / tự chủ)
-          ask: k => { engForceAct = k; },                              // giao việc: bỏ việc đang làm, làm việc đó, xong về lịch (engineer/mind/schedule.js)
+          ask: k => { if (k === 'udon' || k === 'rice') { engMealPick = k; k = 'cook'; } else engMealPick = null; engForceAct = k; },   // giao việc: bỏ việc đang làm, làm việc đó, xong về lịch (engineer/mind/schedule.js) · 'udon' / 'rice' = nấu món đó
           askNeed: k => autoCommand(k),                                // bấm thanh nhu cầu: '' = đã giao, hoặc lý do chưa làm được (engineer/mind/autonomy.js)
           actLabel: k => ENG_ACTS[k].label,                            // tên việc (lịch / lệnh)
           get rod() { return engObj.rod; },                            // cần câu cầm tay

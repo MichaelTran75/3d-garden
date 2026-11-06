@@ -17,3 +17,5 @@ await chickWrite('chicken.glb');     // → shots/chicken.glb (~152 KB, GLTFExpo
 Kết quả: nút gốc `chicken` (đầu về +Z, mét, chân chạm y = 0), 1 SkinnedMesh `Chicken`, 6 hoạt cảnh `walking` · `pecking` · `idle` · `sitting-down` ·
 `sitting-idle` · `standing-up`. Hoạt cảnh `walking` CÒN chuyển động gốc (thân tiến 0,23 m / 1,583 s) — trang (`src/app/animals/chickens.js`) trừ dời tuyến
 tính khỏi các rãnh vị trí lúc nạp rồi tự đẩy con gà đi 0,145 m/s × tốc độ phát.
+
+**Nén (04/11):** tệp dựng ra chưa nén. Chạy `src/tools/glb-compress` (`node compress.mjs <tệp dựng> <tệp nén>`) rồi mới chép vào `src/models/`.

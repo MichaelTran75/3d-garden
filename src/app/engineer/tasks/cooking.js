@@ -64,7 +64,7 @@
         const stStove = { node: 'stove', tick(e, V, dt, t, keep) {   // bếp ga: trưa luộc udon (nồi họng sau–trái, thái hành trên thớt) · chiều chiên cơm trứng (chảo họng trước–trái)
           const K = VKIT, H = e.hold, rt = e.armRollT || (e.armRollT = [0, 0]), now = clock.elapsedTime, POT = 1, PAN = 0, TOP = K.TOP;
           if (!V.st) {
-            V.recipe = liveWeather.localHour < 14 ? 'udon' : 'rice';
+            V.recipe = engMealPick || (liveWeather.localHour < 14 ? 'udon' : 'rice'); engMealPick = null;   // món chọn ở bếp (bấm bếp trong xe) · không chọn: trưa udon, chiều cơm chiên
             V.T = V.recipe === 'udon' ? Math.max(420, Math.min(1320, e.actLeft - 100)) : Math.max(300, Math.min(840, e.actLeft - 100));
             V.st = V.recipe === 'udon' ? 'face' : 'toPeg'; V.chopped = false;
           }
@@ -237,11 +237,8 @@
         function engVan(e, dt, t, act) {   // trong xe: làm lần lượt các trạm của việc; việc ngoài trời thì ra cửa hông bước xuống bậc
           const V = e.van, A = ENG_ACTS[act], g = e.g;
           if (V.st === 'stepOut') {   // bước xuống bậc cửa hông, cúi đầu qua khung cửa
-            V.k = Math.min(1, V.k + dt / 0.8); const k = V.k, Pa = VAN.doorIn, Pb = VAN.doorStep, ya = VAN_FLOOR - ENG_FEET, yb = cowY(Pb.x, Pb.z) - ENG_FEET;
-            g.position.set(Pa.x + (Pb.x - Pa.x) * k, ya + (yb - ya) * k + Math.sin(Math.PI * k) * 0.06, Pa.z + (Pb.z - Pa.z) * k);
-            let d = Math.atan2(Pb.x - Pa.x, Pb.z - Pa.z) - g.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); g.rotation.y += d * Math.min(1, dt * 8);
-            e.vel = 0.7; engGait(e, Pa.distanceTo(Pb) * dt / 0.8); e.lean = 0.1 * Math.sin(Math.PI * k); e.head.rotation.x = 0.3 * Math.sin(Math.PI * k); e.walking = true;
-            if (k >= 1) { e.inVan = false; e.van = engVanNew('door'); e.vel = 0.5; }
+            if (!(e.ledge && e.ledge.stairs)) engVanStairs(e, true);   // từng bậc: sàn → bậc trên → bậc dưới → đất, tay nắm tay vịn (engineer/body/ledge.js)
+            if (engStairsStep(e, dt)) { e.inVan = false; e.van = engVanNew('door'); e.vel = 0; }
             return;
           }
           if (V.act !== act) {
@@ -274,12 +271,9 @@
           if (!e.enter) e.enter = 'toDoor';
           if (e.enter === 'toDoor') { if (engStep(e, VAN.doorFar, dt, t, pf, FIRE_AVOID_R, VAN.doorField)) e.enter = 'toStep'; }
           else if (e.enter === 'toStep') { if (engStep(e, VAN.doorStep, dt, t, null, 0, null)) { e.enter = 'stepIn'; e.timer = 0; } }
-          else {
-            e.timer = Math.min(1, e.timer + dt / 0.8); const k = e.timer, A = VAN.doorStep, B = VAN.doorIn, ya = cowY(A.x, A.z) - ENG_FEET, yb = VAN_FLOOR - ENG_FEET, g = e.g;
-            g.position.set(A.x + (B.x - A.x) * k, ya + (yb - ya) * k + Math.sin(Math.PI * k) * 0.12, A.z + (B.z - A.z) * k);
-            let d = Math.atan2(B.x - A.x, B.z - A.z) - g.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); g.rotation.y += d * Math.min(1, dt * 8);
-            e.vel = 0.8; engGait(e, A.distanceTo(B) * dt / 0.8); e.lean = 0.12 * Math.sin(Math.PI * k); e.head.rotation.x = 0.3 * Math.sin(Math.PI * k); e.walking = true;
-            if (k >= 1) { e.enter = null; e.inVan = true; e.van = engVanNew('door'); }
+          else {   // bước từng bậc: đất → bậc dưới → bậc trên → sàn, tay nắm tay vịn trụ B (engineer/body/ledge.js engVanStairs)
+            if (!(e.ledge && e.ledge.stairs)) engVanStairs(e, false);
+            if (engStairsStep(e, dt)) { e.enter = null; e.inVan = true; e.van = engVanNew('door'); }
           }
         }
         function engWake(e) {   // 06:00: từ tư thế nằm sang ngồi mép giường, đội mũ, vươn vai vài giây rồi đứng dậy

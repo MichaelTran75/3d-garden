@@ -123,10 +123,65 @@
         // G 24/10 tối "em tiếp tục cho thêm tán lá mọc over cây gỗ": thêm 2 cành vươn ×1,25 chĩa vuông góc qua khúc gỗ chết (từ gốc ra trục khúc gỗ rồi vượt qua)
         const FT3_LOG = new THREE.Vector3(0.961, 0, 0.275).applyAxisAngle(new THREE.Vector3(0, 1, 0), -FT3_YAW);   // hướng gốc → trục khúc gỗ (toạ độ cây)
         const ft3 = fruitTree(1.35, 7171, { trunkK: 3, rootK: 0.27, firstSplitN: 5, nMax: 4, leafK: 2, reach: [{ dir: FT3_REACH, n: 2, lenK: 1.35, tilt: 1.0 }, { dir: FT3_LOG, n: 2, lenK: 1.25, tilt: 1.0 }] }); ft3.scale.multiplyScalar(NATURE_SCALE); ft3.userData.noPick = true; ft3.userData.colR = 1.0;   // colR: core/collide.js giữ tam giác thân trong 1 m quanh gốc (rễ choãi tới ~0,9 m; cây cũ 0,7)
+        // G 03/11 "em cho 1 chút rêu, và 1 chút lá cỏ của thảm cỏ vào thân cây táo này" (cây táo già — gấu mèo leo): vỏ táo bật rêu mặt trên + vệt nước chảy ở
+        //  độ phủ thấp (sfTop 0,5; cổ thụ 1) ⇒ thảm rêu lá cỏ (nature/moss-lawn.js) tự mọc đúng chỗ có màu rêu trên thân ≤ 3,2 m; 2 cây táo cạnh trại giữ vỏ sạch
+        ft3.traverse(o => { if (o.isMesh && o.material && o.material.userData && o.material.userData.sfApple) o.material.userData.sfTop = 0.5; });
         { const X = X0 + FT3_X, Z = Z0 + FT3_Z; ft3.position.set(X, surfaceY(Math.round(X / BLOCK + cx - 0.5), Math.round(Z / BLOCK + cz - 0.5)), Z); ft3.rotation.y = FT3_YAW; scene.add(ft3); }   // ô lưới = nghịch đảo wx / wz (viết tay từ khi x2gi còn khai báo sau tệp này; nay ở core/helpers.js) · lùi 0,2 m khỏi khúc gỗ chết (x 101 z 104,5) + xoay 3,2 cho rễ choãi né: đúng x100 z103 thì cành cụt của khúc gỗ đâm vào chân rễ ~5 cm — giờ hở 0,23 m
         flightRoots.push(ft1, ft2, ft3);
+        for (const T of [ft1, ft2, ft3]) worldJoin('groundContact', 10, S => S.add(T));   // bóng tiếp đất quanh gốc (world/ground-contact.js)
         const appleTrees = [ft1, ft2, ft3];   // kỹ sư hái táo (engineer/tasks/apple-pick.js — trừ cây noPick)
         for (const T of appleTrees) obstacleCoords.push({ x: T.position.x, y: T.position.y, z: T.position.z, r: T === ft3 ? 0.75 : 0.35, h: 3 });   // thân cây: người & chó đi vòng (cây 3 thân to ×3)
+        // G 04/11 "cây táo selectable : khi click vào cây táo thì gấu mèo leo lên hái táo và ăn táo" (ảnh cây táo già trên khúc gỗ chết); 20:55 "outline cây táo có vẻ
+        //  over complication; em chỉ cần outline gốc cây, ko cần outline tán lá, và khi click vào cây táo thì hiện option: gấu mèo ăn táo". Rê chuột ⇒ viền trắng
+        //  chỉ quanh THÂN (bản sao vô hình phần vỏ dưới chạc — ft3Trunk; vỏ cây là 1 lưới gộp cả cành nên không bỏ riêng được), bấm bất kỳ chỗ nào trên cây ⇒ bảng việc
+        //  "Cây táo già" (dịch vụ 'jobs') có lựa chọn "Gấu mèo ăn táo" ⇒ camera lướt tới giữa thân – tán (zoom ≥ ×16) + tin 'appleTreeTap'. Cây không biết ai nghe:
+        //  gấu mèo (animals/raccoon/brain.js) tự quyết ra khỏi hang, tới gốc, trèo, hái 1 quả ngồi gặm rồi chúc đầu xuống (animals/raccoon/climb.js).
+        //  Ô NHÌN XUYÊN TÁN: con gì đang trèo cây này (mặt gấu mèo: climbing) ⇒ lá Ở TRƯỚC nó trong vòng 0,9 m quanh nó trên màn hình mờ dần, giữa bỏ hẳn — tán vẫn
+        //  nguyên, chỉ mở một ô tròn theo con vật; xuống đất thì ô khép lại (0,6 s). Vá vào shader lá của riêng cây này (bóng đổ của lá giữ nguyên) ----
+        const ft3Trunk = (() => {   // tam giác vỏ nằm hẳn dưới chạc đầu tiên (đường thân userData.limbs: từ gốc, đoạn nối đoạn khi chỉ có 1 con)
+          const bark = ft3.children.find(o => o.isMesh && !o.isInstancedMesh && o.name !== 'Vỏ cây (lượt độ sâu)'), L = ft3.userData.limbs; if (!bark || !L) return null;
+          const key = (g, o) => g[o].toFixed(4) + ',' + g[o + 1].toFixed(4) + ',' + g[o + 2].toFixed(4), from = new Map();
+          for (const g of L) { const k = key(g, 0); from.set(k, (from.get(k) || []).concat([g])); }
+          const ends = new Set(L.map(g => key(g, 3))); let g = L.find(h => !ends.has(key(h, 0))); if (!g) return null;
+          while ((from.get(key(g, 3)) || []).length === 1) g = from.get(key(g, 3))[0];
+          const top = g[4], src = bark.geometry, P = src.attributes.position, I = src.index, v = new THREE.Vector3(), keep = [];
+          bark.updateMatrix(); const yOf = i => v.fromBufferAttribute(P, i).applyMatrix4(bark.matrix).y, n = I ? I.count : P.count;
+          for (let t = 0; t < n; t += 3) { const a = I ? I.getX(t) : t, b = I ? I.getX(t + 1) : t + 1, c = I ? I.getX(t + 2) : t + 2; if (Math.max(yOf(a), yOf(b), yOf(c)) < top) keep.push(a, b, c); }
+          const geo = new THREE.BufferGeometry(); geo.setAttribute('position', P); geo.setIndex(keep);
+          const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false }));   // không vẽ gì: chỉ để bộ chọn lấy hình viền
+          m.name = 'Thân cây táo già (viền chọn)'; m.matrix.copy(bark.matrix); m.matrix.decompose(m.position, m.quaternion, m.scale); m.raycast = () => {};
+          Object.assign(m.userData, { noBatch: true, noBake: true, noCollide: true, pickSkip: true }); ft3.add(m); return m;
+        })();
+        const ft3Hole = (() => {
+          const leaf = ft3.children.find(o => o.isInstancedMesh), M = leaf && leaf.material; if (!M) return null;
+          const U = { value: new THREE.Vector4() }, base = M.onBeforeCompile, key = M.customProgramCacheKey(), P = new THREE.Vector3(), buf = new THREE.Vector2(); let k = 0;
+          M.onBeforeCompile = (sh, r) => { base.call(M, sh, r); sh.uniforms.uHole = U;   // uHole: xy tâm (điểm ảnh khung vẽ), z bán kính (điểm ảnh, 0 = tắt), w độ sâu của con vật
+            sh.fragmentShader = 'uniform vec4 uHole;\n' + sh.fragmentShader
+              .replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\n float holeK = 1.0; if (uHole.z > 0.0 && gl_FragCoord.z < uHole.w) { holeK = smoothstep(0.5, 1.0, length(gl_FragCoord.xy - uHole.xy) / uHole.z); if (holeK < 0.02) discard; }')
+              .replace('#include <dithering_fragment>', 'gl_FragColor.a *= holeK;\n#include <dithering_fragment>'); };
+          M.customProgramCacheKey = () => key + '+hole'; M.needsUpdate = true;
+          return dt => {   // mỗi khung (lượt người xem): tâm ô = con vật chiếu lên màn hình
+            const R = worldSee('raccoon'), on = !!R && R.climbing === ft3; k = Math.max(0, Math.min(1, k + (on ? dt : -dt) / 0.6));
+            if (!k) { U.value.z = 0; return; }
+            if (on) { camera.updateMatrixWorld(); P.copy(R.pos); P.y += 0.15; P.project(camera); }
+            renderer.getDrawingBufferSize(buf);
+            U.value.set((P.x + 1) / 2 * buf.x, (P.y + 1) / 2 * buf.y, k * 0.9 * buf.y * camera.zoom / (camera.top - camera.bottom), (P.z + 1) / 2);
+          };
+        })();
+        //  Camera còn bám cây (từ lựa chọn "Gấu mèo ăn táo") mà con vật đã bám lên thân ⇒ chuyển sang bám con vật, zoom ≥ ×30 (×16 thì gấu mèo ngồi gặm trên cành chỉ ~15 điểm ảnh;
+        //  ×30 ở khung cao ~760 điểm ảnh: gấu mèo đi dài ~90 — cỡ "nhìn cận" của climb.js closeUp) —
+        //  theo nó lên cành, ăn, xuống, về hang; kéo phải / phím W/A/S/D / nút về mặc định là thôi bám như mọi vật (ui/follow-tags.js)
+        const ft3CamOff = new THREE.Vector3(0, 0.3, 0);
+        worldPlace('oldAppleTree', {
+          hover: { root: ft3, skip: m => ft3Trunk ? m !== ft3Trunk : !!(m.parent && m.parent.parent && m.parent.parent.name === 'Quả táo') },
+          job: { objs: [ft3], title: 'Cây táo già', msg: 'Chọn:', choices: [{ lab: 'Gấu mèo ăn táo', plan: () => 'Gấu mèo ra khỏi hang, trèo cây hái một quả ngồi gặm',
+            why: () => { const R = worldSee('raccoon'); return R && R.climbing === ft3 ? 'Gấu mèo đang ở trên cây' : ''; },
+            run: () => { camFollow(ft3, 16, { off: new THREE.Vector3(0, 2.6, 0) }); worldTell('appleTreeTap', ft3); } }] },
+          tick: [['viewer', 45, dt => {   // MỖI KHUNG (sổ tick, lượt người xem — sau camera bám vật): ô nhìn xuyên tán + chuyển camera sang con vật đang trèo
+            if (ft3Hole) ft3Hole(dt);
+            const R = CAMF.o === ft3 && worldSee('raccoon'); if (R && R.climbing === ft3) camFollow(R.object, 30, { off: ft3CamOff, rate: 2 });
+          }]],
+        });
 
         function deadLogOut(x, z, m) {   // (x, z) nằm dưới thân khúc gỗ chết (cách trục < bán kính + m) → điểm dời ra mép gần nhất; ở ngoài → null
           const L = deadLog; if (!L) return null;
@@ -137,12 +192,38 @@
           return [cx + dx / d * r, cz + dz / d * r];
         }
         // ---- Khúc gỗ chết (Dead Log) + Gốc cây bị cưa (Sawed Stump) ----
+        let deadWood = null;   // { stump: deadStump, mat } — gỗ chết nứt dùng chung (gốc cưa + khúc gỗ đứng), dựng trong environmentalDetails
         let deadLog = null;   // trục thân gỗ chết trên mặt đất (đầu a to r 0,70 · đầu b nhỏ r 0,56) — cỏ / hoa không mọc xuyên (nature/grass-scatter.js)
+        // ---- CHÚT RÊU + LÁ CỎ THẢM trên gỗ đứng yên (G 03/11 "cho 1 chút rêu và 1 chút lá cỏ của thảm cỏ vào đây" — gốc cưa lớn x102 z115, khúc gỗ đứng x106 z109):
+        //  lượng rêu tính sẵn ở từng đỉnh (aMk, như đá hộc cửa xả — nature/bank-moss.js): dải sát đất ~0,4 m + mặt hướng trời, cắt thành mảng loang theo nhiễu ⇒
+        //  màu rêu phủ (core/surface-style.js mossCoat, đệm + gồ như rêu trên vỏ cổ thụ) + lá rêu cỏ thảm mọc đúng chỗ đó (mossBladeSrc → nature/moss-lawn.js), lá thấp ----
+        function woodMossDab(root, mat, key, seed, k = 1.35, band = 0.42) {   // k: độ đậm · band: cao dải rêu sát đất
+          const ss = THREE.MathUtils.smoothstep, v = new THREE.Vector3(), n = new THREE.Vector3(), L = [];
+          root.updateMatrixWorld(true);
+          root.traverse(o => { const arr = Array.isArray(o.material), mi = arr ? o.material.indexOf(mat) : 0; if (!o.isMesh || (arr ? mi < 0 : o.material !== mat)) return;   // nhiều vật liệu (gốc cưa: thân + mặt cưa): chỉ đỉnh của nhóm vật liệu này
+            const g = o.geometry, P = g.attributes.position, N = g.attributes.normal, A = new Float32Array(P.count), M = o.matrixWorld, NM = new THREE.Matrix3().getNormalMatrix(M), own = new Uint8Array(P.count).fill(arr ? 0 : 1);
+            if (arr) for (const G of g.groups) if (G.materialIndex === mi) for (let t = G.start; t < G.start + G.count; t++) own[g.index ? g.index.array[t] : t] = 1;
+            for (let i = 0; i < P.count; i++) { if (!own[i]) continue; v.fromBufferAttribute(P, i).applyMatrix4(M); n.fromBufferAttribute(N, i).applyMatrix3(NM).normalize();
+              const hA = v.y - cowY(v.x, v.z), nz = 0.5 + 0.22 * Math.sin(v.x * 7.1 + v.y * 3.3 + seed) + 0.18 * Math.sin(v.z * 6.3 - v.y * 4.7 + 1.3 * seed) + 0.1 * Math.sin((v.x + v.z) * 17.0 + v.y * 9.0);
+              A[i] = k * Math.min(1, 0.85 * (1 - ss(hA, 0.04, band)) * (n.y > -0.3 ? 1 : 0) + 0.55 * ss(n.y, 0.55, 0.95)) * ss(nz, 0.38, 0.72); }
+            g.setAttribute('aMk', new THREE.BufferAttribute(A, 1)); o.userData.noBatch = true; L.push(o); });
+          const mm = mossCoat(mat.clone(), key, { vHead: 'attribute float aMk; varying float vMk;', vMain: ' vMk = aMk;', fHead: 'varying float vMk;',
+            sq: '(abs(vMcN.y) > 0.6 ? vMcP.xz : abs(vMcN.x) > abs(vMcN.z) ? vMcP.zy : vMcP.xy)', mo: 'smoothstep(0.3, 0.6, vMk + 0.25 * (sfMossCu(mcQ, mcF) - 0.45))' });
+          for (const o of L) o.material = Array.isArray(o.material) ? o.material.map(x => x === mat ? mm : x) : mm;
+          mossBladeSrc.push((push, DENS) => {   // lá rêu: rải theo diện tích tam giác, lượng rêu nội suy aMk (cùng luật mép thưa)
+            const r = mulberry32(seed * 7919), a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), e1 = new THREE.Vector3(), e2 = new THREE.Vector3(), nn = new THREE.Vector3();
+            for (const o of L) { const g = o.geometry, P = g.attributes.position, N = g.attributes.normal, A = g.attributes.aMk, I = g.index ? g.index.array : null, M = o.matrixWorld, NM = new THREE.Matrix3().getNormalMatrix(M), nt = I ? I.length : P.count;
+              for (let t = 0; t + 2 < nt; t += 3) { const ia = I ? I[t] : t, ib = I ? I[t + 1] : t + 1, ic = I ? I[t + 2] : t + 2, ma = A.getX(ia), mb = A.getX(ib), mc = A.getX(ic); if (Math.max(ma, mb, mc) < 0.3) continue;
+                a.fromBufferAttribute(P, ia).applyMatrix4(M); b.fromBufferAttribute(P, ib).applyMatrix4(M); c.fromBufferAttribute(P, ic).applyMatrix4(M); e1.subVectors(b, a); e2.subVectors(c, a);
+                let q = Math.floor(e1.clone().cross(e2).length() / 2 * DENS + r());
+                while (q-- > 0) { let u = r(), w = r(); if (u + w > 1) { u = 1 - u; w = 1 - w; } const m = ss(ma * (1 - u - w) + mb * u + mc * w, 0.3, 0.6); if (m < 0.02) continue;
+                  nn.fromBufferAttribute(N, ia).multiplyScalar(1 - u - w).addScaledVector(v.fromBufferAttribute(N, ib), u).addScaledVector(n.fromBufferAttribute(N, ic), w).applyMatrix3(NM).normalize(); if (nn.y < -0.4) continue;
+                  push(a.x + e1.x * u + e2.x * w, a.y + e1.y * u + e2.y * w, a.z + e1.z * u + e2.z * w, nn.x, nn.y, nn.z, m, 0.3, 0.55); } } }
+          });
+        }
         (function environmentalDetails() {
           const logBarkMat = surfaceStyle(new THREE.MeshLambertMaterial({ color: 0x2d251d, flatShading: true, side: THREE.DoubleSide }), 'bark');
           logBarkMat.userData.sfTop = 1.8; logBarkMat.userData.sfTopW = 1;   // G 19/10 "add moss lên trên" khúc gỗ chết: rêu phủ dày mặt trên thân nằm + cành chĩa (core/surface-style.js, rêu mặt trên)
-          const stumpBarkMat = new THREE.MeshLambertMaterial({ color: 0x6e5744 });
-          const innerWoodMat = new THREE.MeshLambertMaterial({ color: 0xd7b889, flatShading: true, side: THREE.DoubleSide });
 
           // 1. Khúc gỗ chết lớn (Dead Log) rỗng x2 tại x 101, y 7, z 105
           const logGroup = new THREE.Group();
@@ -264,15 +345,72 @@
 
           const stumpRingTex = new THREE.CanvasTexture(stumpCanvas);
           const stumpTopMat = new THREE.MeshLambertMaterial({ color: 0xc8a576, map: stumpRingTex }); // màu nền mặt cắt tối dã dặn hơn
+          // ---- GỖ CHẾT NỨT (G 03/11 "em cho bark dead wood crack giống reference image" — gốc cây khô phong hoá): thay vỏ trụ trơn của mọi gốc cưa bằng 1 khối liền:
+          //  · thân: chân bè ra thành 5 rễ chống (to ×1,4 sát đất, hết ở ~0,7 cao), 9–13 VẾT NỨT dọc khoét vào 7–15% bán kính (rộng 0,07–0,14 rad, dài ngẫu nhiên,
+          //    loe ra giữa đoạn), lòng nứt tối (màu đỉnh), chân thân sẫm ẩm
+          //  · mép trên gãy DẰM lởm chởm: vài mảnh dằm nhọn nhô lên cạnh vết nứt, mặt vát từ mép dằm xuống mặt cưa phơi gỗ nâu cam tươi; mặt cưa vân tròn giữ như cũ
+          //  · màu: ảnh thủ tục chung (canvas 512²) gỗ xám bạc phong hoá, vệt nâu cam dọc thớ, thớ sợi mảnh, khe nứt nhỏ đen — lặp quanh thân theo chu vi ~0,7 m
+          const deadWoodTex = (() => {
+            const W = 512, c = document.createElement('canvas'); c.width = c.height = W; const x = c.getContext('2d'), r = mulberry32(31337);
+            x.fillStyle = '#857766'; x.fillRect(0, 0, W, W);
+            const vline = (x0, w, col, a, wob, y0 = 0, y1 = W) => { for (const dx of [0, -W, W]) { x.strokeStyle = col; x.globalAlpha = a; x.lineWidth = w; x.beginPath();   // nét dọc lượn nhẹ, vẽ 3 lần ⇒ lặp liền ngang
+              for (let y = y0; y <= y1; y += 8) { const px = x0 + dx + wob * Math.sin(y * 0.021 + x0) + wob * 0.5 * Math.sin(y * 0.067 + x0 * 3); y === y0 ? x.moveTo(px, y) : x.lineTo(px, y); } x.stroke(); } x.globalAlpha = 1; };
+            for (let k = 0; k < 26; k++) vline(r() * W, 10 + 40 * r(), r() < 0.55 ? '#b4aa9b' : '#6c5d4e', 0.35 + 0.3 * r(), 6 + 10 * r());   // mảng xám bạc · nâu xám
+            for (let k = 0; k < 14; k++) { const y0 = r() * W * 0.7; vline(r() * W, 6 + 22 * r(), r() < 0.6 ? '#a8622f' : '#8c4e2a', 0.45 + 0.35 * r(), 4 + 6 * r(), y0, y0 + 120 + 300 * r()); }   // vệt nâu cam (vỏ bong lộ gỗ)
+            for (let k = 0; k < 160; k++) vline(r() * W, 0.8 + 1.4 * r(), r() < 0.5 ? '#4a3c30' : '#cfc6b8', 0.25 + 0.35 * r(), 2 + 4 * r());   // thớ sợi mảnh tối / sáng
+            for (let k = 0; k < 22; k++) { const y0 = r() * W * 0.8; vline(r() * W, 2 + 3 * r(), '#1f1610', 0.85, 3 + 4 * r(), y0, y0 + 60 + 260 * r()); }   // khe nứt nhỏ đen
+            for (let k = 0; k < 4; k++) { const cx = r() * W, cy = r() * W, rr = 8 + 10 * r(); for (let q = 3; q > 0; q--) { x.fillStyle = q === 1 ? '#2a1d14' : q === 2 ? '#6b4a30' : '#9a8670'; x.beginPath(); x.ellipse(cx, cy, rr * q / 3, rr * q / 2.2, 0, 0, 6.283); x.fill(); } }   // mắt gỗ
+            const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
+          })();
+          const DEAD_TONE = 0x8a8580;   // G 03/11 "màu xẫm tối hơn": nhân ảnh vỏ ~0,53 ⇒ gỗ chết sẫm ẩm
+          const deadWoodMat = new THREE.MeshLambertMaterial({ color: DEAD_TONE, map: deadWoodTex, vertexColors: true });
+          // G 03/11 "có 1 chút độ lún và 1 chút shadow line": vệt đất sẫm quanh chân (đĩa mờ dần, không ghi chiều sâu) — gỗ như lún vào đất
+          const sinkTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'), gr = x.createRadialGradient(64, 64, 0, 64, 64, 64);
+            gr.addColorStop(0, 'rgba(20,14,8,0.95)'); gr.addColorStop(0.55, 'rgba(20,14,8,0.85)'); gr.addColorStop(0.68, 'rgba(26,18,10,0.45)'); gr.addColorStop(1, 'rgba(26,18,10,0)');
+            x.fillStyle = gr; x.fillRect(0, 0, 128, 128); return new THREE.CanvasTexture(c); })();
+          const sinkMat = new THREE.MeshBasicMaterial({ map: sinkTex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+          function deadStump(R0, R1, h, seed, topM = stumpTopMat, NA = 96, flat = false) {   // flat: mép trên phẳng, không dằm   // R0 bán kính đỉnh, R1 đáy, h cao mặt cưa → Mesh 2 nhóm: [0] thân + mặt vát dằm (deadWoodMat), [1] mặt cưa (topM)
+            const SINK = Math.min(0.08, 0.12 * h + 0.02), r = mulberry32(seed), NY = 12, ph = r() * 6.283, hf = Math.min(h * 0.7, R1 * 1.2), rep = Math.max(1, Math.round(6.283 * R1 / 0.7));
+            const cracks = Array.from({ length: 9 + (r() * 5 | 0) }, () => ({ a: r() * 6.283, w: 0.07 + 0.07 * r(), d: (0.07 + 0.08 * r()) * R1, y0: r() * 0.3, y1: 0.55 + 0.45 * r() }));
+            // G 03/11 "cho chỗ crack sâu vào trong lõi": 2–3 KHE NỨT CHÍNH hình chữ V ăn sâu 30–48% bán kính, chạy từ gần chân lên hết đỉnh (cắt cả mặt cưa thành rãnh)
+            for (let q = 2 + (r() * 2 | 0); q-- > 0;) cracks.push({ a: r() * 6.283, w: 0.1 + 0.05 * r(), d: (0.3 + 0.18 * r()) * R1, y0: 0.02 + 0.15 * r(), y1: 1.01, V: 1 });
+            const crackAt = (a, v) => { let d = 0; for (const C of cracks) { let da = Math.abs(((a - C.a) % 6.283 + 9.425) % 6.283 - 3.1416); const span = C.y1 - C.y0, u = (v - C.y0) / span; if (u <= 0 || u >= 1) continue;
+              if (C.V) { const w = C.w * Math.min(1, 0.4 + u * 3); if (da < w) d = Math.max(d, C.d * (1 - da / w) * Math.min(1, u * 5)); continue; }   // khe chính: chữ V nhọn, sâu đều tới đỉnh
+              const w = C.w * (0.5 + 0.5 * Math.sin(u * 3.1416)); if (da < w) d = Math.max(d, C.d * (1 - (da / w) ** 2) * Math.min(1, Math.sin(u * 3.1416) * 2)); } return d; };
+            const spl = Array.from({ length: 5 + (r() * 4 | 0) }, () => ({ a: r() < 0.6 ? cracks[(r() * cracks.length) | 0].a + (r() - 0.5) * 0.3 : r() * 6.283, w: 0.12 + 0.2 * r(), hh: (0.1 + 0.2 * r()) * Math.max(h, R0 * 0.6) }));
+            const rim = flat ? () => 0 : a => { let y = 0.012 * Math.sin(a * 7 + ph) * R0; for (const S of spl) { const da = Math.abs(((a - S.a) % 6.283 + 9.425) % 6.283 - 3.1416); if (da < S.w) y = Math.max(y, S.hh * (1 - da / S.w)); } return y; };   // dằm nhọn
+            const P = [], U = [], Cl = [], I = [], gi = [], top = [];
+            for (let j = 0; j <= NY; j++) for (let i = 0; i <= NA; i++) {
+              const a = i / NA * 6.283, v = j / NY, cr = crackAt(a, v), y = -0.06 - SINK + (h + 0.06 + SINK) * v + rim(a) * v ** 3;
+              const lobe = Math.max(0, Math.cos(5 * a + ph)) ** 2, f = y < hf ? (1 - Math.max(0, y) / hf) ** 2 : 0, R = (R1 + (R0 - R1) * v) * (1 + 0.4 * f * (0.35 + 0.65 * lobe)) - cr;
+              P.push(Math.cos(a) * R, y, Math.sin(a) * R); U.push(i / NA * rep, y / 0.7);
+              const ao = 1 - 0.85 * THREE.MathUtils.smoothstep(cr, 0.02 * R1, 0.2 * R1), damp = (0.62 + 0.38 * Math.min(1, Math.max(0, y) / (0.3 * Math.max(h, 0.3)))) * (0.45 + 0.55 * THREE.MathUtils.smoothstep(y, 0, 0.07));   // đường bóng sát đất
+              Cl.push(ao * damp, ao * damp, ao * damp);
+            }
+            for (let j = 0; j < NY; j++) for (let i = 0; i < NA; i++) { const p = j * (NA + 1) + i, q = p + NA + 1; I.push(p, q, p + 1, p + 1, q, q + 1); }
+            const b0 = P.length / 3;   // mặt vát: từ mép dằm (hàng trên cùng) xuống vòng trong ở mặt cưa — gỗ nâu cam tươi chỗ gãy
+            const capR = a => Math.max(0.04 * R0, 0.86 * R0 - crackAt(a, 1));   // vòng trong mặt cưa lõm theo khe chính ⇒ rãnh nứt cắt vào mặt cưa
+            for (let i = 0; i <= NA; i++) { const a = i / NA * 6.283, ri = capR(a), dk = crackAt(a, 1) > 0.05 * R0; P.push(Math.cos(a) * ri, h, Math.sin(a) * ri); U.push(i / NA * rep, (h + 0.04) / 0.7); dk ? Cl.push(0.25, 0.2, 0.17) : Cl.push(1.15, 0.82, 0.6); }
+            for (let i = 0; i <= NA; i++) Cl[(NY * (NA + 1) + i) * 3 + 1] *= 0.92, Cl[(NY * (NA + 1) + i) * 3 + 2] *= 0.85;
+            for (let i = 0; i < NA; i++) { const p = NY * (NA + 1) + i, q = b0 + i; I.push(p, q, p + 1, p + 1, q, q + 1); }
+            const nSide = I.length, c0 = P.length / 3;   // mặt cưa: quạt vòng trong → tâm, UV phẳng theo vân tròn
+            P.push(0, h, 0); U.push(0.5, 0.5); Cl.push(1, 1, 1);
+            for (let i = 0; i <= NA; i++) { const a = i / NA * 6.283, ri = capR(a), k = ri / (0.86 * R0); P.push(Math.cos(a) * ri, h, Math.sin(a) * ri); U.push(0.5 + 0.5 * k * Math.cos(a), 0.5 - 0.5 * k * Math.sin(a)); Cl.push(1, 1, 1); }
+            for (let i = 0; i < NA; i++) I.push(c0, c0 + 2 + i, c0 + 1 + i);
+            const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2));
+            g.setAttribute('color', new THREE.Float32BufferAttribute(Cl, 3)); g.setIndex(I); g.addGroup(0, nSide, 0); g.addGroup(nSide, I.length - nSide, 1); g.computeVertexNormals();
+            const m = new THREE.Mesh(g, [deadWoodMat, topM]); m.castShadow = m.receiveShadow = true;
+            const sk = new THREE.Mesh(new THREE.CircleGeometry(R1 * 1.75, 40), sinkMat); sk.rotation.x = -Math.PI / 2; sk.position.y = 0.012; sk.renderOrder = 1; sk.name = 'Vệt lún chân gỗ'; m.add(sk);
+            return m;
+          }
+          const _sw = new THREE.Vector3(), _sl = new THREE.Vector3();
+          const seatSink = grp => { grp.updateMatrixWorld(true); grp.traverse(o => { if (o.name !== 'Vệt lún chân gỗ') return;   // vệt lún nằm đúng mặt đất (nền ô có thể cao hơn gốc nhóm)
+            o.getWorldPosition(_sw); _sw.y = cowY(_sw.x, _sw.z) + 0.012; o.parent.worldToLocal(_sl.copy(_sw)); o.position.y = _sl.y; }); return grp; };
+          deadWood = { seat: seatSink, stump: deadStump, mat: deadWoodMat, tex: deadWoodTex, tone: DEAD_TONE };
 
-          // Vỏ cây xù xì bên ngoài (Đường kính tăng 4 lần: R_top = 0.96, R_bottom = 1.12)
-          const stumpBark = new THREE.Mesh(new THREE.CylinderGeometry(0.96, 1.12, 0.45, 12, 1, true), stumpBarkMat);
-          stumpBark.position.y = 0.225; stumpBark.castShadow = true; stumpBark.receiveShadow = true; stumpGroup.add(stumpBark);
-
-          // Lõi gỗ bên trong (Đường kính tăng 4 lần: R = 0.92)
-          const stumpInner = new THREE.Mesh(new THREE.CylinderGeometry(0.92, 0.92, 0.44, 12), [innerWoodMat, stumpTopMat, innerWoodMat]);
-          stumpInner.position.y = 0.22; stumpInner.castShadow = true; stumpInner.receiveShadow = true; stumpGroup.add(stumpInner);
-          scene.add(bakeStatic(stumpGroup));
+          // gỗ chết nứt (deadStump — trước: vỏ trụ trơn R 0,96 → 1,12 cao 0,45 + lõi R 0,92): cùng cỡ, mặt cưa cao 0,44
+          stumpGroup.add(deadStump(0.96, 1.12, 0.44, 1150));
+          scene.add(bakeStatic(seatSink(stumpGroup))); woodMossDab(stumpGroup, deadWoodMat, 'stump1', 115, 1.0, 0.16);   // gốc thấp 0,44 m: dải rêu chỉ sát đất   // chút rêu + lá cỏ thảm (G 03/11)
 
           // Tạo thêm 10 gốc cây bị cưa nhỏ (đường kính < 1/2 gốc gốc ban đầu: R < 0.46) rải rác trong rừng
           const smRnd = mulberry32(54321);
@@ -295,15 +433,9 @@
             sg.rotation.y = smRnd() * 6.28;
             sg.name = 'Gốc cây nhỏ rải rác (Small Stump)';
 
-            // Vỏ ngoài của gốc nhỏ
-            const sBark = new THREE.Mesh(new THREE.CylinderGeometry(r * 1.04, r * 1.2, h, 8, 1, true), stumpBarkMat);
-            sBark.position.y = h / 2; sBark.castShadow = true; sBark.receiveShadow = true; sg.add(sBark);
+            sg.add(deadStump(r * 1.04, r * 1.2, h * 0.98, 2000 + scCount));   // gỗ chết nứt (trước: vỏ trụ trơn r ×1,04 → ×1,2 + lõi r)
 
-            // Lõi gỗ bên trong
-            const sInner = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h * 0.98, 8), [innerWoodMat, stumpTopMat, innerWoodMat]);
-            sInner.position.y = h * 0.49; sInner.castShadow = true; sInner.receiveShadow = true; sg.add(sInner);
-
-            scene.add(bakeStatic(sg));
+            scene.add(bakeStatic(seatSink(sg)));
             scCount++;
           }
         })();
@@ -312,7 +444,6 @@
         (function woodPost() {
           const g = new THREE.Group();
           g.position.set(X0 + 106, 7.0, Z0 + 109); g.rotation.set(0.03, 0.6, 0.04); g.name = 'Khúc gỗ đứng (Wood Post)';
-          const barkMat = new THREE.MeshLambertMaterial({ color: 0x2d251d });                        // vỏ nâu xám tối cùng tông khúc gỗ chết
           const innerMat = new THREE.MeshLambertMaterial({ color: 0xd2af82, flatShading: true });    // gỗ sáng ở mặt cắt (đậm hơn một chút)
           // mặt cắt vân tròn (tree rings) vẽ lên canvas
           const rc = document.createElement('canvas'); rc.width = rc.height = 128; const rx = rc.getContext('2d');
@@ -327,22 +458,24 @@
           const topMat = new THREE.MeshLambertMaterial({ color: 0xd2af82, map: new THREE.CanvasTexture(rc) });
           const postEdgeMat = new THREE.LineBasicMaterial({ color: 0x14100d });
           // thân gỗ đứng (side=vỏ, top=vân tròn, bottom=vỏ)
-          const H = 1.9, bodyGeo = new THREE.CylinderGeometry(0.5, 0.6, H, 12);
-          const body = new THREE.Mesh(bodyGeo, [barkMat, topMat, barkMat]); body.position.y = H / 2; body.castShadow = true; body.receiveShadow = true; edge(body, bodyGeo, postEdgeMat); g.add(body);
+          // G 03/11 "sao vẫn chưa thay đổi, em cho chỗ crack sâu vào trong lõi": thân = gỗ chết nứt như gốc cưa (deadStump: chân bè rễ, khe chính chữ V ăn sâu vào lõi,
+          //  cắt cả mặt cưa, (G 03/11 "sửa 3 cái chóp lỗi, làm cho mặt bằng phẳng": bỏ dằm, mép trên phẳng), gỗ xám bạc + vệt cam) thay trụ vỏ đen trơn; cùng cỡ R 0,5 → 0,6, cao 1,9; mấu cành cùng gỗ (ảnh, không màu đỉnh)
+          const H = 1.9, body = deadWood.stump(0.5, 0.6, H, 106109, topMat, 128, true); g.add(body);
+          const stubMat = new THREE.MeshLambertMaterial({ color: deadWood.tone, map: deadWood.tex });
           // 2 mấu cành cụt: đầu bị cưa lộ gỗ sáng
           function stub(px, py, pz, rz, ry, len) {
             const s = new THREE.Group(); s.position.set(px, py, pz); s.rotation.set(0, ry, rz); g.add(s);
             const geo = new THREE.CylinderGeometry(0.1, 0.16, len, 8);
-            const m = new THREE.Mesh(geo, barkMat); m.position.y = len / 2; m.castShadow = true; edge(m, geo, postEdgeMat); s.add(m);
+            const m = new THREE.Mesh(geo, stubMat); m.position.y = len / 2; m.castShadow = true; edge(m, geo, postEdgeMat); s.add(m);
             const cap = new THREE.Mesh(new THREE.CircleGeometry(0.092, 8), innerMat); cap.rotation.x = -Math.PI / 2; cap.position.y = len + 0.002; s.add(cap);
           }
           stub(0.44, 1.16, 0.05, -1.15, 0.05, 0.55);    // mấu trên, chĩa phải-lên
           stub(-0.44, 0.58, -0.06, 1.2, -0.35, 0.46);   // mấu dưới, chĩa trái-lên
-          scene.add(bakeStatic(g));
+          scene.add(bakeStatic(deadWood.seat(g))); woodMossDab(g, deadWood.mat, 'post1', 109); woodMossDab(g, stubMat, 'post2', 110);   // chút rêu + lá cỏ thảm (G 03/11)
         })();
 
         // ---- cây HOA ANH ĐÀO (cherry blossom) — tán hoa hồng dày bằng hàng trăm cube tí hon ----
-        const cherryBark = new THREE.MeshLambertMaterial({ color: 0x6b4f3a, transparent: true, opacity: 0.75 }); cherryBark.userData.sfL = 0.55; Object.assign(cherryBark.userData, { sfTex: 1, sfTint: new THREE.Vector3(1.12, 0.9, 0.8) });   // anh đào: ảnh vỏ quét nhuộm nâu đỏ
+        const cherryBark = new THREE.MeshLambertMaterial({ color: 0x6b4f3a, transparent: true, opacity: 0.75 }); cherryBark.userData.sfL = 0.55; Object.assign(cherryBark.userData, { sfTex: 1, sfTint: new THREE.Vector3(1.12, 0.9, 0.8), sfTop: 0.15 });   // G 03/11 "1 chút lá của thảm rêu vào gốc và 1 chút xíu lên thân": rêu chân thân sẵn có + rêu mặt trên 0,15 (táo già 0,5) ⇒ thảm rêu lá cỏ (nature/moss-lawn.js) tự mọc   // anh đào: ảnh vỏ quét nhuộm nâu đỏ
         const cherryPinks = [0xffd1dc, 0xffb7c5, 0xffc0cb, 0xf6a5c0, 0xffe3ec, 0xff9fb6];
         function cherryTree(s) {   // cây anh đào ĐỆ QUY — tán hoa cube instanced ở cành tận cùng + chùm trung tâm
           const g = new THREE.Group();

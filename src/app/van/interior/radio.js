@@ -82,7 +82,13 @@
             audioOn(); if (!R.ac) return; load(); if (!R.on) { R.on = true; setBand(R.band); }
             const r = dom.getBoundingClientRect(), x = e ? e.clientX : r.left + r.width / 2, y = e ? e.clientY : r.top + r.height / 2;
             pop.style.display = ''; const L = Math.min(r.width - 230, Math.max(8, x - r.left - 105)), T = Math.min(r.height - 220, Math.max(8, y - r.top - 16)); pop.style.left = L + 'px'; pop.style.top = T + 'px'; draw();
-            if (lw) { pop.style.transformOrigin = (x - r.left - L) + 'px ' + (y - r.top - T) + 'px'; pop.animate([{ transform: 'scale(' + Math.min(1, lw / pop.offsetWidth) + ',' + Math.min(1, lh / pop.offsetHeight) + ')', opacity: 0.5 }, { transform: 'none', opacity: 1 }], { duration: 240, easing: 'cubic-bezier(.2,.8,.2,1)' }); }
+            pop.style.transformOrigin = (x - r.left - L) + 'px ' + (y - r.top - T) + 'px'; pop.style.transform = 'scale(' + POP_K + ')';   // nhỏ 20%, co về điểm bấm (G 01/11)
+            const a = anchorPx(); pin.x = L - a.x; pin.y = T - a.y;   // bảng GHIM vào radio trong xe: giữ khoảng lệch so với màn táp-lô, camera xoay / kéo thì bảng đi theo xe (G 01/11)
+            if (lw) pop.animate([{ transform: 'scale(' + Math.min(1, lw / pop.offsetWidth) + ',' + Math.min(1, lh / pop.offsetHeight) + ')', opacity: 0.5 }, { transform: 'scale(' + POP_K + ')', opacity: 1 }], { duration: 240, easing: 'cubic-bezier(.2,.8,.2,1)' });
+          }
+          const POP_K = 0.8, pin = { x: 0, y: 0 };
+          function anchorPx() {   // màn táp-lô → toạ độ trong khung cảnh (px)
+            const r = dom.getBoundingClientRect(), v = scr.getWorldPosition(_p).project(camera); return { x: (v.x + 1) / 2 * r.width, y: (1 - v.y) / 2 * r.height };
           }
           function tagClick(e) {   // bấm trúng nhãn 📻 (sprite) ⇒ mở bảng từ nhãn; true = đã xử lý (hovClick bỏ qua bấm xe / máy)
             if (!tag || !tag.sprite.visible || !labelGroup.visible) return false;
@@ -111,7 +117,7 @@
             }
             const pl = R.on && !!R.cur && R.s > 0.4 && !audio.paused; if (pl !== R.play) { R.play = pl; draw(); }
             if (pl && (R.et -= dt) <= 0) { R.et = 0.08; for (let i = 0; i < 7; i++) R.eq[i] += (Math.random() * (1 - Math.abs(i - 3) * 0.1) - R.eq[i]) * 0.6; draw(); }   // cột sóng táp-lô ~12 lần/giây
-            if (pop.style.display !== 'none') wave(clock.elapsedTime);
+            if (pop.style.display !== 'none') { wave(clock.elapsedTime); const a = anchorPx(); pop.style.left = (a.x + pin.x) + 'px'; pop.style.top = (a.y + pin.y) + 'px'; }
             const show = shownInScene(caravanObj) && (upp < 0.05 || R.on && upp < 0.12);
             if (!tag && show) { tag = addLabel('📻 Radio', '#e0662b', new THREE.Vector3(), new THREE.Vector3(), true, undefined, true); }
             if (tag) {

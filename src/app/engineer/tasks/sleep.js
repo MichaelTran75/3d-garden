@@ -109,14 +109,14 @@
         //  đồ cầm tay, đóng cửa phòng tắm, tắt nước), tư thế ngủ / trở mình engSleepTick, Zzz bay lên, bảng đếm giờ thức (chỉ vẽ lại khi chuỗi đổi) ----
         function engNightTick(e, dt, t, hh) {
           resetFishingBite(); engForceAct = null; VAN.laptop.lid(0); e.seat = null; e.act = 'sleep'; e.phase = 'van'; e.inVan = true; e.van = null; e.enter = null;
-          if (VAN.studyChair.off || VAN.studyChair.sw) studyChairAt(0, 0, 0);   // (đã đẩy ghế vào trước khi lên giường)
+          if (VAN.studyChair.off !== STUDY_TUCK || VAN.studyChair.sw) studyChairAt(STUDY_TUCK, 0, 0);   // (đã đẩy ghế vào trước khi lên giường)
           if (e.g.parent !== VAN.object) {
             VAN.mount(e.g);
             e.g.scale.setScalar(ENGINEER_BASE_SCALE); // The scaled van supplies the single 0.90 factor while sleeping.
             e.g.position.fromArray(VAN.inside.sleepPosition);   // tư thế nằm, chăn, thở, trở mình: engSleepTick (engineer/tasks/sleep.js)
             e.arms[0].rotation.set(0, 0, 0); e.arms[1].rotation.set(0, 0, 0);
             e.rodGrp.visible = false; CAMP.restRod(true);
-            checkBubbleSprite.visible = false;
+            checkBubbleSprite.visible = false; cdSprite.visible = false;   // + đếm ngược việc (ngủ: bảng giờ dậy riêng)
             // ngủ: mũ để cuối giường, khăn trên giá, đồ cầm tay cất, ghế đẩu kéo ra, cửa phòng tắm & nắp bồn cầu đóng, tắt nước
             engHelmet(e, 'bed'); e.towel.visible = false; VBATH.towel(true);
             e.dish = null; VKIT.reset(); engDishShow(e);

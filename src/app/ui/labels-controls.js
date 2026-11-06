@@ -154,7 +154,7 @@
         //      của xe (vanLine, core/axes-pin-bake.js) + mặt vỏ xe (VAN_LINES.onShell); 0 thì tắt hẳn vật liệu nét (khỏi tốn lượt vẽ) ----
         const vlR = document.getElementById('vanLineRange'), vlV = document.getElementById('vanLineVal');
         function setVanLines(v) {
-          v = Math.max(0, Math.min(100, Math.round(+v || 0))); VAN_LINES.k = v / 100;
+          v = Math.max(1, Math.min(100, Math.round(+v || 1))); VAN_LINES.k = v / 100;   // G 05/11: thấp nhất 1, không về 0
           for (const m of vanLineMats.values()) { m.opacity = VAN_LINES.k; m.visible = v > 0; } if (VAN_LINES.onShell) VAN_LINES.onShell();   // mặt vỏ mờ theo (van/body/xray.js)
           if (vlR && +vlR.value !== v) vlR.value = v; if (vlV) vlV.textContent = v; return v;
         }

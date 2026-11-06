@@ -27,10 +27,14 @@
           const tail = makeSoftTail(U.tailHost, { base: new THREE.Vector3(0, 0, 0), dir: new THREE.Vector3(-1, -0.2, 0).normalize(), n: 7, len: 0.046 * s, w: 0.12 * s, mat: U.ringB, stiff: [0.3, 0.1] });
           tail.segs.forEach((m, i) => { m.material = i % 2 || i === tail.segs.length - 1 ? U.ringA : U.ringB; });   // đuôi rậm 7 khoanh đen–xám, ngọn đen (theo mẫu)
           // ---- trạng thái ----
-          const B = { st: 'den', t: 0, k: 0, v: 0, want: 0, gait: 'walk', tgt: new THREE.Vector3(), has: false, mode: 'walk', look: null, headP: null, dig: 0, apple: null, n: 0, ate: '', fled: false };   // fled: đang chạy trốn ⇒ bò vào hang nhanh
+          const B = { st: 'den', t: 0, k: 0, v: 0, want: 0, gait: 'walk', tgt: new THREE.Vector3(), has: false, mode: 'walk', look: null, headP: null, dig: 0, apple: null, n: 0, ate: '', fled: false, call: 0 };   // fled: đang chạy trốn ⇒ bò vào hang nhanh · call: hạn chót đi trèo cây khi người xem bấm cây táo già
           const active = () => { const hh = liveWeather.localHour; return !liveWeather.state.raining && ((hh >= 16.5 && hh < 22.5) || (hh >= 4.5 && hh < 7)); };
           const set = (st, t) => { B.st = st; B.k = 0; B.t = t || 0; B.has = false; };
           const climb = makeRaccoonClimb({ B, rig, P, damp, tail, set: (st, tt) => set(st, tt), H0 });   // trèo cây táo hái ăn (animals/raccoon/climb.js)
+          // G 04/11 "khi click vào cây táo thì gấu mèo leo lên hái táo và ăn táo": tin 'appleTreeTap' (người xem bấm cây táo già — nature/forest.js) ⇒ gấu mèo tự quyết
+          //  đi trèo trong 90 s tới (B.call = hạn chót): đang ngủ trong hang thì dậy bò ra (cả ban ngày, lúc mưa), đang về hang thì quay ra; gặp nguy (chó, người)
+          //  thì bỏ ý định, chạy về hang như thường; đang tới gốc / đang trên cây thì thôi
+          worldHear('appleTreeTap', T => { if (T === appleTrees[2] && B.st !== 'toTree' && B.st !== 'climb') B.call = true; });
           const randPt = () => { for (let k = 0; k < 12; k++) { const a = Math.random() * 6.2832, r = 2 + Math.random() * 6, x = racHome.x + Math.cos(a) * r, z = racHome.z + Math.sin(a) * r; if (isWater(Math.round(x2gi(x)), Math.round(z2gj(z))) || racAvoidLog(x, z) || obstacleCoords.some(o => Math.hypot(x - o.x, z - o.z) < o.r + 0.3)) continue; return _a.set(x, 0, z).clone(); } return new THREE.Vector3(racApproach.x, 0, racApproach.z); };
           function steer(tx, tz, speed, dt, field, stopR = 0.1) {
             const p = O.position, dx = tx - p.x, dz = tz - p.z, dd = Math.hypot(dx, dz);
@@ -73,18 +77,23 @@
           function behave(dt, t) {
             const p = O.position, hh = liveWeather.localHour, th = ['den', 'exit', 'enter', 'climb'].includes(B.st) ? null : threat();   // trên cây: gặp nguy thì ở yên trên cây
             B.look = null; B.headP = null; B.dig = 0; B.mode = 'walk'; B.k += dt; B.t -= dt;
-            if (B.st === 'peek' && (th || !active())) { B.fled = !!th; set('enter'); }   // đang ló đầu ở miệng gỗ: có động / hết giờ ⇒ lùi vào luôn
-            else if (B.st === 'out' && th && Math.hypot(p.x - racMouth.x, p.z - racMouth.z) < 1.2) { B.fled = true; set('toMouth'); }   // vừa bước ra: quay lại chui vào (move() đẩy điểm trong gỗ ra ngoài vỏ)
-            else if (th && !['flee', 'toMouth', 'enter', 'den', 'exit'].includes(B.st)) set('flee');
-            if (!active() && ['forage', 'dig', 'stand', 'chase', 'toTree'].includes(B.st)) set('home');
-            if (climb.closeUp() > 1.5 && ['forage', 'dig', 'stand', 'eat'].includes(B.st) && active() && t > (B.climbCD || 0) && t > (B.climbTry || 0) && p.distanceTo(appleTrees[2].position) < 25) {   // người xem zoom cận nhìn ≥ 1,5 s ⇒ trèo cây táo hái ăn
+            if (B.call === true) B.call = t + 90;   // tin bấm cây vừa tới (worldHear ở trên): hạn chót theo đồng hồ cảnh
+            const call = B.call > t;
+            if (B.st === 'peek' && (th || (!active() && !call))) { B.fled = !!th; if (th) B.call = 0; set('enter'); }   // đang ló đầu ở miệng gỗ: có động / hết giờ ⇒ lùi vào luôn
+            else if (B.st === 'out' && th && Math.hypot(p.x - racMouth.x, p.z - racMouth.z) < 1.2) { B.fled = true; B.call = 0; set('toMouth'); }   // vừa bước ra: quay lại chui vào (move() đẩy điểm trong gỗ ra ngoài vỏ)
+            else if (th && !['flee', 'toMouth', 'enter', 'den', 'exit'].includes(B.st)) { B.call = 0; set('flee'); }
+            else if (call && !B.fled && (B.st === 'toMouth' || B.st === 'enter')) set(B.st === 'toMouth' && Math.hypot(p.x - racMouth.x, p.z - racMouth.z) > 1.2 ? 'stand' : 'exit', 1);   // đang về hang mà người xem bấm cây ⇒ quay lại (đã ở miệng / trong gỗ thì bò ra miệng trước)
+            if (!active() && !call && ['forage', 'dig', 'stand', 'chase', 'toTree'].includes(B.st)) set('home');
+            const from = call ? ['forage', 'dig', 'stand', 'eat', 'chase', 'home', 'out'] : ['forage', 'dig', 'stand', 'eat'];   // bấm cây lúc vừa bò ra: ra khỏi vỏ gỗ là đi luôn (khỏi ra tận chỗ ra vào)
+            if ((call || (climb.closeUp() > 1.5 && active() && t > (B.climbCD || 0))) && from.includes(B.st) && (B.st !== 'out' || (Math.hypot(p.x - racMouth.x, p.z - racMouth.z) > 1.1 && !racAvoidLog(p.x, p.z)))
+              && t > (B.climbTry || 0) && p.distanceTo(appleTrees[2].position) < 25) {   // người xem bấm cây / zoom cận nhìn ≥ 1,5 s ⇒ trèo cây táo hái ăn
               B.climbTry = t + 5; if (climb.plan()) { climb.goal(); set('toTree', 30); }
             }
             switch (B.st) {
               // HANG = lòng khúc gỗ (animals/dog-raccoon.js racInside sâu 3,4 m · racMouth 0,3 m trong miệng to): ngủ trong gỗ → bò ra miệng → LÓ ĐẦU ngó quanh 1,6–2,6 s
               //  (đánh hơi trước khi ra, có động thì lùi vào) → bước ra bãi; về: tới chỗ ra vào ngoài bãi → bò vào miệng → vào sâu ngủ. Chạy trốn: bò vào nhanh
-              case 'den': O.visible = false; B.want = B.v = 0; if (active() && B.t <= 0) { set('exit'); O.visible = true; } return 0;
-              case 'exit': if (crawl(racMouth, 0.45, dt)) set('peek', 1.6 + Math.random()); return B.v * dt;
+              case 'den': O.visible = false; B.want = B.v = 0; if ((active() && B.t <= 0) || call) { set('exit'); O.visible = true; } return 0;   // người xem bấm cây táo ⇒ dậy ngay
+              case 'exit': if (crawl(racMouth, call ? 0.6 : 0.45, dt)) set('peek', call ? 0.9 : 1.6 + Math.random()); return B.v * dt;   // người xem bấm cây: bò ra nhanh, ló đầu ngắn
               case 'peek': {   // đứng ở miệng gỗ, ngóc đầu, ngó trái phải ra phía bãi
                 B.want = 0; B.headP = 0.15; const a = -O.rotation.y + 0.7 * Math.sin(B.k * 2.1); B.look = _hp.set(p.x + 2 * Math.cos(a), p.y + 0.25, p.z + 2 * Math.sin(a));
                 if (B.t <= 0) set('out');
@@ -134,7 +143,7 @@
                   steer(tx, tz, 0.7, dt, climb.C.field, 0.12); if (B.t <= 0) { B.climbCD = t + 60; set('forage'); } break;
                 }
                 B.want = 0; let dy = climb.face() - O.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); O.rotation.y += Math.max(-2 * dt, Math.min(2 * dt, dy));
-                if (Math.abs(dy) < 0.12) { B.v = 0; set('climb'); climb.start(t); }
+                if (Math.abs(dy) < 0.12) { B.v = 0; B.call = 0; set('climb'); climb.start(t); }
                 break;
               }
               case 'climb': B.want = B.v = 0; return 0;   // trên cây: climb.update lo vị trí + dáng
@@ -150,7 +159,8 @@
             return move(dt);
           }
           // khởi động: đang giờ hoạt động thì đã ở ngoài kiếm ăn
-          if (active()) { O.visible = true; O.position.set(racApproach.x, cowY(racApproach.x, racApproach.z), racApproach.z); set('forage'); } else set('den');
+          if (active()) { O.visible = true; O.position.set(racApproach.x, cowY(racApproach.x, racApproach.z), racApproach.z); set('forage'); }
+          else { O.position.set(racInside.x, cowY(racInside.x, racInside.z), racInside.z); O.rotation.y = yawOf(racMouth.x - racInside.x, racMouth.z - racInside.z); set('den'); }   // ngủ trong lòng gỗ, đầu quay ra miệng (trước 04/11: để ở gốc toạ độ ⇒ chạng vạng bò 22 m từ giữa bãi về miệng gỗ)
           return {
             update(dt, t) {
               dt = Math.min(dt, 0.05);

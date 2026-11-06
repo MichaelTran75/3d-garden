@@ -215,7 +215,7 @@
           L.im.instanceMatrix.needsUpdate = true;
         }
         let cherryCtl = null, oldTreeLeafCtl = null, cherryWind = null, oldTreeWind = null;
-        { const ct = cherryTree(1.2); ct.position.copy(worldCell(29, 35.5)); ct.rotation.y = Math.random() * 6.28; ct.name = 'Cây anh đào (Cherry Blossom Tree)'; scene.add(ct);   // 1 cây duy nhất cạnh xe van
+        { const ct = cherryTree(1.2); ct.position.copy(worldCell(29, 35.5)); ct.rotation.y = Math.random() * 6.28; ct.name = 'Cây anh đào (Cherry Blossom Tree)'; scene.add(ct); worldJoin('groundContact', 10, S => S.add(ct));   // 1 cây duy nhất cạnh xe van
           cherryWind = ct.userData.treeWind; finalizeTreeWind(cherryWind, ct);
           { // cánh hoa rải sẵn dưới gốc: đặt lúc dựng cây theo độ cao cố định ⇒ lơ lửng trên mép bậc đất / lệch độ cao. Nay hạ đúng mặt ô đất;
             // cánh rơi trên mặt nước hoặc vắt qua mép bậc (4 góc không cùng độ cao) thì bỏ

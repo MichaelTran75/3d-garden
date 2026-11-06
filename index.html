@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>GHC · Thủy điện Gia Lai — Danh mục năng lượng tái tạo 3D</title>
   <link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/dist/tabler-icons.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="css/app.css?v=259965b209">
+  <link rel="stylesheet" href="css/app.css?v=5bac252cea">
 </head>
 
 <body>
@@ -46,6 +46,7 @@
     <div class="ui panel" id="toolPop" style="display:none;position:absolute;width:210px;z-index:30;">
       <div class="ph" id="toolPopTitle"></div>
       <div id="toolPopMsg" style="font:12px/1.5 'Inter',system-ui;color:#403d33;margin-top:4px;"></div>
+      <div id="toolPopList"></div>
       <div style="display:flex;gap:6px;margin-top:8px;">
         <button id="toolPopGo" type="button" style="flex:1;font-family:inherit;font-size:12px;font-weight:600;line-height:1;color:#403d33;background:rgba(226,214,192,0.5);border:1px solid rgba(75,74,70,.26);border-radius:8px;padding:7px 10px;cursor:pointer;"></button>
         <button id="toolPopClose" type="button" style="font-family:inherit;font-size:12px;font-weight:600;line-height:1;color:#403d33;background:rgba(226,214,192,0.5);border:1px solid rgba(75,74,70,.26);border-radius:8px;padding:7px 10px;cursor:pointer;">✕</button>
@@ -120,6 +121,8 @@
               title="Máy bơm + van từ mẫu 3D “P-0301 B” của athar_faz, giấy phép CC BY 4.0 (chỉ lấy bơm ly tâm, khớp nối, động cơ, 1 van; bỏ ống đo, thêm màu, giảm lưới, nén)">Máy bơm: athar_faz</a>
             <a href="https://sketchfab.com/3d-models/realistic-hd-common-polypody-fern-2555-899bc51fa8b6440c87f7e74e60c16ef7" target="_blank" rel="noopener noreferrer"
               title="Mẫu 3D dương xỉ: “Realistic HD Common polypody fern (25/55)” của PlantCatalog, giấy phép CC BY 4.0 (bỏ thân rễ, giảm lưới lá còn 45%, 1 ảnh lá WebP 512 dùng chung, màu từng lá thành màu đỉnh, nén)">Dương xỉ: PlantCatalog</a>
+            <a href="https://sketchfab.com/3d-models/books-and-magazines-d0b76eada5bd495abcdfb2b20e6f7ee6" target="_blank" rel="noopener noreferrer"
+              title="Sách + tạp chí trên kệ sách trong xe: mẫu 3D “Books and magazines” của Naira, giấy phép CC BY 4.0 (mỗi cuốn tách 1 nút, chỉ giữ ảnh màu WebP 256 / 512, xếp lại thành hàng)">Sách: Naira</a>
             <a href="https://sketchfab.com/3d-models/hydrogenerator-old-work-630a3b2be6904bb1a5ec813a2c0a848f" target="_blank" rel="noopener noreferrer"
               title="Tổ máy thủy điện trong nhà máy đập: mẫu 3D “Hydrogenerator | Old work” của TadenStar, giấy phép CC BY 4.0 (chỉ bản lắp đủ, bỏ nắp mặt cắt + cuộn dây trùng, 1 cánh hướng nước mẫu nhân 18, giảm lưới, màu ảnh thành màu đỉnh, nén)">Tổ máy thủy điện: TadenStar</a>
             <a href="https://sketchfab.com/3d-models/big-mushroom-agisoftnaturechallenge-95bbb65f57d34a55affdc22b7824e432" target="_blank" rel="noopener noreferrer"
@@ -194,7 +197,7 @@
     </script>
     <div id="err"></div>
 
-    <div id="vanLineBar" class="ui line-bar" title="Nét viền xe: 0 = trong suốt hoàn toàn · 100 = rõ hoàn toàn"><i class="ti ti-truck"></i><input id="vanLineRange" type="range" min="0" max="100" step="1" value="100" aria-label="Nét viền xe, 0 đến 100"><output id="vanLineVal" for="vanLineRange">100</output></div>
+    <div id="vanLineBar" class="ui line-bar" title="Nét viền xe: 1 = mờ nhất · 100 = rõ hoàn toàn"><i class="ti ti-truck"></i><input id="vanLineRange" type="range" min="1" max="100" step="1" value="100" aria-label="Nét viền xe, 1 đến 100"><output id="vanLineVal" for="vanLineRange">100</output></div>
     <footer class="ui toolbar">
       <button id="btnRotate" type="button" title="Tự xoay" aria-label="Tự xoay"><i class="ti ti-player-pause"></i></button>
       <button id="btnLabels" type="button" title="Nhãn" aria-label="Nhãn"><i class="ti ti-tag"></i></button>
@@ -214,7 +217,7 @@
   <!-- thời tiết + đồng hồ Pleiku · dẫn đường bay côn trùng · dựng cảnh (giữ đúng thứ tự) -->
   <script src="js/weather.js?v=4ddd42d950"></script>
   <script src="js/flight-nav.js?v=55079b3f58"></script>
-  <script src="js/app.js?v=f23bd68406"></script>
+  <script src="js/app.js?v=3730ce758e"></script>
 </body>
 
 </html>

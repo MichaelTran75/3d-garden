@@ -58,6 +58,7 @@
           else if (e.phase === 'tea') {                // nhấp trà thư giãn, ngả lưng nhẹ; hết giờ: nghỉ trưa thì chợp mắt luôn trên ghế, dạo trại thì đứng dậy đi tiếp
             if (engUseSeat(e, CAMP_SEAT, dt, t)) {
               e.timer -= dt; e.arms[0].rotation.x = e.arms[1].rotation.x = -0.6;
+              if (e.act === 'smoke' && CHIMINEA.oven.fish.ready() >= 0) e.timer = Math.min(e.timer, 0);   // chờ cá hun: cá vừa chín ⇒ đặt cốc xuống là ra lò lấy, không đợi hết lượt 45 s
               // với cốc trong vòng tay vịn → thổi → nhấp → 2 tay ôm cốc → nhấp → đặt lại (engineer/tasks/meal-read.js); hết giờ: chờ đặt cốc xuống rồi mới đứng dậy
               const teaIdle = e.teaIdle = engTea(e, dt, t);
               if (e.timer <= 0 && teaIdle) {

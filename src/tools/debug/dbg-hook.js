@@ -1,0 +1,7 @@
+        window.__ev = (code) => eval(code);
+        window.__dbg = { THREE, scene, camera, renderer, target, get wmast() { return typeof wmast === 'undefined' ? null : wmast; }, surfaceY, worldCell, wx, wz, x2gi, z2gj, X0, Z0, S, BLOCK, obstacleCoords, flightRoots,
+          view(tx, ty, tz, th, ph, zoom) { target.set(tx, ty, tz); tTheta = theta = th; tPhi = phi = ph; autoRotate = false; camera.zoom = zoom; camera.updateProjectionMatrix(); },
+          frames(n = 1) { suspended = false; for (let i = 0; i < n; i++) { loop(); if (frameId) { cancelAnimationFrame(frameId); frameId = 0; } } suspended = true; return renderer.info.render; },
+          get engObj() { return engObj; }, get storkDef() { return storkDefinition; }, get storkParts() { return storkParts; }, get birds() { return birds; }, get clock() { return clock; }, get caravanObj() { return caravanObj; }, get dogObj() { return dogObj; },
+          xray(on) { setCaravanXray(on); return caravanShell.length; },
+          snap(near = 0.1) { camera.near = near; camera.updateProjectionMatrix(); camera.position.set(target.x + radius * Math.sin(phi) * Math.cos(theta), target.y + radius * Math.cos(phi), target.z + radius * Math.sin(phi) * Math.sin(theta)); camera.lookAt(target); scene.updateMatrixWorld(); renderer.render(scene, camera); const url = renderer.domElement.toDataURL('image/png'); camera.near = 0.1; camera.updateProjectionMatrix(); return url; } };   // đầu dò hiệu năng: __info().calls = draw call/frame · .triangles

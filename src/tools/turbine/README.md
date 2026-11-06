@@ -36,3 +36,5 @@ BL="$HOME/Library/Application Support/Steam/steamapps/common/Blender/Blender.app
 "$BL" -b --factory-startup --python turbine_blender.py -- "$SRC" /tmp/parts.npz
 python3 -I turbinepack.py /tmp/parts.npz ../../models/turbine.glb
 ```
+
+**Nén (04/11):** tệp dựng ra chưa nén. Chạy `src/tools/glb-compress` (`node compress.mjs <tệp dựng> <tệp nén>`) rồi mới chép vào `src/models/`.

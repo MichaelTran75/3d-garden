@@ -13,18 +13,28 @@
         const TL_ITEMS = [   // việc · icon Tabler · tên · nút — việc sẽ làm + lý do chưa làm được: kỹ sư tự nói (ENGINEER.offer(k) — engineer/mind/offers.js, 01/11 đợt 10)
           // G 26/10 "trong tools: thêm hái táo; nấu ăn, nướng cá trong lò chiminea, research = use laptop; read books; check engine": thêm 5 dòng (đọc sách = dòng ghế cắm trại,
           //  đổi tên), xếp theo nhóm: ngoài trời → bếp núc → trong xe → máy móc
-          ['stars', 'telescope', 'Kính thiên văn', 'Ngắm sao'], ['fish', 'fish-hook', 'Cần câu cá', 'Câu cá'], ['smoke', 'fish', 'Lò nướng CHIMINEA', 'Nướng cá'],
+          ['stars', 'telescope', 'Kính thiên văn', 'Ngắm sao'], ['fish', 'fish-hook', 'Cần câu cá', 'Câu cá'], ['smoke', 'fish', 'Lò nướng CHIMINEA', 'Hun khói cá'],
           ['apples', 'apple', 'Hái táo', 'Hái táo'], ['garden', 'carrot', 'Farming', 'Trồng cà rốt'], ['trim', 'lawn-mower', 'Máy cắt cỏ', 'Cắt cỏ'],
-          ['cook', 'tools-kitchen-2', 'Nấu ăn', 'Nấu ăn'], ['chair', 'book', 'Đọc sách', 'Đọc sách'], ['research', 'device-laptop', 'Laptop', 'Nghiên cứu'],
-          ['drone', 'drone', 'Drone', 'Bay'], ['wood', 'flame', 'Lò CHIMINEA', 'Bỏ củi'], ['engine', 'engine', 'Động cơ xe', 'Kiểm tra máy']
+          ['cook', 'tools-kitchen-2', 'Nấu ăn', 'Nấu ăn'], ['chair', 'book', 'Đọc sách', 'Đọc sách'], ['research', 'device-laptop', 'Laptop', 'Nghiên cứu'], ['deskread', 'books', 'Kệ sách', 'Đọc sách'],
+          ['drone', 'drone', 'Drone', 'Bay'], ['wood', 'flame', 'Lò CHIMINEA', 'Bỏ củi'], ['engine', 'engine', 'Động cơ xe', 'Kiểm tra máy'],
+          // G 02/11 "toilet, sink, kitchen (meals selectable), camp fire: all selectable": 4 dòng mới (bấm được cả trong cảnh — dưới)
+          ['breakfast', 'coffee', 'Ăn sáng', 'Ăn sáng'], ['fire', 'campfire', 'Lửa trại', 'Nhóm / dập lửa'], ['toilet', 'toilet-paper', 'Bồn cầu', 'Đi vệ sinh'], ['wash', 'droplet', 'Lavabo', 'Rửa tay']
         ].map(([k, ic, n, go]) => ({ k, ic, n, go, ok: () => ENGINEER.offer(k).plan(), why: () => ENGINEER.offer(k).why() }));
         // G 31/10 "add separate line và chia tools theo sessions": 4 nhóm, mỗi nhóm 1 tiêu đề + đường kẻ ngăn (.tl-sec); thứ tự dòng theo nhóm, không theo TL_ITEMS
-        const TL_GROUPS = [['Ngoài trời', ['stars', 'fish', 'apples', 'garden']], ['Bếp núc', ['cook', 'smoke', 'wood']], ['Đọc · làm việc', ['chair', 'research']], ['Máy móc', ['trim', 'drone', 'engine']]];
+        const TL_GROUPS = [['Ngoài trời', ['stars', 'fish', 'apples', 'garden']], ['Bếp núc', ['breakfast', 'cook', 'smoke', 'fire', 'wood']], ['Đọc · làm việc', ['chair', 'deskread', 'research']], ['Vệ sinh', ['toilet', 'wash']], ['Máy móc', ['trim', 'drone', 'engine']]];
         { const ch = scene.getObjectByName('Ghế cắm trại (Camp Chair)'); hovAdd(ch);   // bấm ghế / lò / cần câu trong cảnh ⇒ bảng #toolPop (ui/xray-lifecycle.js) cùng việc, cùng lý do
-          const box = o => { const b = new THREE.Box3().setFromObject(o), m = new THREE.Mesh(new THREE.BoxGeometry(...b.getSize(new THREE.Vector3()).addScalar(0.06).toArray()), new THREE.MeshBasicMaterial({ visible: false }));
-            b.getCenter(m.position); m.userData.noBatch = m.userData.noBake = m.userData.noCollide = true; scene.add(m); return m; };   // hộp bấm vô hình: lưới ghế / cần câu đã gộp lượt vẽ nằm ở lớp 31, tia bấm (lớp 0) không trúng
-          for (const [k, objs, title, vis] of [['chair', [box(ch)], 'Ghế cắm trại'], ['wood', [CHIMINEA.g], 'Lò sưởi CHIMINEA'], ['fish', [box(CAMP.groundRod)], 'Cần câu cá', () => CAMP.groundRod.visible]]) {
-            const it = TL_ITEMS.find(i => i.k === k); TOOLS.push({ objs, vis, title, go: '▶ ' + it.go, act: k }); } }   // việc sẽ làm + lý do: ENGINEER.offer(k)
+          const box = jobBox;   // hộp bấm vô hình (dịch vụ 'jobs', ui/xray-lifecycle.js): lưới ghế / cần câu đã gộp lượt vẽ nằm ở lớp 31, tia bấm (lớp 0) không trúng
+          // G 01/11 "add white border line vào Laptop: khi click thì hiện option use laptop; … khu trồng carot để trồng thêm carot": rê ⇒ viền trắng, bấm ⇒ bảng việc
+          const lap = scene.getObjectByName('Laptop'), bed = scene.getObjectByName('Luống cà rốt'); hovAdd(lap); hovAdd(bed);
+          // G 02/11 "cho books selectable, and we can select and click read for engineer": kệ sách + 2 hộp sách trên bàn học ⇒ viền trắng, bấm ⇒ "Đọc sách"
+          const shelf = scene.getObjectByName('Kệ sách cạnh màn hình phụ'), pile = scene.getObjectByName('Hai hộp như sách trên bàn học'); hovAdd(shelf); hovAdd(pile);
+          // G 02/11 "toilet, sink, kitchen (meals selectable), camp fire: all selectable": rê ⇒ viền trắng, bấm ⇒ bảng việc (bếp: chọn 1 trong 3 món)
+          const wc = scene.getObjectByName('Bồn cầu hướng cửa phòng tắm'), lav = scene.getObjectByName('Lavabo'), kit = scene.getObjectByName('Bếp: phần cố định');
+          const inVan = () => VAN.xray;   // đồ trong xe chỉ bấm được khi đang xem xuyên (không thì bấm vỏ xe = bật xem xuyên)
+          for (const o of [wc, lav, kit]) hovAdd(o, { on: inVan });   // lửa trại, lò chiminea: tự khai trong tệp của vật (worldPlace)
+          TOOLS.push({ objs: [box(kit)], vis: inVan, van: true, title: 'Bếp trong xe', msg: 'Chọn món:', act: 'cook', choices: [['breakfast', 'Ăn sáng: ngũ cốc, cà phê'], ['udon', 'Nấu udon'], ['rice', 'Chiên cơm trứng']] });
+          for (const [k, objs, title, vis, go] of [['research', [box(lap)], 'Laptop', null, 'Use laptop'], ['garden', [box(bed)], 'Luống cà rốt', null, 'Trồng cà rốt'], ['deskread', [box(shelf), box(pile)], 'Sách', null, 'Đọc sách'], ['chair', [box(ch)], 'Ghế cắm trại'], ['toilet', [box(wc)], 'Bồn cầu', inVan, 'Đi vệ sinh'], ['wash', [box(lav)], 'Lavabo', inVan, 'Rửa tay'], ['fish', [box(CAMP.groundRod)], 'Cần câu cá', () => CAMP.groundRod.visible]]) {
+            const it = TL_ITEMS.find(i => i.k === k); TOOLS.push({ objs, vis, title, go: '▶ ' + (go || it.go), act: k, van: ['research', 'deskread', 'toilet', 'wash'].includes(k) }); } }   // việc sẽ làm + lý do: ENGINEER.offer(k)
         function toolsBuild() {   // dựng các dòng 1 lần (lần đầu mở bảng)
           const L = document.getElementById('toolsList'); if (!L) return false;
           for (const [title, keys] of TL_GROUPS) {
@@ -43,7 +53,7 @@
           document.getElementById('toolsDoing').textContent = ENGINEER.needs.doing() + (ENGINEER.asked ? ' · theo lệnh' : '');
           for (const it of TL_ITEMS) {
             const on = ENGINEER.asked === it.k, why = on ? '' : it.why();
-            it.r.textContent = on ? 'Đang làm…' : why ? '' : '▶ ' + it.go; it.m.textContent = why || it.ok();
+            it.r.textContent = on ? 'Đang làm…' : why ? '' : '▶ ' + (ENGINEER.offer(it.k).btn?.() || it.go); it.m.textContent = why || it.ok();
             it.row.classList.toggle('sim-go', on); it.row.classList.toggle('tl-off', !!why);
           }
         }

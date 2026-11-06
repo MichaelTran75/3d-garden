@@ -70,6 +70,11 @@
       box-shadow: 0 8px 22px rgba(80, 70, 45, .12);
     }
 
+    #toolPopList .tp-opt { margin-top: 8px; }   /* bếp trong xe: mỗi món 1 nút + 1 dòng việc sẽ làm / lý do (ui/xray-lifecycle.js, G 02/11) */
+    #toolPopList button { width: 100%; text-align: left; font-family: inherit; font-size: 12px; font-weight: 600; line-height: 1; color: #403d33; background: rgba(226, 214, 192, 0.5); border: 1px solid rgba(75, 74, 70, .26); border-radius: 8px; padding: 7px 10px; cursor: pointer; }
+    #toolPopList button:disabled { opacity: .45; cursor: default; }
+    #toolPopList .tp-msg { font: 11px/1.4 'Inter', system-ui; color: #5a564b; margin-top: 3px; }
+
     #toolPop.panel {
       background: rgba(226, 214, 192, 0.75) !important;   /* id + class thắng luật 50% chung (.panel … !important) ở cuối tệp · G 18/10 "make these background 75% visible": bảng việc của dụng cụ (máy cắt cỏ, drone, giỏ táo, động cơ) */
     }
@@ -861,7 +866,8 @@
     .sim-panel {
       right: 18px;
       bottom: 64px;
-      width: 300px;
+      width: 525px;   /* G 02/11: rộng thêm 75% (300 → 525) */
+      max-width: calc(100% - 36px);
       box-sizing: border-box;
       max-height: calc(100% - 150px);
       overflow-y: auto;
@@ -871,9 +877,9 @@
       color: #171613;
     }
 
-    /* G 18/10 "make 100% visible": bảng Kỹ sư nền đục 100% (các bảng khác vẫn 50%) */
+    /* G 18/10 "make 100% visible" → G 02/11: trong 10% (nền đục 90%) */
     .panel.sim-panel {
-      background: rgb(226, 214, 192) !important;
+      background: rgba(226, 214, 192, 0.9) !important;
     }
 
     .sim-bar.sim-cmd {

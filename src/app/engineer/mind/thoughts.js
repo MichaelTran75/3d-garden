@@ -5,12 +5,45 @@
         //  · thời tiết: nhãn (rain, cloudy, clear…: lấy 1) · '!nhãn' (không được có) · so số 'wind>=40', 'rad<150', 'rh<60', 'temp<=15' (phải thoả hết).
         //    rad = bức xạ sóng ngắn W/m² giờ hiện tại (Open-Meteo); thiếu số đo thì ước theo Kasten–Czeplak: (910·sin h − 30)·(1 − 0,75·N^3,4).
         //  · điều kiện: trạng thái cảnh / việc đang làm (cowsOut, dogFire, toFish, headwind, tomorrowRain, evHook…) — phải thoả hết, '!' để phủ định.
+        //    Thứ trong tuần theo lịch thật ở Pleiku: mon … sun, weekend · dự báo thứ Bảy tới: weekendRain, weekendClear (chỉ thứ Hai – thứ Sáu, dự báo có 6 ngày).
+        //  · chữ thay trong câu: {temp} {wind} {cloud} {rad} {rh} {tPop} {catch} · thứ hôm nay {dow} / {Dow} (viết hoa đầu câu), ngày mai {tmrDow} / {TmrDow}.
         // Câu càng khớp cụ thể càng được ưu tiên; không lặp 6 câu gần nhất của cùng việc. Sự việc khi câu cá (cá rỉa, dính cá, thả cá, hụt…) nảy ý ngay.
+        // Câu theo thứ (G 05/11 "chèn thêm câu theo ngày trong tuần … theo lịch thật"): tối đa DAY_LINE_MAX câu / ngày, cách nhau ≥ 3 giờ — thứ Hai nào cũng
+        //  nghe đúng câu đó thì nhàm hơn lặp trong ngày.
         const ENG_SLOTS = [   // [từ giờ, mã, tên, biểu tượng]
           [0, 'night', 'Đêm khuya', '🌙'], [5, 'dawn', 'Rạng sáng', '🌄'], [7, 'morning', 'Buổi sáng', '🌤'], [11, 'noon', 'Ban trưa', '☀️'],
           [14, 'afternoon', 'Buổi chiều', '🌥'], [17, 'dusk', 'Chiều tà', '🌇'], [19, 'evening', 'Buổi tối', '🌙'], [22, 'night', 'Đêm khuya', '🌙']
         ];
+        const ENG_DOW = ['Chủ nhật', 'thứ Hai', 'thứ Ba', 'thứ Tư', 'thứ Năm', 'thứ Sáu', 'thứ Bảy'];   // getUTCDay() → tên thứ (giữa câu)
+        const THOUGHT_DAY_NEED = new Set(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun', 'weekend', 'weekendRain', 'weekendClear']);
+        const DAY_LINE_MAX = 2, DAY_LINE_GAP = 3 * 3600000, dayLine = { date: '', n: 0, at: -Infinity };   // câu theo thứ: ≤ 2 câu / ngày, cách nhau ≥ 3 giờ
         const ENG_THOUGHT_LINES = [
+          // ---- theo thứ trong tuần + dự báo những ngày tới (hiếm: DAY_LINE_MAX câu / ngày) ----
+          'breakfast|5-11||mon|Thứ Hai, ngoài phố chắc đang kẹt xe, ở đây chỉ nghe tiếng nước xả đập.',
+          'research|||mon|Đầu tuần, gom số liệu tuần trước của ba nguồn điện vào một bảng.',
+          'pet|||mon|Thứ Hai rồi, tuần mới lại cùng nhau canh trại nhé.',
+          'tea|6-10.5||tue|Sáng thứ Ba, ghi việc trong tuần: tưới luống, kiểm tra máy xe, lau pin.',
+          'garden|||tue|Cây con trồng đầu tuần, tới thứ Bảy là lên lá thật.',
+          'research|||wed|Giữa tuần, chạy lại mô hình lưu lượng với số liệu mới.',
+          'drink|||wed|Thứ Tư, can nước vơi quá nửa, cuối tuần phải đi lấy thêm.',
+          'cook|||thu|Thứ Năm rồi, xem gạo với trứng trong xe còn đủ tới Chủ nhật không.',
+          'fish|14-19.5||thu|Chiều thứ Năm, hồ vắng, chỉ có mình với mấy con cò.',
+          'research|||fri|Thứ Sáu, chép số liệu cả tuần ra báo cáo cho gọn.',
+          'eatfish|16-22||fri|Cá nướng tối thứ Sáu, coi như bữa cuối tuần.',
+          'engine|||fri|Kiểm tra máy hôm thứ Sáu, cuối tuần cần đi chợ thì xe sẵn sàng.',
+          'tea|||sat|Thứ Bảy, ngoài kia người ta nghỉ, ở trại thì việc vẫn đều đều.',
+          'read|18-22||sat|Tối thứ Bảy, đọc thêm một chương nữa cũng không sao.',
+          'fish|||sun|Chủ nhật, câu thong thả, dính hay không cũng được.',
+          'study|18-22||sun|Tối Chủ nhật, soạn trước việc cho cả tuần tới.',
+          'shelter||rain|weekend|Mưa đúng {dow}, ngồi hiên nghe mưa coi như nghỉ cuối tuần.',
+          'wander|||weekend|{Dow}, chắc chợ phiên dưới thị trấn đông lắm.',
+          'bedtime||||Mai {tmrDow}, sáu giờ sáng lại dậy như mọi ngày.',
+          'trim|||tomorrowRain|Mai {tmrDow} có mưa, cắt cho xong hôm nay.',
+          'tea|17-21||tomorrowRain|Dự báo {tmrDow} mưa {tPop}%, tối nay buộc lại dây bạt hiên cho chắc.',
+          'garden|||tomorrowRain|Mai {tmrDow} mưa, khỏi tưới luống một hôm.',
+          'fish|||tomorrowClear|Mai {tmrDow} trời quang, sáng ra hồ sớm hơn mọi ngày.',
+          'study|||weekendRain|Thứ Bảy dự báo mưa, cuối tuần ngồi trong xe viết báo cáo vậy.',
+          'fish|||weekendClear|Dự báo thứ Bảy nắng, cuối tuần ra hồ câu cả buổi chiều.',
           // ---- tự chủ đợt 2: ngắm sao · ngắm mưa · luống cà rốt (engineer/tasks/sky-watch.js, carrot-garden.js) ----
           'stars|||Trời quang, thấy rõ cả dải Ngân Hà.', 'stars|||Tìm chòm Bắc Đẩu… à, đây rồi.', 'stars|||Nằm thế này nghe rõ tiếng dế quanh trại.', 'stars|||Chờ thêm một vệt sao băng nữa rồi đi ngủ.',
           'rainwatch|||Mưa rơi lộp độp trên bạt.', 'rainwatch|||Mép bạt nhỏ giọt thành hàng, đếm không xuể.', 'rainwatch|||Mặt hồ sủi bọt trắng dưới mưa.', 'rainwatch|||Mưa thế này mai cỏ lại lên nhanh.',
@@ -216,6 +249,12 @@
           'read||cold||Lạnh rồi, đọc xong chương này vào xe.',
           'read||rain||Mưa rơi trên bạt hiên, đọc sách thế này dễ chịu.',
           'read|||dogFire|Con chó cứ nhìn gói khoai, không chia được đâu nhé.',
+          // ---- đọc sách ở bàn học (G 02/11: bấm kệ sách / sách trên bàn) ----
+          'deskread|||Lấy cuốn trên kệ ra đọc, gập laptop nghỉ mắt.',
+          'deskread|||Chương này hay, đọc thêm vài trang nữa.',
+          'deskread||rain||Mưa gõ trên mui xe, ngồi bàn đọc sách thật yên.',
+          'deskread||cold||Lạnh, ngồi trong xe đọc sách là nhất.',
+          'deskread|20-21.5|||Đọc thêm chút nữa rồi đi ngủ.',
           'read||clear||Ngẩng lên là thấy sao, đọc xong chương này ngắm một lúc.',
           // ---- học bài buổi tối, laptop mở nhạc ----
           'music|||Bật nhạc nhẹ cho dễ tập trung.',
@@ -305,7 +344,8 @@
             if (m) wc.push([m[1], m[2], +m[3]]); else if (tk[0] === '!') wc.push(['!', tk.slice(1)]); else wo.push(tk);
           }
           for (const tk of need ? need.split(',') : []) nd.push(tk[0] === '!' ? [true, tk.slice(1)] : [false, tk]);
-          return { act, text, tw, tc, wo, wc, nd, ev: nd.some(([, n]) => n.startsWith('ev')), w: 1 + (tw.length || tc.length ? 3 : 0) + (wo.length || wc.length ? 5 : 0) + (nd.length ? 4 : 0) };
+          return { act, text, tw, tc, wo, wc, nd, ev: nd.some(([, n]) => n.startsWith('ev')), w: 1 + (tw.length || tc.length ? 3 : 0) + (wo.length || wc.length ? 5 : 0) + (nd.length ? 4 : 0),
+            day: nd.some(([, n]) => THOUGHT_DAY_NEED.has(n)) || /\{(dow|Dow|tmrDow|TmrDow)\}/.test(text) };   // câu theo thứ: hiếm (DAY_LINE_MAX / ngày)
         }
         const _thoughtCmp = (v, op, x) => op === '<' ? v < x : op === '<=' ? v <= x : op === '>' ? v > x : v >= x;
         const THOUGHT_NEED = {   // trạng thái cảnh & việc đang làm
@@ -320,7 +360,11 @@
           tomorrowCloudy: ctx => !!ctx.tmr && ctx.tmr.code < 51 && ctx.tmr.pop < 60 && (ctx.tmr.code === 3 || ctx.tmr.code === 45 || ctx.tmr.code === 48),
           tomorrowClear: ctx => !!ctx.tmr && ctx.tmr.code <= 1 && ctx.tmr.pop < 30,
           evCast: ctx => ctx.event === 'cast', evBite: ctx => ctx.event === 'bite', evHook: ctx => ctx.event === 'hook', evRelease: ctx => ctx.event === 'release', evKeep: ctx => ctx.event === 'keep',
-          evMiss: ctx => ctx.event === 'miss', evDrift: ctx => ctx.event === 'drift', evRebait: ctx => ctx.event === 'rebait'
+          evMiss: ctx => ctx.event === 'miss', evDrift: ctx => ctx.event === 'drift', evRebait: ctx => ctx.event === 'rebait',
+          sun: ctx => ctx.dow === 0, mon: ctx => ctx.dow === 1, tue: ctx => ctx.dow === 2, wed: ctx => ctx.dow === 3, thu: ctx => ctx.dow === 4, fri: ctx => ctx.dow === 5, sat: ctx => ctx.dow === 6,
+          weekend: ctx => ctx.dow === 0 || ctx.dow === 6,
+          weekendRain: ctx => !!ctx.wk && (ctx.wk.code >= 51 || ctx.wk.pop >= 60),
+          weekendClear: ctx => !!ctx.wk && ctx.wk.code <= 1 && ctx.wk.pop < 30
         };
         for (const l of ENG_THOUGHT_LINES) for (const [, n] of l.nd) if (!THOUGHT_NEED[n]) console.warn('Suy nghĩ Engineer: thiếu điều kiện', n, l.text);
         function thoughtFits(l, act, ctx) {
@@ -361,14 +405,23 @@
           if (cur && Array.isArray(hourly?.time)) { const i = hourly.time.findIndex(x => x.slice(0, 13) === cur.time.slice(0, 13)); const v = i >= 0 ? hourly.shortwave_radiation?.[i] : null; if (Number.isFinite(v)) rad = v; }
           if (rad === null) rad = Math.max(0, 910 * Math.max(0, sunElevSin) - 30) * (1 - 0.75 * Math.pow((cloud ?? 50) / 100, 3.4));
           let tmr = null; const daily = st.data?.daily, today = st.data?.current?.time?.slice(0, 10);
-          if (today && Array.isArray(daily?.time)) { const i = daily.time.findIndex(d => d > today); if (i >= 0 && Number.isFinite(daily.weather_code?.[i])) tmr = { code: daily.weather_code[i], pop: Number.isFinite(daily.precipitation_probability_max?.[i]) ? daily.precipitation_probability_max[i] : 0 }; }
+          const dayOf = i => ({ code: daily.weather_code[i], pop: Number.isFinite(daily.precipitation_probability_max?.[i]) ? daily.precipitation_probability_max[i] : 0, dow: new Date(daily.time[i] + 'T12:00:00Z').getUTCDay() });
+          let wk = null;   // dự báo thứ Bảy tới (sau hôm nay, trong 6 ngày dự báo)
+          if (today && Array.isArray(daily?.time)) {
+            const i = daily.time.findIndex(d => d > today); if (i >= 0 && Number.isFinite(daily.weather_code?.[i])) tmr = dayOf(i);
+            const j = daily.time.findIndex(d => d > today && new Date(d + 'T12:00:00Z').getUTCDay() === 6); if (j >= 0 && Number.isFinite(daily.weather_code?.[j])) wk = dayOf(j);
+          }
+          const pk = new Date(now + SUN_TZ * 3600000);   // lịch thật ở Pleiku (cùng đồng hồ cảnh — core/sky-sun-moon.js sceneDay)
           const wxIcon = tags.has('thunder') ? '⛈' : tags.has('rain') ? '🌧' : tags.has('fog') ? '🌫' : tags.has('wind') ? '💨' : tags.has('cloudy') ? '☁️' : sun < 0 ? '✨' : '☀️';
-          return { h, slot: slot[1], slotName: slot[2], slotIcon: slot[3], tags, temp, wind, cloud, rh, sun, rad, tmr, rainLong: rainSinceAt !== null && now - rainSinceAt >= 3600000, wxIcon, event: null };
+          return { h, slot: slot[1], slotName: slot[2], slotIcon: slot[3], tags, temp, wind, cloud, rh, sun, rad, tmr, wk, dow: pk.getUTCDay(), date: pk.toISOString().slice(0, 10), now,
+            rainLong: rainSinceAt !== null && now - rainSinceAt >= 3600000, wxIcon, event: null };
         }
         const thoughtRecent = {};
         function pickThought(act, ctx) {
           const recent = thoughtRecent[act] || (thoughtRecent[act] = []);
-          const fits = l => thoughtFits(l, act, ctx);
+          if (dayLine.date !== ctx.date) { dayLine.date = ctx.date; dayLine.n = 0; }
+          const dayOk = dayLine.n < DAY_LINE_MAX && ctx.now - dayLine.at >= DAY_LINE_GAP;
+          const fits = l => (!l.day || dayOk) && thoughtFits(l, act, ctx);
           let pool = ENG_THOUGHT_LINES.filter(l => fits(l) && !recent.includes(l.text));
           if (!pool.length) { recent.length = 0; pool = ENG_THOUGHT_LINES.filter(fits); }
           if (ctx.event) { const evPool = pool.filter(l => l.ev); if (evPool.length) pool = evPool; }   // vừa có sự việc khi câu: nói đúng chuyện đó
@@ -376,12 +429,15 @@
           let r = Math.random() * pool.reduce((s, l) => s + l.w, 0), pick = pool[0];   // câu đúng giờ + đúng thời tiết + đúng việc được ưu tiên rõ rệt
           for (const l of pool) { r -= l.w; if (r <= 0) { pick = l; break; } }
           recent.push(pick.text); if (recent.length > 6) recent.shift();
+          if (pick.day) { dayLine.n++; dayLine.at = ctx.now; }
           return pick.text;
         }
         const fillThought = (text, ctx) => {
           const num = v => Number.isFinite(v) ? v.toLocaleString('vi-VN', { maximumFractionDigits: 1 }) : '—', int = v => Number.isFinite(v) ? Math.round(v) : '—';
+          const up = s => s[0].toUpperCase() + s.slice(1), dn = ENG_DOW[ctx.dow], tn = ENG_DOW[ctx.tmr ? ctx.tmr.dow : (ctx.dow + 1) % 7];   // ngày mai: thứ của ngày dự báo (thành phố thời tiết khác múi giờ)
           return text.replace('{temp}', num(ctx.temp)).replace('{wind}', num(ctx.wind)).replace('{cloud}', ctx.cloud === null ? '—' : Math.round(ctx.cloud))
-            .replace('{rad}', int(ctx.rad)).replace('{rh}', int(ctx.rh)).replace('{tPop}', ctx.tmr ? int(ctx.tmr.pop) : '—').replace('{catch}', angling.catches);
+            .replace('{rad}', int(ctx.rad)).replace('{rh}', int(ctx.rh)).replace('{tPop}', ctx.tmr ? int(ctx.tmr.pop) : '—').replace('{catch}', angling.catches)
+            .replace('{dow}', dn).replace('{Dow}', up(dn)).replace('{tmrDow}', tn).replace('{TmrDow}', up(tn));
         };
         const clockText = h => { const hh = Math.floor(h), mm = Math.floor((h - hh) * 60); return String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0'); };
 
@@ -420,6 +476,7 @@
           const atStation = !!e.inVan && !!e.van && !!e.van.station;
           if (e.inVan || e.phase === 'van') {
             if (e.act === 'research') { act = atStation ? 'research' : 'walk'; label = atStation ? 'Nghiên cứu' : 'Vào bàn làm việc'; }
+            else if (e.act === 'deskread') { act = atStation ? 'deskread' : 'walk'; label = atStation ? 'Đọc sách' : 'Vào bàn đọc sách'; }
             else if (e.act === 'music') { act = atStation ? (Math.random() < 0.5 ? 'music' : 'study') : 'evening'; label = atStation ? 'Học bài, nghe nhạc' : 'Vào xe học bài'; }
             else if (e.act === 'breakfast') { act = 'breakfast'; label = 'Ăn sáng'; }
             else if (e.act === 'shower') { act = 'shower'; label = 'Giờ tắm'; }

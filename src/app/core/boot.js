@@ -115,6 +115,9 @@
         scene.background = new THREE.Color(0xE2D6C0);
         scene.fog = new THREE.Fog(0xE2D6C0, 280, 700);
         const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 4000); camera.zoom = 0.5;   // mặc định: zoom-out tối đa khi mở trang
+        // LỚP NÉT (G 05/11, ống kính điện ảnh core/lens.js): nhãn, viền rê chuột, bong bóng nằm ở lớp riêng — lúc mờ hậu cảnh chúng vẽ SAU lớp mờ nên vẫn nét;
+        //  ngoài lúc đó camera thấy lớp này như lớp thường. Vật đặt thẳng (o.layers.set) · nhóm có con sinh giữa chừng thì đưa vào sharpRoots (duyệt mỗi khung)
+        const LAYER_SHARP = 29, sharpRoots = []; camera.layers.enable(LAYER_SHARP);
 
         const hemi = new THREE.HemisphereLight(0xffffff, 0xb6ab8e, 0.82); scene.add(hemi);
         const amb = new THREE.AmbientLight(0xffffff, 0.28); scene.add(amb);
