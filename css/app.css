@@ -1,0 +1,1174 @@
+    html,
+    body {
+      margin: 0;
+      height: 100%;
+      background: #E2D6C0;
+    }
+
+    #wrap {
+      position: relative;
+      width: 100%;
+      height: 100vh;
+      overflow: hidden;
+      font-family: 'Inter', system-ui, sans-serif;
+      background: #E2D6C0;
+      color: #2e2a22;
+      user-select: none;
+    }
+
+    #scene {
+      position: absolute;
+      inset: 0;
+    }
+
+    #scene canvas {
+      display: block;
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    .mast-glass {
+      position: absolute;
+      z-index: 2;
+      pointer-events: none;
+      border-radius: 7px;
+      overflow: hidden;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      background: rgba(226, 214, 192, .12);
+    }
+
+    .mast-glass canvas {
+      display: block;
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    .ui {
+      position: absolute;
+      z-index: 5;
+    }
+
+    .title {
+      top: 16px;
+      left: 18px;
+      font-size: 14px;
+      color: #5a5644;
+    }
+
+    .title b {
+      color: #34322c;
+      font-weight: 700;
+    }
+
+    .panel {
+      background: rgba(226, 214, 192, 0.5);
+      backdrop-filter: blur(3px);
+      border: 1px solid rgba(75, 74, 70, .24);
+      border-radius: 10px;
+      padding: 12px 14px;
+      box-shadow: 0 8px 22px rgba(80, 70, 45, .12);
+    }
+
+    #toolPopList .tp-opt { margin-top: 8px; }   /* bếp trong xe: mỗi món 1 nút + 1 dòng việc sẽ làm / lý do (ui/xray-lifecycle.js) */
+    #toolPopList button { width: 100%; text-align: left; font-family: inherit; font-size: 12px; font-weight: 600; line-height: 1; color: #403d33; background: rgba(226, 214, 192, 0.5); border: 1px solid rgba(75, 74, 70, .26); border-radius: 8px; padding: 7px 10px; cursor: pointer; }
+    #toolPopList button:disabled { opacity: .45; cursor: default; }
+    #toolPopList .tp-msg { font: 11px/1.4 'Inter', system-ui; color: #5a564b; margin-top: 3px; }
+
+    #toolPop.panel {
+      background: rgba(226, 214, 192, 0.75) !important;   /* id + class thắng luật 50% chung (.panel … !important) ở cuối tệp · nền này hiện 75 %: bảng việc của dụng cụ (máy cắt cỏ, drone, giỏ táo, động cơ) */
+    }
+
+    .panel.tl {
+      top: 46px;
+      left: 18px;
+      max-width: 240px;
+    }
+
+    .panel.tr {
+      top: 14px;
+      right: 18px;
+      width: 340px;
+      box-sizing: border-box;
+      max-height: calc(100% - 110px);
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+
+    .ghc-assets {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+      line-height: 1.5;
+    }
+
+    .ghc-assets caption {
+      text-align: left;
+      font-weight: 700;
+      margin: 12px 0 5px;
+    }
+
+    .ghc-assets th,
+    .ghc-assets td {
+      padding: 5px 0;
+      border-bottom: 1px solid rgba(75, 74, 70, .18);
+      text-align: left;
+    }
+
+    .ghc-assets td:last-child,
+    .ghc-assets th:last-child {
+      text-align: right;
+      white-space: nowrap;
+      padding-left: 8px;
+    }
+
+    .ghc-assets small {
+      display: block;
+      color: #5a5644;
+    }
+
+    .ghc-note {
+      font-size: 10px;
+      line-height: 1.5;
+      color: #403d33;
+      margin: 9px 0 0;
+    }
+
+    .ghc-note a {
+      color: inherit;
+      text-underline-offset: 2px;
+    }
+
+    .ghc-note a:focus-visible {
+      outline: 2px solid #514b39;
+      outline-offset: 3px;
+    }
+
+    .ph {
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: .6px;
+      color: #928c72;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+    }
+
+    .big {
+      font-size: 24px;
+      font-weight: 800;
+      color: #2f2d26;
+      line-height: 1;
+      margin: 2px 0 7px;
+    }
+
+    .sub {
+      font-size: 12px;
+      line-height: 1.5;
+      color: #5a5644;
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      font-size: 13px;
+      margin: 5px 0;
+      color: #403d33;
+    }
+
+    .dot {
+      width: 11px;
+      height: 11px;
+      border-radius: 3px;
+      margin-right: 8px;
+      flex: none;
+    }
+
+    .val {
+      margin-left: auto;
+      font-weight: 700;
+      color: #2f2d26;
+    }
+
+    /* Thanh nút TỐI GIẢN (nút tối giản, trừ chữ kỹ sư): 1 viên thuốc, nút chỉ có biểu tượng (tên ở chú thích title / aria-label),
+       riêng "Kỹ sư" giữ chữ; % zoom ở chú thích */
+    .toolbar {
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      margin: 0;
+      padding: 4px;
+      border-radius: 12px;
+      z-index: 6;
+    }
+
+    /* thanh trượt NÉT VIỀN XE: ngay trên thanh nút (cao 40 px, cách đáy 16 px); tối giản như thanh giờ trăng — 1 vạch mảnh + nút đứng nhỏ,
+       không nền; ban ngày đen, ban đêm trắng sáng (.night bật theo nightFactor, loop/main-loop-rest.js) */
+    .line-bar {
+      bottom: 62px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 2px 4px;
+      z-index: 6;
+      color: #111;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      transition: color 0.6s;
+    }
+
+    .line-bar.night {
+      color: #f6f4ee;
+    }
+
+    .line-bar i,
+    .rl i {
+      font-size: 13px;
+      opacity: 0.8;
+    }
+
+    .line-bar i {
+      font-size: 39px;   /* icon xe ×3 (đặt sau luật chung 13px) */
+    }
+
+    .line-bar input,
+    .rl input {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 160px;
+      height: 16px;
+      margin: 0;
+      background: transparent;
+      color: inherit;
+      cursor: pointer;
+    }
+
+    .line-bar input::-webkit-slider-runnable-track,
+    .rl input::-webkit-slider-runnable-track {
+      height: 1px;
+      background: color-mix(in srgb, currentColor 55%, transparent);
+    }
+
+    .line-bar input::-moz-range-track,
+    .rl input::-moz-range-track {
+      height: 1px;
+      background: color-mix(in srgb, currentColor 55%, transparent);
+    }
+
+    .line-bar input::-webkit-slider-thumb,
+    .rl input::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 4px;
+      height: 13px;
+      margin-top: -6px;
+      border: 0;
+      border-radius: 2px;
+      background: currentColor;
+    }
+
+    .line-bar input::-moz-range-thumb,
+    .rl input::-moz-range-thumb {
+      width: 4px;
+      height: 13px;
+      border: 0;
+      border-radius: 2px;
+      background: currentColor;
+    }
+
+    .line-bar input:focus-visible {
+      outline: 1px dashed currentColor;
+      outline-offset: 2px;
+    }
+
+    .line-bar output,
+    .rl output {
+      min-width: 22px;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .toolbar button {
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1;
+      color: #403d33;
+      background: transparent;
+      border: 0;
+      border-radius: 8px;
+      width: 34px;
+      height: 32px;
+      padding: 0;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    .toolbar button i {
+      font-size: 17px;
+    }
+
+    .toolbar button.tb-text {
+      width: auto;
+      padding: 0 11px 0 9px;
+    }
+
+    .toolbar button .tb-emoji {
+      font-size: 17px;
+      line-height: 1;
+    }
+
+    #zoomPct span {
+      display: none;
+    }
+
+    .toolbar button:focus-visible {
+      outline: 2px solid #514b39;
+      outline-offset: 1px;
+    }
+
+    .hint {
+      bottom: 64px;
+      left: 18px;
+      font-size: 11.5px;
+      color: #8a836c;
+    }
+
+    #loading {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+      align-items: center;
+      justify-content: center;
+      z-index: 8;
+      color: #6a6450;
+      font-size: 14px;
+      transition: opacity .4s ease;
+    }
+
+    #loading.done {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    #ldPct {
+      font-size: 34px;
+      font-weight: 600;
+      line-height: 1;
+      letter-spacing: .5px;
+      font-variant-numeric: tabular-nums;
+      color: #5b5543;
+    }
+
+    #ldBar {
+      width: 170px;
+      height: 3px;
+      border-radius: 2px;
+      background: rgba(106, 100, 80, .18);
+      overflow: hidden;
+    }
+
+    #ldBar i {
+      display: block;
+      height: 100%;
+      background: #6a6450;
+      transform: scaleX(0);
+      transform-origin: 0 50%;
+    }
+
+    #ldTxt {
+      font-size: 12.5px;
+      color: #7d7660;
+    }
+
+    #err {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      display: none;
+      z-index: 9;
+      max-width: 80%;
+      text-align: center;
+      color: #7a3b2e;
+      background: rgba(226, 214, 192, 0.5);
+      border: 1px solid rgba(120, 60, 46, .3);
+      border-radius: 10px;
+      padding: 16px;
+      font-size: 13px;
+    }
+
+    @media (max-width:560px) {
+      .panel.tl {
+        max-width: 170px
+      }
+
+      .big {
+        font-size: 20px
+      }
+    }
+
+    /* Thanh tổng quan TỐI GIẢN (bảng tối giản): 1 dải — GHC + công suất · giờ · thời tiết hiện tại + chọn thành phố ·
+       5 ngày (thứ, biểu tượng, nhiệt độ cao; thấp + mô tả ở chú thích) · ⓘ mở chi tiết nhà máy, trạng thái dữ liệu, ↻, ghi công. Không viền, không vạch chia. */
+    .weather-dock {
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 22px;
+      max-width: calc(100% - 24px);
+      box-sizing: border-box;
+      padding: 8px 10px 8px 16px;
+      color: #161511;
+      border: none;
+      border-radius: 14px;
+      box-shadow: none;
+    }
+
+    .dock-ghc,
+    .weather-time {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.15;
+      white-space: nowrap;
+    }
+
+    .dock-name {
+      font-size: 10px;
+      color: #5a5644;
+    }
+
+    .dock-name b {
+      color: #2f2d26;
+      margin-right: 4px;
+    }
+
+    .overview-capacity {
+      color: #2f2d26;
+      font: 750 20px/1.1 system-ui, sans-serif;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .overview-capacity small {
+      margin-left: 3px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #5a5644;
+    }
+
+    #clock {
+      color: #000000;
+      font: 650 20px/1.1 system-ui, sans-serif;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: .3px;
+    }
+
+    #weather-date {
+      font-size: 10px;
+      color: #5a5644;
+    }
+
+    .dock-now {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      white-space: nowrap;
+    }
+
+    #weather-current-icon {
+      font-size: 22px;
+      line-height: 1;
+    }
+
+    #weather-now-temp {
+      font: 650 18px/1 system-ui, sans-serif;
+      font-variant-numeric: tabular-nums;
+    }
+
+    #weather-city {
+      max-width: 112px;
+      padding: 3px 2px;
+      color: #4e473a;
+      background: transparent;
+      border: none;
+      border-radius: 6px;
+      font: 500 11px/1.2 system-ui, sans-serif;
+      cursor: pointer;
+    }
+
+    #weather-city:focus-visible,
+    #weather-refresh:focus-visible,
+    .dock-more summary:focus-visible {
+      outline: 2px solid #514b39;
+      outline-offset: 2px;
+    }
+
+    #weather-forecast {
+      display: flex;
+      gap: 12px;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    .weather-day {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 24px;
+      line-height: 1.1;
+    }
+
+    .weather-day-label {
+      font-size: 9.5px;
+      color: #6a6250;
+    }
+
+    .weather-day-icon {
+      margin: 1px 0;
+      font-size: 15px;
+    }
+
+    .weather-day-range {
+      font-size: 10.5px;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .weather-day-range span {
+      display: none;
+    }
+
+    .dock-more {
+      position: relative;
+    }
+
+    .dock-more summary {
+      list-style: none;
+      display: flex;
+      padding: 4px;
+      color: #6a6250;
+      font-size: 17px;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    .dock-more summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .dock-more[open] summary,
+    .dock-more summary:hover {
+      color: #2f2d26;
+    }
+
+    .dock-more-body {
+      position: absolute;
+      top: calc(100% + 12px);
+      right: -10px;
+      width: 260px;
+      box-sizing: border-box;
+      padding: 12px 14px;
+      background: rgba(226, 214, 192, .94);
+      border-radius: 12px;
+      box-shadow: 0 8px 22px rgba(80, 70, 45, .16);
+    }
+
+    .dock-more-body .sub {
+      font-size: 11px;
+    }
+
+    .overview-note {
+      color: #5a5644;
+      font-size: 10px;
+      margin: 6px 0 8px;
+    }
+
+    .weather-foot {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 10px;
+      line-height: 1.3;
+      color: #615643;
+    }
+
+    #weather-status {
+      flex: 1;
+      min-width: 0;
+    }
+
+    #weather-refresh {
+      border: 0;
+      background: transparent;
+      color: #514733;
+      cursor: pointer;
+      padding: 3px 5px;
+      font-size: 15px;
+      line-height: 1;
+    }
+
+    #weather-refresh:disabled {
+      opacity: .4;
+      cursor: wait;
+    }
+
+    .weather-dock[data-stale="true"] #weather-status {
+      color: #85532d;
+    }
+
+    .dock-credits {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px 10px;
+      margin-top: 8px;
+      font-size: 10px;
+    }
+
+    .dock-credits a {
+      color: #514733;
+      text-underline-offset: 2px;
+    }
+
+    .dock-credits-3d {
+      border-top: 1px solid rgba(60, 53, 39, .28);
+      padding-top: 8px;
+    }
+
+    .dock-credits .credit-head {
+      flex-basis: 100%;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      text-decoration: none;
+    }
+
+    #weather-mast {
+      position: absolute;
+      z-index: 4;
+      left: 0;
+      top: 0;
+      visibility: hidden;
+      width: 166px;
+      box-sizing: border-box;
+      padding: 7px 10px;
+      background: rgba(226, 214, 192, 0.5);
+      color: #171610;
+      border: 1px solid rgba(60, 53, 39, .38);
+      border-radius: 7px;
+      font: 12px/1.45 system-ui, sans-serif;
+      pointer-events: none;
+      box-shadow: 0 3px 12px rgba(40, 34, 22, .1);
+    }
+
+    #weather-mast::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      height: 14px;
+      border-left: 1px solid #5b5140;
+    }
+
+    #weather-mast-city {
+      display: block;
+      font-size: 10px;
+      font-weight: 650;
+      color: #5a5040;
+      margin-bottom: 2px;
+    }
+
+    .weather-reading {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      white-space: nowrap;
+    }
+
+    .weather-reading strong {
+      color: #000000;
+      font-weight: 650;
+      font-variant-numeric: tabular-nums;
+    }
+
+    #weather-mast-status {
+      display: block;
+      font-size: 9px;
+      color: #6f6048;
+      margin-top: 2px;
+    }
+
+    @media (max-width: 1450px) {
+      .title {
+        top: 174px;
+      }
+
+      .panel.tr {
+        top: 168px;
+        max-height: calc(100% - 264px);
+      }
+
+      .panel.tl {
+        top: 210px;
+      }
+
+      #pickPanel {
+        top: 76px !important;
+      }
+    }
+
+    @media (max-width: 1000px) {
+      .title {
+        top: 174px;
+        left: 12px;
+        font-size: 12px;
+      }
+
+      .panel.tr {
+        top: 198px;
+        right: 12px;
+        width: 320px;
+        max-height: calc(100% - 294px);
+      }
+
+      .panel.tl {
+        top: 246px;
+      }
+
+      #pickPanel {
+        top: 76px !important;
+      }
+    }
+
+    @media (max-width: 700px) {
+      .title {
+        top: 171px;
+        left: 12px;
+        font-size: 11px;
+      }
+
+      .panel.tr {
+        top: 198px;
+        left: 12px;
+        right: 12px;
+        width: auto;
+        max-width: none;
+        max-height: min(340px, calc(100% - 304px));
+        padding: 9px 11px;
+      }
+
+      .toolbar {
+        bottom: 10px;
+      }
+
+      .line-bar {
+        bottom: 56px;
+      }
+
+      .panel.tl {
+        display: none;
+      }
+
+      .hint {
+        display: none;
+      }
+
+      #pickPanel {
+        top: 118px !important;
+        right: 12px !important;
+      }
+
+      #weather-mast {
+        width: 150px;
+        font-size: 11px;
+      }
+    }
+
+    /* 50% card backgrounds; text/icons retain their own contrast. */
+    .panel,
+    .weather-dock,
+    .toolbar,
+    #weather-mast,
+    #coordTip,
+    #err {
+      background: rgba(226, 214, 192, 0.5) !important;
+      backdrop-filter: none;
+    }
+
+    .toolbar button:hover {
+      background: rgba(226, 214, 192, 0.85);
+    }
+
+    #pickEditRow input,
+    #pickPanel button {
+      background: rgba(226, 214, 192, 0.5);
+    }
+
+    .toolbar button.active,
+    .toolbar #btnSim.tl-on {
+      background: rgba(52, 50, 44, 0.55);
+      color: #E2D6C0;
+    }
+
+    /* Accessible weather readings remain available; the visible mast label is in the 3D label group. */
+    #weather-mast {
+      visibility: visible !important;
+      width: 1px !important;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      white-space: nowrap;
+      clip-path: inset(50%);
+      border: 0;
+      box-shadow: none;
+      pointer-events: none;
+    }
+
+    #weather-mast::after {
+      display: none;
+    }
+
+    /* Màn hẹp: dải xuống 2 hàng — GHC · giờ · thời tiết hiện tại ở trên, 5 ngày dàn đều ở dưới */
+    @media (max-width: 760px) {
+      .weather-dock {
+        top: 8px;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 8px 14px;
+        width: calc(100% - 24px);
+        padding: 8px 12px;
+      }
+
+      #weather-forecast {
+        order: 5;
+        flex-basis: 100%;
+        justify-content: space-around;
+      }
+
+      .dock-more-body {
+        right: -4px;
+      }
+    }
+
+    /* Bảng chỉ số kỹ sư kiểu The Sims 4 (ui/sim-needs.js): góc dưới phải, trên thanh công cụ */
+    .sim-panel {
+      right: 18px;
+      bottom: 64px;
+      width: 525px;   /* rộng thêm 75% (300 → 525) */
+      max-width: calc(100% - 36px);
+      box-sizing: border-box;
+      max-height: calc(100% - 150px);
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      padding: 12px 14px 10px;
+      font: 12px/1.4 system-ui, sans-serif;
+      color: #171613;
+    }
+
+    /* → trong 10% (nền đục 90%) */
+    .panel.sim-panel {
+      background: rgba(226, 214, 192, 0.9) !important;
+    }
+
+    .sim-bar.sim-cmd {
+      cursor: pointer;
+      border-radius: 6px;
+    }
+
+    .sim-bar.sim-cmd:hover {
+      background: rgba(23, 22, 19, 0.07);
+    }
+
+    .sim-bar.sim-go {
+      box-shadow: inset 0 0 0 1.5px #453668;
+    }
+
+    .sim-panel[hidden] {
+      display: none;
+    }
+
+    /* bảng Engineer (nhu cầu) và bảng Tools gộp 1 khung #engPanel, 2 thẻ ở đầu kiểu nút chia đoạn */
+    .eng-tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+      margin: -2px -4px 10px;
+      padding: 3px;
+      border-radius: 8px;
+      background: rgba(23, 22, 19, 0.08);
+    }
+
+    .eng-tabs button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      border: 0;
+      border-radius: 6px;
+      padding: 5px 6px;
+      background: transparent;
+      color: #4a4639;
+      font: 600 12px system-ui, sans-serif;
+      cursor: pointer;
+    }
+
+    .eng-tabs button .ti {
+      font-size: 14px;
+    }
+
+    .eng-tabs button[aria-selected="true"] {
+      background: rgb(246, 240, 228);
+      color: #171613;
+      box-shadow: 0 1px 3px rgba(60, 50, 30, .2);
+    }
+
+    .eng-tabs button:hover:not([aria-selected="true"]) {
+      background: rgba(23, 22, 19, 0.06);
+    }
+
+    .eng-tabs button:focus-visible {
+      outline: 2px solid #514b39;
+      outline-offset: 1px;
+    }
+
+    .sim-head {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      margin-bottom: 7px;
+    }
+
+    .sim-plumbob {
+      width: 12px;
+      height: 18px;
+      flex: none;
+      clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+      background: #47651e;
+      transition: background .6s;
+    }
+
+    .sim-who {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      line-height: 1.2;
+    }
+
+    #simDoing,
+    #toolsDoing {
+      font-size: 10.5px;
+      color: #2d2b22;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .sim-emo {
+      margin-left: auto;
+      font-weight: 650;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    #simClose,
+    #toolsClose {
+      border: 0;
+      background: transparent;
+      color: #2d2b22;
+      cursor: pointer;
+      font-size: 13px;
+      padding: 2px 4px;
+    }
+
+    .sim-moods {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-bottom: 9px;
+    }
+
+    .sim-mood {
+      font-size: 10px;
+      padding: 2px 6px;
+      border: 1px solid;
+      border-left-width: 3px;
+      border-radius: 5px;
+      color: #201e19;
+    }
+
+    .sim-panel .ph {
+      margin: 8px 0 4px;
+      color: #494639;
+    }
+
+    .sim-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2px 14px;
+    }
+
+    .sim-bar {
+      display: grid;
+      grid-template-columns: 16px 1fr auto;
+      align-items: center;
+      column-gap: 5px;
+      margin: 3px 0;
+    }
+
+    .sim-bar i {
+      font-size: 14px;
+      color: #2d2b22;
+    }
+
+    .sim-lab {
+      font-size: 11px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .sim-r {
+      font-size: 10px;
+      color: #2d2b22;
+      white-space: nowrap;
+    }
+
+    .sim-track {
+      grid-column: 2 / -1;
+      height: 6px;
+      border-radius: 3px;
+      background: rgba(38, 37, 35, .2);
+      overflow: hidden;
+    }
+
+    .sim-fill {
+      display: block;
+      height: 100%;
+      width: 0;
+      border-radius: 3px;
+      transition: width .8s, background .8s;
+    }
+
+    @media (max-width: 700px) {
+      .sim-panel {
+        left: 12px;
+        right: 12px;
+        bottom: 88px;   /* trên thanh trượt nét viền xe (62–82 px), không đè dòng cuối bảng */
+        width: auto;
+        max-height: calc(100% - 200px);
+      }
+    }
+
+    /* NÚT + BẢNG TOOLS (ui/tools-panel.js): rê chuột vào nút Engineer ⇒ nút Tools bật lên ngay phía trên (lề dưới 8 px nối vùng rê chuột; chỉ hiện
+       lúc rê / Tab tới — không đè lâu lên thanh nét viền xe); màn cảm ứng: nút Tools nhỏ ở đầu bảng Engineer. Bảng Tools cùng chỗ, cùng cỡ bảng Engineer;
+       đang mở bảng Tools thì nút Engineer sáng như đang chọn (.tl-on) */
+    .tb-eng {
+      position: relative;
+      display: flex;
+    }
+
+    .tb-sub {
+      position: absolute;
+      left: 50%;
+      bottom: 100%;
+      transform: translateX(-50%);
+      padding-bottom: 8px;
+      display: none;
+    }
+
+    .tb-eng:hover .tb-sub {
+      display: block;
+    }
+
+    .tb-eng:has(:focus-visible) .tb-sub {
+      display: block;
+    }
+
+    .toolbar .tb-sub button {
+      width: auto;
+      height: 30px;
+      padding: 0 12px 0 10px;
+      background: rgb(226, 214, 192);
+      border: 1px solid rgba(75, 74, 70, .24);
+      border-radius: 10px;
+      box-shadow: 0 6px 16px rgba(80, 70, 45, .14);
+    }
+
+    .toolbar .tb-sub button:hover {
+      background: rgb(236, 227, 210);
+    }
+
+    .toolbar .tb-sub button.active {
+      background: rgb(52, 50, 44);
+      color: #E2D6C0;
+    }
+
+    .tl-ic {
+      font-size: 17px;
+      color: #2d2b22;
+    }
+
+    #toolsClose {
+      margin-left: auto;
+    }
+
+    .sim-bar.tl-row {
+      padding: 4px 6px;
+      margin: 2px -6px;
+    }
+
+    /* nhóm dụng cụ: tiêu đề nhóm + đường kẻ ngăn phía trên (cả nhóm đầu: tách khỏi dòng hướng dẫn của bảng) */
+    .ph.tl-sec {
+      margin: 7px 0 2px;
+      padding-top: 6px;
+      border-top: 1px solid rgba(60, 53, 39, .28);
+    }
+
+    .tl-msg {
+      grid-column: 2 / -1;
+      font-size: 10.5px;
+      line-height: 1.35;
+      color: #3d3a30;
+    }
+
+    .tl-row .sim-r {
+      font-weight: 650;
+    }
+
+    .sim-bar.tl-off {
+      cursor: default;
+    }
+
+    .sim-bar.tl-off:hover {
+      background: none;
+    }
+
+    .tl-off i,
+    .tl-off .sim-lab {
+      opacity: .45;
+    }
+
+    /* RADIO TÁP-LÔ (van/interior/radio.js): bảng dò đài nền 75% như bảng dụng cụ */
+    #radioPop.panel { position: absolute; z-index: 30; width: 210px; background: rgba(226, 214, 192, 0.75) !important; }
+    #radioPop .ph { display: flex; justify-content: space-between; align-items: center; }
+    #radioPop button { font: 600 12px/1 'Inter', system-ui; color: #403d33; background: rgba(226, 214, 192, 0.5); border: 1px solid rgba(75, 74, 70, .26); border-radius: 8px; padding: 6px 9px; cursor: pointer; }
+    #radioPop button.on { background: #403d33; color: #f6f4ee; }
+    #radioPop .rb { display: flex; gap: 6px; margin-top: 8px; }
+    #radioPop .rb button { flex: 1; }
+    #radioPop #rWave { display: block; width: 100%; height: 24px; margin: 4px 0 2px; }
+#radioPop .rl { display: flex; align-items: center; gap: 8px; margin-top: 6px; color: #111; font-size: 11px; font-weight: 500; letter-spacing: 0.04em; }
+    #radioPop .rl input { flex: 1; width: auto; }
+    #radioPop .rl output { min-width: 38px; }
+    #rName { font: 12px/1.4 'Inter', system-ui; color: #403d33; min-height: 17px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }

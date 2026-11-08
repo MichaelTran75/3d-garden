@@ -1,0 +1,13 @@
+{
+  "name": "garden-glb-compress",
+  "private": true,
+  "type": "module",
+  "description": "Nén mẫu 3D src/models bằng glTF-Transform — xem README.md",
+  "dependencies": {
+    "@gltf-transform/core": "4.5.1",
+    "@gltf-transform/extensions": "4.5.1",
+    "@gltf-transform/functions": "4.5.1",
+    "meshoptimizer": "1.2.0",
+    "sharp": "0.35.5"
+  }
+}
