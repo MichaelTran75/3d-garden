@@ -1,10 +1,8 @@
 # Dựng lại `src/models/trimmer.glb`
 
-Mẫu gốc: ["Grass Trimmer Machine"](https://sketchfab.com/3d-models/grass-trimmer-machine-0f57fcf619a94150afc5202689fc0309) của Xorshift, giấy phép CC-BY-4.0
-(máy cắt cỏ đeo lưng: 42 lưới, 15,8k tam giác, 7 màu phẳng, không texture, 741 KB). Tệp gốc không nằm trong repo.
+Mẫu: ["Grass Trimmer Machine"](https://sketchfab.com/3d-models/grass-trimmer-machine-0f57fcf619a94150afc5202689fc0309), Xorshift, CC-BY-4.0; máy cắt cỏ đeo lưng: 42 lưới, 15,8k tam giác, 7 màu phẳng, không texture, 741 KB; không trong repo.
 
-1. Dùng `study.html` + `devserver.py` của `../transit/`; đặt mẫu gốc trong một thư mục riêng, vd `dl-trimmer/grass_trimmer_machine.glb`.
-2. Mở `http://localhost:8777/study.html?f=dl-trimmer/grass_trimmer_machine.glb`, trong console:
+1. `devserver.py` + `study.html` của `../transit/`, mẫu trong thư mục riêng; mở `http://localhost:8777/study.html?f=dl-trimmer/grass_trimmer_machine.glb`, console:
 
 ```js
 const mo = await import('https://esm.sh/meshoptimizer@0.21.0'); window.MS = mo.MeshoptSimplifier; window.MSE = mo.MeshoptEncoder; await MS.ready; await MSE.ready;
@@ -14,7 +12,7 @@ await trimBuild({ ratio: 0.3, err: 0.02 });   // tách 4 bộ phận, hàn đỉ
 await trimWrite('trimmer.glb');               // → shots/trimmer.glb (~68 KB)
 ```
 
-3. Chép `shots/trimmer.glb` vào `src/models/`.
+2. `shots/trimmer.glb` → `src/models/`.
 
-Kết quả: 4 nút `pack` (ba lô máy, con: `starter`), `shaft` (cần, con: `blade`), đơn vị mét (×0,24 / đv mẫu), màu đỉnh. Điểm cầm nắm trong `extras`
-của nút (đọc ở `src/app/camp/trimmer.js`). Ống mềm truyền động và vòng dây ga sau đầu ống bị bỏ — trang vẽ lại ống mềm mỗi khung theo vị trí cần.
+- 4 nút: `pack` (ba lô máy, con `starter`), `shaft` (cần, con `blade`); mét (×0,24 / đv mẫu); màu đỉnh; điểm cầm nắm trong `extras` nút, đọc ở `src/app/camp/trimmer.js`.
+- Bỏ ống mềm truyền động + vòng dây ga sau đầu ống; trang vẽ lại ống mềm mỗi khung theo vị trí cần.

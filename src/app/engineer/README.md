@@ -1,69 +1,62 @@
-# Kỹ sư: muốn sửa hành vi nào thì mở tệp nào
+# Kỹ sư: bản đồ tệp
 
-Hành vi kỹ sư chia theo tệp cho dễ sửa; mọi tệp vẫn ghép chung một khối mã theo `src/app/manifest.txt` (không import/export).
+Mọi tệp ghép 1 khối theo `src/app/manifest.txt` (không import/export).
 
-## 3 thư mục
+## body/: thân, chuyển động, không chọn việc
 
-| Thư mục | Vai trò | Tệp |
-|---|---|---|
-| `body/` | Thân thể và chuyển động. Không quyết định làm gì | `constants` (vật liệu, cỡ người) · `model` (hình) · `instance-gait` (tạo kỹ sư, nhịp bước) · `pose-ik-walk` (tư thế lò xo, IK chân, đi bộ né vật cản, bậc voxel) · `seats` (ngồi / đứng dậy / rời ghế) · `face` (nét mặt, khẩu hình, tay nắm / mở) · `footprints` (dấu chân trên đất ướt) |
-| `mind/` | Đầu óc: chọn việc, phản ứng | `hours` (**giờ giấc: sửa giờ ở đây**) · `schedule` (lịch cả ngày `ENG_DAY`, bảng việc `ENG_ACTS`, chọn việc `engWantAct`, đặt chỗ khi mở trang `engSpawn`) · `needs` (nhu cầu kiểu The Sims 4: bảng tốc độ, moodlet, tua lịch, kỹ năng — mặt `needs`) · `autonomy` (tự chủ theo nhu cầu) · `offers` (việc nhận làm theo lệnh người xem: sẽ làm gì / vì sao chưa làm — mặt `offer(k)`) · `task-table` (bảng việc dùng dụng cụ `ENG_JOBS`) · `loop-update` (bộ điều phối mỗi khung) · `thoughts`, `thought-bubble` (suy nghĩ) · `reactions`, `env-react`, `weather-feel` (phản ứng với cảnh, môi trường, thời tiết) |
-| `tasks/` | Mỗi tệp một việc | xem bảng dưới |
-| (gốc `engineer/`) | MẶT CÔNG KHAI: đơn vị khác chỉ đọc kỹ sư qua `worldSee('engineer')` — chỗ đứng, đầu, ghế, việc đang làm, cỡ người, lưỡi câu, màu mũ… (docs/architecture/engine.md). Bảng của người xem (ui/) đọc nhu cầu + việc nhận làm và giao việc qua mặt (`ENGINEER.needs / offer(k) / ask(k) / asked / askNeed(k)`, đợt 10). Kỹ sư đụng xe / trại chỉ qua chỗ chạm trên mặt của chúng: nấu ăn vặn núm `VAN.kitchen`, báo món `VAN.dish`, phòng tắm `VAN.bath` | `face.js` |
+- `constants` vật liệu, cỡ người · `model` hình · `instance-gait` tạo kỹ sư, nhịp bước · `face` nét mặt, khẩu hình, tay nắm / mở · `footprints` dấu chân đất ướt
+- `body/pose-ik-walk.js`: tư thế lò xo, IK chân, đi né vật cản, bậc voxel (`engStep`, `engField`)
+- `body/seats.js`: ngồi, đứng dậy, rời ghế
 
-## Một ngày (`mind/schedule.js` ENG_DAY, giờ Pleiku)
+## mind/: chọn việc, phản ứng
 
-| Giờ | Việc | Tệp làm việc đó |
-|---|---|---|
-| 21:45 – 06:00 | Ngủ | `tasks/sleep.js` (`engNightTick`, trở mình, chăn) |
-| 06:00 · 10:45 · 16:00 | Vệ sinh | `tasks/van-stations.js` (trạm wc, lau bồn, lavabo) · đi trong xe `tasks/van-nav.js` |
-| 06:12 · 11:25 | Ăn sáng · ăn trưa (bàn trong xe), rửa bát | `tasks/van-stations.js` · `tasks/cooking.js` (`engVan` điều phối các trạm) |
-| 06:40 · 16:35 | Dạo trại: cột khí tượng → trà → dạo → uống nước → vuốt chó | `tasks/camp-routine.js` |
-| 07:15 – 10:45 · 13:00 – 15:20 | Nghiên cứu ở bàn học | `tasks/laptop-work.js` |
-| 10:55 · 16:45 | Nấu udon · chiên cơm | `tasks/cooking.js` |
-| 12:15 · 15:50 | Nghỉ: trà rồi ngủ trưa trên ghế | `tasks/camp-routine.js` (tea → nap) |
-| 15:20 | Bay drone (gió > 9 m/s thì nghỉ) | `tasks/drone.js` |
-| 16:10 | Hái táo (+ ăn táo trong ngày) | `tasks/apple-pick.js` |
-| 17:15 | Ăn tối ở ghế cắm trại, cá nướng | `tasks/camp-routine.js` + `tasks/meal-read.js` (que + cá là đồ của trại: `camp/grill.js`, chạm qua `CAMP.grill`) |
-| 18:00 | Tắm | `tasks/van-stations.js` |
-| 18:03 | Câu cá | `tasks/camp-routine.js` + `tasks/angling.js` |
-| 19:30 | Đọc sách, ăn khoai | `tasks/camp-routine.js` + `tasks/meal-read.js` (`engRead`) |
-| 20:00 | Học bài, nghe nhạc | `tasks/laptop-work.js` |
-| 20:42 – 21:42 | Ngắm sao (trời quang), không thì đọc tiếp | `tasks/sky-watch.js` |
-| 21:42 | Ngồi mép giường tháo mũ | `tasks/van-stations.js` |
+- `mind/hours.js` ENG_HOURS: khung giờ được phép (sửa giờ ở đây); lịch, tự chủ, Tools, bấm vật đều hỏi `engHourOk(việc, giờ)`; lệnh ngoài khung bỏ trước khi bắt đầu, đã bắt đầu thì làm nốt
+- Khung: ngắm sao sau 19:00 · câu cá 06:30–19:30 · chăm luống 06:48–17:36 (lệnh tới 18:18) · cắt cỏ sau mưa 06:40–17:20 (lệnh tới 18:12)
+- `mind/schedule.js`: lịch `ENG_DAY` (giờ Pleiku), bảng việc `ENG_ACTS`, pha `engPhaseFor`, chọn việc `engWantAct`, ngồi ghế cắm trại làm gì bao lâu `engChairPhase`, đặt chỗ khi mở trang `engSpawn`
+- `mind/needs.js`: nhu cầu kiểu The Sims 4: bảng tốc độ `SIM_NEEDS`, `SIM_DO`, moodlet, tua lịch, kỹ năng; mặt `needs`; bảng Kỹ sư ui/sim-needs.js chỉ vẽ
+- `mind/autonomy.js`: tự chủ theo nhu cầu (`AUTO_ACTS`: hệ số lấp nhu cầu, thời lượng)
+- `mind/offers.js`: việc nhận theo lệnh người xem, sẽ làm gì / vì sao chưa (mặt `offer(k)`)
+- `mind/task-table.js`: `ENG_JOBS` việc dùng dụng cụ
+- `mind/loop-update.js`: điều phối mỗi khung (dưới)
+- Suy nghĩ: `thoughts`, `thought-bubble`. Phản ứng cảnh, môi trường, thời tiết: `mind/reactions.js` (mưa, gió, chó, lá), `env-react`, `weather-feel`
 
-Ngoài lịch: mưa thì trú dưới hiên và ra mép bạt ngắm mưa (`tasks/camp-routine.js`, `tasks/sky-watch.js`) · cỏ ráo sau mưa thì cắt cỏ (`tasks/trim-grass.js`) · lửa trại theo nhiệt độ: > 30 °C xách xô nước + que cời ra dập, < 28 °C (hoặc cá cần nướng: lửa nhỏ) lấy que mồi, quẹt diêm nhóm lại (`tasks/campfire-keep.js`, trạng thái bếp `campFire` ở `camp/chairs-lantern-fire.js`) · chăm luống cà rốt (`tasks/carrot-garden.js`) · nhu cầu thấp thì đi lấp (`mind/autonomy.js`), dạo khám phá (`tasks/explore.js`) · lệnh bảng Tools / bấm vật: kiểm tra máy xe (`tasks/engine-check.js`), ghế đọc sách, bỏ củi lò (`tasks/tool-jobs.js`).
+## engineer/face.js
 
-## Khung giờ được phép (`mind/hours.js` ENG_HOURS)
+- Mặt công khai: đơn vị khác chỉ đọc qua `worldSee('engineer')`: chỗ đứng, đầu, ghế, việc, cỡ người, lưỡi câu, màu mũ… (docs/architecture/engine.md)
+- UI đọc nhu cầu + việc nhận làm, giao việc: `ENGINEER.needs / offer(k) / ask(k) / asked / askNeed(k)`
+- Kỹ sư đụng xe / trại chỉ qua chỗ chạm: núm bếp `VAN.kitchen`, báo món `VAN.dish`, phòng tắm `VAN.bath`
 
-Lịch, tầng tự chủ, bảng Tools và bấm vật trong cảnh đều hỏi `engHourOk(việc, giờ)`. Ngắm sao chỉ sau 19:00. Câu cá 06:30 – 19:30. Chăm luống 06:48 – 17:36 (theo lệnh tới 18:18). Cắt cỏ sau mưa 06:40 – 17:20 (theo lệnh tới 18:12). Lệnh ngoài khung giờ bị bỏ trước khi bắt đầu; việc đã bắt đầu thì làm nốt.
+## tasks/: 1 tệp 1 việc, giờ theo ENG_DAY
 
-## Muốn sửa … thì mở …
+- `tasks/sleep.js`: ngủ 21:45–06:00 (`engNightTick`, trở mình, chăn)
+- `tasks/van-stations.js`: vệ sinh 06:00 · 10:45 · 16:00 (wc, lau bồn, lavabo); ăn sáng 06:12, trưa 11:25 (bàn trong xe), rửa bát; tắm 18:00; 21:42 ngồi mép giường tháo mũ. Đi trong xe: `tasks/van-nav.js`
+- `tasks/cooking.js`: nấu udon 10:55, chiên cơm 16:45; `engVan` điều phối các trạm (cả ăn sáng, trưa)
+- `tasks/camp-routine.js` (việc quanh ghế cắm trại): dạo trại 06:40 · 16:35 (cột khí tượng → trà → dạo → uống nước → vuốt chó); nghỉ 12:15 · 15:50 (tea → nap: trà, ngủ trưa trên ghế); ăn tối 17:15, cá nướng (+ `tasks/meal-read.js`; que + cá là đồ trại `camp/grill.js`, chạm qua `CAMP.grill`); câu cá 18:03 (+ `tasks/angling.js`); đọc sách, ăn khoai 19:30 (+ `tasks/meal-read.js` `engRead`); mưa trú dưới hiên
+- `tasks/laptop-work.js`: nghiên cứu bàn học 07:15–10:45 · 13:00–15:20; học bài, nghe nhạc 20:00
+- `tasks/drone.js`: bay 15:20 (gió > 9 m/s ⇒ nghỉ)
+- `tasks/apple-pick.js`: hái táo 16:10 (+ ăn táo trong ngày)
+- `tasks/sky-watch.js`: ngắm sao 20:42–21:42 (trời quang; không thì đọc tiếp); mưa ra mép bạt ngắm mưa
+- `tasks/trim-grass.js`: cắt cỏ khi cỏ ráo sau mưa
+- `tasks/campfire-keep.js`: lửa trại theo nhiệt độ (trạng thái bếp `campFire` ở `camp/chairs-lantern-fire.js`): > 30 °C xô nước + que cời ra dập; < 28 °C (hoặc cá cần nướng: lửa nhỏ) que mồi, quẹt diêm nhóm
+- `tasks/carrot-garden.js`: chăm luống cà rốt
+- Nhu cầu thấp ⇒ đi lấp (`mind/autonomy.js`), dạo khám phá `tasks/explore.js`
+- Lệnh Tools / bấm vật: kiểm tra máy xe `tasks/engine-check.js`; ghế đọc sách, bỏ củi lò `tasks/tool-jobs.js`
 
-- **Đổi giờ:** khung được phép ở `mind/hours.js`; lịch theo giờ ở `ENG_DAY` (`mind/schedule.js`).
-- **Thêm việc dùng dụng cụ:**
-  1. Viết `tasks/<việc>.js` có `update(e, dt, t)` (trả `true` khi xong), và nếu cần thêm `idle()` và `tick()`.
-  2. Thêm 1 dòng `ENG_JOBS` (`mind/task-table.js`).
-  3. Thêm 1 dòng `ENG_ACTS` và pha ở `engPhaseFor` (`mind/schedule.js`).
-  4. Thêm khung giờ ở `mind/hours.js`.
-  5. Muốn bấm được: thêm 1 dòng `ENG_OFFERS` (`mind/offers.js`: sẽ làm gì, vì sao chưa làm được) + 1 dòng ở `ui/tools-panel.js` TL_ITEMS (icon, tên, nút).
-  6. Ghi tệp vào `manifest.txt`.
-- **Việc quanh ghế cắm trại** (ăn, trà, đọc, dạo, vuốt chó, câu cá, trú mưa): `tasks/camp-routine.js`. Ngồi ghế làm gì, bao lâu: `engChairPhase` (`mind/schedule.js`).
-- **Đi lại, né vật cản, bậc voxel:** `engStep` và `engField` (`body/pose-ik-walk.js`).
-- **Ngồi xuống, đứng dậy:** `body/seats.js`. Phản ứng với mưa, gió, chó, lá: `mind/reactions.js`.
-- **Nhu cầu, tự chủ:** `mind/needs.js` (bảng tốc độ `SIM_NEEDS`, `SIM_DO`, moodlet; bảng Kỹ sư ui/sim-needs.js chỉ vẽ) · `mind/autonomy.js` (`AUTO_ACTS`: hệ số lấp nhu cầu, thời lượng).
+## Thêm việc dùng dụng cụ
 
-## Thứ tự mỗi khung (`mind/loop-update.js`)
+1. `tasks/<việc>.js`: `update(e, dt, t)` (trả `true` khi xong), cần thì `idle()`, `tick()`
+2. 1 dòng `ENG_JOBS`
+3. 1 dòng `ENG_ACTS` + pha ở `engPhaseFor`
+4. Khung giờ ENG_HOURS
+5. Bấm được: 1 dòng `ENG_OFFERS` + 1 dòng TL_ITEMS `ui/tools-panel.js` (icon, tên, nút)
+6. Ghi tệp vào `manifest.txt`
 
-1. Trả tư thế đích của khung trước (`engPoseBegin`).
-2. Ngủ (`engNightTick`), hoặc chọn việc (`engWantAct` → `engSetAct`).
-3. Chạy việc theo thứ tự ưu tiên:
-   1. Rời ghế (`engSeatGuard`).
-   2. Phản ứng giữ người lại (`engReactHold`).
-   3. Trong xe (`engVan`), hoặc đi tới xe (`engEnterVan`).
-   4. Việc dụng cụ: `ENG_JOBS[pha].run`.
-   5. Quanh trại: `engCampPhase`.
-4. Đồ cầm tay theo việc.
-5. Dáng mượt, IK chân, quay đầu, tay vịn, câu cá, cử chỉ, IK tay, nét mặt.
-6. `ENG_JOBS[*].tick`: đồ cầm theo bàn tay.
-7. `ENG_JOBS[*].idle` cho việc không phải pha hiện tại, tức việc bị cắt ngang.
+## Mỗi khung (`mind/loop-update.js`)
+
+1. `engPoseBegin`: trả tư thế đích khung trước
+2. Ngủ `engNightTick`, hoặc chọn việc `engWantAct` → `engSetAct`
+3. Ưu tiên: rời ghế `engSeatGuard` > giữ người lại `engReactHold` > trong xe `engVan` / tới xe `engEnterVan` > dụng cụ `ENG_JOBS[pha].run` > quanh trại `engCampPhase`
+4. Đồ cầm tay theo việc
+5. `engReactPre` → `engPoseEnd` (dáng mượt) → `engFootIK` → `engReactPost` (quay đầu, nhịp cử chỉ) → `engSeatPost` (tay vịn) → `updateFishingBite` (pha 'fish') → `engReactArms` (đích tay cử chỉ) → `engArmPost` (IK khuỷu / cổ tay) → `engFace.tick`
+6. `ENG_JOBS[*].tick` (đồ cầm theo bàn tay đã đặt: sào + quả `applePick.tick`, thảm + kính…), `lapHeldTick`, `engDishPose`, `engSleepPost`
+7. `ENG_JOBS[*].idle`: việc bị cắt ngang

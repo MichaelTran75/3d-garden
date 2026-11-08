@@ -1,47 +1,27 @@
 # Dựng lại `src/models/chassis.glb`
 
-Mẫu gốc: ["GAZ-69 Vehicle Chassis / Frame"](https://sketchfab.com/3d-models/gaz-69-vehicle-chassis-frame-e67d8918300f4aaeaa783a6e3b7053be) của Peter Gatchev, giấy phép CC-BY-4.0.
+Mẫu: ["GAZ-69 Vehicle Chassis / Frame"](https://sketchfab.com/3d-models/gaz-69-vehicle-chassis-frame-e67d8918300f4aaeaa783a6e3b7053be), Peter Gatchev, CC-BY-4.0; 53 lưới, ~526k tam giác, 33 MB, 3 vật liệu, 9 ảnh vân PNG gỉ sét; không trong repo.
 
-- 53 lưới, khoảng 526k tam giác, 33 MB.
-- 3 vật liệu, dùng 9 ảnh vân PNG có vết gỉ sét.
-- Tệp gốc không nằm trong repo.
+## Giữ / bỏ
+- Giữ: khung `SK_Chassis_Frame`, cầu trước + sau, 4 nhíp lá, 2 cặp giảm xóc, hộp số phụ `TranspherBox`, các-đăng + khớp chữ thập, moay-ơ tang trống, cụm lái
+- Bỏ: lốp, vành (Transit có bánh), cản trước + biển số (`Fender`), 2 cần số (thò lên cabin)
 
-Lý do chọn mẫu: xe nhà di động kiểu overland hay được độ 4×4 với cầu liền và nhíp lá, giống bộ độ Quigley cho Ford van. Vì vậy lắp nguyên bộ gầm GAZ-69: khung thang, 2 cầu, 4 nhíp, hộp số phụ, các-đăng.
-
-## Giữ, bỏ, sửa
-
-**Giữ:**
-- khung `SK_Chassis_Frame`
-- cầu trước, cầu sau
-- 4 nhíp lá
-- 2 cặp giảm xóc
-- hộp số phụ `TranspherBox`
-- các-đăng và khớp chữ thập
-- moay-ơ có tang trống
-- cụm lái
-
-**Bỏ:** lốp, vành (xe Transit đã có bánh), cản trước kèm biển số (`Fender`), 2 cần số (sẽ thò lên cabin).
-
-**Sửa cho vừa Transit L3H2.** (Xe là L4H2: tệp GLB không đổi; lúc nạp, `van/body/chassis.js` lùi mọi đỉnh có x > 2,8 thêm `TR.ext` 0,792 đv; chỉ 2 thanh dọc vắt qua mặt cắt này.) Đơn vị của xe: 1,1 đơn vị (đv) = 1 m. Mũi xe hướng −X, cửa lùa ở +Z. Cầu trước ở x −2,12, cầu sau ở x 2,03, tâm bánh y 0,44, bánh xe ở z ±0,955 (xem `TR` trong `van/body/transit.js`).
-
-- **Dài:** chèn 1,262 m ở mặt cắt Z −0,68 của mẫu, chỗ chỉ có 2 thanh dọc đi qua. Nhờ vậy chiều dài cơ sở 2,51 m thành 3,77 m.
-  - Vật cứng (cầu, nhíp, khớp chữ thập, giảm xóc, moay-ơ) dời nguyên khối theo vị trí tâm của nó.
-  - Khung giãn theo từng đỉnh.
-  - Ống các-đăng sau `Cardans008` có mặt cắt riêng ở −1,0, để đầu trước bám khớp còn đầu sau theo cầu. Khớp `Cardans007` giữ nguyên chỗ.
-  - Đoạn đuôi sau cầu sau co lại còn 0,9.
-  - **Bẫy:** cắt ở Z −0,875 thì xuyên qua tấm ốp của thanh ngang (Z −0,95 tới −0,79), tạo ra một tấm phẳng dài 1,4 m giữa khung.
-- **Ngang:** nhân 1,1 rồi lật trái sang phải. Xe ở đây tay lái nghịch, nên hộp lái nằm bên phải (−Z). Hai thanh dọc, nhíp và giảm xóc trước nở thêm ±0,12 m, chuyển dần từ Z 0,75 tới 0,95, để chừa chỗ cho động cơ V6 rộng ±0,44.
-- **Cao:**
-  - Tâm cầu (Y 0,4285 của mẫu) đặt vào y 0,44.
-  - Khung và hộp số phụ hạ 9 cm. Nóc khung còn 0,817, thấp hơn sàn trong xe (0,83).
-  - Nhíp, giảm xóc và các-đăng bẹt dần theo độ cao: đầu bám cầu giữ nguyên, đầu bám khung hạ theo khung.
-- **Màu:** lấy màu đỉnh từ ảnh vân màu (thu ảnh còn 128², gộp thành 16 bậc sRGB, đổi sang tuyến tính, nhân 1,5).
-- **Pháp tuyến:** không lưu. Trang tô phẳng (flatShading), nhờ đó tệp nhẹ đi khoảng 70%.
+## Sửa cho Transit L3H2
+- Đích (đv xe, `TR` trong `van/body/transit.js`): cầu trước x −2,12, cầu sau x 2,03, tâm bánh y 0,44, bánh z ±0,955
+- Xe L4H2: GLB không đổi; lúc nạp `van/body/chassis.js` lùi đỉnh x > 2,8 thêm `TR.ext` 0,792 đv (chỉ 2 thanh dọc vắt qua)
+- Dài: chèn 1,262 m ở mặt cắt Z −0,68 mẫu (chỉ 2 thanh dọc qua) ⇒ cơ sở 2,51 → 3,77 m
+  - Vật cứng (cầu, nhíp, khớp chữ thập, giảm xóc, moay-ơ) dời nguyên khối theo tâm; khung giãn theo đỉnh
+  - Ống các-đăng sau `Cardans008` cắt riêng ở −1,0: đầu trước bám khớp, đầu sau theo cầu; khớp `Cardans007` giữ chỗ
+  - Đuôi sau cầu sau co còn 0,9
+  - Bẫy: cắt ở Z −0,875 xuyên tấm ốp thanh ngang (Z −0,95…−0,79) ⇒ tấm phẳng 1,4 m giữa khung
+- Ngang: ×1,1 rồi lật trái ↔ phải (tay lái nghịch ⇒ hộp lái bên phải −Z); 2 thanh dọc + nhíp, giảm xóc trước nở ±0,12 m, chuyển dần Z 0,75 → 0,95 (chừa V6 rộng ±0,44)
+- Cao: tâm cầu (Y 0,4285 mẫu) → y 0,44; khung + hộp số phụ hạ 9 cm (nóc khung 0,817 < sàn trong 0,83); nhíp, giảm xóc, các-đăng bẹt dần: đầu bám cầu giữ, đầu bám khung hạ theo khung
+- Màu đỉnh từ ảnh vân màu: thu 128², gộp 16 bậc sRGB, → tuyến tính, ×1,5
+- Không lưu pháp tuyến: trang tô phẳng (flatShading) ⇒ tệp nhẹ ~70%
 
 ## Chạy
-
-1. Đặt mẫu gốc ở `gaz-glb/gaz69.glb` trong thư mục phục vụ. Dùng server có `/upload`: `devserver.py` của `../transit/`.
-2. Mở `gazview.html` (thư mục này), rồi chạy trong console:
+1. Mẫu ở `gaz-glb/gaz69.glb` trong thư mục phục vụ; server có `/upload`: `devserver.py` của `../transit/`.
+2. Mở `gazview.html` (thư mục này), console:
 
 ```js
 const mo = await import('https://esm.sh/meshoptimizer@0.21.0'); window.MS = mo.MeshoptSimplifier; window.MSE = mo.MeshoptEncoder; await MS.ready; await MSE.ready;
@@ -51,13 +31,11 @@ await chassisBuild({ levels: 16 });   // ~12k tam giác
 await chassisWrite('chassis.glb');    // → shots/chassis.glb (~62 KB)
 ```
 
-3. Chép `shots/chassis.glb` vào `src/models/`.
+3. `shots/chassis.glb` → `src/models/`.
 
 ## Dùng trong cảnh
-
-`src/app/van/body/chassis.js` gắn thẳng nút `chassis` vào `caravanObj`, vì toạ độ đã là đơn vị của xe.
-
-- Vật liệu Lambert, màu đỉnh, tô phẳng. Vẫn hiện khi xem xuyên (`xray = 'keep'`).
-- Ẩn cầu tạm `Cầu bánh xe` trong `van/interior/caravan.js`.
-- Hộp số dựng bằng code: chuông ly hợp, thân và đuôi hộp số, nối từ đuôi động cơ (x −2,31, y 0,71) tới khớp các-đăng đầu vào hộp số phụ (x −1,17, y 0,54, z 0,15).
-- `extras` của nút `chassis` có `axleF`, `axleR`, `wheelY`, `dz`, `drop`, `spread`. Nếu cầu lệch khỏi `TR.xF` hoặc `TR.xR`, trang cảnh báo trong console.
+- `src/app/van/body/chassis.js` gắn thẳng nút `chassis` vào `caravanObj` (toạ độ = đv xe)
+- Lambert, màu đỉnh, tô phẳng; xem xuyên vẫn hiện (`xray = 'keep'`)
+- Ẩn cầu tạm `Cầu bánh xe` (`van/interior/caravan.js`)
+- Hộp số code: chuông ly hợp + thân + đuôi, từ đuôi động cơ (x −2,31, y 0,71) tới khớp các-đăng đầu vào hộp số phụ (x −1,17, y 0,54, z 0,15)
+- `extras` nút `chassis`: `axleF`, `axleR`, `wheelY`, `dz`, `drop`, `spread`; cầu lệch `TR.xF` / `TR.xR` ⇒ cảnh báo console

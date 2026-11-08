@@ -1,18 +1,13 @@
 # Dựng lại `src/models/pump.glb`
 
-Mẫu gốc: ["P-0301 B"](https://sketchfab.com/3d-models/p-0301-b-8fc4bc4bc44e423b98add2acde561995) của athar_faz, giấy phép CC-BY-4.0
-(cụm bơm công nghiệp trên khung đế 17 × 14,6 m: 93 lưới, ~136k tam giác, mọi vật liệu xám 0,8, không texture, 6,8 MB). Tệp gốc không nằm trong repo.
+Gốc: ["P-0301 B"](https://sketchfab.com/3d-models/p-0301-b-8fc4bc4bc44e423b98add2acde561995), athar_faz, CC-BY-4.0; ngoài repo. Mô tả lưới, màu đỉnh: đầu `pumpbuild.js`.
 
-Chỉ lấy 2 cụm:
+- `pump` = `MOTOR_B` + `PAKU_MOTOR` (bỏ mảnh lơ lửng ở khớp ống đo) + `motor2` + `TENGAH_PUTIH` + `TENGAH` + `TENGAH3` (bỏ cần cao 1,9 m); bỏ `motor1`.
+- `valve` = `LUBEOIL VALVE_3`.
+- Tên lưới sau GLTFLoader: dấu cách → `_`, bỏ dấu chấm (vd `Circle.011` → `Circle011`).
 
-- `pump`: bơm ly tâm vỏ tách đôi (`MOTOR_B`) + vòng bu-lông mặt ghép (`PAKU_MOTOR`, bỏ mảnh lơ lửng ở khớp ống đo) + gối đỡ đầu trục (`motor2`)
-  + chụp khớp nối (`TENGAH_PUTIH`) + động cơ điện hình trụ (`TENGAH`) + hộp đầu trục (`TENGAH3`, bỏ cần đứng cao 1,9 m). Bỏ bó ống đo nhỏ (`motor1`).
-- `valve`: van chặn nhỏ có vô-lăng (`LUBEOIL VALVE_3`).
-
-Tên lưới sau khi GLTFLoader nạp: dấu cách → `_`, bỏ dấu chấm (vd `Circle.011` → `Circle011`).
-
-1. Dùng `study.html` + `devserver.py` của `../transit/`; đặt mẫu gốc trong một thư mục riêng, vd `pipe-glb/pipe.glb`.
-2. Mở `http://localhost:8777/study.html?f=pipe-glb/pipe.glb`, trong console:
+1. `study.html` + `devserver.py` của `../transit/`; mẫu trong thư mục riêng, vd `pipe-glb/pipe.glb`.
+2. Mở `http://localhost:8777/study.html?f=pipe-glb/pipe.glb`, console:
 
 ```js
 const mo = await import('https://esm.sh/meshoptimizer@0.21.0'); window.MS = mo.MeshoptSimplifier; window.MSE = mo.MeshoptEncoder; await MS.ready; await MSE.ready;
@@ -22,9 +17,8 @@ await pumpBuild({ scale: 0.36, ratio: 0.4, err: 0.01 });   // ~3,5k tam giác (b
 await pumpWrite('pump.glb');                               // → shots/pump.glb (~45 KB)
 ```
 
-3. Chép `shots/pump.glb` vào `src/models/`. `study.html` không có bộ giải meshopt — xem thử tệp đã nén bằng trang có `setMeshoptDecoder`.
+3. Chép `shots/pump.glb` vào `src/models/`. `study.html` không có bộ giải meshopt ⇒ xem tệp nén bằng trang có `setMeshoptDecoder`.
 
-Kết quả: nút `pump` (gốc = tâm đáy cụm, trục bơm dọc +Z, động cơ phía −Z, 2 họng bơm hướng ±X, đơn vị mét × 0,36) và `valve` (gốc = tâm hộp bao,
-ống dọc X, vô-lăng +Y, đơn vị mét). Màu đỉnh tự gán: vỏ + gối đỡ xanh dương, bu-lông thép sẫm, chụp khớp nối vàng an toàn, động cơ xám xanh, vô-lăng đỏ.
-Điểm neo trong `extras`: `pump.inX` / `outX` (tâm mặt bích họng +X / −X), `len`, `motorY0`, `motorZ`, `caseY0`, `top` · `valve.half`, `wheelY`, `bodyY`
-(đọc ở `src/app/world/water-pump.js`; đổi mẫu thì cập nhật hằng `A` ở đó — trang cảnh báo trong console nếu lệch).
+- `pump`: gốc = tâm đáy cụm, trục bơm dọc +Z, động cơ −Z, 2 họng ±X, mét × 0,36.
+- `valve`: gốc = tâm hộp bao, ống dọc X, vô-lăng +Y, mét.
+- Điểm neo `extras`: `pump.inX` / `outX` (tâm mặt bích họng +X / −X), `len`, `motorY0`, `motorZ`, `caseY0`, `top` · `valve.half`, `wheelY`, `bodyY`. Đọc ở `src/app/world/water-pump.js`; đổi mẫu ⇒ sửa hằng `A` ở đó (lệch ⇒ console cảnh báo).

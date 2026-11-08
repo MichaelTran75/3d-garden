@@ -1,64 +1,58 @@
 # Côn trùng, ong, gấu mèo, thỏ, hươu, cá, bướm
 
-> Ghi cho AI sửa mã: hiện trạng + bẫy. Chỉ mục: [ARCHITECTURE](../../src/ARCHITECTURE.md).
-
 <!-- toc -->
-- Mã · 1.0 KB
-- Ong · 0.6 KB
-- Gấu mèo · 1.0 KB
-- Thỏ, cá, hươu · 0.4 KB
-- Bẫy · 3.3 KB
+- Côn trùng · 0.4 KB
+- Ong · 0.7 KB
+- Gấu mèo · 1.4 KB
+- Thỏ, cá, hươu · 0.5 KB
+- Bẫy · 2.3 KB
 - Số đo chuẩn · 0.2 KB
 <!-- /toc -->
 
-## Mã
-
-- `animals/_lib/insect-flight.js` — lưới bay ong + bướm: `refreshFlightNavigation` (vật cản = `flightRoots` + `worldJoin('flight')`), gỡ kẹt `insectUnstick`; mỗi con cấp `reroute()` / `navReset()`.
-- `animals/bees/hive.js` — tổ giỏ rơm `beehive`, 6 ong bay quanh (`FLY`), `beeWeatherOK()` · `animals/bees/bees.js` — ong kiếm mật, kho mật hoa, `beeTick`.
-- `animals/insects/butterflies.js` (hoa văn `bflyTex`, trú mưa `bflyShelter`) · `animals/insects/fireflies.js` (mỗi con 1 nhịp nháy, không đồng bộ).
-- `animals/raccoon/` — `body.js` (hang `racMouth` / `racInside`, va chạm), `brain.js`, `climb.js`, `glb.js` (da `models/raccoon.glb`), `face.js` (`climbing`, `swipe`).
-- `nature/forest.js` — cây táo già `ft3` (`worldPlace('oldAppleTree')`), khúc gỗ chết rỗng (`hollowMat`).
-- `animals/bunny/` (`life.js` tập tính; nhảy né vật: bunny-movement.md) · `animals/fish/fish.js` (`fishLife`) · `animals/deer-crab/deer-crab.js` (`stagTick`).
+## Côn trùng
+- `animals/_lib/insect-flight.js`: lưới bay ong, bướm `refreshFlightNavigation` (vật cản `flightRoots` + `worldJoin('flight')`); trong vật cản ≥ 2 s ⇒ `insectUnstick`; mỗi con cấp `reroute()`, `navReset()`.
+- `animals/insects/butterflies.js`: hoa văn `bflyTex`, trú mưa `bflyShelter`.
+- `animals/insects/fireflies.js`: mỗi con 1 nhịp nháy riêng.
 
 ## Ong
-
-- `beeTick`, pha `b.ph2`: fly → land → feed → takeoff; về tổ: land vành giỏ → crawlIn (ẩn) → inside → crawlOut. Ra tổ khi `beeWeatherOK()` (khô, 6:20–18:00, gió < 24 km/h, ≥ 12 °C).
-- Về tổ nhắm `hiveWorldPos` (`placeHiveNav`); A* bí ≥ 2 s ⇒ `beeRelay` (chặng trung gian `b.via`); kẹt trong vật cản ≥ 2 s ⇒ `insectUnstick`. Hoa trong `BEE_RANGE` quanh tổ.
-- Gộp vẽ: thân ong bay quanh tổ → 'Động vật ban ngày'; cánh → `B.clear('Cánh ong', …)` (xem render.md). Tự vẽ: vỏ rơm, bánh sáp, ô + ong bò, nét viền.
+- `animals/bees/hive.js`: tổ giỏ rơm `beehive`, 6 ong bay quanh `FLY`; ra tổ khi `beeWeatherOK()`: khô, 6:20–18:00, gió < 24 km/h, ≥ 12 °C.
+- `animals/bees/bees.js`: kiếm mật, kho mật hoa, hoa trong `BEE_RANGE` quanh tổ; `beeTick` pha `b.ph2`: fly → land → feed → takeoff; về: land vành giỏ → crawlIn (ẩn) → inside → crawlOut.
+- Về tổ nhắm `hiveWorldPos` (`placeHiveNav`); A* bí ≥ 2 s ⇒ `beeRelay` (chặng giữa `b.via`).
+- Gộp vẽ (render.md): thân ong quanh tổ → 'Động vật ban ngày', cánh → `B.clear('Cánh ong', …)`; vẽ riêng: vỏ rơm, bánh sáp, ô + ong bò, nét viền.
 
 ## Gấu mèo
-
-- Hang = lòng khúc gỗ: `den` → `exit` → `peek` → `out`; về `toMouth` → `enter` → `den`; di chuyển bằng `crawl(Q, speed, dt)`.
-- Trèo cây táo già (`appleTrees[2]`): nhìn cận ≥ 1,5 s (`closeUp()`) hoặc tin `appleTreeTap` (`B.call` hạn 90 s); nghỉ `climbCD`. `climb.js`: `plan()` chọn quả rìa tán phía camera; `buildPath` (thân chiếu tia vào vỏ, cành theo `userData.limbs`); mount → up → reach → sit → eat → turn → down chúc đầu → dismount (`end`); chân trụ giữ tham số đường, IK `rig.free`; tới gốc theo `navBlocked()` + `buildFlowField`.
-- Cây: rê ⇒ viền chỉ thân; bấm ⇒ bảng 'jobs' "Gấu mèo ăn táo" (`choices` `{ lab, plan, why, run }`) ⇒ `camFollow` + `worldTell('appleTreeTap', ft3)`; `ft3Hole` khoét ô nhìn xuyên tán (`uHole`) quanh con đang trèo.
-- `glb.js`: `SkinnedMesh` từ đỉnh bind của mẫu, xương = khung hành vi (hông, L1/L2, `ankleH`, cổ, đầu, đuôi mềm đặt theo khớp mẫu).
+- `animals/raccoon/`: `body.js` (hang `racMouth`, `racInside`; va chạm), `brain.js`, `face.js` (`climbing`, `swipe`).
+- Hang = lòng gỗ rỗng (`nature/forest.js` `hollowMat`): `den` → `exit` → `peek` → `out`; về `toMouth` → `enter` → `den`; đi `crawl(Q, speed, dt)`.
+- Trèo táo già `ft3` = `appleTrees[2]` (`worldPlace('oldAppleTree')`) khi nhìn cận ≥ 1,5 s (`closeUp()`) hoặc tin `appleTreeTap` (`B.call` hạn 90 s); nghỉ `climbCD`.
+- `climb.js`: `plan()` chọn quả rìa tán phía camera; `buildPath`: thân chiếu tia vào vỏ, cành theo `userData.limbs`; mount → up → reach → sit → eat → turn → down (chúc đầu) → dismount (`end`); chân trụ giữ tham số đường, IK `rig.free`; tới gốc: `navBlocked()` + `buildFlowField`.
+- Cây: rê ⇒ viền chỉ thân (bản sao vô hình `ft3Trunk`, raycast rỗng, `pickSkip`; vỏ gộp cả cành); bấm ⇒ bảng 'jobs' "Gấu mèo ăn táo" (`choices` `{ lab, plan, why, run }`) ⇒ `camFollow` + `worldTell('appleTreeTap', ft3)`; `ft3Hole` khoét ô nhìn xuyên tán (`uHole`) quanh con đang trèo.
+- `glb.js`: `SkinnedMesh` da `models/raccoon.glb` theo toạ độ bind (nghịch đảo `boneInverses`), không dáng nút mẫu; xương = khung hành vi (hông, L1/L2, `ankleH`, cổ, đầu, đuôi mềm) đặt theo khớp mẫu.
 
 ## Thỏ, cá, hươu
-
-- Thỏ `bunnyTick`: `bunnyRain` → `bunnyDogNear` → `bunnyBed` → `bunnyLife` (true = tự lo dáng): alert → thump / flee về chỗ nấp (`bunRefuge`) → hide → peek; look, groom, trưa shade → loaf / flop, binky.
-- Cá `fishLife`: lat → c (uốn chữ C) → burst → hide; graze; beg (`FL_BEG`). Hươu `stagTick`: browse, graze, scan, groom, bed; alert → stamp (`rig.free[0]`) → flee (`stagFlee`) → look.
+- `animals/bunny/` `bunnyTick`: `bunnyRain` → `bunnyDogNear` → `bunnyBed` → `bunnyLife` (`life.js`; true = tự lo dáng): alert → thump / flee về nấp `bunRefuge` → hide → peek; look, groom, trưa shade → loaf / flop, binky. Nhảy, lái `b.want`: bunny-movement.md.
+- `animals/fish/fish.js` `fishLife`: lat → c (uốn chữ C) → burst → hide; graze; beg `FL_BEG`.
+- Hươu `animals/deer-crab/deer-crab.js` `stagTick`: browse, graze, scan, groom, bed; alert → stamp (`rig.free[0]`) → flee `stagFlee` → look.
 
 ## Bẫy
-
-- Lật gương `scale.x` âm: nút xoay nằm TRONG nhóm lật ⇒ 2 bên cùng góc (đom đóm, cánh sau bướm); xoay ở chính nút lật hoặc trên nó ⇒ bên phải góc đối `wR = −wL` (ong, cánh trước bướm).
-- Lưới chép từ lưới thật (lượt độ sâu, lớp phủ thân cây…) dưới gốc vật cản bay phải `userData.noFlight`, không thì hộp bao bản sao thành khối trùm tổ, ong kẹt cả ngày.
-- `hiveWorldPos` phải là ô bay trống (`flightNav.pointClear`), không dưới đất; lưới bay dựng lại ⇒ tìm lại.
-- Bỏ dở hoa (đêm, trở trời, `navReset`) phải `cancelBeeNectar`, không thì `reserved` của hoa rò.
-- hive.js đứng trước bees.js trong manifest, gọi `createBee()` nhờ hoisting ⇒ giữ nó là `function` tự đủ, không đọc `const` cấp tệp của bees.js.
-- Nét viền tổ: `noBatch` + `renderOrder 10` + `depthWrite: false` (gộp lô đổi thứ tự hoà màu); vách ô 1 mặt mỗi bánh (2 mặt thành lưới rối). Vỏ rơm khối kín cần 2 lượt: đừng `forceSinglePass`.
-- Gộp vẽ: mảnh soi gương (định thức < 0) phải đảo chiều tam giác cả khi trong suốt 2 mặt (không thì cánh phải sáng như mặt dưới); dựng lô bằng dãy ngẫu nhiên riêng (ăn `Math.random` chung ⇒ ong, đom đóm, chim lệch).
-- Gấu mèo trong gỗ đi bằng `crawl`, KHÔNG qua `move()` (`racAvoidLog` đẩy điểm trong gỗ ra ngoài vỏ). Thêm trạng thái chui hang ⇒ thêm vào regex `mask` va chạm (body.js). `B.k` tăng đúng 1 lần / khung (2 lần = trượt chân).
-- Mở trang lúc gấu mèo ngủ: đặt ở `racInside`, mặt ra miệng (không ở gốc toạ độ).
-- Lòng gỗ tối dần theo độ sâu (`shade`) + đáy lót đất che mặt cỏ cắt vào lòng gỗ (trục dốc); thiếu thì miệng gỗ như mặt cắt đặc + mảng xanh.
-- `angOf` (climb.js) đo cùng chiều `applyAxisAngle(UP, +θ)`; viết `−θ` là sang mép vùng cấm đối xứng.
-- Bờ đông sông nằm trên nền san (`padH` ≠ null) mà `ffBlocked` cấm hết ⇒ bảng dẫn đường chung rỗng; phải dùng `navBlocked()`, không thì kẹt sau khúc gỗ.
-- Da GLB lấy toạ độ bind (nghịch đảo `boneInverses`), không lấy dáng nút của mẫu.
-- Vỏ cây là 1 lưới gộp cả cành ⇒ viền thân dùng bản sao vô hình (`ft3Trunk`, raycast rỗng, `pickSkip`). Vá shader lá riêng 1 cây phải đổi `customProgramCacheKey`.
-- Thỏ: "đang tiến lại" = vận tốc của CHÓ chiếu về thỏ (`bunnyDogNear`), không phải khoảng cách co lại (thỏ tự nhảy lại gần cũng bị tính). Thiếu hồi `L.cd` sau mỗi lần sợ ⇒ giật ↔ ngó mỗi giây khi chó đứng mép tầm. Đang đào / gặm củ vẫn phải bỏ khi mối nguy vào khoảng bỏ chạy.
-- Thêm trạng thái sợ ở life.js ⇒ thêm vào regex chặn `bunnyBed` (body.js). Lái thỏ qua `b.want`, đừng xoay thẳng thân (hop.js chọn hướng né lúc chạm đất).
-- Thử: mưa thật ⇒ gấu mèo về hang, ong ở tổ — khoá thời tiết bằng getter trên `liveWeather.state` (gán thường bị src/js/weather.js ghi đè).
+- `scale.x` âm (lật gương): xoay trong nhóm lật ⇒ 2 bên cùng góc (đom đóm, cánh sau bướm); xoay ở / trên nút lật ⇒ `wR = −wL` (ong, cánh trước bướm).
+- Lưới chép (lượt độ sâu, phủ thân cây…) dưới gốc vật cản bay cần `userData.noFlight` (thiếu ⇒ hộp bao trùm tổ).
+- `hiveWorldPos` = ô bay trống (`flightNav.pointClear`), không dưới đất; dựng lại lưới bay ⇒ tìm lại.
+- Bỏ dở hoa (đêm, trở trời, `navReset`) ⇒ `cancelBeeNectar`, không thì rò `reserved`.
+- hive.js trước bees.js (manifest), gọi `createBee()` nhờ hoisting ⇒ giữ `function` tự đủ, không đọc `const` cấp tệp bees.js.
+- Viền tổ: `noBatch` + `renderOrder 10` + `depthWrite: false` (lô đổi thứ tự hoà màu). Vách ô 1 mặt / bánh. Vỏ rơm cần 2 lượt: cấm `forceSinglePass`.
+- Gộp vẽ: mảnh định thức < 0 đảo chiều tam giác, kể cả trong suốt 2 mặt; lô dùng dãy ngẫu nhiên riêng, không `Math.random` chung.
+- Gấu mèo trong gỗ: `crawl`, không `move()` (`racAvoidLog` đẩy ra vỏ). Trạng thái chui hang mới ⇒ thêm vào regex `mask` (body.js). `B.k` +1 đúng 1 lần / khung (2 ⇒ trượt chân).
+- Mở trang lúc ngủ: gấu mèo ở `racInside`, mặt ra miệng.
+- Lòng gỗ cần `shade` (tối theo sâu) + đáy lót đất che cỏ cắt vào (trục dốc).
+- `angOf` (climb.js) cùng chiều `applyAxisAngle(UP, +θ)`; `−θ` ⇒ mép vùng cấm đối xứng.
+- Bờ đông sông: nền san (`padH` ≠ null) bị `ffBlocked` cấm hết ⇒ dùng `navBlocked()`.
+- Vá shader lá 1 cây ⇒ đổi `customProgramCacheKey`.
+- `bunnyDogNear`: chó tiến lại = vận tốc chó chiếu về thỏ, không phải khoảng cách co. Sợ xong hồi `L.cd`. Mối nguy vào khoảng bỏ chạy ⇒ bỏ cả đào / gặm củ.
+- Trạng thái sợ mới (life.js) ⇒ thêm vào regex chặn `bunnyBed` (body.js).
+- Thử: khoá thời tiết bằng getter trên `liveWeather.state` (gán thường bị src/js/weather.js ghi đè); mưa ⇒ gấu mèo về hang.
+- Thỏ: mọi lối bỏ dở bữa gọi `bunnyDropCarrot` (lưới an toàn `bunnyTick0`), không thì ngậm củ đi nhảy.
+- Bộ khác giành dáng thỏ gọi `bunnyUpright`.
 
 ## Số đo chuẩn
-
-- Ong: mưa ⇒ cả 8 con vào tổ ≤ 30 s; 15 phút bay không con nào bị chặn.
+- Ong: mưa ⇒ 8 con vào tổ ≤ 30 s; bay 15 phút: 0 con bị chặn.
 - Gấu mèo (bấm cây, đứng bên kia khúc gỗ): tới gốc ≤ ~21 s, không kẹt.

@@ -1,6 +1,6 @@
 # Bộ đo lớp chữ HTML
 
-Playwright (`ev4.cjs`): tự lấy bản mới nhất trong `~/.npm/_npx`, hoặc đặt `PLAYWRIGHT_PATH`.
+Playwright: tự lấy bản mới nhất trong `~/.npm/_npx`, hoặc đặt `PLAYWRIGHT_PATH`.
 
 - `python3 src/tools/debug/mkdbg.py <bản build> <S>/dbg.html`; trong `<S>` symlink `3d-garden` và `css` → `3d-garden/css`.
 - Trong `<S>`: `python3 -m http.server 8778 --bind 127.0.0.1`
