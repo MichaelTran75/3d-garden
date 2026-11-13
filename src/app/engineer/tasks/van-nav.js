@@ -101,7 +101,7 @@
         // bồn cầu gọn sát vách −z (vách vỏ GLB z −0,90, 19/10), mặt quay về lối vào
         const TOILET_STAND = seatW(TOILET_SEAT, 0, TOILET_SEAT.standZ), SHOWER_SPOT = VAN.toWorld(VB0.twcX, VAN.dims.yIn, -0.34);
         function engHelmet(e, where) {   // mũ bảo hộ: trên đầu · trên kệ phòng tắm · cuối giường
-          e.helmet.visible = where === 'head'; e.hair.visible = where !== 'head';
+          e.helmet.visible = where === 'head'; e.hair.visible = where !== 'head'; if (where === 'head') e.dress(true);   // đội mũ lại = mặc lại áo, quần dài, giày (cởi khi tắm: stShelf)
           VBATH.helmet(where === 'shelf'); VAN.bed.helmet(where === 'bed');
         }
         function engScootPose(e, C, s, k, dt, t) {   // nhích cả ghế: 3 lần nhổm nhẹ, hai tay nắm hai bên mặt ghế

@@ -88,6 +88,7 @@
             return { tr, S, yaw, f, r, basketHome: bk, stow };
           })();
           if (!plan) { pole.visible = basket.visible = false; return { update() { return true; }, tick() {}, busy: false, pole, basket, avail: () => 0, room: () => 0 }; }
+          for (const a of plan.tr.apples) a.pick = reachable(plan.S, a.world);   // quả sào với tới: để dành cho người hái, không tự rụng (nature/apple-drop.js)
           // chỗ đặt giỏ sau khi hái: trên đất cạnh bàn trà, phía xa ghế cắm trại
           const table = scene.getObjectByName('Bàn trà (Camp Table)');
           const basketDrop = (() => { const tp = table ? table.position.clone() : pf.clone(); const away = tp.clone().sub(CAMP.chairPos).setY(0).normalize(); const p = tp.clone().addScaledVector(away, 0.75); p.y = cowY(p.x, p.z); return p; })();

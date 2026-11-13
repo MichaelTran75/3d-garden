@@ -193,7 +193,7 @@
             const shelf = on ? segK(k, 0, 0.5) * (1 - segK(k, 0.65, 1.0)) : segK(k, 0.75, 1.2) * (1 - segK(k, 1.45, 1.9));
             e.arms[0].rotation.x = e.arms[1].rotation.x = -2.7 * head - 1.15 * shelf; e.head.rotation.x = 0.12 * shelf - 0.05 * head;
             if (on) { if (k > 0.55 && VBATH.helmetOn) { VBATH.helmet(false); } if (k > 1.15 && !e.helmet.visible) engHelmet(e, 'head'); }
-            else { if (k > 0.6 && e.helmet.visible) { e.helmet.visible = false; e.hair.visible = true; } if (k > 1.25 && !VBATH.helmetOn) engHelmet(e, 'shelf'); }
+            else { if (k > 0.6 && e.helmet.visible) { e.helmet.visible = false; e.hair.visible = true; } if (k > 0.9) e.dress(false); if (k > 1.25 && !VBATH.helmetOn) engHelmet(e, 'shelf'); }   // k > 0,9 cởi áo, giày: tắm chỉ mặc quần short
             if (k > 2.0) return 'released';
           }
           return 'busy';

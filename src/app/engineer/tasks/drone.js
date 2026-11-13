@@ -342,7 +342,7 @@
               else if (D.st === 'arm') { D.stick = [-1, -1, 1, -1]; spinTo(0.3, dt); if (D.k > 2) go('flying'); }   // CSC: 2 cần chụm xuống-vào → cánh quạt quay không tải
               else if (D.st === 'flying') { spinTo(0.62 + 0.2 * Math.min(1, D.vel.length() / 5), dt); D.rec += dt; D.bat = Math.max(5, D.bat - dt * 100 / 1860); if (fly(dt, t) || D.k > 420) go('land'); }
               else {   // hạ: kéo ga xuống tới khi chạm đất, giữ 2 s → mô-tơ tắt
-                const gy = cowY(D.pos.x, D.pos.z) + 0.003; D.pos.y = Math.max(gy, D.pos.y - 0.55 * dt); D.vel.set(0, 0, 0); D.tilt.multiplyScalar(0.9);
+                const gy = cowY(D.pos.x, D.pos.z) + 0.003; D.pos.y = Math.max(gy, D.pos.y - 0.55 * dt); D.vel.set(0, 0, 0); D.tilt.multiplyScalar(Math.exp(-6.32 * dt));
                 D.landT = D.pos.y - gy < 0.01 ? (D.landT || 0) + dt : 0; D.stick = [0, D.landT > 2 ? -1 : -0.5, 0, 0]; spinTo(D.landT > 2 ? 0 : 0.5, dt);
                 if (D.landT > 4.5 || D.k > 40) { D.landT = 0; go('fetch'); }
               }

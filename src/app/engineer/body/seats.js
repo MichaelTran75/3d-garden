@@ -39,7 +39,7 @@
           for (const C of [FISH_SEAT, CAMP_SEAT]) PROPS.push(Object.assign({ r: 0.75 }, (({ x, z }) => ({ x, z }))(seatW(C, 0, -0.03))));   // vòng đẩy phủ cả 4 góc ghế (tay vịn, chân sau)
           push(FISH_SEAT, seatW(FISH_SEAT, -0.83, -0.05), 0.15);                         // xô tôn
           if (CAMP.lantern) push(FISH_SEAT, CAMP.lantern.g.position, 0.22);                  // cọc đèn lồng
-          const table = scene.getObjectByName('Bàn trà (Camp Table)'); if (table) push(CAMP_SEAT, table.position, 0.66);   // bàn trà to thêm 25% (17/10): nửa đường chéo 0,51 m
+          const table = scene.getObjectByName('Bàn trà (Camp Table)'); if (table) { push(CAMP_SEAT, table.position, 0.66); CAMP_SEAT.table = table.position.clone(); }   // bàn trà to thêm 25% (17/10): nửa đường chéo 0,51 m
           // chân chống bạt + đèn lồng treo mép bạt (đáy ~1,4 m — ngang đầu): — kiểm tra cả ngày thấy đi xuyên cột bạt khi về ghế, xuyên đèn khi ra ghế câu
           VAN.object.updateMatrixWorld(true);
           for (const [lx, lz] of VAN.awPoles || []) { push(CAMP_SEAT, VAN.object.localToWorld(new THREE.Vector3(lx, 0, lz)), 0.12); PROPS[PROPS.length - 1].nav = true; }

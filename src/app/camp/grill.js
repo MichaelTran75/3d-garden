@@ -27,7 +27,11 @@
           G.point = (y, out) => S.localToWorld(out.set(0, y, 0));   // điểm trên que (đv que)
           G.homeW = (y, out) => { CAMP.fire.g.updateWorldMatrix(true, false); return CAMP.fire.g.localToWorld(out.set(0, y * CAMP.fishK, 0).applyQuaternion(home.q).add(home.p)); };
           G.homeQ = out => { CAMP.fire.g.getWorldQuaternion(out); return out.multiply(home.q); };
-          G.stand = out => { G.homeW(0, out); const dx = out.x - pf.x, dz = out.z - pf.z, d = Math.hypot(dx, dz) || 1; out.x += dx / d * 0.52; out.z += dz / d * 0.52; out.y = 0; return out; };   // chỗ đứng lấy/cắm que (vẫn ngoài vòng tránh lửa)
+          // chỗ đặt chân lúc cúi lấy / cắm que: CẠNH que theo tiếp tuyến vòng bếp, lửa bên tay phải (tay cầm que), cách điểm cầm 0,26 m + lùi 0,12 m ra ngoài.
+          //  Đứng đối diện lửa rồi cúi ⇒ thân vươn qua tâm bếp: mũ chạm thanh ngang, vai chạm khung chữ A của giá treo, dời que đi đâu trên vòng cũng vậy.
+          let reach = null;
+          G.reach = out => { if (!reach) { const h = G.homeW(0, new THREE.Vector3()), g = G.homeW(GRIP, new THREE.Vector3()), d = Math.hypot(h.x - pf.x, h.z - pf.z) || 1, rx = (h.x - pf.x) / d, rz = (h.z - pf.z) / d; reach = new THREE.Vector3(g.x + rz * 0.26 + rx * 0.12, 0, g.z - rx * 0.26 + rz * 0.12); } return out.copy(reach); };
+          G.stand = out => { G.reach(out); const dx = out.x - pf.x, dz = out.z - pf.z, d = Math.hypot(dx, dz) || 1, k = Math.max(0, FIRE_AVOID_R + 0.04 - d); out.x += dx / d * k; out.z += dz / d * k; return out; };   // đích đi tới: chỗ đặt chân lùi ra ngoài vòng tránh lửa (bước cuối nhích vào: engineer/tasks/meal-read.js)
           G.toss = (v) => { S.updateWorldMatrix(true, false); const p = new THREE.Vector3(), q = new THREE.Quaternion(); S.getWorldPosition(p); S.getWorldQuaternion(q); put(S, scene, p, q, W); G.fly = { v, t: 0, spin: 7 }; G.set('fly'); };
           G.toKeeper = wig => { put(F.fg, wig, _gfA.set(0, 0, 0), qSwim, 1); G.eat = 0; G.cook = 0; G.smoked = 0; paint(); G.set('swim'); };   // CHỖ CHẠM: thân cá vào khung lắc của người câu (cá rô trên lưỡi)
           G.lost = () => { G.atHome(); G.set('empty'); };   // cá rô sổng lưỡi: lại không có cá nướng

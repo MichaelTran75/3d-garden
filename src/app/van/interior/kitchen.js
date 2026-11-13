@@ -10,6 +10,7 @@
             boardT: lam(0x6fb0a0), wood: lam(0x7a4a2a), blade: vanMetal(0xd2d7da, 0.12), cap: lam(0x3b3f42), sponge: lam(0xe36f9a), soap: lam(0xe9e6dc), lid: vanMetal(0xaeb4b6),
             cab: lam(0xa58e69), front: lam(0xd0ccc0), pull: lam(0x43494b),
             hood: lam(0x98a7a4, { transparent: true, opacity: 0.5, depthWrite: false }), hoodDk: lam(0x2e3436, { transparent: true, opacity: 0.5, depthWrite: false }) };   // máy hút mùi trong suốt 50%, nét viền giữ nguyên
+          M.peg.userData.vk = M.wood.userData.vk = M.cab.userData.vk = 1;   // vân gỗ (core/room-light.js)
           const S = new THREE.Group(); S.name = 'Bếp: phần cố định';
           const P = new THREE.Group(); P.name = 'Bếp: đồ dùng'; P.userData.noBake = true;
           const box = (par, w, h, d, x, y, z, mat, out = false) => { const m = bx(w, h, d, mat, true, out, lineDark); m.position.set(x, y, z); par.add(m); return m; };

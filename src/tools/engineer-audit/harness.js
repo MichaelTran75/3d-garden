@@ -78,10 +78,13 @@ window.audRun = (h0, sec) => {
         A.ring.push([p.x, p.z, e.walking ? 1 : 0, key]); if (A.ring.length > 30) A.ring.shift();
         if (A.ring.length === 30) { const w = A.ring.reduce((s, r) => s + r[2], 0) / 30; let m = 0; for (const r of A.ring) m = Math.max(m, Math.hypot(r[0] - A.ring[0][0], r[1] - A.ring[0][1]));
           if (w > 0.8 && m < 0.6) an('struggle', { key, at: [p.x, p.z].map(v => +v.toFixed(2)), walkFrac: +w.toFixed(2), span: +m.toFixed(2), gap: 60 }); }
-        const out = !e.inVan && e.phase !== 'van' && e.g.parent === R.scene, sitting = e.seat && !['go', 'stood', 'leave', 'path'].includes(e.seat.st);
+        const out = !e.inVan && e.phase !== 'van' && e.dishTrip !== 'wash' && e.g.parent === R.scene, sitting = e.seat && !['go', 'stood', 'leave', 'path'].includes(e.seat.st);
         if (out && !sitting && R.COL.ready) { const g = R.gY(p.x, p.z); if (R.colHit(7, p.x, p.z, g + 0.3, g + 1.6)) an('insideObstacle', { key, at: [p.x, p.z].map(v => +v.toFixed(2)), gap: 30 }); }
         if (out && !sitting && !['stars', 'nap', 'pet', 'trim', 'garden', 'engine'].includes(e.phase)) { const dy = p.y - (R.cowY(p.x, p.z) - R.FEET); if (Math.abs(dy) > 0.65) an(dy > 0 ? 'floating' : 'sunk', { key, dy: +dy.toFixed(2), at: [p.x, p.z].map(v => +v.toFixed(2)), gap: 60 }); }
         if (e.phase === 'stars' && h < 19) an('starsBefore19', { key, gap: 300 });
+        { const D = e.dish, H = e.hold || {}, other = ['cup', 'book', 'bottle', 'coke', 'pole', 'chip', 'knife', 'spatula'].filter(k => H[k]);   // bát / chảo trên tay mà tay còn làm việc khác
+          A.dishN = D && D.at === 'hand' && (other.length || (!e.inVan && !e.dishTrip && !['toChair', 'eat', 'van'].includes(e.phase))) ? (A.dishN || 0) + 1 : 0;   // xét mỗi giây, 2 lần liền (bỏ khung chuyển pha)
+          if (A.dishN >= 2) an('dishBusy', { key: key + ' · ' + D.kind + (other.length ? ' + ' + other.join('+') : ''), gap: 120 }); }
         const f = __ev('engForceAct'); if (f) { if (A.forceSince === null) A.forceSince = h; else if (h - A.forceSince > (f === 'stars' ? 65 : 25) / 60) an('forceStale', { key: f, since: audHM(A.forceSince), gap: 1800 }); } else A.forceSince = null;
         const jobs = [['stars', R.SW, () => R.SW.state.st !== 'idle', ['stars']], ['drone', R.DR, () => R.DR.state.st !== 'idle', ['drone']], ['trim', R.TJ, () => R.TJ.busy(), ['trim']], ['garden', R.GJ, () => R.GJ.busy(), ['garden']],
           ['wood', R.WJ, () => R.WJ.busy(), ['wood']], ['engine', R.EJ, () => R.EJ.busy(), ['engine']], ['apple', R.AP, () => R.AP.busy, ['apple', 'appleEat']]];

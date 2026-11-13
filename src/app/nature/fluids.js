@@ -11,7 +11,7 @@
         //     (bán Lagrange) → trộn động lượng từ lớp gió trên cao (vệt khuất gió phục hồi sau ~lrec, như hàng chắn gió thật: thấp nhất ở 3–5 H,
         //     hồi lại ~10–30 H) → cản lỗ rỗng bậc 2 (tán lá thưa, nhà/xe/đập gần như kín) → giữ xoáy (vorticity confinement) → mép gió vào = gió
         //     tự do, mép gió ra để trôi → chiếu không phân kỳ (Jacobi, khởi động ấm). Giải với gió tự do = 1 (đơn vị chuẩn hoá), nhân độ phơi gió địa hình.
-        function fluidKernel() {   // JS thuần, không đọc biến bên ngoài → chạy được trong Worker lẫn trên luồng chính (dự phòng)
+        function fluidKernel() {   // JS thuần, chỉ đọc 1 tên ngoài hàm: GRAV (chép vào đầu Blob của Worker) → chạy được trong Worker lẫn trên luồng chính (dự phòng)
           const f32 = new Float32Array(1), i32 = new Int32Array(f32.buffer);
           function toHalf(val) {
             f32[0] = val; const x = i32[0];
@@ -28,10 +28,10 @@
           }
 
           // ---------------- 1) NƯỚC NÔNG ----------------
-          const G = GRAV, WSTEP = 1 / 60;
+          const G = GRAV, WSTEP = 1 / 60, MANNING = G * 0.035 * 0.035, ELDER = 0.6;   // n = 0,035 (lòng suối tự nhiên có đá) · hệ số trộn ngang Elder
           let W = null;
           function initWater(g) {
-            const { nx, nz, dx, mask, kind, bed, target, rest, jets, u0, v0 } = g, N = nx * nz;
+            const { nx, nz, dx, mask, kind, bed, target, rest, jets, u0, v0, x0, z0 } = g, N = nx * nz;
             const h = new Float32Array(N), cells = [], uf = [], vf = [];
             for (let c = 0; c < N; c++) if (mask[c]) { h[c] = Math.max(0.05, target[c] - bed[c]); cells.push(c); }
             for (let b = 0; b < nz; b++) for (let a = 1; a < nx; a++) if (mask[b * nx + a - 1] && mask[b * nx + a]) uf.push(b * (nx + 1) + a);
@@ -48,24 +48,43 @@
             if (u0) { for (const f of uf) u[f] = u0[f]; for (const f of vf) v[f] = v0[f]; }
             W = { nx, nz, dx, mask, kind, bed, target, rest, jets: Int32Array.from(jets.faces), jetV: Float32Array.from(jets.speeds), h, h2: new Float32Array(N),
               u, u2: new Float32Array((nx + 1) * nz), v, v2: new Float32Array(nx * (nz + 1)),
-              foam: new Float32Array(N), foam2: new Float32Array(N), cells: Int32Array.from(cells), uf: Int32Array.from(uf), vf: Int32Array.from(vf), sponge, acc: 0 };
+              foam: new Float32Array(N), foam2: new Float32Array(N), cells: Int32Array.from(cells), uf: Int32Array.from(uf), vf: Int32Array.from(vf), sponge, acc: 0,
+              x0: x0 || 0, z0: z0 || 0, cf: new Float32Array(N), sc: new Float32Array(N), tick: 0, wmx: new Float32Array(N), wmz: new Float32Array(N), wOn: false, wAge: 99, flood: 0 };
           }
-          function splashWater(imp, n) {   // imp: [x, z (ô), bán kính (ô), cường độ] — mặt nước lõm xuống rồi tự dội thành sóng tròn lan ra
-            const { nx, nz, mask, kind, h, foam } = W;
+          function splashWater(imp, n) {   // imp: [x, z (ô), bán kính (ô), cường độ] — mặt nước lõm xuống, phần nước bị đẩy dồn thành vành quanh chỗ chạm
+            const { nx, nz, mask, kind, h, foam } = W;   //  ⇒ tổng lượng nước không đổi (mưa lâu không rút cạn sông), sóng lan ra có đỉnh trước, đáy sau
             for (let k = 0; k < n; k++) {
-              const cx = imp[k * 4], cz = imp[k * 4 + 1], r = Math.max(0.6, imp[k * 4 + 2]), s = imp[k * 4 + 3];
-              for (let b = Math.max(0, Math.floor(cz - r)); b <= Math.min(nz - 1, Math.ceil(cz + r)); b++)
-                for (let a = Math.max(0, Math.floor(cx - r)); a <= Math.min(nx - 1, Math.ceil(cx + r)); a++) {
-                  const c = b * nx + a; if (!mask[c] || kind[c]) continue;
-                  const d = Math.hypot(a + 0.5 - cx, b + 0.5 - cz) / r; if (d >= 1) continue;
-                  const w = (1 - d) * (1 - d); h[c] = Math.max(0.05, h[c] - s * w); foam[c] = Math.min(1.5, foam[c] + s * w * 4);
-                }
+              const cx = imp[k * 4], cz = imp[k * 4 + 1], r = Math.max(0.6, imp[k * 4 + 2]), s = imp[k * 4 + 3], R = Math.max(1.9 * r, r + 1.2), rk = 1 / (R / r - 1);
+              const b0 = Math.max(0, Math.floor(cz - R)), b1 = Math.min(nz - 1, Math.ceil(cz + R)), a0 = Math.max(0, Math.floor(cx - R)), a1 = Math.min(nx - 1, Math.ceil(cx + R));
+              let out = 0, rim = 0;
+              for (let b = b0; b <= b1; b++) for (let a = a0; a <= a1; a++) {
+                const c = b * nx + a; if (!mask[c] || kind[c]) continue;
+                const d = Math.hypot(a + 0.5 - cx, b + 0.5 - cz) / r;
+                if (d < 1) { const w = (1 - d) * (1 - d); out += Math.min(s * w, h[c] - 0.05); foam[c] = Math.min(1.5, foam[c] + Math.abs(s) * w * 4); }
+                else { const w = 1 - (d - 1) * rk; if (w > 0) rim += w; }
+              }
+              if (rim <= 0 || out === 0) continue;   // chỗ chạm kín giữa bờ: không có vành để dồn nước ⇒ chỉ nổi bọt
+              const q = out / rim;
+              for (let b = b0; b <= b1; b++) for (let a = a0; a <= a1; a++) {
+                const c = b * nx + a; if (!mask[c] || kind[c]) continue;
+                const d = Math.hypot(a + 0.5 - cx, b + 0.5 - cz) / r;
+                if (d < 1) { const w = (1 - d) * (1 - d); h[c] -= Math.min(s * w, h[c] - 0.05); }
+                else { const w = 1 - (d - 1) * rk; if (w > 0) h[c] = Math.max(0.05, h[c] + q * w); }
+              }
             }
+          }
+          function windOnWater() {   // gió kéo mặt nước theo BẢN ĐỒ GIÓ (mục 3): vũng khuất sau rặng cây / chân đập gần lặng, mặt hồ trống nhận đủ gió
+            const F = WF, U0 = F.U0 || 1, { nx, dx, cells, wmx, wmz } = W, k = dx / F.dx, ox = (W.x0 - F.x0) / F.dx + 0.5 * k - 0.5, oz = (W.z0 - F.z0) / F.dx + 0.5 * k - 0.5;
+            for (let i = 0; i < cells.length; i++) {
+              const c = cells[i], b = (c / nx) | 0, a = c - b * nx, fx = ox + a * k, fz = oz + b * k, e = bil(F.expo, F.nx, F.nz, fx, fz) / U0;
+              wmx[c] = bil(F.u, F.nx, F.nz, fx, fz) * e; wmz[c] = bil(F.v, F.nx, F.nz, fx, fz) * e;
+            }
+            W.wOn = true;
           }
           function stepWater(dt, windX, windZ) {
             const { nx, nz, dx, kind, bed, target, h, sponge, cells, uf, vf, jets, jetV } = W;
             let { u, v, u2, v2, h2, foam, foam2 } = W;
-            const idx = 1 / dx, vmax = 0.45 * dx / dt, nx1 = nx + 1;
+            const idx = 1 / dx, vmax = 0.45 * dx / dt, nx1 = nx + 1, { cf, sc, wmx, wmz, wOn, flood } = W, jetK = 1 + 0.35 * flood, rise = 0.06 * flood, wMag = Math.hypot(windX, windZ), nuK = ELDER * dt * idx * idx;
             // 1) cuốn vận tốc theo chính nó (bán Lagrange) — tạo xoáy sau chỗ bờ lồi, dòng uốn theo lòng sông
             for (let k = 0; k < uf.length; k++) {
               const f = uf[k], b = (f / nx1) | 0, a = f - b * nx1, uu = u[f], vv = bil(v, nx, nz + 1, a - 0.5, b + 0.5);
@@ -76,31 +95,35 @@
               v2[f] = bil(v, nx, nz + 1, a - dt * uu * idx, b - dt * vv * idx);
             }
             [u, u2] = [u2, u]; [v, v2] = [v2, v];
-            for (let k = 0; k < jets.length; k++) v[jets[k]] = jetV[k];   // cửa xả: nước phụt ra hạ lưu
+            for (let k = 0; k < jets.length; k++) v[jets[k]] = jetV[k] * jetK;   // cửa xả: nước phụt ra hạ lưu
             // 2) mực nước theo thông lượng (độ sâu lấy phía ngược dòng → ổn định, bảo toàn khối nước)
             for (let k = 0; k < cells.length; k++) {
               const c = cells[k];
-              if (kind[c]) { h2[c] = target[c] - bed[c]; continue; }   // biên mở / cửa xả / mép hồ sát đập: giữ mực
+              if (kind[c]) { h2[c] = target[c] - bed[c] + (kind[c] === 2 ? rise : 0); continue; }   // biên mở / cửa xả (mưa lớn: dâng thêm) / mép hồ sát đập: giữ mực
               const b = (c / nx) | 0, a = c - b * nx, fl = b * nx1 + a, uL = u[fl], uR = u[fl + 1], vB = v[c], vT = v[c + nx];
               const flux = uR * (uR > 0 ? h[c] : h[c + 1]) - uL * (uL > 0 ? h[c - 1] : h[c]) + vT * (vT > 0 ? h[c] : h[c + nx]) - vB * (vB > 0 ? h[c - nx] : h[c]);
               h2[c] = Math.max(0.05, h[c] - dt * idx * flux);
             }
             const ht = W.h; W.h = h2; W.h2 = ht;
             const H = h2;
-            // 3) gia tốc theo độ dốc mặt nước + cản (tuyến tính · ma sát đáy bậc 2 · lớp hút sóng) + gió kéo mặt nước (~3% tốc độ gió)
+            if (!(W.tick++ & 7)) for (let k = 0; k < cells.length; k++) { const c = cells[k], d = h2[c]; sc[c] = Math.sqrt(cf[c] = MANNING / Math.cbrt(d > 0.05 ? d : 0.05)); }   // ma sát đáy Manning: cf = g·n² / h^⅓ (nông ⇒ cản mạnh hơn); độ sâu đổi chậm ⇒ tính lại mỗi 8 bước; ô biên giữ mực có thể sâu ≤ 0 ⇒ kẹp 5 cm (không kẹp: cf âm / vô cực ⇒ NaN lan cả sông)
+            // 3) gia tốc theo độ dốc mặt nước + nhớt xoáy (Elder: ν = 0,6·u*·h, u* = √cf·|U| — tia cửa xả toả rộng dần, mép dòng xiết kéo nước lặng theo;
+            //    mặt ô sát bờ lấy vận tốc bờ = 0) + cản (tuyến tính · ma sát đáy bậc 2 theo ĐỘ LỚN vận tốc · lớp hút sóng) + gió kéo mặt nước (~3 % tốc độ gió tại chỗ)
             for (let k = 0; k < uf.length; k++) {
               const f = uf[k], b = (f / nx1) | 0, a = f - b * nx1, cR = b * nx + a, cL = cR - 1;
-              let uu = u[f] - G * dt * idx * (bed[cR] + H[cR] - bed[cL] - H[cL]);
-              const hf = 0.5 * (H[cL] + H[cR]), damp = 0.04 + 0.5 * (sponge[cL] + sponge[cR]) + 0.012 * Math.abs(uu) / hf;
-              uu = (uu + dt * windX) / (1 + dt * damp); u[f] = uu > vmax ? vmax : uu < -vmax ? -vmax : uu;
+              const u0 = u[f], vt = 0.25 * (v[cL] + v[cR] + v[cL + nx] + v[cR + nx]), sp = Math.sqrt(u0 * u0 + vt * vt), hf = 0.5 * (H[cL] + H[cR]), c2 = 0.5 * (cf[cL] + cf[cR]), nu = nuK * 0.5 * (sc[cL] + sc[cR]) * sp * hf;
+              let uu = u0 - G * dt * idx * (bed[cR] + H[cR] - bed[cL] - H[cL]) + (nu < 0.2 ? nu : 0.2) * (u[f - 1] + u[f + 1] + (b > 0 ? u[f - nx1] : u0) + (b < nz - 1 ? u[f + nx1] : u0) - 4 * u0);   // sông chảy ra mép bản đồ: hàng ngoài lưới = chính nó (đọc ngoài mảng ⇒ NaN lan cả sông)
+              const damp = 0.04 + 0.5 * (sponge[cL] + sponge[cR]) + c2 * sp / hf;
+              uu = (uu + dt * (wOn ? wMag * 0.5 * (wmx[cL] + wmx[cR]) : windX)) / (1 + dt * damp); u[f] = uu > vmax ? vmax : uu < -vmax ? -vmax : uu;
             }
             for (let k = 0; k < vf.length; k++) {
               const f = vf[k], cT = f, cB = f - nx;
-              let vv = v[f] - G * dt * idx * (bed[cT] + H[cT] - bed[cB] - H[cB]);
-              const hf = 0.5 * (H[cB] + H[cT]), damp = 0.04 + 0.5 * (sponge[cB] + sponge[cT]) + 0.012 * Math.abs(vv) / hf;
-              vv = (vv + dt * windZ) / (1 + dt * damp); v[f] = vv > vmax ? vmax : vv < -vmax ? -vmax : vv;
+              const b = (f / nx) | 0, a = f - b * nx, fu = f + b, v0 = v[f], ut = 0.25 * (u[fu] + u[fu + 1] + u[fu - nx1] + u[fu - nx]), sp = Math.sqrt(v0 * v0 + ut * ut), hf = 0.5 * (H[cB] + H[cT]), c2 = 0.5 * (cf[cB] + cf[cT]), nu = nuK * 0.5 * (sc[cB] + sc[cT]) * sp * hf;
+              let vv = v0 - G * dt * idx * (bed[cT] + H[cT] - bed[cB] - H[cB]) + (nu < 0.2 ? nu : 0.2) * ((a > 0 ? v[f - 1] : v0) + (a < nx - 1 ? v[f + 1] : v0) + v[f - nx] + v[f + nx] - 4 * v0);
+              const damp = 0.04 + 0.5 * (sponge[cB] + sponge[cT]) + c2 * sp / hf;
+              vv = (vv + dt * (wOn ? wMag * 0.5 * (wmz[cB] + wmz[cT]) : windZ)) / (1 + dt * damp); v[f] = vv > vmax ? vmax : vv < -vmax ? -vmax : vv;
             }
-            for (let k = 0; k < jets.length; k++) v[jets[k]] = jetV[k];
+            for (let k = 0; k < jets.length; k++) v[jets[k]] = jetV[k] * jetK;
             // 4) bọt do vật khuấy nước (cú chạm): trôi theo dòng, tan dần (~4 s) — không tự sinh ở cửa xả hay chỗ nước xiết
             const keep = Math.exp(-dt / 4);
             for (let k = 0; k < cells.length; k++) {
@@ -382,7 +405,8 @@
             if (m.t !== 'step') return null;
             const transfer = [], res = { t: 'out' };
             if (W) {
-              splashWater(m.imp, m.nImp);
+              splashWater(m.imp, m.nImp); W.flood = m.flood || 0;
+              if (WF && WF.U0 && (W.wAge += m.dt) > 0.5) { W.wAge = 0; windOnWater(); }   // bản đồ gió đổi chậm ⇒ 2 lần / giây
               W.acc = Math.min(W.acc + m.dt, 0.1);
               while (W.acc >= WSTEP) { stepWater(WSTEP, m.wind[0], m.wind[1]); W.acc -= WSTEP; }
               const buf = m.bufs.water && m.bufs.water.byteLength === W.nx * W.nz * 8 ? new Uint16Array(m.bufs.water) : new Uint16Array(W.nx * W.nz * 4);
@@ -509,16 +533,16 @@
             const r = local.handle(m); if (r) onOut(r.msg);
           }
           try {
-            url = URL.createObjectURL(new Blob(['const K = (' + fluidKernel.toString() + ')(); onmessage = e => { const r = K.handle(e.data); if (r) postMessage(r.msg, r.transfer); };'], { type: 'text/javascript' }));
+            url = URL.createObjectURL(new Blob(['const GRAV = ' + GRAV + '; const K = (' + fluidKernel.toString() + ')(); onmessage = e => { const r = K.handle(e.data); if (r) postMessage(r.msg, r.transfer); };'], { type: 'text/javascript' }));
             worker = new Worker(url);
             worker.onmessage = e => onOut(e.data);
             worker.onerror = e => { e.preventDefault?.(); worker.terminate(); worker = null; busy = false; local = fluidKernel(); local.handle(initMsg); for (const sm of smokes) local.handle({ t: 'smoke', cfg: sm.cfg, id: sm.id }); };
           } catch (e) { worker = null; local = fluidKernel(); }
-          const initMsg = { t: 'water', warm: worker ? 12 : 0, grid: { nx, nz, dx, mask, kind, bed, target, rest, jets, u0, v0 } };   // luồng phụ: chạy trước 12 s cho tia cửa xả & xoáy hình thành
+          const initMsg = { t: 'water', warm: worker ? 12 : 0, grid: { nx, nz, dx, mask, kind, bed, target, rest, jets, u0, v0, x0, z0 } };   // luồng phụ: chạy trước 12 s cho tia cửa xả & xoáy hình thành
           post(initMsg);
           sceneEvents.signal.addEventListener('abort', () => { worker?.terminate(); worker = null; if (url) URL.revokeObjectURL(url); });
           return {
-            water, addSmoke, wCells, windCfg: () => windCfg,   // windCfg: cấu hình bản đồ gió (vật cản, độ phơi) — gỡ lỗi
+            water, addSmoke, wCells, runoff: 0, windCfg: () => windCfg, threaded: () => !!worker,   // windCfg: cấu hình bản đồ gió (vật cản, độ phơi) · threaded: lõi còn chạy ở luồng phụ — gỡ lỗi
             initWind(cfg) {   // nature/wind-field.js gọi sau khi cảnh dựng xong: lưới vật cản + độ phơi gió
               cfg.warm = worker ? 30 : 3; windCfg = cfg; Object.assign(windMap, { x0: cfg.x0, z0: cfg.z0, nx: cfg.nx, nz: cfg.nz, dx: cfg.dx });
               sceneWind.u.uWBox.value.set(cfg.x0, cfg.z0, 1 / (cfg.nx * cfg.dx), 1 / (cfg.nz * cfg.dx));
@@ -530,10 +554,12 @@
             },
             update(dt, t, rain) {
               accDt += dt;
+              // nước mưa đổ về từ lưu vực: dâng trong ~40 s mưa, rút chậm ~4 phút sau khi tạnh (0…1) ⇒ cửa xả chảy mạnh hơn, mực chân đập dâng, nước ngả màu phù sa (core/sky-sun-moon.js)
+              this.runoff += (rain - this.runoff) * Math.min(1, dt / (rain > this.runoff ? 40 : 240));
               if (busy) return;
               // giọt mưa rơi xuống mặt nước: vài cú chạm ngẫu nhiên mỗi khung theo cường độ mưa
               for (let k = Math.round(rain * 6 * (0.5 + Math.random())); k > 0; k--) { const c = wCells[(Math.random() * wCells.length) | 0], a = c % nx, b = (c / nx) | 0; this.splash(x0 + (a + 0.5) * dx, z0 + (b + 0.5) * dx, 0.5, 0.008 + 0.01 * Math.random()); }
-              const msg = { t: 'step', dt: Math.min(accDt, 0.1), nImp, imp: imp.slice(0, nImp * 4), wind: [sceneWind.dir.x * sceneWind.U * 0.0036, sceneWind.dir.y * sceneWind.U * 0.0036], bufs: { water: spareW } };
+              const msg = { t: 'step', dt: Math.min(accDt, 0.1), nImp, imp: imp.slice(0, nImp * 4), wind: [sceneWind.dir.x * sceneWind.U * 0.0036, sceneWind.dir.y * sceneWind.U * 0.0036], bufs: { water: spareW }, flood: this.runoff };
               const transfer = spareW ? [spareW] : []; spareW = null; nImp = 0; accDt = 0;
               if (windCfg) {   // mép gió vào: giải theo đơn vị CHUẨN HOÁ (gió tự do = 1, chỉ đổi hướng) ⇒ gió mạnh/yếu đi thì bản đồ đúng ngay, tốc độ thật nhân ở windVec/windAt
                 msg.wind2 = [sceneWind.dir.x, sceneWind.dir.y];

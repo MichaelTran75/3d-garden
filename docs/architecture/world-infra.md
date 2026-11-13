@@ -5,7 +5,7 @@
 - Nước · 1.1 KB
 - Đập, tổ máy · 0.9 KB
 - Đường · 0.2 KB
-- Cống · 0.8 KB
+- Cống · 1.0 KB
 - Mẫu GLB · 0.2 KB
 <!-- /toc -->
 
@@ -43,6 +43,7 @@
 - `world/storm-drain.js` (sau `world/water-pump.js`): `stormDrain` giếng thăm, hố thu, nhánh nhà, cửa xả; `tick`, `toggle`, `net`.
 - Nắp lộ theo `KEEP`, chỉ chúng vào `COVERS` (cỏ chừa qua `drCover`); thân hố + ống luôn đủ (`STR`, `SEG`).
 - Mưa: `F.q` bám `rainK` ⇒ van lật (con lắc, bước ≤ 8 ms), tia nước, `fluids.splash`.
+- Điểm ra của tia: nắp (R 0,228) phủ quá đáy ống ⇒ mép dưới nắp thấp hơn mặt dòng thì tia bắt đầu dưới mép nắp (`eY`, `fw`), không thì tia vẽ xuyên qua nắp.
 - Bấm cửa xả ⇒ `toggle()`: đất quanh tuyến mờ, rãnh; mặt đường trong suốt theo `DRAIN_BAND`, thôi đổ bóng; cỏ trong dải ẩn (`uDrOn`); tắt ⇒ trả ma trận đã lưu.
 - Nửa rộng dải `bandW` ≥ 1,25 × sâu đỉnh ống (hẹp ⇒ nhìn xiên bị đất che); chừa trạm biến áp, đập, nền nhà.
 - Mặt đường: `clone()` mất `onBeforeCompile` ⇒ nối chuỗi + đổi `customProgramCacheKey`.

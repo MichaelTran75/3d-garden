@@ -10,6 +10,6 @@
           for (let n = 0; n < 3; n++) { const sp = htmlSprite(new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, opacity: 0, depthWrite: false })), { tone: 'raw', paint, w: 64, h: 64 }); dogZzzGroup.add(sp); dogZzz.push({ m: sp, ph: n / 3 }); }
         }
         if (!liveWeather.wildlifeAwake) {   // mở trang lúc tối: chó đã nằm ngủ sẵn trong xe
-          dogRain.st = 'in'; dogObj.position.set(VAN.dogBed.x, VAN.doorIn.y + 0.02 * CAMP_SCALE, VAN.dogBed.z); dogObj.rotation.y = Math.atan2(-VAN.out.z, VAN.out.x);
+          dogRain.st = 'in'; dogObj.position.set(VAN.dogBed.x, VAN.doorIn.y + 0.02 * CAMP_SCALE, VAN.dogBed.z); dogObj.rotation.y = Math.atan2(VAN.dogBed.z - VAN.doorIn.z, VAN.doorIn.x - VAN.dogBed.x);   // đúng hướng trạng thái 'in' giữ (animals/dog/brain.js); lệch ⇒ chó đang nằm tự xoay lúc mở trang
         }
         // (chó vào xe khi mưa / tối: animals/dog/brain.js — shelterTick)

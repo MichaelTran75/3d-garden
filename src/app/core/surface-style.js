@@ -36,8 +36,13 @@
             return h; }
           float sfMossCu(vec2 q, float f) { return 0.8 * mix(sfCush(q * 8.0), 0.3, smoothstep(0.04, 0.1, f)) + 0.2 * mix(sfCush(q * 26.0 + 11.0), 0.3, smoothstep(0.012, 0.03, f)); }   // đệm ~12 cm + gợn ~4 cm, nhỏ hơn ~1 điểm ảnh thì về trung bình; f = length(fwidth(q)) tính NGOÀI nhánh
           vec3 sfMossT(vec3 P, float wet) { return vec3(0.2, 0.3, 0.07) * (0.94 + 0.12 * sfN(P.xz * 0.35 + 3.7)) * mix(vec3(1.05, 1.0, 0.86), vec3(0.92, 1.02, 0.96), wet); }   // khô ngả vàng nhẹ · ướt thẫm nhẹ
-          vec3 sfBump(vec3 n, vec3 sp, float h) { vec3 dx = dFdx(sp), dy = dFdy(sp), r1 = cross(dy, n), r2 = cross(n, dx); float det = dot(dx, r1);
-            return normalize(abs(det) * n - sign(det) * (dFdx(h) * r1 + dFdy(h) * r2)); }`;
+          // sfBumpG: g = độ dốc độ cao theo điểm ảnh (x, y) · sfBump lấy g = dFdx / dFdy của h: GPU tính theo ô 2 × 2 điểm ảnh ⇒ mép cứng của h (khe nứt) cho
+          //  kết quả tuỳ điểm ảnh ghép cặp với bên nào, camera dời 1 điểm ảnh là đổi (vệt ngang nhấp nháy) ⇒ h có mép cứng thì tự tính g (xem vỏ táo)
+          vec3 sfBumpG(vec3 n, vec3 sp, vec2 g) { vec3 dx = dFdx(sp), dy = dFdy(sp), r1 = cross(dy, n), r2 = cross(n, dx); float det = dot(dx, r1);
+            return normalize(abs(det) * n - sign(det) * (g.x * r1 + g.y * r2)); }
+          vec3 sfBump(vec3 n, vec3 sp, float h) { return sfBumpG(n, sp, vec2(dFdx(h), dFdy(h))); }
+          // sfSd = đạo hàm của smoothstep(a, b, x) · dòng cuối chuỗi không kết thúc bằng chú thích (mã nối sau sẽ bị nuốt)
+          float sfSd(float a, float b, float x) { float t = clamp((x - a) / (b - a), 0.0, 1.0); return 6.0 * t * (1.0 - t) / (b - a); }`;
         // RÊU CHÂN TƯỜNG (bản 23/10 là mảng loang lốm đốm khắp mặt tường, trông như vết sơn rằn ri). Theo nghiên cứu rêu
         //  trên công trình: rêu cần chỗ ẩm lâu khô + mặt sần giữ được bào tử ⇒ mọc thành DẢI ĐỆM sát chân tường (mưa bắn, ẩm leo từ đất), dày + cao hơn ở mặt khuất
         //  nắng hướng bắc, đứt đoạn theo chỗ khô / ẩm dọc tường, mép trên lồi lõm theo từng đệm, vài đệm lẻ bám ngay trên dải; mặt tường phẳng cao hơn chỉ có MÀNG
@@ -76,7 +81,7 @@
           float sfAV(vec2 p, float P) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); int x0 = int(mod(i.x, P)), x1 = int(mod(i.x + 1.0, P)), y0 = int(i.y) + 4096, y1 = y0 + 1;
             return mix(mix(sfAH(x0, y0), sfAH(x1, y0), f.x), mix(sfAH(x0, y1), sfAH(x1, y1), f.x), f.y); }
           float sfARidge(float bx, float by, float bm) { return sfAV(vec2(bx * 8.0, by * 1.6 + 3.0), 8.0 * bm); }   // gờ / rãnh dọc lớn = appleRidge (thấp = lòng rãnh)
-          vec4 sfApple(float bx, float by, float bm) {   // VẢY: ô Voronoi so le (20 ô / đv vân quanh × 6 / đv dọc ≈ 5 × 15 cm), mép uốn lượn + lởm chởm → (e: tới mép, hid, hid2, w: khe hở 1 / liền 0)
+          vec4 sfApple(float bx, float by, float bm, out vec2 g) {   // VẢY: ô Voronoi so le (20 ô / đv vân quanh × 6 / đv dọc ≈ 5 × 15 cm), mép uốn lượn + lởm chởm → (e: tới mép, hid, hid2, w: khe hở 1 / liền 0) · g = độ dốc của e theo (bx, by), bỏ qua phần uốn mép
             float P = 20.0 * bm; vec2 q = vec2(bx * 20.0, by * 6.0), w = q * vec2(0.25, 0.35);
             q += vec2(0.6, 0.4) * (vec2(sfAV(w, P * 0.25), sfAV(w + vec2(0.0, 17.0), P * 0.25)) - 0.5);
             q += vec2(0.2, 0.1) * (vec2(sfAV(q * 3.0, P * 3.0), sfAV(q * 3.0 + vec2(0.0, 29.0), P * 3.0)) - 0.5) + vec2(0.07, 0.035) * (vec2(sfAV(q * 9.0, P * 9.0), sfAV(q * 9.0 + vec2(0.0, 41.0), P * 9.0)) - 0.5);   // mép khe uốn lượn + lởm chởm
@@ -87,6 +92,7 @@
                 if (dd < f1) { f2 = f1; bx2 = ax; by2 = ay; p2 = p1; f1 = dd; ax = ix; ay = iy; p1 = pt; } else if (dd < f2) { f2 = dd; bx2 = ix; by2 = iy; p2 = pt; } } }
             vec2 sep = (p2 - p1) * vec2(1.0, 3.1); float pr = sfAH(ax + bx2 + 101, ay + by2 + (ax - bx2) * (ax - bx2) * 977 + 13);   // băm đối xứng theo cặp mảng
             float hz = step(abs(sep.x), abs(sep.y)), wg = step(hz > 0.5 ? 0.55 : 0.12, pr) * (hz > 0.5 ? 0.45 : 1.0);   // khe NGANG (2 mảng trên – dưới): hay liền (vảy dài dính nhau), hở thì mảnh · khe dọc hiếm khi liền, hở rộng
+            vec2 d1 = (p1 - q) * vec2(1.0, 3.1); g = (d1 / max(sqrt(f1), 1e-4) - (d1 + sep) / max(sqrt(f2), 1e-4)) * vec2(20.0, 18.6);
             return vec4(sqrt(f2) - sqrt(f1), sfAH(ax + 31, ay), sfAH(ax + 53, ay + 7), wg); }
           `;
         function surfaceStyle(mat, kind) {
@@ -103,7 +109,7 @@
               #endif
               vSfP = (inverse(viewMatrix) * vec4(mvPosition.xyz, 1.0)).xyz; vSfN = normalize(mat3(modelMatrix) * sfN3);`);
             sh.fragmentShader = (U.sfApple ? '#define SF_APPLE\n' : '') + SF_GLSL + (K === 5 ? '\nvarying vec3 vSfB; varying float vSfD;' : '') + '\n' + sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
-              float sfHg = 0.0, sfMo = 0.0, sfCv = 0.0;   // sfMo: lượng rêu 0–1 (lá rêu mọc theo — nature/moss-lawn.js) · sfCv: mật độ hốc khuất của vỏ (bóng hốc — core/sky-shade.js cav)
+              float sfHg = 0.0, sfMo = 0.0, sfCv = 0.0; vec2 sfHd = vec2(0.0);   // sfMo: lượng rêu 0–1 (lá rêu mọc theo — nature/moss-lawn.js) · sfCv: mật độ hốc khuất của vỏ (bóng hốc — core/sky-shade.js cav)
               {
                 vec3 wn = normalize(vSfN); float wf = 1.0 - smoothstep(0.55, 0.85, abs(wn.y));   // mặt đứng
                 vec2 tg = abs(wn.y) < 0.9 ? normalize(vec2(-wn.z, wn.x) + 1e-5) : vec2(1.0, 0.0);
@@ -154,7 +160,7 @@
                   {   // VỎ TÁO NỨT VẢY: GỜ + RÃNH DỌC lớn (trùng rãnh khoét trên lưới — nature/flowers-trees.js appleRidge), trên đó vảy dài: gờ phong hoá xám sáng,
                       // lòng rãnh tối nâu · khe giữa vảy rộng hẹp theo đoạn, khe ngang hay đứt (vảy dính nhau): thành khe vỏ trong nâu đỏ, đáy gần đen · mép vảy cong
                       // bắt sáng · vảy bong một phần (mép lởm chởm) lộ vỏ trong nâu cam · cành nhỏ nhẵn xám · địa y thưa ngoài khe · rêu gốc như cũ
-                    vec4 ap = sfApple(vSfB.x, vSfB.y, bm); vec3 c0 = c; float e = ap.x, gA = smoothstep(0.06, 0.3, tR), fur = 1.0 - smoothstep(0.22, 0.5, sfARidge(vSfB.x, vSfB.y, bm));
+                    vec2 apG; vec4 ap = sfApple(vSfB.x, vSfB.y, bm, apG); vec3 c0 = c; float e = ap.x, gA = smoothstep(0.06, 0.3, tR), fur = 1.0 - smoothstep(0.22, 0.5, sfARidge(vSfB.x, vSfB.y, bm));
                     float n1 = sfNw(vec2(ba * 16.0, bl * 60.0), 192.0 * bm), n2 = sfNw(vec2(ba * 5.0, bl * 18.0) + 7.0, 60.0 * bm);   // sần vảy ~1 cm · loang ~3 cm
                     float wv = ap.w * (0.35 + 1.1 * sfNw(vec2(ba * 1.5, bl * 2.0) + 3.0, 18.0 * bm)) * (0.7 + 0.8 * fur), op = step(0.04, wv) * gA;   // độ mở khe: dọc rộng, ngang mảnh, theo đoạn · lòng rãnh mở rộng
                     float H = 0.02 + 0.16 * min(wv, 1.2);   // nửa bề rộng khe (đv ô ≈ 5 cm ⇒ 1–9 mm)
@@ -174,7 +180,13 @@
                     float lp = smoothstep(0.66 - 0.06 * uSfL, 0.73 - 0.05 * uSfL, lm) * (1.0 - crk) * (1.0 - 0.6 * fur) * (0.68 + 0.32 * sfNwF(vec2(ba * 6.0, bl * 40.0), 72.0 * bm));
                     c = mix(c, uSfLC * c0 * 4.2, 0.45 * min(1.0, uSfL) * lp);   // địa y xám xanh thưa trên gờ
                     sfMo = uSfMs * (1.0 - smoothstep(0.0, 0.9, hA)) * smoothstep(0.3, 0.7, sfNw(vec2(ba * 0.5, bl * 3.0) + 5.0, 6.0 * bm));   // rêu chân thân
-                    sfHg = -0.006 * ao - 0.005 * crk - 0.004 * deep + 0.0014 * smoothstep(0.05, 0.4, e) * gA + 0.0012 * rim - 0.0012 * fl + 0.0008 * n1 * gA + 0.0015 * lp; mG = max(crk, fur * gA);
+                    // độ cao khe (ao, crk, deep, mặt vảy, mép vảy) = hàm của e: độ dốc = đạo hàm theo e × độ dốc e theo điểm ảnh (từ toạ độ vân, không qua dFdx của
+                    //  độ cao) ⇒ dời camera 1 điểm ảnh không đổi · sườn nới thêm 1 điểm ảnh (pw) cho khe mảnh hơn điểm ảnh
+                    vec2 bX = dFdx(vSfB.xy), bY = dFdy(vSfB.xy); bX.x -= bm * floor(bX.x / bm + 0.5); bY.x -= bm * floor(bY.x / bm + 0.5);
+                    vec2 eG = vec2(dot(apG, bX), dot(apG, bY)); float pw = length(eG), rA = 2.2 * H + 0.03;
+                    sfHd = eG * (op * (0.006 * sfSd(H - pw, rA + pw, e) + 0.005 * sfSd(0.55 * H - pw, H + pw, e) + 0.004 * sfSd(-pw, 0.45 * H + pw, e)
+                      + 0.0012 * (0.4 + 0.6 * fract(ap.y * 13.7)) * (sfSd(rA - pw, rA + 0.04 + pw, e) - sfSd(rA + 0.05 - pw, rA + 0.17 + pw, e))) + 0.0014 * gA * sfSd(0.05 - pw, 0.4 + pw, e));
+                    sfHg = -0.0012 * fl + 0.0008 * n1 * gA + 0.0015 * lp; mG = max(crk, fur * gA);
                   }
                   #else
                   c *= mix(0.95 + 0.14 * pl, 0.3, gv);
@@ -223,7 +235,7 @@
                   }
                   float cuF = length(fwidth(sq)), cu = sfMo > 0.1 ? 0.8 * mix(sfCush(sq * 8.0), 0.3, smoothstep(0.04, 0.1, cuF)) + 0.2 * mix(sfCush(sq * 26.0 + 11.0), 0.3, smoothstep(0.012, 0.03, cuF)) : 0.0;   // gợn 4 cm / đệm 12 cm nhỏ hơn ~1 điểm ảnh ⇒ về trung bình (không nhấp nháy)   // đệm ~12 cm + gợn ~4 cm (cùng toạ độ với sợi thảm; chỉ tính chỗ có rêu — mọi vỏ cây trong rừng chạy đoạn này)
                   c = mix(c, mix(mT * 0.82, mT, cu), min(1.0, 0.92 * cvM * uSfMs));   // rêu hốc khuất phủ dày
-                  float cuM = smoothstep(0.2, 0.6, sfMo); c *= mix(1.0, 0.9 + 0.16 * cu, cuM); sfHg = sfHg * (1.0 - 0.8 * cuM) + 0.004 * cu * cuM;   // đệm rêu: cục hơi sáng, kẽ hơi tối, gồ nhẹ (bump) · rêu phủ thì vân vỏ bên dưới mờ đi
+                  float cuM = smoothstep(0.2, 0.6, sfMo); c *= mix(1.0, 0.9 + 0.16 * cu, cuM); sfHg = sfHg * (1.0 - 0.8 * cuM) + 0.004 * cu * cuM; sfHd *= 1.0 - 0.8 * cuM;   // đệm rêu: cục hơi sáng, kẽ hơi tối, gồ nhẹ (bump) · rêu phủ thì vân vỏ bên dưới mờ đi
                 #endif
                 #if ${K} < 5
                 float wAl, wMo = sfWallMo(vSfP, wn, hA, uSfNo, wAl) * wf;   // RÊU CHÂN TƯỜNG (SF_WALLMO): lượng rêu · màng tảo
@@ -241,7 +253,7 @@
                 }
                 #endif
                 diffuseColor.rgb = c;
-              }`).replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\n              normal = sfBump(normal, -vViewPosition, sfHg);');
+              }`).replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\n              normal = sfBumpG(normal, -vViewPosition, vec2(dFdx(sfHg), dFdy(sfHg)) + sfHd);');
           };
           const prevKey = mat.customProgramCacheKey.bind(mat); mat.customProgramCacheKey = () => prevKey() + '|sf' + K + (mat.userData.sfApple ? 'a' : '');
           return mat;

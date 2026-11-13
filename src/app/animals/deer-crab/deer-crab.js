@@ -159,9 +159,10 @@
           else { s.v *= 0.5; if (s.state === 'walk' && (s.col.stuck > 1 || Math.hypot(s.targetX - s.x, s.targetZ - s.z) < 1.2)) s.tmr = 0; }   // vướng thân cây khi đã sát đích gặm lá ⇒ coi như tới
           if (s.col) { const p = colPushOut(s.col, s.x, s.z, -g.rotation.y, dt); if (p) { s.x = p[0]; s.z = p[1]; } }   // lỡ lấn vào thân cây: đẩy dần ra
           g.position.x = s.x; g.position.z = s.z;
-          const rig = s.rig, yF = (rig.support(0) + rig.support(1)) / 2, yH = (rig.support(2) + rig.support(3)) / 2;
-          g.position.y = stagDamp(P.y, (yF + yH) / 2, 7, dt);
+          const rig = s.rig, yF = rig.pairY(0, 1, 0.05 * Sc), yH = rig.pairY(2, 3, 0.05 * Sc);   // cặp chân lệch bậc: theo chân thấp (rig.pairY); độ cao như bò (animals/cows/herd-hut.js): mức cả 2 đầu thân còn với tới đất ở góc chúc đang có, hạ nhanh hơn nâng
           stagDamp(P.p, Math.max(-0.42, Math.min(0.42, Math.atan2(yF - yH, 0.93 * Sc))), 6, dt);
+          const sP = Math.sin(P.p.x) * 0.93 * Sc / 2, yT = Math.min(yF - sP, yH + sP);
+          g.position.y = stagDamp(P.y, yT, yT < P.y.x ? 11 : 7, dt);
           const psi = rig.psi, fF = stagSm(0, 0.6, s.lie), fH = stagSm(0.4, 1, s.lie), walkA = Math.min(1, s.v / 0.35) * (1 - Math.max(fF, fH)), gait = s.v > 1.7 ? 'trot' : 'walk';
           const bF = 0.03 * walkA * Math.cos(4 * Math.PI * (psi - 0.03)), bH = 0.03 * walkA * Math.cos(4 * Math.PI * (psi - 0.3));   // con lắc ngược: vai / hông cao nhất giữa pha trụ của chân trước / sau
           const dF = 0.95 * fF, dH = 0.95 * fH, h = STAG_H0 + (bF + bH - dF - dH) / 2, pitch = P.p.x + ((bF - dF) - (bH - dH)) / 0.93 - (s.state === 'graze' ? 0.1 : 0);   // nằm: chân trước gập trước (chúc), chân sau sau · ăn cỏ: chúi vai

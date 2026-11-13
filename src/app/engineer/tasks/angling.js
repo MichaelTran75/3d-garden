@@ -408,8 +408,8 @@
           const f = A.fish;
           if (f) {
             if (A.stage === 'approach') {
-              _anglerMouth.lerpVectors(_anglerFishStart, P.B, fishingEase(k / A.approachDuration)); _anglerMouth.y = Math.min(lakeY - .24, _anglerMouth.y);
-              placeFishingFish(f, _anglerMouth, A.heading, 0, t, .08 * Math.sin(t * 4));
+              _anglerMouth.lerpVectors(_anglerFishStart, P.B, fishingEase(A.time / A.approachDuration)); _anglerMouth.y = Math.min(lakeY - .24, _anglerMouth.y);
+              placeFishingFish(f, _anglerMouth, A.heading, 0, t, .08 * Math.sin(t * 4));   // lerp theo A.time, không k: khung vừa chuyển sang 'approach' k còn là giờ của 'wait' ⇒ cá hiện ở mồi 1 khung
             } else if (A.stage === 'bite' || A.stage === 'strike') {
               placeFishingFish(f, P.B, A.heading, A.take ? 0.15 : 0, t * (A.take ? 1.5 : 1), A.take ? 0.2 : 0.05);
             } else if (A.stage === 'land') placeFishingFish(f, angFish.M, angFish.head, 1.45, t * 2.4, 0.55);   // treo dưới lưỡi, quẫy

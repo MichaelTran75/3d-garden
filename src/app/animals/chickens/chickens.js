@@ -232,16 +232,16 @@
             else if (p < 0.75) { const k = s((p - 0.3) / 0.45); a = -0.35 + 0.95 * k; b = -0.9 * (1 - k); c = 1.8 * (1 - k); }
             else { const k = s((p - 0.75) / 0.25); a = 0.6 * (1 - k); b = -0.3 * Math.sin(Math.PI * k); c = 0.6 * Math.sin(Math.PI * k); }
             L[0].quaternion.multiply(_qa.setFromAxisAngle(_X, a)); L[1].quaternion.multiply(_qa.setFromAxisAngle(_X, b)); L[2].quaternion.multiply(_qa.setFromAxisAngle(_X, c));
-            if (p > 0.45 && p < 0.7 && h.kick !== n + 1) { h.kick = n + 1; h.g.updateMatrixWorld(true); dirtKick(L[3].getWorldPosition(_a), h.yaw); }   // giữa nhát cào: đất văng ra sau
+            if (p > 0.45 && p < 0.7 && h.kick !== n + 1) { h.kick = n + 1; h.g.updateMatrixWorld(true); dirtKick(L[3].getWorldPosition(_a), h.yaw, h.g.position.y); }   // giữa nhát cào: đất văng ra sau
           }
           // đất văng khi cào: 24 hạt dùng chung cả đàn, bay ngược hướng gà nhìn, rơi theo trọng lực 0,45 s
           const dirt = new THREE.InstancedMesh(new THREE.SphereGeometry(0.009, 4, 3), new THREE.MeshLambertMaterial({ color: 0x5a4330 }), 24); dirt.name = 'Đất gà bới'; dirt.frustumCulled = false; dirt.count = 24;
           dirt.userData.noBatch = dirt.userData.noBake = dirt.userData.noCollide = true; scene.add(dirt);
-          const DP = Array.from({ length: 24 }, () => ({ p: new THREE.Vector3(), v: new THREE.Vector3(), t: 9 })), _dm = new THREE.Matrix4(), _dz = new THREE.Matrix4().makeScale(0, 0, 0);
+          const DP = Array.from({ length: 24 }, () => ({ p: new THREE.Vector3(), v: new THREE.Vector3(), t: 9, gy: 0 })), _dm = new THREE.Matrix4(), _dz = new THREE.Matrix4().makeScale(0, 0, 0);
           let dirtI = 0;
-          function dirtKick(p, yaw) { for (let k = 0; k < 3; k++) { const d = DP[dirtI++ % 24]; d.p.copy(p); d.t = 0; const s = 0.35 + 0.3 * rnd(), sp = (rnd() - 0.5) * 0.8; d.v.set(-Math.sin(yaw + sp) * s, 0.5 + 0.4 * rnd(), -Math.cos(yaw + sp) * s); } }
+          function dirtKick(p, yaw, gy) { for (let k = 0; k < 3; k++) { const d = DP[dirtI++ % 24]; d.p.copy(p); d.t = 0; d.gy = Math.min(p.y, gy + 0.005); const s = 0.45 + 0.38 * rnd(), sp = (rnd() - 0.5) * 0.8; d.v.set(-Math.sin(yaw + sp) * s, 0.64 + 0.51 * rnd(), -Math.cos(yaw + sp) * s); } }   // hạt đất văng ra sau: cao 2–7 cm, xa 6–19 cm, rơi theo GRAV
           function dirtTick(dt) {
-            for (let k = 0; k < 24; k++) { const d = DP[k]; if (d.t < 0.45) { d.t += dt; d.v.y -= 6 * dt; d.p.addScaledVector(d.v, dt); _dm.makeTranslation(d.p.x, d.p.y, d.p.z); dirt.setMatrixAt(k, _dm); } else dirt.setMatrixAt(k, _dz); }
+            for (let k = 0; k < 24; k++) { const d = DP[k]; if (d.t < 0.45) { d.t += dt; if (d.v.y > 0 || d.p.y > d.gy) { fallStep(d.p, d.v, dt); if (d.v.y < 0 && d.p.y <= d.gy) { d.p.y = d.gy; d.v.set(0, 0, 0); } } _dm.makeTranslation(d.p.x, d.p.y, d.p.z); dirt.setMatrixAt(k, _dm); } else dirt.setMatrixAt(k, _dz); }
             dirt.instanceMatrix.needsUpdate = true;
           }
           function threat(h) {   // vật đáng sợ gần nhất (người, máy cắt cỏ đang nổ, lưỡi cắt, chó chạy, gấu mèo)

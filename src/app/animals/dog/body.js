@@ -40,7 +40,11 @@
         const dogTail = makeSoftTail(dogObj.userData.torso, { base: new THREE.Vector3(-0.28 * 1.1, 0.07 * 1.1, 0), dir: new THREE.Vector3(-Math.cos(0.5), Math.sin(0.5), 0), n: 4, len: 0.055 * 1.1, w: 0.06 * 1.1, mat: dogObj.userData.tail.material, stiff: [0.22, 0.07] });
         let dogCol = null;   // VA CHẠM (core/collide.js, worldJoin('collide')): thân của chó — men theo vật cản (colSlide), xuyên tạm khi kẹt (ghost)
         worldJoin('collide', 30, C => {
-          { const D = C.dims(dogObj.userData.torso); dogCol = C.mover({ kind: 'dog', a: D.a + 0.12, b: D.b, ox: D.ox, lo: 0.12, hi: Math.max(0.68, D.top), w: 1, x: () => dogObj.position.x, z: () => dogObj.position.z, ang: () => -dogObj.rotation.y, on: () => !dogRain.st,
+          // dấu chân với VẬT: 4 hình tròn bán kính 17 cm từ hông (−0,34) tới mũi (+0,59) — đo trên lưới thật ở mọi dáng (đứng, đánh hơi, uống, theo chủ);
+          // a / b / ox (hộp thân) chỉ còn dùng cho né CON KHÁC (colMoverHits). Đuôi mềm không tính.
+          // noGo: lòng bếp lửa — tâm các hình tròn thân phải cách tâm lửa ≥ FIRE_AVOID_R (= vòng chân giá treo nồi + nửa thân)
+          { const D = C.dims(dogObj.userData.torso), S = dogObj.scale.x;
+            dogCol = C.mover({ kind: 'dog', a: D.a + 0.12, b: D.b, ox: D.ox, caps: [-0.172, 0.172, 0.05, 0.172, 0.242, 0.172, 0.424, 0.172].map(q => q * S), lo: 0.12, hi: Math.max(0.68, D.top), noGo: [{ x: pf.x, z: pf.z, r: FIRE_AVOID_R }], w: 1, x: () => dogObj.position.x, z: () => dogObj.position.z, ang: () => -dogObj.rotation.y, on: () => !dogRain.st,
             ignore: o => o.kind === 'eng' && !!worldSee('engineer')?.withDog }); }
           C.mesh(dogObj, dogCol, () => [dogObj.position.x, dogObj.position.z], (x, z) => { dogObj.position.x = x; dogObj.position.z = z; });
           C.moving(() => [dogObj]);

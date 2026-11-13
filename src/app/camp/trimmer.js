@@ -65,15 +65,15 @@
               cL[i] = 5 + Math.random() * 4; for (let a = 0; a < 3; a++) { cR[i * 3 + a] = Math.random() * 6.28; cW[i * 3 + a] = (Math.random() - 0.5) * 30; } }
             cAlive = NCL;
           }
-          const _cq = new THREE.Quaternion(), _ce = new THREE.Euler(), _cs = new THREE.Vector3();
+          const _cq = new THREE.Quaternion(), _ce = new THREE.Euler(), _cs = new THREE.Vector3(), _cfP = new THREE.Vector3(), _cfV = new THREE.Vector3();
           function clipsTick(dt) {
             if (!cAlive) return; let live = 0, top = 0;
             for (let i = 0; i < NCL; i++) {
               if (cL[i] <= 0) { _m.makeScale(0, 0, 0); clips.setMatrixAt(i, _m); continue; }
               cL[i] -= dt; live++; top = i + 1;
               const gy = cowY(cP[i * 3], cP[i * 3 + 2]) + 0.012; let flying = cP[i * 3 + 1] > gy + 1e-3;
-              if (flying) { const dr = Math.exp(-dt * 2.6); cV[i * 3] *= dr; cV[i * 3 + 2] *= dr; cV[i * 3 + 1] = cV[i * 3 + 1] * dr - GRAV * dt;   // lá nhẹ: cản gió lớn, rơi chậm
-                for (let a = 0; a < 3; a++) { cP[i * 3 + a] += cV[i * 3 + a] * dt; cR[i * 3 + a] += cW[i * 3 + a] * dt; }
+              if (flying) { fallStep(_cfP.fromArray(cP, i * 3), _cfV.fromArray(cV, i * 3), dt, 2.6); _cfP.toArray(cP, i * 3); _cfV.toArray(cV, i * 3);   // lá nhẹ: cản gió lớn, rơi chậm (tới hạn g / 2,6 ≈ 3,8 m/s)
+                for (let a = 0; a < 3; a++) cR[i * 3 + a] += cW[i * 3 + a] * dt;
                 if (cP[i * 3 + 1] <= gy) { cP[i * 3 + 1] = gy; cR[i * 3] = -Math.PI / 2; cR[i * 3 + 2] = 0; flying = false; } }
               const sc = Math.min(1, cL[i] / 1.5);   // 1,5 s cuối: teo dần
               _ce.set(cR[i * 3], cR[i * 3 + 1], cR[i * 3 + 2]); _cq.setFromEuler(_ce); _m.compose(_c.set(cP[i * 3], cP[i * 3 + 1], cP[i * 3 + 2]), _cq, _cs.set(sc, sc, sc)); clips.setMatrixAt(i, _m);

@@ -70,7 +70,7 @@
           cw.rig = quadRig(cw.g, { legs: cw.legs, gaits: {   // đi bộ 4 phách trình tự bên (sau-T → trước-T → sau-P → trước-P), chạm đất ~65%; nước kiệu khi vội
             walk: { off: [0.27, 0.77, 0, 0.5], duty: 0.65, stride: 1.15 * Sc, lift: 0.085, vRef: 1.0 },
             trot: { off: [0, 0.5, 0.5, 0], duty: 0.45, stride: 1.9 * Sc, lift: 0.12, vRef: 1.8 } },
-            home: (L, out) => out.set(L.hip.position.x, 0, L.hip.position.z), ground: (x, z) => colWalkY(x, z, cowY(cw.x, cw.z), 0.3 * Sc), size: Sc, settleT: 0.45, settleLift: 0.07 });   // mặt đứng: đất hoặc sàn chuồng / bậc thấp (core/collide.js)
+            home: (L, out) => out.set(L.hip.position.x, 0, L.hip.position.z), ground: (x, z) => colWalkY(x, z, cowY(cw.x, cw.z), 0.3 * Sc), size: Sc, settleT: 0.45, settleLift: 0.07, split: 0.75 * Sc });   // mặt đứng: đất hoặc sàn chuồng / bậc thấp (core/collide.js)
         }
         // ---- BÊ CON (mở rộng chuồng bò, thêm bê): 2 bê theo 2 bò mẹ; chuồng thêm 2 ô (dựng theo số con), ô bê sát ô mẹ.
         //  Tập tính bê (BCRC / UNL Beef, Jensen 2011, von Keyserlingk & Weary 2007): bám mẹ 1–3 m, đi cạnh hông / sau mẹ; nằm nghỉ 60–80% thời gian, cạnh
@@ -660,9 +660,11 @@
           if (c.restY !== P.r0) { P.up = c.restY < P.r0; if (c.restY > 0.98) P.lieSide = Math.random() < 0.5 ? -1 : 1; } P.r0 = c.restY;
           const r = c.restY, fF = P.up ? cowSm(0, 0.6, r) : cowSm(0, 0.55, r), fH = P.up ? cowSm(0.45, 1, r) : cowSm(0.4, 1, r);
           // thân theo chỗ chân đứng: đất TB dưới 2 chân trước / 2 chân sau → độ cao + chúc/ngóc (lên bậc: chân trước lên trước, thân ngóc dần, chân sau theo sau)
-          const yF = (rig.support(0) + rig.support(1)) / 2, yH = (rig.support(2) + rig.support(3)) / 2;
-          g.position.y = cowDamp(P.y, (yF + yH) / 2, 7, dt);
+          //   cặp chân lệch bậc: theo chân thấp (rig.pairY); độ cao = mức cả 2 đầu thân còn với tới đất ở góc chúc ĐANG có (góc bị kẹp ±0,42 / còn trễ ⇒ lấy TB thì đầu thấp treo chân); hạ nhanh hơn nâng: kịp lúc chân đặt xuống bậc dưới
+          const yF = rig.pairY(0, 1, 0.04 * S), yH = rig.pairY(2, 3, 0.04 * S);
           cowDamp(P.p, Math.max(-0.42, Math.min(0.42, Math.atan2(yF - yH, COW_SPAN * S))), 6, dt);
+          const sP = Math.sin(P.p.x) * COW_SPAN * S / 2, yT = Math.min(yF - sP, yH + sP);
+          g.position.y = cowDamp(P.y, yT, yT < P.y.x ? Math.min(18, 10 / S) : 7, dt);
           const psi = rig.psi, walkA = Math.min(1, sp / 0.35) * (1 - Math.max(fF, fH));
           const bF = 0.03 * walkA * Math.cos(4 * Math.PI * (psi - 0.06)), bH = 0.03 * walkA * Math.cos(4 * Math.PI * (psi - 0.33));   // con lắc ngược: vai cao lúc chân trước giữa pha trụ, hông cao lúc chân sau giữa pha trụ
           const dF = 0.86 * fF, dH = 0.86 * fH, h = COW_H0 + (bF + bH - dF - dH) / 2, pitch = P.p.x + Math.atan2((bF - dF) - (bH - dH), COW_SPAN);

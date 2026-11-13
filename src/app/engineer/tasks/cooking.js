@@ -307,7 +307,7 @@
             V.act = act; V.plan = A.van ? (A.plan || []) : ['exit']; V.idx = 0;
             if (act !== 'shower') {   // tắm dở (nhảy giờ): treo khăn, đội mũ rồi mới làm việc khác
               const fix = []; if (e.towel.visible) fix.push('towel'); if (!e.helmet.visible && VBATH.helmetOn && act !== 'bedtime') fix.push('shelfOn');
-              if (fix.length) V.plan = [...fix, ...V.plan];
+              if (fix.length) V.plan = [...fix, ...V.plan]; else if (!e.g.userData.dressed && act !== 'bedtime') e.dress(true);   // nhảy giờ lúc mũ đã trên đầu mà còn cởi trần
             }
           }
           vanDoorsAuto(e, V);

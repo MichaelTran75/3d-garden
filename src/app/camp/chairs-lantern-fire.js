@@ -117,6 +117,7 @@
         const campfireLevel = h => Math.min(campFire.small ? 0.3 : 1, (h >= 7 && h < 19) ? 0.05 : 1 - 0.95 * (((h - 19 + 24) % 24) / 12));
         const CAMP_FLAME = 0.5;   // cỡ ngọn lửa trại so với bản đầu (tia lửa, sức nóng cột khói, tầm chiếu sáng theo cùng)
         const CAMP_PIT = 0.7 * CAMP_K;   // lòng bếp (tro, vòng đá, củi, lửa, than, tia lửa) so với bản đầu: (0,7) rồi tối "nhỏ lại 50%" ⇒ 0,35 (vòng đá r ~0,27 m)
+        const FISH_TURN = -0.94;   // que cá xoay quanh tâm bếp (rad, trục y): chỗ cắm ở giữa hai khung chữ A của giá treo
         const CAMP_FISH = 1.44 * CAMP_K;   // cỡ que cá (đv nhóm bếp): 1,44 cũ (cá dài ~0,6 m) ×0,5 ⇒ cá ~0,3 m — engineer/tasks/meal-read.js đọc
         function campfire() {
           const g = new THREE.Group();
@@ -166,6 +167,7 @@
           }
 
           const fsg = new THREE.Group(); fsg.position.set(0.85, 0.02, 1.05); fsg.rotation.set(-0.32, 0, 0.32); fsg.scale.setScalar(CAMP_FISH); g.add(fsg);   // cá nướng ×1.44 (đã giảm 20% rồi thêm 10%) × CAMP_K, ngả nghiêng về phía lửa
+          { const turn = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), FISH_TURN); fsg.position.applyQuaternion(turn); fsg.quaternion.premultiply(turn); }   // cả que xoay quanh tâm bếp ra giữa hai khung chữ A (gốc que cách chân giá ≥ 0,50 m): sát chân giá ⇒ người cúi lấy que chạm cọc
           const sk = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 1.2, 6), new THREE.MeshLambertMaterial({ color: 0xcca070 })); sk.position.y = 0.6; sk.castShadow = true; fsg.add(sk);
           const fg = new THREE.Group(); fg.position.set(0, 0.78, 0); fg.rotation.y = 1.2; fsg.add(fg);
           fg.name = 'Cá nướng nguyên con';
@@ -313,7 +315,7 @@
           const hook = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.1, 6), potIron); hook.position.y = 1.61; rg.add(hook);            // móc sắt ngắn
           const curl = new THREE.Mesh(new THREE.TorusGeometry(0.03, 0.009, 6, 14, Math.PI * 1.35), potIron); curl.position.y = 1.545; curl.rotation.z = Math.PI * 1.08; rg.add(curl);   // đầu móc cong đỡ đỉnh quai ấm
           // ấm reo: dời lên nóc lò nướng ghép bên lò chiminea (camp/chiminea.js) — móc treo để trống
-          bakeStatic(rg); rg.scale.multiplyScalar(CAMP_SCALE * CAMP_K); rg.position.copy(pf); rg.rotation.y = -0.2; rg.name = 'Giá treo nồi (Pot Hanger)'; scene.add(rg);   // xoay nhẹ để chân né xiên cá nướng · cả giá + ấm ×CAMP_K theo bếp
+          bakeStatic(rg); rg.scale.multiplyScalar(CAMP_SCALE * CAMP_K); rg.position.copy(pf); rg.rotation.y = -0.2; rg.name = 'Giá treo nồi (Pot Hanger)'; scene.add(rg);   // xoay nhẹ: chỗ chó nằm, chỗ nhóm / dội nước đã quét theo góc này · cả giá + ấm ×CAMP_K theo bếp
           rg.updateMatrixWorld(true); for (const sx of [-1, 1]) for (const sz of [-1, 1]) HANGER_FEET.push(rg.localToWorld(new THREE.Vector3(sx * 1.05, 0, sz * (0.21 + 1.05 * Math.sin(0.29)))));   // đáy chân xoè (tâm chân ± nửa dài nghiêng 0,29)
         }
         const woodEndM = new THREE.MeshLambertMaterial({ color: 0xc8a878 });   // mặt cắt gỗ nhạt

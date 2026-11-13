@@ -4,7 +4,7 @@
         const studyBoard = { g: null };   // bảng ghim ghi chú cạnh bàn học
         const LAP_K = 1.3;   // (khung tay cầm drone giữ cỡ cũ: engineer/tasks/drone.js chia lại)
         function updateStudyLamp() {
-          const hh = liveWeather.localHour, on = hh >= 18.5 || hh < 6;
+          const on = solarPosition(liveWeather.localHour).el < -2 * RD;   // bật khi mặt trời < −2°
           if (!studyDeskLighting.light || on === studyDeskLighting.on) return;
           studyDeskLighting.on = on;
           // Keep the light allocated and only change uniforms at dusk/dawn.
@@ -92,6 +92,7 @@
           const roofTop = (x, z) => trRoofY(x) - trLerp(TR_DROP, Math.abs(z)) * trS(x);
           const floorMat = new THREE.MeshLambertMaterial({ color: 0xb99c73 }), woodMat = new THREE.MeshLambertMaterial({ color: 0x9c7b4f }),
             cushMat = new THREE.MeshLambertMaterial({ color: 0xc94f3d }), litMat = new THREE.MeshLambertMaterial({ color: 0xfff3c4 });
+          floorMat.userData.vk = 2; woodMat.userData.vk = 1; cushMat.userData.vk = 3;   // kiểu vân (core/room-light.js)
           const vanGlass = new THREE.MeshLambertMaterial({ color: 0x8fc1e3, transparent: true, opacity: 0.25 });
           // gầm: 2 dầm khung, thùng nhiên liệu, ống xả, lốp dự phòng treo dưới đuôi, tấm gầm tối dưới sàn
           const under = new THREE.Group(); under.name = 'Gầm xe'; g.add(under);
@@ -191,7 +192,7 @@
           const bedLen = 2.0, bedW = 0.76, BED_FWD = 0.12, bedX0 = x0 - BED_FWD, bedX1 = bedX0 + bedLen, bedCx = bedX0 + bedLen / 2, bedZ = -dz + bedW / 2;
           const bed = new THREE.Group(); bed.name = 'Giường dọc vách đối diện';
           const flexaWhite = new THREE.MeshLambertMaterial({ color: 0xe6e4de }), flexaBlack = new THREE.MeshLambertMaterial({ color: 0x1f2022 });
-          const mattGrey = new THREE.MeshLambertMaterial({ color: 0x8c8e90 });
+          const mattGrey = new THREE.MeshLambertMaterial({ color: 0x8c8e90 }); mattGrey.userData.vk = 3;
           const bedH = 0.45, pt = 0.02, frontZ = bedZ + bedW / 2, backZ = bedZ - bedW / 2, mattTop = bedH + 0.04;
           const bedPart = (w, h, d, x, y, z, mat, outlined = true) => { const m = bx(w, h, d, mat, true, outlined, lineDark); m.position.set(x, yIn + y, z); bed.add(m); return m; };
           bedPart(bedLen, bedH, pt, bedCx, bedH / 2, backZ + pt / 2, flexaWhite);
@@ -275,7 +276,7 @@
           const studyChair = new THREE.Group(); studyChair.name = 'Ghế bàn học'; studyChair.userData.noBatch = true;
           const chairX = dX - .02, chairZ = dZ + DD / 2 + .39, SEAT_TOP = .4875;   // mép đệm cách mép bàn ~15 cm
           {
-            const leather = new THREE.MeshLambertMaterial({ color: 0x6e4129 }), seam = new THREE.MeshLambertMaterial({ color: 0x3f2416 }), chrome = new THREE.MeshLambertMaterial({ color: 0xd4d8dc }), dark = new THREE.MeshLambertMaterial({ color: 0x35383b });
+            const leather = new THREE.MeshLambertMaterial({ color: 0x6e4129 }), seam = new THREE.MeshLambertMaterial({ color: 0x3f2416 }), chrome = new THREE.MeshLambertMaterial({ color: 0xd4d8dc }), dark = new THREE.MeshLambertMaterial({ color: 0x35383b }); leather.userData.vk = 3;
             const base = new THREE.Group(); base.position.set(chairX, yIn, chairZ); studyChair.add(base);
             const part = (geo, mat, p, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; p.add(m); return m; };
             part(new THREE.CylinderGeometry(.045, .055, .06, 10), dark, base, 0, .09, 0);
@@ -310,7 +311,7 @@
           //      Toạ độ bảng: +x dọc bảng (về phía lối đi), +y lên, +z ra khỏi vách ----
           {
             const BW = .62, BH = .5, bd = new THREE.Group(); bd.name = 'Bảng ghim ghi chú'; bd.position.set(x1 - .03, yIn + 1.32, -dz + .36); bd.rotation.y = -Math.PI / 2;
-            const frameM = new THREE.MeshLambertMaterial({ color: 0x5b3a22 }), pinM = new THREE.MeshLambertMaterial({ color: 0xc4362b });
+            const frameM = new THREE.MeshLambertMaterial({ color: 0x5b3a22 }), pinM = new THREE.MeshLambertMaterial({ color: 0xc4362b }); frameM.userData.vk = 1;
             const cork = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'); x.fillStyle = '#b48c5c'; x.fillRect(0, 0, 64, 64);
               for (let i = 0; i < 420; i++) { x.fillStyle = ['#9c7446', '#c9a272', '#a98050'][i % 3]; x.fillRect(Math.random() * 64, Math.random() * 64, 1 + Math.random() * 2, 1 + Math.random() * 2); }
               const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(3, 2); return new THREE.MeshLambertMaterial({ map: t }); })();
@@ -397,7 +398,7 @@
           }
           study.userData.layout = {
             desk: { center: [dX, dZ], size: [DW, DD], height: dH },
-            chair: { center: [chairX, chairZ], size: [.43, .43], facing: '-Z' }, lampSchedule: '18:30–06:00 Asia/Ho_Chi_Minh'
+            chair: { center: [chairX, chairZ], size: [.43, .43], facing: '-Z' }, lampSchedule: 'mặt trời Pleiku < −2°'
           };
           g.add(study);
           // ---- bàn ăn nhỏ ở nửa trước ô cửa lùa (0,55 × 0,38, mặt gỗ 3 cm —; trước dày 8 cm, thò ra ngoài vỏ; chân giữa) + ghế đẩu ----
@@ -450,7 +451,7 @@
           const bthW = 2 * dz, bthLen = xB - x1, bthCX = (x1 + xB) / 2, flY = yIn, ceilY = ceil - 0.02;
           const bthWallM = new THREE.MeshLambertMaterial({ color: 0xE2D6C0, transparent: true, opacity: 0.42, depthWrite: false });
           const twcM = new THREE.MeshLambertMaterial({ color: 0xE2D6C0 }), tileM = new THREE.MeshLambertMaterial({ color: 0xE2D6C0 }),
-            mirrorM = vanMetal(0xc4e2ec, 0.12), towelM = new THREE.MeshLambertMaterial({ color: 0xd98c6a });
+            mirrorM = vanMetal(0xc4e2ec, 0.12), towelM = new THREE.MeshLambertMaterial({ color: 0xd98c6a }); towelM.userData.vk = 3; tileM.userData.vk = 4; roomLitMat(bthWallM);
           const bath = new THREE.Group(); bath.name = 'Phòng tắm gọn';
           bath.userData.layout = { length: bthLen, width: bthW, floorArea: bthLen * bthW, entryWidth: 0.6, wetBath: [bthLen, 0.73], rearX: xB };
           const bthFlr = bx(bthLen, 0.012, bthW, tileM); bthFlr.position.set(bthCX, flY + 0.006, 0); bthFlr.receiveShadow = true; bath.add(bthFlr);
@@ -731,6 +732,7 @@
           if (awLan && awLan.userData.glow) { const m = awLampK > 0.5 ? lanternKit.bulbMat : lanternKit.bulbOffMat; if (awLan.userData.glow.material !== m) awLan.userData.glow.material = m; }
           if (awLight && awLan) { awLight.intensity = awLampK * (0.5 + nightFactor * 2.6 + (0.2 + nightFactor * 0.4) * Math.sin(t * 8.5 + 1.2) + 0.12 * Math.sin(t * 18.3)); awLight.distance = 8 + nightFactor * 7; awLan.rotation.z = Math.sin(t * 1.1 + 1.2) * 0.04; }
           updateStudyLamp();
+          vanLightTick(dt);   // hộp lòng xe + ánh đèn hắt (van/interior/van-light.js)
           vanEnvTick();   // ảnh môi trường kim loại nội thất theo đèn trời / ngày đêm (van/interior/env-map.js)
           studyLaptopTick(dt);
           vanBathTick(dt);   // cửa lùa phòng tắm + nắp bồn cầu tự đi tới đích người muốn (van/face.js)
@@ -745,4 +747,5 @@
             if (studyLaptop.keys) studyLaptop.keys.emissiveIntensity = lit * (hh >= 18 || hh < 6.5 ? 0.85 : 0.2);   // đèn nền bàn phím (chữ phím sáng), tối sáng hơn
           }
         }
-        worldJoin('drawBatch', 60, B => B.draws('Xe caravan', [caravanObj]));   // gộp lượt vẽ (core/draw-batch.js)
+        roomLitTree(caravanObj, o => caravanRole(o) === 'shell' || o.material.side === THREE.BackSide || !vanRoomHas(o), vanOwnDrawn);   // đồ tự vẽ trong xe (ghế, kệ, đèn thả…) theo ánh sáng lòng xe; vỏ giữ nguyên (bản xem xuyên là clone, không mang bản vá)
+        worldJoin('drawBatch', 60, B => { vanOwnShadow(); B.draws('Xe caravan', [caravanObj]); });   // gộp lượt vẽ (core/draw-batch.js)

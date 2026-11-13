@@ -16,20 +16,26 @@
               if (!e.act) engSpawn(e, act); else if (act !== e.act) engSetAct(e, act);
               const H = e.hold || (e.hold = {}); for (const k in H) H[k] = false;
               e.armsBusy = false; worldRun('awake', dt, t, hh);   // đồ chạy theo giờ thức của người (sổ tick lượt 'awake': cá nướng của trại — camp/grill.js)
-              if (e.dish && e.dish.at === 'camp' && !['eat', 'eatFish', 'tossFish', 'tea', 'toChair'].includes(e.phase)) e.dish.at = 'hand';   // hết bữa tối: nhấc chảo khỏi bàn trà mang vào rửa
+              const dinnerOn = e.act === 'dinner' || engScheduleAt(hh).act === 'dinner';   // còn trong bữa tối (lịch / lệnh)
+              if (e.dish && e.dish.at === 'camp' && e.seat && e.seat.C === CAMP_SEAT && engPhaseSeat(e.phase) !== CAMP_SEAT && (e.dish.food < 0.05 || !dinnerOn)) e.dish.at = 'hand';   // ăn xong / hết bữa, rời ghế cắm trại: nhấc chảo khỏi bàn trà mang vào xe rửa (bữa còn dở: chảo nằm yên trên bàn)
               if (e.dish && e.dish.at === 'hand' && !e.inVan && e.phase !== 'van' && e.act !== 'dinner' && e.dish.food < 0.05 && e.dish.kind !== 'pan') e.dish = null;
               e.headRollT = 0;
+              // ---- bát / chảo trên tay ngoài trời: chỉ bưng khi về ghế ăn tối / đang ăn (cơm vơi < 5 % vẫn ăn nốt tới hết giờ); việc khác phải xong chảo trước — bữa còn dở ⇒ đặt lên bàn trà ('put'), không ⇒ vào xe rửa ('wash') ----
+              const D0 = e.dish, dishTrip = !D0 || D0.at !== 'hand' || e.inVan || (e.act === 'dinner' && D0.kind === 'pan' && (e.phase === 'eat' || (e.phase === 'toChair' && D0.food >= 0.05))) ? null
+                : D0.kind === 'pan' && D0.food >= 0.05 && dinnerOn ? 'put' : 'wash';
+              e.dishTrip = dishTrip; if (dishTrip !== 'put') e.dishPutK = 0;
               // ---- dùng ghế ngoài trời: việc mới không cần chiếc ghế đang ngồi → đứng dậy rồi rời ghế theo làn trước, không đi xuyên ghế ----
-              const outSeat = e.inVan ? null : engPhaseSeat(e.phase);
-              const leavingSeat = !e.inVan && engSeatGuard(e, outSeat, e.phase === 'van' ? VAN.doorFar : engPhaseGoal(e, outSeat), dt, t);
-              const fishing = e.phase === 'fish' && !leavingSeat && !e.inVan;
+              const outSeat = e.inVan || dishTrip ? null : engPhaseSeat(e.phase);
+              const leavingSeat = !e.inVan && engSeatGuard(e, outSeat, e.phase === 'van' || dishTrip === 'wash' ? VAN.doorFar : dishTrip === 'put' ? CAMP_SEAT.laneW[0] : engPhaseGoal(e, outSeat), dt, t);
+              const fishing = e.phase === 'fish' && !leavingSeat && !e.inVan && !dishTrip;
               if (!fishing) resetFishingBite();
               e.rodGrp.visible = fishing; CAMP.restRod(!fishing); fishLine.visible = fishing; bobber.visible = fishing;   // không câu → cần nằm dưới đất cạnh ghế
               engPetting = false; e.teaIdle = false;
               if (leavingSeat) { /* engSeatGuard: đứng dậy + rời ghế, đã đặt vị trí + dáng */ }
               else if (engReactHold(e, dt, t)) { /* phản ứng: đứng lại khi mưa bắt đầu · ngồi xổm xoa đầu chó (engineer/mind/reactions.js) */ }
               else if (e.inVan) engVan(e, dt, t, act);          // trong xe: bàn học, bàn ăn, phòng tắm, giường…
-              else if (e.phase === 'van') engEnterVan(e, dt, t);   // việc trong xe: đi tới cửa hông, bước lên
+              else if (e.phase === 'van' || dishTrip === 'wash') engEnterVan(e, dt, t);   // việc trong xe: đi tới cửa hông, bước lên · cầm bát / chảo đã ăn: vào rửa trước (engVan chèn trạm 'dishes' rồi ra)
+              else if (dishTrip === 'put') engDishPut(e, dt, t);   // bữa tối còn dở mà sang việc khác: đặt chảo lên bàn trà trước (engineer/tasks/camp-routine.js)
               else if (ENG_JOBS[e.phase]) ENG_JOBS[e.phase].run(e, dt, t);   // việc dùng dụng cụ: táo, sao, luống, củi, drone, dạo khám phá, máy xe, cắt cỏ, ngắm mưa (engineer/mind/task-table.js)
               else engCampPhase(e, dt, t);   // quanh trại: trú mưa, câu cá, ghế cắm trại (ăn, cá nướng, trà, ngủ trưa, đọc), dạo, uống nước, vuốt chó, cột khí tượng (engineer/tasks/camp-routine.js)
               if (CAMP.grill.st === 'held' && !['grab', 'eatFish', 'tossFish'].includes(e.phase)) engCarryFish(e);   // đi đường: que cá dựng đứng tay phải

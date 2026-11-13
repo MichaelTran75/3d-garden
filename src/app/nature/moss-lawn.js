@@ -10,7 +10,7 @@
         //  con, đá, tổ ong: lưới thường r 0,3–40 m, bỏ lượt độ sâu); loang KHÔNG KHÍ từ 4 vách hộp ⇒ ô không loang tới = lòng vật rắn (thân cắt ngang nóc hộp vẫn
         //  kín); làm mờ hộp ±4 ô rồi ±2 ô ⇒ tỉ lệ rắn: mặt trống ~0,5, kẽ / chân rễ ~0,6–0,75, sống rễ lồi < 0,45. Ảnh 3D ô 16 cm (SF_CV, core/surface-style.js) ----
         const mossCrevice = (() => {
-          const V = 0.08, cx = X0 + 89, cz = Z0 + 117, gy = cowY(cx, cz), nx = 180, ny = 50, nz = 180, x0 = cx - 7.2, y0 = gy - 0.6, z0 = cz - 7.2, NN = nx * ny * nz, S = new Uint8Array(NN);
+          const V = 0.08, cx = X0 + 89, cz = Z0 + 117, gy = cowY(cx, cz), nx = 180, ny = 50, nz = 180, x0 = cx - 7.2, y0 = gy - 0.6, z0 = cz - 7.2, NN = nx * ny * nz; let S = new Uint8Array(NN);
           for (let k = 0; k < nz; k++) for (let i = 0; i < nx; i++) { const h = cowY(x0 + (i + 0.5) * V, z0 + (k + 0.5) * V); for (let j = 0; j < ny && y0 + (j + 0.5) * V < h; j++) S[i + nx * (j + ny * k)] = 1; }   // dưới đất
           const bx = new THREE.Box3(new THREE.Vector3(x0, y0, z0), new THREE.Vector3(x0 + nx * V, y0 + ny * V, z0 + nz * V)), bs = new THREE.Sphere(), a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
           scene.traverse(o => {
@@ -25,7 +25,7 @@
                 if (i >= 0 && i < nx && j >= 0 && j < ny && k >= 0 && k < nz) S[i + nx * (j + ny * k)] = 1; }
             }
           });
-          const Q = new Int32Array(NN); let qh = 0, qt = 0; const push = e => { if (!S[e]) { S[e] = 2; Q[qt++] = e; } };   // loang khí (2) từ 4 vách
+          let Q = new Int32Array(NN), qh = 0, qt = 0; const push = e => { if (!S[e]) { S[e] = 2; Q[qt++] = e; } };   // loang khí (2) từ 4 vách
           for (let k = 0; k < nz; k++) for (let j = 0; j < ny; j++) { push(nx * (j + ny * k)); push(nx - 1 + nx * (j + ny * k)); }
           for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) { push(i + nx * j); push(i + nx * (j + ny * (nz - 1))); }
           while (qh < qt) { const e = Q[qh++], i = e % nx, j = ((e / nx) | 0) % ny, k = (e / (nx * ny)) | 0;
@@ -39,7 +39,8 @@
           for (let k = 0; k < tz; k++) for (let j = 0; j < ty; j++) for (let i = 0; i < tx; i++) { let s = 0; for (let d = 0; d < 8; d++) s += D[2 * i + (d & 1) + nx * (2 * j + (d >> 1 & 1) + ny * (2 * k + (d >> 2)))]; td[i + tx * (j + ty * k)] = Math.round(s * 31.875); }
           const tex = new THREE.Data3DTexture(td, tx, ty, tz); tex.format = THREE.RedFormat; tex.minFilter = tex.magFilter = THREE.LinearFilter; tex.unpackAlignment = 1; tex.needsUpdate = true;
           SF_CV.value = tex; SF_CV0.value.set(x0, y0, z0); SF_CV1.value.set(1 / (nx * V), 1 / (ny * V), 1 / (nz * V));
-          return (x, y, z) => { const i = Math.floor((x - x0) / V), j = Math.floor((y - y0) / V), k = Math.floor((z - z0) / V); return i >= 0 && i < nx && j >= 0 && j < ny && k >= 0 && k < nz ? D[i + nx * (j + ny * k)] : 0; };
+          S = Q = D = T = null;   // 4 mảng dựng trường (≈ 20 MB): hàm trả về giữ cả ngữ cảnh của khối này ⇒ không bỏ tay thì sống suốt phiên
+          return (x, y, z) => { const i = Math.floor((x - x0) / (2 * V)), j = Math.floor((y - y0) / (2 * V)), k = Math.floor((z - z0) / (2 * V)); return i >= 0 && i < tx && j >= 0 && j < ty && k >= 0 && k < tz ? td[i + tx * (j + ty * k)] / 255 : 0; };   // đọc ảnh 3D ô 16 cm
         })();
         const mossLawn = (() => {
           const DENS = 6 * 60 / (0.6 * 0.6), HMAX = 3.2, rnd = mulberry32(3131);   // lá / m²: gấp 6 thảm cỏ (thảm nhìn xiên lá chồng nhau dày, mặt vỏ quay về camera lá chĩa vào mắt nên thưa ⇒ cần dày hơn — đo: 111k lá, +2,6 MB RAM đồ hoạ, khung không đổi) · cao nhất trên đất (hốc khuất tới 3,2 m) · RNG riêng
@@ -203,6 +204,7 @@
           });
           // BÓNG TRỜI tính sẵn từng lá (core/sky-shade.js skyOnLayer + skyAt): lớp lên ⇒ lấy mẫu ở gốc lá + 6 cm theo pháp tuyến (mặt đứng 0,75 như shader), xong
           //  mới hiện dần; shader lá không đọc ảnh — đọc 2 ảnh ở cả 9 đỉnh / lá tốn ~1 ms ở góc nhìn cả cây
+          const skDone = {};
           skyOnLayer(id => (function* () {
             const c = id === 'A' ? 0 : 1; let n = 0;
             for (const geo of geos) {
@@ -215,6 +217,8 @@
               }
               S.needsUpdate = true;
             }
+            skDone[id] = 1; if (!skDone.A || !skDone.B) return;   // cả 2 lớp đã ghi vào aSk ⇒ mảng từng lá hết việc trên CPU (lá không bắt tia): tải lần cuối rồi bỏ
+            for (const geo of geos) for (const k of ['aRoot', 'aNrm', 'aMr', 'aMo', 'aSk']) { const a = geo.attributes[k]; if (a.array) { a.onUpload(freeAfterUpload); a.needsUpdate = true; } }
           })());
           const U = { uFade: { value: 0 }, uDensity: { value: 1 }, uCamRight: { value: new THREE.Vector3(1, 0, 0) } };
           const mat = new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide });
@@ -247,10 +251,12 @@
           mat.customProgramCacheKey = () => 'mossLawn2'; skyShadeMat(mat, 'moss', { skA: 'aSk' });   // bóng trời dưới tán + kẽ rễ + hốc khuất, tính sẵn từng lá (core/sky-shade.js)
           const meshes = geos.map(geo => { const mesh = new THREE.Mesh(geo, mat); mesh.name = 'Thảm rêu (lá cỏ)'; mesh.receiveShadow = true; mesh.raycast = () => {}; mesh.visible = false;
             Object.assign(mesh.userData, { noBatch: true, noBake: true, noCollide: true, noFlight: true, noRainOcc: true }); scene.add(mesh); return mesh; }), mesh = meshes[0] || null;
-          const _cr = new THREE.Vector3();
+          const _cr = new THREE.Vector3(); let lost = false;
+          listen(renderer.domElement, 'webglcontextrestored', () => { lost = geos.some(g => !g.attributes.aRoot.array); });   // mảng từng lá đã bỏ ⇒ không tải lại được: ẩn lá rêu tới khi mở lại trang
+          R.length = Nn.length = Bk.length = Q.length = KR.length = KN.length = KM.length = KQ.length = 0;   // danh sách dựng (mảng số thường, ≈ 100 MB): tick() giữ ngữ cảnh của khối này ⇒ phải xoá tay
           return { blades: nB, cand: nC, st, mesh, meshes, tick() {
             const ppu = renderer.domElement.height / ((camera.top - camera.bottom) / camera.zoom), f = Math.max(0, Math.min(1, (ppu - 9) / 8));   // y như thảm cỏ (meadow.js update)
-            U.uFade.value = f * f * (3 - 2 * f); const on = f > 0.001 && nB > 0; for (const m of meshes) m.visible = on; if (!on) return;
+            U.uFade.value = f * f * (3 - 2 * f); const on = !lost && f > 0.001 && nB > 0; for (const m of meshes) m.visible = on; if (!on) return;
             U.uDensity.value = ppu >= 60 ? 1 : ppu >= 24 ? 0.4 : 0.25;   // số lá / ô của thảm cỏ theo mức zoom: 20 · 8 · 5
             camera.updateMatrixWorld(); _cr.setFromMatrixColumn(camera.matrixWorld, 0); U.uCamRight.value.copy(_cr);
           } };

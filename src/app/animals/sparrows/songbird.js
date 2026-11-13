@@ -387,12 +387,13 @@
             const bk = new THREE.Mesh(new THREE.ConeGeometry(0.014, 0.03, 6), new THREE.MeshLambertMaterial({ color: 0xf2c94a })); bk.rotation.z = Math.PI / 2; bk.position.x = -0.03; hd.add(bk);
             return { hd, bk };
           });
-          const piv = new THREE.Group(); scene.add(piv); let YAW = 0;
+          const piv = new THREE.Group(); scene.add(piv); let YAW = 0, hTw = null, hBind = null;
           if (hang) {   // điểm treo: cành ngang đã chọn — toạ độ cục bộ cây (−0,548; 5,038; 1,628), hướng cành theo đoạn (−0,52; 5,04; 1,59) → (−0,64; 5,02; 1,77)
             const steel = new THREE.MeshLambertMaterial({ color: 0x6d7175 });
             const eye = new THREE.Mesh(new THREE.TorusGeometry(0.014, 0.003, 4, 10), steel); eye.position.y = Hh + 0.135; g.add(eye);   // khoen nóc mái
             const wire = new THREE.Mesh(new THREE.CylinderGeometry(0.0025, 0.0025, DROP - 0.04 - (Hh + 0.145), 4), steel); wire.position.y = (DROP - 0.04 + Hh + 0.145) / 2; g.add(wire);
             const tree = appleTrees[1] || appleTrees[0]; tree.updateMatrixWorld(true); piv.name = 'Móc treo hộp tổ'; tree.localToWorld(piv.position.set(-0.548, 5.038, 1.628));
+            if (tree.userData.rigBind) { hTw = tree.userData.treeWind; hBind = tree.userData.rigBind(-0.548, 5.038, 1.628); }   // móc đi theo xương cành (nature/wind-physics.js rigAt)
             const bDir = tree.localToWorld(new THREE.Vector3(-0.64, 5.02, 1.77)).sub(tree.localToWorld(new THREE.Vector3(-0.52, 5.04, 1.59))).normalize();
             const hook = new THREE.Mesh(new THREE.TorusGeometry(0.038, 0.0035, 4, 14, 4.4), steel); hook.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), bDir); hook.rotateZ(-0.6); piv.add(hook);
             YAW = 1.885; g.position.y = -DROP;   // lỗ tổ quay về phía góc nhìn chính
@@ -419,6 +420,7 @@
                 sw.vz += (-w0 * w0 * (sw.z - ez) - 2 * 0.08 * w0 * sw.vz) * s; sw.z += sw.vz * s;
               }
               piv.rotation.set(-sw.z, 0, sw.x);
+              if (hBind) piv.position.copy(base).add(rigAt(hTw, hBind, base, _w));
             }
           };
         }

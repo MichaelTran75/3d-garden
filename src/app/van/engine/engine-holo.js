@@ -314,7 +314,7 @@
           const DCL = new Map();   // nhãn khác đang giấu → lớp cũ
           function declutter(on) {
             if (!on) { for (const [o, m] of DCL) o.layers.mask = m; DCL.clear(); return; }
-            scene.traverse(o => { if (DCL.has(o) || !(o.isSprite || o.isLine) || !o.material || !(o.material.depthTest === false || o.userData.label)) return;
+            scene.traverse(o => { if (DCL.has(o) || !(o.isSprite || o.isLine) || !o.material || !(o.material.depthTest === false || o.userData.label) || o.userData.always) return;   // always: nhãn luôn hiện (hướng gió)
               for (let p = o; p; p = p.parent) if (p === H.g || p === H.labG) return;
               DCL.set(o, o.layers.mask); o.layers.set(31); });
           }

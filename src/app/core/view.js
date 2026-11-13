@@ -6,7 +6,8 @@
         const target = new THREE.Vector3(0, 5, 0);
         const keys = {};
         function viewTick(dt) {   // mỗi khung (loop/main-loop.js, đầu khung): xoay êm tới góc đích, phím dời điểm nhìn, đặt camera
-          if (autoRotate) tTheta += 0.0008; theta += (tTheta - theta) * 0.08; phi += (tPhi - phi) * 0.08;
+          const vk = 1 - Math.exp(-5 * dt);   // tiến 8 % / khung ở 60 khung/giây — tính theo dt để màn 120 Hz hay máy chậm xoay cùng tốc độ
+          if (autoRotate) tTheta += 0.048 * dt; theta += (tTheta - theta) * vk; phi += (tPhi - phi) * vk;
           const panSpd = 65 * dt / camera.zoom;
           if (keys['w'] || keys['arrowup']) { target.x += Math.cos(theta) * panSpd; target.z += Math.sin(theta) * panSpd; autoRotate = false; }
           if (keys['s'] || keys['arrowdown']) { target.x -= Math.cos(theta) * panSpd; target.z -= Math.sin(theta) * panSpd; autoRotate = false; }

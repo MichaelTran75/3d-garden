@@ -9,7 +9,7 @@
         //  (animals/raccoon/brain.js) · chó không ẩn ban đêm: vào ngủ trong caravan
         worldServe('dayNight', { day: daytimeAnimals, night: nighttimeFireflies });
         function updateAnimalVisibility() {
-          const isNight = !liveWeather.wildlifeAwake; // Animals return at 06:00 and rest at 18:30 in Pleiku.
+          const isNight = !liveWeather.wildlifeAwake;   // thức khi mặt trời Pleiku > −6° (core/sky-sun-moon.js setAwake)
           daytimeAnimals.visible = !isNight; nighttimeFireflies.visible = isNight && !liveWeather.state.raining;   // mưa: đom đóm trú dưới lá, thôi bay / nháy
         }
         updateAnimalVisibility();

@@ -11,7 +11,7 @@
           worldRun('pointer', dt, t);   // ô toạ độ + ghim khi rê chuột trên địa hình (sổ tick — ui/labels-controls.js)
           updateAnimalVisibility(); updateDrawBatches();
           fluids.update(dt, t, rainK);   // gửi bước mô phỏng nước + khói cho luồng phụ (kèm các cú chạm nước trong khung này), nhận kết quả bước trước
-          if (skyOn) updateSky(); nightSky.update(dt, t, skyOn); constellations.tick(dt); fitSunShadow(); updateCloseLod(); worldRun('tools', dt, t); waterPump.tick(dt, t); soilTick(dt); worldRun('ground', dt, t); worldRun('viewer', dt, t); worldRun('sound', dt, t); mossTick(); lensRender(dt); mastLabel?.updateScreen(); worldRun('afterRender', dt, t);   // sổ tick: phần chạy sau khi vẽ
+          if (skyOn) updateSky(); nightSky.update(dt, t, skyOn); atmTick(); constellations.tick(dt); fitSunShadow(); updateCloseLod(); worldRun('tools', dt, t); waterPump.tick(dt, t); soilTick(dt); worldRun('ground', dt, t); worldRun('viewer', dt, t); worldRun('sound', dt, t); mossTick(); lensRender(dt); mastLabel?.updateScreen(); worldRun('afterRender', dt, t);   // sổ tick: phần chạy sau khi vẽ
           if (!started) { started = true; const l = document.getElementById('loading'); if (window.__ld) window.__ld(100); else if (l) l.style.display = 'none'; }   // 100% rồi mờ dần
         }
         // biên dịch shader SONG SONG (KHR_parallel_shader_compile) trước khung đầu → luồng chính không khựng lúc mở trang; trình duyệt không hỗ trợ thì như cũ.

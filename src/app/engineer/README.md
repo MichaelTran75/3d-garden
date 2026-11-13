@@ -18,7 +18,7 @@ Mọi tệp ghép 1 khối theo `src/app/manifest.txt` (không import/export).
 - `mind/offers.js`: việc nhận theo lệnh người xem, sẽ làm gì / vì sao chưa (mặt `offer(k)`)
 - `mind/task-table.js`: `ENG_JOBS` việc dùng dụng cụ
 - `mind/loop-update.js`: điều phối mỗi khung (dưới)
-- Suy nghĩ: `thoughts`, `thought-bubble`. Phản ứng cảnh, môi trường, thời tiết: `mind/reactions.js` (mưa, gió, chó, lá), `env-react`, `weather-feel`
+- Suy nghĩ: `thoughts` (câu theo việc), `weather-notice` (nhận xét thời tiết: chấm 5 chỉ số → nhớ → gộp → ghép câu), `thought-bubble`. Phản ứng cảnh, môi trường, thời tiết: `mind/reactions.js` (mưa, gió, chó, lá), `env-react`, `weather-feel`
 
 ## engineer/face.js
 

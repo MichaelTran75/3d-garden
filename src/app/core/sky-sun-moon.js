@@ -76,6 +76,12 @@
           for (let i = 0; i <= PATH_N; i++) { sky.worldToLocal(skyDir(horiz(i / PATH_N * 2 * Math.PI, q.dec, q.par), _tv).multiplyScalar(ORB)); a.setXYZ(i, _tv.x, _tv.y, _tv.z); }
           a.needsUpdate = true; line.geometry.computeBoundingSphere(); line.computeLineDistances(); line.userData.dec = q.dec;
         }
+        // độ sáng theo chạng vạng thật: ≥ 6° sáng hẳn · 0° 0,62 · −6° (dân dụng) 0,25 · −12° (hàng hải) 0,06 · −18° (thiên văn) tối hẳn; nối thẳng.
+        //   Nắng trực tiếp tắt dần 6° → −2° (sau lặn chỉ còn ánh trời hemi / amb); ánh cam đỉnh −1,5°, hết +10° / −10,5°.
+        const DAY_K = [[-18, 0], [-12, 0.06], [-6, 0.25], [0, 0.62], [6, 1]];
+        function dayLight(e) { if (e <= DAY_K[0][0]) return 0; for (let i = 1; i < DAY_K.length; i++) if (e < DAY_K[i][0]) { const [a, fa] = DAY_K[i - 1], [b, fb] = DAY_K[i]; return fa + (fb - fa) * (e - a) / (b - a); } return 1; }
+        // thú ban ngày thức khi mặt trời > −6° (js/weather.js setAwake; tính lại mỗi ~15 s giờ cảnh)
+        { let awH = -99, awV = true; liveWeather.setAwake(() => { const h = liveWeather.localHour; if (Math.abs(h - awH) > 0.004) { awH = h; awV = solarPosition(h).el > -6 * RD; } return awV; }); }
         const smooth01 = (a, b, x) => { const k = Math.max(0, Math.min(1, (x - a) / (b - a))); return k * k * (3 - 2 * k); };
         const viaUp = (a, b, t, out) => (t < 0.5 ? out.copy(a).lerp(SKY_UP, t * 2) : out.copy(SKY_UP).lerp(b, t * 2 - 1)).normalize();   // a → thiên đỉnh → b
         // ---- trời theo giờ thật / cố định (nút #btnSky ở ui/xray-lifecycle.js; 01/11 đợt 11 — dời từ đó): skyOn = false ⇒ setSkyDefault — nền, nắng, ánh sáng
@@ -90,14 +96,14 @@
           skyDir(horiz(hourAngle(n, sq.ra), sq.dec, 0), _wp); skyDir(mh, _mp);   // hướng tới mặt trời / mặt trăng (thế giới)
           sky.updateMatrixWorld();
           skySun.position.copy(sky.worldToLocal(_tv.copy(_wp).multiplyScalar(ORB))); skyMoon.position.copy(sky.worldToLocal(_tv.copy(_mp).multiplyScalar(ORB)));
-          const elev = _wp.y, dayF = Math.min(1, Math.max(0, (elev + 0.04) / 0.34)), dusk = Math.max(0, 1 - Math.abs(elev) / 0.2); nightFactor = 1 - dayF; skyDusk = dusk; sunElevSin = elev;
+          const elev = _wp.y, eDeg = Math.asin(Math.max(-1, Math.min(1, elev))) / RD, dayF = dayLight(eDeg), sunK = smooth01(-2, 6, eDeg), dusk = Math.max(0, 1 - Math.abs(eDeg + 1.5) / (eDeg > -1.5 ? 11.5 : 9)); nightFactor = 1 - dayF; skyDusk = dusk; sunElevSin = elev;
           // đèn chính: ngày theo mặt trời; đêm theo trăng nếu trăng đã mọc, chưa mọc thì từ phía đối diện mặt trời như cũ (nâng tối thiểu ~15° cho bóng khỏi dài vô tận)
           //   đổi hướng qua thiên đỉnh (viaUp) để bóng không lật 180° khi 2 hướng gần đối nhau (vd trăng non phía tây ↔ hướng đối diện mặt trời)
           _nv.copy(_wp).negate(); _nv.y = Math.max(_nv.y, 0.26); _nv.normalize();
           _tv.copy(_mp); _tv.y = Math.max(_tv.y, 0.26); _tv.normalize();
           viaUp(_nv, _tv, smooth01(-0.02, 0.12, _mp.y), _sunV); _nv.copy(_sunV); viaUp(_nv, _wp, smooth01(-0.08, 0.03, elev), _sunV);
           sun.position.copy(_sunV).multiplyScalar(150).add(sun.target.position);   // hướng nắng = position − target (đích theo vùng nhìn: loop/close-up.js)
-          sun.intensity = 0.36 + dayF * 0.74;
+          sun.intensity = 0.36 + sunK * 0.74;
           sun.color.copy(_liC.copy(dayLi).lerp(nightLi, 1 - dayF).lerp(duskLi, dusk * 0.75));
           hemi.intensity = 0.46 + dayF * 0.46; amb.intensity = 0.26 + dayF * 0.12;
           const bg = _bgC.copy(dayBg).lerp(nightBg, 1 - dayF).lerp(duskBg, dusk * 0.55); scene.background.copy(bg); if (scene.fog) scene.fog.color.copy(bg);
@@ -188,13 +194,14 @@
         const waterMat = new THREE.MeshPhongMaterial({ color: 0x3f86c4, specular: 0xd8ecff, shininess: 70, transparent: true, opacity: 0.6, side: THREE.DoubleSide });
         const waterU = { uRain: { value: 0 }, uWindK: { value: 0.5 }, uSky: { value: new THREE.Color(0xa8d4f2) }, uFoamCol: { value: new THREE.Color(0.85, 0.88, 0.9) },
           uShallow: { value: new THREE.Color(0x5cb0d4) }, uDeep: { value: new THREE.Color(0x2b6aa8) },
-          uSim: { value: null }, uSimBox: { value: new THREE.Vector4(0, 0, 1, 1) }, uSimTexel: { value: new THREE.Vector2(1, 1) }, uSimDx: { value: BLOCK }, uSimOn: { value: 0 } };
+          uWDrift: { value: new THREE.Vector2() }, uSim: { value: null }, uSimBox: { value: new THREE.Vector4(0, 0, 1, 1) }, uSimTexel: { value: new THREE.Vector2(1, 1) }, uSimDx: { value: BLOCK }, uSimOn: { value: 0 } };
         const WATER_SKY = { day: new THREE.Color(0xa8d4f2), dusk: new THREE.Color(0xe8b48c), night: new THREE.Color(0x1a2640), rain: new THREE.Color(0x8b99a8) }, _wsC = new THREE.Color();
         const WATER_COL = { shallow: waterU.uShallow.value.clone(), deep: waterU.uDeep.value.clone(), spec: waterMat.specular.clone() };
+        const WATER_SILT = new THREE.Color(0x8f8462);
         let waterSurfMesh = null;   // lưới mặt nước gộp (dựng ở phần địa hình), thuộc tính aWater: dòng chảy xz · độ sâu · gần bờ
         waterMat.onBeforeCompile = (shader) => {
           shader.uniforms.uTime = { value: 0 };
-          Object.assign(shader.uniforms, waterU);
+          Object.assign(shader.uniforms, waterU, { uWMap: sceneWind.u.uWMap, uWBox: sceneWind.u.uWBox, uWOn: sceneWind.u.uWOn });   // bản đồ gió dùng chung với cây cỏ (nature/wind-physics.js)
           shader.vertexShader = `
             uniform float uTime, uSimOn; uniform sampler2D uSim; uniform vec4 uSimBox;
             attribute vec4 aWater;
@@ -213,7 +220,7 @@
           shader.fragmentShader = `
             uniform float uTime, uRain, uWindK, uSimOn, uSimDx;
             uniform vec3 uSky, uFoamCol, uShallow, uDeep;
-            uniform sampler2D uSim; uniform vec2 uSimTexel;
+            uniform sampler2D uSim, uWMap; uniform vec2 uSimTexel, uWDrift; uniform vec4 uWBox; uniform float uWOn;
             varying vec4 vWater; varying vec3 vWPos; varying vec2 vSimUv;
             float wHash(vec2 p) { vec3 q = fract(vec3(p.xyx) * 0.1031); q += dot(q, q.yzx + 33.33); return fract((q.x + q.y) * q.z); }
             vec3 wNoised(vec2 p) {   // nhiễu giá trị + đạo hàm giải tích
@@ -247,7 +254,9 @@
           ` + shader.fragmentShader
             .replace('#include <color_fragment>', `#include <color_fragment>
             vec2 wFlow = vWater.xy; float wDepth = vWater.z, wShore = vWater.w, wFlowS = length(wFlow);
-            vec2 wSl = wSlope(vWPos.xz, wFlow, uTime) * (0.05 + 0.12 * uWindK + 0.35 * min(wFlowS, 0.6)) + wRain(vWPos.xz, uTime, uRain) * uRain;
+            // gợn do gió theo GIÓ TẠI CHỖ (kênh a bản đồ gió: sau rặng cây / chân đập lặng, mặt hồ trống gợn đủ) × mảng gió giật trôi theo gió (vệt sẫm lướt trên mặt hồ)
+            float wLoc = mix(1.0, min(1.5, texture2D(uWMap, (vWPos.xz - uWBox.xy) * uWBox.zw).a), uWOn) * (0.5 + wNoised(vWPos.xz * 0.07 - uWDrift).x);
+            vec2 wSl = wSlope(vWPos.xz, wFlow, uTime) * (0.05 + 0.12 * uWindK * wLoc + 0.35 * min(wFlowS, 0.6)) + wRain(vWPos.xz, uTime, uRain) * uRain;
             vec2 wTx = vec2(uSimTexel.x, 0.0), wTz = vec2(0.0, uSimTexel.y);   // độ dốc sóng mô phỏng tại từng điểm ảnh (sai phân trung tâm)
             wSl += uSimOn * vec2(texture2D(uSim, vSimUv + wTx).r - texture2D(uSim, vSimUv - wTx).r, texture2D(uSim, vSimUv + wTz).r - texture2D(uSim, vSimUv - wTz).r) / (2.0 * uSimDx) * 4.0;   // sóng vài cm → nhấn độ dốc khi tô sáng cho thấy rõ ở góc nhìn mô hình
             float wN = wNoised(vWPos.xz * 1.9 - wFlow * uTime * 1.7).x * 0.6 + wNoised(vWPos.xz * 4.7 - wFlow * uTime * 2.3).x * 0.4;
@@ -268,14 +277,16 @@
             #include <opaque_fragment>`);
           waterMat.userData.shader = shader;
         };
-        function updateWaterLook(rain) {   // màu trời phản chiếu + bọt theo ánh sáng cảnh; gió → gợn mạnh; mưa → vòng gợn
+        function updateWaterLook(rain, dt = 0) {   // màu trời phản chiếu + bọt theo ánh sáng cảnh; gió → gợn mạnh; mưa → vòng gợn
           waterU.uSky.value.copy(WATER_SKY.day).lerp(WATER_SKY.night, nightFactor).lerp(WATER_SKY.dusk, skyDusk * 0.25).lerp(_wsC.copy(WATER_SKY.rain).multiplyScalar(1 - 0.8 * nightFactor), 0.7 * rain);
           const lit = Math.min(1.05, hemi.intensity * 0.55 + amb.intensity * 0.6 + sun.intensity * 0.45);
           waterU.uFoamCol.value.setRGB(0.80, 0.84, 0.86).multiplyScalar(lit);
           waterU.uWindK.value = Math.min(1.6, 0.25 + (liveWeather.state.windSpeed ?? 8) / 22); waterU.uRain.value = rain;
+          waterU.uWDrift.value.addScaledVector(sceneWind.dir, 0.1 * sceneWind.U * Math.min(dt, 0.1));   // mảng gió giật ~14 đv trôi nhanh hơn gió sát mặt (gió giật đi theo gió tầng trên)
           causticU.uCaust.value.copy(sun.color).multiplyScalar(sun.intensity * 0.42 * (1 - nightFactor) * (1 - 0.8 * rain));
           const nk = 1 - 0.62 * nightFactor;   // đêm: nước sẫm hơn bờ (phản chiếu trời tối), lấp lánh trăng/đèn nhẹ hơn; mưa làm mờ ánh phản chiếu
-          waterU.uShallow.value.copy(WATER_COL.shallow).multiplyScalar(nk); waterU.uDeep.value.copy(WATER_COL.deep).multiplyScalar(nk);
+          const silt = 0.3 * (fluids?.runoff || 0);   // nước mưa đổ về (nature/fluids.js): ngả màu phù sa, rút chậm sau khi tạnh
+          waterU.uShallow.value.copy(WATER_COL.shallow).lerp(WATER_SILT, silt).multiplyScalar(nk); waterU.uDeep.value.copy(WATER_COL.deep).lerp(WATER_SILT, silt * 0.8).multiplyScalar(nk);
           waterMat.specular.copy(WATER_COL.spec).multiplyScalar((1 - 0.72 * nightFactor) * (1 - 0.4 * rain));
         }
 

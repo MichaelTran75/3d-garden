@@ -36,13 +36,20 @@
           }
         }
         // ---- 2 cây táo (ĐỆ QUY) cạnh caravan ----
-        function fruitTree(s, seed, o = {}) {   // o (cây táo thứ 3): trunkK thân to × · rootK cành cấp 1 / thân · firstSplitN cành chính · nMax rẽ tối đa · leafK chùm lá giữa × · reach cành vươn (recTree)
+        const _ftPlain = new THREE.MeshBasicMaterial();
+        function fruitTree(s, seed, o = {}) {   // o (cây táo thứ 3): trunkK thân to × · rootK cành cấp 1 / thân · firstSplitN cành chính · nMax rẽ tối đa · leafK chùm lá giữa × · reach cành vươn (recTree) · keepBark ⇒ userData.barkGeo(): dựng lại lưới vỏ trên CPU (mảng đỉnh đã giải phóng sau khi nạp GPU)
           const g = new THREE.Group();
-          const barkMat = new THREE.MeshLambertMaterial({ color: 0x5f5347, transparent: true, opacity: 0.90 }); barkMat.userData.sfApple = 1; surfaceStyle(barkMat, 'bark');   // vỏ táo nứt vảy thủ tục (core/surface-style.js sfApple) thay ảnh vỏ quét   // thân cây rõ hơn 20% (0.75 * 1.2 = 0.90) · vân vỏ cây · nâu xám như bản quét
-          const { tips, rnd, segs } = recTree(g, { seed, s, barkMat, appleBark: true, trunkLen: 1.7 * s, trunkR: 0.125 * s * (o.trunkK || 1), maxDepth: 4, nMin: 2, nMax: o.nMax || 3, lenK: 0.74, radK: 0.6, spread: 0.72, upBias: 0.22, firstSplitN: o.firstSplitN || 4, rootK: o.rootK, reach: o.reach });
+          const barkMat = new THREE.MeshLambertMaterial({ color: 0x5f5347, transparent: true, opacity: 0.90 }); barkMat.userData.sfApple = 1;
+          // xương cành gọn: thân + cành cấp 1–2 (cành nhỏ, lá, quả đi cứng theo); thân không ngả (lean 0) ⇒ đường leo, rêu, viền chọn giữ nguyên chỗ
+          const rig = TREE_RIG_ON, tw = rig ? makeTreeWind({ freq: 0.8, zeta: 0.1, lean: 0, branchAmp: 0, sway: 0.5, rig: { amp: 0.09, grow: 1.5, freq: 2.2 } }) : null;
+          if (rig) windShader(barkMat, tw, 0);
+          surfaceStyle(barkMat, 'bark');   // vỏ táo nứt vảy thủ tục (core/surface-style.js sfApple) thay ảnh vỏ quét   // thân cây rõ hơn 20% (0.75 * 1.2 = 0.90) · vân vỏ cây · nâu xám như bản quét
+          const ro = { seed, s, barkMat, appleBark: true, trunkLen: 1.7 * s, trunkR: 0.125 * s * (o.trunkK || 1), maxDepth: 4, nMin: 2, nMax: o.nMax || 3, lenK: 0.74, radK: 0.6, spread: 0.72, upBias: 0.22, firstSplitN: o.firstSplitN || 4, rootK: o.rootK, reach: o.reach };
+          const { tips, rnd, segs, bones, tipW, bindAt } = recTree(g, rig ? Object.assign({ rig: true, rigDepth: 2 }, ro) : ro);
           const pts = []; for (const tp of tips) cloudPts(rnd, tp.x, tp.y + 0.08 * s, tp.z, 0.62 * s, 40, pts);
           cloudPts(rnd, 0, 2.7 * s, 0, 1.05 * s, Math.round(130 * (o.leafK || 1)), pts);   // chùm trung tâm cho tán dày ruột
-          tuftInstanced(g, rnd, pts, leafHexGeo(0.09 * s), [0x86a364, 0x78935b, 0x6e8754, 0x61784a], 0.60); g.userData.leafPts = Float32Array.from(pts.flat());   // điểm lá: lá rụng theo cơn giật (nature/wind-field.js)   // lá cây trong suốt hơn 20% (0.75 * 0.8 = 0.60)
+          const imL = tuftInstanced(g, rnd, pts, leafHexGeo(0.09 * s), [0x86a364, 0x78935b, 0x6e8754, 0x61784a], 0.60, 1, tw); g.userData.leafPts = Float32Array.from(pts.flat());
+          if (rig) { const nT = tips.length * 40; imL.geometry.setAttribute('aBr', rigAttr(pts.map((pt, k) => k < nT ? tipW[(k / 40) | 0] : bindAt(pt[0], pt[1], pt[2])))); }   // chùm lá đầu cành theo xương của cành đó; chùm giữa tán theo cành gần nhất   // điểm lá: lá rụng theo cơn giật (nature/wind-field.js)   // lá cây trong suốt hơn 20% (0.75 * 0.8 = 0.60)
           // táo đỏ treo dưới ~1/3 số cành tận cùng
           function deformApple(geom) {
             const pos = geom.attributes.position;
@@ -98,10 +105,12 @@
 
             apple.position.set(tp.x + (rnd() - 0.5) * 0.4 * s, tp.y - 0.28 * s, tp.z + (rnd() - 0.5) * 0.4 * s);
             apple.rotation.y = rnd() * 6.28;
-            fruit.add(apple); apples.push({ g: apple, home: apple.position.clone(), rot: apple.rotation.y, on: true, sw: 0, sv: 0, swy: 0, svy: 0 });
+            fruit.add(apple); apples.push({ g: apple, home: apple.position.clone(), rot: apple.rotation.y, on: true, sw: 0, sv: 0, swy: 0, svy: 0, bind: rig ? tipW[i] : null });
           }
           const out = bakeStatic(g);   // gộp toàn bộ cành theo vật liệu → vài draw call/cây
-          out.add(fruit); out.userData.apples = apples; out.userData.appleR = 0.12 * s * AK; out.userData.limbs = segs;   // quả gắn SAU khi gộp: lô vẽ chung (draw-batch) vẫn gom chung 1 lượt vẽ
+          out.add(fruit); out.userData.apples = apples; out.userData.appleR = 0.12 * s * AK; out.userData.limbs = segs;
+          if (rig) { out.userData.treeWind = tw; out.userData.rigBind = bindAt; out.userData.rigLimbs = bones.map(l => ({ o: l.P[0], t: l.P[l.P.length - 1], par: l.bp, d: l.d })); }
+          if (o.keepBark) out.userData.barkGeo = () => { const t = new THREE.Group(); recTree(t, Object.assign({}, ro, { barkMat: _ftPlain })); return t.children[t.children.length - 1].geometry; };   // lưới vỏ dựng lại trên CPU (cùng hạt ⇒ trùng lưới đang vẽ; mảng đỉnh bản vẽ đã giải phóng sau khi nạp GPU): người gọi tự bỏ khi xong, không nạp GPU   // quả gắn SAU khi gộp: lô vẽ chung (draw-batch) vẫn gom chung 1 lượt vẽ
           return out;
         }
 
@@ -122,13 +131,14 @@
         const FT3_X = 99.81, FT3_Z = 102.95, FT3_YAW = 3.2, FT3_REACH = new THREE.Vector3(102.5 - FT3_X, 0, 100 - FT3_Z).normalize().applyAxisAngle(new THREE.Vector3(0, 1, 0), -FT3_YAW);   // hướng vươn trong toạ độ cây
         // thêm 2 cành vươn ×1,25 chĩa vuông góc qua khúc gỗ chết (từ gốc ra trục khúc gỗ rồi vượt qua)
         const FT3_LOG = new THREE.Vector3(0.961, 0, 0.275).applyAxisAngle(new THREE.Vector3(0, 1, 0), -FT3_YAW);   // hướng gốc → trục khúc gỗ (toạ độ cây)
-        const ft3 = fruitTree(1.35, 7171, { trunkK: 3, rootK: 0.27, firstSplitN: 5, nMax: 4, leafK: 2, reach: [{ dir: FT3_REACH, n: 2, lenK: 1.35, tilt: 1.0 }, { dir: FT3_LOG, n: 2, lenK: 1.25, tilt: 1.0 }] }); ft3.scale.multiplyScalar(NATURE_SCALE); ft3.userData.noPick = true; ft3.userData.colR = 1.0;   // colR: core/collide.js giữ tam giác thân trong 1 m quanh gốc (rễ choãi tới ~0,9 m; cây cũ 0,7)
+        const ft3 = fruitTree(1.35, 7171, { keepBark: true, trunkK: 3, rootK: 0.27, firstSplitN: 5, nMax: 4, leafK: 2, reach: [{ dir: FT3_REACH, n: 2, lenK: 1.35, tilt: 1.0 }, { dir: FT3_LOG, n: 2, lenK: 1.25, tilt: 1.0 }] }); ft3.scale.multiplyScalar(NATURE_SCALE); ft3.userData.noPick = true; ft3.userData.colR = 1.0;   // colR: core/collide.js giữ tam giác thân trong 1 m quanh gốc (rễ choãi tới ~0,9 m; cây cũ 0,7)
         // (cây táo già — gấu mèo leo): vỏ táo bật rêu mặt trên + vệt nước chảy ở
         //  độ phủ thấp (sfTop 0,5; cổ thụ 1) ⇒ thảm rêu lá cỏ (nature/moss-lawn.js) tự mọc đúng chỗ có màu rêu trên thân ≤ 3,2 m; 2 cây táo cạnh trại giữ vỏ sạch
         ft3.traverse(o => { if (o.isMesh && o.material && o.material.userData && o.material.userData.sfApple) o.material.userData.sfTop = 0.5; });
         { const X = X0 + FT3_X, Z = Z0 + FT3_Z; ft3.position.set(X, surfaceY(Math.round(X / BLOCK + cx - 0.5), Math.round(Z / BLOCK + cz - 0.5)), Z); ft3.rotation.y = FT3_YAW; scene.add(ft3); }   // ô lưới = nghịch đảo wx / wz (viết tay từ khi x2gi còn khai báo sau tệp này; nay ở core/helpers.js) · lùi 0,2 m khỏi khúc gỗ chết (x 101 z 104,5) + xoay 3,2 cho rễ choãi né: đúng x100 z103 thì cành cụt của khúc gỗ đâm vào chân rễ ~5 cm — giờ hở 0,23 m
         flightRoots.push(ft1, ft2, ft3);
         for (const T of [ft1, ft2, ft3]) worldJoin('groundContact', 10, S => S.add(T));   // bóng tiếp đất quanh gốc (world/ground-contact.js)
+        for (const T of [ft1, ft2, ft3]) if (T.userData.treeWind) finalizeTreeWind(T.userData.treeWind, T);   // xương cành: đo gốc + tán sau khi đặt cây
         const appleTrees = [ft1, ft2, ft3];   // kỹ sư hái táo (engineer/tasks/apple-pick.js — trừ cây noPick)
         for (const T of appleTrees) obstacleCoords.push({ x: T.position.x, y: T.position.y, z: T.position.z, r: T === ft3 ? 0.75 : 0.35, h: 3 });   // thân cây: người & chó đi vòng (cây 3 thân to ×3)
         // (ảnh cây táo già trên khúc gỗ chết). Rê chuột ⇒ viền trắng
@@ -478,16 +488,16 @@
         const cherryPinks = [0xffd1dc, 0xffb7c5, 0xffc0cb, 0xf6a5c0, 0xffe3ec, 0xff9fb6];
         function cherryTree(s) {   // cây anh đào ĐỆ QUY — tán hoa cube instanced ở cành tận cùng + chùm trung tâm
           const g = new THREE.Group();
-          const { tips, rnd, flowerPts } = recTree(g, { seed: 4242, s, barkMat: cherryBark, trunkLen: 2.53 * s, trunkR: 0.33 * s, maxDepth: 4, nMin: 3, nMax: 3, lenK: 0.78, radK: 0.55, spread: 1.05, upBias: 0.05, recursiveLeaves: true, firstSplitN: 4 });
-          const blossomPts = [], leafPts = [];
-          for (const pt of flowerPts) {
-            if (rnd() < 0.25) leafPts.push(pt); else blossomPts.push(pt);
-          }
+          const rig = TREE_RIG_ON, { tips, rnd, flowerPts, flowerW, limbs } = recTree(g, { rig, seed: 4242, s, barkMat: cherryBark, trunkLen: 2.53 * s, trunkR: 0.33 * s, maxDepth: 4, nMin: 3, nMax: 3, lenK: 0.78, radK: 0.55, spread: 1.05, upBias: 0.05, recursiveLeaves: true, firstSplitN: 4 });
+          const blossomPts = [], leafPts = [], blossomW = [], leafW = [];
+          flowerPts.forEach((pt, i) => { const lf = rnd() < 0.25; (lf ? leafPts : blossomPts).push(pt); if (rig) (lf ? leafW : blossomW).push(flowerW[i]); });
           // anh đào: thân mảnh, tán nhẹ → tần số riêng ~0,55 Hz, nghiêng nhiều hơn cây cổ thụ; hoa rung mạnh hơn lá
-          const tw = makeTreeWind({ freq: 0.55, zeta: 0.1, lean: 0.3, branchAmp: 0.06 });
+          // rig: xương cành (161 cành ≤ 256 xương) — amp = góc cành cấp 1 khi gió 30 km/h (× TREE_SWAY_K), grow = cành con mềm hơn mẹ, freq / dài cành = Hz
+          const tw = makeTreeWind({ freq: 0.55, zeta: 0.1, lean: 0.3, branchAmp: 0.06, sway: 0.5, rig: rig ? { amp: 0.055, grow: 1.35, freq: 2 } : null });
           windShader(cherryBark, tw, 0); surfaceStyle(cherryBark, 'bark');   // vân vỏ cây SAU shader gió (surfaceStyle nối tiếp onBeforeCompile; windShader thì ghi đè)
-          tuftInstanced(g, rnd, blossomPts, new THREE.BoxGeometry(0.17 * s, 0.17 * s, 0.17 * s), cherryPinks, 0.75, 1, tw, 0.035);
-          tuftInstanced(g, rnd, leafPts, leafHexGeo(0.09 * s), [0x86a364, 0x78935b, 0x6e8754, 0x61784a], 0.90, 1, tw, 0.03);
+          const imB = tuftInstanced(g, rnd, blossomPts, new THREE.BoxGeometry(0.17 * s, 0.17 * s, 0.17 * s), cherryPinks, 0.75, 1, tw, 0.035);
+          const imL = tuftInstanced(g, rnd, leafPts, leafHexGeo(0.09 * s), [0x86a364, 0x78935b, 0x6e8754, 0x61784a], 0.90, 1, tw, 0.03);
+          if (rig) { imB.geometry.setAttribute('aBr', rigAttr(blossomW)); imL.geometry.setAttribute('aBr', rigAttr(leafW)); g.userData.rigLimbs = limbs.map(l => ({ o: l.P[0], t: l.P[l.P.length - 1], par: l.par ? l.par.bi : 0, d: l.d })); }
           const _q = new THREE.Quaternion(), _p = new THREE.Vector3(), _sc = new THREE.Vector3(1, 1, 1), _mm = new THREE.Matrix4(), _col = new THREE.Color();
           // vài cánh hoa rụng dưới gốc
           const fallen = new THREE.InstancedMesh(new THREE.BoxGeometry(0.13 * s, 0.002 * s, 0.13 * s), new THREE.MeshLambertMaterial({ transparent: true, opacity: 0.75 }), 26);

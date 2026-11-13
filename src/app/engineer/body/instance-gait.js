@@ -8,7 +8,7 @@
           return {
             g, elbows: g.userData.elbows, wrists: g.userData.wrists, spine: g.userData.spine, legs: g.userData.legs, knees: g.userData.knees, ankles: g.userData.ankles, arms: g.userData.arms, head: g.userData.head,
             rodGrp: g.userData.rodGrp, rodTilt: g.userData.rodTilt, rodTip: g.userData.rodTip, rod: g.userData.rod, clip: g.userData.clip, props: g.userData.props,
-            helmet: g.userData.helmet, hair: g.userData.hair, towel: g.userData.towel,
+            helmet: g.userData.helmet, hair: g.userData.hair, towel: g.userData.towel, dress: g.userData.dress,
             wp, phase: 'toFish', timer: 0, wanderTgt: null, wanderTmr: 0, spd: 1.1, groundY: chairW.y, faceWater
           };
         })();

@@ -344,7 +344,7 @@
             if (m) wc.push([m[1], m[2], +m[3]]); else if (tk[0] === '!') wc.push(['!', tk.slice(1)]); else wo.push(tk);
           }
           for (const tk of need ? need.split(',') : []) nd.push(tk[0] === '!' ? [true, tk.slice(1)] : [false, tk]);
-          return { act, text, tw, tc, wo, wc, nd, ev: nd.some(([, n]) => n.startsWith('ev')), w: 1 + (tw.length || tc.length ? 3 : 0) + (wo.length || wc.length ? 5 : 0) + (nd.length ? 4 : 0),
+          return { act, text, tw, tc, wo, wc, nd, tp: wxnTopics({ wo, wc }), ev: nd.some(([, n]) => n.startsWith('ev')), w: 1 + (tw.length || tc.length ? 3 : 0) + (wo.length || wc.length ? 5 : 0) + (nd.length ? 4 : 0),
             day: nd.some(([, n]) => THOUGHT_DAY_NEED.has(n)) || /\{(dow|Dow|tmrDow|TmrDow)\}/.test(text) };   // câu theo thứ: hiếm (DAY_LINE_MAX / ngày)
         }
         const _thoughtCmp = (v, op, x) => op === '<' ? v < x : op === '<=' ? v <= x : op === '>' ? v > x : v >= x;
@@ -426,8 +426,10 @@
           if (!pool.length) { recent.length = 0; pool = ENG_THOUGHT_LINES.filter(fits); }
           if (ctx.event) { const evPool = pool.filter(l => l.ev); if (evPool.length) pool = evPool; }   // vừa có sự việc khi câu: nói đúng chuyện đó
           if (!pool.length) return null;
-          let r = Math.random() * pool.reduce((s, l) => s + l.w, 0), pick = pool[0];   // câu đúng giờ + đúng thời tiết + đúng việc được ưu tiên rõ rệt
-          for (const l of pool) { r -= l.w; if (r <= 0) { pick = l; break; } }
+          const wt = l => l.w * (l.tp.length && WXN.told(l.tp, ctx.now) ? 0.2 : 1);   // chỉ số thời tiết vừa được nhận xét (engineer/mind/weather-notice.js): câu nhắc lại nó lùi xuống
+          let r = Math.random() * pool.reduce((s, l) => s + wt(l), 0), pick = pool[0];   // câu đúng giờ + đúng thời tiết + đúng việc được ưu tiên rõ rệt
+          for (const l of pool) { r -= wt(l); if (r <= 0) { pick = l; break; } }
+          if (pick.tp.length) WXN.touch(pick.tp, ctx.now);
           recent.push(pick.text); if (recent.length > 6) recent.shift();
           if (pick.day) { dayLine.n++; dayLine.at = ctx.now; }
           return pick.text;
@@ -458,13 +460,13 @@
           const header = quality === 'unavailable' ? ctx.slotIcon + ' ' + clockText(ctx.h) + ' · ' + state.city.name + ' · chưa có dữ liệu mới'
             : ctx.wxIcon + ' ' + clockText(ctx.h) + ' · ' + state.city.name + ' · ' + num(state.temperature) + ' °C · gió ' + num(state.windSpeed) + ' km/h';
           const message = quality === 'unavailable' ? 'Chưa cập nhật được Open-Meteo, mình chờ dữ liệu mới.'
-            : (quality === 'cached' ? 'Bản lưu: ' : '') + fillThought(pickThought('check', ctx) || 'Số liệu ổn, ghi vào sổ rồi quay lại câu.', ctx);
+            : (quality === 'cached' ? 'Bản lưu: ' : '') + ((engObj && engAwake(ctx.h) && Math.random() < 0.75 ? wxnThought('check', ctx, engObj, now, true) : null) || fillThought(pickThought('check', ctx) || 'Số liệu ổn, ghi vào sổ rồi quay lại câu.', ctx));   // 3/4 lần: nhận xét theo chỉ số nổi bật nhất (kèm số nhà máy)
           thoughtRevision++;
           checkBubbleSprite.userData.thought = checkBubbleSprite.userData.weatherThought = { header, message, city: state.city.id, quality, sourceTime: current?.time || null, revision: thoughtRevision, nextAt: now + 900000, slot: ctx.slot, tags: [...ctx.tags] };
           thoughtNextAt = now + 900000; thoughtUntil = now + 60000;
         }
         // Suy nghĩ thường ngày: mỗi 100–160 s nảy 1 ý theo việc đang làm × khung giờ × thời tiết (hiện 14 s, không chen vào tin thời tiết đang hiện);
-        // thỉnh thoảng (20%) xen ý chung về trại và nhà máy.
+        // thỉnh thoảng (20%) xen ý chung về trại và nhà máy. Thời tiết có chỉ số nổi bật thì nhận xét trước (engineer/mind/weather-notice.js), không thì câu theo việc.
         let idleThoughtAt = Date.now() + 40000;
         function updateEngineerIdleThought(now = Date.now()) {
           if (now < idleThoughtAt || now < thoughtUntil) return;
@@ -507,7 +509,7 @@
           if (act === 'fish' && !ctx.event && !['wait', 'approach', 'settle', 'rig', 'done'].includes(angling.stage)) { idleThoughtAt = now + 4000; return; }   // đang giật/dìu/thả/thay mồi: tập trung, chưa nghĩ vẩn vơ
           if (act !== 'fish') ctx.event = null;
           if (!ctx.event && ['fish', 'tea', 'wander', 'walk', 'research'].includes(act) && Math.random() < 0.2) act = 'general';
-          const text = pickThought(act, ctx); if (ctx.event) angling.event = null; if (!text) { idleThoughtAt = now + 30000; return; }
+          const text = (ctx.event ? null : wxnThought(act, ctx, e, now, false)) || pickThought(act, ctx); if (ctx.event) angling.event = null; if (!text) { idleThoughtAt = now + 30000; return; }
           const t = Number.isFinite(ctx.temp) ? ' · ' + ctx.wxIcon + ' ' + ctx.temp.toLocaleString('vi-VN', { maximumFractionDigits: 0 }) + '°' : '';
           checkBubbleSprite.userData.thought = { header: ctx.slotIcon + ' ' + ctx.slotName + ' · ' + clockText(ctx.h) + ' · ' + label + t, message: fillThought(text, ctx), kind: 'idle', slot: ctx.slot, tags: [...ctx.tags], revision: ++thoughtRevision };
           thoughtUntil = now + 14000; idleThoughtAt = now + 100000 + Math.random() * 60000;

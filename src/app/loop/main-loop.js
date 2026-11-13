@@ -2,7 +2,8 @@
           if (disposed || suspended) { frameId = 0; return; }
           if (ts !== undefined) adaptResolution(ts);   // độ phân giải tự điều chỉnh (loop/close-up.js)
           frameId = requestAnimationFrame(loop); const dt = Math.min(clock.getDelta(), 0.05) || 1 / 60;   // khung đầu: Clock.getDelta() trả 0 (mô phỏng chia cho dt sẽ ra NaN)
-          if (!COL.ready) { colBuildTick(4); if (COL.ready) memTrim(); } else { colTick(dt); colMeshTick(dt); }   // lớp va chạm dựng dần sau khi mở trang · đồng hồ lượt xuyên khi kẹt (core/collide.js)
+          if (!COL.ready) colBuildTick(4); else { colTick(dt); colMeshTick(dt); }   // lớp va chạm dựng dần sau khi mở trang · đồng hồ lượt xuyên khi kẹt (core/collide.js)
+          if (COL.ready && !memTrim.n && groundContact.idle()) memTrim();   // bớt RAM 1 lần: sau lớp va chạm + sau khi bóng tiếp đất đã cắt lát xong (cần mảng đỉnh vỏ cây — world/ground-contact.js)
           const insectsAwake = liveWeather.wildlifeAwake;
           if (insectsAwake) flightNav.update();
           viewTick(dt);   // tầm nhìn: xoay êm tới góc đích, phím W/A/S/D dời điểm nhìn, đặt camera (core/view.js)
@@ -24,7 +25,7 @@
           weatherMastTick(dt, t);   // cột khí tượng + trạm mini (world/weather-mast.js)
           if (substationAnim) substationAnim.update(t);
           if (waterMat.userData.shader) { waterMat.userData.shader.uniforms.uTime.value = t % SHADER_TIME_LOOP; }
-          causticU.uCTime.value = t % SHADER_TIME_LOOP; updateWaterLook(rainK);   // mặt nước: trời phản chiếu, bọt, gió, mưa · vân đáy
+          causticU.uCTime.value = t % SHADER_TIME_LOOP; updateWaterLook(rainK, dt);   // mặt nước: trời phản chiếu, bọt, gió, mưa · vân đáy
           if (!waterFlowFilled) fillWaterFlow();
           damRainbowTick();   // cầu vồng chân đập (world/hydro-dam.js)
           worldRun('things', dt, t);   // đồ vật quanh trại + xe tự chạy phần mình (sổ tick) — ngay trước lượt kỹ sư

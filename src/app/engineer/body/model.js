@@ -32,7 +32,7 @@
           const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.05, 14), legoYellow); neck.position.y = 1.875; g.add(neck);
           P(g, 0.55, 0.05, 0.31, beltM, 0, 1.255, 0, false);                                    // thắt lưng
           P(g, 0.07, 0.04, 0.02, metalMat, 0, 1.255, 0.16, false);                               // khoá thắt lưng
-          P(g, 0.12, 0.15, 0.1, metalMat, 0.22, 1.17, 0.16, false);                              // túi đồ nghề
+          const pouch = P(g, 0.12, 0.15, 0.1, metalMat, 0.22, 1.17, 0.16, false);                // túi đồ nghề (cất khi tắm)
           const hips = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.16, 0.27), pantsM); hips.position.y = 1.18; hips.castShadow = true; edge(hips, hips.geometry, lineDark); g.add(hips);   // khối hông
           // ---- ĐẦU trụ bo cạnh (r 0,2 · cao 0,34) + núm, mặt in canvas (giữa mặt ở +z) ----
           const headG = new THREE.Group(); headG.position.y = 2.06; headG.rotation.order = 'YXZ'; g.add(headG);   // YXZ: quay đầu rồi mới cúi/ngửa (quay xa mà cúi không bị nghiêng lệch)
@@ -66,7 +66,7 @@
           const handGeo = new THREE.TorusGeometry(0.068, 0.034, 8, 16, 1.62 * Math.PI); handGeo.rotateZ(-2.2); handGeo.rotateY(Math.PI / 2);   // miệng chữ C quay ra trước, hơi chúc
           { const shut = new THREE.TorusGeometry(0.063, 0.034, 8, 16, 1.92 * Math.PI); shut.rotateZ(-2.2 - 0.15 * Math.PI); shut.rotateY(Math.PI / 2);   // NẮM: miệng C khép còn khe hẹp, vòng siết nhỏ lại — xoay bù nửa phần cung thêm cho khe vẫn giữa chỗ cũ
             handGeo.morphAttributes.position = [shut.attributes.position]; handGeo.morphAttributes.normal = [shut.attributes.normal]; }   // ảnh hưởng morph = độ nắm: 1 khép · 0 dáng cũ · âm = xoè rộng (engineer/body/face.js engGrip)
-          const arms = [], elbows = [], wrists = [], armCore = [];
+          const arms = [], elbows = [], wrists = [], armCore = [], armWear = [], cuffs = [];
           for (const s of [-1, 1]) {
             const piv = new THREE.Group(); piv.position.set(s * 0.34, 1.86, 0); g.add(piv);
             const shoulder = new THREE.Mesh(new THREE.SphereGeometry(0.085, 12, 8), vestM); shoulder.position.y = -0.04; piv.add(shoulder);
@@ -78,12 +78,12 @@
             const wrist = new THREE.Group(); wrist.position.y = -ENG_ARM_L2; elbow.add(wrist);   // KHUNG BÀN TAY (gốc = tâm bàn tay) — mọi đồ cầm tay gắn ở đây; xoay quanh CHỐT CỔ TAY ở đầu cẳng tay (engineer/body/pose-ik-walk.js engWristPeg)
             const wCyl = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.07, 10), legoYellow); wCyl.position.y = ENG_WRIST_PEG; wCyl.userData.core = 'peg'; wrist.add(wCyl);   // chốt tay LEGO cắm vào ống tay áo
             const hand = new THREE.Mesh(handGeo, legoYellow); hand.castShadow = true; hand.userData.core = 'hand'; wrist.add(hand);
-            arms.push(piv); elbows.push(elbow); wrists.push(wrist); armCore.push(new Set([shoulder, upper, elbow]));
+            arms.push(piv); elbows.push(elbow); wrists.push(wrist); armCore.push(new Set([shoulder, upper, elbow])); armWear.push(shoulder, upper, eJoint, fore); cuffs.push(cuff);
           }
           const clip = bx(0.28, 0.36, 0.04, engPad, true, true, lineDark); clip.position.set(0, -0.58, 0.16); arms[1].add(clip);
           P(clip, 0.2, 0.05, 0.05, metalMat, 0, 0.14, 0.02, false);  // kẹp clipboard (con của bảng ⇒ ẩn cùng bảng, trước đây treo lơ lửng khi cất bảng)
           // ---- CHÂN khối liền (rộng 0,26 · dày 0,27, khe giữa 2 chân 4 cm), gối gập được để ngồi ghế; bàn chân nhô ra trước ----
-          const legs = [], knees = [], ankles = [];
+          const legs = [], knees = [], ankles = [], shins = [], feet = [];
           const thighGeo = new THREE.BoxGeometry(0.26, 0.44, 0.27), shinGeo = new THREE.BoxGeometry(0.26, 0.34, 0.27), footGeo = new THREE.BoxGeometry(0.26, 0.13, 0.36);
           for (const s of [-1, 1]) {
             const piv = new THREE.Group(); piv.position.set(s * 0.15, 1.18, 0); piv.rotation.order = 'XZY'; g.add(piv);   // XZY: xoay trong/ngoài quanh trục chân trước, rồi dạng/khép, rồi vung trước–sau
@@ -92,7 +92,7 @@
             const shin = new THREE.Mesh(shinGeo, pantsM); shin.position.y = -0.17; shin.castShadow = true; edge(shin, shinGeo, lineDark); knee.add(shin);
             const ankle = new THREE.Group(); ankle.position.set(0, -0.36, 0); knee.add(ankle);   // KHỚP CỔ CHÂN — IK giữ đế giày phẳng trên mặt đất
             const foot = new THREE.Mesh(footGeo, bootM); foot.position.set(0, -0.035, 0.045); foot.castShadow = true; edge(foot, footGeo, lineDark); ankle.add(foot);   // đế ở −0,1 như cũ
-            legs.push(piv); knees.push(knee); ankles.push(ankle);
+            legs.push(piv); knees.push(knee); ankles.push(ankle); shins.push(shin); feet.push(foot);
           }
           // cần câu gắn ở tay trái (arms[1]), ẩn cho tới khi ngồi câu, định vị khớp tay cầm
           const rodGrp = new THREE.Group(); rodGrp.position.set(0, -0.66, 0.02); rodGrp.rotation.order = 'YXZ'; rodGrp.rotation.x = 1.02;   // YXZ: xoay ngang cần quanh trục cẳng tay (sấp/ngửa cổ tay)
@@ -150,5 +150,13 @@
           //      khớp không đổi tỉ lệ (con của khớp quay mà khớp méo thì tay gập bị co) · đồ cầm tay giữ cỡ thật · tỉ lệ x = z ⇒ hợp với mọi phép xoay quanh y ----
           { const props = new Set([clip, rodGrp, spoon, bottle, cup, book, chip, chopsticks, knife, spatula, handBowl, handPan]), joints = new Set([spine, headG, ...arms, ...elbows, ...wrists, ...legs, ...knees, ...ankles]);
             (function slim(par) { for (const c of par.children) { if (props.has(c) || c.isLine) continue; c.position.x *= ENG_SLIM; c.position.z *= ENG_SLIM; if (joints.has(c)) slim(c); else { c.scale.x *= ENG_SLIM; c.scale.z *= ENG_SLIM; } } })(g); }
-          g.userData = { elbows, wrists, spine, legs, knees, ankles, arms, head: headG, torso, face: { mat: head.material, awake: face, sleep: faceSleep }, helmet, hair, towel, rodGrp, rodTilt, rodTip, rod, clip, props: { spoon, bottle, cup, book, bookLeaf, chip, chopsticks, knife, spatula, handBowl, handPan } }; g.scale.setScalar(ENGINEER_BASE_SCALE * CAMP_SCALE); return g;
+          // ---- CỞI ĐỒ KHI TẮM (dress(false), engineer/tasks/van-stations.js stShelf): áo gilê → thân trần in nét ngực, tay trần, cẳng chân + bàn chân trần;
+          //      đùi giữ màu quần ⇒ quần short. Mặc lại: engHelmet(e, 'head') (engineer/tasks/van-nav.js) — mọi đường đội mũ lại đều mặc đồ ----
+          const skinHex = '#' + legoYellow.color.getHexString(), vestTorso = torso.material;
+          const bareFront = canvasTex(256, 256, x => { x.fillStyle = skinHex; x.fillRect(0, 0, 256, 256); x.strokeStyle = 'rgba(120,80,0,0.45)'; x.lineWidth = 4; x.lineCap = 'round'; x.beginPath();
+            x.moveTo(70, 96); x.quadraticCurveTo(100, 122, 124, 104); x.moveTo(186, 96); x.quadraticCurveTo(156, 122, 132, 104); x.moveTo(128, 132); x.lineTo(128, 204); x.moveTo(106, 162); x.lineTo(150, 162); x.stroke(); });   // nét ngực + bụng
+          const bareTorso = [legoYellow, legoYellow, legoYellow, legoYellow, plastic(0xffffff, { map: bareFront }), legoYellow];
+          const dress = on => { if (g.userData.dressed === on) return; g.userData.dressed = on; torso.material = on ? vestTorso : bareTorso;
+            for (const m of armWear) m.material = on ? vestM : legoYellow; for (const c of cuffs) c.visible = on; for (const m of shins) m.material = on ? pantsM : legoYellow; for (const f of feet) f.material = on ? bootM : legoYellow; pouch.visible = on; };
+          g.userData = { dress, dressed: true, elbows, wrists, spine, legs, knees, ankles, arms, head: headG, torso, face: { mat: head.material, awake: face, sleep: faceSleep }, helmet, hair, towel, rodGrp, rodTilt, rodTip, rod, clip, props: { spoon, bottle, cup, book, bookLeaf, chip, chopsticks, knife, spatula, handBowl, handPan } }; g.scale.setScalar(ENGINEER_BASE_SCALE * CAMP_SCALE); return g;
         }

@@ -152,11 +152,11 @@
             uPush: { value: [new THREE.Vector4(0, 0, 1, 0), new THREE.Vector4(0, 0, 1, 0), new THREE.Vector4(0, 0, 1, 0)] } };
           const mat = new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide });
           mat.onBeforeCompile = shader => {
-            Object.assign(shader.uniforms, sceneWind.u, U, DRAIN_BAND.u); windUniforms.set(mat.uuid, shader.uniforms);
+            Object.assign(shader.uniforms, sceneWind.u, U, DRAIN_BAND.u, { uAoMark: AO_MARK }); windUniforms.set(mat.uuid, shader.uniforms);
             shader.vertexShader = WIND_GLSL_COMMON + '\n' + GRASS_GLSL + `
               attribute vec4 aBlade; attribute float aIdx; attribute vec3 aRoot; attribute vec4 aCell; attribute vec3 aBase;
               uniform float uFade, uDensity, uMTime; uniform vec3 uCamRight; uniform vec4 uPush[3]; uniform sampler2D uDrBand; uniform vec4 uDrBox; uniform float uDrOn;
-              varying float vT, vLush, vBend, vFlower, vShade, vLawn; varying vec3 vBase;
+              varying float vT, vLush, vBend, vFlower, vShade, vLawn, vAoH; varying vec3 vBase;
               ` + shader.vertexShader
               .replace('#include <beginnormal_vertex>', 'vec3 objectNormal = vec3( 0.0, 1.0, 0.0 );   // pháp tuyến mặt đất')
               .replace('#include <begin_vertex>', `
@@ -184,8 +184,9 @@
                 }
                 p += wd;
                 vT = t; vBase = aBase; vLush = aCell.z - 2.0 * lawn - 2.0 * narrow; vLawn = lawn; vFlower = flower; vShade = 0.94 + 0.12 * fract(sin(aIdx * 91.7 + seed * 47.3) * 437.5);   // mỗi lá sáng tối lệch nhẹ vBend = clamp(length(wd.xz) / max(h, 0.05), 0.0, 1.0);
+                vAoH = max(p.y - aRoot.y, 0.0);   // độ cao trên mặt đất (m) — AO màn hình hạ điểm ảnh lá về mặt đất (core/ao-screen.js)
                 vec3 transformed = p;`);
-            shader.fragmentShader = `uniform vec3 uGlow; varying float vT, vLush, vBend, vFlower, vShade, vLawn; varying vec3 vBase;\n` + shader.fragmentShader
+            shader.fragmentShader = `uniform vec3 uGlow; uniform float uAoMark; varying float vT, vLush, vBend, vFlower, vShade, vLawn, vAoH; varying vec3 vBase;\n` + shader.fragmentShader
               .replace('#include <color_fragment>', `
                 vec3 gBase = vBase * (0.97 - 0.13 * vLawn);                                                        // gốc: đúng màu đất (che khuất rất nhẹ) ⇒ cỏ mọc ra từ nền
                 vec3 gTip = mix(vBase * vec3(1.26, 1.2, 0.84), vBase * vec3(1.2, 1.3, 1.04) + vec3(0.01, 0.02, 0.0), vLush) * (1.0 + 0.12 * vLawn);   // ngọn SÁNG hơn nền: khô ngả vàng-xanh ấm ↔ tươi xanh mướt
@@ -194,6 +195,7 @@
                 if (vFlower > 0.5 && vT > 0.82) gCol = vFlower < 1.5 ? vec3(0.86, 0.85, 0.8) : vFlower < 2.5 ? vec3(0.9, 0.72, 0.16) : vFlower < 3.5 ? vec3(0.88, 0.45, 0.55) : vec3(0.62, 0.48, 0.85);
                 diffuseColor.rgb *= gCol;`)
               .replace('#include <normal_fragment_begin>', '#include <normal_fragment_begin>\n                normal = normalize( vNormal );   // không lật theo mặt sau: cả 2 mặt lá sáng như mặt đất')
+              .replace('#include <dithering_fragment>', '#include <dithering_fragment>\n                gl_FragColor.a = 1.0 - min(vAoH, AO_GH) / (2.0 * AO_GH) * uAoMark;   // AO màn hình: alpha khung tạm = độ cao lá (core/ao-screen.js)'.replace(/AO_GH/g, AO_GH.toFixed(2)))
               .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n                totalEmissiveRadiance += uGlow * vT * vT * vT * (0.7 + 0.3 * vLush);   // nắng thấp xuyên qua phần ngọn lá: ửng vàng (không phụ thuộc độ rọi)');
           };
           mat.customProgramCacheKey = () => 'meadow1'; skyShadeMat(mat, 'meadow', { vtx: true });   // bóng trời dưới tán cổ thụ + kẽ rễ (core/sky-shade.js)

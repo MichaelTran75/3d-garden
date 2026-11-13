@@ -286,6 +286,7 @@
           const V3 = (x, y, z) => new THREE.Vector3(x, y, z), lam = (c, o = {}) => new THREE.MeshLambertMaterial({ color: c, ...o }), two = { side: THREE.DoubleSide };
           const M = { mat: lam(0x43494b), dash: lam(0x5d6163), dashTop: lam(0x46494b), trim: lam(0x8a8c88), seat: lam(0x6f706c), seatBand: lam(0x55575a), seatDark: lam(0x2e3133),
             screen: lam(0x1d2326), tyre: lam(0x2b2925), tread: lam(0x232120), rim: lam(0x2f3335, two), hub: lam(0x92958e, two), cabinet: lam(0xa58e69), front: lam(0xd0ccc0), matte: lam(0x30383a, two), handle: lam(0x777b7a) };
+          M.cabinet.userData.vk = 1; M.seat.userData.vk = M.seatBand.userData.vk = 3;   // vân gỗ, vải (core/room-light.js)
           const cab = new THREE.Group(); cab.name = 'Cabin lái, bánh xe & tủ bếp'; cab.userData.noBake = true;
           const inner = new THREE.Group(); inner.name = 'Nội thất cabin'; inner.userData.xray = 'keep';
           const dash = new THREE.Group(); dash.name = 'Táp-lô'; dash.userData.xray = 'shell';
@@ -298,6 +299,7 @@
           const Y0 = TR.yIn;
           // sàn cabin: thảm đen trên tấm sàn (tấm sàn khoang ở van/interior/caravan.js)
           box(cab, 'Thảm sàn cabin', 1.62, 0.012, 2 * (TR.well.zi - 0.005), -1.43, Y0 + 0.006, 0, M.mat);   // (ngoài nhóm nội thất: còn lại khi cabin GLB thay)
+          cabDetail(cab, parent);   // thảm cao su, công tắc, chìa khoá, rèm, đồ trên kệ, chi tiết gầm (van/body/cab-detail.js)
           // táp-lô kiểu Transit 2014+: vách lửa dưới chân kính, mặt trên rộng phẳng, cụm đồng hồ có mái che trước ghế lái, cụm giữa có màn hình + cần số gắn táp-lô
           const prof = [[-2.33, 1.64], [-2.05, 1.715], [-1.93, 1.70], [-1.87, 1.62], [-1.85, 1.44], [-1.93, 1.26], [-2.04, 1.08], [-2.16, Y0], [-2.36, Y0]];
           const dg = new THREE.ExtrudeGeometry(new THREE.Shape(prof.map(([x, y]) => new THREE.Vector2(x, y))), { depth: 1.84, bevelEnabled: false }).translate(0, 0, -0.92);

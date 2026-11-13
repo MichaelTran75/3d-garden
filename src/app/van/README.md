@@ -10,6 +10,7 @@
 - `shell-cab.js`: vật liệu riêng xe (thân, mui, sọc, lốp, vành, bạt hiên); chung xe + trại (xám tối, khung ghế): `src/app/core/palette.js`; trại: `src/app/camp/materials.js`
 - `transit.js`: vỏ Ford Transit L4H2 code (tạm, va chạm), cabin lái, bánh, tủ bếp; số đo `TR`
 - `transit-glb.js`: GLB Transit dùng nguyên (`models/transit.bin`), gộp theo lớp vật liệu; nạp động cơ `models/engine.glb` vào khoang máy (`ENG_AT`)
+- `cab-detail.js`: đồ nhỏ cabin + chi tiết gầm (thảm, công tắc, chìa khoá, điện thoại, cốc, đồ kệ nóc, bình chữa cháy, rèm; ống xả, đai bình dầu, mâm dự phòng), gộp theo màu, hiện khi cabin GLB nạp xong
 - `van-doors.js`: cửa trước + ca-pô, bấm tay nắm / logo
 - `xray.js`: vỏ GLB `caravanShell` còn 25% (`setCaravanXray`), độ mờ theo thanh nét viền (`VAN_LINES.onShell`); bảng ngoài chỉ gọi `VAN.setXray(on)`, đọc `VAN.xray`
 - `chassis.js`: khung gầm GAZ-69 (`models/chassis.glb`) + hộp số code

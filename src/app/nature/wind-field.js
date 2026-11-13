@@ -34,6 +34,7 @@
             for (let k = 0; k < o.count; k++) { o.getMatrixAt(k, _m); _m.premultiply(o.matrixWorld).decompose(_p, _q, _s); addDisc(_p.x, _p.z, _s.x * 1.1, 0.025); canopy.push(_p.x, _p.y, _p.z, _s.x); }
           });
           for (const tw of [oldTreeWind, cherryWind]) if (tw && tw.active) addDisc(tw.crown.x, tw.crown.z, tw.R, 0.12);
+          const appleFrom = canopy.length;   // điểm tán táo nằm cuối mảng
           for (const T of appleTrees) {
             T.updateMatrixWorld(true); addDisc(T.position.x, T.position.z, 2.6, 0.12);
             const L = T.userData.leafPts || []; for (let k = 0; k + 2 < L.length; k += 9) { _p.set(L[k], L[k + 1], L[k + 2]).applyMatrix4(T.matrixWorld); canopy.push(_p.x, _p.y, _p.z, 0.3); }
@@ -68,7 +69,7 @@
                 const x = canopy[i], y = canopy[i + 1], z = canopy[i + 2], zu = Math.max(1, y - cowY(x, z));
                 windAt(x, y, z, zu, _w); windMapSample(x, z, _mm);
                 const mean = Math.max(0.05, Math.hypot(_mm.x, _mm.y) * sceneWind.U * windProfile(zu)), sp = Math.hypot(_w.x, _w.z);
-                const kk = Math.pow(sp / WIND_SREF, 2.6) * Math.pow(Math.max(0, sp / mean - 1.25), 1.5);   // (lực gió)² × độ "giật" so với nền tại chỗ: gió nhẹ hầu như không bứt lá
+                const kk = Math.pow(sp / WIND_SREF, 2.6) * Math.pow(Math.max(0, sp / mean - 1.25), 1.5) * (i >= appleFrom ? 0.9 : 1);   // (lực gió)² × độ "giật" so với nền tại chỗ: gió nhẹ hầu như không bứt lá
                 sum += kk; if (kk > bestK) { bestK = kk; best.set(x, y, z, canopy[i + 3]); }
               }
               return 5 * sum;

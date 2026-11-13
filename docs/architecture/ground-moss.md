@@ -5,7 +5,7 @@
 - Cỏ · 0.6 KB
 - Rêu · 0.9 KB
 - Nấm · 0.4 KB
-- Bẫy · 0.9 KB
+- Bẫy · 1.7 KB
 <!-- /toc -->
 
 ## Mã
@@ -43,6 +43,8 @@
 ## Bẫy
 
 - Lá rêu dùng `aMk`, không `aBk` (`core/mem-trim.js` coi `aBk` = lưới vỏ, bỏ mảng CPU)
+- moss-lawn.js: 2 khối dựng trả về hàm (`tick`, hàm lấy mẫu hốc) ⇒ mảng dựng nào có hàm con nhắc tới đều sống suốt phiên. Cuối khối xoá tay: danh sách ứng viên + lá giữ lại `R / Nn / Bk / Q / KR / KN / KM / KQ` `.length = 0` (≈ 100 MB JS heap), `mossCrevice` `S = Q = D = T = null` (≈ 20 MB); hàm lấy mẫu hốc đọc ảnh 3D ô 16 cm. Thêm mảng dựng mới ⇒ thêm vào dòng xoá
+- Thuộc tính từng lá (`aRoot`, `aNrm`, `aMr`, `aMo`, `aSk`): 2 lớp bóng trời ghi xong (`skDone`) ⇒ `onUpload(freeAfterUpload)`; ô chưa từng vẽ còn giữ mảng (≈ 8 MB cả 39 ô, 242 118 lá). Đọc lại trên CPU sau đó = null. Mất ngữ cảnh GPU sau khi đã bỏ ⇒ lá rêu ẩn tới khi mở lại trang (`lost`)
 - Lượng rêu viết 2 nơi cùng `SF_NOISE`: `sfMo` shader vỏ + lượt GPU moss-lawn.js ⇒ sửa cả hai; không tính CPU (nhiễu băm sin lệch GPU)
 - Lá vách bờ, đá đọc cùng bản đồ / `aRk` với màu: đổi màu rêu ⇒ đổi nguồn lá
 - Nguồn lá, nấm, cỏ mới: RNG riêng, thêm SAU nguồn hiện có (như 8181, 8282, `lrnd`, `drnd`; cỏ ven đường `mulberry32(2610)`, `2611`) ⇒ vị trí cũ giữ

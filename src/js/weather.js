@@ -50,7 +50,7 @@
         return Number.isFinite(Date.parse(data.current.time + 'Z'));
       }
       const state = { city: CITIES.find(c => c.id === saved(CITY_KEY)) || CITIES[0], data: null, fetchedAt: 0, phase: 'loading', temperature: null, windSpeed: null, windDirection: null, windGusts: null, raining: false, thunder: false, fresh: false };
-      let localHour = 12, timeFormatter, dateFormatter, dayFormatter, requestId = 0, controller = null, lastMinute = -1;
+      let awakeFn = null, localHour = 12, timeFormatter, dateFormatter, dayFormatter, requestId = 0, controller = null, lastMinute = -1;
       let destroyed = false, clockTimer = null, refreshTimer = null, requestTimeout = null;
       let forecastData = null, forecastDay = '', forecastCity = '';
       const weatherEvents = new AbortController(), weatherListeners = new Set();
@@ -139,7 +139,7 @@
         state.phase = 'loading'; renderWeather();
         if (requestTimeout !== null) clearTimeout(requestTimeout);
         const timeout = requestTimeout = setTimeout(() => request.abort(), 12000);
-        const params = new URLSearchParams({ latitude: city.lat, longitude: city.lon, current: 'temperature_2m,wind_speed_10m,wind_direction_10m,wind_gusts_10m,rain,showers,weather_code,is_day,precipitation,relative_humidity_2m,cloud_cover,surface_pressure', hourly: 'uv_index,shortwave_radiation', daily: 'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max', timezone: city.zone, temperature_unit: 'celsius', wind_speed_unit: 'kmh', precipitation_unit: 'mm', forecast_days: '6' });
+        const params = new URLSearchParams({ latitude: city.lat, longitude: city.lon, current: 'temperature_2m,wind_speed_10m,wind_direction_10m,wind_gusts_10m,rain,showers,weather_code,is_day,precipitation,relative_humidity_2m,cloud_cover,surface_pressure', hourly: 'uv_index,shortwave_radiation,temperature_2m,wind_speed_10m,cloud_cover', daily: 'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max', timezone: city.zone, temperature_unit: 'celsius', wind_speed_unit: 'kmh', precipitation_unit: 'mm', forecast_days: '6' });
         try {
           const response = await fetch('https://api.open-meteo.com/v1/forecast?' + params, { signal: request.signal, credentials: 'omit' });
           if (!response.ok) throw new Error('Weather HTTP ' + response.status);
@@ -187,5 +187,5 @@
       window.addEventListener('pagehide', e => e.persisted ? pauseWeather() : destroy(), { signal: weatherEvents.signal });
       window.addEventListener('pageshow', resumeWeather, { signal: weatherEvents.signal });
       setFormatters(); loadCache(); resumeWeather();
-      return { state, destroy, subscribe(listener) { weatherListeners.add(listener); listener(state); return () => weatherListeners.delete(listener); }, get localHour() { return localHour; }, get wildlifeAwake() { return localHour >= 6 && localHour < 18.5; } };
+      return { state, destroy, subscribe(listener) { weatherListeners.add(listener); listener(state); return () => weatherListeners.delete(listener); }, get localHour() { return localHour; }, get wildlifeAwake() { return awakeFn ? awakeFn() : localHour >= 6 && localHour < 18.5; }, setAwake(f) { awakeFn = f; } };   // setAwake: core/sky-sun-moon.js (theo mặt trời)
     })();

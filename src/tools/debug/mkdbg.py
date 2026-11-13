@@ -27,9 +27,9 @@ def inline(m):
         a = 'get localHour() { return localHour; }'
         assert src.count(a) == 1, 'không thấy localHour'
         src = src.replace(a, 'get localHour() { return window.__hourOverride ?? localHour; }')
-        a = 'get wildlifeAwake() { return localHour >= 6 && localHour < 18.5; }'
+        a = 'get wildlifeAwake() { return awakeFn ? awakeFn() : localHour >= 6 && localHour < 18.5; }'   # awakeFn đọc localHour đã ép; chỉ phần dự phòng cần ép
         assert src.count(a) == 1, 'không thấy wildlifeAwake'
-        src = src.replace(a, 'get wildlifeAwake() { const h = window.__hourOverride ?? localHour; return h >= 6 && h < 18.5; }')
+        src = src.replace(a, 'get wildlifeAwake() { const h = window.__hourOverride ?? localHour; return awakeFn ? awakeFn() : h >= 6 && h < 18.5; }')
     return '<script>' + src + '</script>'
 
 html, n = re.subn(r'<script src="(js/[\w.-]+\.js)(?:\?v=\w+)?"></script>', lambda m: inline(m), html)

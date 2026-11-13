@@ -102,6 +102,11 @@
         const treeWinds = [], BR_K = [1.15, 2.1, 3.4], BR_MU = [0.18, 0.1, 0.05], BR_PH = [0, 1.7, 4.1];   // cành: tần số / tần số thân · tỉ lệ khối lượng với thân · pha quanh thân
         const TREE_GLSL = `
           uniform vec3 uTreeBase; uniform vec4 uTreeDim; uniform vec2 uBend; uniform float uFlutter; uniform float uLeafLean; uniform vec2 uBr[3];
+          attribute vec4 aBr; uniform vec3 uBgh[8]; uniform vec4 uBghT;
+          #ifdef TREE_RIG
+          uniform highp sampler2D uRig; uniform float uRigOn;
+          vec3 rigMove(vec3 p, float i) { vec4 q = texelFetch(uRig, ivec2(int(i), 0), 0); return 2.0 * cross(q.xyz, cross(q.xyz, p) + q.w * p) + texelFetch(uRig, ivec2(int(i), 1), 0).xyz; }
+          #endif
           vec3 treeWind(vec3 wp, vec3 seed) {
             vec3 rel = wp - uTreeBase, d = vec3(0.0);
             float h = max(0.0, rel.y) / uTreeDim.x, hb = h * h;
@@ -111,7 +116,16 @@
             d += 0.6 * flex * w * pow(length(w) + 1e-3, 0.3);                      // cành: lực ∝ |w|^1,3 tại chính chỗ đó (tựa tĩnh)
             float az = atan(rel.z, rel.x);                                          // + dao động riêng của cành, mỗi phía tán một pha
             d.xz += (uBr[0] * (0.5 + 0.5 * cos(az)) + uBr[1] * (0.5 + 0.5 * cos(2.0 * az + 1.7)) + uBr[2] * (0.5 + 0.5 * cos(3.0 * az + 4.1))) * min(rn * rn + hb * 0.3, 1.6);
-            if (uLeafLean > 0.0) {   // LÁ NGẢ NHƯ CỎ: cả chiếc lá nghiêng theo gió tại chính nó, góc bão hoà; cơn giật qua thì ngả thêm, lặng thì co về
+            #ifdef TREE_RIG
+            if (uRigOn > 0.5) d += mix(rigMove(rel, floor(aBr.z * 255.0 + 0.5)) * (1.0 - aBr.w), rigMove(rel, floor(aBr.x * 255.0 + 0.5)), aBr.y);   // xương cành: trộn xương mẹ (× phần cành mẹ đã đi tại chỗ cắm) → xương mình
+            #endif
+            if (uBghT.x > 0.5) {   // gió theo cành: cành chính (dao động riêng, CPU) + chùm cành con (pha riêng theo chùm, không trạng thái)
+            float bi = floor(aBr.x * 255.0 + 0.5), zb = floor(aBr.z * 255.0 + 0.5);
+            if (bi > 0.5) { float s = aBr.y; d += uBgh[int(bi) - 1] * (s * s * (1.5 - 0.5 * s)); }
+            if (zb > 0.5) { float k = aBr.w * 1.5, wl = length(w) + 1e-3, ph = zb * 2.399;
+              d += k * k * (uBghT.z * w * pow(wl, 0.3) + uBghT.w * pow(wl, 1.3) * (vec3(0.0, sin(uBghT.y * (0.7 + 0.01 * mod(zb, 61.0)) + ph), 0.0) + vec3(-uWindDir.y, 0.0, uWindDir.x) * (0.6 * sin(uBghT.y * (0.7 + 0.01 * mod(zb * 7.0, 61.0)) + 1.7 * ph)))); }
+          }
+          if (uLeafLean > 0.0) {   // LÁ NGẢ NHƯ CỎ: cả chiếc lá nghiêng theo gió tại chính nó, góc bão hoà; cơn giật qua thì ngả thêm, lặng thì co về
               vec3 wl = windVec(seed, clamp(seed.y - uTreeBase.y, 1.0, 15.0)); float sp = length(wl.xz);
               float th = 1.15 * (1.0 - exp(-0.75 * pow(sp, 1.3)));
               vec2 dl = sp > 1e-4 ? wl.xz / sp : vec2(0.0);
@@ -127,13 +141,16 @@
           }`;
         function windShader(mat, tw, flutter) {
           mat.userData.treeWind = tw;
-          return injectWorldWind(mat, { uTreeBase: tw.u.uTreeBase, uTreeDim: tw.u.uTreeDim, uBend: tw.u.uBend, uBr: tw.u.uBr, uFlutter: { value: flutter * TREE_SWAY_K * 0.3 }, uLeafLean: { value: flutter * 3 } }, TREE_GLSL,
-            'treeWind( windW.xyz, ( modelMatrix * vec4( windSeed, 1.0 ) ).xyz )', 'treeWind3');
+          const own = { uTreeBase: tw.u.uTreeBase, uTreeDim: tw.u.uTreeDim, uBend: tw.u.uBend, uBr: tw.u.uBr, uBgh: tw.u.uBgh, uBghT: tw.u.uBghT, uFlutter: { value: flutter * TREE_SWAY_K * 0.3 * (tw.sway || 1) }, uLeafLean: { value: flutter * 3 * (tw.sway || 1) } };
+          if (tw.rig) { own.uRig = tw.u.uRig; own.uRigOn = tw.u.uRigOn; }   // cây có xương cành: chương trình riêng (đọc bảng xương)
+          return injectWorldWind(mat, own, (tw.rig ? '#define TREE_RIG\n' : '') + TREE_GLSL, 'treeWind( windW.xyz, ( modelMatrix * vec4( windSeed, 1.0 ) ).xyz )', tw.rig ? 'treeWind4r' : 'treeWind4');
         }
-        function makeTreeWind(o) {   // o: freq (Hz), zeta (tắt dần cấu trúc), lean (đv ở ngọn khi gió 30 km/h), branchAmp (độ mềm ngọn cành)
-          const tw = Object.assign({ bx: 0, bz: 0, vx: 0, vz: 0, px: 0, pz: 0, ex: 0, ez: 0, aero: 0, H: 1, R: 1, F: 0, shake: 0, shakeRaw: 0, active: false, crown: new THREE.Vector3(), crownZ: 1, ph: {} }, o, { lean: o.lean * TREE_SWAY_K, branchAmp: o.branchAmp * TREE_SWAY_K });
+        function makeTreeWind(o) {   // o: freq (Hz), zeta (tắt dần cấu trúc), lean (đv ở ngọn khi gió 30 km/h), branchAmp (độ mềm ngọn cành), sway (hệ số biên độ riêng của cây: thân, cành, lá; mặc định 1)
+          const sw = o.sway == null ? 1 : o.sway;
+          const tw = Object.assign({ bx: 0, bz: 0, vx: 0, vz: 0, px: 0, pz: 0, ex: 0, ez: 0, aero: 0, H: 1, R: 1, F: 0, shake: 0, shakeRaw: 0, active: false, crown: new THREE.Vector3(), crownZ: 1, ph: {} }, o, { sway: sw, lean: o.lean * TREE_SWAY_K * sw, branchAmp: o.branchAmp * TREE_SWAY_K * sw });
           tw.br = BR_K.map(() => ({ x: 0, z: 0, vx: 0, vz: 0, px: 0, pz: 0, ex: 0, ez: 0 }));
-          tw.u = { uTreeBase: { value: new THREE.Vector3(0, -1e4, 0) }, uTreeDim: { value: new THREE.Vector4(1, 1, 0, tw.branchAmp) }, uBend: { value: new THREE.Vector2() }, uBr: { value: BR_K.map(() => new THREE.Vector2()) } };
+          tw.u = { uTreeBase: { value: new THREE.Vector3(0, -1e4, 0) }, uTreeDim: { value: new THREE.Vector4(1, 1, 0, tw.branchAmp) }, uBend: { value: new THREE.Vector2() }, uBr: { value: BR_K.map(() => new THREE.Vector2()) }, uBgh: { value: Array.from({ length: 8 }, () => new THREE.Vector3()) }, uBghT: { value: new THREE.Vector4() } };
+          if (tw.rig) { const d = new Float32Array(256 * 2 * 4); for (let i = 0; i < 256; i++) d[i * 4 + 3] = 1; const t = new THREE.DataTexture(d, 256, 2, THREE.RGBAFormat, THREE.FloatType); t.needsUpdate = true; tw.u.uRig = { value: t }; tw.u.uRigOn = { value: 0 }; }
           tw.depthMat = windShader(new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking }), tw, 0);   // bóng đổ đung đưa cùng cây
           treeWinds.push(tw); return tw;
         }
@@ -146,18 +163,143 @@
           tw.crownZ = 0.62 * tw.H; tw.crown.set((box.min.x + box.max.x) / 2, base.y + tw.crownZ, (box.min.z + box.max.z) / 2);
           tw.u.uTreeBase.value.copy(base); tw.u.uTreeDim.value.x = tw.H; tw.u.uTreeDim.value.y = tw.R; tw.active = true;
           group.traverse(o => { if (o.isMesh && o.castShadow && o.material && o.material.userData && o.material.userData.treeWind === tw) o.customDepthMaterial = tw.depthMat; });
+          if (tw.bough && group.userData.boughs) boughSetup(tw, group);
+          if (tw.rig && group.userData.rigLimbs) rigSetup(tw, group);
         }
+        // XƯƠNG CÀNH (anh đào: mọi cành; táo: thân + cành cấp 1–2, cành nhỏ đi cứng theo — recTree rigDepth). Mỗi cành có xương = 1 xương: khớp ở gốc cành, 2 góc (ngang h, đứng n) là 2 dao động tắt dần bị gió tại ngọn
+        //  đẩy + bị cành mẹ giật (gia tốc khớp + gia tốc góc của mẹ, hệ số RIG_KAPPA). Tư thế nối tiếp từ thân ra ngọn: Q = Q mẹ · δq, khớp đi theo mẹ.
+        //  GPU: đỉnh mang aBr = (xương, trọng số dọc cành, xương mẹ, 0); đọc 2 hàng của uRig (256 × 2 float: quaternion, độ dời), trộn mẹ → con theo
+        //  trọng số s(2 − s) ⇒ gốc cành đứng yên với mẹ, cong dần ra ngọn, tiếp tuyến liền qua chỗ nối. Xương 0 = thân (đứng yên; thân vẫn ngả bằng uBend).
+        //  tw.rigOff = true ⇒ về cành mềm + 3 thuỳ (so trước – sau trong cùng trang). Bản CPU: rigAt() (quả táo, móc hộp tổ); treeWindAt() theo xương qua rigNear() khi nhóm có userData.rigLines (đường cành + trọng số; cổ thụ), không có ⇒ không kể xương. Byte thứ 4 của aBr = độ chùng (1 − trọng số cành mẹ tại chỗ cắm; xương con cắm giữa cành mẹ, l.pw); l.fq = tần số riêng của xương. treeRigHold(): giữ cây đứng yên khi có vật bám.
+        const RIG_ZETA = 0.13, RIG_NOISE = 0.35, RIG_KAPPA = 0.35, RIG_QMAX = 0.35;
+        const rigMix = (a, b, t) => { const w0 = a[0] === b[0] ? a[1] : 0; return [b[0], w0 + (b[1] - w0) * t, b[2], b[3] || 0, 0]; };   // qua chỗ nối: (mẹ, 1) ≡ (con, 0)
+        const rigBytes = (W, out) => { out.push(W[0], Math.round(255 * W[1]), W[2], Math.round(255 * (W[3] || 0))); };   // [xương, trọng số, xương mẹ, độ chùng] → 4 byte aBr
+        const _rq = new THREE.Quaternion(), _rq2 = new THREE.Quaternion(), _rv = new THREE.Vector3(), _ra = new THREE.Vector3(), _rb = new THREE.Vector3();
+        const TREE_RIG_ON = (() => { try { return new URLSearchParams(location.search).get('rig') !== 'off'; } catch (e) { return true; } })();   // ?rig=off ⇒ anh đào + táo + cổ thụ không xương cành (cổ thụ về gió theo cành bough + spray)
+        const rigAttr = W => { const a = new Uint8Array(W.length * 4); W.forEach((w, i) => { a[i * 4] = w[0]; a[i * 4 + 1] = Math.round(255 * w[1]); a[i * 4 + 2] = w[2]; a[i * 4 + 3] = Math.round(255 * (w[3] || 0)); }); return new THREE.InstancedBufferAttribute(a, 4, true); };   // [xương, trọng số, xương mẹ, độ chùng] mỗi bản → aBr
+        function rigAt(tw, bind, p, out) {   // = rigMove() trên GPU: độ dời (thế giới) của điểm p (thế giới, tư thế nghỉ) gắn xương bind = [xương, trọng số, xương mẹ] — quả, móc treo đi theo cành
+          out.set(0, 0, 0); const G = tw && tw.rg; if (!G || tw.rigOff || !bind) return out;
+          const B = G[bind[0]], P = G[bind[2]], w = bind[1]; _ra.copy(p).sub(tw.base);
+          if (w > 0) out.copy(_ra).sub(B.o).applyQuaternion(B.Q).add(B.o2).sub(_ra).multiplyScalar(w);
+          if (w < 1) out.addScaledVector(_rb.copy(_ra).sub(P.o).applyQuaternion(P.Q).add(P.o2).sub(_ra), (1 - w) * (1 - (bind[3] || 0)));
+          return out;
+        }
+        function treeRigHold(tree, sec = 0.5) { const tw = tree && tree.userData.treeWind; if (tw && tw.rg) tw.holdT = Math.max(tw.holdT, sec); }   // có con vật / người đang bám, hái trên cây: xương về tư thế nghỉ (0,35 s), hết giữ thì đung đưa lại
+        function rigSetup(tw, group) {
+          const up = new THREE.Vector3(0, 1, 0), M = group.matrixWorld, R = tw.rig;
+          tw.rg = group.userData.rigLimbs.map((l, i) => {
+            const o = l.o.clone().applyMatrix4(M), tip = l.t.clone().applyMatrix4(M), a = tip.clone().sub(o), L = a.length() || 1; a.divideScalar(L);
+            const h = a.clone().cross(up); if (h.lengthSq() < 1e-4) h.set(1, 0, 0); h.normalize();
+            const f = Math.min(3, Math.max(0.6, (l.fq || R.freq) / L)), hr = Math.max(0, o.y - tw.base.y) / tw.H;
+            return { par: l.par, pw: l.pw == null ? 1 : l.pw, tip, o: o.sub(tw.base), L, h, n: h.clone().cross(a).normalize(), oh: TAU * f, on: TAU * f * 1.15, amp: i ? R.amp * TREE_SWAY_K * tw.sway * Math.pow(R.grow, l.d - 1) : 0, hb: hr * hr,
+              qh: 0, qn: 0, vh: 0, vn: 0, ph: 0, pn: 0, eh: 0, en: 0, sh: 0, sn: 0, aw: new THREE.Vector3(), ao: new THREE.Vector3(), Q: new THREE.Quaternion(), o2: new THREE.Vector3() };
+          });
+          for (const B of tw.rg) B.o2.copy(B.o); tw.rgRng = mulberry32(7411); tw.u.uRigOn.value = 1; tw.rigK = 1; tw.holdT = 0;
+          if (group.userData.rigLines) tw.rgL = group.userData.rigLines.map(l => ({ P: l.P.map(v => v.clone().applyMatrix4(M)), W: l.W }));   // đường cành có xương (thế giới) cho treeWindAt: vật đậu đi theo cành
+        }
+        function rigDrive(tw) {   // mỗi khung: gió tại ngọn từng cành → góc cân bằng + cường độ nhiễu
+          const G = tw.rg, z = 4 * (RIG_ZETA + tw.aero) / PHYS_H;
+          for (let i = 1; i < G.length; i++) {
+            const B = G[i]; windAt(B.tip.x, B.tip.y, B.tip.z, B.tip.y - tw.base.y, _wtmp2);
+            const s = _wtmp2.length() + 1e-6, F = Math.pow(s / WIND_SREF, 1.3), k = B.amp * F / s, xr = RIG_NOISE * B.amp * F;
+            B.eh = k * _wtmp2.dot(B.h); B.en = k * _wtmp2.dot(B.n); B.sh = xr * Math.sqrt(z * B.oh * B.oh * B.oh); B.sn = xr * Math.sqrt(z * B.on * B.on * B.on);
+          }
+        }
+        function rigStep(tw, hh, ax, az) {   // 1 bước 1/120 s, thân → ngọn: gia tốc khớp ao + gia tốc góc aw của mẹ truyền xuống con (không kể nhiễu trắng)
+          const G = tw.rg, z2 = 2 * (RIG_ZETA + tw.aero), r = tw.rgRng, K = RIG_KAPPA;
+          for (let i = 1; i < G.length; i++) {
+            const B = G[i], P = G[B.par], h = B.h, n = B.n, aw = P.aw, ao = B.ao, pw = B.pw;
+            if (B.par) { const dx = B.o.x - P.o.x, dy = B.o.y - P.o.y, dz = B.o.z - P.o.z; ao.set(P.ao.x + aw.y * dz - aw.z * dy, P.ao.y + aw.z * dx - aw.x * dz, P.ao.z + aw.x * dy - aw.y * dx).multiplyScalar(pw); }
+            else ao.set(ax * B.hb, 0, az * B.hb);
+            const ah = B.oh * B.oh * (B.eh - B.qh) - z2 * B.oh * B.vh - K * (1.5 * ao.dot(h) / B.L - pw * aw.dot(n));
+            const an = B.on * B.on * (B.en - B.qn) - z2 * B.on * B.vn - K * (1.5 * ao.dot(n) / B.L + pw * aw.dot(h));
+            B.ph = B.qh; B.pn = B.qn; B.vh += (ah + B.sh * (r() * 2 - 1) * 1.732) * hh; B.vn += (an + B.sn * (r() * 2 - 1) * 1.732) * hh; B.qh += B.vh * hh; B.qn += B.vn * hh;
+            if (B.qh > RIG_QMAX || B.qh < -RIG_QMAX) { B.qh = Math.sign(B.qh) * RIG_QMAX; B.vh = 0; } if (B.qn > RIG_QMAX || B.qn < -RIG_QMAX) { B.qn = Math.sign(B.qn) * RIG_QMAX; B.vn = 0; }
+            B.aw.set(pw * aw.x - ah * n.x + an * h.x, pw * aw.y - ah * n.y + an * h.y, pw * aw.z - ah * n.z + an * h.z);
+          }
+        }
+        function rigOut(tw, al) {   // tư thế nối tiếp → bảng uRig: hàng 0 quaternion Q, hàng 1 độ dời c (đỉnh p ↦ Q p + c, toạ độ so với gốc cây)
+          const G = tw.rg, D = tw.u.uRig.value.image.data, hk = 0.5 * tw.rigK;
+          for (let i = 1; i < G.length; i++) {
+            const B = G[i], P = G[B.par], h = B.h, n = B.n, qh = hk * (B.ph + (B.qh - B.ph) * al), qn = hk * (B.pn + (B.qn - B.pn) * al);
+            _rq.set(qn * h.x - qh * n.x, qn * h.y - qh * n.y, qn * h.z - qh * n.z, 1).normalize(); B.o2.copy(B.o).sub(P.o).applyQuaternion(P.Q).add(P.o2);
+            if (B.pw < 1) { B.Q.multiplyQuaternions(_rq2.identity().slerp(P.Q, B.pw), _rq); B.o2.sub(B.o).multiplyScalar(B.pw).add(B.o); } else B.Q.multiplyQuaternions(P.Q, _rq);   // cắm giữa cành mẹ: chỉ theo phần cành mẹ đã đi tại chỗ cắm
+            _rv.copy(B.o).applyQuaternion(B.Q);
+            const k = i * 4; D[k] = B.Q.x; D[k + 1] = B.Q.y; D[k + 2] = B.Q.z; D[k + 3] = B.Q.w; D[k + 1024] = B.o2.x - _rv.x; D[k + 1025] = B.o2.y - _rv.y; D[k + 1026] = B.o2.z - _rv.z;
+          }
+          tw.u.uRig.value.needsUpdate = true;
+        }
+        // GIÓ THEO CÀNH. Đỉnh vỏ + lá mang aBr (4 byte): cành chính 1…8 · vị trí dọc cành 0…1 · pha chùm cành con 1…255 · vị trí dọc chùm / 1,5.
+        //  Cành chính: 2 dao động (ngang h, đứng n) trên CPU, tần số theo chiều dài, gió tại ngọn cành + nhiễu trắng (rung ở tần số riêng) − gia tốc thân.
+        //  Dịch chuyển = uBgh[cành] · s²(1,5 − 0,5 s): 0 ở gốc cành ⇒ không rách chỗ nối. Chùm con: đẩy theo gió tại chỗ + vẫy, biên độ k².
+        //  treeWindAt() = bản CPU (thân + cành chính). tw.bghOff = true ⇒ về 3 thuỳ quanh thân (so trước – sau).
+        const BGH_FREQ = 6, BGH_ZETA = 0.14, BGH_NOISE = 0.35, BGH_SPRAY_HZ = 1.6;
+        const brMix = (a, b, t) => [Math.max(a[0], b[0]), a[1] + (b[1] - a[1]) * t, Math.max(a[2], b[2]), a[3] + (b[3] - a[3]) * t, Math.max(a[4], b[4])];
+        const brBytes = (W, out) => { out.push(W[0], Math.round(255 * Math.min(1, Math.max(0, W[1]))), W[2], Math.round(255 * Math.min(1, W[3] / 1.5))); };
+        const boughW = s => s * s * (1.5 - 0.5 * s);
+        function boughSetup(tw, group) {
+          const up = new THREE.Vector3(0, 1, 0);
+          tw.bgh = group.userData.boughs.slice(0, 8).map(line => {
+            const P = line.map(v => v.clone().applyMatrix4(group.matrixWorld)), A = [0]; for (let i = 1; i < P.length; i++) A.push(A[i - 1] + P[i].distanceTo(P[i - 1]));
+            const L = A[A.length - 1], tip = P[P.length - 1], a = tip.clone().sub(P[0]).normalize(), h = a.clone().cross(up); if (h.lengthSq() < 1e-4) h.set(1, 0, 0); h.normalize();
+            const f = Math.min(2.2, Math.max(0.45, BGH_FREQ / L)), hr = Math.max(0, P[0].y - tw.base.y) / tw.H;
+            return { P, A, L, tip, h, n: h.clone().cross(a).normalize(), oh: TAU * f, on: TAU * f * 1.2, amp: tw.bough * TREE_SWAY_K * tw.sway * L, hb: hr * hr, qh: 0, qn: 0, vh: 0, vn: 0, ph: 0, pn: 0, eh: 0, en: 0, sh: 0, sn: 0, d: new THREE.Vector3() };
+          });
+          tw.rng = mulberry32(9151); const sp = tw.spray || [0, 0], k = TREE_SWAY_K * tw.sway / Math.pow(WIND_SREF, 1.3);
+          tw.u.uBghT.value.set(1, 0, sp[0] * k, sp[1] * k);
+        }
+        function boughDrive(tw, dt) {   // mỗi khung: gió tại ngọn từng cành → vị trí cân bằng + cường độ nhiễu
+          const on = !tw.bghOff, T = tw.u.uBghT.value; T.x = on ? 1 : 0; T.y = (T.y + TAU * BGH_SPRAY_HZ * dt) % (TAU * 100);
+          for (const B of tw.bgh) {
+            windAt(B.tip.x, B.tip.y, B.tip.z, B.tip.y - tw.base.y, _wtmp2);
+            const s = _wtmp2.length() + 1e-6, F = Math.pow(s / WIND_SREF, 1.3), k = B.amp * F / s, z = 4 * (BGH_ZETA + tw.aero) / PHYS_H, xr = BGH_NOISE * B.amp * F;
+            B.eh = k * _wtmp2.dot(B.h); B.en = k * _wtmp2.dot(B.n); B.sh = xr * Math.sqrt(z * B.oh * B.oh * B.oh); B.sn = xr * Math.sqrt(z * B.on * B.on * B.on);
+          }
+        }
+        function boughStep(tw, hh, ax, az) {
+          const z2 = 2 * (BGH_ZETA + tw.aero), r = tw.rng;
+          for (const B of tw.bgh) {
+            const ah = B.oh * B.oh * (B.eh - B.qh) - z2 * B.oh * B.vh - (ax * B.h.x + az * B.h.z) * B.hb + B.sh * (r() * 2 - 1) * 1.732;
+            const an = B.on * B.on * (B.en - B.qn) - z2 * B.on * B.vn - (ax * B.n.x + az * B.n.z) * B.hb + B.sn * (r() * 2 - 1) * 1.732;
+            B.ph = B.qh; B.pn = B.qn; B.vh += ah * hh; B.vn += an * hh; B.qh += B.vh * hh; B.qn += B.vn * hh;
+          }
+        }
+        function boughOut(tw, al) {
+          const U = tw.u.uBgh.value;
+          tw.bgh.forEach((B, i) => { const qh = B.ph + (B.qh - B.ph) * al, qn = B.pn + (B.qn - B.pn) * al; U[i].copy(B.d.set(B.h.x * qh + B.n.x * qn, B.h.y * qh + B.n.y * qn, B.h.z * qh + B.n.z * qn)); });
+        }
+        function boughAt(tw, p, out) {   // điểm trên / sát cành chính → cộng dịch chuyển của cành tại đó (cành gần nhất; nhánh con + bệ lá lấy theo chỗ gần nhất trên cành)
+          let bd = 64, bb = null, bs = 0;
+          for (const B of tw.bgh) for (let i = 0; i < B.P.length - 1; i++) {
+            const a = B.P[i], b = B.P[i + 1], ex = b.x - a.x, ey = b.y - a.y, ez = b.z - a.z, l2 = ex * ex + ey * ey + ez * ez;
+            const t = Math.min(1, Math.max(0, ((p.x - a.x) * ex + (p.y - a.y) * ey + (p.z - a.z) * ez) / l2)), dx = a.x + ex * t - p.x, dy = a.y + ey * t - p.y, dz = a.z + ez * t - p.z, d2 = dx * dx + dy * dy + dz * dz;
+            if (d2 < bd) { bd = d2; bb = B; bs = (B.A[i] + (B.A[i + 1] - B.A[i]) * t) / B.L; }
+          }
+          if (bb) out.addScaledVector(bb.d, boughW(bs));
+          return out;
+        }
+        function rigNear(tw, p, out) {   // điểm trên / sát cành có xương (tw.rgL) → cộng độ dời của xương tại chỗ gần nhất trên đường cành
+          let bd = 64, bl = null, bi = 0, bt = 0;
+          for (const l of tw.rgL) for (let i = 0; i < l.P.length - 1; i++) {
+            const a = l.P[i], b = l.P[i + 1], ex = b.x - a.x, ey = b.y - a.y, ez = b.z - a.z, l2 = ex * ex + ey * ey + ez * ez;
+            const t = Math.min(1, Math.max(0, ((p.x - a.x) * ex + (p.y - a.y) * ey + (p.z - a.z) * ez) / l2)), dx = a.x + ex * t - p.x, dy = a.y + ey * t - p.y, dz = a.z + ez * t - p.z, d2 = dx * dx + dy * dy + dz * dz;
+            if (d2 < bd) { bd = d2; bl = l; bi = i; bt = t; }
+          }
+          if (bl) { _rnB[0] = bl.W[bi][0]; _rnB[1] = bl.W[bi][1] + (bl.W[bi + 1][1] - bl.W[bi][1]) * bt; _rnB[2] = bl.W[bi][2]; _rnB[3] = bl.W[bi][3] || 0; out.add(rigAt(tw, _rnB, p, _rnV)); }
+          return out;
+        }
+        const _rnB = [0, 0, 0, 0], _rnV = new THREE.Vector3();
         const _wtmp = new THREE.Vector3(), _wtmp2 = new THREE.Vector3();
         function treeWindAt(tw, p, out) {   // = treeWind() trên GPU (phần thân + cành, không có lá rung) — cho cò/bướm đậu trên cành
           out.set(0, 0, 0); if (!tw || !tw.active) return out;
           const B = tw.u.uBend.value, rx = p.x - tw.base.x, ry = p.y - tw.base.y, rz = p.z - tw.base.z, h = Math.max(0, ry) / tw.H, hb = h * h;
-          const flex = tw.branchAmp * Math.min(Math.pow(Math.hypot(rx, rz) / tw.R, 2) + hb * 0.3, 1.6);
+          const flex = (tw.rgL && !tw.rigOff ? 0 : tw.branchAmp) * Math.min(Math.pow(Math.hypot(rx, rz) / tw.R, 2) + hb * 0.3, 1.6);
           windAt(p.x, p.y, p.z, ry, _wtmp2); const L = 0.6 * flex * Math.pow(_wtmp2.length() + 1e-3, 0.3);
           const az = Math.atan2(rz, rx), fb = Math.min(Math.pow(Math.hypot(rx, rz) / tw.R, 2) + hb * 0.3, 1.6), Br = tw.u.uBr.value;
-          const w0 = (0.5 + 0.5 * Math.cos(az)) * fb, w1 = (0.5 + 0.5 * Math.cos(2 * az + 1.7)) * fb, w2 = (0.5 + 0.5 * Math.cos(3 * az + 4.1)) * fb;
+          const bg = tw.bgh && !tw.bghOff, w0 = bg ? 0 : (0.5 + 0.5 * Math.cos(az)) * fb, w1 = bg ? 0 : (0.5 + 0.5 * Math.cos(2 * az + 1.7)) * fb, w2 = bg ? 0 : (0.5 + 0.5 * Math.cos(3 * az + 4.1)) * fb;
           out.set(B.x * hb + _wtmp2.x * L + Br[0].x * w0 + Br[1].x * w1 + Br[2].x * w2, _wtmp2.y * L, B.y * hb + _wtmp2.z * L + Br[0].y * w0 + Br[1].y * w1 + Br[2].y * w2);
           out.y -= (B.x * B.x + B.y * B.y) * hb * 0.5 / Math.max(tw.H * Math.max(h, 0.2), 0.5);
-          return out;
+          return bg ? boughAt(tw, p, out) : tw.rgL && !tw.rigOff ? rigNear(tw, p, out) : out;
         }
         // ---- CỎ: mỗi cọng uốn cong theo gió SÁT ĐẤT tại gốc (profile log ⇒ ~⅓ U10) cộng nhiễu loạn — góc uốn bão hoà (cọng nằm rạp tối đa ~65°),
         //      dạng uốn ∝ t² dọc cọng; nhiễu loạn trôi theo gió ⇒ từng mảng cỏ rạp xuống rồi bật lên lan đi như sóng (honami) ----
@@ -244,7 +386,7 @@
           sceneWind.k = Math.min(2, sceneWind.speed / 30); sceneWind.sceneSpeed = sceneWind.U;
           windAt(0, 8, 0, 8, _wtmp); sceneWind.gust = Math.max(0.2, (_wtmp.x * ax + _wtmp.z * az) / Math.max(0.05, sceneWind.U * windProfile(8)));
           for (const tw of treeWinds) {
-            if (!tw.active || !tw.lean) continue;
+            if (!tw.active || !(tw.lean || tw.rg)) continue;   // cây chỉ có xương cành (táo: thân đứng yên, lean 0) vẫn chạy
             windAt(tw.crown.x, tw.crown.y, tw.crown.z, tw.crownZ, _wtmp);   // gió tại tâm áp lực tán
             const s = Math.hypot(_wtmp.x, _wtmp.z) + 1e-6, F = Math.pow(s / WIND_SREF, 1.3);
             tw.F = F; tw.aero = 0.12 * Math.min(2, s / WIND_SREF);          // lực chuẩn hoá · tắt dần khí động tăng theo gió
@@ -255,10 +397,15 @@
               const s2 = Math.hypot(_wtmp2.x, _wtmp2.z) + 1e-6, F2 = Math.pow(s2 / WIND_SREF, 1.3) - F;
               B.ex = _wtmp2.x / s2 * F2 * tw.lean * 0.45; B.ez = _wtmp2.z / s2 * F2 * tw.lean * 0.45;
             }
+            if (tw.bgh) boughDrive(tw, dt);
+            if (tw.rg && !tw.rigOff) rigDrive(tw);
             tw.shakeRaw = 0; const al = fixedSteps(tw.ph, dt, PHYS_H, hh => treeStep(tw, hh));
             tw.shake = Math.max(tw.shakeRaw, tw.shake * Math.exp(-dt / 0.4));   // giữ đỉnh gia tốc cành, nhả dần
             tw.u.uBend.value.set(tw.px + (tw.bx - tw.px) * al, tw.pz + (tw.bz - tw.pz) * al);
-            for (let i = 0; i < 3; i++) { const B = tw.br[i]; tw.u.uBr.value[i].set(B.px + (B.x - B.px) * al, B.pz + (B.z - B.pz) * al); }
+            const lobes = (!tw.bgh || tw.bghOff) && (!tw.rg || tw.rigOff);   // cây có cành chính: 3 thuỳ vẫn tích phân (độ rung cho lá rụng) nhưng không vẽ
+            for (let i = 0; i < 3; i++) { const B = tw.br[i]; if (lobes) tw.u.uBr.value[i].set(B.px + (B.x - B.px) * al, B.pz + (B.z - B.pz) * al); else tw.u.uBr.value[i].set(0, 0); }
+            if (tw.bgh) boughOut(tw, al);
+            if (tw.rg) { const on = !tw.rigOff; if (tw.holdT > 0) tw.holdT -= dt; tw.rigK += ((tw.holdT > 0 ? 0 : 1) - tw.rigK) * (1 - Math.exp(-dt / 0.35)); tw.u.uRigOn.value = on ? 1 : 0; tw.u.uTreeDim.value.w = on ? 0 : tw.branchAmp; if (on) rigOut(tw, al); }
           }
         }
         function treeStep(tw, hh) {   // 1 bước 1/120 s: thân (lò xo 2 chiều) + 3 cành ghép (toạ độ tương đối với thân, bị thân giật) — Euler bán ẩn
@@ -270,6 +417,8 @@
           }
           const ax = o2 * (tw.ex - tw.bx) - c2 * tw.vx + rx, az = o2 * (tw.ez - tw.bz) - c2 * tw.vz + rz;
           tw.px = tw.bx; tw.pz = tw.bz; tw.vx += ax * hh; tw.vz += az * hh; tw.bx += tw.vx * hh; tw.bz += tw.vz * hh;
+          if (tw.bgh) boughStep(tw, hh, ax, az);
+          if (tw.rg && !tw.rigOff) rigStep(tw, hh, ax, az);
           let sh = 0;
           for (let i = 0; i < 3; i++) {
             const B = tw.br[i], ob = om * BR_K[i], cb = 2 * (0.07 + tw.aero) * ob;

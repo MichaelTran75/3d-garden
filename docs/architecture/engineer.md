@@ -4,9 +4,10 @@
 - Mã · 0.9 KB
 - Tay · 1.3 KB
 - Mặt · 0.4 KB
-- Việc · 0.9 KB
+- Việc · 1.8 KB
 - Câu cá (`tasks/angling.js`) · 0.5 KB
 - Phản ứng · 0.4 KB
+- Suy nghĩ về thời tiết (`mind/weather-notice.js`) · 2.7 KB
 - Bẫy · 3.3 KB
 - Số đo chuẩn · 0.2 KB
 <!-- /toc -->
@@ -46,7 +47,9 @@
 - Trạm trong xe `{ node, tick(e, V, dt, t, keep) }` trả `'released'` khi xong
 - Thái hành (`tasks/cooking.js` pha `chop`): `engHandFor(e, 0, aimQ(+x tủ bếp, trời), CK_EDGE, điểm cắt)`; tay trái cách lưỡi `CK_GAP`; bó hành `VAN.kitchen.bundle(zc)`; đường cắt `VAN.kitchen.CUT`
 - Trà `engTea`: cốc `CAMP.teaCup`, khung nắm `TEA_GQ`, rời pha giữa chừng `teaRelease`
+- Bát / chảo ngoài trời (`loop-update.js` `e.dishTrip`): chỉ bưng khi về ghế ăn tối (`toChair`, `eat`); việc khác ⇒ bữa còn dở (lịch / lệnh dinner) `'put'` đặt lên bàn trà (`engDishPut`), không ⇒ `'wash'` vào xe (`engVan` chèn `dishes` rồi ra). Chảo trên bàn chỉ nhấc khi rời ghế cắm trại + ăn xong / hết bữa. Về ghế: `engDinnerPan` ăn phần còn lại; `e.dinnerDay` = hôm nay đã ăn hết ⇒ trà
 - Laptop: `lapPt`, `lapHandQ`, `lapClawLow`, `lapFrom`, `lapFKBase`, `lapDone`
+- Tắm (`ENG_ACTS.shower`: shelfOff → shower → towel → cleanBath → shelfOn): `e.dress(false)` ở kệ mũ (`stShelf`, k > 0,9) ⇒ thân trần in nét ngực, tay / cẳng chân / bàn chân trần, cất túi đồ nghề, đùi giữ màu quần = quần short; mặc lại chỉ qua `engHelmet(e, 'head')`. Ngắt giữa chừng: `cooking.js` chèn `shelfOn`; mũ đã trên đầu mà còn cởi ⇒ `dress(true)` ngay
 - Ngủ `tasks/sleep.js` (`engSleepTick`, `engSleepPost`); ngắm sao `skyWatch` (`tasks/sky-watch.js`)
 - Cắt cỏ: máy `camp/trimmer.js` (`worldTick('tools')`, sau IK tay), việc `tasks/trim-grass.js`, cỏ `nature/meadow.js` `cutAt`
 
@@ -60,6 +63,20 @@
 - `engReactHold` đứng lại · `engReactPre` trước `engPoseEnd` (`wxTick`, `envTick`) · `engReactPost` sau IK chân, trước `engSeatPost` · `engReactArms` sau `engSeatPost`, trước `engArmPost`
 - `WX` = nhiệt độ biểu kiến + việc + lửa + trong xe − ướt; thân trễ 240 s → `hotK`, `coldK`
 - Lá trên người: `q.st = 6`, `water-leaves.js` gọi `q.hold` mỗi khung; `q.rxNo` chặn bắt lại 4 s
+
+## Suy nghĩ về thời tiết (`mind/weather-notice.js`)
+- Sinh câu từ số đo theo luật, không học. `WXN.plan(o, act)` → chỉ số đáng nói, `WXN.say(P)` → câu. Lõi `WXN` không đụng cảnh; `wxnObs` / `wxnThought` nối vào cảnh
+- 5 chỉ số: `temp` (cảm giác bóng râm Steadman, 7 mức), `wind` (5 mức + giật), `rad` (chỉ ban ngày, theo tỉ lệ trời quang), `hum` (sương / oi / ẩm / hanh), `cloud` (5 mức, bản đêm)
+- Độ nổi bật = (độ cực đoan `EX` + đổi nhanh) × liên quan tới việc `REL` × độ quen. Ngưỡng nói 0,55 (tin 15 phút: 0,3). Ngày thường không chỉ số nào qua ngưỡng ⇒ im, câu theo việc của `thoughts.js` chạy
+- Nhớ `mem[k] = { at, lv, v }`: cùng mức im 25 phút rồi `still`; đổi mức + lệch ≥ `MIN` ⇒ `up` / `down`; chưa nói ⇒ `new` (hoặc `up` / `down` theo số 1–2 giờ trước). Nhận xét cách nhau ≥ 4 phút trừ khi độ nổi bật ≥ 1,3
+- Gộp ≤ 2 chỉ số: `PAIR` (12 cặp có ý vật lý, điều kiện là hàm) trước; không có thì nối 2 mảnh khác họ (`rad` + `cloud` cùng họ), lời nối khen chê chỉ khi có `temp` / `hum`
+- Câu hệ quả `TAIL[nhóm việc]` (fish, tea, walk, work, plant, stars, in) + số nhà máy ước từ số đo (`pv`, `cell`, `loss`, `tb`). Dài > 118 ký tự bỏ câu hệ quả (bong bóng 3 dòng)
+- Trong xe: chỉ `temp` + gió mạnh; bàn nghiên cứu thêm `rad` / `wind` hệ số thấp. Đang mưa: bỏ `rad`, `hum`, `cloud`
+- `thoughts.js`: câu có nhãn thời tiết mang `tp` (chỉ số nhắc tới); chỉ số vừa nói trong 10 phút ⇒ trọng số × 0,2; câu được chọn ⇒ `WXN.touch`. Tin 15 phút: 3/4 lần dùng `wxnThought(…, station)`
+- Mảng theo giờ thêm `temperature_2m`, `wind_speed_10m`, `cloud_cover` (js/weather.js); bản lưu cũ thiếu ⇒ không có xu hướng, vẫn chạy
+- Thêm câu: mảnh viết thường, không chấm cuối, vào `FR[chỉ số][mức][giai đoạn]`; câu hệ quả viết hoa, có chấm. Chữ thay: `{temp} {wind} {gust} {dir} {bf} {rad} {cloud} {rh} {dew} {chill} {feel} {sunFeel} {pv} {tb} {cell} {loss} {tmr} {buoi} {nang}`; thiếu số đo ⇒ mảnh đó bị loại
+- Bẫy: mảnh có `{temp}` bị loại khi cảm giác lệch nhiệt kế ≥ 3 °C ⇒ mỗi ô `temp` phải có mảnh không số. Thành phố thời tiết lệch múi giờ cảnh ⇒ `rad` bỏ (bức xạ không khớp mặt trời cảnh). `{buoi}` theo giờ cảnh
+- Mức nhiệt ở đây = bóng râm; cử chỉ nóng / lạnh (`weather-feel.js` `WX.body`) cộng nắng + việc + lửa ⇒ `hotK` / `coldK` > 0,5 trái dấu thì nhận xét nhiệt × 0,2
 
 ## Bẫy
 

@@ -30,7 +30,7 @@
           const M = body.M, lam = (c, o = {}) => new THREE.MeshLambertMaterial({ color: c, side: THREE.DoubleSide, ...o });
           const MAT = { paint: M.body, paintO: lam(M.body.color.getHex()), paintIn: M.body, black: M.black, chrome: M.chrome, glass: M.glass, frost: M.frost, lens: lam(0xdde4e6, { transparent: true, opacity: 0.55, depthWrite: false }),
             bulb: M.led, red: M.red, blue: M.blue, steel: lam(0x9a9d9f), tire: lam(0x2b2925), trim: lam(0xcfccc4), dash: lam(0x5d6163), dashTop: lam(0x46494b), ctrl: lam(0x3e4244),
-            seat: lam(0x6f706c), yellow: lam(0xe8cf3a) };
+            seat: lam(0x6f706c), yellow: lam(0xe8cf3a) }; MAT.seat.userData.vk = 3;
           ldTrack(Promise.all([import('https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js'), import('https://esm.sh/three@0.160.0/examples/jsm/libs/meshopt_decoder.module.js'),
             fetch(VAN_GLB).then(r => r.ok ? r.arrayBuffer() : Promise.reject(new Error('HTTP ' + r.status))), ldGate]).then(([{ GLTFLoader }, { MeshoptDecoder }, buf]) => {
             const b = new Uint8Array(buf); let s = 0x2545F491;   // bỏ lớp XOR (cùng dòng với công cụ ghi tệp)
@@ -110,7 +110,7 @@
             const rearPlate = body.plates.children[1]; if (rearPlate) rearPlate.position.x = 3.174 + TR.ext;   // cửa sau GLB ở X 3,162 + TR.ext (vỏ code TR.rear = 3,05 + TR.ext)
             const lad = g.getObjectByName('Thang leo nóc'); if (lad) lad.position.x += 0.105;
             g.add(grp.shell, grp.keep); xrayAdopt(grp.shell);
-            vanGlb.ready = true; vanGlb.groups = grp; vanPartsInit([...parts.values()]);   // cửa trước, ca-pô, tay nắm, logo ⇒ nút bấm mở (van/body/van-doors.js)
+            vanGlb.ready = true; vanGlb.groups = grp; vanPartsInit([...parts.values()]); cabDetailJoin();   // cửa trước, ca-pô, tay nắm, logo ⇒ nút bấm mở (van/body/van-doors.js)
           }
           function ledFront(geo, bin, par) {   // dải LED chạy ban ngày (viền chữ C + dải cong dưới trong đèn pha — mẫu có sẵn): xám lúc tắt; rê chuột lên ca-pô / logo thì trắng sáng
             //  + chuỗi quầng nhỏ cộng sáng rải dọc chính 2 dải (mỗi bên ≤ 30 điểm cách nhau ≥ 3 cm) ⇒ cả dải toả sáng, không chỉ 1 đốm (van/body/van-doors.js)

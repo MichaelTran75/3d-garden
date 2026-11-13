@@ -97,8 +97,8 @@
         }
         function updateLeafFall(L, dt, t) {
           const o = L.o, h = Math.min(dt, 0.05), tw = o.tw, cd = o.g / (o.vTerm * o.vTerm);
-          // bứt lá: theo lực gió đè lên tán (F) + theo cành GIẬT mạnh (tw.shake vượt ngưỡng o.shake0 — cây có cành dao động riêng); o.rate: nguồn riêng (rừng)
-          L.acc = Math.min(2, L.acc + (o.rate ? o.rate(h) : o.rate0 + o.rateK * (0.35 * Math.max(0, (tw ? tw.F : 0) - 0.15) + (tw && o.shake0 ? Math.pow(Math.max(0, tw.shake / o.shake0 - 1), 1.5) : 0))) * h);
+          // bứt lá: theo lực gió đè lên tán (F) + theo cành GIẬT mạnh (tw.shake vượt ngưỡng o.shake0 — cây có cành dao động riêng); o.rate: nguồn riêng (rừng); o.rate0F: nền rate0 × F (≤ 2) ⇒ lặng gió không rụng
+          L.acc = Math.min(2, L.acc + (o.rate ? o.rate(h) : o.rate0 * (o.rate0F && tw ? Math.min(2, tw.F) : 1) + o.rateK * (0.35 * Math.max(0, (tw ? tw.F : 0) - 0.15) + (tw && o.shake0 ? Math.pow(Math.max(0, tw.shake / o.shake0 - 1), 1.5) : 0))) * h);
           const M = o.group.matrixWorld;
           for (let k = 0; k < L.parts.length; k++) {
             const q = L.parts[k];
@@ -232,5 +232,5 @@
             F.instanceMatrix.needsUpdate = true;
           }
           cherryCtl = makeLeafFall({ name: 'Cánh hoa anh đào rơi theo gió', group: ct, pts: ct.userData.blossomPts, n: 36, geo: new THREE.BoxGeometry(0.19 * 1.2, 0.002 * 1.2, 0.19 * 1.2), opacity: 0.75,
-            color: () => cherryPinks[(Math.random() * cherryPinks.length) | 0], scale: 1, tw: cherryWind, g: 3.5, vTerm: 0.45, flutA: 0.5, flutW: [3.5, 5], tumble: 0.15, tumbleW: [9, 14], slideU: 0.5, rate0: 0.15, rateK: 3.0, shake0: 0.02, restLife: [10, 20], floatLife: [25, 45], sinkP: 0.25, sinkV: [0.05, 0.08], leeway: 0.035 }); }
+            color: () => cherryPinks[(Math.random() * cherryPinks.length) | 0], scale: 1, tw: cherryWind, g: 3.5, vTerm: 0.45, flutA: 0.5, flutW: [3.5, 5], tumble: 0.15, tumbleW: [9, 14], slideU: 0.5, rate0: 0.135, rate0F: true, rateK: 2.7, shake0: 0.02, restLife: [10, 20], floatLife: [25, 45], sinkP: 0.25, sinkV: [0.05, 0.08], leeway: 0.035 }); }
 

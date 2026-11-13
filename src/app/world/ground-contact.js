@@ -8,15 +8,18 @@
         //  · Tuỳ chọn: { w: 0,35 bề rộng bóng mờ (m), line: 0,6 độ đậm đường sát chân, ao: 0,35 độ đậm bóng mờ, body: 0 (m, 0 = không), bodyA: 0,4,
         //    y: cao độ chân (mặc định cowY tại gốc), inst: false (gồm InstancedMesh — cánh hoa rụng thì không) }
         //  · S.drape({ px, NX, NZ, ps, x0, x1, z0, z1, g0, name }): chỉ rải 1 ảnh độ mờ có sẵn thành tấm phủ (bóng góc mặt đất khu trại — camp/realism.js)
+        //  · Lưới vỏ cây bỏ mảng đỉnh sau khi lên GPU (core/mem-trim.js) ⇒ memTrim chờ idle() (hàng đợi đã cắt xong); vật xin sau đó: lưới mất mảng bị bỏ qua
+        //    (đếm ở made[].miss), 1 vật lỗi không chặn các vật sau
         //  · Cây cổ thụ + rễ THÔI dùng dịch vụ này: quầng mờ đều quanh rễ nhìn giả ⇒ bóng trời dưới tán + bóng góc kẽ rễ (core/sky-shade.js, nature/old-tree-shade.js)
         const groundContact = (() => {
-          const Q = [], made = []; let ready = false;
+          const Q = [], made = []; let ready = false, miss = 0;
           const _v = new THREE.Vector3(), _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3(), _bx = new THREE.Box3(), _im = new THREE.Matrix4(), _wm = new THREE.Matrix4();
           function triangles(roots, yMax, inst, each) {   // mọi tam giác (toạ độ thế giới) của lưới hiện có đáy ≤ yMax
             for (const R of roots) { R.updateMatrixWorld(true); R.traverseVisible(m => {
               if (!m.isMesh || !m.geometry || !m.geometry.attributes.position || (m.isInstancedMesh && !inst)) return;
               const G = m.geometry; if (!G.boundingBox) G.computeBoundingBox();
               const P = G.attributes.position, I = G.index, nI = m.isInstancedMesh ? m.count : 1, nT = I ? I.count / 3 : P.count / 3;
+              if (!P.array || (I && !I.array)) { miss++; return; }   // mảng đã bỏ sau khi lên GPU: không còn tam giác để cắt
               for (let k = 0; k < nI; k++) {
                 _wm.copy(m.matrixWorld); if (m.isInstancedMesh) { m.getMatrixAt(k, _im); _wm.multiply(_im); }
                 if (_bx.copy(G.boundingBox).applyMatrix4(_wm).min.y > yMax) continue;
@@ -29,7 +32,7 @@
             }); }
           }
           function build(E) {
-            const t0 = performance.now(), R = E.roots, o = E.o, r0 = R[0].getWorldPosition(_v), g0 = o.y !== undefined ? o.y : cowY(r0.x, r0.z);
+            const t0 = performance.now(), m0 = miss, R = E.roots, o = E.o, r0 = R[0].getWorldPosition(_v), g0 = o.y !== undefined ? o.y : cowY(r0.x, r0.z);
             const W = o.w || 0.35, LINE = o.line !== undefined ? o.line : 0.6, AO = o.ao !== undefined ? o.ao : 0.35, BODY = o.body || 0, BA = o.bodyA || 0.4;
             const PL = [g0 + 0.03, g0 + 0.10], seg = [], flat = [], body = [];
             triangles(R, BODY ? g0 + BODY : g0 + 0.12, !!o.inst, (a, b, c) => {
@@ -40,7 +43,7 @@
                 if (q.length === 4) seg.push(q[0], q[1], q[2], q[3]); }
               if (BODY && lo > g0 + 0.02 && hi < g0 + BODY) body.push(a.x, a.z, b.x, b.z, c.x, c.z);
             });
-            if (!seg.length && !flat.length) return;
+            if (!seg.length && !flat.length) { if (miss > m0) made.push({ of: R[0].name, miss: miss - m0 }); return; }
             let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9;
             for (const L of [seg, flat, body]) for (let i = 0; i < L.length; i += 2) { x0 = Math.min(x0, L[i]); x1 = Math.max(x1, L[i]); z0 = Math.min(z0, L[i + 1]); z1 = Math.max(z1, L[i + 1]); }
             const pad = Math.max(0.5, W * 3, BODY ? 0.9 : 0); x0 -= pad; x1 += pad; z0 -= pad; z1 += pad;
@@ -71,7 +74,7 @@
               if (DB) keep *= 1 - BA * Math.exp(-DB[p] / 0.5);
               px[p * 4] = px[p * 4 + 1] = px[p * 4 + 2] = 255; px[p * 4 + 3] = Math.round(255 * (1 - keep)); }
             const sh = drape({ px, NX, NZ, ps, x0, x1, z0, z1, g0, name: 'Bóng tiếp đất · ' + (R[0].name || 'vật') });
-            made.push({ of: R[0].name, mesh: sh, seg: seg.length / 4, flat: flat.length / 6, body: body.length / 6, px: NX + '×' + NZ, ms: Math.round(performance.now() - t0) });
+            made.push({ of: R[0].name, mesh: sh, seg: seg.length / 4, flat: flat.length / 6, body: body.length / 6, miss: miss - m0, px: NX + '×' + NZ, ms: Math.round(performance.now() - t0) });
           }
           function drape(F) {   // tấm phủ: ảnh độ mờ F.px (RGBA, NX × NZ ô cỡ ps từ x0, z0) rải theo mặt đất thật trong [x0, x1] × [z0, z1]; ô lệch cao độ g0 > 0,3 m trong suốt
             const { px, NX, NZ, ps, x0, x1, z0, z1, g0 } = F, ext = Math.max(x1 - x0, z1 - z0);
@@ -87,8 +90,8 @@
             const sh = new THREE.Mesh(geo, mat); sh.name = F.name; sh.renderOrder = 1; sh.userData.noBake = sh.userData.noBatch = true; sh.raycast = () => {};
             scene.add(sh); return sh;
           }
-          const go = () => { if (ready) return; ready = true; const step = () => { const E = Q.shift(); if (!E) return; build(E); setTimeout(step, 0); }; step(); };   // mỗi vật 1 lượt (≤ 50 ms) — không khựng 1 lần
+          const go = () => { if (ready) return; ready = true; const step = () => { const E = Q.shift(); if (!E) return; setTimeout(step, 0); build(E); }; step(); };   // mỗi vật 1 lượt (≤ 50 ms) — không khựng 1 lần; hẹn lượt sau TRƯỚC khi cắt ⇒ 1 vật lỗi không chặn hàng đợi
           ldGate.then(() => Promise.race([Promise.all(ldNeed), new Promise(r => setTimeout(r, 8000))])).then(go);
           worldServe('groundContact', { drape, add: (root, o = {}) => { const E = { roots: [].concat(root).filter(Boolean), o }; if (!E.roots.length) return; ready ? build(E) : Q.push(E); } });
-          return { made };
+          return { made, idle: () => ready && !Q.length };
         })();

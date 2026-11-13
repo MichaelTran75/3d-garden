@@ -282,9 +282,10 @@
             if (engStep(e, G.stand(_grT), dt, t, pf, FIRE_AVOID_R, null)) { e.phase = e.phase === 'toGrill' ? 'grab' : 'plant'; e.timer = 0; }
             return;
           }
-          e.timer += dt; const k = e.timer, base = G.homeW(0, _mrE), grip = G.homeW(0.5, _mrD);
-          e.g.rotation.y = Math.atan2(base.x - e.g.position.x, base.z - e.g.position.z);
-          if (k < 0.7) { const dx = grip.x - e.g.position.x, dz = grip.z - e.g.position.z, d = Math.hypot(dx, dz), m = Math.min(0.5 * dt, Math.max(0, d - 0.24)); if (d > 1e-3) { e.g.position.x += dx / d * m; e.g.position.z += dz / d * m; } }   // nhích nửa bước tới que trước khi cúi (que nhỏ 50%: sát hơn)
+          e.timer += dt; const k = e.timer, base = G.homeW(0, _mrE);
+          const at = G.reach(_grT);   // chỗ đặt chân cạnh que (camp/grill.js): cúi dọc theo vòng bếp, không vươn qua lửa
+          { const w = Math.atan2(base.x - at.x, base.z - at.z), d = Math.atan2(Math.sin(w - e.g.rotation.y), Math.cos(w - e.g.rotation.y)); e.g.rotation.y += d * Math.min(1, dt * 8); }   // quay dần về gốc que (hướng tính từ chỗ đặt chân: không lắc theo lúc nhích)
+          if (k < 0.9) { const dx = at.x - e.g.position.x, dz = at.z - e.g.position.z, d = Math.hypot(dx, dz), m = Math.min(0.55 * dt, d); if (d > 1e-3) { e.g.position.x += dx / d * m; e.g.position.z += dz / d * m; } }   // nhích nửa bước vào chỗ đặt chân trước khi cúi
           if (e.phase === 'grab') {   // cúi xuống nắm que (~2/5 thân que), rút lên, đứng thẳng dựng que trước ngực
             const bend = minJerk(segK(k, 0, 0.8)) * (1 - minJerk(segK(k, 1.3, 2.2)));
             e.spineT = { x: 1.4 * bend, y: 0 }; e.lean = 0.04 * bend; e.head.rotation.x = 0.2 * bend + 0.1; engCrouch(e, 1.25 * bend);   // gập eo + khuỵu gối, không nghiêng cả người · que cá nhỏ 50%: chỗ cầm chỉ cao ~0,3 m ⇒ gập sâu hơn
@@ -344,5 +345,5 @@
             if (k >= 0.72) { const p0 = G.point(0.78, _mrD), T = 0.7, v = launchV(p0, _mrE.set(pf.x, pf.y + 0.15, pf.z), T, new THREE.Vector3()); G.toss(v); }
           }
           e.seatLean = 0.04; e.head.rotation.x = 0.1; e.headYawT = 0.25;
-          if (k >= 1.6) { if (e.act === 'smoke') { e.phase = 'tea'; e.timer = 30; if (engForceAct === 'smoke') engForceAct = null; return; } e.phase = 'eat'; e.timer = Math.max(60, Math.min(900, e.actLeft - 900)); e.eatT0 = e.timer; }   // rồi ăn cơm chiên · cá khói theo lệnh: ăn xong uống ngụm trà, về lịch
+          if (k >= 1.6) { if (e.act === 'smoke') { e.phase = 'tea'; e.timer = 30; if (engForceAct === 'smoke') engForceAct = null; return; } e.timer = Math.max(60, Math.min(900, e.actLeft - 900)); e.phase = 'eat'; engDinnerPan(e); }   // rồi ăn cơm chiên · cá khói theo lệnh: ăn xong uống ngụm trà, về lịch
         }

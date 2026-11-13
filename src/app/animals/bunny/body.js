@@ -71,7 +71,7 @@
           const p = b.g.position, F = b.fall || (b.fall = { y: p.y, v: 0 });
           if (dt <= 0 || Math.hypot(b.x - x0, b.z - z0) > 0.5) { F.y = p.y; F.v = 0; return; }   // đặt lại chỗ tức thời: bỏ
           if (p.y >= F.y) { F.v = (p.y - F.y) / dt; F.y = p.y; return; }   // đi lên theo dáng (bật, đứng dậy)
-          F.v = Math.min(F.v, 0) - GRAV * dt; F.y += F.v * dt; if (F.y <= p.y) { F.y = p.y; F.v = 0; } else p.y = F.y;
+          const v0 = Math.min(F.v, 0); F.y += (v0 - 0.5 * GRAV * dt) * dt; F.v = v0 - GRAV * dt; if (F.y <= p.y) { F.y = p.y; F.v = 0; } else p.y = F.y;
         }
         function bunnyYaw(b, dt, x0, z0) {
           const a0 = b.yawV ?? b.ang, da = bunWrap(b.ang - a0), m = 15 * dt;

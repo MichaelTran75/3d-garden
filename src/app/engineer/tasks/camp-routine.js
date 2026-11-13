@@ -3,6 +3,21 @@
         //  trà / ngủ trưa / đọc sách · dạo trại → uống nước → vuốt chó → cột khí tượng. Ngồi ghế làm gì, bao lâu: engChairPhase (engineer/mind/schedule.js).
         //  Việc dùng dụng cụ (táo, sao, drone, cắt cỏ…) ở bảng ENG_JOBS (engineer/mind/task-table.js). ----
         const _petTgt = new THREE.Vector3();   // chỗ đứng cạnh chó khi tới vuốt (dời từ animals/dog/shelter.js 01/11)
+        function engDinnerPan(e) {   // về ghế ăn tối: chảo còn cơm ⇒ ăn nốt phần còn lại · hôm nay đã ăn hết (chảo đã rửa) ⇒ uống trà, không ăn lại
+          if (!e.dish || e.dish.kind !== 'pan') e.dish = e.dinnerDay === new Date().toDateString() ? null : { kind: 'pan', food: 1 };
+          if (e.dish) e.dish.at = 'camp';
+          if (!e.dish || e.dish.food < 0.05) { e.phase = 'tea'; e.timer = e.actLeft + 60; return; }
+          e.phase = 'eat'; e.eatT0 = e.timer / e.dish.food;   // cơm vơi tiếp từ phần còn lại
+        }
+        function engDishPut(e, dt, t) {   // tới trước ghế cắm trại, quay sang bàn trà, với tay đặt chảo xuống
+          const S = CAMP_SEAT.laneW[0], T = CAMP_SEAT.table || CAMP.chairPos;
+          if (!e.dishPutK) { if (!engStep(e, S, dt, t, pf, FIRE_AVOID_R)) return; e.dishPutK = 1e-6; }
+          e.dishPutK += dt; const k = e.dishPutK, r = Math.min(1, k / 0.5) * (1 - Math.max(0, Math.min(1, (k - 0.9) / 0.4)));
+          engStandStill(e); e.armsBusy = true;
+          { let d = Math.atan2(T.x - e.g.position.x, T.z - e.g.position.z) - e.g.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); e.g.rotation.y += d * Math.min(1, dt * 6); }   // quay dần về bàn
+          e.arms[1].rotation.x = -0.8 - 0.45 * r; e.lean = 0.18 * r; e.head.rotation.x = 0.3 * r;
+          if (k > 0.75 && e.dish) e.dish.at = 'camp';   // chảo nằm trên bàn trà (CAMP.servePan); khung sau hết 'put' ⇒ làm việc đang chờ
+        }
         function engCampPhase(e, dt, t) {
           const H = e.hold;
           if (e.phase === 'toShelter') {          // mưa: về ghế cắm trại dưới mái hiên (vào thẳng từ phía trước ghế)
@@ -39,7 +54,8 @@
           else if (e.phase === 'toChair') {            // về ghế cắm trại (né bếp lửa), vào thẳng từ phía trước, quay lưng, ngồi → ăn / trà / đọc sách tuỳ việc
             if (engUseSeat(e, CAMP_SEAT, dt, t)) {
               e.phase = engChairPhase(e, e.act); e.readPh = Math.random() * 9; idleThoughtAt = Math.min(idleThoughtAt, Date.now() + 4000);
-              if (e.act === 'dinner') { if (!e.dish || e.dish.kind !== 'pan') e.dish = { kind: 'pan', food: 1 }; e.dish.at = 'camp'; e.eatT0 = e.timer; }   // đặt chảo cơm chiên lên bàn trà
+              if (e.act === 'dinner' && e.phase === 'eat') engDinnerPan(e);   // đặt chảo cơm chiên lên bàn trà, ăn phần còn lại
+              else if (e.act === 'dinner' && e.dish && e.dish.kind === 'pan') e.dish.at = 'camp';
             }
           }
           else if (e.phase === 'eat') {                // ăn trưa / tối: bưng chảo tay trái, thìa tay phải xúc → đưa lên → vào miệng → nhai (engEatRice)
@@ -48,7 +64,7 @@
               if (e.dish && e.eatT0 > 0) e.dish.food = Math.max(0, e.timer / e.eatT0);   // cơm trong chảo vơi dần
               e.arms[0].rotation.x = -1.2; e.arms[1].rotation.x = -0.9;                 // góc tay thẳng ước lượng (IK + hướng cổ tay ghi đè)
               engEatRice(e, dt, t);
-              if (e.timer <= 0) { if (e.dish) e.dish.at = 'camp'; e.phase = 'tea'; e.timer = e.actLeft + 60; if (engForceAct === 'dinner') engForceAct = null; }   // ăn xong đặt chảo lại bàn trà, ngồi uống trà tới hết giờ · ăn theo lệnh Nấu ăn: xong thì về lịch
+              if (e.timer <= 0) { if (e.dish) e.dish.at = 'camp'; if (e.act === 'dinner') e.dinnerDay = new Date().toDateString(); e.phase = 'tea'; e.timer = e.actLeft + 60; if (engForceAct === 'dinner') engForceAct = null; }   // ăn xong đặt chảo lại bàn trà, ngồi uống trà tới hết giờ · ăn theo lệnh Nấu ăn: xong thì về lịch
             }
           }
           else if (e.phase === 'eatFish') { if (engUseSeat(e, CAMP_SEAT, dt, t)) { e.arms[0].rotation.x = e.arms[1].rotation.x = -1.3; engEatFish(e, dt, t); } }   // 2 tay cầm que cá như bắp ngô

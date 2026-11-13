@@ -5,7 +5,7 @@
 
 ## Bản đồ (khu → mã `src/app/`)
 - engine.md — khung mã, `worldSee`/`worldFace`/`worldPlace`/`worldTick`, ranh giới: `core/world.js`, `core/helpers.js`, `loop/`, `src/tools/boundaries/`
-- render.md — vẽ, RAM, lượt vẽ, bóng, độ phân giải, AO nướng sẵn, ảnh môi trường, chất liệu: `core/boot.js`, `core/draw-batch.js`, `core/mem-trim.js`, `core/ao-bake.js`, `core/surface-style.js`, `van/interior/env-map.js`, `camp/realism.js` (+ `docs/game-engine-study.md`)
+- render.md — vẽ, RAM, lượt vẽ, bóng, độ phân giải, AO nướng sẵn + màn hình, ánh trời, sương, ảnh môi trường, chất liệu: `core/boot.js`, `core/atmosphere.js`, `core/ao-screen.js`, `core/draw-batch.js`, `core/mem-trim.js`, `core/ao-bake.js`, `core/surface-style.js`, `van/interior/env-map.js`, `camp/realism.js` (+ `docs/game-engine-study.md`)
 - lens.md — DOF, lấy nét, sa bàn, cận cảnh: `core/lens.js`, `loop/close-up.js` (+ `docs/cinematic-closeup-dof.md`)
 - walking.md — chân trượt, bậc voxel, né vật, va chạm: `animals/_lib/quadruped.js`, `engineer/body/pose-ik-walk.js`, `core/collide.js`, `core/ground.js`
 - engineer.md — kỹ sư: tay IK, mặt, nấu / ăn / trà / ngủ / laptop, câu cá, phản ứng, thời tiết, tự chủ: `engineer/{body,mind,tasks}/`
@@ -42,6 +42,7 @@
 - `core/fixed-step.js` `fixedSteps(S, dt, h, step)`: dồn dt vào `S.acc`, gọi `step(h)`, trả `alpha = dư / h` để vẽ nội suy; trần 0,1 s/khung; như nhau 15 / 60 / 144 fps.
 - Dùng: câu cá 120 Hz `anglingPhysStep` (engineer.md), đuôi chó / gấu mèo 240 Hz `updateSoftTail`, tai thỏ 120 Hz `bunnyEars`, nước nông + khói Worker 60 bước/s `nature/fluids.js`.
 - Hệ mới: giữ `prev`; bước vật lý chỉ đọc trạng thái vật lý, vẽ đọc bản nội suy; khung đầu dt = 0 ⇒ không chia dt (NaN lan mãi); NaN ⇒ tự đặt lại (mẫu: đầu `updateFishingBite`).
+- Trọng lực `core/gravity.js`: `GRAV`, `fallStep` (nghiệm đúng 1 bước, có cản), `launchV`, `hopLift`; vật rời `looseBody` / `looseTick` (rơi → nảy → lăn → nằm / nổi; sàn + vách từ `COL`): walking.md "Vật rời". Không Euler tay, không g riêng.
 - Tư thế mượt `engSpring` (SmoothDamp, ổn mọi dt). Rẻ: gió cây / cỏ trong shader (`nature/wind-physics.js`), lò xo, IK.
 
 ## Bẫy chung

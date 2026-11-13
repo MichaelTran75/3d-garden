@@ -193,17 +193,18 @@
           const rest = Float32Array.from(pos), posAttr = bodyGeo.attributes.position, nV = rest.length / 3;
           const swPh = Math.random() * Math.PI * 2;
           const mouth = new THREE.Vector3(xNose + 0.02 * SL, y0, 0);
-          function swim(t, wob) {
+          function swim(t, wob, amp = 1) {   // amp: biên độ sóng thân (1 = quẫy, ~0,1 = duỗi thân lướt)
             const w1 = t * 6.5 + swPh;
-            mouth.z = s * .012 * Math.sin(w1 - 2.6 * .52);
+            mouth.z = amp * s * .012 * Math.sin(w1 - 2.6 * .52);
             for (let i = 0; i < nV; i++) {
               const xr = rest[i * 3], p = Math.min(1, Math.max(0, (0.30 - xr / SL) / 1.42));
-              posAttr.array[i * 3 + 2] = rest[i * 3 + 2] + s * (0.012 + 0.13 * p * p) * Math.sin(w1 - 2.6 * (xr / SL)) + wob * 0.30 * s * p * p;
+              posAttr.array[i * 3 + 2] = rest[i * 3 + 2] + amp * s * (0.012 + 0.13 * p * p) * Math.sin(w1 - 2.6 * (xr / SL)) + wob * 0.30 * s * p * p;
             }
             posAttr.needsUpdate = true;
             for (const pec of pects) pec.rotation.x = pec.userData.rx0 + pec.userData.sz * Math.sin(t * 3.1 + swPh + pec.userData.sz * 1.3) * 0.16;
           }
-          return { g, swim, mouth };
+          g.rotation.order = 'YZX';   // (nghiêng, −hướng, ngóc): x = nghiêng quanh trục thân sau khi quay hướng + ngóc; x = 0 ⇒ như thứ tự mặc định
+          return { g, swim, mouth, len: SL };
         }
         const fishOrigin = new THREE.Vector3(X0 + 73, lakeY - 0.62, Z0 + 113);   // đàn cá về tọa độ góc (73, _, 113)
         for (let n = 0; n < 7; n++) {
@@ -236,14 +237,25 @@
           return best;
         }
         function endLeafChase(f) { const q = f.leafT; if (q && q.fish) q.fish--; f.leafT = null; f.leafCool = 6 + Math.random() * 6; f.snap = 0; }
+        function fishBodyHit(f, nx, nz, y) {   // thân con khác cùng tầng nước ngay chỗ sắp tới (và đang tiến lại gần nó): không lấn vào
+          for (const o of fishies) { if (o === f) continue; const q = o.g.position; if (Math.abs(q.y - y) > 0.14) continue;
+            const d1 = Math.hypot(nx - q.x, nz - q.z); if (d1 < 0.22 && d1 < Math.hypot(f.cx - q.x, f.cz - q.z)) return true; }
+          return false;
+        }
         function fishSwimStep(f, dt, t, yTarget, pitchTarget) {   // tiến theo hướng f.ang với f.chaseV, giữ trong nước; độ sâu & góc ngóc tiến dần tới đích
           const nx = f.cx + Math.cos(f.ang) * f.chaseV * dt, nz = f.cz + Math.sin(f.ang) * f.chaseV * dt;
-          if (waterCell(Math.round(x2gi(nx)), Math.round(z2gj(nz)))) { f.cx = nx; f.cz = nz; }
-          const top = waterSurfaceY(f.cx, f.cz) - 0.1, bot = riverBedY(Math.round(x2gi(f.cx)), Math.round(z2gj(f.cz))) + 0.2, y0 = f.g.position.y;
-          const y = y0 + (Math.max(bot, Math.min(top, yTarget)) - y0) * Math.min(1, dt * 2.5);
+          const y0 = f.g.position.y, ni = Math.round(x2gi(nx)), nj = Math.round(z2gj(nz));
+          if ((f.leafT || f.chaseV < 1) && fishBodyHit(f, nx, nz, y0)) f.chaseV *= Math.exp(-dt * 4);   // tranh lá, ủi đáy, đón người: chen sát nhau, không xuyên qua nhau (cú lao giật mình thì không chặn)
+          else if (waterCell(ni, nj) && riverBedY(ni, nj) + 0.03 <= y0) { f.cx = nx; f.cz = nz; }   // bậc đáy cao hơn thân: chờ nổi lên đã, không chui vào đất
+          const la = 0.3 + f.chaseV * 0.3, ai = Math.round(x2gi(f.cx + Math.cos(f.ang) * la)), aj = Math.round(z2gj(f.cz + Math.sin(f.ang) * la));
+          const bedH = riverBedY(Math.round(x2gi(f.cx)), Math.round(z2gj(f.cz))), top = waterSurfaceY(f.cx, f.cz) - 0.1, bot = Math.max(bedH, waterCell(ai, aj) ? riverBedY(ai, aj) : bedH) + 0.2;
+          const vyMax = Math.max(0.45, 0.9 * f.chaseV), vyT = Math.max(-vyMax, Math.min(vyMax, (Math.max(bot, Math.min(top, yTarget)) - y0) * 2.5));   // lên / xuống không nhanh hơn thân bơi được
+          f.vyS = (f.vyS || 0) + (vyT - (f.vyS || 0)) * Math.min(1, dt * 8);
+          const y = y0 + f.vyS * dt;
           f.dy = y - (f.base.y + Math.sin(t * 0.9 + f.ph) * 0.05);
           f.pitch = (f.pitch || 0) + (pitchTarget - (f.pitch || 0)) * Math.min(1, dt * 3);
-          f.g.position.set(f.cx, y, f.cz); f.g.rotation.set(0, -f.ang, f.pitch);
+          f.roll = (f.roll || 0) * Math.exp(-dt * 4);   // độ nghiêng lúc lượn (animals/fish/cruise.js) trả dần về 0
+          f.g.position.set(f.cx, y, f.cz); f.g.rotation.set(f.roll, -f.ang, f.pitch);
           f.swT = (f.swT ?? t) + dt * (1 + f.chaseV * 0.9); f.swim(f.swT, f.wob);   // quẫy đuôi nhanh theo tốc độ
         }
         function fishChaseLeaf(f, dt, t) {
@@ -341,7 +353,8 @@
             case 'graze': {   // ủi bùn: chúc đầu, nhích chậm, thỉnh thoảng sủi bùn
               f.chaseV += (0.09 - f.chaseV) * Math.min(1, dt * 2); f.wob += ((Math.random() - 0.5) * 0.8 - f.wob) * Math.min(1, dt); f.ang += f.wob * 0.4 * dt;
               fishSwimStep(f, dt, t, bot() + 0.13, -0.55);
-              if ((L.gulp -= dt) <= 0) { L.gulp = 0.9 + Math.random(); f.g.localToWorld(_flM.copy(f.mouth)); waterFx.bubbles(_flM.x, _flM.y, _flM.z, 1); }
+              if (f.g.position.y > bot() + 0.34) { if (L.d < 12) L.d += dt; }   // còn đang lặn xuống: chưa tính giờ ủi (thêm tối đa tới 12 s), chưa sủi bùn
+              else if ((L.gulp -= dt) <= 0) { L.gulp = 0.9 + Math.random(); f.g.localToWorld(_flM.copy(f.mouth)); waterFx.bubbles(_flM.x, _flM.y, _flM.z, 1); }
               if (L.k >= L.d) go('', 0); return true;
             }
             case 'beg': {   // đón người: lượn sát mặt nước chỗ người đứng, ngóc đầu đớp
@@ -358,11 +371,11 @@
           for (const o of fishies) { if (o === f || o.ang === undefined || Math.abs(o.base.y - f.base.y) > 0.8 || o === fishOnHook() || o === returningFishingFish) continue;
             const dx = o.cx - f.cx, dz = o.cz - f.cz, d = Math.hypot(dx, dz); if (d > 3) continue;
             cx += dx; cz += dz; n++; if (d < 1.5) { ax += Math.cos(o.ang); az += Math.sin(o.ang); } if (d < 0.45 && d > 1e-3) { sx -= dx / d * (0.45 - d) * 6; sz -= dz / d * (0.45 - d) * 6; } }
-          if (n) { const hx = Math.cos(f.ang) + tight * (cx / n * 0.35 + ax * 0.3) + sx, hz = Math.sin(f.ang) + tight * (cz / n * 0.35 + az * 0.3) + sz;
-            let da = Math.atan2(hz, hx) - f.ang; da = Math.atan2(Math.sin(da), Math.cos(da)); f.ang += Math.max(-0.8 * dt, Math.min(0.8 * dt, da)); }
+          if (n && !(f.C && f.C.mode === 'nibble')) { const hx = Math.cos(f.ang) + tight * (cx / n * 0.35 + ax * 0.3) + sx, hz = Math.sin(f.ang) + tight * (cz / n * 0.35 + az * 0.3) + sz;
+            let da = Math.atan2(hz, hx) - f.ang; da = Math.atan2(Math.sin(da), Math.cos(da)); f.ang += Math.max(-0.8 * dt, Math.min(0.8 * dt, da)); }   // đang rỉa cây: đàn không kéo hướng (mặt phải quay vào cụm)
           if (!f.leafT && L.wary <= 0) {
             const B = FL_BEG; if (B.ok && B.still > 2 + (1 - L.bold) * 8 && Math.hypot(B.p.x - f.cx, B.p.z - f.cz) < 6 && Math.abs(waterBaseY(Math.round(z2gj(B.p.z))) - 0.62 - f.base.y) < 0.8) { f.chaseV = f.vmag * f.vk; go('beg', 0); }
-            else if (hh > 6.5 && hh < 17.5 && temp >= 12 && (L.gz -= dt) <= 0) { L.gz = 15 + 30 * Math.random(); f.chaseV = f.vmag * f.vk; go('graze', 4 + 5 * Math.random()); }
+            else if (hh > 6.5 && hh < 17.5 && temp >= 12 && (L.gz -= dt) <= 0) { L.gz = 20 + 40 * Math.random(); f.chaseV = f.vmag * f.vk; go('graze', 4 + 5 * Math.random()); }
           }
           return false;
         }
@@ -387,23 +400,15 @@
         }
         worldTick('late', 20, fishWanderTick);   // MỖI KHUNG (sổ tick core/world.js): cá bơi lang thang ngẫu nhiên; cá mắc câu tự đặt thân theo miệng (fishHookTick ở đầu)
         function fishWanderTick(dt, t) {
-          fishHookTick(); const hk = fishOnHook();
+          fishHookTick(); const hk = fishOnHook(); koiTick++;
           for (const f of fishies) {                                            // cá bơi lang thang ngẫu nhiên (wander)
             if (f.leafCool > 0) f.leafCool -= dt;
             if (f === hk) { if (f.leafT) endLeafChase(f); f.dy = f.pitch = 0; continue; }   // đang trên lưỡi / đang tới mồi: thân đã đặt theo lưỡi ở fishHookTick
             if (f === returningFishingFish) { updateReturningFishingFish(f, dt, t); continue; }
-            if (f.ang === undefined) { f.ang = Math.random() * 6.283; f.cx = f.base.x; f.cz = f.base.z; f.vmag = 0.7 + Math.random() * 0.7; f.wob = (Math.random() - 0.5) * 0.8; f.rad = Math.max(f.rx, f.rz) + 1.6; }
+            if (f.ang === undefined) { f.ang = Math.random() * 6.283; f.cx = f.base.x; f.cz = f.base.z; f.vmag = 0.32 + Math.random() * 0.26; f.wob = (Math.random() - 0.5) * 0.8; f.rad = Math.max(f.rx, f.rz) + 1.6; }
             if (fishLife(f, dt, t)) continue;   // tập tính: giật mình chữ C → nấp đáy, ủi bùn, đón người, né cò, bơi theo đàn, theo nhiệt độ nước (animals/fish/fish.js)
             if (f.leafT && fishChaseLeaf(f, dt, t)) continue;   // đang đuổi đớp một chiếc lá
-            f.wob += (Math.random() - 0.5) * 2.2 * dt; f.wob = Math.max(-1.1, Math.min(1.1, f.wob)); f.ang += f.wob * dt;   // hướng đổi ngẫu nhiên, mượt
-            const bx = f.base.x - f.cx, bz = f.base.z - f.cz, distB = Math.hypot(bx, bz);
-            if (distB > f.rad) { let d = Math.atan2(bz, bx) - f.ang; while (d > Math.PI) d -= 6.283; while (d < -Math.PI) d += 6.283; f.ang += d * Math.min(1, (distB - f.rad) * 0.9) * dt * 3.0; }   // lượn về khi đi quá xa
-            f.cx += Math.cos(f.ang) * f.vmag * (f.vk || 1) * dt; f.cz += Math.sin(f.ang) * f.vmag * (f.vk || 1) * dt;
-            f.dy = (f.dy || 0) * Math.exp(-dt / 1.2); f.pitch = (f.pitch || 0) * Math.exp(-dt / 0.6);   // sau cú đớp: về dần độ sâu & tư thế bơi thường
-            f.dzS = (f.dzS || 0) + ((f.dz || 0) - (f.dzS || 0)) * Math.min(1, dt * 0.5);   // độ sâu ưa thích theo nhiệt độ / dè chừng, đổi chậm
-            f.g.position.set(f.cx, f.base.y + Math.sin(t * 0.9 + f.ph) * 0.05 + f.dy + f.dzS, f.cz);
-            f.g.rotation.set(0, -f.ang, f.pitch);
-            f.swT = (f.swT ?? t) + dt; f.swim(f.swT, f.wob);   // sóng thân chạy đầu→đuôi + uốn theo hướng rẽ (đồng hồ riêng: đuổi lá thì quẫy nhanh hơn)
+            fishCruise(f, dt, t);   // bơi thường ngày: quẫy – lướt, điểm hẹn, dò bờ, nghỉ, rỉa cây, ngoi đớp mặt nước (animals/fish/cruise.js)
           }
         }
         worldJoin('collide', 90, C => C.moving(() => fishies.map(f => f.g || f.m)));   // va chạm: thân động

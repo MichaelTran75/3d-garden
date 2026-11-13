@@ -3,7 +3,7 @@
 <!-- toc -->
 - Bếp, ghế, đèn · 1.4 KB
 - Lò chiminea · 0.9 KB
-- Kỹ sư, que cá · 0.6 KB
+- Kỹ sư, que cá · 1.3 KB
 <!-- /toc -->
 
 ## Bếp, ghế, đèn
@@ -37,3 +37,6 @@
 - Thử chỗ đứng: bỏ chính vòng bếp, né 4 chân giá treo ≥ 0,32 m.
 - Chỗ nhóm `LIGHT_D` = `FIRE_AVOID_R` + 0,05 (sát hơn ⇒ đầu chúi qua ấm).
 - Cả cảnh 1 mô hình cá: que bếp lửa có cá ⇒ cá rô không cắn câu.
+- Que cá cắm giữa 2 khung chữ A (`FISH_TURN` xoay cả que quanh tâm bếp; gốc que cách chân giá ≥ 0,50 m). Sát chân giá ⇒ người cúi lấy que chạm cọc.
+- Lấy / cắm que: đứng CẠNH que theo tiếp tuyến vòng bếp, lửa bên tay cầm (`G.reach`); đích đi `G.stand` = chỗ đó lùi ra ngoài vòng tránh lửa, `engGrillPhase` nhích vào + quay dần rồi mới cúi. Đứng đối diện lửa ⇒ thân vươn qua tâm bếp: mũ chạm thanh ngang, vai chạm khung, que ở đâu trên vòng cũng vậy.
+- Dời que / giá / đổi `G.reach`: đo lại lấy + cắm từ 8 hướng tới (0 khung hình chạm giá; tay tới điểm cầm ≤ 13 mm).

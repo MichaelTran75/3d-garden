@@ -52,18 +52,18 @@
         }
         function cloudShape(size, wet) {   // đáy phẳng y=0, 2–5 tháp đối lưu, đỉnh vòm súp-lơ; trục dài theo x cục bộ
           const R = Math.random, L = size * (2.0 + R() * 1.0), Wd = size * (0.95 + R() * 0.4), Hm = size * (wet ? 0.75 : 0.7 + R() * 0.5), puffs = [];
-          const add = (x, y, z, r) => { if (puffs.length < 60) puffs.push({ x, y, z, r, tile: (R() * 4) | 0, rot: R() * 6.283, spin: (R() - 0.5) * 0.016, ph: R() * 6.283 }); };
+          let tw = -1; const add = (x, y, z, r) => { if (puffs.length < 60) puffs.push({ x, y, z, r, tw, hf: y / Hm, tile: (R() * 4) | 0, rot: R() * 6.283, spin: (R() - 0.5) * 0.016, ph: R() * 6.283 }); };
           const nb = 7 + (R() * 4 | 0);
           for (let i = 0; i < nb; i++) { const a = R() * 6.283, rr = Math.sqrt(R()) * 0.9, r = size * (0.46 + R() * 0.16) * (1 - 0.3 * rr); add(Math.cos(a) * rr * L * 0.5, r * 0.5, Math.sin(a) * rr * Wd * 0.5, r); }
           const nt = 2 + (R() * (wet ? 2 : 4) | 0);
           for (let t = 0; t < nt; t++) {
-            const tx = (R() - 0.5) * L * 0.65, tz = (R() - 0.5) * Wd * 0.45, top = Hm * (0.5 + R() * 0.5) * (1 - 0.6 * Math.abs(tx) / L);
+            tw = t; const tx = (R() - 0.5) * L * 0.65, tz = (R() - 0.5) * Wd * 0.45, top = Hm * (0.5 + R() * 0.5) * (1 - 0.6 * Math.abs(tx) / L);
             let y = size * 0.45, r = size * (0.52 + R() * 0.12);
             while (y < top) { add(tx + (R() - 0.5) * r * 0.5, y, tz + (R() - 0.5) * r * 0.5, r); y += r * 0.55; r *= 0.87; }
             const nc = 3 + (R() * 3 | 0);
             for (let c = 0; c < nc; c++) { const a = R() * 6.283; add(tx + Math.cos(a) * r * 0.75, y - r * 0.25 + R() * r * 0.35, tz + Math.sin(a) * r * 0.6, r * (0.55 + R() * 0.25)); }
           }
-          return { puffs, L, W: Wd, H: Hm + size * 0.6 };
+          return { puffs, L, W: Wd, H: Hm + size * 0.6, nt, yb: size * 0.45 };
         }
         const CLOUD_VS = `
           attribute vec4 aCenter; attribute vec4 aPuff; attribute vec4 aMisc;   // tâm + cao độ đáy · bán kính, nắng lọt, che khuất trời, độ hiện · ô atlas, góc, tốc xoay, pha
@@ -162,21 +162,46 @@
           if (w.raining) n = Math.max(n, 9);
           return Math.min(MAX_CLOUDS, n);
         }
-        function cloudLight(c, sd) {   // sd = hướng tới nắng (đêm là trăng)
-          const P = c.puffs, n = P.length;
+        function cloudLight(c, sd) {   // sd = hướng tới nắng (đêm là trăng). Đo trên hình HIỆN TẠI c.E (x, y, z, r từng bông: tháp đang mọc / xẹp, nghiêng theo gió)
+          const E = c.E, n = c.puffs.length;
           for (let i = 0; i < n; i++) {
-            const p = P[i]; let tau = 0, occ = 0;
+            const px = E[i * 4], py = E[i * 4 + 1], pz = E[i * 4 + 2], pr = E[i * 4 + 3]; let tau = 0, occ = 0;
+            if (pr < 1e-3) { c.sun[i] = 1; c.amb[i] = 0.5; continue; }
             for (let k = 1; k <= 6; k++) {   // từ tâm bông đi về phía nắng, cộng mật độ các bông chắn đường
-              const st = k * p.r * 0.7, x = p.x + sd.x * st, y = p.y + sd.y * st, z = p.z + sd.z * st;
-              for (let j = 0; j < n; j++) { if (j === i) continue; const q = P[j], dx = x - q.x, dy = y - q.y, dz = z - q.z, f = 1 - (dx * dx + dy * dy + dz * dz) / (q.r * q.r); if (f > 0) tau += f * f; }
+              const st = k * pr * 0.7, x = px + sd.x * st, y = py + sd.y * st, z = pz + sd.z * st;
+              for (let j = 0; j < n; j++) { const qr = E[j * 4 + 3]; if (j === i || qr < 1e-3) continue; const dx = x - E[j * 4], dy = y - E[j * 4 + 1], dz = z - E[j * 4 + 2], f = 1 - (dx * dx + dy * dy + dz * dz) / (qr * qr); if (f > 0) tau += f * f; }
             }
             for (let k = 1; k <= 3; k++) {   // bị các bông phía trên che bớt ánh trời
-              const y = p.y + k * p.r * 0.8;
-              for (let j = 0; j < n; j++) { if (j === i) continue; const q = P[j], dx = p.x - q.x, dy = y - q.y, dz = p.z - q.z, f = 1 - (dx * dx + dy * dy + dz * dz) / (q.r * q.r); if (f > 0) occ += f; }
+              const y = py + k * pr * 0.8;
+              for (let j = 0; j < n; j++) { const qr = E[j * 4 + 3]; if (j === i || qr < 1e-3) continue; const dx = px - E[j * 4], dy = y - E[j * 4 + 1], dz = pz - E[j * 4 + 2], f = 1 - (dx * dx + dy * dy + dz * dz) / (qr * qr); if (f > 0) occ += f; }
             }
             c.sun[i] = Math.max(0.22, Math.exp(-tau * 0.35));
-            c.amb[i] = Math.min(1, Math.max(0, 0.45 + 0.55 * p.y / c.H - occ * 0.06));
+            c.amb[i] = Math.min(1, Math.max(0, 0.45 + 0.55 * py / c.H - occ * 0.06));
           }
+        }
+        // ĐỐI LƯU + CHÂN MÂY (số liệu thời tiết thật):
+        //  · chân mây = mực ngưng tụ LCL ≈ 125 m × (T − Tđiểm sương) (Magnus) ⇒ mọi đám chung một mặt đáy phẳng; ẩm / mưa: đáy thấp, hanh khô: đáy cao (80…94 đv);
+        //  · sức đối lưu theo giờ: yếu sáng sớm + đêm (mây dẹt), mạnh nhất ~14:30 (tháp cao); đang mưa ⇒ đủ sức;
+        //  · mỗi tháp là 1 luồng khí nóng: mọc ~⅓ chu kỳ, xẹp chậm ⅔ còn lại, lệch pha nhau ⇒ đỉnh mây đổi hình liên tục;
+        //  · gió tầng mây mạnh hơn gió chân mây ⇒ tháp nghiêng xuôi gió theo độ cao.
+        const CLOUD_Y0 = 80, CLOUD_Y1 = 94, cloudAir = { base: 84, conv: 1, lean: 0.15 };
+        function cloudAirNow() {
+          const w = liveWeather.state, cur = w.fresh ? w.data?.current : null, T = Number.isFinite(w.temperature) ? w.temperature : 25, rh = cur && Number.isFinite(cur.relative_humidity_2m) ? Math.max(20, cur.relative_humidity_2m) : 85;
+          const g = Math.log(rh / 100) + 17.625 * T / (243.04 + T), lcl = 125 * Math.max(0, T - 243.04 * g / (17.625 - g)), h = liveWeather.localHour;
+          cloudAir.base = CLOUD_Y0 + (CLOUD_Y1 - CLOUD_Y0) * Math.min(1, Math.max(0, (lcl - 150) / 1450));
+          cloudAir.conv = Math.max(cloudWet, 0.45 + 0.55 * Math.exp(-(((h - 14.5) / 3.4) ** 2)));
+          cloudAir.lean = Math.min(0.42, 0.06 + 0.17 * Math.hypot(cloudDrift.x, cloudDrift.y));
+        }
+        const _csm = v => { v = v < 0 ? 0 : v > 1 ? 1 : v; return v * v * (3 - 2 * v); };
+        function cloudForm(c) {   // hình hiện tại → c.E (toạ độ đám, chưa nhân c.g) + c.K (độ hiện từng bông); trả true nếu hình đã lệch khỏi lần tính sáng gần nhất
+          const dl = Math.hypot(cloudDrift.x, cloudDrift.y) || 1, lx = cloudDrift.x / dl * cloudAir.lean, lz = cloudDrift.y / dl * cloudAir.lean, E = c.E, K = c.K;
+          let stale = Math.abs(cloudAir.lean - c.leanLit) > 0.04;
+          for (const T of c.tw) { const f = ((c.age + T.t0) / T.per) % 1; T.g = cloudAir.conv * (0.55 + 0.45 * (f < 0.35 ? _csm(f / 0.35) : 1 - _csm((f - 0.35) / 0.65))); if (Math.abs(T.g - T.lit) > 0.1) stale = true; }
+          for (let i = 0; i < c.puffs.length; i++) {
+            const p = c.puffs[i], g = p.tw < 0 ? 1 : c.tw[p.tw].g, k = p.tw < 0 ? 1 : _csm((g - p.hf * 0.9 + 0.45) / 0.3), y = p.tw < 0 ? p.y : c.yb + (p.y - c.yb) * (0.5 + 0.7 * g), o = i * 4;   // luồng mạnh: tháp vươn 1,2 lần; yếu: lùn 0,65 lần + ngọn tan
+            E[o] = p.x + lx * y; E[o + 1] = y; E[o + 2] = p.z + lz * y; E[o + 3] = k < 0.02 ? 0 : p.r * (0.35 + 0.65 * k); K[i] = Math.min(1, 1.5 * k);
+          }
+          return stale;
         }
         function spawnCloud(initial) {
           const slot = cloudSlots.indexOf(null); if (slot < 0) return;
@@ -190,10 +215,12 @@
             if (cloudSlots.every(o => !o || Math.hypot(o.pos.x - px, o.pos.z - pz) > (o.L + sh.L) * 0.45)) break;
           }
           const life = 300 + Math.random() * 300, n = sh.puffs.length;
-          cloudSlots[slot] = { pos: new THREE.Vector3(px, (wet ? 82 : 86) + Math.random() * 10, pz), puffs: sh.puffs, L: sh.L, W: sh.W, H: sh.H, ax, az, spd: 0.85 + Math.random() * 0.3,
+          const dy = (Math.random() - 0.5) * 1.6;   // đáy các đám lệch nhau rất ít quanh mực ngưng tụ
+          cloudSlots[slot] = { pos: new THREE.Vector3(px, cloudAir.base + dy, pz), dy, puffs: sh.puffs, L: sh.L, W: sh.W, H: sh.H, yb: sh.yb, ax, az, spd: 0.85 + 0.3 * Math.min(1, Math.max(0, (sh.H - 8) / 11)),   // đám cao ăn gió tầng trên: trôi nhanh hơn
+            tw: Array.from({ length: sh.nt }, () => ({ t0: Math.random() * 200, per: 90 + Math.random() * 110, g: 1, lit: -9 })), E: new Float32Array(n * 4), K: new Float32Array(n), leanLit: -9,
             age: initial ? 40 + Math.random() * life * 0.55 : 0, life, alpha: 0, g: 1, sun: new Float32Array(n).fill(1), amb: new Float32Array(n).fill(0.5), dirty: true };
         }
-        for (let i = 0, n = cloudTarget(); i < n; i++) spawnCloud(true);
+        cloudAirNow(); for (let i = 0, n = cloudTarget(); i < n; i++) spawnCloud(true);
         function updateClouds(dt, t) {
           const w = liveWeather.state, U = cloudMat.uniforms;
           // gió khí tượng = hướng gió THỔI TỚI (0° = từ bắc, bắc = −Z) → mây trôi theo chiều ngược lại; tầng mây trôi nhanh hơn gió mặt đất
@@ -201,6 +228,7 @@
           if (w.fresh && w.windDirection !== null) { const a = w.windDirection * Math.PI / 180, sp = Math.min(2.2, 0.35 + (w.windSpeed || 0) * 0.045); tx = -Math.sin(a) * sp; tz = Math.cos(a) * sp; }
           const kd = Math.min(1, dt * 0.08); cloudDrift.x += (tx - cloudDrift.x) * kd; cloudDrift.y += (tz - cloudDrift.y) * kd;
           cloudWet += ((w.raining ? 1 : 0) - cloudWet) * Math.min(1, dt * 0.4);
+          cloudAirNow(); let reform = 1;   // mỗi khung tính lại ánh sáng nhiều nhất 1 đám vì đổi hình
           // số đám bám độ phủ mây thật: thiếu → sinh dần, thừa → cho đám già nhất tan sớm
           const target = cloudTarget(); let alive = 0;
           for (const c of cloudSlots) if (c) alive++;
@@ -213,22 +241,23 @@
           cloudKeys.length = 0;
           for (let s = 0; s < MAX_CLOUDS; s++) {
             const c = cloudSlots[s]; if (!c) continue;
-            c.age += dt; c.pos.x += cloudDrift.x * c.spd * dt; c.pos.z += cloudDrift.y * c.spd * dt;
+            c.age += dt; c.pos.x += cloudDrift.x * c.spd * dt; c.pos.z += cloudDrift.y * c.spd * dt; c.pos.y += (cloudAir.base + c.dy - c.pos.y) * Math.min(1, dt * 0.02);
             const ex = Math.max(Math.abs(c.pos.x) / CLOUD_RX, Math.abs(c.pos.z) / CLOUD_RZ);
             if (c.age >= c.life || ex > 1.02) { cloudSlots[s] = null; continue; }
             const sm = v => { v = Math.min(1, Math.max(0, v)); return v * v * (3 - 2 * v); }, fin = sm(c.age / 40), fout = sm((c.life - c.age) / 45);
             c.alpha = fin * fout * (1 - sm((ex - 0.8) / 0.2));   // hình thành · tan · mờ dần ở rìa vùng trôi
             c.g = 0.72 + 0.28 * fin + 0.1 * (1 - fout);          // lớn dần khi hình thành, bung loãng khi tan
-            if (relight || c.dirty) { cloudLight(c, _cSun); c.dirty = false; }
+            const stale = cloudForm(c);
+            if (relight || c.dirty || (stale && reform-- > 0)) { cloudLight(c, _cSun); c.dirty = false; c.leanLit = cloudAir.lean; for (const T of c.tw) T.lit = T.g; }
             if (c.alpha <= 0.003) continue;
-            for (let i = 0; i < c.puffs.length; i++) { const p = c.puffs[i], key = s * PUFF_CAP + i; cloudDepth[key] = (c.pos.x + p.x * c.g) * _cView.x + (c.pos.y + p.y * c.g) * _cView.y + (c.pos.z + p.z * c.g) * _cView.z; cloudKeys.push(key); }
+            for (let i = 0; i < c.puffs.length; i++) { const o = i * 4; if (c.E[o + 3] === 0) continue; const key = s * PUFF_CAP + i; cloudDepth[key] = (c.pos.x + c.E[o] * c.g) * _cView.x + (c.pos.y + c.E[o + 1] * c.g) * _cView.y + (c.pos.z + c.E[o + 2] * c.g) * _cView.z; cloudKeys.push(key); }
           }
           cloudKeys.sort((a, b) => cloudDepth[a] - cloudDepth[b]);   // xa vẽ trước, gần vẽ sau → alpha chồng đúng thứ tự
           const [A, P, M] = cloudBuf;
           for (let n = 0; n < cloudKeys.length; n++) {
-            const key = cloudKeys[n], c = cloudSlots[(key / PUFF_CAP) | 0], i = key % PUFF_CAP, p = c.puffs[i], o = n * 4;
-            A[o] = c.pos.x + p.x * c.g; A[o + 1] = c.pos.y + p.y * c.g; A[o + 2] = c.pos.z + p.z * c.g; A[o + 3] = c.pos.y;
-            P[o] = p.r * c.g * (1 + 0.035 * Math.sin(t * 0.21 + p.ph)); P[o + 1] = c.sun[i]; P[o + 2] = c.amb[i]; P[o + 3] = c.alpha;   // bông "thở" chậm như mây đang cuộn
+            const key = cloudKeys[n], c = cloudSlots[(key / PUFF_CAP) | 0], i = key % PUFF_CAP, p = c.puffs[i], o = n * 4, E = c.E, q = i * 4;
+            A[o] = c.pos.x + E[q] * c.g; A[o + 1] = c.pos.y + E[q + 1] * c.g; A[o + 2] = c.pos.z + E[q + 2] * c.g; A[o + 3] = c.pos.y;
+            P[o] = E[q + 3] * c.g * (1 + 0.035 * Math.sin(t * 0.21 + p.ph)); P[o + 1] = c.sun[i]; P[o + 2] = c.amb[i]; P[o + 3] = c.alpha * c.K[i];   // bông "thở" chậm như mây đang cuộn
             M[o] = p.tile; M[o + 1] = (p.rot + p.spin * t) % (Math.PI * 2); M[o + 2] = p.spin; M[o + 3] = p.ph;   // xoay chậm, quy về [0, 2π) bằng double
           }
           cloudGeo.instanceCount = cloudDraw = cloudKeys.length; for (const a of cloudAttr) a.needsUpdate = true;

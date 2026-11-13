@@ -351,7 +351,9 @@
             if (!on) { jet.visible = foam.visible = false; JH.n = 0; F.M = 0; dropsTick(dt, L); return; }
             jet.visible = foam.visible = true;
             // nước rời miệng ống: dưới mép nắp, bẻ xuống theo mặt nắp — ghi sổ
-            const th = 0.03 + 0.09 * k, ve = v0 * (1 - 0.12 * Math.cos(FL.th)), al = 0.35 * (Math.PI / 2 - FL.th), ox = faceX + 0.16 + 0.3 * Math.sin(FL.th), oy = OUT.inv + th * 0.5 + 0.01;
+            const th = 0.03 + 0.09 * k, ve = v0 * (1 - 0.12 * Math.cos(FL.th)), al = 0.35 * (Math.PI / 2 - FL.th), eY = flapP.position.y - 0.453 * Math.cos(FL.th), oy0 = OUT.inv + th * 0.5 + 0.01;
+            // mép dưới nắp thấp hơn mặt trên dòng ⇒ nước chui dưới mép nắp (khe giữa nắp và tường), không xuyên qua nắp: điểm ra hạ xuống dưới mép, lùi sau mép 2 cm
+            const fw = Math.min(1, Math.max(0, (oy0 + th * 0.5 + 0.01 - eY) / 0.05)), ox = faceX + 0.16 + 0.3 * Math.sin(FL.th) + fw * (0.453 - 0.3) * Math.sin(FL.th) - fw * 0.015, oy = Math.min(oy0, eY - th * 0.5);
             const ni = JH.i = (JH.i + 1) % 96; JH.t[ni] = t; JH.o[ni * 3] = ox; JH.o[ni * 3 + 1] = oy; JH.o[ni * 3 + 2] = zE;
             JH.v[ni * 3] = ve * Math.cos(al); JH.v[ni * 3 + 1] = -ve * Math.sin(al); JH.v[ni * 3 + 2] = 0; JH.n = Math.min(96, JH.n + 1);
             // các lát của tia: gói nước rời ống τ giây trước, rơi tự do tới hết mặt nước

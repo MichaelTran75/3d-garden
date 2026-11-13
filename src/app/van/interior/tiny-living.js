@@ -8,7 +8,7 @@
           const TL_GLB = window.__tlGlb || 'https://michaeltran75.github.io/3d-garden/models/tinyliving.glb';   // đường dẫn tuyệt đối: bản một tệp nhúng Wix cũng nạp được
           ldTrack(Promise.all([import('https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js'), import('https://esm.sh/three@0.160.0/examples/jsm/libs/meshopt_decoder.module.js')])
             .then(([{ GLTFLoader }, { MeshoptDecoder }]) => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(TL_GLB)).then(ldAfter).then(gl => {
-              const mat = new THREE.MeshLambertMaterial({ vertexColors: true }), part = n => { const o = gl.scene.getObjectByName(n); o.userData.xray = 'keep';
+              const mat = roomLitMat(new THREE.MeshLambertMaterial({ vertexColors: true })), part = n => { const o = gl.scene.getObjectByName(n); o.userData.xray = 'keep';
                 o.traverse(m => { m.userData.noBatch = m.userData.noBake = true; if (m.isMesh) { m.material = mat; m.castShadow = m.receiveShadow = true; edge(m, m.geometry, lineDark); } }); return o; };
               const T = caravanObj.getObjectByName('Bồn cầu hướng cửa phòng tắm'), H = caravanObj.getObjectByName('Bản lề nắp bồn cầu');
               for (const o of T.children) if (o !== H) o.visible = false;

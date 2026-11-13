@@ -1,7 +1,7 @@
 # Bầu trời, ngắm sao
 
 <!-- toc -->
-- Trời · 0.7 KB
+- Trời · 1.9 KB
 - Chòm sao · 0.8 KB
 - Số % mở trang · 0.4 KB
 - Ngắm sao · 1.0 KB
@@ -13,7 +13,12 @@
 - Trăng: tấm quay về camera, shader dựng bán cầu (`uPsi`, `uLi`, `uNo`, `uShine`); ảnh: kinh độ 0 giữa, phải = đông, trên = bắc.
 - `core/night-sky.js` `nightSky`: nền chiếu nổi, sao `STAR_BSC5` (`core/star-catalog.js`), Ngân Hà, sao băng; gỡ lỗi `U`, `lim`, `meteors`, `spawn`.
 - Chân trời neo góc đáy đảo `islandBase` (đo 1 lần từ `terrainMeshes`); camera trực giao ⇒ dời đảo chỉ khớp 1 mức zoom.
-- Mây thật `uCloud` chỉ mờ sao + Ngân Hà; mây khối: `nature/clouds-rain.js`.
+- Mây thật `uCloud` chỉ mờ sao + Ngân Hà; mây khối: `nature/clouds-rain.js` (đáy mây, đối lưu, tháp: trees-wind.md mục Nước, mây).
+- Độ sáng theo chạng vạng thật: `dayLight(eDeg)` nối `DAY_K` (≥ 6° → 1 · 0° → 0,62 · −6° → 0,25 · −12° → 0,06 · −18° → 0); `nightFactor = 1 − dayF` ⇒ đèn đường, mây, nước, nấm, nền trời theo đó. Công thức cũ `(sinEl + 0,04) / 0,34` tối hẳn ở −2,4° (~6 phút sau lặn, sớm hơn trời thật 40–60 phút).
+- Nắng trực tiếp `0,36 + 0,74 · smooth01(−2°, 6°)`: sau lặn chỉ còn hemi / amb (khỏi bóng gắt lúc nhá nhem). `skyDusk` đỉnh −1,5°, hết +10° / −10,5°.
+- `liveWeather.wildlifeAwake` = mặt trời > −6° (`setAwake` trong `js/weather.js`, gán ở đây; không gán ⇒ cố định 06:00–18:30). Pleiku tháng 11 ≈ 05:24–17:41, tháng 6 ≈ 05:00–18:45.
+- Đèn bàn học caravan bật khi mặt trời < −2°; đèn bão / đèn hiên theo `sunElevSin`. Lửa trại (`campfireLevel`) và lịch kỹ sư vẫn theo giờ.
+- Đo: `docs/dusk-probe/dusk.cjs <trang mkdbg> <thư mục ảnh>` (biến `HOURS`, giờ ép `__hourOverride`, trời khoá quang); in `nightFactor`, `skyDusk`, độ cao mặt trời, đèn, thú.
 
 ## Chòm sao
 - `core/constellations.js` + `core/constellation-lines.js`: nét 88 chòm, tên khi rê; `list`, `pickAt`, `overIsland`, `hover`. Đóng gói: `src/tools/constellations/pack.py`.

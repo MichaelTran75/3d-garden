@@ -7,6 +7,7 @@ const fs = require('node:fs'), path = require('node:path'), http = require('node
 const HERE = __dirname, SRC = path.resolve(HERE, '../..'), ROOT = path.resolve(SRC, '../..');
 const arg = (k, d) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : d; };
 const POOL = +arg('--pool', 4), OUT = path.resolve(arg('--out', path.join(os.tmpdir(), 'engineer-audit')));
+const PROBE = arg('--probe', null) && path.resolve(HERE, arg('--probe'));   // đầu dò thêm (stepprobe.js): probeInit() sau audInit, probeReport() cuối đoạn → <out>/step/
 function pwPath() {
   if (process.env.PLAYWRIGHT_PATH) return process.env.PLAYWRIGHT_PATH;
   const npx = path.join(os.homedir(), '.npm/_npx'); let best = null, bv = '';
@@ -30,7 +31,7 @@ execFileSync('python3', [path.join(HERE, 'make-debug.py'), path.join(ROOT, '3D g
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.glb': 'model/gltf-binary', '.bin': 'application/octet-stream', '.jpg': 'image/jpeg', '.png': 'image/png' };
 const server = http.createServer((q, r) => {
   const u = decodeURIComponent(q.url.split('?')[0]);
-  const f = u === '/' || u === '/debug.html' ? page : u === '/harness.js' ? path.join(HERE, 'harness.js') : u.startsWith('/models/') ? path.join(SRC, 'models', path.basename(u)) : null;
+  const f = u === '/' || u === '/debug.html' ? page : u === '/harness.js' ? path.join(HERE, 'harness.js') : u === '/probe.js' && PROBE ? PROBE : u.startsWith('/models/') ? path.join(SRC, 'models', path.basename(u)) : null;
   if (!f || !fs.existsSync(f)) { r.writeHead(404); r.end(); return; }
   r.writeHead(200, { 'content-type': TYPES[path.extname(f)] || 'application/octet-stream' }); fs.createReadStream(f).pipe(r);
 });
@@ -38,12 +39,13 @@ async function runSeg(S, base, chromium) {
   const b = await chromium.launch({ headless: true }), pg = await b.newPage({ viewport: { width: 1280, height: 800 } });
   const cons = []; let lastH = S.h0; const t0 = Date.now();
   pg.on('console', m => { if (m.type() === 'error' || m.type() === 'warning') cons.push([+lastH.toFixed(3), m.type(), m.text().slice(0, 240)]); });
-  pg.on('pageerror', err => cons.push([+lastH.toFixed(3), 'pageerror', String(err).slice(0, 300)]));
+  pg.on('pageerror', err => cons.push([+lastH.toFixed(3), 'pageerror', String(err && err.stack || err).replace(/https?:\/\/[^/]+\//g, '').slice(0, 700)]));
   try {
     await pg.goto(base + '/debug.html', { timeout: 180000 });
     await pg.waitForFunction(() => window.__dbg && window.__tBuilt, null, { timeout: 180000, polling: 300 });
     await pg.evaluate(async () => { const s = document.createElement('script'); s.src = '/harness.js?' + Date.now(); document.head.appendChild(s); await new Promise(r => s.onload = r); window.__resLock = true; });
     await pg.evaluate(wx => { wxLock(wx); return audInit(); }, S.wx || W);
+    if (PROBE) { const r = await pg.evaluate(async o => { const s = document.createElement('script'); s.src = '/probe.js?' + Date.now(); document.head.appendChild(s); await new Promise(r => s.onload = r); return probeInit(o); }, S.probe || {}); process.stdout.write(`${S.name} đầu dò: ${r}\n`); }
     const at = (S.at || []).slice().sort((a, c) => a[0] - c[0]); let h = S.h0;
     while (h < S.h1 - 1e-6) {
       while (at.length && at[0][0] <= h + 1e-6) { const [, js] = at.shift(); const r = await pg.evaluate(js).catch(e => 'LỖI ' + e.message); cons.push([+h.toFixed(3), 'at', js.slice(0, 80) + ' ⇒ ' + JSON.stringify(r).slice(0, 160)]); }
@@ -53,7 +55,13 @@ async function runSeg(S, base, chromium) {
     }
     const A = await pg.evaluate(() => ({ tr: AUD.tr, an: AUD.an, info: AUD.info, frames: AUD.frames }));
     Object.assign(A, { console: cons, seg: S, wallSec: Math.round((Date.now() - t0) / 1000) });
-    fs.writeFileSync(path.join(OUT, S.name + '.json'), JSON.stringify(A)); return S.name + ' xong ' + A.wallSec + ' s';
+    fs.writeFileSync(path.join(OUT, S.name + '.json'), JSON.stringify(A));
+    if (PROBE) {
+      const R = await pg.evaluate(() => probeReport()), dir = path.join(OUT, 'step'); fs.mkdirSync(dir, { recursive: true });
+      for (const s of R.shots || []) { s.img = (s.img || []).map((u, i) => { if (!u.startsWith('data:')) return u; const f = `${S.name}-${s.id}-${i ? 'top' : 'iso'}.jpg`; fs.writeFileSync(path.join(dir, f), Buffer.from(u.split(',')[1], 'base64')); return f; }); }
+      R.seg = S; fs.writeFileSync(path.join(dir, S.name + '.json'), JSON.stringify(R));
+    }
+    return S.name + ' xong ' + A.wallSec + ' s';
   } finally { await b.close(); }
 }
 server.listen(0, '127.0.0.1', async () => {

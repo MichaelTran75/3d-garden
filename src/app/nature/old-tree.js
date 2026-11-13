@@ -68,11 +68,12 @@
           const barkMat = new THREE.MeshLambertMaterial({ color: 0x4a3420 }), deadMat = new THREE.MeshLambertMaterial({ color: 0xE2D6C0 });
           barkMat.userData.sfOld = deadMat.userData.sfOld = 1; deadMat.userData.sfMoss = 0.35;   // cổ thụ bản mới trông giả, trả về bản cũ: vân vỏ bản trước (không ảnh quét, không địa y loang)   // vết loang trên thân cổ thụ màu NÂU ĐEN (không xám trắng)
           // cây cổ thụ: thân to, tán nặng → dao động riêng chậm ~0,32 Hz, cản nhỏ (gỗ già ít tắt dần); cành xa thân rung ~1 Hz
-          const tw = makeTreeWind({ freq: 0.32, zeta: 0.08, lean: 0.45, branchAmp: 0.07 });
+          const RIG = TREE_RIG_ON;   // xương cành (nature/wind-physics.js): 1 xương / cành chính + 1 xương / chùm cành cấp 1; ?rig=off ⇒ gió theo cành kiểu cũ (bough + spray)
+          const tw = makeTreeWind(RIG ? { freq: 0.32, zeta: 0.08, lean: 0.45, branchAmp: 0.07, sway: 0.5, rig: { amp: 0.085, grow: 2.6, freq: 6 } } : { freq: 0.32, zeta: 0.08, lean: 0.45, branchAmp: 0.07, bough: 0.05, spray: [0.3, 0.2], sway: 0.5 });
           windShader(barkMat, tw, 0); windShader(deadMat, tw, 0); g.userData.treeWind = tw;
           surfaceStyle(barkMat, 'bark'); surfaceStyle(deadMat, 'bark'); skyShadeMat(barkMat, 'bark', { cav: 0.6, vtx: true }); skyShadeMat(deadMat, 'bark', { cav: 0.6, vtx: true });   // vân vỏ (core/surface-style.js) — SAU shader gió (windShader ghi đè onBeforeCompile) · bóng trời dưới tán + hốc khuất (core/sky-shade.js) sau cùng
           const leafCols = [0x4e7a39, 0x5e8c44, 0x6fa052, 0x42692f, 0x567f3a, 0x4e7a39, 0x5e8c44, 0x6fa052, 0x42692f, 0x567f3a, 0xe5b82c];
-          const rnd = mulberry32(7777), tips = [], deadTips = [];
+          const rnd = mulberry32(7777), deadTips = [];
           const up = new THREE.Vector3(0, 1, 0), V = (x, y, z) => new THREE.Vector3(x, y, z);
 
           const storkBranchPieces = []; let storkBranchSegment = -1;
@@ -119,13 +120,9 @@
           const trunkAt = (y) => { const i = y <= 0.85 ? 0 : y <= 1.7 ? 1 : y <= 2.4 ? 2 : 3, f = Math.min(1, Math.max(0, (y - trunk[i].y) / (trunk[i + 1].y - trunk[i].y)));   // bán kính + hướng thân ở độ cao y
             return { r: 0.6 * Math.pow(0.85, i) * (1 - 0.15 * f), d: trunk[i + 1].clone().sub(trunk[i]).normalize() }; };
 
-          // 5 cành chính vươn rộng ra sông
+          // cành vươn ra sông (dựng tay; các cành chính khác: tán kiểu bonsai bên dưới)
           const branches = [
-            [V(-0.1, 1.7, 0.25), V(-1.1, 2.3, 0.45), V(-2.2, 2.8, 0.6), V(-3.4, 3.1, 0.55), V(-4.8, 3.25, 0.4)],
-            [V(0.2, 2.2, 0.1), V(0.95, 2.7, -0.15), V(1.85, 3.15, -0.05), V(2.85, 3.4, 0.2)],
-            [V(0.1, 2.4, 0.2), V(0.35, 3.0, -0.9), V(0.55, 3.55, -1.75)],
-            [V(0.06, 3.0, 0.22), V(0.18, 3.65, 0.25), V(0.35, 4.35, 0.2)],
-            [V(0.1, 2.6, 0.2), V(1.2, 3.2, 0.8), V(2.1, 3.7, 1.3)]
+            [V(-0.1, 1.7, 0.25), V(-1.1, 2.3, 0.45), V(-2.2, 2.8, 0.6), V(-3.4, 3.1, 0.55), V(-4.8, 3.25, 0.4)]
           ];
 
           // Snap branches' start point to trunk line
@@ -143,23 +140,7 @@
             }
           });
 
-          g.userData.mainBranches = branches.map(br => br.map(v => v.clone()));   // đường tâm 5 cành chính (toạ độ cục bộ) — chỗ bướm đậu trú mưa
-          // NHÁNH MỚI ĐỆ QUY mọc tiếp từ đầu mỗi cành chính — đường kính nhỏ dần ×0.6/cấp giống cây táo,
-          // hướng bị ghìm ngang (dir.y ≤ 0.5) để tán tỏa rộng mà KHÔNG tăng chiều cao cây
-          // par/atEnd/pr/pT: cành mẹ · mọc ở NGỌN cành mẹ (chỗ chẻ ⇒ nối liền / tách dần) hay mọc ngang giữa cành (cắm từ tim ra, cổ cành) · bán kính + hướng mẹ ở đó
-          function sprout(a, dir, len, r, depth, bIdx, isSide = false, par = null, atEnd = true, pr, pT) {
-            const b = a.clone().addScaledVector(dir, len);
-            b.x += (rnd() - 0.5) * len * 0.3; b.z += (rnd() - 0.5) * len * 0.3;
-            const L = mkLimb(LB, a, r, par, atEnd, pr, pT);
-            crookedLimb(a, b, r, r * 0.54, L); // Đường kính nhỏ hơn 10% (0.6 * 0.9 = 0.54)
-            if (depth >= 3 || r * 0.54 < 0.008) { tips.push({ pos: b, bIdx, isSide, from: a.clone(), dir: dir.clone(), radius: r, limb: L }); return; }
-            const n = 2 + ((rnd() * 2) | 0);
-            for (let k = 0; k < n; k++) {
-              const nd = dir.clone().add(V((rnd() - 0.5) * 1.5, (rnd() - 0.4) * 0.6, (rnd() - 0.5) * 1.5)).normalize();
-              if (nd.y > 0.5 || nd.y < 0) { nd.y = Math.max(0, Math.min(0.5, nd.y)); nd.normalize(); }   // không chúc xuống (cành sông khỏi chọc nước) · không vọt cao
-              sprout(b, nd, len * 0.875 * (0.75 + rnd() * 0.5), r * 0.54, depth + 1, bIdx, isSide, L, true); // 25% longer (0.7 * 1.25 = 0.875)
-            }
-          }
+          let RV = null;   // cành sông: cành mẹ + bán kính + điểm, cho phần nối tiếp kiểu bonsai
           for (let bIdx = 0; bIdx < branches.length; bIdx++) {
             const br = branches[bIdx];
             let rb = (bIdx === 0) ? 0.237 : 0.182; const rbs = [rb];
@@ -172,39 +153,64 @@
               storkBranchSegment = -1;
               rb *= 0.78; rbs.push(rb);
             }
-            const e = br[br.length - 1], d0 = e.clone().sub(br[br.length - 2]).normalize();
-            sprout(e, d0, 0.62 * 1.25, rb * 0.9, 0, bIdx, false, BL, true); // 25% longer, 10% thinner
-
-            // Sinh thêm nhánh đệ quy phụ từ giữa thân của cành chính (trừ cành hướng ra sông bIdx === 0)
-            if (bIdx !== 0 && br.length >= 3) {
-              const jointsToSprout = br.length > 3 ? [1, 2] : [1];
-              for (const idx of jointsToSprout) {
-                const midPt = br[idx];
-                const d_mid = midPt.clone().sub(br[idx - 1]).normalize();
-                const numSprouts = idx === 1 ? 2 : 3;
-                for (let k = 0; k < numSprouts; k++) {
-                  const sideDir = d_mid.clone().add(V((rnd() - 0.5) * 2.2, 0.2 + rnd() * 0.4, (rnd() - 0.5) * 2.2)).normalize();
-                  sprout(midPt, sideDir, 0.42 * (0.8 + rnd() * 0.4) * 1.25, rbs[idx] * 0.55 * 0.9, 1, bIdx, true, BL, false, rbs[idx], d_mid); // 25% longer, 10% thinner
-                }
-              }
-            }
-
-            // Phục hồi cành phụ cho cành vươn sông (bIdx === 0), cũng ngắn đi 20%
-            if (bIdx === 0) {
-              if (br.length > 3) {
-                const midPt = br[2];
-                const d_mid = midPt.clone().sub(br[1]).normalize();
-                const sideDir = d_mid.clone().add(V((rnd() - 0.5) * 1.6, 0.38, (rnd() - 0.5) * 1.6)).normalize();
-                sprout(midPt, sideDir, 0.52 * 1.25 * 0.8, rbs[2] * 0.8 * 0.9, 1, bIdx, true, BL, false, rbs[2], d_mid);
-              }
-              if (br.length > 2) {
-                const lowPt = br[1];
-                const d_low = lowPt.clone().sub(br[0]).normalize();
-                const riverDir = d_low.clone().add(V(-1.2, -0.15, (rnd() - 0.5) * 1.4)).normalize();
-                sprout(lowPt, riverDir, 0.48 * 1.25 * 0.8, rbs[1] * 0.85 * 0.9, 1, bIdx, true, BL, false, rbs[1], d_low);
-              }
-            }
+            RV = { L: BL, r: rbs, br };
           }
+          // ---- TÁN KIỂU BONSAI ----
+          // Dựng trong hệ ĐỨNG W (y = phương thẳng đứng thật; nhóm ngả quanh z) rồi đổi về toạ độ nhóm ⇒ tầng lá nằm ngang thật.
+          // Ngọn sống nối tiếp thân, uốn dần về thẳng đứng; mỗi khúc uốn 1 cành chính ở MẶT NGOÀI khúc uốn, so le quanh thân, càng cao càng ngắn + mảnh.
+          // Cành chính: rời thân hơi ngóc, võng xuống dưới ngang, đầu ngóc lại; gấp khúc trái phải; 1/4 sát thân để trần. Cành cấp 2 / 3 xoè quạt ngang, so le.
+          // RNG riêng ⇒ thân, cành sông, chỗ cò đậu không đổi. Cành gỗ chết = ngọn cũ đứng cạnh ngọn sống: cành + tầng lá tránh vùng x −1,0…−0,6 · z −0,35…0,3 trên h 3
+          const cT = Math.cos(g.rotation.z), sT = Math.sin(g.rotation.z), toL = v => V(v.x * cT + v.y * sT, v.y * cT - v.x * sT, v.z), toW = v => V(v.x * cT - v.y * sT, v.x * sT + v.y * cT, v.z);
+          const bR = mulberry32(7801), pads = [], twigs = [], crownLines = [], hz = az => V(Math.cos(az), 0, Math.sin(az)), turn = (d, a) => V(d.x * Math.cos(a) - d.z * Math.sin(a), 0, d.x * Math.sin(a) + d.z * Math.cos(a));
+          const wLimb = (par, P, R, atEnd, pr, pT) => { const L = mkLimb(LB, toL(P[0]), R[0], par, atEnd, pr, pT && toL(pT)); L.clean = true; for (let i = 1; i < P.length; i++) { L.P.push(toL(P[i])); L.R.push(R[i]); } return L; };
+          const off = (a, d, f, s, w, h) => a.clone().addScaledVector(d, f).addScaledVector(s, w).add(V(0, h, 0));
+          let padV = 0.5, upK = 1, nBough = 0;   // tầng lá: cao / bán kính ngang · mức ngóc đầu cành con
+          // cành cấp 2 (lvl 1) + cấp 3 (lvl 2): 3 đoạn gấp nhẹ, ngọn ngóc lên; mỗi ngọn = 1 cụm lá
+          function spray(par, a, dir, len, r, pr, pT, atEnd, lvl, rh) {
+            const s = V(-dir.z, 0, dir.x), w = 0.13 * len * (bR() < 0.5 ? 1 : -1), u = upK * len;
+            const P = [a, off(a, dir, 0.36 * len, s, w, 0.02 * u), off(a, dir, 0.7 * len, s, -0.7 * w, 0.045 * u), off(a, dir, len, s, 0.25 * w, 0.14 * u)], R = [r, r * 0.74, r * 0.5, r * 0.26];
+            const L = wLimb(par, P, R, atEnd, pr, pT); L.sp = lvl; for (let i = lvl > 1 ? 0 : 1; i < 3; i++) twigs.push([P[i], P[i + 1], 0.2 + 0.22 * rh, L, i]);
+            if (lvl < 2 && len > 0.38) {
+              let sd = w > 0 ? 1 : -1;
+              for (let j = 1; j <= 2; j++, sd = -sd) { const tg = P[j + 1].clone().sub(P[j - 1]), th = tg.clone().setY(0).normalize();
+                spray(L, P[j], turn(th, sd * (0.8 + bR() * 0.35)), len * (0.5 - 0.1 * j) * (0.85 + bR() * 0.3), R[j] * 0.55, R[j], tg.normalize(), false, lvl + 1, rh * 0.9); }
+              if (len > 0.8) { const m = P[2].clone().lerp(P[3], 0.45), tg = P[3].clone().sub(P[2]), th = tg.clone().setY(0).normalize();
+                spray(L, m, turn(th, sd * (0.8 + bR() * 0.3)), len * 0.24 * (0.85 + bR() * 0.3), (R[2] + R[3]) * 0.27, (R[2] + R[3]) * 0.5, tg.normalize(), false, lvl + 1, rh * 0.85); }
+            }
+            pads.push({ p: P[3], rh, rv: rh * padV, L, i: 3 });
+          }
+          function bough(par, base, az, len, r, drop, sg, pr, pT, atEnd) {
+            const d = hz(az), s = V(-d.z, 0, d.x), T = [0.16, 0.38, 0.6, 0.8, 1], H = [0.07, 0.035 - 0.5 * drop, -drop, -1.05 * drop, -0.7 * drop], Z = [0.07, -0.11, 0.095, -0.07, 0.03], RR = [0.86, 0.66, 0.48, 0.33, 0.2];
+            const P = [base], R = [r]; for (let i = 0; i < 5; i++) { P.push(off(base, d, len * T[i], s, sg * len * Z[i], len * H[i])); R.push(r * RR[i]); }
+            const L = wLimb(par, P, R, !!atEnd, pr, pT), rh = 0.4 + 0.05 * len; L.bg = ++nBough; crownLines.push(L.P.map(v => v.clone())); for (let i = 2; i < 5; i++) twigs.push([P[i], P[i + 1], 0.42, L, i]);
+            { const m = P[1].clone().lerp(P[2], 0.5), tg = P[2].clone().sub(P[1]), th = tg.clone().setY(0).normalize();   // cành cấp 2 đầu tiên: giữa đoạn, phía đối diện khúc gấp kế
+              spray(L, m, turn(th, sg * (0.95 + bR() * 0.2)), len * 0.36 * (0.9 + bR() * 0.2), (R[1] + R[2]) * 0.24, (R[1] + R[2]) * 0.5, tg.normalize(), false, 1, rh); }
+            for (let i = 2; i <= 4; i++) { const tg = P[i + 1].clone().sub(P[i - 1]), th = tg.clone().setY(0).normalize(), sd = Math.sign(Z[i - 1]) * sg;   // mặt ngoài từng khúc gấp
+              spray(L, P[i], turn(th, sd * (0.95 + bR() * 0.2)), len * [0.42, 0.34, 0.26][i - 2] * (0.9 + bR() * 0.2), R[i] * 0.5, R[i], tg.normalize(), false, 1, rh); }
+            const te = P[5].clone().sub(P[4]).setY(0).normalize();   // đầu cành chẻ đôi
+            for (const k of [-1, 1]) spray(L, P[5], turn(te, k * (0.5 + bR() * 0.2)), len * 0.17 * (0.9 + bR() * 0.2), R[5] * 0.8, undefined, undefined, true, 1, rh * 0.9);
+            return L;
+          }
+          { // cành thấp nhất: trên thân, ngược phía thân ngả
+            const tk = trunkAt(2.12); bough(TR, toW(getTrunkPoint(2.12)), -0.55, 3.4, 0.17, 0.1, 1, tk.r, toW(tk.d));
+            // ngọn sống [h, x, z, r, lệch ra phía cành] + cành ở khúc đó [hướng, dài, bán kính, võng]
+            const AX = [[2.85, -1.93, 0.24, 0.235, 0.16, 1.75, 2.9, 0.15, 0.07], [3.4, -1.98, 0.16, 0.19, 0.13, -2.5, 2.5, 0.13, 0.08], [3.92, -1.85, 0.26, 0.15, 0.11, 0.75, 2.0, 0.11, 0.08],
+              [4.4, -1.72, 0.14, 0.115, 0.09, 3.0, 1.5, 0.09, 0.07], [4.82, -1.66, 0.22, 0.085, 0.07, -0.9, 1.05, 0.07, 0.05], [5.2, -1.69, 0.18, 0.06, 0]];
+            const P = [toW(trunk[4])], R = [0.27]; for (const n of AX) { P.push(V(n[1], n[0], n[2]).addScaledVector(hz(n[5] || 0), n[4])); R.push(n[3]); }
+            const LD0 = wLimb(TR, P, R, true); for (let i = 2; i < 6; i++) twigs.push([P[i], P[i + 1], 0.4, LD0, i]);
+            for (let i = 0; i < 5; i++) { const n = AX[i]; bough(LD0, P[i + 1], n[5], n[6], n[7], n[8], i % 2 ? 1 : -1, R[i + 1], P[i + 2].clone().sub(P[i]).normalize()); }
+            // đỉnh tán: vòm tròn — 5 cành ngắn toả quanh ngọn + 1 ngọn giữa
+            padV = 0.8; const E = P[6], a0 = bR() * 6.2832;
+            const top = [E, off(E, hz(a0), 0.04, up, 0, 0.2), off(E, hz(a0 + 2), 0.03, up, 0, 0.4)]; const TL = wLimb(LD0, top, [0.055, 0.034, 0.012], true); pads.push({ p: top[2], rh: 0.5, rv: 0.42, L: TL, i: 2 });
+            for (let k = 0; k < 5; k++) spray(LD0, E, hz(a0 + k * 1.2566 + (bR() - 0.5) * 0.3), 0.55 + bR() * 0.15, 0.04, undefined, undefined, true, 1, 0.5);
+          }
+          { // cành sông: đoạn to dựng tay (cò đậu) nối liền 1 cành chính vươn ngang ra mặt nước; 1 cành cấp 2 sát thân ở phía khuất (chỗ cò đứng để trống)
+            const B = RV.br.map(toW), te = B[4].clone().sub(B[3]).setY(0).normalize(), tg = B[2].clone().sub(B[0]), th = tg.clone().setY(0).normalize(); padV = 0.45;
+            spray(RV.L, B[1], turn(th, 1.1), 0.95, RV.r[1] * 0.42, RV.r[1], tg.normalize(), false, 1, 0.5);
+            const rb = bough(RV.L, B[4], Math.atan2(te.z, te.x), 3.0, RV.r[4], 0.06, -1, undefined, undefined, true);
+            RV.L.bg = rb.bg; RV.L.bgn = rb; rb.bgc = RV.L;   // đoạn dựng tay + cành nối tiếp = 1 cành chính cho gió
+          }
+          g.userData.mainBranches = [branches[0].map(v => v.clone()), ...crownLines];   // đường tâm cành sông + cành chính của tán (toạ độ nhóm) — bướm đậu trú mưa dùng cành 1–4
           // nhánh GỖ CHẾT trắng (đặc trưng cây già) — giữ tay
           const dead = [V(0.22, 2.4, 0.1), V(0.95, 3.0, -0.25), V(1.55, 3.6, -0.1), V(1.95, 4.0, 0.1)];
           const tk3 = trunkAt(2.4), DL = mkLimb(LD, dead[0], 0.2, null, false, tk3.r, tk3.d);   // cắm ngang vào thân (lưới riêng — vật liệu gỗ chết)
@@ -241,13 +247,12 @@
             for (let i = 1; i <= steps; i++) { const t = i / steps; L.P.push(curve.getPoint(t)); L.R.push(tp.radius * (0.10 + 0.90 * Math.pow(1 - t, 1.15))); }
             tp.pos.copy(end); // Leaf clusters and falling-leaf origins follow the shorter twig.
           }
-          for (const tp of tips) refineTerminalTwig(tp);
           for (const tp of deadTips) refineTerminalTwig(tp);
           // CÀNH GAI NGẮN dọc cành (bản quét "Tree Scan Free": cành già mọc dày cành con ngắn mảnh, chĩa gần vuông góc, gập 1 khuỷu — dáng "xơ xác" của cây già)
           // RNG riêng ⇒ dáng, lá, chỗ đậu không đổi; cắm từ tim cành mẹ ra như cành mọc ngang (barkTubes kind 2)
           const spR = mulberry32(7791);
           for (const L of LB.slice()) {
-            if (L === TR || L.R[0] < 0.03 || L.R[0] > 0.1) continue;   // cành vừa và nhỏ trong tán (cành to sát thân thì không — thành gạc hươu)
+            if (L === TR || L.clean || L.R[0] < 0.03 || L.R[0] > 0.1) continue;   // cành vừa và nhỏ trong tán (cành to sát thân thì không — thành gạc hươu)
             for (let i = 0; i < L.P.length - 1; i++) {
               const a = L.P[i], dd = L.P[i + 1].clone().sub(a), sl = dd.length(); dd.normalize();
               for (let t = spR() * 0.3; t < sl; t += 0.22 + spR() * 0.3) {
@@ -258,23 +263,45 @@
               }
             }
           }
+          // GIÓ THEO CÀNH (nature/wind-physics.js brMix / brBytes): mỗi điểm cành mang W = [cành chính 1…, vị trí dọc cành chính 0…1, pha chùm cành con 1…255, vị trí dọc chùm, hệ số chùm].
+          //  Cành chính: vị trí = phần cung từ gốc cành. Cành mọc trên cành khác: lấy trị tại chỗ cắm (đi cùng cành mẹ, không rách chỗ nối). Chùm cấp 2: pha riêng, cấp 3 + gai nối tiếp.
+          //  Thân, ngọn sống, mấu: 0 (chỉ theo thân). LB theo thứ tự tạo ⇒ cành mẹ luôn xong trước.
+          const wMix = RIG ? rigMix : brMix, wBytes = RIG ? rigBytes : brBytes;
+          { const arc = P => { const a = [0]; for (let i = 1; i < P.length; i++) a.push(a[i - 1] + P[i].distanceTo(P[i - 1])); return a; }, tot = P => arc(P).pop(), q = new THREE.Vector3(), ab = new THREE.Vector3();
+            const at = (M, p) => { let bd = 1e9, bi = 0, bt = 0; for (let i = 0; i < M.P.length - 1; i++) { const a = M.P[i]; ab.subVectors(M.P[i + 1], a); const t = Math.min(1, Math.max(0, q.subVectors(p, a).dot(ab) / ab.lengthSq())), d = q.copy(a).addScaledVector(ab, t).distanceTo(p); if (d < bd) { bd = d; bi = i; bt = t; } } return wMix(M.W[bi], M.W[bi + 1], bt); };
+            let nz = 0; const lines = [], bones = [{ o: TR.P[0], t: TR.P[TR.P.length - 1], par: 0, d: 0 }], bgBone = {}, rigLines = [], ease = s => s * (2 - s);
+            for (const L of LB) { const A = arc(L.P), len = A[A.length - 1], a0 = L.par && L.par.W ? at(L.par, L.P[0]) : [0, 0, 0, 0, 0];
+              if (RIG) {   // W = [xương, trọng số dọc cành s(2 − s), xương mẹ, độ chùng = 1 − trọng số của cành mẹ tại chỗ cắm]
+                if (L.bg) { const pre = L.bgc ? tot(L.bgc.P) : 0, all = pre + len + (L.bgn ? tot(L.bgn.P) : 0);
+                  if (!bgBone[L.bg]) { bgBone[L.bg] = bones.length; bones.push({ o: (L.bgc || L).P[0], t: (L.bgn || L).P[(L.bgn || L).P.length - 1], par: 0, d: 1 }); }
+                  L.W = A.map(a => [bgBone[L.bg], ease((pre + a) / all), 0, 0, 0]); (rigLines[L.bg - 1] = rigLines[L.bg - 1] || { P: [], W: [] }).P.push(...L.P); rigLines[L.bg - 1].W.push(...L.W);
+                  if (!L.bgc) lines[L.bg - 1] = (L.bgn ? [...L.P, ...L.bgn.P.slice(1)] : L.P).map(v => v.clone()); }
+                else if (L.sp === 1) { const sl = a0[0] ? Math.round(255 * (1 - a0[1])) / 255 : 0, b = bones.length; bones.push({ o: L.P[0], t: L.P[L.P.length - 1], par: a0[0], d: 2, pw: 1 - sl, fq: 2.5 }); L.W = A.map(a => [b, ease(a / len), a0[0], sl, 0]); }
+                else L.W = A.map(() => a0.slice());
+                continue; }
+              if (L.bg) { const pre = L.bgc ? tot(L.bgc.P) : 0, all = pre + len + (L.bgn ? tot(L.bgn.P) : 0); L.W = A.map(a => [L.bg, (pre + a) / all, 0, 0, 0]); if (!L.bgc) lines[L.bg - 1] = (L.bgn ? [...L.P, ...L.bgn.P.slice(1)] : L.P).map(v => v.clone()); }
+              else if (L.sp === 1) { const z = 1 + (nz++ * 37) % 255, ks = 1 / Math.sqrt(len * 1.6); L.W = A.map(a => [a0[0], a0[1], z, a * ks, ks]); }
+              else L.W = A.map(a => [a0[0], a0[1], a0[2], a0[2] ? a0[3] + a * a0[4] : 0, a0[4]]); }
+            g.userData.boughs = lines; if (RIG) { g.userData.rigLimbs = bones; g.userData.rigLines = rigLines; } }
           // SỢI BỆN kiểu thân pohutukawa (nature/flowers-trees.js ropeChain/ropeAt): 12 sợi to nhỏ xoắn 0,5 rad/m, rãnh sâu ~21% r (gốc ×2,5) · u lồi + 1 hốc mục trên thân
           //  (s: m dọc thân tính từ chân cắm đất 1,37 m · góc quanh thân: 0 = +x, −π/2 = +z cục bộ; hốc quay về hướng nhìn mặc định +x+z)
           const ROPE = { minR: 0.3, nTrunk: 12, D: 0.26, twist: 0.5, trunk: { burls: [[2.25, 2.2, 0.32, 0.1], [4.7, 0.5, 0.3, 0.08], [5.9, -2.5, 0.38, 0.09], [3.3, -0.9, 0.22, 0.07], [6.4, 2.7, 0.55, 0.16]], cav: [5.2, -0.9, 0.45, 0.32] } };   // bướu cuối = khớp chạc phình ở mặt ngoài chỗ thân gập (bản quét Tree Scan Free)
-          const OT = { flare: 0.5, flareH: 0.85, lobes: 6, sink: 0.55, wS: 2.76 * 0.9, segMax: 12, nodes: false, rope: ROPE };   // bạnh 6 múi ~2 m như 6 cầu dẹt cũ (đá cuội quanh gốc còn lộ) · gốc cắm sâu: thân ngả 35° ⇒ mép trên vòng chân thân vẫn chạm đất
+          const OT = { flare: 0.5, flareH: 0.85, lobes: 6, sink: 0.55, wS: 2.76 * 0.9, segMax: 12, nodes: false, rope: ROPE, br: !RIG, rig: RIG };   // bạnh 6 múi ~2 m như 6 cầu dẹt cũ (đá cuội quanh gốc còn lộ) · gốc cắm sâu: thân ngả 35° ⇒ mép trên vòng chân thân vẫn chạm đất
           g.add(...barkMesh(barkTubes(LB, OT), barkMat)); g.add(...barkMesh(barkTubes(LD, OT), deadMat));
-          // ---- LÁ HEXAGON chỉ tập trung ở vùng cành đệ quy sub-branches và mở rộng không gian tán lá ----
-          const pts = [];
-          for (const tp of tips) {
-            const isRiver = (tp.bIdx === 0);
-            const radius = isRiver ? 1.1 : 1.62;   // các cành còn lại tăng phủ 30% (1.25 * 1.3 ≈ 1.62)
-            let count = isRiver ? 70 : 140;       // cành sông giảm mật độ lá 50% (140 * 0.5 = 70)
-            if (tp.isSide) {
-              count = Math.round(count * 0.8);  // Giảm 20% mật độ lá quanh các nhánh phụ mới đệ quy
-            }
-            cloudPts(rnd, tp.pos.x, tp.pos.y + 0.08, tp.pos.z, radius, count, pts);
-          }
-          tuftInstanced(g, rnd, pts, leafHexGeo(0.05), leafCols, 1, 0.7, tw, 0.04);   // lá cây cổ thụ đặc
+          // TÁN LÁ: mỗi ngọn cành 1 đám lá rải đều TRONG KHỐI bầu dục (kiểu tán táo: cloudPts), tâm nhô trên ngọn cành; mỗi đám = 1 khối chính + 2 khối con lệch tâm
+          //  (viền không tròn đều). Đám kề nhau chồng lên nhau thành 1 tầng / cành chính; bán kính ngang CLOUD × rh, cao = ngang × min(1,15, 0,8 + 0,6 × padV), tâm nâng lệch nhau 0,15–0,55 × cao ⇒ đám gần tròn, không thành tầng dẹt
+          //  (dáng bonsai giữ nhờ cành + khe giữa tầng, không nhờ cụm lá dẹt). Lá lẻ dọc cành con: rải trong ống quanh cành. RNG riêng; tránh cành gỗ chết
+          const pts = [], ptW = [], LEAF_MAX = 14500, TW = 2000, CLOUD = 1.6;
+          { const sR = mulberry32(7811), nearDead = l => { for (let i = 0; i < dead.length - 1; i++) { const a = dead[i], b = dead[i + 1], ab = b.clone().sub(a), k = Math.min(1, Math.max(0, l.clone().sub(a).dot(ab) / ab.lengthSq())); if (a.clone().addScaledVector(ab, k).distanceTo(l) < 0.34) return true; } return false; };
+            const put = (w, W) => { const l = toL(w); if (!nearDead(l)) { pts.push([l.x, l.y, l.z]); wBytes(W, ptW); } };
+            const ball = (cx, cy, cz, rh, rv, n, W) => { for (let i = 0; i < n; i++) { const a = sR() * 6.2832, ct = 2 * sR() - 1, st = Math.sqrt(1 - ct * ct), k = Math.cbrt(sR()); put(V(cx + rh * st * Math.cos(a) * k, cy + rv * ct * k, cz + rh * st * Math.sin(a) * k), W); } };
+            const len = twigs.reduce((q, t) => q + t[0].distanceTo(t[1]), 0);
+            for (const [a, b, w, L, li] of twigs) { const n = Math.round(TW * a.distanceTo(b) / len); for (let i = 0; i < n; i++) { const f = sR(), q = a.clone().lerp(b, f), an = sR() * 6.2832, r = w * Math.sqrt(sR()); put(V(q.x + r * Math.cos(an), q.y + w * (0.9 * sR() - 0.3), q.z + r * Math.sin(an)), wMix(L.W[li], L.W[li + 1], f)); } }
+            const left = LEAF_MAX - pts.length, sum = pads.reduce((q, t) => q + t.rh * t.rh * t.rv, 0);
+            for (const t of pads) { const n = Math.floor(left * t.rh * t.rh * t.rv / sum), rh = CLOUD * t.rh, rv = rh * Math.min(1.15, 0.8 + 0.6 * t.rv / t.rh), W = t.L.W[t.i], cy = t.p.y + (0.15 + 0.4 * sR()) * rv;
+              ball(t.p.x, cy, t.p.z, rh, rv, Math.round(n * 0.56), W);
+              for (let j = 0; j < 2; j++) { const an = sR() * 6.2832, d = rh * (0.45 + 0.4 * sR()), q = 0.5 + 0.2 * sR(); ball(t.p.x + d * Math.cos(an), cy + rv * (0.9 * sR() - 0.35), t.p.z + d * Math.sin(an), rh * q, rv * q, Math.round(n * 0.22), W); } } }
+          tuftInstanced(g, rnd, pts, leafHexGeo(0.05), leafCols, 1, 0.7, tw, 0.04).geometry.setAttribute('aBr', new THREE.InstancedBufferAttribute(Uint8Array.from(ptW), 4, true));   // lá cây cổ thụ đặc
           g.userData.leafPts = Float32Array.from(pts.flat());   // lá vàng rụng sinh từ chính các chùm lá (toạ độ cục bộ) — mảng số x, y, z liền (bản [x, y, z] từng điểm tốn ~1 MB)
 
           bakeStatic(g);

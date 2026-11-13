@@ -22,4 +22,17 @@ cd 3d-garden && python3 build.py && node src/tools/engineer-audit/run.cjs --pool
 - `floating` / `sunk`: lệch mặt đất > 0,65 m (> 1 bậc voxel)
 - `forceStale`: lệnh Tools treo > 25 phút (ngắm sao > 65)
 - `leftover`: đồ việc trước (drone, thảm, máy cắt cỏ…) còn chạy sau khi đổi việc
+- `dishBusy`: bát / chảo trên tay khi làm việc khác (ngoài trời chỉ được bưng khi về ghế ăn / vào xe; trong xe không cầm cùng cốc, sách, lon)
 - `info` (không phải lỗi): việc theo lịch, tự chủ, mốc xong
+
+## Bước đi, lấn vật (`stepprobe.js`, `stepsum.py`)
+
+```bash
+node src/tools/engineer-audit/run.cjs --pool 4 --out <out> --probe stepprobe.js && python3 src/tools/engineer-audit/stepsum.py <out>/step
+```
+
+- Kỹ sư + chó, 10 lần / giây khi đi: lưới điểm trong từng khối thân (thân, chân, tay, đồ cầm, đuôi) có nằm trong khoảng đặc lớp va chạm không ⇒ đợt lấn theo vật × trạng thái × phần thân; lượt xuyên (`ghost`), khung kẹt, nhảy vị trí; đợt thân chụp 2 góc
+- `stepsum.py <trước>/step <sau>/step`: thêm bảng so. So bằng số điểm lưới; cột fp dùng `colFH` của app ⇒ đổi nghĩa khi đổi dấu chân
+- Chạm có chủ ý (ngồi ghế, chó trên đống củi) tách riêng (`MEANT`)
+- Vết từng khung quanh 1 điểm: đoạn có `probe: { fine: { a: 'eng' | 'dog', x, z, r, max } }`
+- Bẫy: không dựng lại trang khi đang chạy; tên vật = vật gần nhất ⇒ cột bạt, bậc cửa mang tên vật kề; cây + củi ngẫu nhiên mỗi lần mở ⇒ so 2 lượt theo tỉ lệ, không theo từng đợt

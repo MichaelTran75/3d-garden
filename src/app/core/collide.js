@@ -144,6 +144,13 @@
           for (let L = 0; L < 5; L++) { if (!(mask >> L & 1) || !colCell(L, x, z)) continue; const Y = _colT.y; for (let k = _colT.off[_colI], e = _colT.off[_colI + 1]; k < e; k += 2) if (Y[k] <= gb && Y[k + 1] > y * 100 && Y[k + 1] <= lim) y = Y[k + 1] / 100; }
           return y;
         }
+        const colBit = (x, z) => { const fx = x / COL.C, fz = z / COL.C; return 1 << (Math.min(3, (fx - Math.floor(fx)) * 4 | 0) + 4 * Math.min(3, (fz - Math.floor(fz)) * 4 | 0)); };   // bit ô con 3,1 cm chứa (x, z) trong mặt nạ 4 × 4 của cột
+        function colRestY(x, z, ref, up, mask = 7) {   // như colWalkY nhưng chỉ nhận khoảng đặc phủ đúng ô con dưới điểm (x, z): vật nhỏ (lõi táo…) không nằm lơ lửng cạnh mép vật
+          let y = cowY(x, z); if (!COL.ready) return y;
+          const lim = (ref + up) * 100, bit = colBit(x, z);
+          for (let L = 0; L < 5; L++) { if (!(mask >> L & 1) || !colCell(L, x, z)) continue; const Y = _colT.y, M = _colT.m; for (let k = _colT.off[_colI], e = _colT.off[_colI + 1]; k < e; k += 2) if ((M[k >> 1] & bit) && Y[k + 1] > y * 100 && Y[k + 1] <= lim) y = Y[k + 1] / 100; }
+          return y;
+        }
         // dấu chân elip (tâm x, z · hướng mũi ang · nửa dài a · nửa rộng b) có vướng trong dải [đất + lo, đất + hi]: trả ĐỘ LẤN (lấy mẫu lưới ~ô 0,125,
         // mẫu càng gần tâm elip càng nặng: mép 0,1 → tâm 1) — trượt dọc mặt vật giữ nguyên độ lấn, đi sâu vào (lách xuyên cột mảnh) thì tăng
         function colFootHits(x, z, ang, a, b, lo, hi, mask) {
@@ -157,8 +164,35 @@
           }
           return n;
         }
+        // thân TRÒN (M.round — người): mẫu cố định theo trục thế giới, KHÔNG xoay theo hướng đi ⇒ độ lấn chỉ phụ thuộc vị trí. Lưới của colFootHits xoay
+        // theo hướng bước: cùng 1 chỗ đứng, đổi hướng là đổi mẫu (đường chéo lưới chỉ với tới 0,7 bán kính) ⇒ luật "không lấn sâu hơn" so 2 phép đo cùng
+        // hướng, mỗi lần rẽ quanh vật lại cho lấn thêm 1 nấc (đo: 0 → 0,3 dấu chân khi vòng qua lò sưởi). Mẫu: tâm 1 · 8 điểm nửa bán kính 0,775 · 16 điểm mép 0,1
+        const COL_DISC = [0, 0, 1];
+        for (let k = 0; k < 8; k++) COL_DISC.push(0.5 * Math.cos(k * Math.PI / 4), 0.5 * Math.sin(k * Math.PI / 4), 0.775);
+        for (let k = 0; k < 16; k++) COL_DISC.push(Math.cos((k + 0.5) * Math.PI / 8), Math.sin((k + 0.5) * Math.PI / 8), 0.1);
+        function colDiscHits(x, z, r, lo, hi, mask) {
+          if (!COL.ready) return 0;
+          const g = cowY(x, z); let n = 0;
+          for (let k = 0; k < COL_DISC.length; k += 3) if (colHit(mask, x + COL_DISC[k] * r, z + COL_DISC[k + 1] * r, g + lo, g + hi)) n += COL_DISC[k + 2];
+          return n;
+        }
         // dấu chân của con M tại (x, z) hướng ang — tâm thân lệch ox theo hướng mũi (chó: ngực + cổ thò trước gốc 11 cm); da / db / lo: nới cho phép thử riêng
+        //  M.caps (chó): CHUỖI HÌNH TRÒN dọc trục mũi [lệch gốc, bán kính, …] phủ từ mông tới mũi — hộp thân to nhất (colDims) bỏ sót đầu + cổ (thò trước
+        //  dấu chân 0,2 m) và hông / chân sau (0,1–0,18 m) ⇒ cột mảnh, mặt trước lò lọt dưới đầu không ai thử. Mỗi hình tròn lấy mẫu như colDiscHits (không xoay
+        //  theo hướng ⇒ độ lấn đổi mượt khi quay); da kéo 2 hình tròn đầu mút ra xa, db nới bán kính
+        //  M.noGo: [{ x, z, r }] VÙNG CẤM TRÒN không có trong lớp voxel (chó: lòng bếp lửa — than, đá kê thấp hơn tầm thân, 3 chân giá treo nồi cách nhau
+        //  0,9 m nên chó lọt vào giữa). Tâm mỗi hình tròn của thân lọt vào vùng ⇒ cộng 20 × độ sâu (m): đổi mượt ⇒ bước / quay làm lấn sâu hơn bị từ chối,
+        //  bước ra thì được (colStepOK), men theo mép vùng như men vật thật
         function colFH(M, x, z, ang, mk = M.mask(), da = 0, db = 0, lo = M.lo) {
+          if (M.round) return colDiscHits(x, z, M.a + da, lo, M.hi, mk);
+          if (M.caps) {
+            const K = M.caps, e = K.length - 2, ca = Math.cos(ang), sa = Math.sin(ang), Z = M.noGo; let n = 0;
+            for (let k = 0; k <= e; k += 2) {
+              const o = K[k] + (k === 0 ? -da : k === e ? da : 0), px = x + ca * o, pz = z + sa * o; n += colDiscHits(px, pz, K[k + 1] + db, lo, M.hi, mk);
+              if (Z) for (const q of Z) { const d = q.r - Math.hypot(px - q.x, pz - q.z); if (d > 0) n += d * 20; }
+            }
+            return n;
+          }
           const o = M.ox || 0;
           return colFootHits(x + Math.cos(ang) * o, z + Math.sin(ang) * o, ang, M.a + da, M.b + db, lo, M.hi, mk);
         }
@@ -217,7 +251,8 @@
         // xoay tại chỗ: thân dài (bò, hươu) quét vào thân cây / cột / con bên cạnh ⇒ chỉ xoay nếu không lấn sâu hơn — cho CHẠM NHẸ (≤ 4% dấu chân,
         // ≤ 5 cm với con khác): bò gặm cỏ trên mặt đập cách lan can 0,95 m vẫn quay người được (mõm quệt lan can), không thành "kẹt"
         function colFootW(M) {   // tổng trọng số mẫu của dấu chân (độ lấn khi cả dấu chân nằm trong vật)
-          if (M.W === undefined) { const na = Math.max(1, Math.round(M.a / COL.C)), nb = Math.max(1, Math.round(M.b / COL.C)); M.W = 0; for (let i = -na; i <= na; i++) for (let j = -nb; j <= nb; j++) { const u = i / na, v = j / nb; if ((M.a > 1.5 * M.b ? u ** 4 + v ** 4 : u * u + v * v) <= 1) M.W += 1 - 0.9 * Math.min(1, u * u + v * v); } }
+          if (M.W === undefined && (M.round || M.caps)) { M.W = 0; for (let k = 2; k < COL_DISC.length; k += 3) M.W += COL_DISC[k]; if (M.caps) M.W *= M.caps.length >> 1; }
+          if (M.W === undefined) { const na =Math.max(1, Math.round(M.a / COL.C)), nb = Math.max(1, Math.round(M.b / COL.C)); M.W = 0; for (let i = -na; i <= na; i++) for (let j = -nb; j <= nb; j++) { const u = i / na, v = j / nb; if ((M.a > 1.5 * M.b ? u ** 4 + v ** 4 : u * u + v * v) <= 1) M.W += 1 - 0.9 * Math.min(1, u * u + v * v); } }
           return M.W;
         }
         function colTurnOK(M, x, z, a0, a1) {

@@ -3,9 +3,9 @@
 <!-- toc -->
 - Mã · 0.7 KB
 - Đơn vị và mặt · 1.7 KB
-- Sổ tick và dịch vụ · 0.8 KB
+- Sổ tick và dịch vụ · 1.0 KB
 - worldPlace · 0.8 KB
-- Bẫy · 2.3 KB
+- Bẫy · 2.5 KB
 <!-- /toc -->
 
 ## Mã
@@ -33,6 +33,7 @@
 ## Sổ tick và dịch vụ
 
 - `worldTick(lượt, thứ tự, fn)` cạnh `xxxTick(dt, t)`; vòng lặp gọi `worldRun(lượt, dt, t, x)`, không sửa khi thêm
+- `worldRun`: fn ném lỗi ⇒ các fn sau + lượt vẽ vẫn chạy; lỗi ném lại 1 lần / fn qua `queueMicrotask` (console, `pageerror` vẫn thấy), đếm ở `.bad`
 - Lượt theo khung: `beasts` `lamps` `things` `awake` (lượt kỹ sư, khi thức) `late` `insects` (x = trời cho côn trùng ra) `glow` `wild` `pointer` `tools` `ground` `viewer` `sound` `afterRender`
 - Ai ở lượt nào (mảng: `worldPlace`): `grep -rnE "worldTick\('wild'|\['wild'," src/app`
 - `worldJoin(dịch vụ, thứ tự, fn)`; dịch vụ dựng xong gọi `worldServe(dịch vụ, api)`; xin muộn ⇒ chạy ngay
@@ -58,6 +59,7 @@
 - Manifest: `core/helpers.js` sau `core/sky-sun-moon.js` (`S`, `BLOCK`, `wx`, `surfaceY`…); `core/ground.js` sau `world/solar-buildings-road.js` (sớm hơn ⇒ TDZ `damDeckY`, đường chưa dựng); `core/flow-field.js` sau tệp cuối đăng ký vật cản (`camp/chicken-coop.js`)
 - Tệp mới đặt đúng chỗ dựng cũ (giữ thứ tự tạo vật)
 - Tiện ích dùng chung → `core/helpers.js`, không để trong tệp tính năng
+- Hệ số mỗi khung (`x += (đích − x) * 0.08`, `v *= 0.9`) chạy theo fps ⇒ viết theo dt: `1 − Math.exp(−k·dt)` (`core/view.js` k = 5; nghiêng drone `Math.exp(−6,32·dt)`)
 - `function` kéo lên đầu `build()`; `const` / `let` TDZ ⇒ tệp trước chỉ đọc trong tick
 - Tách khối khỏi `loop()`: biến cục bộ (`dt`, `t`, `insectsAwake`) thành tham số cùng tên; `return` trong `loop()` thoát cả khung, trong hàm mới thì không — soát cả `continue`
 - `NAV_MARKS` / `PROPS` nav thêm sau lưới kỹ sư ⇒ `worldTell('navMarks')` (`engNavBuild` dựng lại)

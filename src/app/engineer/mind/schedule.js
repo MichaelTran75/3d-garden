@@ -123,7 +123,7 @@
             else if (act === 'bedtime') { e.seat = engNewSeat(BED_SEAT, 'seated'); at('bed', 'bed', 'seated'); V.k = 3; engHelmet(e, 'bed'); }
             else if (act === 'toilet') { e.seat = engNewSeat(TOILET_SEAT, 'seated'); VBATH.lidNow(1); at('wcIn', 'wc', 'seated'); V.until = clock.elapsedTime + Math.max(30, Math.min(240, e.actLeft - 75)); }
             else if (act === 'shower') {
-              engHelmet(e, 'shelf'); at('wcIn', 'shower', 'wash'); V.idx = 1; V.until = clock.elapsedTime + Math.max(60, Math.min(600, e.actLeft - 130)); VBATH.shower(true); VBATH.steamNow(0.6);
+              engHelmet(e, 'shelf'); e.dress(false); at('wcIn', 'shower', 'wash'); V.idx = 1; V.until = clock.elapsedTime + Math.max(60, Math.min(600, e.actLeft - 130)); VBATH.shower(true); VBATH.steamNow(0.6);
               e.g.position.set(SHOWER_SPOT.x, VAN_FLOOR - ENG_FEET, SHOWER_SPOT.z); e.g.rotation.set(0, VY.nz, 0);
             }
           } else if (act === 'dinner' || act === 'rest' || act === 'read' || act === 'shelter') {

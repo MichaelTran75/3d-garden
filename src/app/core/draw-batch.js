@@ -19,10 +19,10 @@
           let k = '';
           for (const p of BATCH_MAT_PROPS) k += m[p] + '|';
           for (const p of BATCH_MAT_MAPS) k += (m[p] ? m[p].uuid : '') + '|';
-          return k + (m.specular ? m.specular.getHex() : '');
+          return k + (m.specular ? m.specular.getHex() : '') + '|' + (m.userData.vk || '');   // vk: kiểu vân lòng xe (core/room-light.js)
         }
         function batchableMat(m, isLine, clear) {   // clear: lô mảnh trong suốt (batchClear) — chỉ nhận mặt trong suốt, ngược với lô thường
-          if (!m || !m.visible || !m.color || m.onBeforeCompile !== _defBeforeCompile || (!isLine && m.transparent !== !!clear)) return false;
+          if (!m || !m.visible || !m.color || (m.onBeforeCompile !== _defBeforeCompile && !roomLitPure(m)) || (!isLine && m.transparent !== !!clear)) return false;
           if (isLine ? !m.isLineBasicMaterial || m.isLineDashedMaterial : !(m.isMeshLambertMaterial || m.isMeshPhongMaterial || m.isMeshStandardMaterial || m.isMeshBasicMaterial || m.isMeshToonMaterial)) return false;
           if (!isLine && m.wireframe) return false;
           return !(m.emissive && m.emissive.r + m.emissive.g + m.emissive.b > 0);   // vật phát sáng (đèn, than hồng) thường đổi cường độ lúc chạy
@@ -113,6 +113,7 @@
         function buildBatchMesh(recs, isLine, withUv, sampleMat, sample, name, skeleton) {
           const geo = buildBatchGeometry(recs, isLine, withUv, skeleton), sphere = geo.boundingSphere;
           const mat = sampleMat.clone(); mat.color.setRGB(1, 1, 1); mat.vertexColors = true; mat.name = 'gộp: ' + (sampleMat.name || sampleMat.type);
+          if (!isLine) roomLitMat(mat, sampleMat.userData.vk);   // ánh sáng + vân trong phòng kín (core/room-light.js); ngoài phòng không đổi gì
           let mesh;
           if (isLine) mesh = new SkinnedLines(geo, mat, skeleton);
           else {
@@ -301,6 +302,7 @@
           // đơn vị tự xin lô (worldJoin('drawBatch', thứ tự, B => …) ở tệp của nó — thứ tự = thứ tự dựng lô cũ): B.draws(tên, gốc) · B.clear(tên, gốc) ·
           //  B.skip(gốc) (tự vẽ, không gộp) · B.with(tên, gốc) (gửi thêm gốc vào lô của bên khác, xin trước khi lô dựng)
           const batchWith = new Map();
+          roomLitReady();   // vật tự vẽ nhận ánh sáng phòng kín TRƯỚC khi lô chụp version vật liệu (core/room-light.js)
           worldServe('drawBatch', { draws: (name, roots) => batchDraws(name, [...roots, ...(batchWith.get(name) || [])]), clear: batchClear, skip: o => { o.userData.noBatch = true; },
             with: (name, roots) => batchWith.set(name, [...(batchWith.get(name) || []), ...roots]) });
           batchDraws('Cảnh tĩnh', scene.children.filter(o => !o.userData.batchRoot && !o.userData.noBatch && !o.isSkinnedMesh));

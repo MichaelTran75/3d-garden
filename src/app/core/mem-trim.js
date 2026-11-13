@@ -1,4 +1,4 @@
-        // ===== BỚT RAM sau khi cảnh đã lên GPU. Gọi 1 lần khi lớp va chạm dựng xong (COL.ready — loop/main-loop.js), xe van giữ nguyên.
+        // ===== BỚT RAM sau khi cảnh đã lên GPU. Gọi 1 lần khi lớp va chạm dựng xong (COL.ready) VÀ bóng tiếp đất đã cắt lát xong (groundContact.idle) — loop/main-loop.js; xe van giữ nguyên.
         //  · LƯỚI VỎ CÂY (thuộc tính aBk: cây cổ thụ, rễ, cây con, táo, anh đào, khúc gỗ…): vẽ thẳng, tĩnh (gió lắc trong shader) ⇒ đánh dấu tải lại 1 lần, three gọi
         //    onUpload ngay sau khi lên GPU ⇒ bỏ mảng (freeAfterUpload — core/draw-batch.js); vật chưa từng vào khung nhìn thì bỏ khi lần đầu lên GPU. Bỏ qua bản
         //    gốc của lô gộp (lớp ẩn), vật đổi bản nhiều cạnh khi cận cảnh (userData.lodHi). Công cụ Chọn: bắt tia theo HỘP TỪNG ĐOẠN cành (bakedFlightBounds,

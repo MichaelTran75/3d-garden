@@ -75,7 +75,7 @@
             x.fillStyle = '#1f2a33'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(badgeTxt, 256, 50);
           };
           const windBadge = htmlSprite(new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthWrite: false, depthTest: false })), { paint: badgePaint, w: 512, h: 96 });
-          windBadge.name = 'Nhãn hướng gió'; windBadge.renderOrder = 20; windBadge.scale.set(2.3, 0.43, 1); windBadge.position.set(postX + 0.1, 11.82, 0); g.add(windBadge);
+          windBadge.name = 'Nhãn hướng gió'; windBadge.renderOrder = 20; windBadge.layers.set(LAYER_SHARP); windBadge.userData.always = true; windBadge.scale.set(2.3, 0.43, 1); windBadge.position.set(postX + 0.1, 11.82, 0); g.add(windBadge);   // luôn hiện: lớp nét (không nhoè ống kính), không bị hình động cơ giấu (always)
           let badgeKey = null;
           const setWindBadge = (deg, speed) => {
             const ok = Number.isFinite(deg), key = ok ? Math.round(deg) + '|' + Math.round(speed || 0) : '—';
@@ -177,13 +177,15 @@
         function weatherMastTick(dt, t) {
           if (wmast) {
             const w = liveWeather.state;
-            // phong kế: tốc độ quay ∝ gió TẠI CHỖ (gồm cơn giật) — cánh quạt ~1,6·V, chén gió ~1·V rad/s (thu chậm cho mắt theo kịp);
-            // quán tính theo "hằng số quãng đường" ~2,5 m: gió càng mạnh rô-to càng bắt nhịp nhanh
-            for (const [obj, k, cap] of [[wmast.prop, 1.6, 18], [wmini.anem, 1.0, 12]]) {
+            // phong kế: tốc độ quay TỈ LỆ THUẬN với sức gió V (m/s) = gió trạm × (0,6 + 0,4 × cơn giật tại chỗ) ⇒ khớp số trên nhãn, lặng gió thì đứng.
+            // Chén gió: vận tốc tâm chén ≈ V / 3 (hệ số phong kế chén) ⇒ ω = V / (3 × 0,19) = 1,75·V rad/s; cánh quạt 3,5·V.
+            // Trần theo khung hình: mỗi khung quay ≤ 0,42 × góc đối xứng (3 chén 120°, 4 cánh 90°), không thì mắt thấy quay ngược.
+            // Quán tính theo "hằng số quãng đường" ~2,5 m: gió càng mạnh rô-to càng bắt nhịp nhanh
+            for (const [obj, k, sym] of [[wmast.prop, 3.5, Math.PI / 2], [wmini.anem, 1.75, Math.PI * 2 / 3]]) {
               const u = obj.userData; if (!u.hub) { u.hub = obj.getWorldPosition(new THREE.Vector3()); u.hubZ = Math.max(1, u.hub.y - cowY(u.hub.x, u.hub.z)); u.w = 0; }
               windAt(u.hub.x, u.hub.y, u.hub.z, u.hubZ, _rotW);
-              const V = sceneWind.ms * Math.hypot(_rotW.x, _rotW.z) / sceneWind.U;
-              u.w += (Math.min(cap, k * V) - u.w) * (1 - Math.exp(-dt * Math.max(0.5, V) / 2.5));
+              const V = sceneWind.ms * (0.6 + 0.4 * Math.hypot(_rotW.x, _rotW.z) / sceneWind.U), cap = 0.42 * sym / Math.max(dt, 1e-3);
+              u.w += (Math.min(cap, k * Math.max(0, V - 0.3)) - u.w) * (1 - Math.exp(-dt * Math.max(0.5, V) / 2.5));
             }
             wmast.prop.rotation.x += wmast.prop.userData.w * dt;
             wmini.anem.rotation.y += wmini.anem.userData.w * dt;

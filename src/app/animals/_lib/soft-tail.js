@@ -35,6 +35,7 @@
               _stA.copy(T.P[i]).sub(T.P[i - 1]); const L = _stA.length() || 1e-6, c = (L - segW) / L;
               if (i === 1) T.P[i].addScaledVector(_stA, -c); else { T.P[i].addScaledVector(_stA, -c * 0.5); T.P[i - 1].addScaledVector(_stA, c * 0.5); }
             }
+            if (T.push) for (let i = 1; i <= o.n; i++) T.push(T.P[i]);   // móc tuỳ chọn: người gọi đẩy hạt ra khỏi vật (thế giới)
           });
           for (let i = 0; i < o.n; i++) {   // vẽ: hạt nội suy bước trước (Q) → bước mới (P); mỗi đoạn là hộp nối 2 hạt (về hệ cục bộ của thân)
             const m = T.segs[i]; T.host.worldToLocal(i ? _stA.copy(T.Q[i]).lerp(T.P[i], al) : _stA.copy(T.P[0])); T.host.worldToLocal(_stB.copy(T.Q[i + 1]).lerp(T.P[i + 1], al));

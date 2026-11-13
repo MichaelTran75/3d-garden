@@ -66,12 +66,12 @@
         })();
         function wxFxTick(e, dt, t, out) {
           const F = wxFx, vis = out && e.g.visible !== false, S = e.g.scale.y;
-          // mồ hôi: nóng + (đứng nắng / vận động) ⇒ giọt từ thái dương rơi theo trọng lực
+          // mồ hôi: nóng + (đứng nắng / vận động) ⇒ giọt bám thái dương trượt chậm 0,35 s rồi rơi tự do (GRAV) tới đất
           if (vis && WX.hotK > 0.35 && (WX.sun > 60 || WX.act > 1) && (F.dT -= dt) <= 0) {
             F.dT = 0.5 + Math.random() * 0.7 / WX.hotK; const d = F.drops.find(q => q.t >= 0.9);
             if (d) { e.head.updateWorldMatrix(true, false); e.head.localToWorld(d.s.position.set((Math.random() < 0.5 ? -1 : 1) * 0.2, 0.05 + Math.random() * 0.08, 0.1)); d.v.set(0, -0.15, 0); d.t = 0; d.s.visible = true; }
           }
-          for (const d of F.drops) if (d.s.visible) { d.t += dt; d.v.y -= 2.4 * dt; d.s.position.addScaledVector(d.v, dt); d.s.material.opacity = 1 - d.t / 0.9; d.s.scale.set(0.07 * S, 0.1 * S, 1); if (d.t >= 0.9 || !vis) { d.s.visible = false; d.t = 0.9; } }
+          for (const d of F.drops) if (d.s.visible) { d.t += dt; if (d.t > 0.35) fallStep(d.s.position, d.v, dt); else d.s.position.y += d.v.y * dt; d.s.material.opacity = 1 - d.t / 0.9; d.s.scale.set(0.07 * S, 0.1 * S, 1); if (d.t >= 0.9 || !vis || d.s.position.y <= e.g.position.y) { d.s.visible = false; d.t = 0.9; } }
           // hơi thở hoá khói: ≤ 10 °C (rõ dần tới 4 °C), mỗi ~3,6 s thở ra 1 làn từ miệng — bay tới trước, theo gió, nở ra rồi tan
           const bk = vis ? 1 - rxSS(WX.ta, 4, 10) : 0;
           if (bk > 0.05 && (F.pT -= dt) <= 0) {

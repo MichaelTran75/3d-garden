@@ -34,7 +34,10 @@
         const WORLD_TICKS = new Map(), WORLD_JOINS = new Map(), WORLD_SERVED = new Map();
         function worldHook(M, key, at, fn) { const L = M.get(key) || []; L.push({ at, fn }); L.sort((a, b) => a.at - b.at); M.set(key, L); }
         function worldTick(slot, at, fn) { worldHook(WORLD_TICKS, slot, at, fn); }
-        function worldRun(slot, dt, t, x) { const L = WORLD_TICKS.get(slot); if (L) for (let i = 0; i < L.length; i++) L[i].fn(dt, t, x); }
+        function worldRun(slot, dt, t, x) {   // 1 phần hỏng không làm đứng cả khung (các phần sau + lượt vẽ vẫn chạy): lỗi báo 1 lần / phần, ném lại ngoài vòng lặp để console và đầu dò vẫn thấy
+          const L = WORLD_TICKS.get(slot); if (!L) return;
+          for (let i = 0; i < L.length; i++) { const k = L[i]; try { k.fn(dt, t, x); } catch (err) { if (!k.bad) queueMicrotask(() => { throw err; }); k.bad = (k.bad || 0) + 1; } }
+        }
         function worldJoin(service, at, fn) { if (WORLD_SERVED.has(service)) fn(WORLD_SERVED.get(service)); else worldHook(WORLD_JOINS, service, at, fn); }
         function worldServe(service, api) { WORLD_SERVED.set(service, api); for (const s of WORLD_JOINS.get(service) || []) s.fn(api); }
         //   · worldPlace('chiminea', { face, tick, join, hover, job }) — MỘT CHỖ KHAI BÁO cho mỗi vật: vật tự nói trong tệp của nó mình có mặt gì (face → worldFace), chạy mỗi khung ở lượt nào (tick: [[lượt, thứ tự, fn]] → worldTick),

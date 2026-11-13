@@ -1,16 +1,16 @@
 # Bò, gà, chó
 
 <!-- toc -->
-- Mã · 0.6 KB
+- Mã · 0.9 KB
 - Chạy thế nào · 0.4 KB
 - Chuồng, chó lùa bò · 0.8 KB
-- Bẫy · 2.6 KB
+- Bẫy · 4.5 KB
 <!-- /toc -->
 
 ## Mã
 - `animals/cows/herd-hut.js`: bò + bê `cows`, chuồng `cowHut`; lượt `beasts`: `cowWatch` → `cowHome` / `cowFreeTick` (bê `calfFree`) → `cowPose`. `cows/routing.js`: `hutField`, `homeField`.
 - `animals/chickens/chickens.js`: 3 gà GLB (`src/models/chicken.glb`, dựng bằng `src/tools/chicken/`), `steer`, `wingTick`, `roostTime`. Chuồng `camp/chicken-coop.js`.
-- `animals/dog/brain.js`: `behave`, `shelterTick` (hiên `DOG_PORCH` → bậc → xe), `watchTick`, `zoomCenter`; `dog/shelter.js`: `dogLie`, `dogRain`.
+- `animals/dog/brain.js`: `behave`, `shelterTick` (hiên `DOG_PORCH` → bậc → xe), `watchTick`, `zoomCenter`, đi `steer` / `move` / `yawStep` / `unstick` / `backUp` (`backOK`), xoay tại chỗ `dogTurn` (trần `TURN_W` 3,5 rad/s, cũng là trần quay lúc nhích v < 0,4: nhanh hơn ⇒ chân trụ lê), bảng đường `dogNavBuild` / `dogField`; `dog/body.js`: dấu chân `caps` + `noGo`; `dog/shelter.js`: `dogLie`, `dogRain`.
 - Va chạm thú `core/collide.js`, dẫn đường `core/flow-field.js`.
 
 ## Chạy thế nào
@@ -30,6 +30,8 @@
 - Bò ra máng từ xa theo `hutField` (đi thẳng ⇒ con bên kia sông kẹt).
 - `hutField` dồn về giữa cửa ⇒ ≤ 3 m tới cửa đi thẳng tới chỗ chờ ô mình (leg `'wait'`, vào theo số = ô + 1).
 - Zoom máng: gọi con gần máng nhất trong số sắp tới cữ, không phải con khát nhất.
+- Cao độ + góc chúc thân bò theo chân thấp của từng cặp (`rig.pairY`), không trung bình 4 chân: bậc đất ⇒ chân treo (`walking.md`).
+- `cowRig` có `split: 0,75 × cỡ`: 2 chân cùng đầu thân không đứng 2 mức bậc (bê thấp hơn bậc ⇒ chân gập vào ngực); cả cặp qua bậc 1 nhịp (`walking.md`).
 - Đừng gật đầu bò quanh gáy (mõm lơ lửng). `c.bite` cộng thẳng, không qua lò xo.
 - Máng nước = đáy + 4 thành (khối đặc che mặt nước).
 - Mái chìa chuồng bò `EXT`: xà đầu vươn tới kèo mép, chống góc từ cột góc, không lơ lửng / đâm ra ngoài mái.
@@ -43,6 +45,10 @@
 - Xoay xương chân (cào, co, nhún) cộng sau `mixer.update`.
 - Gà lên > 0,95 m / xuống > 2,2 m / chỗ đáp không đứng được = vật cản.
 - `zoomCenter`: dò cả trong vòng, cách gốc táo ≥ `ZR` + 1,8 (chỉ dò dải chạy ⇒ chó chạy quanh gốc cây); giờ chạy chỉ trừ khi đã trên vòng.
-- Chó xoay tại chỗ = kẹt khe (bảng ô 0,6 m lọt khe 12 cm): dùng `dogBlk` từ va chạm thật (`dogNavBuild`); `ffDir` ở ô cấm chọn ô kề trước; quay > 5,5 rad / 3 s tại chỗ ⇒ xuyên 1,5 s.
+- Chó xoay tại chỗ = kẹt khe (bảng ô 0,6 m lọt khe 12 cm): dùng `dogBlk` từ va chạm thật (`dogNavBuild`) + cạnh cấm tường mỏng `dogNX` (`navEdges`, `walking.md`); `ffDir` ở ô cấm chọn ô kề trước; quay > 5,5 rad / 3 s tại chỗ ⇒ xuyên 1,5 s. Lưới này không đếm góc `dogTurn` tự xoay, vòng `zoom`, `perch`, trong xe; mẫu vị trí phải ≥ 1,5 s tuổi (đếm cả ⇒ xuyên oan lúc chạy ngoặt theo chủ / ngồi xoay cung dài).
+- Chó đứng ì cạnh bếp (không quay, không tiến): quay có kiểm + hốc giữa chân giá treo; lưới an toàn quay không thấy ⇒ `unstick` lùi rồi vòng (chi tiết `walking.md`). Đích đánh hơi lùi 2 lần chưa tới ⇒ đổi đích.
+- Dấu chân chó = 4 đĩa dọc thân (`caps`), không hộp: hộp xoay quét góc vào vật; đổi cỡ thân ⇒ đo lại `caps` + quét lại `dogLie`, chỗ uống, chỗ nằm cạnh ghế.
 - Bậc cửa xe: chó nhảy `stairHop` (đi bộ ⇒ ngực xuyên sàn), chờ ở `dogStairA`, không ở `VAN.doorStep` (xuyên 2 bậc). Trú mưa tắt va chạm chó (`!dogRain.st`) ⇒ lộ trình tự đúng hình học.
+- Hiên `DOG_PORCH`: `steer` dừng cách đích ≤ 0,1 m, giữ hướng lúc đi tới ⇒ đứng, nhích về đúng chỗ (có kiểm `poseCost`), `dogTurn` ra bếp, rồi mới nằm (`dogRain.lain`; quá 6 s ⇒ nằm luôn). Nằm ngay ⇒ chân trước đè bát nước: bát thấp hơn dải `lo`, dấu chân không thấy ⇒ chỗ nằm tự chừa bát (chân cách tâm bát ≥ 0,24). Tới theo hướng chĩa vào bậc cửa ⇒ quay vòng dài (~2,6 s). Dời `DOG_PORCH` / bát ⇒ đo lại mọi hướng tới
 - Thử chó zoom cận: giữ hướng máy ảnh cố định (bám hướng chó ⇒ chó quay mãi).
+- Mở trang lúc đêm: hướng chó đặt ngay theo chỗ nằm → cửa (`dog/shelter.js`); để mặc định ⇒ chó quay dần ~1,2 rad trong các khung đầu.
